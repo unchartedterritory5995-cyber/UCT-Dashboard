@@ -24,6 +24,7 @@
 // production needs -- the band map -- is `computePaneLayout(...).bands`, and the
 // first describe below proves the two agree on all 1,024 configurations.
 
+import { TIER1_IDS } from './__tests__/tier1Library.fixture'
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -603,7 +604,10 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
     // its own. A height here would reserve vertical space for something that
     // never has a pane.
     expect(overlays).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
-      'atrBands', 'movingAverage'])
+      'atrBands', 'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
     for (const id of overlays) {
       expect(getDefinition(id).placement.pane, `${id} declares a pane`).toBeUndefined()
     }
@@ -629,7 +633,10 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
   // a pane definition that never shipped a legacy band, because it was never a
   // pane at all — it was two lines of arithmetic printed into the volume pane's
   // LABEL. There is no legacy geometry for it to match.
-  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume']
+  // ⭐ 2026-10-01 — the Technical library's thirty own-pane Tier 1 studies: new
+  // panes, never a shipped band, and each declares its height like every pane.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume',
+    ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')

@@ -81,7 +81,13 @@ describe('⭐⭐ Pine\'s boolean lookahead spelling', () => {
       .toBeUndefined()
     // ⛔ AND IT IS THE IDENTITY — the bars already in hand, not a resample.
     expect(got.ast).toEqual(astOf(req('"D"', 'barmerge.lookahead_on')).ast)
-    expect(got.formula).toBe('close')
+    // ⭐ C49 (2026-10-01) — RE-PINNED, WITH THE REASON. This read `'close'`. The
+    // fold is still the identity ON A DAILY CHART; since C49 it carries the gate of
+    // the base it was translated for (`interpret.js::requestBaseNode`), because the
+    // member door binds the same tree on every chart and on a 5-minute chart the
+    // bare child drew the 5-minute series as the daily one (capture
+    // `request-realtime-alignment-spy-5-2026-10-01`: wrong on 299 of 300 bars).
+    expect(got.formula).toBe('86400 != periodseconds ? 0 / 0 : close')
   })
 
   it('⭐ `true` means whatever `barmerge.lookahead_on` means, at a REAL higher timeframe', () => {

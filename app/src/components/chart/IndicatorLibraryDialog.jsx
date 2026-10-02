@@ -62,6 +62,7 @@
 // consumers. It is rendered here, VERBATIM, because this is the surface whose
 // job is to offer a member their own formulas and therefore the surface that
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
+import { orderCategories } from './technicalCategories'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
@@ -362,7 +363,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // `userDefined`, so a new native category continues to bring its own heading and
   // there is no second list to keep in step.
   const groups = useMemo(() => {
-    const order = [...new Set(rows.map((r) => r.category))]
+    // ⭐ 2026-10-01 — THE TECHNICAL HEADINGS IN THEIR FIXED ORDER
+    // (`technicalCategories.js`), never in whatever order the catalogue happened
+    // to list its rows; any other heading keeps its first-appearance place after.
+    const order = orderCategories([...new Set(rows.map((r) => r.category))])
     const mine = new Set(rows.filter((r) => r.userDefined).map((r) => r.category))
     const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
     // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (§9) — the same hoist the settings tab

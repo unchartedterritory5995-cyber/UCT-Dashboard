@@ -165,6 +165,32 @@ function coerce(declared, value) {
  *  projection `migrateLegacyToInstances` performs, so an instance created here
  *  and one created by the migrator are byte-identical for any blob the shipped
  *  renderer accepts — pinned by a `JSON.stringify` equality in the test file. */
+/**
+ * ⭐ THE INPUTS A **NEW** INSTANCE IS BORN WITH, WHEN THEY DIFFER FROM WHAT AN
+ * ABSENT KEY MEANS (2026-10-01).
+ *
+ * A declared `default` answers two questions at once — "what does a stored
+ * instance WITHOUT this key mean?" and "what should a brand-new instance get?" —
+ * and they diverge the day a definition gains an input. Stochastic gained
+ * `smoothK`: every saved Stochastic was FAST (%K unsmoothed), so an absent key
+ * must keep meaning 1, while a member adding Stochastic today expects the
+ * mainstream SLOW 14/3/3. The declared default keeps the first answer (and is
+ * what every inspector displays for an absent key, so it never lies);
+ * `meta.createInputs` is the second, written explicitly onto the new instance.
+ */
+function createInputsOf(def) {
+  const ci = def && def.meta && def.meta.createInputs
+  if (!ci || typeof ci !== 'object') return {}
+  const out = {}
+  for (const [key, declared] of declaredInputs(def)) {
+    if (ci[key] === undefined) continue
+    const errors = []
+    validateInputValue(declared, ci[key], `inputs.${key}`, errors)
+    if (!errors.length) out[key] = ci[key]
+  }
+  return out
+}
+
 function inputsFromLegacy(def, section) {
   const out = {}
   for (const [key, declared] of declaredInputs(def)) {
@@ -247,7 +273,7 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
         instanceId: id,
         defId,
         ...(Number.isInteger(def.version) ? { defVersion: def.version } : {}),
-        inputs: inputsFromLegacy(def, cs.indicators && cs.indicators[defId]),
+        inputs: { ...createInputsOf(def), ...inputsFromLegacy(def, cs.indicators && cs.indicators[defId]) },
         ...(placementFor(def, defId, cs) ? { placement: placementFor(def, defId, cs) } : {}),
         hidden: false,
       }
@@ -425,6 +451,7 @@ export function addInstance(cs, defId, registry) {
   for (const [key, declared] of declaredInputs(def)) {
     if (declared.default !== undefined) inputs[key] = declared.default
   }
+  Object.assign(inputs, createInputsOf(def))
   const added = {
     instanceId: newInstanceId(defId, list),
     defId,

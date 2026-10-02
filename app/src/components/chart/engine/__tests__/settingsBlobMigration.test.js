@@ -16,6 +16,7 @@
 // opacity / line style, in the shipped stack order, and NO key the user deleted
 // comes back. The user does nothing — no reset, no re-tick, no re-login.
 
+import { TIER1_IDS } from './tier1Library.fixture'
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -212,7 +213,9 @@ describe('a blob written before the engine existed', () => {
     // ⭐ `dollarVolume` JOINS IT (2026-09-16): a pane definition that never shipped
     // a legacy pane because it was never a pane — the value was printed into the
     // volume pane's LABEL. No block, no toggle, no stored blob that named it.
-    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume']
+    // ⭐ 2026-10-01 — and the Technical library's thirty own-pane Tier 1 studies.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume',
+      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
       expect(paneIds, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`)
@@ -247,7 +250,10 @@ describe('a blob written before the engine existed', () => {
         // ⭐ `dollarVolume` LANDS AFTER `dataSeries` AND BEFORE `rsLine` — registry
         // order again, and the evidence for it: it is a NATIVE registered last, so
         // it is appended after the natives and still precedes the server lane.
-        'dataSeries', 'dollarVolume', 'rsLine'])
+        'dataSeries', 'dollarVolume',
+        // ⭐ 2026-10-01 — the Technical library's Tier 1, natives registered after
+        // `dollarVolume`, so appended in registration order before the server lane.
+        ...TIER1_IDS, 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -476,7 +482,9 @@ describe('a blob written before the engine existed', () => {
       // ⭐ `dollarVolume` IS APPENDED HERE TOO, for the same reason as the four
       // before it: it postdates the shipped stack order, so it goes on the END
       // rather than into a z-order members already have on screen.
-      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', 'rsLine'])
+      // ⭐ 2026-10-01 — the Technical library's Tier 1 is appended the same way, in
+      // registration order, ahead of the server lane's `rsLine`.
+      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

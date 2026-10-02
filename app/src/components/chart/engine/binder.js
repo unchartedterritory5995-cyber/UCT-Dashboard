@@ -92,6 +92,7 @@ import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
+import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
@@ -715,6 +716,8 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
           secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
           exchangeOf: ctx.exchangeOf,
+          // ⭐ C41 — the same intraday supply the plot beside it is handed.
+          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
           // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
           // document's own declaration is asked inside `objectReaderFor`.
           ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
@@ -1271,7 +1274,13 @@ export function createBinder({ chart, LWC }) {
       // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
       // (or changes) must recompute, exactly as a symbol SOURCE does above.
       const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      // ⭐ C41 — and this symbol's intraday windows, for a document that reads
+      // below the chart: a window that lands (or changes) must recompute. '' for
+      // every document that reads none (one property read).
+      const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
+      const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+        + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
@@ -1322,7 +1331,11 @@ export function createBinder({ chart, LWC }) {
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
             // frame's timeframe, the secondary's are the chart's).
-            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame }))
+            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame,
+            // ⭐⭐ C41 — this symbol's intraday bars per store timeframe, for a Pine
+            // document that reads BELOW the chart (`lowerTf.js` decides what is
+            // served; a framed instance is served none).
+            lowerTf }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -1582,13 +1595,15 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
+        // ⭐ A definition's declared fixed range (RSI 0-100), pinned by `pool`.
+        autoscaleRange,
         // The right-axis value tag — the same shape of answer as `autoscale`, and
         // for the same reason: whether a series may write on the axis it sits on
         // is a question about PLACEMENT, and `pool` has never been told where a
@@ -1943,7 +1958,11 @@ export function createBinder({ chart, LWC }) {
       // valid run; the primary keeps the newest run and every time slot, the rest
       // are drawn by run series this binding owns. Everything else is untouched:
       // `gapBreak` false means the exact calls this pass always made.
-      const gapBreak = isConnectedPool(b.poolKey) && hasPitLineage(b.inst, instances)
+      // ⭐ 2026-10-01 — …or a plot that is blank BY DESIGN (`plots[].sparse`,
+      // SuperTrend's two halves): lightweight-charts bridges whitespace on a
+      // connected line, so each valued run is drawn as its own series instead.
+      const gapBreak = isConnectedPool(b.poolKey)
+        && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
       const split = gapBreak ? splitFor(points) : null
       const drawn = split ? split.primary : points
       if (firstBindNeedsSetData(b, planMode)) {
@@ -2023,6 +2042,8 @@ export function createBinder({ chart, LWC }) {
         runData,
         runOptions: runSeries.length ? runSeriesOptions(p.options) : null,
         // The legend's reading of a gap-breaking line at a bar (`readout.chipsFrom`).
+        // ⭐ 2026-10-01 — a `sparse` plot is a gap-breaking line too (above), so a
+        // blank bar answers NaN and its chip is dropped there.
         ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
         // The legend's OBSERVATION PERIOD for an economic passthrough (`Aug 2026`).
         ...(econObs.has(b.instanceId) ? { observationAt: observationAtOf(econObs.get(b.instanceId), bars, adjustTime) } : {}),

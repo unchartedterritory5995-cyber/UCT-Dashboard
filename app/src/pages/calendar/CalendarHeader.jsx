@@ -480,7 +480,7 @@ export default function CalendarHeader({
   ))
 
   const sortSelect = (
-    <select className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
+    <select aria-label="Sort" className={styles.sel} value={filters.sort} onChange={e => set('sort', e.target.value)}>
       {SORTS.map(([k, lbl]) => <option key={k} value={k}>Sort: {lbl}</option>)}
     </select>
   )
@@ -488,19 +488,19 @@ export default function CalendarHeader({
     <>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Min avg vol</label>
-        <input className={styles.filterInput} type="number" min={0} inputMode="numeric"
+        <input aria-label="Minimum average volume" className={styles.filterInput} type="number" min={0} inputMode="numeric"
                placeholder="e.g. 500000" value={filters.minAvgVol ?? ''}
                onChange={e => setNum('minAvgVol', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price min ($)</label>
-        <input className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <input aria-label="Minimum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 5" value={filters.priceMin ?? ''}
                onChange={e => setNum('priceMin', e.target.value)} />
       </div>
       <div className={styles.filterRow}>
         <label className={styles.filterLbl}>Price max ($)</label>
-        <input className={styles.filterInput} type="number" min={0} inputMode="decimal"
+        <input aria-label="Maximum price" className={styles.filterInput} type="number" min={0} inputMode="decimal"
                placeholder="e.g. 500" value={filters.priceMax ?? ''}
                onChange={e => setNum('priceMax', e.target.value)} />
       </div>
@@ -564,7 +564,7 @@ export default function CalendarHeader({
       {view !== 'month' && availableSectors.length > 1 && (
         <div className={styles.sheetSec}>
           <div className={styles.sheetLbl}>Sector</div>
-          <select className={styles.sel} value={filters.sector || ''}
+          <select aria-label="Sector" className={styles.sel} value={filters.sector || ''}
                   onChange={e => set('sector', e.target.value || null)}>
             <option value="">All sectors</option>
             {availableSectors.map(([s, c]) => (

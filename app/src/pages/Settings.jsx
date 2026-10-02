@@ -10,6 +10,7 @@ import DeviceSyncCard from './settings/DeviceSyncCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import { averageSlotView, writeAverageSlot } from '../components/chart/maAdoption'
+import { MA_TYPES } from '../components/chart/movingAverages'
 import useTagColors from '../hooks/useTagColors'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
@@ -629,8 +630,11 @@ function ChartSettingsSection({ prefs, setPref }) {
                 value={ov.type}
                 onChange={e => updateOverlay(i, 'type', e.target.value)}
               >
-                <option value="SMA">SMA</option>
-                <option value="EMA">EMA</option>
+                {/* ⭐ An ADOPTED average is an engine instance and can be any kit type;
+                    an unadopted slot is still drawn by the legacy SMA/EMA renderer. */}
+                {(ov.instanceId ? MA_TYPES.map(([, label]) => label) : ['SMA', 'EMA']).map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
               </Select>
               <Input
                 type="number"

@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
-import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
+import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot, fixedRangeProvider } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { ENGINE_OWNED } from '../flipState'
 import { REGISTRY_SIZES } from '../registrySizes'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── THE FLIP-A CONTRACT FOR ADX, OBV AND DONCHIAN (B5 Task 8) ──────────────
 //
@@ -310,7 +315,7 @@ describe('adx — three lines, one scale, one guide', () => {
     expect(resolvePlacement({ defId: 'adx' }, engineRegistry.getDefinition('adx'), ctx).scaleOptions)
       .toEqual({
         borderVisible: false, scaleMargins: ctx.paneMargins.adx,
-        autoScale: false, minimum: 0, maximum: 100,
+        autoScale: true, minimum: 0, maximum: 100,
       })
   })
 
@@ -328,7 +333,7 @@ describe('adx — three lines, one scale, one guide', () => {
     // …and it reaches the RENDERER, not just the resolver.
     const { F } = sync(ADX_INSTANCE, ADX_CS, { adx: ADX_BAND })
     expect(F.callsOf('priceScale.applyOptions')[0].args[0])
-      .toEqual(legacyBandScale(ADX_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+      .toEqual(legacyBandScale(ADX_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
   })
 
   it('creates THREE LineSeries in pane 0 with the shipped option objects, key for key', () => {
@@ -344,9 +349,9 @@ describe('adx — three lines, one scale, one guide', () => {
       expect(c.args[2]).toBe(0)
     }
     expect(created.map(c => c.args[1])).toEqual([
-      { ...LEGACY_ADX, ...LWC_LINE_DEFAULTS_RESTATED },
-      { ...LEGACY_PLUS_DI, ...LWC_LINE_DEFAULTS_RESTATED },
-      { ...LEGACY_MINUS_DI, ...LWC_LINE_DEFAULTS_RESTATED },
+      { ...LEGACY_ADX, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
+      { ...LEGACY_PLUS_DI, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
+      { ...LEGACY_MINUS_DI, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
     ])
     expect(opts(F, 0)).toMatchObject(LEGACY_ADX)
   })
@@ -372,7 +377,7 @@ describe('adx — three lines, one scale, one guide', () => {
       + 'the repeat is what froze its range on the ADX line alone').toHaveLength(1)
     for (const call of scaleCalls) {
       expect(call.args[0]).toEqual(
-        legacyBandScale(ADX_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+        legacyBandScale(ADX_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
     }
     // …and they really are one scale, which is what makes the repeat inert.
     expect(new Set(F.callsOf('addSeries').map(c => c.args[1].priceScaleId)).size).toBe(1)
@@ -760,7 +765,10 @@ describe('donchian — a band plot with edges, and the LAST price overlay', () =
         // and it lands LAST because `listDefinitions()` is registration order and
         // this order IS z-order. `MA(Close)` belongs on the candles, which is what
         // a moving average has always been.
-        'movingAverage'])
+        'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
     // …and the binder really does insert in the order it is handed, which is why
     // the instance list's order is the thing that has to be registry order.
     const overlays = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].map(id => ({
@@ -842,7 +850,7 @@ describe('the last three together', () => {
     // leaking from one to the next is the pooled-scale hazard, and it is
     // invisible on any case that turns on one oscillator at a time.
     expect(F.callsOf('priceScale.applyOptions').map(c => c.args[0])).toEqual([
-      legacyBandScale(paneMargins.adx, { autoScale: false, minimum: 0, maximum: 100 }),
+      legacyBandScale(paneMargins.adx, { autoScale: true, minimum: 0, maximum: 100 }),
       legacyBandScale(paneMargins.obv, { autoScale: true }),
     ])
     // One guide across the three, and it is ADX's.

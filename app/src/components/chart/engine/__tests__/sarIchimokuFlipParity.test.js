@@ -442,7 +442,10 @@ describe('the price overlays keep their z-order across the migration', () => {
         // and it lands LAST because `listDefinitions()` is registration order and
         // this order IS z-order. `MA(Close)` belongs on the candles, which is what
         // a moving average has always been.
-        'movingAverage'])
+        'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
   })
 
   it('the binder inserts them in registry order regardless of the instance list\'s order', () => {

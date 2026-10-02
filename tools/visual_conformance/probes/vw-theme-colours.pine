@@ -1,0 +1,39 @@
+//@version=6
+indicator("UCTPROBE_VW_THEME_COLOURS", overlay = false, max_labels_count = 50)
+
+// --- 2026-10-01 C37 (Q-T1) - `chart.fg_color` / `chart.bg_color` ---------------------
+//
+// The door carries the two as THEME REFERENCES and never hard-codes TradingView's
+// values; the captures on disk record its light theme only (#0f0f0f on #ffffff).
+// This probe draws one label and one table cell with each, and plots the two
+// colours as their components so the reading is a number.
+//
+// CAPTURE under the chart's CURRENT theme ONLY - the owner's chart settings are
+// not changed. Record which theme / background it is beside the fixture. A solid
+// dark and a GRADIENT background (`theme:gradient-background`) stay owed.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (none).
+
+plot(bar_index,                 "C00_bar_index_CONTROL")
+plot(color.r(chart.fg_color),   "C01_fg_r")
+plot(color.g(chart.fg_color),   "C02_fg_g")
+plot(color.b(chart.fg_color),   "C03_fg_b")
+plot(color.t(chart.fg_color),   "C04_fg_t")
+plot(color.r(chart.bg_color),   "C05_bg_r")
+plot(color.g(chart.bg_color),   "C06_bg_g")
+plot(color.b(chart.bg_color),   "C07_bg_b")
+plot(color.t(chart.bg_color),   "C08_bg_t")
+plot(color.t(color.new(chart.fg_color, 40)), "C09_new_fg_40_t")
+plot(color.r(color.new(chart.fg_color, 40)), "C10_new_fg_40_r")
+plot(chart.is_standard ? 1 : 0, "C11_chart_is_standard")
+plot(close, "C12_drawn_in_fg", color = chart.fg_color)
+
+var table t = table.new(position.top_right, 2, 2)
+if barstate.islast
+    label.new(bar_index, close, "T01 label fg on bg", color = chart.bg_color, textcolor = chart.fg_color)
+    label.new(bar_index, close, "T02 label bg on fg", color = chart.fg_color, textcolor = chart.bg_color)
+    label.new(bar_index, close, "T03 label fg 40 on red", color = color.red, textcolor = color.new(chart.fg_color, 40))
+    table.cell(t, 0, 0, "T10 cell fg on bg", text_color = chart.fg_color, bgcolor = chart.bg_color)
+    table.cell(t, 1, 0, "T11 cell bg on fg", text_color = chart.bg_color, bgcolor = chart.fg_color)
+    table.cell(t, 0, 1, "T12 cell fg, no bgcolor", text_color = chart.fg_color)
+    table.cell(t, 1, 1, "T13 cell default colours")

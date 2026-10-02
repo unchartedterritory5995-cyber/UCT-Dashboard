@@ -358,6 +358,52 @@ export function computeVWAP(bars) {
   return result
 }
 
+/**
+ * The session VWAP's volume-weighted STANDARD DEVIATION (2026-10-01), for the
+ * Session VWAP's optional σ bands.
+ *
+ * ⭐ THE SAME SESSION, THE SAME PRICE, THE SAME WEIGHTS as `computeVWAP` — the
+ * ET-calendar-day bucket, the typical price (h+l+c)/3, and the bar volume — so a
+ * band is `vwap ± k·σ` around exactly the line the study already draws. σ is the
+ * POPULATION volume-weighted deviation: √(Σv·tp²/Σv − vwap²), floored at 0 against
+ * rounding. Same unit gate as `computeVWAP`: a series whose times are not real
+ * instants answers all NaN. Returns plain numbers (NaN = no value).
+ */
+export function computeVWAPDeviation(bars) {
+  const n = bars ? bars.length : 0
+  const out = new Array(n).fill(NA)
+  if (!n) return out
+  for (let i = 0; i < n; i++) {
+    const t = bars[i].t
+    if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return out
+  }
+  let cumPV = 0, cumPV2 = 0, cumVol = 0, currentDay = null
+  let memoHour = null, memoKey = null
+  for (let i = 0; i < n; i++) {
+    const bar = bars[i]
+    const hour = Math.floor(bar.t / 3600)
+    let dayKey
+    if (hour === memoHour) {
+      dayKey = memoKey
+    } else {
+      dayKey = etDayKey(bar.t * 1000)
+      memoHour = hour; memoKey = dayKey
+    }
+    if (dayKey !== currentDay) { cumPV = 0; cumPV2 = 0; cumVol = 0; currentDay = dayKey }
+    const tp = (bar.h + bar.l + bar.c) / 3
+    cumPV += tp * bar.v
+    cumPV2 += tp * tp * bar.v
+    cumVol += bar.v
+    if (cumVol > 0) {
+      const mean = cumPV / cumVol
+      const variance = cumPV2 / cumVol - mean * mean
+      const sd = Math.sqrt(variance > 0 ? variance : 0)
+      if (Number.isFinite(sd)) out[i] = sd
+    }
+  }
+  return out
+}
+
 export function computeStochastic(bars, kPeriod = 14, dPeriod = 3) {
   if (!bars || bars.length < kPeriod) return { k: [], d: [] }
   // Fast %K
@@ -1569,6 +1615,115 @@ function firstVendorSession(start, span) {
     if (tradingViewCloseMinute(day) !== null) return day
   }
   return null
+}
+
+/** The last `YYYYMMDD` at or before `end`, within `span` calendar days, that the
+ *  vendor's session trades, or null. */
+function lastVendorSession(end, span) {
+  const y = Math.floor(end / 10000); const m = Math.floor(end / 100) % 100; const d = end % 100
+  for (let k = 0; k < span; k++) {
+    const day = ymdPlusDays(y, m, d, -k)
+    if (tradingViewCloseMinute(day) !== null) return day
+  }
+  return null
+}
+
+/** ⭐⭐ C49 — THE OPEN AND THE CLOSE OF THE WEEK / MONTH / QUARTER / YEAR A BAR
+ *  OPENS IN, AS TRADINGVIEW'S SESSION CALENDAR HAS THEM (2026-10-01).
+ *
+ *  THE READING. Capture round 3 put `time("W" | "M" | "3M" | "12M")` and
+ *  `time_close("W" | "M" | "3M" | "12M")` on AMEX:SPY at six chart timeframes, and
+ *  ONE rule answers every bar of every one of them:
+ *
+ *    `time(<period>)`       = 09:30 New York on the FIRST session the vendor's
+ *                             calendar holds in the period containing the day
+ *                             the bar OPENED;
+ *    `time_close(<period>)` = the close of the LAST such session of that period
+ *                             (16:00, or 13:00 on a half-day the vendor applies).
+ *
+ *  Bar for bar, against the vendor's own numbers (the rail computes each from the
+ *  capture and this function, and nothing else):
+ *    1D  `vw-time-tf-spy-1d-full-2026-10-01` / `vw-time-close-tf-spy-1d-full-…`
+ *        8,476 / 8,476 for all four opens and all four closes (1993 → 2026);
+ *    1W  `vw-time-tf-spy-1w-…` / `vw-time-close-tf-spy-1w-…`   1,758 / 1,758;
+ *    1M  `vw-time-tf-spy-1m-…` / `vw-time-close-tf-spy-1m-…`     406 / 406;
+ *    15  `vw-time-tf-spy-15-…`   3,300 / 3,300 (opens only: the close probe was
+ *    5   `vw-time-tf-spy-5-…`    3,300 / 3,300  not run below daily);
+ *    60  `vw-time-tf-spy-60-2026-09-28`  300 / 300.
+ *  The calendar is `tradingViewCloseMinute`'s — the ONE vendor view: no closure
+ *  before `TRADINGVIEW_CLOSURES_FROM`, and not the six 9/11 and Hurricane Sandy
+ *  days. So a pre-2000 holiday Monday IS the week's open (31 weeks), Monday
+ *  2012-10-29 is the Sandy week's, and Friday 2001-09-14 16:00 closes its week.
+ *  ⭐ KEYED ON THE BAR'S OPENING DAY, never its span: on a weekly chart the week of
+ *  Tuesday 2021-06-01 (Monday 05-31 a holiday) reads JUNE's first session, and its
+ *  `time_close("M")` June's close — the three weeks in the capture that can tell
+ *  "the bar's open" from "the week's Monday" (2004 / 2010 / 2021-06-01) all say so.
+ *
+ *  ⛔ A NEW YORK EQUITY SESSION ONLY. On a symbol that trades every day the vendor
+ *  answers the period's calendar open at 00:00 UTC (`…-bitstamp-btcusd-1d-…`), on
+ *  an FX pair Sunday 17:00 New York (`vw-time-tf-fx-eurusd-1d-2026-10-01`); neither
+ *  is this function. The caller decides which chart may ask
+ *  (`interpret.js::chartClockRegime`). Reads no wall clock; one `null` instant
+ *  blanks everything, as the unit gate does in `computeClock`.
+ *
+ *  @returns {null | {day: Float64Array, open: Object, close: Object, firstDay: Object, lastDay: Object}}
+ *    per period code: `open` / `close` in unix seconds, `firstDay` / `lastDay` the
+ *    `YYYYMMDD` of the period's first / last vendor session; `day` the bar's own
+ *    opening `YYYYMMDD`. `null` when a bar's instant is unreadable.
+ */
+export const PERIOD_CALENDAR_CODES = Object.freeze(['W', 'M', '3M', '12M'])
+export function computePeriodCalendar(bars, tf) {
+  const length = bars && bars.length ? bars.length : 0
+  const out = { day: new Float64Array(length), open: {}, close: {}, firstDay: {}, lastDay: {} }
+  for (const code of PERIOD_CALENDAR_CODES) {
+    out.open[code] = new Float64Array(length)
+    out.close[code] = new Float64Array(length)
+    out.firstDay[code] = new Float64Array(length)
+    out.lastDay[code] = new Float64Array(length)
+  }
+  const memo = new Map()
+  const bounds = (code, startYmd, endYmd, span) => {
+    const key = `${code}:${startYmd}`
+    let hit = memo.get(key)
+    if (hit === undefined) {
+      const first = firstVendorSession(startYmd, span)
+      const last = lastVendorSession(endYmd, span)
+      const lastMinute = last === null ? null : tradingViewCloseMinute(last)
+      hit = {
+        first: first === null ? NA : first,
+        last: last === null ? NA : last,
+        open: first === null ? null : etWallInstant(first, DAILY_SESSION_OPEN_ET_MINUTE),
+        close: last === null || lastMinute === null ? null : etWallInstant(last, lastMinute),
+      }
+      memo.set(key, hit)
+    }
+    return hit
+  }
+  for (let i = 0; i < length; i++) {
+    const t = barOpenInstant(bars[i] ? bars[i].t : undefined, tf)
+    const p = t === null ? null : etClockAt(t)
+    if (!p) return null
+    out.day[i] = p.y * 10000 + p.m * 100 + p.d
+    const monday = ymdPlusDays(p.y, p.m, p.d, -((p.wd + 6) % 7))
+    const mondayParts = [Math.floor(monday / 10000), Math.floor(monday / 100) % 100, monday % 100]
+    const quarterMonth = p.m - ((p.m - 1) % 3)
+    const monthEnd = (y, m) => y * 10000 + m * 100 + new Date(Date.UTC(y, m, 0)).getUTCDate()
+    const spans = {
+      W: [monday, ymdPlusDays(mondayParts[0], mondayParts[1], mondayParts[2], 6), 7],
+      M: [p.y * 10000 + p.m * 100 + 1, monthEnd(p.y, p.m), 31],
+      '3M': [p.y * 10000 + quarterMonth * 100 + 1, monthEnd(p.y, quarterMonth + 2), 31],
+      '12M': [p.y * 10000 + 101, p.y * 10000 + 1231, 31],
+    }
+    for (const code of PERIOD_CALENDAR_CODES) {
+      const [start, end, span] = spans[code]
+      const b = bounds(code, start, end, span)
+      out.firstDay[code][i] = b.first
+      out.lastDay[code][i] = b.last
+      out.open[code][i] = b.open === null ? NA : b.open
+      out.close[code][i] = b.close === null ? NA : b.close
+    }
+  }
+  return out
 }
 
 /** The instant a New York WALL-CLOCK minute occurs on `ymd`, or null. New York

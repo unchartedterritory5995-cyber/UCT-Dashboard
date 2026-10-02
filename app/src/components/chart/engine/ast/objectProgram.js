@@ -380,8 +380,9 @@ export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', '
  *  marks what it would have written, C17). ⛔ Legal only under a `bool` `and`. */
 /** ⭐⭐ C33 — how far back a getter's own history may be read (`{v:'get', back}`):
  *  `line.get_y1(l)[1]` is the number that getter answered at this place on the
- *  previous bar. The runtime answers it only where a capture shows the answer
- *  (an empty handle — `na`); a number read back is unmeasured and held. */
+ *  previous bar. The runtime answers it only where a capture shows the answer:
+ *  an empty handle (`na`), and — C48, `vw-getter-history` — the number itself ONE
+ *  bar back; a number from further back is unmeasured and held. */
 export const MAX_GETTER_BACK = 5
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
 /** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
@@ -687,8 +688,11 @@ function assertLiveRef(v, where, live) {
     }
     if (v.back !== undefined && live.inLoop) throw new Error(`${where}: a getter's history in a loop body`)
     const t = v.target
-    if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
-      throw new Error(`${where}: a getter reads a register as it stands now — \`{r:'reg', id}\``)
+    // ⭐ C48 — `back` on the TARGET: the handle the register held that many bars
+    // ago (`line.get_y1(c[1])`, capture `vw-getter-history` H10), outside loops.
+    if (!isObj(t) || t.r !== 'reg'
+        || (t.back !== undefined && !(Number.isInteger(t.back) && t.back >= 1 && t.back <= MAX_HANDLE_BACK && !live.inLoop))) {
+      throw new Error(`${where}: a getter reads a register — \`{r:'reg', id}\`, or the handle it held 1..${MAX_HANDLE_BACK} bars ago outside a loop`)
     }
     const reg = live.regs.get(t.id)
     if (!reg) throw new Error(`${where}: register ${JSON.stringify(t.id)} is not declared`)
@@ -702,6 +706,10 @@ function assertLiveRef(v, where, live) {
     // ⭐ C25 — a loop scalar is read in a loop body, a C14 scalar outside one.
     if (!live.nums || !live.nums.has(v.id) || (live.inLoop !== !!(live.loopNums && live.loopNums.has(v.id)))) {
       throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
+    }
+    // ⭐ C48 — a scalar's history: ONE bar back, never a loop's scalar.
+    if (v.back !== undefined && (v.back !== 1 || live.inLoop || (live.loopNums && live.loopNums.has(v.id)))) {
+      throw new Error(`${where}: a scalar's history is read exactly one bar back, outside a loop, got ${JSON.stringify(v.back)}`)
     }
     return
   }
@@ -967,6 +975,11 @@ export function assertObjectProgram(program) {
     if (!Number.isInteger(c.cap) || c.cap <= 0 || c.cap > MAX_COLLECTION_CAP) {
       throw new Error(`objects: collection ${c.id} needs an integer cap in 1..${MAX_COLLECTION_CAP}, got ${JSON.stringify(c.cap)}`)
     }
+    // ⭐ C48 — `slots`: the list is created holding that many `na` slots
+    // (`var … = array.new_label(3)`, capture `vw-forin-collections` Z01–Z03).
+    if (c.slots !== undefined && (!Number.isInteger(c.slots) || c.slots < 1 || c.slots > c.cap)) {
+      throw new Error(`objects: collection ${c.id} is created with an integer slot count in 1..${c.cap}, got ${JSON.stringify(c.slots)}`)
+    }
     if (colls.has(c.id)) throw new Error(`objects: collection ${c.id} is declared twice`)
     colls.set(c.id, c)
   }
@@ -1063,6 +1076,15 @@ export function assertObjectProgram(program) {
       }
       if (op.asc !== undefined && (op.asc !== true || op.from === undefined)) {
         throw new Error(`${where}: asc is a flag on a counted loop — it is either absent or true`)
+      }
+      // ⭐ C48 — `live`: a `for … in` over a list its body changes re-reads the
+      // list's length before every pass (`vw-forin-collections`, F03 / F04);
+      // `pos`: a walk whose body reads the object's position in `<family>.all`.
+      if (op.live !== undefined && (op.live !== true || op.asc !== true || op.step !== undefined)) {
+        throw new Error(`${where}: live is a flag on a \`for … in\` over a list (asc, no step) — it is either absent or true`)
+      }
+      if (op.pos !== undefined && (op.pos !== true || op.over === undefined)) {
+        throw new Error(`${where}: pos is a flag on a walk — it is either absent or true`)
       }
       if (op.cond !== undefined) {
         assertValueRef(op.cond, `${where}.cond`, live)

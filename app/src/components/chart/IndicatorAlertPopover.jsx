@@ -298,6 +298,11 @@ export default function IndicatorAlertPopover({
     () => Object.keys(plotEntry?.inputs || {}),
     [plotEntry],
   )
+  // ⭐ 2026-10-01 — opened from a legend chip / pane menu: did that instance have
+  // an alert address at all, and if it did, does this form carry parameters?
+  const unsupportedInitial = !!(initial && initial.instanceId) && catalogReady && !initialAddress
+  const fromInstance = !!(initial && initial.instanceId) && !!initialAddress
+    && plot === initialAddress && inputKeys.length > 0
 
   // ⭐ SPEC §8: "threshold prefilled from current value".
   //
@@ -411,6 +416,18 @@ export default function IndicatorAlertPopover({
           </div>
         )}
 
+        {/* ⭐ 2026-10-01 — TRUTHFUL, NOT SILENT. Opened from a chart-only study's
+            chip (SuperTrend, Keltner, Dollar Volume, a Moving Average …) there is
+            no alert address to open ON, and the form used to fall straight to the
+            first indicator in the catalogue — "Add alert on SuperTrend" opening an
+            RSI form with nothing said. The fallback is kept (the member may still
+            want an alert); the form now says what it is doing. */}
+        {unsupportedInitial && (
+          <div className={styles.note} role="note" data-testid="alert-unsupported">
+            Alerts aren't available for this indicator yet. Choose an indicator below to set an alert on it.
+          </div>
+        )}
+
         <div className={styles.row}>
           <span className={styles.label} id="ia-indicator-label">Indicator</span>
           <select
@@ -478,6 +495,17 @@ export default function IndicatorAlertPopover({
             />
           </div>
         ))}
+
+        {/* ⭐ 2026-10-01 — THE PARAMETERS ABOVE ARE THE ALERT'S OWN. They are seeded
+            from the served catalogue's defaults, never copied from the chart
+            instance the alert was armed from, so e.g. a chart's slow 14/3/3
+            Stochastic arms a 14/3 FAST alert unless the member edits it here.
+            Saying so is the truthful minimum until alert parity lands. */}
+        {fromInstance && (
+          <div className={styles.note} role="note" data-testid="alert-params-separate">
+            These alert settings are separate from the chart indicator's settings.
+          </div>
+        )}
 
         {/* ⭐ WHICH INSTANCE. Rendered ONLY when this chart draws more than one
             of the selected indicator — "RSI(7) crossed 70" and "RSI(14) crossed

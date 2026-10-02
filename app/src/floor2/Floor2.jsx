@@ -44,14 +44,36 @@ const patchThreadPost = (m, pid, patch) =>
 
 const catFlair = (key) => CATEGORIES.find((c) => c.key === key)?.flair || null
 
+// TERM-038 slice 2: the F:<id> address door. `/community?thread=<id>` opens that post on
+// arrival, the same detail view a click on a feed card opens. Read from window.location
+// (the standalone floor2.html entry has no router). Honoured only while the address space
+// rides the auth payload; unset, the param is ignored and the Floor opens on its feed.
+const THREAD_PARAM = 'thread'
+function threadFromUrl() {
+  try {
+    const v = new URLSearchParams(window.location.search).get(THREAD_PARAM) || ''
+    return /^\d{1,12}$/.test(v) ? Number(v) : null
+  } catch { return null }
+}
+
 export default function Floor2({ embedded = false }) {
-  const { user } = useAuth()
+  const { user, addressSpaceEnabled } = useAuth()
   const myId = user?.id
   const isMentor = user?.role === 'admin'
   const me = { id: myId, name: user?.display_name || (user?.email || 'You').split('@')[0], is_mentor: isMentor }
 
-  const [view, setView] = useState('feed')       // 'feed' | 'detail'
-  const [activeId, setActiveId] = useState(null)
+  const [arrival] = useState(() => (addressSpaceEnabled === true ? threadFromUrl() : null))
+  const [view, setView] = useState(arrival ? 'detail' : 'feed')       // 'feed' | 'detail'
+  const [activeId, setActiveId] = useState(arrival)
+  useEffect(() => {   // one-shot: strip the instruction so a refresh after "back" shows the feed
+    if (!arrival) return
+    try {
+      const params = new URLSearchParams(window.location.search)
+      params.delete(THREAD_PARAM)
+      const q = params.toString()
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
+    } catch { /* history unavailable — a lingering param is harmless */ }
+  }, [arrival])
   const [category, setCategory] = useState('all') // category key | myposts | bookmarks | notifications
   const [sort, setSort] = useState('hot')
   const [query, setQuery] = useState('')

@@ -425,6 +425,44 @@ const AUTOSCALE_PROVIDERS = Object.freeze({
  */
 export const AUTOSCALE_PROVIDER_MODES = Object.freeze(Object.keys(AUTOSCALE_PROVIDERS))
 
+/**
+ * ⭐⭐ THE FIXED-RANGE PROVIDER (2026-10-01) — what makes `placement.scale` real.
+ *
+ * A definition that declares `{min, max}` (RSI 0-100, Williams %R −100..0) gets
+ * this instead of `AUTOSCALE_DEFAULT`: the autoscale walk answers the declared
+ * range, so the pane frames 0-100 whatever the visible values happen to be. It
+ * WIDENS, never clips — a value outside the declared range (it should not occur)
+ * still stays on screen — and it keeps the library's own margins.
+ *
+ * ⛔ MEMOISED BY RANGE, like the two singletons above and for the same reason:
+ * a fresh closure per bind would make every option set unequal to the last.
+ */
+const FIXED_PROVIDERS = new Map()
+export function fixedRangeProvider(min, max) {
+  const key = `${min}:${max}`
+  let fn = FIXED_PROVIDERS.get(key)
+  if (!fn) {
+    fn = (baseImplementation) => {
+      const base = baseImplementation()
+      const pr = base && base.priceRange
+      const lo = pr && Number.isFinite(pr.minValue) ? Math.min(min, pr.minValue) : min
+      const hi = pr && Number.isFinite(pr.maxValue) ? Math.max(max, pr.maxValue) : max
+      return { priceRange: { minValue: lo, maxValue: hi }, ...(base && base.margins ? { margins: base.margins } : {}) }
+    }
+    FIXED_PROVIDERS.set(key, fn)
+  }
+  return fn
+}
+
+/** The provider a series gets: the declared fixed range when placement passed
+ *  one on a self-owned scale, else the mode's singleton. */
+function providerFor(mode, range) {
+  if (range && Number.isFinite(range.min) && Number.isFinite(range.max) && mode !== 'exclude') {
+    return fixedRangeProvider(range.min, range.max)
+  }
+  return autoscaleProvider(mode)
+}
+
 /** The provider for a placement's mode. Total: never returns undefined, so the
  *  complete-key-set rule cannot be broken by a bad mode. */
 export function autoscaleProvider(mode) {
@@ -576,7 +614,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
     // part of the candles' framing (a far SMA 200 stays in view), as the overlay
     // renderer drew it, unless the surface fits price to the candles.
-    autoscaleInfoProvider: autoscaleProvider((plot && plot.autoscale) || c.autoscale),
+    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
@@ -783,7 +821,11 @@ export function gradientPointColour(gradient, w) {
   // must not be coerced to 0 and painted the bottom colour. A NaN or infinite
   // position is `fromGradient`'s to refuse (it answers `null`), and `null` flows
   // through the two conversions below as `null`.
-  if (!gradient || typeof w !== 'number') return null
+  // ⛔ C48 — and a NaN position is refused HERE: `fromGradient` answers the
+  // zero colour for an `na` value now (measured), but this column cannot tell a
+  // bar Pine holds `na` from a bar this window cannot compute, and painting the
+  // second kind transparent would hide a line TradingView draws.
+  if (!gradient || typeof w !== 'number' || Number.isNaN(w)) return null
   const hex = packedToObjectHex(fromGradient(w, 0, 1, gradient.a, gradient.b))
   return gradient.transparency !== null ? withObjectTransparency(hex, gradient.transparency) : hex
 }

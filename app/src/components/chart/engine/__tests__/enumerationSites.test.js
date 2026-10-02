@@ -70,7 +70,9 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 /** A deterministic ramp long enough for every native's longest lookback
  *  (ichimoku's senkouB is 52; adx needs 2x its period). Local rather than
  *  imported so this file stays dependency-free on the engine's test fixtures. */
-const PROBE_BARS = Array.from({ length: 300 }, (_, i) => {
+// ⭐ 400 DAILY BARS, NOT 300 (2026-10-01): the 52-Week High/Low study is a calendar
+// window and answers only once 52 weeks of history are loaded.
+const PROBE_BARS = Array.from({ length: 400 }, (_, i) => {
   const base = 100 + Math.sin(i / 7) * 8 + i * 0.05
   return { t: 1_700_000_000 + i * 86_400, o: base, h: base + 1.5, l: base - 1.5,
     c: base + Math.cos(i / 5) * 0.8, v: 1_000_000 + (i % 17) * 5_000 }
@@ -139,6 +141,13 @@ const computeNamesAt = (sha) => {
  *
  *  The definitions plus the carved-out sections are the same fifteen ids the blob
  *  used to carry, and they are now where an indicator's identity actually lives. */
+/** ⭐ 2026-10-01 — THE TECHNICAL LIBRARY'S TIER 1, written down by hand so the
+ *  ledgers below can disagree with the registry. None ever had a hand-written
+ *  block, a legacy toggle or a `cs.indicators` section. */
+const TIER1_LIBRARY = [
+  'superTrend', 'aroon', 'vortex', 'choppiness', 'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate', 'balanceOfPower', 'bullBearPower', 'keltner', 'envelope', 'bbPercentB', 'bbWidth', 'atrPercent', 'adrPercent', 'historicalVolatility', 'squeeze', 'relativeVolume', 'accumDist', 'chaikinMoneyFlow', 'chaikinOscillator', 'forceIndex', 'pvt', 'upDownVolume', 'percentFromMa', 'fiftyTwoWeek', 'standardDeviation',
+]
+
 const INDICATOR_IDS = [
   ...engineRegistry.listDefinitions().map(d => d.id),
   ...Object.keys(CHART_DEFAULTS.indicators),
@@ -1693,7 +1702,54 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
       'vwap::vwap',
       'williamsR::williams_r',
-    ])
+      // ⭐ 2026-10-01 — THE TECHNICAL LIBRARY'S TIER 1, every chip by name. Each
+      // study's primary value carries a chip; the nine two-line studies (Up/Down,
+      // line/signal, Bull/Bear, VI+/VI−, off-high/above-low) carry two, like MACD
+      // and Stochastic. Band edges, histograms beside a line, VWAP's σ bands and
+      // the hidden colour columns carry none.
+      'superTrend::up',
+      'superTrend::down',
+      'aroon::up',
+      'aroon::down',
+      'vortex::plus',
+      'vortex::minus',
+      'choppiness::chop',
+      'stochRsi::k',
+      'stochRsi::d',
+      'ppo::ppo',
+      'ppo::signal',
+      'roc::roc',
+      'momentum::mom',
+      'tsi::tsi',
+      'tsi::signal',
+      'cmo::cmo',
+      'trix::trix',
+      'trix::signal',
+      'awesome::ao',
+      'ultimate::uo',
+      'balanceOfPower::bop',
+      'bullBearPower::bull',
+      'bullBearPower::bear',
+      'keltner::middle',
+      'envelope::middle',
+      'bbPercentB::percentB',
+      'bbWidth::bandwidth',
+      'atrPercent::atrPct',
+      'adrPercent::adrPct',
+      'historicalVolatility::hv',
+      'squeeze::momentum',
+      'relativeVolume::rvol',
+      'accumDist::ad',
+      'chaikinMoneyFlow::cmf',
+      'chaikinOscillator::osc',
+      'forceIndex::efi',
+      'pvt::pvt',
+      'upDownVolume::ratio',
+      'percentFromMa::pct',
+      'fiftyTwoWeek::fromHigh',
+      'fiftyTwoWeek::fromLow',
+      'standardDeviation::stdev',
+    ].sort())
     // ⛔ AND ONE PER DEFINITION IS ITSELF THE CLAIM, because the risk Task 2
     // creates is the OPPOSITE of a lost chip: the engine lane emits a chip for
     // every plot that declares one, so a `legend: {}` added in passing to BB's
@@ -1705,7 +1761,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(Object.entries(perDef).filter(([, n]) => n > 1).sort(),
       'a definition grew a SECOND chip — three numbers for one indicator is the '
       + 'readout regression MACD\'s histogram and BB\'s edges are hidden for')
-      .toEqual([['ichimoku', 2], ['macd', 2], ['stoch', 2]])
+      // ⭐ 2026-10-01 — nine Tier 1 two-line studies join MACD/Stoch/Ichimoku at two;
+      // none has three.
+      .toEqual([['aroon', 2], ['bullBearPower', 2], ['fiftyTwoWeek', 2], ['ichimoku', 2],
+        ['macd', 2], ['ppo', 2], ['stoch', 2], ['stochRsi', 2], ['superTrend', 2], ['trix', 2],
+        ['tsi', 2], ['vortex', 2]])
     // ⭐ AND THE SPLIT BETWEEN THE TWO LANES, WHICH IS WHAT B5 MOVES. This loop
     // used to read *"for `stoch`, `atr`, `sar`, `ichimoku`: NOT migrated — B4
     // ships ZERO migrations"* and it went RED at B5 Task 5, which is the correct
@@ -1732,7 +1792,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       // which was never the legacy CHIP lane this partition is about (no
       // `registerLegacyChip`, no `legChips` entry). Registry-native means
       // engine-lane, and the hand-written printing is deleted, not moved.
-      'dataSeries', 'movingAverage', 'dollarVolume']
+      'dataSeries', 'movingAverage', 'dollarVolume',
+      // ⭐ 2026-10-01 — registry-native, so engine-lane by construction.
+      ...TIER1_LIBRARY]
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1921,7 +1983,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       const probeCtx = takesSource
         ? { source: PROBE_BARS.map((b, i) => 100 + Math.sin(i / 6) * 5) }
         : undefined
-      const cols = engineRegistry.computeFor(def, PROBE_BARS, {}, probeCtx)
+      // ⭐ 2026-10-01 — an option-gated plot is probed with its gate OPEN: Session
+      // VWAP's σ bands draw only when `bands` is on (off by default, so saved
+      // charts keep their single line). One entry, like the parameter sweep's.
+      const gates = def.id === 'vwap' ? { bands: '3' } : {}
+      const cols = engineRegistry.computeFor(def, PROBE_BARS, gates, probeCtx)
       expect(Object.keys(cols).sort(), `${def.id}: columns`)
         .toEqual([...engineRegistry.columnKeys(def)].sort())
       for (const [key, col] of Object.entries(cols)) {
@@ -2701,6 +2767,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // inline arithmetic is deleted in the same change that registers this
     // definition, so there is nothing left for a row to point at either.
     dollarVolume: [],
+    // ⭐ 2026-10-01 — the Technical library's Tier 1: registry-native from birth.
+    ...Object.fromEntries(TIER1_LIBRARY.map((id) => [id, []])),
   }
   /**
    * The definitions that never had a hand-written block to retire.
@@ -2713,7 +2781,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume',
+    ...TIER1_LIBRARY]
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2724,6 +2793,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // …and `null` where there never was one. See NEVER_MIGRATED above.
     avwap: null, atrBands: null, rsLine: null, dataSeries: null, movingAverage: null,
     dollarVolume: null,
+    ...Object.fromEntries(TIER1_LIBRARY.map((id) => [id, null])),
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2754,7 +2824,14 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     expect(emptyRows.sort()).toEqual([...NEVER_MIGRATED].sort())
     const chart = stripComments(read('app/src/components/StockChart.jsx'))
     for (const id of NEVER_MIGRATED) {
-      expect(chart.toLowerCase().includes(id.toLowerCase()),
+      // ⭐ 2026-10-01 — a Tier 1 id is checked as a WHOLE WORD: several are ordinary
+      // words (`roc` is inside `process`), and a substring hit there would be a
+      // false alarm rather than a hand-written block. The original six keep the
+      // stricter substring check they always had.
+      const named = TIER1_LIBRARY.includes(id)
+        ? new RegExp(`(?<![A-Za-z0-9_$])${id}(?![A-Za-z0-9_$])`, 'i').test(chart)
+        : chart.toLowerCase().includes(id.toLowerCase())
+      expect(named,
         `${id} never had a hand-written block, so StockChart.jsx must not name it at all`)
         .toBe(false)
     }
@@ -3013,7 +3090,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 20,
+      // ⭐ 2026-10-01 — 20 + the Technical library's 33 Tier 1 studies.
+      flipSetSize: 53,
       mutableSets: [],
     })
   })
@@ -3337,14 +3415,16 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     // so A6 covers them and this count is what says so.
     // ⭐ EIGHT AT P2.1: `movingAverage` declares `onPrice`, so it is the eighth
     // price overlay — and, like the seven before it, declares no pane height.
-    expect(checked).toBe(8)
+    // ⭐ ELEVEN AT 2026-10-01: SuperTrend, Keltner and the MA Envelope draw on the
+    // candles too, after every existing overlay (registration order is z-order).
+    expect(checked).toBe(11)
     expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
       .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
         // ⭐ `movingAverage` DECLARES `onPrice`, so it joins the price overlays —
         // and it lands LAST because `listDefinitions()` is registration order and
         // this order IS z-order. `MA(Close)` belongs on the candles, which is what
         // a moving average has always been.
-        'movingAverage'])
+        'movingAverage', 'superTrend', 'keltner', 'envelope'])
     // …and the predicate catches the thing it is for.
     expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
     // …and the file it used to read really is gone, so nobody re-points it back.

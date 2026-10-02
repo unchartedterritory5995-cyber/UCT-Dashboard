@@ -159,12 +159,13 @@ describe('C34 — a chart series read from inside a last-bar helper is the chart
     expect(ours).toEqual(theirs)
   })
 
-  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.ema`) is refused, and draws nothing", () => {
+  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.wma`) is refused, and draws nothing", () => {
     const cap = capture()
     const levels = vendorLevels(cap)
     // ⭐ C42 — `ta.ema`: what `ta.sma` answers on a call's one run is witnessed now
+    // ⭐ C48 re-pin — and `ta.ema`'s (`vw-call-site-history`, B05); `ta.wma` has no row
     const src = probe(levels).replace(/ {4}historyReference = bar_index - index/g,
-      '    historyReference = bar_index - index + int(ta.ema(close, 3) * 0)')
+      '    historyReference = bar_index - index + int(ta.wma(close, 3) * 0)')
     const { d, lines } = ourObjects(cap, src)
     expect(d.translation.objectDiagnostics.dropReasons['fn:conditional-history']).toBe(4)
     expect(lines).toHaveLength(0)
@@ -185,12 +186,12 @@ describe('C34 — what stays refused, by name', () => {
     return (t.objectDiagnostics && t.objectDiagnostics.refusedCalls) || []
   }
 
-  it('⛔ a chart series no capture witnesses (`time_close[k]`) names the capture that would settle it', () => {
-    const r = refusalsOf(['    label.new(bar_index, low, str.tostring(time_close[k]))'])
-    expect(r).toHaveLength(1)
-    expect(r[0]).toMatch(/^f:conditional-history@/)
-    expect(r[0]).toContain('`time_close[…]`')
-    expect(r[0]).toContain('vw-call-site-history')
+  // ⭐ C48 re-pin — `time_close[k]` was refused here, naming `vw-call-site-history`.
+  // That capture is committed (rows B02 / B03): the read is the chart's, and
+  // `vendorHarness.c48CallSite` grades it. Nothing is refused for it now.
+  it('⭐ C48 — `time_close[k]` / `hlcc4[k]` inside a last-bar helper are no longer refused', () => {
+    expect(refusalsOf(['    label.new(bar_index, low, str.tostring(time_close[k]))'])).toHaveLength(0)
+    expect(refusalsOf(['    label.new(bar_index, low, str.tostring(hlcc4[k]))'])).toHaveLength(0)
   })
 
   it('⛔ the call\'s OWN history — a body local read at an offset — is still refused under a guard that varies', () => {

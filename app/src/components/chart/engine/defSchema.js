@@ -1621,6 +1621,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       if (plot.legend.hide !== undefined && typeof plot.legend.hide !== 'boolean') {
         errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
       }
+
     }
   }
   // ─── the per-plot repaint surface: a WINDOW is declarable, a BADGE is not ───
@@ -1721,6 +1722,16 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     errors.push(
       `${path}.fill: expected {with: "<plotKey>"} naming the plot this one fills to, got ${fmt(plot.fill)}`,
     )
+  }
+  // ⭐ 2026-10-01 — `sparse`: this plot is BLANK BY DESIGN on some bars
+  // (SuperTrend's up and down halves, each drawn only while its trend holds). A
+  // sparse connected line is drawn as one render series per valued run — the
+  // `gapRuns` split fundamentals already use — so it BREAKS at a blank instead of
+  // being bridged by a straight segment; the binder hands the legend its per-bar
+  // answer (`valueAt`), and the legend omits its valueless chip (one chip per
+  // instance always kept, so a hidden one can still be shown).
+  if (plot.sparse !== undefined && typeof plot.sparse !== 'boolean') {
+    errors.push(`${path}.sparse: expected true or false (a plot blank by design on some bars), got ${fmt(plot.sparse)}`)
   }
   if (plot.hidden !== undefined && typeof plot.hidden !== 'boolean') {
     errors.push(

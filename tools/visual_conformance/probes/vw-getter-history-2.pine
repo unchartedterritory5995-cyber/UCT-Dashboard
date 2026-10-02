@@ -1,0 +1,52 @@
+//@version=6
+indicator("UCTPROBE_VW_GETTER_HISTORY_2", overlay = true, max_labels_count = 50, max_lines_count = 50)
+
+// --- 2026-10-01 C48 - A GETTER'S HISTORY PAST ONE BAR, AND IN A BLOCK THAT RUNS SOMETIMES ---
+//
+// `vw-getter-history-spy-1d-2026-10-01` shows `line.get_y1(a)[1]` is the value one BAR ago
+// at the top level (H04, 299 / 299), NaN inside the last-bar block (G02), and a top-level
+// variable's `[1]` the chart's (G03). Served. Still held, by name:
+//   J01  line.get_y1(a)[2]            two bars back at the top level  (close[2]?)
+//   J02  ya[2]                        the variable two bars back       (close[2]?)
+//   J03  line.get_y1(a)[1] under `close > open`   the previous RUN's answer, or the
+//        previous BAR's?   previous run -> the close of the last up bar before this one
+//   J04  yb[1] where `yb` is declared INSIDE that block   (the block's own history)
+//   J05  line.get_y1(a)[1] in a helper called on every bar          (close[1]?)
+//   J06  line.get_y1(a)[1] in a helper called under `close > open`
+//   K0x  controls: close[1], close[2], the close of the previous up bar
+//
+// `a` is moved every bar (y1 = close), as in the first probe.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (none).
+
+var line a = line.new(bar_index, close, bar_index + 1, close)
+line.set_xy1(a, bar_index, close)
+line.set_xy2(a, bar_index + 1, close)
+
+float ya = line.get_y1(a)
+f_prev() =>
+    line.get_y1(a)[1]
+
+float J03 = na
+float J04 = na
+float J06 = na
+float K03 = na
+var float lastUpClose = na
+if close > open
+    J03 := line.get_y1(a)[1]
+    float yb = line.get_y1(a)
+    J04 := yb[1]
+    J06 := f_prev()
+    K03 := lastUpClose
+    lastUpClose := close
+
+plot(bar_index,             "K00_bar_index_CONTROL")
+plot(line.get_y1(a)[2],     "J01_get_y1_hist2")
+plot(ya[2],                 "J02_var_hist2")
+plot(J03,                   "J03_get_y1_hist1_in_up_block")
+plot(J04,                   "J04_block_local_hist1")
+plot(f_prev(),              "J05_get_y1_hist1_in_helper")
+plot(J06,                   "J06_get_y1_hist1_in_helper_in_up_block")
+plot(close[1],              "K01_close_hist1_CONTROL")
+plot(close[2],              "K02_close_hist2_CONTROL")
+plot(K03,                   "K03_close_of_previous_up_bar_CONTROL")
+plot(close > open ? 1 : 0,  "K04_up_bar_CONTROL")

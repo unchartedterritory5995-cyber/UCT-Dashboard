@@ -232,15 +232,18 @@ describe('C42 — a `ta.*` call in a BLOCK that runs once', () => {
       'var table d = table.new(position.top_right, 6, 1)',
       'int len = input.int(10, "len")',
       'if barstate.islast',
-      '    float a = ta.lowest(low, 10)',
+      // ⭐ C48 re-pin — `ta.lowest(low, 10)`, `ta.ema(close, 3)`, `ta.highest(10)` and
+      // `ta.rsi(close, 14)` stood in these four slots; `vw-call-site-history`
+      // (A02, A04, A08, A05) witnesses each now (`vendorHarness.c48CallSite`).
+      '    float a = ta.wma(low, 10)',
       '    float b = ta.sma(close, len)',
-      '    float c = ta.ema(close, 3)',
-      '    float e = ta.highest(10)',
+      '    float c = ta.ema(close, 1)',
+      '    float e = ta.lowest(10)',
       '    table.cell(d, 0, 0, str.tostring(a))',
       '    table.cell(d, 1, 0, str.tostring(b))',
       '    table.cell(d, 2, 0, str.tostring(c))',
       '    table.cell(d, 3, 0, str.tostring(e))',
-      '    table.cell(d, 4, 0, str.tostring(ta.rsi(close, 14)))',
+      '    table.cell(d, 4, 0, str.tostring(ta.change(close, 2)))',
       '    table.cell(d, 5, 0, "ctl")',
     ].join('\n'))
     for (const col of [0, 1, 2, 3, 4]) expect(cells.has(`top_right|${col}|0`), `col ${col}`).toBe(false)
@@ -358,14 +361,16 @@ describe('C42 — a HELPER called once: what stays refused, by name', () => {
   it('⛔ what the capture did not ask stays refused, each with its sentence', () => {
     const cap = capture()
     const cases = [
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.lowest(low, k)))'], ['g(3)'], /`ta\.lowest`/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.ema(close, k)))'], ['g(3)'], /`ta\.ema`/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.highest(k)))'], ['g(3)'], /only `ta\.highest\(source, length\)` is witnessed/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.sma(close, k)))'], ['g(1)'], /whose length is not a whole number above 1/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(time_close[k]))'], ['g(3)'], /`time_close\[…\]`.*vw-call-site-history/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(hlcc4[k]))'], ['g(3)'], /`hlcc4\[…\]`.*vw-call-site-history/],
+      // ⭐ C48 re-pin — six rows left this list, each witnessed by
+      // `vw-call-site-history` and graded in `vendorHarness.c48CallSite`:
+      // `ta.lowest(low, k)` (B04), `ta.ema(close, k)` (B05), `ta.highest(k)` (B08),
+      // `ta.sma(close, 1)` (B09), `time_close[k]` (B02), `hlcc4[k]` (B03), `y[0]` (B06).
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.wma(low, k)))'], ['g(3)'], /`ta\.wma`/],
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.ema(close, k)))'], ['g(1)'], /whose length is not a whole number above 1/],
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.lowest(k)))'], ['g(3)'], /in a form no capture reads/],
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.rsi(close, k)))'], ['g(14)'], /witnessed in a block that runs once, not inside a function called once/],
       [['g(float src) =>', '    y = src + 1', '    label.new(bar_index, high, str.tostring(y[bar_index - 600]))'], ['g(close)'], /`y\[…\]`.*whole number above 0/],
-      [['g(int k) =>', '    y = close', '    label.new(bar_index, high, str.tostring(y[k]))'], ['g(0)'], /`y\[…\]`.*whole number above 0/],
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(bar_index[k]))'], ['g(0)'], /`bar_index\[…\]`.*whole number above 0/],
     ]
     for (const [body, call, sentence] of cases) {
       const { labels, diag } = run(cap, helper(body, call))

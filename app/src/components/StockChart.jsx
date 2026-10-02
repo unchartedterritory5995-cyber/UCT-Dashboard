@@ -132,7 +132,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -814,7 +814,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
-import { useSecondarySources, useOtherSymbolExchanges } from './chart/engine/useSecondarySources'
+import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
@@ -2276,7 +2276,12 @@ function liveInstanceIdsFor(cs, defId) {
  *  `engineChips` reads them (`inst.inputs`), so the two surfaces compare the same
  *  values; an empty list of siblings yields an empty list of suffixes. */
 function instanceMenuSuffixes(cs, instIds) {
-  return siblingSuffixes(instIds.map((instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {}))
+  // ⭐ 2026-10-01 — RESOLVED inputs (declared defaults filled in), the same values
+  // the legend compares — see `readout.resolvedInputsOf`.
+  return siblingSuffixes(instIds.map((instanceId) => {
+    const inst = findInstance(cs, instanceId) || {}
+    return resolvedInputsOf(engineRegistry.getDefinition(inst.defId), inst.inputs)
+  }))
 }
 
 export default function StockChart({
@@ -5662,6 +5667,11 @@ export default function StockChart({
       // symbol search — the same reason it is subtracted from the library list.
       submenu: catalogRows()
         .filter((row) => !LIBRARY_HIDDEN_IDS.includes(row.id))
+        // ⭐ 2026-10-01 — A QUICK MENU, NOT THE LIBRARY. A definition declaring
+        // `meta.quickMenu: false` (the Technical library's Tier 1 studies) is listed
+        // here only while it is ON, so it can be switched off where it is seen;
+        // adding one is the Add Indicator library's job, by category and search.
+        .filter((row) => engineRegistry.getDefinition(row.id)?.meta?.quickMenu !== false || indEnabled(row.id))
         .map((row) => ({
           id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
           onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
@@ -6539,6 +6549,11 @@ export default function StockChart({
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, csView)
+  // ⭐ C41 — this symbol's intraday bars, for a Pine document that reads BELOW the
+  // chart (`request.security(syminfo.tickerid, "60", …)` → an `ltf` node). A chart
+  // with no such indicator makes NO request (`useLowerTfSources`).
+  const lowerTfSources = useLowerTfSources(
+    _storedInstances, _defOf, sym, resolvedTf, barCount, instFetcher, userDefsGeneration)
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
@@ -7929,8 +7944,14 @@ export default function StockChart({
       if (src !== 'close' || b.frame) continue
       const period = Math.floor(Number(inputs.period))
       if (!(period > 0)) continue
+      // ⛔ ONLY SMA AND EMA HAVE A ONE-TICK STEP HERE (2026-10-01). The other
+      // kit types (WMA, HMA, VWMA, …) are not an SMA, and stepping them with the
+      // SMA arithmetic below would overwrite a correct value with a wrong one on
+      // every tick; they hold until the next poll recomputes them.
+      const mt = inputs.maType || 'sma'
+      if (mt !== 'sma' && mt !== 'ema') continue
       let val = null
-      if (inputs.maType === 'ema') {
+      if (mt === 'ema') {
         const prior = sameBucket ? b.prevValue : b.lastValue
         if (Number.isFinite(prior)) {
           const k = 2 / (period + 1)
@@ -12652,6 +12673,7 @@ export default function StockChart({
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
         exchangeOf: otherSymbolExchangeOf,
+        lowerTf: lowerTfSources,
         // ⭐⭐ CALCULATION-TIMEFRAME FRAMES — the higher-timeframe canonical bars an
         // instance with `calculationTimeframe` computes over (`useCalcFrames`), the
         // chart's session rule for an intraday frame, and the door a frame the chart
@@ -13736,7 +13758,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, csView, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

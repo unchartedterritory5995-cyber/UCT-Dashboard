@@ -156,7 +156,7 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     expect(early.map((i) => etClockAt(cols.timeclose[i]).h)).toEqual(early.map(() => 13))
   })
 
-  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 and the first boundary withheld', () => {
+  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 withheld', () => {
     // `time("W"/"M")` before the first period boundary the series shows is an open
     // from bars before the window (`interpret.js::periodAnchorMask`): bar 0 (the
     // listing, 1993-01-29) and the boundary bar that reads it one back through
@@ -172,8 +172,23 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     // (`time-anchor:session-open-missing`), and with it the bar that reads it one
     // back. The EVENT these two rows plot was right on those bars; the VALUE under
     // it was not, and the mask cannot tell the two readers apart.
+    //
+    // ⚰️ RE-PINNED 2026-10-01 (C49), with the reason. This read 154 / 174 withheld
+    // bars. `vw-time-tf-spy-1d-full-2026-10-01` then measured 1993 → 2000: the vendor
+    // answers its session CALENDAR there (a holiday Monday IS the week's open), and
+    // the calendar reproduces every one of its 8,476 bars — so the pre-2000 periods
+    // are served from it, and so is the first partial period (bar 0 reads −4 / −28
+    // days: opens before the listing). What is left: bar 0, which reads the anchor
+    // of a bar before the series through `ta.change`; and, for the week, the
+    // Hurricane Sandy week's three bars plus the Monday that reads them one back —
+    // the one period from 2000 on whose first session has no bar, still withheld.
+    //
+    // ⚰️ RE-PINNED 2026-10-01 (integrator ruling on C49). K14 read
+    // ['1993-01-29', '2012-10-31', '2012-11-01', '2012-11-02', '2012-11-05']: the
+    // full-history capture holds the Sandy week and the calendar reproduces it, so it
+    // is served. What is left is bar 0 alone.
     const dateOf = (i) => bars[i].t
-    const pinned = { K14: 154, K15: 174 }
+    const pinned = { K14: ['1993-01-29'], K15: ['1993-01-29'] }
     for (const k of DAILY_ONLY) {
       expect(rows[k].values, `${k}: ${rows[k].refusal && rows[k].refusal.message}`).toBeTruthy()
       const c = col(TITLES, k)
@@ -185,15 +200,7 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
         else if (got !== r[c]) wrong.push(i)
       })
       expect(wrong, k).toEqual([])
-      expect(withheld.slice(0, 2), k).toEqual([0, 1])
-      // every other withheld bar: before 2000 (or the first bar of 2000, which reads
-      // December 1999 one back), or the Sandy week and the Monday after it
-      const unexplained = withheld.slice(2).filter((i) => {
-        const d = dateOf(i)
-        return !(d < '2000-01-04' || (d >= '2012-10-31' && d <= '2012-11-05'))
-      })
-      expect(unexplained.map(dateOf), k).toEqual([])
-      expect(withheld.length, k).toBe(pinned[k])
+      expect(withheld.map(dateOf), k).toEqual(pinned[k])
     }
   })
 

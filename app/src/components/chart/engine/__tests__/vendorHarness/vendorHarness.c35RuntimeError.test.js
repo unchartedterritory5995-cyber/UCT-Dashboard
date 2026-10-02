@@ -20,7 +20,7 @@
 // (`runtime:expression-statement`). It now lowers the statement and stops on the
 // script's next wall — a `request.security` below the chart's timeframe, named by
 // the host's own C27 code with the capture that settles it.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import path from 'node:path'
 
 import { loadCapture } from './harness'
@@ -86,12 +86,28 @@ describe('C35 — ema-ribbon\'s `runtime.error` (RDDT 1D)', () => {
     expect(err.message).toBe('Periods must be ascending: Fast < Mid < Slow')
   }, 60000)
 
-  it('⛔ the script as written now stops on its next wall, named by the host\'s C27 code', () => {
+  it('⛔ the script as written now stops on its next wall, named by the host\'s lower-timeframe code', () => {
+    // ⚰️ C41 (2026-09-30): this read `lower-tf:unwitnessed` with the Q-L1 capture
+    // named as what would settle it. Q-L1 was captured and the HOST lane serves
+    // the read now (an `ltf` node off the symbol's intraday bars); the per-bar
+    // runtime lane holds no intraday bars, so the same line stops it under a
+    // different name (`pineRuntimeFrontend.js`, `LOWER_TF_REFUSAL.RUNTIME_LANE`).
+    // ⭐ …and that is with the host's read SERVED (`VITE_PINE_LOWER_TF_ENABLED`,
+    // `lowerTfGate.js`). It ships OFF: then the host itself refuses the read first
+    // (`lower-tf:store-unmeasured`), on the same line.
     const cap = load()
-    const built = buildRuntimeIr(cap.source.text, { bars: [], inputs: {}, pane: true, basePeriod: 'D', tf: 'D' })
-    expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('lower-tf:unwitnessed')
-    expect(built.refusal.line).toBe(156)
-    expect(built.refusal.message).toContain('Q-L1')
+    const build = () => buildRuntimeIr(cap.source.text, { bars: [], inputs: {}, pane: true, basePeriod: 'D', tf: 'D' })
+    const off = build()
+    expect(off.ok).toBe(false)
+    expect(off.refusal.guard).toBe('lower-tf:store-unmeasured')
+    expect(off.refusal.line).toBe(156)
+    vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+    try {
+      const built = build()
+      expect(built.ok).toBe(false)
+      expect(built.refusal.guard).toBe('lower-tf:runtime-lane')
+      expect(built.refusal.line).toBe(156)
+      expect(built.refusal.message).toContain('intraday bars')
+    } finally { vi.unstubAllEnvs() }
   }, 60000)
 })
