@@ -112,14 +112,19 @@ describe('RT1 — routing: flag off is the door it always was', () => {
 
 describe('RT1 — a `?:` whose test can be `na` is withheld from the fallback, by name', () => {
   // The two captures where the runtime lane's `?:` answers `na` and TradingView
-  // takes the other branch. The rail proves BOTH halves: the door refuses the
-  // script, and the refused construct really does draw the disagreement.
-  it('⛔ qqe-signals: refused; and the run it would have drawn marks bar 73 where TradingView marks nothing', () => {
+  // takes the other branch. The rail proves BOTH halves: the door never hands the
+  // script to the runtime lane, and that lane really would draw the disagreement.
+  // ⭐ Wave 15: H1 lets the HOST lane draw both, TradingView's on every label
+  // (`vendorHarness.h1Ratchet`), so the door now serves them there and the runtime
+  // fallback is never consulted. The decline itself is witnessed at the door below
+  // on a corpus script the host lane still refuses.
+  it('⛔ qqe-signals: drawn by the host lane, never the fallback; the runtime run would mark bar 73 where TradingView marks nothing', () => {
     const cap = capture(QQE)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
-    expect(built.ok).toBe(false)
-    expect(built.runtimeDeclined.code).toBe('runtime:na-test')
+    expect(built.ok).toBe(true)
+    expect(built.lane).toBeUndefined()
+    expect(built.runtimeDeclined).toBeUndefined()
     const probe = probeRuntimeProgram(cap.source.text)
     expect(probe.ok).toBe(true)
     expect(probe.naTests).toBeGreaterThan(0)
@@ -133,13 +138,21 @@ describe('RT1 — a `?:` whose test can be `na` is withheld from the fallback, b
     expect(Number.isFinite(cols.v[differ[0]])).toBe(true) // the runtime lane would
   })
 
-  it('⛔ pivot-point-supertrend: refused; and its `Buy` would differ from TradingView on a bar', () => {
+  it('⭐ pivot-point-supertrend: drawn by the host lane, never the fallback; and the runtime `Buy` now agrees with TradingView', () => {
+    // ⚰️ RT1 measured this `Buy` differing on a bar and put it down to the `na`
+    // test. It was the pivot tie: the runtime lane reads `pivothigh` / `pivotlow`
+    // as the house column (`interpret.js::pivotCol`), and H1's plateau rule
+    // (`vendorHarness.h1PivotTies`) moved both lanes at once. The `na` test is
+    // still in the script (asserted below), so the runtime rule still declines it.
+    // That is now an over-refusal, and harmless only because the host lane serves first.
     const cap = capture(PPST)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
-    expect(built.ok).toBe(false)
-    expect(built.runtimeDeclined.code).toBe('runtime:na-test')
+    expect(built.ok).toBe(true)
+    expect(built.lane).toBeUndefined()
+    expect(built.runtimeDeclined).toBeUndefined()
     const probe = probeRuntimeProgram(cap.source.text)
+    expect(probe.naTests).toBeGreaterThan(0)
     const shapes = probe.outputs.map((o, i) => (o.call === 'plotshape' ? i : -1)).filter((i) => i >= 0)
     const buy = shapes[2] // the third plotshape is `Buy` (two pivot marks precede it)
     const cols = computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source: cap.source.text, outputs: { v: buy } } },
@@ -147,7 +160,22 @@ describe('RT1 — a `?:` whose test can be `na` is withheld from the fallback, b
     const vendor = vendorColumn(cap, 'Buy')
     const differ = cols.v.filter((v, i) => !isNa(v) && !isNa(vendor[i])
       && Math.abs(v - vendor[i]) > 1e-6 * Math.abs(vendor[i]))
-    expect(differ.length).toBeGreaterThan(0)
+    expect(differ).toEqual([])
+    expect(cols.v.filter((v) => !isNa(v)).length).toBeGreaterThan(3)
+  })
+
+  it('⛔ at the door, by name: a script the host lane refuses and whose `?:` can test `na` is declined, with the host sentence', () => {
+    // trend-targets-algoalpha: one of three committed scripts (with cc-yata and
+    // fibonacci-dolphintradebot) that reach the fallback and meet this rule.
+    const src = fs.readFileSync(path.resolve(process.cwd(), '..', 'corpus/committed/trend-targets-algoalpha__92ff5628d7.pine'), 'utf8')
+    vi.stubEnv(FLAG, '1')
+    const built = memberPaneDefinition({ source: src, id: DEF_ID })
+    expect(built.ok).toBe(false)
+    expect(built.runtimeDeclined.code).toBe('runtime:na-test')
+    expect(probeRuntimeProgram(src).naTests).toBeGreaterThan(0)
+    // the control: with the lane off nothing is offered to it, so nothing declines
+    vi.stubEnv(FLAG, '0')
+    expect(memberPaneDefinition({ source: src, id: DEF_ID }).runtimeDeclined).toBeUndefined()
   })
 })
 
