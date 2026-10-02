@@ -145,7 +145,19 @@ def valid_statements(statements: list[RatioStatement], ads_ledger: Ledger, ord_p
     import math
     out, prev = [], None
     pts = sorted(x for x in ord_points if x[1] and x[1] > 0)
-    for st in sorted(statements, key=lambda x: x.as_of):
+    # a statement filed up to 120 days BEFORE an ADS event whose ratio is already the POST-event ratio (the previous
+    # statement's ratio / the event factor) speaks from the event on: Rio Tinto's F-6 of 2010-03-31 ("each ADS
+    # representing one ordinary share") registered the ADSs of the 4:1 ADS split effective 2010-04-30
+    from dataclasses import replace as _rep
+    shifted = []
+    srt = sorted(statements, key=lambda x: x.as_of)
+    for i, st in enumerate(srt):
+        nxt_ev = next((e for e in ads_ledger.splits if st.as_of < e.ex_date <= st.as_of + __import__("datetime").timedelta(days=120)), None)
+        before = [x for x in srt[:i] if x.as_of < st.as_of]
+        if nxt_ev is not None and before and abs(st.ords_per_ads / (before[-1].ords_per_ads / nxt_ev.ratio) - 1) < 0.01:
+            st = _rep(st, as_of=nxt_ev.ex_date)
+        shifted.append(st)
+    for st in sorted(shifted, key=lambda x: x.as_of):
         if prev is not None:
             evs = [e for e in ads_ledger.splits if prev.as_of < e.ex_date <= st.as_of]
             if evs and abs(st.ords_per_ads / prev.ords_per_ads - 1) < 0.01:

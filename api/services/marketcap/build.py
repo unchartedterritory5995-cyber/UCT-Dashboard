@@ -494,8 +494,10 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         lin = D.lineage.execute("SELECT kind, status, effective, pred_cik, accn, each_class, ratio FROM lineage WHERE succ_cik=? "
                                 "AND effective IS NOT NULL ORDER BY effective LIMIT 1", (cik,)).fetchone()
     lin_eff = date.fromisoformat(lin[2]) if lin else None
-    if lin and any(v["form"] in ("10-K", "10-Q", "20-F", "40-F", "10-K405", "10-KSB", "10-QSB") and v["filing_date"] < lin[2]
-                   for v in filings.values()):
+    # own history = periodic filings at least a YEAR before the effective date (MDU since 1994); one 10-Q filed by the
+    # new holding company 20 days before the effective date (Eaton plc 2012-11-14) is not a history
+    if lin and any(v["form"] in ("10-K", "10-Q", "20-F", "40-F", "10-K405", "10-KSB", "10-QSB")
+                   and v["filing_date"] < (date.fromisoformat(lin[2]) - timedelta(days=365)).isoformat() for v in filings.values()):
         # the successor's OWN registrant record already carries periodic evidence before the effective date (the new
         # holding company kept the CIK: MDU 2019, O-I 2019, FirstCash 2021): nothing to stitch, nothing to bound
         w["lineage_applied"].append((cik, lin[0], "OWN_REGISTRANT_HISTORY", lin[2], None, lin[4], 0, "own periodic filings before effective"))

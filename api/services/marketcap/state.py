@@ -90,8 +90,25 @@ CORROBORATE_DAYS = 200               # ... when their as-of dates are within thi
 TINY_RAW = 10_000                    # a REPORTED count below this is SUSPICIOUS (placeholder "1", "10", "100" ...)
 
 
+def _okey(o: Obs) -> tuple:
+    return (o.accn, o.as_of, o.source, o.value, o.tag)
+
+
 def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol: float = 0.02,
              basis_evidence: dict | None = None) -> list[Checked]:
+    """Iterates the point-in-time pass: counts found to be a unit-error LEVEL (see the post-pass) are excluded from
+    anchoring anything and the pass re-runs, until no new unit-error level appears (at most 4 passes)."""
+    quarantine: set = set()
+    for _ in range(4):
+        out, found = _validate_pass(obs, ledger, conflict_tol, dup_tol, basis_evidence, quarantine)
+        if not (found - quarantine):
+            return out
+        quarantine |= found
+    return out
+
+
+def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol: float,
+                   basis_evidence: dict | None, quarantine: set) -> tuple[list, set]:
     """Classify every observation, strictly POINT IN TIME: a decision about an observation uses only what was public
     by its own known_from -- or, when it needs corroboration, it becomes usable only once that corroboration is public.
     Deterministic: input order does not matter.
@@ -189,6 +206,10 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
     order = sorted(range(len(prim)), key=lambda i: (prim[i][0].known_from, prim[i][0].as_of, prim[i][0].rank, prim[i][0].accn))
     for i in order:
         o = prim[i][0]
+        if _okey(o) in quarantine:
+            decided[i] = Checked(o, R.REJ_SCALE_UNRESOLVED, note="unit-error level (x1000 of a better-supported level)",
+                                 block=(o.known_from, None, R.SCALE_UNRESOLVED))
+            continue
         t0 = o.known_from
         b = bases(o)
         cur = in_force(t0)
@@ -229,7 +250,8 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
                                  for c2, cb in cands):
             contra = "contradicted >= 3x inside its own filing"
         if contra:
-            t = corroborated_at(o, val, other_filing=ref is not None and _unit_signature(val, ref))
+            unit = ref is not None and _unit_signature(val, ref)
+            t = corroborated_at(o, val, channel_only=unit, other_filing=unit)
             if t is None:
                 decided[i] = Checked(o, R.REJ_SCALE_UNRESOLVED, val, pick, note=contra + "; no independent corroboration",
                                      block=(t0, None, R.SCALE_UNRESOLVED))
@@ -245,6 +267,17 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
             if not e.usable or e.obs.as_of != o.as_of or e.obs.source == o.source:
                 continue
             q = max(e.normalized, val) / min(e.normalized, val) - 1
+            unit_pair = _unit_signature(e.normalized, val) and {e.obs.source, o.source} == {R.COVER_XBRL, R.BALANCE_SHEET_XBRL}
+            if q > conflict_tol and unit_pair:
+                # ⛔ an exact x1000 disagreement between a filing's cover count and its balance-sheet count for the SAME
+                # date is the balance sheet presented in thousands (SSYS 2013: cover 49,211,075 / balance sheet 49,211):
+                # the COVER stands, the scaled count is refused (it never anchors later counts)
+                if o.source == R.BALANCE_SHEET_XBRL:
+                    c = Checked(o, R.REJ_SCALE_UNRESOLVED, val, pick, note=f"same as-of {o.as_of}: x1000 of the cover {e.normalized:.0f}")
+                else:
+                    decided[j] = replace(e, status=R.REJ_SCALE_UNRESOLVED, note=f"same as-of {o.as_of}: x1000 of the cover {val:.0f}",
+                                         valid_until=None)
+                continue
             if q > conflict_tol:
                 when = max(t0, e.effective_from)
                 if e.effective_from >= when:
@@ -280,6 +313,29 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
         decided[j] = replace(c, status=R.REJ_SCALE_UNRESOLVED, block=(c.effective_from, None, R.SCALE_UNRESOLVED),
                              note=f"unit-error signature: {c.normalized:.0f} vs {sides[0].normalized:.0f} / {sides[1].normalized:.0f}")
 
+    # ⛔ TWO LEVELS AN EXACT x1000 APART: a level is as strong as its WEAKEST independence dimension -- min(distinct
+    # filings, distinct channels) agreeing with it within 200 days. The weaker level is the unit error and its accepted
+    # counts are withheld: SSYS 2013-14 balance sheet in thousands over 3 filings but 1 channel (1) vs the cover + a
+    # later units balance sheet (2); BNTX 2021 cover x1000 (1) vs balance sheet + IPO prospectus (2). A tie decides
+    # nothing (HNRG: two cover filings vs one filing's two channels -- the both-sides rule above withholds it).
+    every = [(o_, cb) for o_, cb in cands]
+    found: set = set()
+
+    def _support(v: float, a: date) -> int:
+        agree = [o_ for o_, cb in every if abs((o_.as_of - a).days) <= CORROBORATE_DAYS and any(_logr(x, v) < AGREE for x in cb.values())]
+        return min(len({o_.accn for o_ in agree}), len({(o_.source, o_.tag.split("/")[0]) for o_ in agree}))
+    for j in [j for j in decided if decided[j].usable]:
+        c = decided[j]
+        rivals = [o_ for o_, cb in every if abs((o_.as_of - c.obs.as_of).days) <= CORROBORATE_DAYS
+                  and any(_unit_signature(c.normalized, x) for x in cb.values())]
+        if not rivals:
+            continue
+        mine = _support(c.normalized, c.obs.as_of)
+        if any(_support(next(iter(bases(r).values())), r.as_of) > mine for r in rivals):
+            found.add(_okey(c.obs))
+            decided[j] = replace(c, status=R.REJ_SCALE_UNRESOLVED, block=(c.effective_from, None, R.SCALE_UNRESOLVED),
+                                 note=f"unit-error level: {c.normalized:.0f} has fewer independent channels than its x1000 rival")
+
     for i, (o, rest) in enumerate(prim):
         c = decided[i]
         out.append(c)
@@ -300,7 +356,7 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
                     out.append(Checked(r, R.ACCEPTED, rb[k], k, ["AMENDS"], effective_from=r.known_from))
             else:
                 out.append(Checked(r, R.REJ_CONFLICT, note=f"re-report {r.value:.0f} differs from primary"))
-    return sorted(out, key=lambda c: key(c.obs))
+    return sorted(out, key=lambda c: key(c.obs)), found
 
 
 @dataclass(frozen=True)

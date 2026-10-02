@@ -282,3 +282,27 @@ def test_registered_quantity_is_evidence_of_issuance_never_a_count():
     ch = validate([ob(date(2025, 9, 9), date(2025, 9, 10), 16_245_132, R.OFFERING_TEXT, form="F-1")], Ledger())
     tl = timeline(ch, [date(2026, 8, 31), date(2026, 9, 1)], events=[(date(2026, 9, 1), R.ISSUANCE_EXCEEDS_STATE, date(2026, 9, 1))])
     assert tl[0].value == 16_245_132 and tl[1].reason == R.ISSUANCE_EXCEEDS_STATE
+
+
+def test_balance_sheet_in_thousands_never_outvotes_the_cover():
+    """SSYS 2013-14: the balance-sheet series was filed in THOUSANDS from its first report (48,738 / 49,211 / 49,328),
+    the cover said 49,211,075 and a later units balance sheet 49,211,000 for the same date."""
+    bs = "us-gaap:CommonStockSharesOutstanding"
+    obs = [ob(date(2013, 9, 30), date(2013, 11, 8), 48_738, R.BALANCE_SHEET_XBRL, form="6-K", accn="q3", tag=bs),
+           ob(date(2013, 12, 31), date(2014, 3, 4), 49_211_075, form="20-F", accn="k13"),
+           ob(date(2013, 12, 31), date(2014, 3, 4), 49_211, R.BALANCE_SHEET_XBRL, form="20-F", accn="k13", tag=bs),
+           ob(date(2014, 3, 31), date(2014, 5, 9), 49_328, R.BALANCE_SHEET_XBRL, form="6-K", accn="q1", tag=bs),
+           ob(date(2013, 12, 31), date(2015, 3, 4), 49_211_000, R.BALANCE_SHEET_XBRL, form="20-F", accn="k14", tag=bs),
+           ob(date(2015, 2, 20), date(2015, 3, 4), 50_910_000, form="20-F", accn="k14")]
+    tl = timeline(validate(obs, Ledger()), [date(2013, 11, 8), date(2014, 3, 4), date(2014, 5, 9), date(2015, 3, 4)])
+    assert all(t.value is None or t.value > 40e6 for t in tl)          # a thousands-level value is never served
+    assert tl[-1].value == 50_910_000                                   # the next cover releases the hold
+
+
+def test_pre_event_statement_of_the_post_event_ratio_speaks_from_the_event():
+    """Rio Tinto: F-6 2005 'four ordinary shares', ADS 4:1 split 2010-04-30, F-6 2010-03-31 'one ordinary share'."""
+    led = Ledger([Split(date(2010, 4, 30), 4.0)])
+    st = [A.RatioStatement(date(2005, 2, 18), 4.0, "f05", ""), A.RatioStatement(date(2010, 3, 31), 1.0, "f10", "")]
+    v = A.valid_statements(st, led, [])
+    assert [(x.accn, x.as_of) for x in v] == [("f05", date(2005, 2, 18)), ("f10", date(2010, 4, 30))]
+    assert A.ratio_at(date(2012, 12, 31), v, led).accn == "f10"

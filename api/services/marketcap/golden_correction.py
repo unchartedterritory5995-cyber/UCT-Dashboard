@@ -64,8 +64,8 @@ def correction_pass_goldens(g) -> None:
         correct_or_refused("ISSUANCE", t, "count superseded by registered issuance (offering-document counts)")
     c = g.cik("UHAL")
     comps = g.db.execute("SELECT components FROM regime WHERE issuer_id=? ORDER BY end DESC LIMIT 1", (f"cik:{c}",)).fetchone() if c else None
-    tick = sorted({x[1] for x in json.loads(comps[0])}) if comps else []
-    g.check("ONE_CLASS", "UHAL: voting (UHAL) AND Series N (UHAL.B) each at its own price", tick == ["UHAL", "UHAL.B"], tick)
+    tick = sorted({x[1].replace(".", "-") for x in json.loads(comps[0])}) if comps else []
+    g.check("ONE_CLASS", "UHAL: voting (UHAL) AND Series N (UHAL.B) each at its own price", tick == ["UHAL", "UHAL-B"], tick)
     c = g.cik("GTN")
     comps = g.db.execute("SELECT kind, components FROM regime WHERE issuer_id=? ORDER BY end DESC LIMIT 1", (f"cik:{c}",)).fetchone() if c else None
     g.check("ONE_CLASS", "GTN: never class A alone at the common price",
