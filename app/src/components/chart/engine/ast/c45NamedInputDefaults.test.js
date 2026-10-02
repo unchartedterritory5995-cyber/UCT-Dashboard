@@ -111,7 +111,17 @@ describe('C45 — atr-bands (door-attached): its `input.color(title = …, defva
   })
 
   it('⭐ as written, it builds the document its positional spelling builds', () => {
-    expect(doc(programOf(source))).toBe(doc(programOf(positional)))
+    // wave 12 (C46): the corpus script keeps its LEGACY id (`__uct_param_1`, a member's saved
+    // documents point at it), while the positional rewrite is a different script to the id
+    // map and takes a source id (`__uct_param_1001`). So the two documents are the same
+    // document up to the id's NAME - compared with ids numbered in order of appearance.
+    const a = doc(programOf(source))
+    const b = doc(programOf(positional))
+    const idsOf = (s) => [...new Set(s.match(/__uct_param_\d+/g) || [])]
+    const norm = (s) => idsOf(s).reduce((o, id, k) => o.split(id).join(`P${k}`), s)
+    expect(idsOf(a)).toEqual(['__uct_param_1'])
+    expect(idsOf(b)).toEqual(['__uct_param_1001'])
+    expect(norm(a)).toBe(norm(b))
   }, 120000)
 
   it('⭐ and the table\'s colours are the author\'s — not a default', () => {
