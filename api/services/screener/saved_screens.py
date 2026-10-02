@@ -7,7 +7,7 @@ import json
 import secrets
 import time
 
-from api.services import auth_db
+from api.services import artifact_versions, auth_db
 
 
 def init():
@@ -43,7 +43,9 @@ def create(user_id, name, spec, is_public=False):
             (user_id, name, json.dumps(spec), 1 if is_public else 0, tok, now, now))
         c.commit()
         new_id = cur.lastrowid
-    return get(new_id, user_id)
+    rec = get(new_id, user_id)
+    _version(user_id, rec, before=None)
+    return rec
 
 
 def list_for(user_id):
@@ -60,10 +62,31 @@ def get(screen_id, user_id):
     return _row(r) if r else None
 
 
+def _stored(screen_id, user_id):
+    """The row's stored TEXT columns, verbatim — what COV-06 versions."""
+    with auth_db.get_connection() as c:
+        r = c.execute("SELECT name, spec_json FROM screener_saved_screens WHERE id=? AND user_id=?",
+                      (screen_id, user_id)).fetchone()
+    return {"name": r["name"], "spec_json": r["spec_json"]} if r else None
+
+
+def _version(user_id, rec, *, before, source="save", restored_from=None):
+    """COV-06: snapshot a committed save. Returns before any I/O while dark; never raises."""
+    if not rec or not artifact_versions.is_enabled():
+        return None
+    after = _stored(rec["id"], user_id)
+    if after is None:
+        return None
+    return artifact_versions.record_save(
+        user_id, artifact_versions.KIND_SCREEN, rec["id"], before=before, after=after,
+        label=rec["name"], source=source, restored_from=restored_from)
+
+
 def update(screen_id, user_id, **fields):
     cur = get(screen_id, user_id)
     if not cur:
         return None
+    before = _stored(screen_id, user_id) if artifact_versions.is_enabled() else None
     name = fields.get("name", cur["name"])
     spec = fields.get("spec", cur["spec"])
     is_public = fields.get("is_public", cur["is_public"])
@@ -74,7 +97,26 @@ def update(screen_id, user_id, **fields):
                   (name, json.dumps(spec), 1 if is_public else 0, tok,
                    int(time.time()), screen_id, user_id))
         c.commit()
-    return get(screen_id, user_id)
+    rec = get(screen_id, user_id)
+    _version(user_id, rec, before=before)
+    return rec
+
+
+def restore_content(screen_id, user_id, payload, *, restored_from):
+    """COV-06: write a version's stored ``name`` + ``spec_json`` back, VERBATIM. Publication
+    (``is_public`` / ``share_token``) is not content and is left exactly as it is. Recorded as a
+    new ``restore`` version — nothing is removed, so the restore can itself be undone."""
+    before = _stored(screen_id, user_id)
+    if before is None:
+        return None
+    with auth_db.get_connection() as c:
+        c.execute("UPDATE screener_saved_screens SET name=?,spec_json=?,updated_at=?"
+                  " WHERE id=? AND user_id=?",
+                  (payload["name"], payload["spec_json"], int(time.time()), screen_id, user_id))
+        c.commit()
+    rec = get(screen_id, user_id)
+    res = _version(user_id, rec, before=before, source="restore", restored_from=restored_from)
+    return rec, res
 
 
 def delete(screen_id, user_id):
