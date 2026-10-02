@@ -114,8 +114,13 @@ describe('ScannerShell', () => {
     exportMock.mockRejectedValue(new Error('network down'))
     render(<ScannerShell />)
     fireEvent.click(screen.getByRole('button', { name: /csv/i }))
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(/export failed — nothing downloaded\. try again\./i))
+    // G-040: the toolbar now also carries "Save to Notebook", whose toast is a
+    // PERMANENT role=status (silent-until-text, by design), so the export's status
+    // is found by its words among the page's live regions.
+    await waitFor(() => {
+      const status = screen.getAllByRole('status').find((el) => /export failed/i.test(el.textContent))
+      expect(status).toHaveTextContent(/export failed — nothing downloaded\. try again\./i)
+    })
     expect(exportMock).toHaveBeenCalled()
   })
 })

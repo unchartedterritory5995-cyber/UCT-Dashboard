@@ -31,6 +31,8 @@ import FlaggedActions from './FlaggedActions'
 import SaveScanButton from './SaveScanButton'
 import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
+import SaveToNotebookButton from '../../journal-2-0/components/SaveToNotebookButton'
+import { buildScreenerCapture } from './notebookCapture'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
@@ -222,6 +224,16 @@ export default function ScannerShell({ embedded = false }) {
   }), [meta, result])
 
   const retry = () => setRetryNonce(n => n + 1)
+
+  /* G-040 ruling 1 — "Save to Notebook" freezes the result set AS SHOWN: the rows in
+   * display order with the live cells the table painted, the visible columns, the
+   * total, the seal's as-of and any scan-filter coverage. Built on press, once. */
+  const buildNotebookCapture = useCallback(() => buildScreenerCapture({
+    meta, filters: s.filters, visibleColumns, displayRows, livePrices: prices,
+    spec: { filters: s.filters, sort: s.sort, view: s.view, columns: s.columns, rank: s.rank },
+    total, snapshotDate: result?.snapshot_date, snapshot: result?.snapshot, scanReceipts,
+  }), [meta, s.filters, s.sort, s.view, s.columns, s.rank, visibleColumns, displayRows,
+    prices, total, result, scanReceipts])
   const isEmpty = result && total === 0
   const hasMore = rows.length < total
   const liveSortEligible = LIVE_SORTABLE.has(s.sort?.key)
@@ -342,8 +354,13 @@ export default function ScannerShell({ embedded = false }) {
               </button>
             </>
           )}
-          saveBar={<SaveScanButton spec={s.baseSpec}
-            hasFilters={Object.keys(s.filters).length > 0} />} />
+          saveBar={<>
+            <SaveScanButton spec={s.baseSpec}
+              hasFilters={Object.keys(s.filters).length > 0} />
+            <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
+              label="Screener results" ariaLabel="Save these screener results to Notebook"
+              disabled={!result || total == null} />
+          </>} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
