@@ -378,6 +378,10 @@ const BARE_POLL_SITES = {
   'app/src/pages/journal-2-0/hooks/useJ2CommunityTrades.js': 1,
   'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime.js': 1,
   'app/src/pages/journal-2-0/hooks/useJ2DisciplineState.js': 1,
+  // BRK-01 option chain (2026-10-01): bare useSWR on purpose. A desktop research
+  // tab that already pins revalidateOnFocus:false; the wrapper would turn focus
+  // revalidation back on and add a market-open timer for one 60s chain refresh.
+  'app/src/pages/research/tabs/OptionsChainTab.jsx': 1,
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,
