@@ -126,6 +126,7 @@ from api.routers import admin_chart_health as admin_chart_health_router
 from api.routers import chart_news as chart_news_router
 from api.routers import indicator_alerts as indicator_alerts_router
 from api.routers import signature as signature_router
+from api.routers import what_else_open as what_else_open_router  # TERM-093 instrument, DARK
 from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
@@ -9047,6 +9048,7 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
+app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)
 # UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
 # every route) and /api/internal/wisdom/<pkg>/* (require_push_secret). One loop so streams never edit main.py.
 from api.services.wisdom import registry as wisdom_registry  # noqa: E402

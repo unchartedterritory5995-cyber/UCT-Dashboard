@@ -11,6 +11,7 @@ import PopoutWindow from '../../charts/popout/PopoutWindow'
 import PopoutShell from '../../charts/popout/PopoutShell'
 import WidgetHost from '../../charts/WidgetHost'
 import { DRILL_BOARD_PREF, LIST_WIDGET_ID, parseBoard, serializeBoard } from './drillBoardPrefs'
+import WhatElseOpenPrompt from '../../../components/instruments/WhatElseOpenPrompt'
 import styles from './BreadthDrillModal.module.css'
 
 const FOCUSABLE = [
@@ -280,6 +281,9 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
         </div>
 
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
+
+        {/* TERM-093 instrument: admins only, renders nothing while its flag is unset. */}
+        <WhatElseOpenPrompt occasion="wf_c13_breadth_drill" />
 
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>
