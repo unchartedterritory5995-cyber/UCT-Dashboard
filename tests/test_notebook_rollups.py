@@ -281,7 +281,7 @@ def test_another_members_trade_never_counts_even_when_embedded_by_id(client, db_
     assert _value(client, n, "Trades")[0] == 1.0
 
 
-def test_another_members_rollup_cache_is_never_read(client, r_prop):
+def test_another_member_never_reads_my_rollup(client, r_prop):
     kid = _note(client, "kid", props={r_prop: 7})
     parent = _note(client, "parent", _link(kid))
     pid = _rollup(client, "Sum", {"source": "links_from_this", "aggregate": "sum", "propertyId": r_prop}).json()["propertyDef"]["id"]

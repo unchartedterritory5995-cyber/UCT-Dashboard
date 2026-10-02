@@ -244,6 +244,65 @@ def test_the_table_filters_by_a_formula(client, trade_plan, cond, expected):
     assert body["total"] == len(body["notes"])
 
 
+def test_a_sorted_page_crosses_from_the_valued_notes_into_the_empties(client, trade_plan):
+    """The valued notes are ordered in memory and the empties are paged in SQL, so
+    the page that straddles the two must stitch them without a gap or a repeat."""
+    ids = _r_notes(client, trade_plan, [120, 90, None, 150, 100, None])   # 2, -1, -, 5, 0, -
+    sort = json.dumps({"propertyId": trade_plan["R"], "direction": "desc"})
+    seen = []
+    for offset in range(0, 6, 2):
+        body = client.get("/api/j2/notes", params={"propertySort": sort, "limit": 2, "offset": offset}).json()
+        assert body["total"] == 6
+        seen += [(r["id"], r["computed"][trade_plan["R"]]["value"]) for r in body["notes"]]
+    assert [v for _, v in seen] == [5.0, 2.0, 0.0, -1.0, None, None]
+    assert sorted(i for i, _ in seen) == sorted(ids)            # every note once
+
+
+def test_a_sort_and_a_filter_together_page_and_count_the_same_set(client, trade_plan):
+    _r_notes(client, trade_plan, [120, 90, None, 150, 100])
+    sort = json.dumps({"propertyId": trade_plan["R"], "direction": "asc"})
+    f = json.dumps([{"propertyId": trade_plan["R"], "op": "gte", "value": 0}])
+    body = client.get("/api/j2/notes", params={"propertySort": sort, "propertyFilter": f}).json()
+    assert [r["computed"][trade_plan["R"]]["value"] for r in body["notes"]] == [0.0, 2.0, 5.0]
+    assert body["total"] == 3
+
+
+def _scan_plan(conn):
+    from api.services.journal_two import note_computed
+    sql = (f"EXPLAIN QUERY PLAN SELECT j2_notes.rowid, properties_json FROM j2_notes"
+           f"{note_computed._props_index(conn)} WHERE {note_computed._PROPS_WHERE}")
+    return " | ".join(str(r[3]) for r in conn.execute(sql, ("u1",)))
+
+
+def test_the_formula_scan_reads_the_covering_index_not_the_table(client, trade_plan, db_path):
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    try:
+        plan = _scan_plan(conn)
+    finally:
+        conn.close()
+    assert "COVERING INDEX idx_j2_notes_props_live" in plan, plan
+
+
+def test_without_the_index_the_reads_are_slower_never_wrong(client, trade_plan, db_path):
+    """An index is an optimisation (db.py logs-and-skips one it cannot build), so
+    INDEXED BY is only asked for when the index exists -- a missing index must
+    degrade to a table scan, never to 'no such index'."""
+    import sqlite3
+    _r_notes(client, trade_plan, [120, 90, None, 150])
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("DROP INDEX idx_j2_notes_props_live")
+        conn.commit()
+        assert "idx_j2_notes_props_live" not in _scan_plan(conn)
+    finally:
+        conn.close()
+    sort = json.dumps({"propertyId": trade_plan["R"], "direction": "desc"})
+    r = client.get("/api/j2/notes", params={"propertySort": sort})
+    assert r.status_code == 200, r.text
+    assert [x["computed"][trade_plan["R"]]["value"] for x in r.json()["notes"]] == [5.0, 2.0, -1.0, None]
+
+
 def test_a_formula_filter_needs_a_number(client, trade_plan):
     f = json.dumps([{"propertyId": trade_plan["R"], "op": "gt", "value": "2"}])
     assert client.get("/api/j2/notes", params={"propertyFilter": f}).status_code == 400

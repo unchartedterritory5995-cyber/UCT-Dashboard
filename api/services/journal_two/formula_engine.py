@@ -48,6 +48,7 @@ shows on hover. Codes are shared with the client; sentences need not be.
 from __future__ import annotations
 
 import math
+import operator
 import re
 from typing import Any, Callable
 
@@ -469,6 +470,93 @@ def _eval(node, lookup) -> float:
                 places = int(p)
             return _finite(_round_half_away(vals[0], places))
     raise FormulaEvalError("syntax", "Not a formula")  # unreachable for a parsed AST
+
+
+def compile_ast(node) -> Callable[[Callable[[str, str], float]], float]:
+    """The SAME semantics as `evaluate`, compiled once into nested closures so a
+    formula run over thousands of notes does not re-walk its tree per note.
+    `compiled(lookup)` returns the number or raises FormulaEvalError, exactly as
+    `evaluate(node, lookup)` does; tests/test_formula_engine.py runs every shared
+    vector through both and requires the same answer."""
+    fn = _compile(node)
+
+    def run(lookup):
+        return _finite(fn(lookup)) + 0.0
+    return run
+
+
+def _compile(node):
+    tag = node[0]
+    if tag == "num":
+        v = node[1]
+        return lambda lookup: v
+    if tag == "ref":
+        kind, key = node[1], node[2]
+
+        def ref(lookup):
+            v = lookup(kind, key)
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                raise FormulaEvalError("not_number", "A value this formula uses is not a number")
+            try:
+                v = float(v)
+            except OverflowError:
+                raise FormulaEvalError("overflow", "A value this formula uses is too large")
+            return _finite(v)
+        return ref
+    if tag == "neg":
+        a = _compile(node[1])
+        return lambda lookup: -a(lookup)
+    if tag == "pos":
+        return _compile(node[1])
+    if tag == "bin":
+        op, a, b = node[1], _compile(node[2]), _compile(node[3])
+        if op == "+":
+            return lambda lookup: _finite(a(lookup) + b(lookup))
+        if op == "-":
+            return lambda lookup: _finite(a(lookup) - b(lookup))
+        if op == "*":
+            return lambda lookup: _finite(a(lookup) * b(lookup))
+
+        def div(lookup):
+            x = a(lookup)
+            y = b(lookup)
+            if y == 0:
+                raise FormulaEvalError("div_zero", "Division by zero")
+            return _finite(x / y)
+        return div
+    if tag == "cmp":
+        op, a, b = node[1], _compile(node[2]), _compile(node[3])
+        test = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge,
+                "=": operator.eq, "!=": operator.ne}[op]
+        return lambda lookup: 1.0 if test(a(lookup), b(lookup)) else 0.0
+    if tag == "call":
+        name, args = node[1], [_compile(x) for x in node[2]]
+        if name == "if":
+            c, t, f = args
+            return lambda lookup: t(lookup) if _truthy(c(lookup)) else f(lookup)
+        if name == "abs":
+            return lambda lookup: abs(args[0](lookup))
+        if name == "min":
+            return lambda lookup: min([g(lookup) for g in args])
+        if name == "max":
+            return lambda lookup: max([g(lookup) for g in args])
+        if name == "round":
+            x = args[0]
+            p = args[1] if len(args) == 2 else None
+
+            def rnd(lookup):
+                value = x(lookup)
+                places = 0
+                if p is not None:
+                    q = p(lookup)
+                    if q != math.floor(q) or not 0 <= q <= MAX_ROUND_PLACES:
+                        raise FormulaEvalError(
+                            "bad_round", f"round's places must be a whole number from 0 to {MAX_ROUND_PLACES}",
+                        )
+                    places = int(q)
+                return _finite(_round_half_away(value, places))
+            return rnd
+    raise FormulaEvalError("syntax", "Not a formula")
 
 
 def to_stored(text: str, name_to_id: dict[str, str | None]) -> str:

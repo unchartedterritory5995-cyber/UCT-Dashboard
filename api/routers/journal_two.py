@@ -1858,7 +1858,9 @@ def list_notes_endpoint(
         if note_computed.formulas_enabled():
             conn = notes_service.get_connection()
             try:
-                vals = note_computed.values_for_notes(conn, user["id"], [r["id"] for r in rows])
+                vals = note_computed.values_for_notes(
+                    conn, user["id"], [r["id"] for r in rows],
+                    {r["id"]: r.get("propertiesJson") or {} for r in rows})
             finally:
                 conn.close()
             if vals:

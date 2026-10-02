@@ -35,8 +35,10 @@ def _build(case: dict) -> str:
     return case["expr"]
 
 
-def run_case(case: dict) -> dict:
-    """The engine's answer for one vector: {"value": n} or {"error": code}."""
+def run_case(case: dict, compiled: bool = False) -> dict:
+    """The engine's answer for one vector: {"value": n} or {"error": code}.
+    `compiled=True` runs it through `compile_ast` (the form the server uses over
+    thousands of notes) instead of the tree walk."""
     text = _build(case)
     values = case.get("values", {})
     try:
@@ -52,6 +54,8 @@ def run_case(case: dict) -> dict:
                 raise fe.FormulaEvalError("missing", "empty")
             return v
 
+        if compiled:
+            return {"value": fe.compile_ast(node)(lookup)}
         return {"value": fe.evaluate(node, lookup)}
     except (fe.FormulaError, fe.FormulaEvalError) as e:
         return {"error": e.code}
@@ -76,6 +80,13 @@ def test_shared_vector(case):
         assert math.copysign(1.0, got["value"]) == 1.0 or got["value"] != 0, "minus zero leaked"
     else:
         assert got == {"error": want["error"]}, case["name"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
+def test_shared_vector_compiled_form_agrees(case):
+    """The compiled closures are a second form of the SAME engine: every vector
+    must give the identical answer through both."""
+    assert run_case(case, compiled=True) == run_case(case)
 
 
 # ── ⛔ the no-eval rule ──────────────────────────────────────────────────────

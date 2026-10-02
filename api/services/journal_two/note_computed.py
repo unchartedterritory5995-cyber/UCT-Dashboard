@@ -12,29 +12,26 @@ read per request through `notebook_flags.flag_on`, riding the auth payload as
 invisible everywhere -- `note_properties` filters both types out of every read
 -- so existing notes and property types behave exactly as before.
 
-THE CACHE, AND WHY IT IS "RECOMPUTE WHEN AN INPUT CHANGES" (not a TTL)
----------------------------------------------------------------------
-Values are cached per (member, property, note) in `j2_note_computed`, so the
-table view can sort and filter by them in SQL like any other property. Every
-row carries a FINGERPRINT of the inputs it was computed from, and a row is
-served only while its fingerprint still equals the inputs' fingerprint NOW:
+A READ NEVER WRITES (controller ruling, 2026-10-01)
+--------------------------------------------------
+Every value is computed IN MEMORY at read time from its current inputs: one
+bounded query for the inputs, the evaluation in process, and -- for a sort or
+a filter over the whole library -- the ordering in process, after which only
+the page's rows are read. Nothing is persisted, so there is no cache to go
+stale and no value is ever shown out of date; and a member's list read never
+contends for the single SQLite writer that every save uses.
+`tests/test_notebook_computed_reads_never_write.py` fails if a GET writes.
+(⚰️ The first version cached values in a `j2_note_computed` table written on
+read; that table was removed before it shipped.)
 
-* a formula row's inputs are its own note (`updated_at` + the length of its
-  `properties_json`) and the member's property definitions;
-* a rollup row's inputs are the member's whole library -- notes (live count,
-  newest `updated_at`, newest `deleted_at`), trades (count and the sums of the
-  three numbers a rollup can read, since `j2_trades` has no `updated_at`),
-  option strategies, saved views -- plus the definitions. One indexed query.
-
-A TTL was rejected: inside its window it serves a value whose inputs already
-changed, without saying so. Hooking every note write door instead was rejected
-too -- there are more than twenty, and a door that forgot the hook would leave
-a stale value with nothing to notice it. The fingerprint is checked at READ,
-so no write path can forget it. The cost is a false invalidation (any edit
-anywhere recomputes a rollup), which is the cheap direction to be wrong in.
-
-⛔ A value is NEVER shown stale without saying so: if a recompute raises, the
-last cached row is served with `stale: true` and the time it was computed.
+ROLLUP RULES (accepted by the controller, 2026-10-01):
+  * win rate counts only the rows that HAVE a value (an empty row is not a loss);
+  * a saved-view rollup uses the view's property filter, as the server applies
+    it to the view; a formula condition in that view is applied too, a rollup
+    condition is not (a rollup of a rollup is refused, and this keeps them apart);
+  * the trades source counts closed trades and option strategies linked to the
+    note; an open position that has not closed into a trade is not counted;
+  * a rollup cannot summarise another rollup.
 
 ⛔ TENANT ISOLATION: every set query joins its member rows on `user_id = ?`.
 A note link's `target_note_id` and an embed's `trade_ref` are client-supplied
@@ -48,7 +45,7 @@ never one query per note.
 """
 from __future__ import annotations
 
-import hashlib
+import functools
 import json
 import sqlite3
 from typing import Any
@@ -260,6 +257,13 @@ def _validate_rollup(conn, user_id, defs, config, self_id) -> dict[str, Any]:
 
 # ── Formula evaluation for ONE note ─────────────────────────────────────────
 
+@functools.lru_cache(maxsize=512)
+def _compiled(expression: str):
+    """One parse + compile per distinct expression (fe.compile_ast: the same
+    semantics as fe.evaluate, held to the same shared vectors)."""
+    return fe.compile_ast(fe.parse(expression))
+
+
 def _eval_formula(def_id: str, props: dict[str, Any], by_id: dict[str, dict], stack: tuple[str, ...] = ()):
     """(value, reason, code) -- value None means an empty cell with `reason`."""
     d = by_id.get(def_id)
@@ -268,7 +272,7 @@ def _eval_formula(def_id: str, props: dict[str, Any], by_id: dict[str, dict], st
     if def_id in stack:
         return None, "This formula refers back to itself", "cycle"
     try:
-        node = fe.parse(((d.get("config") or {}).get("expression")) or "")
+        run = _compiled(((d.get("config") or {}).get("expression")) or "")
     except fe.FormulaError as e:
         return None, e.message, e.code
 
@@ -291,7 +295,7 @@ def _eval_formula(def_id: str, props: dict[str, Any], by_id: dict[str, dict], st
         return v
 
     try:
-        return fe.evaluate(node, lookup), None, None
+        return run(lookup), None, None
     except fe.FormulaEvalError as e:
         return None, e.message, e.code
 
@@ -304,101 +308,32 @@ def _props_of(raw: str | None) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-# ── Fingerprints ─────────────────────────────────────────────────────────────
+# ── Computing values IN MEMORY (a read never writes) ─────────────────────────
 
-def _defs_fp(defs: list[dict[str, Any]]) -> str:
-    blob = json.dumps(
-        [[d["id"], d["type"], d.get("config"), d.get("options"), d.get("updatedAt")] for d in defs],
-        sort_keys=True, separators=(",", ":"),
-    )
-    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
-
-
-_LIBRARY_FP_SQL = """
-SELECT
-  (SELECT COUNT(*) FROM j2_notes WHERE user_id = :u AND deleted_at IS NULL),
-  (SELECT COUNT(*) FROM j2_notes WHERE user_id = :u),
-  (SELECT MAX(updated_at) FROM j2_notes WHERE user_id = :u),
-  (SELECT MAX(deleted_at) FROM j2_notes WHERE user_id = :u),
-  (SELECT COUNT(*) || ':' || COALESCE(MAX(created_at), '') || ':' || COALESCE(SUM(pnl_dollar), 0)
-          || ':' || COALESCE(SUM(r_multiple), 0) || ':' || COALESCE(SUM(pnl_percent), 0)
-          || ':' || COALESCE(SUM(result = 'Win'), 0)
-     FROM j2_trades WHERE user_id = :u),
-  (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') FROM j2_option_strategies WHERE user_id = :u),
-  (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') || ':' || COALESCE(MAX(deleted_at), '')
-     FROM j2_note_saved_views WHERE user_id = :u)
-"""
+#: The partial covering index the whole-library reads use (db.py `_PERF_INDEXES`).
+#: It holds only LIVE notes that HAVE properties, keyed (user_id, id), carrying the
+#: properties JSON, so neither a scan for a formula nor a rollup's member lookup
+#: touches a note row (whose body sits on overflow pages). Named with INDEXED BY
+#: because, with no ANALYZE statistics, the planner prefers the broader live
+#: indexes; asked for only when it exists, so a skipped index degrades to slower,
+#: never to an error.
+PROPS_INDEX = "idx_j2_notes_props_live"
+_PROPS_WHERE = "user_id = ? AND deleted_at IS NULL AND properties_json IS NOT NULL"
 
 
-def _library_fp(conn: sqlite3.Connection, user_id: str) -> str:
-    row = conn.execute(_LIBRARY_FP_SQL, {"u": user_id}).fetchone()
-    return hashlib.sha1("|".join(str(v) for v in tuple(row)).encode("utf-8")).hexdigest()[:16]
+def _props_index(conn) -> str:
+    row = conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?", (PROPS_INDEX,)).fetchone()
+    return f" INDEXED BY {PROPS_INDEX}" if row else ""
 
 
-def _rollup_fp(lib_fp: str, defs_fp: str, config: dict[str, Any]) -> str:
-    blob = f"{lib_fp}|{defs_fp}|{json.dumps(config, sort_keys=True)}"
-    return "r:" + hashlib.sha1(blob.encode("utf-8")).hexdigest()[:20]
-
-
-# ── The cache ────────────────────────────────────────────────────────────────
-
-_UPSERT = (
-    "INSERT INTO j2_note_computed"
-    " (user_id, note_id, property_id, num_value, reason, set_size, used_size, fingerprint, computed_at)"
-    " VALUES (?,?,?,?,?,?,?,?,?)"
-    " ON CONFLICT(user_id, property_id, note_id) DO UPDATE SET"
-    " num_value = excluded.num_value, reason = excluded.reason, set_size = excluded.set_size,"
-    " used_size = excluded.used_size, fingerprint = excluded.fingerprint, computed_at = excluded.computed_at"
-)
+def _now_stamp() -> str:
+    return _now_iso()
 
 
 def _chunks(seq: list[Any], n: int = _CHUNK):
     for i in range(0, len(seq), n):
         yield seq[i:i + n]
 
-
-def _ensure_formula(conn, user_id, d, by_id, defs_fp, note_ids: list[str] | None) -> None:
-    fp_expr = "COALESCE(n.updated_at, '') || '|' || COALESCE(length(n.properties_json), 0) || '|' || ?"
-    base = (
-        f"SELECT n.id, n.properties_json, {fp_expr} AS fp FROM j2_notes n"
-        " LEFT JOIN j2_note_computed c ON c.user_id = n.user_id AND c.property_id = ? AND c.note_id = n.id"
-        " WHERE n.user_id = ? AND n.deleted_at IS NULL"
-        f" AND (c.note_id IS NULL OR c.fingerprint != {fp_expr})"
-    )
-    rows: list[sqlite3.Row] = []
-    if note_ids is None:
-        rows = conn.execute(base, (defs_fp, d["id"], user_id, defs_fp)).fetchall()
-    else:
-        for part in _chunks(note_ids):
-            marks = ",".join("?" * len(part))
-            rows += conn.execute(base + f" AND n.id IN ({marks})", (defs_fp, d["id"], user_id, defs_fp, *part)).fetchall()
-    if not rows:
-        return
-    now = _now_iso()
-    batch = []
-    for r in rows:
-        value, reason, _code = _eval_formula(d["id"], _props_of(r["properties_json"]), by_id)
-        batch.append((user_id, r["id"], d["id"], value, reason, None, None, r["fp"], now))
-    conn.executemany(_UPSERT, batch)
-    conn.commit()
-
-
-def _stale_note_ids(conn, user_id, pid, fp, note_ids: list[str] | None) -> list[str]:
-    base = (
-        "SELECT n.id FROM j2_notes n"
-        " LEFT JOIN j2_note_computed c ON c.user_id = n.user_id AND c.property_id = ? AND c.note_id = n.id"
-        " WHERE n.user_id = ? AND n.deleted_at IS NULL AND (c.note_id IS NULL OR c.fingerprint != ?)"
-    )
-    if note_ids is None:
-        return [r[0] for r in conn.execute(base, (pid, user_id, fp))]
-    out: list[str] = []
-    for part in _chunks(note_ids):
-        marks = ",".join("?" * len(part))
-        out += [r[0] for r in conn.execute(base + f" AND n.id IN ({marks})", (pid, user_id, fp, *part))]
-    return out
-
-
-# ── Rollup sets ──────────────────────────────────────────────────────────────
 
 def _windowed(inner_sql: str) -> str:
     return (
@@ -487,8 +422,13 @@ def _trade_sets(conn, user_id, field: str | None, src_ids: list[str] | None) -> 
     return out
 
 
-def _saved_view_set(conn, user_id, view_id: str) -> tuple[int, list[str]] | None:
-    """(set size, [member ids, capped]) for a saved view, or None if it is gone."""
+def _saved_view_set(conn, user_id, view_id: str, defs: list[dict], memo: dict) -> tuple[int, list[str]] | None:
+    """(set size, [member ids, capped]) for a saved view, or None if it is gone.
+
+    The view's ordinary conditions are the same SQL the list uses; a FORMULA
+    condition in the view is applied as the list applies it (a rowid set). A
+    ROLLUP condition inside a view a rollup reads is dropped (a rollup of a
+    rollup is refused at save, and this keeps the two from recursing)."""
     row = conn.execute(
         "SELECT spec_json FROM j2_note_saved_views WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
         (view_id, user_id),
@@ -499,40 +439,54 @@ def _saved_view_set(conn, user_id, view_id: str) -> tuple[int, list[str]] | None
         spec = json.loads(row["spec_json"]) if row["spec_json"] else {}
     except (ValueError, TypeError):
         spec = {}
+    by_id = {d["id"]: d for d in defs}
+    plain, computed = [], []
+    for c in spec.get("propertyFilter") or []:
+        d = by_id.get(c.get("propertyId")) if isinstance(c, dict) else None
+        if d is not None and d["type"] in COMPUTED_TYPES:
+            if d["type"] == "formula":
+                try:
+                    check_filter(c.get("op"), c.get("value"))
+                except ComputedConfigError:
+                    continue
+                computed.append((d, c.get("op"), c.get("value")))
+        else:
+            plain.append(c)
     from api.services.journal_two.note_properties import property_filter_sql
-    where, params = property_filter_sql(user_id, spec.get("propertyFilter"), conn, strict=False)
-    base = " FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL" + where
-    total = conn.execute("SELECT COUNT(*)" + base, (user_id, *params)).fetchone()[0]
-    ids = [r[0] for r in conn.execute(
-        "SELECT id" + base + " ORDER BY updated_at DESC, id LIMIT ?", (user_id, *params, MAX_ROLLUP_SET))]
+    where, params = property_filter_sql(user_id, plain, conn, strict=False)
+    cwhere, cparams = filter_clauses(conn, user_id, computed, memo, defs)
+    base = " FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL" + where + cwhere
+    allp = (user_id, *params, *cparams)
+    total = conn.execute("SELECT COUNT(*)" + base, allp).fetchone()[0]
+    ids = [r[0] for r in conn.execute("SELECT id" + base + " ORDER BY updated_at DESC, id LIMIT ?",
+                                      (*allp, MAX_ROLLUP_SET))]
     return int(total), ids
 
 
-def _member_values(conn, user_id, prop: dict | None, member_ids: list[str], by_id, defs_fp) -> dict[str, Any]:
-    """note id -> the rolled-up property's value on that note (None when empty)."""
+def _member_values(conn, user_id, prop: dict | None, member_ids: list[str], by_id, memo: dict) -> dict[str, Any]:
+    """note id -> the rolled-up property's value on that note (None when empty).
+    A formula member is evaluated here, in memory, from that note's own values;
+    read through the covering index, so no member's row is touched. Memoised per
+    request: two rollups over the same property share one read."""
     if prop is None or not member_ids:
         return {}
-    uniq = list(dict.fromkeys(member_ids))
-    out: dict[str, Any] = {}
-    if prop["type"] == "formula":
-        _ensure_formula(conn, user_id, prop, by_id, defs_fp, uniq)
-        for part in _chunks(uniq):
-            marks = ",".join("?" * len(part))
-            for r in conn.execute(
-                "SELECT note_id, num_value FROM j2_note_computed"
-                f" WHERE user_id = ? AND property_id = ? AND note_id IN ({marks})",
-                (user_id, prop["id"], *part),
-            ):
-                out[r["note_id"]] = r["num_value"]
-        return out
-    for part in _chunks(uniq):
+    cache = memo.setdefault(("member", prop["id"]), {})
+    need = [m for m in dict.fromkeys(member_ids) if m not in cache]
+    hint = _props_index(conn) if need else ""
+    for part in _chunks(need):
         marks = ",".join("?" * len(part))
         for r in conn.execute(
-            f"SELECT id, properties_json FROM j2_notes WHERE user_id = ? AND id IN ({marks})",
+            f"SELECT id, properties_json FROM j2_notes{hint} WHERE {_PROPS_WHERE} AND id IN ({marks})",
             (user_id, *part),
         ):
-            out[r["id"]] = _props_of(r["properties_json"]).get(prop["id"])
-    return out
+            props = _props_of(r["properties_json"])
+            if prop["type"] == "formula":
+                cache[r["id"]] = _eval_formula(prop["id"], props, by_id)[0]
+            else:
+                cache[r["id"]] = props.get(prop["id"])
+        for m in part:
+            cache.setdefault(m, None)       # no properties at all: empty
+    return cache
 
 
 def _is_num(v: Any) -> bool:
@@ -586,134 +540,200 @@ def _aggregate(config: dict, prop: dict | None, values: list[Any], set_size: int
     return total + 0.0, None
 
 
-def _compute_rollups(conn, user_id, d, by_id, defs_fp, src_ids: list[str], fp: str) -> None:
+def _rollup_cells(conn, user_id, d, defs, src_ids: list[str] | None, memo: dict):
+    """({src id: (value, reason, set size, used size)}, default for any other note).
+    Bounded: one windowed query per source (chunked by src when `src_ids` is given),
+    member values in chunks -- never one query per note."""
+    by_id = {x["id"]: x for x in defs}
     config = d.get("config") or {}
     source = config.get("source")
     prop = by_id.get(config.get("propertyId")) if config.get("propertyId") else None
-    now = _now_iso()
-    batch = []
     if config.get("propertyId") and prop is None:
-        for sid in src_ids:
-            batch.append((user_id, sid, d["id"], None, "The property this rollup reads was deleted", None, None, fp, now))
-    elif source == "saved_view":
-        got = _saved_view_set(conn, user_id, config.get("savedViewId"))
+        return {}, (None, "The property this rollup reads was deleted", None, None)
+    if source == "saved_view":
+        got = _saved_view_set(conn, user_id, config.get("savedViewId"), defs, memo)
         if got is None:
-            for sid in src_ids:
-                batch.append((user_id, sid, d["id"], None, "The saved view this rollup reads was deleted",
-                              None, None, fp, now))
-        else:
-            total, ids = got
-            vals_by_id = _member_values(conn, user_id, prop, ids, by_id, defs_fp)
-            vals = [vals_by_id.get(i) for i in ids]
-            value, reason = _aggregate(config, prop, vals, total, len(ids))
-            for sid in src_ids:
-                batch.append((user_id, sid, d["id"], value, reason, total, len(ids), fp, now))
-    elif source == "trades":
-        sets = _trade_sets(conn, user_id, config.get("tradeField"), None if len(src_ids) > _CHUNK * 4 else src_ids)
-        for sid in src_ids:
-            total, vals = sets.get(sid, (0, []))
+            return {}, (None, "The saved view this rollup reads was deleted", None, None)
+        total, ids = got
+        vals_by_id = _member_values(conn, user_id, prop, ids, by_id, memo)
+        value, reason = _aggregate(config, prop, [vals_by_id.get(i) for i in ids], total, len(ids))
+        return {}, (value, reason, total, len(ids))          # one value for every note
+    empty = (None, _EMPTY_SET.get(source, "Nothing to summarise yet"), 0, 0)
+    out = {}
+    if source == "trades":
+        sets = _trade_sets(conn, user_id, config.get("tradeField"), src_ids)
+        for sid, (total, vals) in sets.items():
             value, reason = _aggregate(config, None, vals, total, len(vals))
-            batch.append((user_id, sid, d["id"], value, reason, total, len(vals), fp, now))
-    else:
-        sets = _link_sets(conn, user_id, source, None if len(src_ids) > _CHUNK * 4 else src_ids)
-        all_mids = [m for sid in src_ids for m in sets.get(sid, (0, []))[1]]
-        vals_by_id = _member_values(conn, user_id, prop, all_mids, by_id, defs_fp)
-        for sid in src_ids:
-            total, mids = sets.get(sid, (0, []))
-            value, reason = _aggregate(config, prop, [vals_by_id.get(m) for m in mids], total, len(mids))
-            batch.append((user_id, sid, d["id"], value, reason, total, len(mids), fp, now))
-    conn.executemany(_UPSERT, batch)
-    conn.commit()
+            out[sid] = (value, reason, total, len(vals))
+        return out, empty
+    sets = _link_sets(conn, user_id, source, src_ids)
+    all_mids = [m for _, mids in sets.values() for m in mids]
+    vals_by_id = _member_values(conn, user_id, prop, all_mids, by_id, memo)
+    for sid, (total, mids) in sets.items():
+        value, reason = _aggregate(config, prop, [vals_by_id.get(m) for m in mids], total, len(mids))
+        out[sid] = (value, reason, total, len(mids))
+    return out, empty
 
-
-# ── Public entry points ──────────────────────────────────────────────────────
 
 def computed_defs(conn: sqlite3.Connection, user_id: str) -> list[dict[str, Any]]:
     return [d for d in _live_user_defs(conn, user_id) if d["type"] in COMPUTED_TYPES]
 
 
-def ensure_fresh(
-    conn: sqlite3.Connection, user_id: str, property_id: str, note_ids: list[str] | None = None,
-) -> bool:
-    """Make the cached rows of ONE computed property current for `note_ids`
-    (None = every live note of the member). True when the rows are current,
-    False when a recompute failed and the cache may be stale."""
-    defs = _live_user_defs(conn, user_id)
-    by_id = {d["id"]: d for d in defs}
-    d = by_id.get(property_id)
-    if d is None or d["type"] not in COMPUTED_TYPES:
-        return True
-    defs_fp = _defs_fp(defs)
-    try:
-        if d["type"] == "formula":
-            _ensure_formula(conn, user_id, d, by_id, defs_fp, note_ids)
-        else:
-            fp = _rollup_fp(_library_fp(conn, user_id), defs_fp, d.get("config") or {})
-            stale = _stale_note_ids(conn, user_id, property_id, fp, note_ids)
-            if stale:
-                _compute_rollups(conn, user_id, d, by_id, defs_fp, stale, fp)
-        return True
-    except sqlite3.Error:
-        conn.rollback()
-        return False
-
-
 def values_for_notes(
     conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+    props_by_id: dict[str, dict[str, Any]] | None = None, memo: dict | None = None,
 ) -> dict[str, dict[str, dict[str, Any]]]:
-    """note id -> property id -> {value, reason, computedAt, setSize, usedSize,
-    capped, stale} for every computed property of the member."""
+    """note id -> property id -> {value, reason, computedAt, kind, name, ...} for
+    every computed property of the member, computed NOW from the inputs. Reads
+    only. `props_by_id` (a page's own propertiesJson) saves re-reading them."""
     if not note_ids:
         return {}
-    defs = computed_defs(conn, user_id)
-    if not defs:
+    defs = _live_user_defs(conn, user_id)
+    comp = [d for d in defs if d["type"] in COMPUTED_TYPES]
+    if not comp:
         return {}
+    memo = memo if memo is not None else {}
+    by_id = {d["id"]: d for d in defs}
+    props_by_id = dict(props_by_id or {})
+    missing = [i for i in note_ids if i not in props_by_id]
+    for part in _chunks(missing):
+        marks = ",".join("?" * len(part))
+        for r in conn.execute(
+            f"SELECT id, properties_json FROM j2_notes WHERE user_id = ? AND id IN ({marks})", (user_id, *part),
+        ):
+            props_by_id[r["id"]] = _props_of(r["properties_json"])
+    now = _now_stamp()
     out: dict[str, dict[str, dict[str, Any]]] = {nid: {} for nid in note_ids}
-    for d in defs:
-        fresh = ensure_fresh(conn, user_id, d["id"], note_ids)
-        for part in _chunks(note_ids):
-            marks = ",".join("?" * len(part))
-            for r in conn.execute(
-                "SELECT note_id, num_value, reason, set_size, used_size, computed_at FROM j2_note_computed"
-                f" WHERE user_id = ? AND property_id = ? AND note_id IN ({marks})",
-                (user_id, d["id"], *part),
-            ):
-                cell = {
-                    "value": r["num_value"], "reason": r["reason"], "computedAt": r["computed_at"],
-                    "kind": d["type"], "name": d["name"],
-                }
-                if d["type"] == "rollup":
-                    cell["setSize"] = r["set_size"]
-                    cell["usedSize"] = r["used_size"]
-                    cell["capped"] = bool(r["set_size"] is not None and r["used_size"] is not None
-                                          and r["used_size"] < r["set_size"])
-                    cell["aggregate"] = (d.get("config") or {}).get("aggregate")
-                if not fresh:
-                    cell["stale"] = True
-                out.setdefault(r["note_id"], {})[d["id"]] = cell
+    for d in comp:
+        if d["type"] == "formula":
+            for nid in note_ids:
+                value, reason, _ = _eval_formula(d["id"], props_by_id.get(nid) or {}, by_id)
+                out[nid][d["id"]] = {"value": value, "reason": reason, "computedAt": now,
+                                     "kind": "formula", "name": d["name"]}
+            continue
+        cells, default = _rollup_cells(conn, user_id, d, defs, note_ids, memo)
+        for nid in note_ids:
+            value, reason, total, used = cells.get(nid, default)
+            out[nid][d["id"]] = {
+                "value": value, "reason": reason, "computedAt": now, "kind": "rollup", "name": d["name"],
+                "setSize": total, "usedSize": used,
+                "capped": bool(total is not None and used is not None and used < total),
+                "aggregate": (d.get("config") or {}).get("aggregate"),
+            }
     return out
 
 
-def sort_sql(user_id: str, property_id: str, direction: str) -> tuple[str, list[Any]]:
-    """An ORDER BY fragment over the cached value, empties last either way."""
-    sub = ("(SELECT c.num_value FROM j2_note_computed c"
-           " WHERE c.user_id = ? AND c.property_id = ? AND c.note_id = j2_notes.id)")
-    d = "ASC" if direction == "asc" else "DESC"
-    return f"({sub} IS NULL), {sub} {d}, j2_notes.id ASC", [user_id, property_id, user_id, property_id]
+def values_for_all(conn, user_id: str, d: dict, defs: list[dict] | None = None, memo: dict | None = None):
+    """({note ROWID: value}, default) for ONE computed property across the member's
+    live library -- what a sort or a filter needs. Only notes that HAVE a value are
+    in the map; every other note takes `default` (None for a formula and a link or
+    trade rollup; the one shared value for a saved-view rollup). Bounded: one
+    covering-index scan for a formula's inputs, one windowed query per rollup
+    source, member values in chunks. Memoised per request in `memo`."""
+    memo = memo if memo is not None else {}
+    key = ("all", d["id"])
+    if key in memo:
+        return memo[key]
+    defs = defs if defs is not None else _live_user_defs(conn, user_id)
+    by_id = {x["id"]: x for x in defs}
+    values: dict[int, float] = {}
+    if d["type"] == "formula":
+        for rid, raw in conn.execute(
+            f"SELECT j2_notes.rowid, properties_json FROM j2_notes{_props_index(conn)} WHERE {_PROPS_WHERE}",
+            (user_id,),
+        ):
+            v = _eval_formula(d["id"], _props_of(raw), by_id)[0]
+            if v is not None:
+                values[rid] = v
+        result = (values, None)
+    else:
+        cells, default = _rollup_cells(conn, user_id, d, defs, None, memo)
+        valued = {sid: c[0] for sid, c in cells.items() if c[0] is not None}
+        ids = list(valued)
+        for part in _chunks(ids):
+            marks = ",".join("?" * len(part))
+            for rid, nid in conn.execute(
+                f"SELECT rowid, id FROM j2_notes WHERE user_id = ? AND id IN ({marks})", (user_id, *part),
+            ):
+                values[rid] = valued[nid]
+        result = (values, default[0])
+    memo[key] = result
+    return result
 
 
-_FILTER_OPS = {"eq": "=", "neq": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
+_FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty")
 
 
-def filter_sql(user_id: str, property_id: str, op: str, value: Any) -> tuple[str, list[Any]]:
-    sub = ("(SELECT c.num_value FROM j2_note_computed c"
-           " WHERE c.user_id = ? AND c.property_id = ? AND c.note_id = j2_notes.id)")
-    if op == "is_empty":
-        return f"{sub} IS NULL", [user_id, property_id]
-    if op == "is_not_empty":
-        return f"{sub} IS NOT NULL", [user_id, property_id]
+def check_filter(op: Any, value: Any) -> None:
     if op not in _FILTER_OPS:
         raise ComputedConfigError(f"{op!r} is not supported for a calculated property")
+    if op in ("is_empty", "is_not_empty"):
+        return
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ComputedConfigError("Filter a calculated property by a number")
-    return f"{sub} {_FILTER_OPS[op]} ?", [user_id, property_id, float(value)]
+
+
+def _passes(v: Any, op: str, target: Any) -> bool:
+    if op == "is_empty":
+        return v is None
+    if op == "is_not_empty":
+        return v is not None
+    if v is None:
+        return False
+    t = float(target)
+    return {"eq": v == t, "neq": v != t, "gt": v > t, "gte": v >= t, "lt": v < t, "lte": v <= t}[op]
+
+
+def filter_clauses(conn, user_id: str, filters: list[tuple[dict, str, Any]], memo: dict,
+                   defs: list[dict] | None = None) -> tuple[str, list[Any]]:
+    """Computed conditions as rowid-SET clauses to AND onto a list's WHERE, so the
+    page, its ORDER BY/LIMIT and its true total all stay in SQL and agree. A note
+    with no value takes the condition's answer for `default` (so `is_empty` keeps
+    them and `gt` drops them) without its rowid ever being listed."""
+    sql, params = "", []
+    if not filters:
+        return sql, params
+    defs = defs if defs is not None else _live_user_defs(conn, user_id)
+    for d, op, target in filters:
+        values, default = values_for_all(conn, user_id, d, defs, memo)
+        if _passes(default, op, target):
+            excluded = [rid for rid, v in values.items() if not _passes(v, op, target)]
+            sql += " AND j2_notes.rowid NOT IN (SELECT value FROM json_each(?))"
+            params.append(json.dumps(excluded))
+        else:
+            kept = [rid for rid, v in values.items() if _passes(v, op, target)]
+            sql += " AND j2_notes.rowid IN (SELECT value FROM json_each(?))"
+            params.append(json.dumps(kept))
+    return sql, params
+
+
+def sorted_page(conn, user_id: str, where_sql: str, params: list[Any], order_sql: str,
+                sort: tuple[dict, str], offset: int, limit: int, memo: dict) -> list[int]:
+    """The page's rowids for a sort by a computed value, empties last either way.
+
+    Only notes WITH a value need ordering in memory; they are read in the base
+    order (so ties keep it), sorted, and the page is cut from them. Every note
+    without a value follows in the base order, read with LIMIT/OFFSET in SQL --
+    so the cost follows the number of valued notes, never the library size."""
+    d, direction = sort
+    values, default = values_for_all(conn, user_id, d, None, memo)
+    if default is not None and not values:
+        # One shared value for every note (a saved-view rollup): nothing to reorder.
+        return [r[0] for r in conn.execute(
+            "SELECT j2_notes.rowid FROM j2_notes" + where_sql + order_sql + " LIMIT ? OFFSET ?",
+            (*params, limit, offset))]
+    keys = json.dumps(list(values))
+    valued = [r[0] for r in conn.execute(
+        "SELECT j2_notes.rowid FROM j2_notes" + where_sql
+        + " AND j2_notes.rowid IN (SELECT value FROM json_each(?))" + order_sql, (*params, keys))]
+    sign = -1.0 if direction == "desc" else 1.0
+    valued.sort(key=lambda rid: sign * values[rid])            # stable: ties keep the base order
+    page = valued[offset:offset + limit]
+    need = limit - len(page)
+    if need > 0:
+        rest_offset = max(0, offset - len(valued))
+        page += [r[0] for r in conn.execute(
+            "SELECT j2_notes.rowid FROM j2_notes" + where_sql
+            + " AND j2_notes.rowid NOT IN (SELECT value FROM json_each(?))" + order_sql + " LIMIT ? OFFSET ?",
+            (*params, keys, need, rest_offset))]
+    return page

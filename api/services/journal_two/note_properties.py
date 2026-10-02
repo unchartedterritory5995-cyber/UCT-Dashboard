@@ -494,7 +494,7 @@ def resolve_note_properties(user_id: str, note: dict[str, Any], conn: sqlite3.Co
     computed: dict[str, Any] = {}
     if any(d.get("computed") for d in defs) and not note.get("deletedAt"):
         from api.services.journal_two.note_computed import values_for_notes
-        computed = values_for_notes(conn, user_id, [note["id"]]).get(note["id"], {})
+        computed = values_for_notes(conn, user_id, [note["id"]], {note["id"]: values}).get(note["id"], {})
     out = []
     for d in defs:
         if d["source"] == "financial_derived":
@@ -704,16 +704,12 @@ def property_filter_sql(
                 )
             continue
         if prop_def.get("computed"):
-            # Wave 11: a formula/rollup filters on its CACHED value, made current
-            # for every live note first (note_computed's fingerprint check).
-            from api.services.journal_two import note_computed
-            note_computed.ensure_fresh(conn, user_id, property_id)
-            try:
-                frag, frag_params = note_computed.filter_sql(user_id, property_id, op, value)
-            except note_computed.ComputedConfigError as e:
-                raise PropertyValidationError(str(e))
-            clauses.append(frag)
-            params.extend(frag_params)
+            # Wave 11: a formula/rollup value is not in SQL -- it is computed in
+            # memory (note_computed), and `split_computed` takes these conditions
+            # out BEFORE this builder runs. Reaching here means a caller skipped
+            # that split: refuse a live filter rather than build a wrong one.
+            if strict:
+                raise PropertyValidationError(f"{prop_def['name']} is calculated; filter it through the list")
             continue
         extract = 'json_extract(properties_json, ?)'
         path_param = f'$."{property_id}"'
@@ -757,6 +753,45 @@ def property_filter_sql(
 _VALID_SORT_DIRECTIONS = ("asc", "desc")
 
 
+def split_computed(
+    user_id: str, property_filter: list[dict[str, Any]] | None, property_sort: dict[str, Any] | None,
+    conn: sqlite3.Connection, *, strict: bool = True,
+) -> tuple[list[dict[str, Any]] | None, list[tuple[dict, str, Any]], tuple[dict, str] | None]:
+    """Wave 11: take the formula/rollup conditions and sort OUT of a list
+    request, validated, so they can be applied in memory (`note_computed`)
+    while every ordinary condition stays in SQL. Returns (plain filter,
+    computed filters as (def, op, value), computed sort as (def, direction)).
+    With the flag off a computed definition is unknown, so nothing splits."""
+    if not property_filter and not property_sort:
+        return property_filter, [], None
+    if _computed_hidden():
+        return property_filter, [], None
+    from api.services.journal_two.note_computed import ComputedConfigError, check_filter
+    plain: list[dict[str, Any]] = []
+    computed: list[tuple[dict, str, Any]] = []
+    for cond in property_filter or []:
+        d = get_property_def(user_id, cond.get("propertyId"), conn=conn) if isinstance(cond, dict) else None
+        if d is not None and d.get("computed"):
+            try:
+                check_filter(cond.get("op"), cond.get("value"))
+            except ComputedConfigError as e:
+                if strict:
+                    raise PropertyValidationError(str(e))
+                continue
+            computed.append((d, cond.get("op"), cond.get("value")))
+        else:
+            plain.append(cond)
+    csort = None
+    if property_sort:
+        d = get_property_def(user_id, property_sort.get("propertyId"), conn=conn)
+        if d is not None and d.get("computed"):
+            direction = (property_sort.get("direction") or "asc").lower()
+            if direction not in _VALID_SORT_DIRECTIONS:
+                raise PropertyValidationError(f"Unsupported sort direction: {direction!r}")
+            csort = (d, direction)
+    return (plain or None) if property_filter else property_filter, computed, csort
+
+
 def property_sort_sql(
     user_id: str, property_sort: dict[str, Any] | None, conn: sqlite3.Connection,
     *, strict: bool = True,
@@ -790,10 +825,9 @@ def property_sort_sql(
             raise PropertyValidationError("A relation cannot be sorted")
         return None
     if prop_def.get("computed"):
-        # Wave 11: sort by the CACHED value, made current for every live note first.
-        from api.services.journal_two import note_computed
-        note_computed.ensure_fresh(conn, user_id, property_id)
-        return note_computed.sort_sql(user_id, property_id, direction)
+        # Wave 11: a computed sort is applied in memory by notes.list_notes
+        # (`split_computed` below); there is no SQL fragment for it.
+        return None
     # NULLS LAST regardless of direction -- an unset property should never
     # dominate the top of an ascending sort just because SQLite treats NULL
     # as smallest (Wave E checkpoint's own "honest empty state" discipline,
@@ -828,12 +862,6 @@ def purge_expired_property_defs_and_saved_views(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Wave 11: a purged computed definition's cached values go with it.
-        conn.execute(
-            "DELETE FROM j2_note_computed WHERE property_id IN ("
-            " SELECT id FROM j2_note_properties WHERE deleted_at IS NOT NULL AND deleted_at < ?)",
-            (cutoff,),
-        )
         d_cur = conn.execute(
             "DELETE FROM j2_note_properties WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff,),
         )
