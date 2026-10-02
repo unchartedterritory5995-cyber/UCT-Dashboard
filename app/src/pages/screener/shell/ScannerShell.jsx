@@ -20,6 +20,7 @@ import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
+import CriteriaBox from './CriteriaBox'
 import UniverseBar from './UniverseBar'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
@@ -115,7 +116,7 @@ export default function ScannerShell({ embedded = false }) {
   // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
   // and faster preview count fed into FilterRail as a fast signal ahead of the
   // heavier scan above. Never replaces `result`/`isLoading` above.
-  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading } =
+  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading, asOf: matchCountAsOf } =
     useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
@@ -313,7 +314,8 @@ export default function ScannerShell({ embedded = false }) {
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
       matchCount={matchCount} matchCountEmpty={matchCountEmpty}
-      matchCountLoading={matchCountLoading} />
+      matchCountLoading={matchCountLoading} matchCountAsOf={matchCountAsOf}
+      criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
   )
 
   return (
@@ -492,7 +494,8 @@ export default function ScannerShell({ embedded = false }) {
           <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
             onClear={s.clearFilters} variant="sheet"
             matchCount={matchCount} matchCountEmpty={matchCountEmpty}
-            matchCountLoading={matchCountLoading} />
+            matchCountLoading={matchCountLoading} matchCountAsOf={matchCountAsOf}
+            criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
         )}
       </FiltersSheet>
       {/* In-screener chart review — walks displayRows' tickers (the order shown)

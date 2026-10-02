@@ -740,6 +740,7 @@ OP_OPERANDS = {
     "eq": ("value",),
     "contains": ("value",),      # `col LIKE %value%`
     "in": ("values",),           # a list; an empty one contributes no clause
+    "not_in": ("values",),       # the exclude twin of `in`; a NULL value is KEPT
     "gt_col": ("other",),        # the right-hand side is a FILTER KEY, not a column
     "gte_col": ("other",),
     "lt_col": ("other",),

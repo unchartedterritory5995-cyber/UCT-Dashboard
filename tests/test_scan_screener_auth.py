@@ -99,7 +99,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 21  # +1 2026-09-29: POST /api/screener/rebuild-universe (admin;
+EXPECTED_SCREENER_ROUTES = 23  # +2 2026-10-02: GET /api/screener/grammar and
+#   POST /api/screener/grammar/parse (FT-029, dark behind SCREENER_LOGIC_ENABLED).
+#   PAID like /scan: the grammar compiles to the same spec the paid screen runs.
+#                              # +1 2026-09-29: POST /api/screener/rebuild-universe (admin;
 #   #173 added it without moving this pin — it regenerates the screener's own universe
 #   from Massive reference, so it spends provider budget: admin, never paid)
 #                              # +1 2026-08-31: GET /api/screener/structures
@@ -169,6 +172,7 @@ BODY_SAMPLES = {
                                        "name": "S", "mode": "both"},
     ("POST", "/api/screener/saved-screens"): {"name": "n", "spec": {"filters": []}},
     ("PUT", "/api/screener/saved-screens/{sid}"): {"name": "n2"},
+    ("POST", "/api/screener/grammar/parse"): {"text": "price > 10"},
 }
 
 
@@ -281,6 +285,14 @@ def _client(user: dict | None):
         app.dependency_overrides[get_current_user] = lambda: dict(user)
         app.dependency_overrides[get_current_user_with_plan] = lambda: dict(user)
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _arm_dark_screener_doors(monkeypatch):
+    """The grammar doors (FT-029) answer 404 to EVERYONE while dark, before any
+    gate runs. This file measures the GATES, so it measures them armed; the dark
+    404 is railed in tests/test_screener_logic_grammar.py."""
+    monkeypatch.setenv("SCREENER_LOGIC_ENABLED", "1")
 
 
 FREE_USER = {"id": "free1", "role": "member", "plan": "free"}

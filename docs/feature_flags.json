@@ -1383,6 +1383,12 @@
       "where": [],
       "note": "FT-041/042/043 (TERMINAL-NEXT owner ruling 2026-10-02): member CSV and Excel export for the screener (every matched row up to the page's own 5,000 ceiling, in the displayed columns), a watchlist (symbol/notes/added), the option chain (the chain page's columns; also 404 while OPTIONS_CHAIN_ENABLED is off), the news list (time/headline/source/category/tickers/link, never an article body) and chart bars (up to 20,000). ENABLEMENT GATE, default OFF, read per request in api/services/data_exports.is_enabled(); SERVICE: web. Off: every /api/exports/* route answers 404 and nothing is counted. On: require_paid (402), a 6/minute per-member burst limit and EXPORT_DAILY_CAP (default 25) files per member per ET day, durable in auth.db daily_usage_counters (429 with a sentence; a failed build gives its charge back). No new redistribution: each builder reads the same function the page's own route reads, and string cells are formula-escaped. Pending: needs an owner arm. Rollback: set 0."
     },
+    "SCREENER_LOGIC_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-026 + FT-029 + the typed half of FT-024/030 (TERMINAL-NEXT owner ruling 2026-10-02): grouped screener criteria (all-of / any-of / none-of, nestable to depth 4, at most 25 grouped criteria) as an optional 'logic' node on the screen spec, ANDed with the flat filter list; and the where-grammar (k/m/b/t/% shortcuts, and/or/not with parentheses, between, in/not in, contains, field-to-field) that compiles text to that node, with one plain sentence per criterion as the applied-criteria explanation. ENABLEMENT GATE, default OFF, read per request in api/services/screener/logic.is_enabled(); SERVICE: web. Off: GET /api/screener/grammar and POST /api/screener/grammar/parse answer 404, the screener's Criteria box does not render, and any spec carrying 'logic' is REFUSED (400 with a sentence) by /scan and /count, never silently ignored. Every leaf renders through query.build_where, so a grouped criterion cannot mean something different from the same filter in the flat list; scan/list/universe keys are refused inside a group. Pending: needs an owner arm. Rollback: set 0."
+    },
     "WEB_PUSH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

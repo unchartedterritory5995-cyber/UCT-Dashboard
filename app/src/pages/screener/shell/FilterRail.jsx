@@ -19,7 +19,7 @@ const openKey = k => `uct.screener.rail.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
 
 export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
-  matchCount, matchCountEmpty, matchCountLoading }) {
+  matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() =>
     Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)])))
@@ -186,6 +186,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           <button type="button" className={styles.railClear} onClick={onClear}>Clear {activeTotal}</button>
         )}
       </div>
+      {criteriaSlot}
       {/* The distribution basis note + per-control percentile bands were removed
           by owner request; the rail is the search + grouped controls. */}
       {/* PACKET-AB CP1 (fingerprint bc19457cf): a fast preview-count badge fed
@@ -202,6 +203,13 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           {matchCountLoading && matchCount == null
             ? 'Scanning…'
             : `${(matchCount ?? 0).toLocaleString()} matches`}
+          {/* FT-028: the date the count describes, from the count's own
+              statement -- never borrowed from the toolbar's last full scan. */}
+          {matchCount != null && matchCountAsOf?.snapshot_date && (
+            <span className={styles.railMatchAsOf}>
+              {` · as of ${matchCountAsOf.snapshot_date}${matchCountAsOf.mixed ? ' (mixed dates)' : ''}`}
+            </span>
+          )}
         </div>
       )}
       {(meta.categories || []).map(cat => {

@@ -1125,6 +1125,19 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     where, where_params = build_where(spec.get("filters"), scan_joins, overlay,
                                       list_joins=list_joins, user_id=user_id,
                                       conn=conn)
+    # FT-026: the optional all-of / any-of / none-of tree, ANDed with the flat
+    # list. Every leaf renders through THIS module's `build_where` with the same
+    # overlay and connection (see `logic.py`); refused, never ignored, while dark.
+    if spec.get("logic"):
+        from . import logic as _logic
+        if not _logic.is_enabled():
+            raise ValueError(_logic.DISABLED_SENTENCE)
+        _logic.validate(spec["logic"])
+        group_sql, group_params = _logic.to_sql(
+            spec["logic"],
+            lambda leaf: build_where([leaf], None, overlay, conn=conn))
+        where = f"{where}{' AND ' if where.strip() else ' WHERE '}{group_sql}"
+        where_params = [*where_params, *group_params]
     # 🔴 THE MEMBER'S OWN WEIGHTED COMPOSITE (benchmark 432-435). Parsed before
     # anything else uses it so a malformed rank REFUSES rather than degrading to
     # an unranked list the member did not ask for.
@@ -1292,12 +1305,23 @@ def preview_count(spec, user_id=None):
     spec = spec or {}
     with snapshot_db.connect() as conn:
         plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM {plan['from_sql']}{plan['where']}",
-            plan["describe_params"]).fetchone()[0]
+        # FT-028: THE COUNT CARRIES ITS OWN AS-OF. `describe_rows` is the same
+        # call `run_scan` makes over the same where/params/FROM, and its `rows`
+        # IS the count (one GROUP BY), so the number and the date that describes
+        # it come from one statement and cannot disagree.
+        snap = snapshot_db.describe_rows(
+            conn, plan["where"], plan["describe_params"],
+            from_sql=plan["from_sql"], date_expr=plan["date_expr"])
+        total = snap["rows"]
     rank = plan["rank"]
     return {
         "count": total,
+        "as_of": {
+            "snapshot_date": snap.get("snapshot_date"),
+            "mixed": snap.get("mixed"),
+            "oldest_snapshot_date": snap.get("oldest_snapshot_date"),
+            "counted_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        },
         # ⭐ THE ZERO IS THE WHOLE POINT, so it is named rather than inferred
         # from `count == 0` by every surface that renders this.
         "empty": total == 0,
