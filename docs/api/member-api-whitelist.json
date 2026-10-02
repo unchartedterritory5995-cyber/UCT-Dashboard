@@ -416,6 +416,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/charts/list-sources/screen/{screen_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/charts/list-sources/theme/{theme_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/coaching-notes",
       "rate_limit_family": "member-workspace",
       "tier": "paid"
@@ -2306,6 +2318,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/filing-search",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/financial-history/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2319,6 +2337,18 @@
     {
       "method": "GET",
       "path": "/api/research/history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/iv-history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/iv-history/{sym}/implied-vs-realized",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2392,13 +2422,13 @@
       "method": "GET",
       "path": "/api/rundown",
       "rate_limit_family": "market-analytics",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/rundown/speech-text",
       "rate_limit_family": "market-analytics",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -3205,5 +3235,10 @@
       "tier": "member"
     }
   ],
-  "excluded_no_rate_family": []
+  "excluded_no_rate_family": [
+    "/api/artifact-versions/status",
+    "/api/artifact-versions/{kind}/deleted",
+    "/api/artifact-versions/{kind}/{artifact_id}",
+    "/api/artifact-versions/{kind}/{artifact_id}/{version}"
+  ]
 }

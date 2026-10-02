@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (533)
+## Endpoints (539)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -84,6 +84,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/chart/{ticker}` | paid | market-data |
 | GET | `/api/charts/layouts` | member | member-workspace |
 | GET | `/api/charts/layouts/{layout_id}/share` | member | member-workspace |
+| GET | `/api/charts/list-sources/screen/{screen_id}` | member | member-workspace |
+| GET | `/api/charts/list-sources/theme/{theme_id}` | member | member-workspace |
 | GET | `/api/coaching-notes` | paid | member-workspace |
 | GET | `/api/community/chat/channels` | member | community-content |
 | GET | `/api/community/chat/channels/{slug}/messages` | member | community-content |
@@ -399,9 +401,12 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research |
 | GET | `/api/research/estimates/{sym}` | paid | research |
 | GET | `/api/research/expected-move/{sym}` | paid | research |
+| GET | `/api/research/filing-search` | paid | research |
 | GET | `/api/research/financial-history/{sym}` | paid | research |
 | GET | `/api/research/financials/{sym}` | paid | research |
 | GET | `/api/research/history/{sym}` | paid | research |
+| GET | `/api/research/iv-history/{sym}` | paid | research |
+| GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research |
 | GET | `/api/research/news/{sym}` | paid | research |
 | GET | `/api/research/options/{sym}/chain` | paid | research |
 | GET | `/api/research/options/{sym}/expirations` | paid | research |
@@ -413,8 +418,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/risk-summary` | paid | member-workspace |
 | GET | `/api/rs-rankings` | paid | market-analytics |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics |
-| GET | `/api/rundown` | member | market-analytics |
-| GET | `/api/rundown/speech-text` | member | market-analytics |
+| GET | `/api/rundown` | paid | market-analytics |
+| GET | `/api/rundown/speech-text` | paid | market-analytics |
 | GET | `/api/scanner/universe` | paid | screener |
 | GET | `/api/scans/definition-record` | paid | screener |
 | GET | `/api/scans/definition-results` | paid | screener |

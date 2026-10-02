@@ -1391,6 +1391,12 @@
       ],
       "note": "ARMED on web 2026-10-02 16:05Z (owner-run --set; deploy 94d46235 SUCCESS 16:08Z, fresh boot). Verified as the smoke account: auth seasonality_enabled=true; /api/research/seasonality/AAPL 200. COV-01 (roadmap RM-L11): the Research > Seasonality tab and GET /api/research/seasonality/{sym}: monthly and weekday return distributions from the UCT daily bar store, each bucket with its n, months seen fewer than 5 times marked thin, partial first/last months excluded, the covered window stated. No vendor or licence question (the roadmap's own note). ENABLEMENT GATE, default OFF, read per request on the auth payload (seasonality_enabled); unset = the route 404s before identity and the tab is absent. Arm: railway variables --service web --set SEASONALITY_ENABLED=1 (owner). Rollback = set it to 0."
     },
+    "FILING_SEARCH_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-058/059/060 (lane gaps-research, owner ruling 2026-10-02 'build everything needed'): Research > Depth > Filing search and GET /api/research/filing-search. Boolean (AND/OR/NOT, -word, parentheses), proximity (a NEAR/n b, unordered, FTS5 NEAR), curated synonyms (FT-059, the expansion used is returned), exact =word and quoted phrases enforced on the paragraph text, and section scope (section:risk|mdna, form:10-K|10-Q; FT-060) over SQLite FTS5 at FILING_SEARCH_DB_PATH (default /data/filing_search.db). Indexed: the newest original 10-K and 10-Q per tracked symbol, read via fundamentals_pit.sec_client and cut into sections by the COV-04 extractor (filing_blackline.locate_section). Request path reads the local store only; an unindexed symbol answers pending and is queued on the module's own one-thread worker; the job filing_search_reindex (03:40 ET daily, always registered) re-reads week-old symbols and is a no-op while unset. ENABLEMENT GATE, default OFF, read per request on the auth payload (filing_search_enabled, present only when on); unset = the route 404s before identity, nothing is queued, the panel is absent. Arm: railway variables --service web --set FILING_SEARCH_ENABLED=1 (owner). Rollback = unset it."
+    },
     "OPTIONS_CHAIN_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",

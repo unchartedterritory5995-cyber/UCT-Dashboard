@@ -4,6 +4,7 @@ import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
+import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 
 export const AuthContext = createContext(null)
 
@@ -40,6 +41,8 @@ export function AuthProvider({ children }) {
   const [optionsVolSurfaceEnabled, setOptionsVolSurfaceEnabled] = useState(false)
   const [seasonalityEnabled, setSeasonalityEnabled] = useState(false)
   const [filingBlacklineEnabled, setFilingBlacklineEnabled] = useState(false)
+  // Research > Depth: one boolean per surface, all false until the payload says otherwise.
+  const [researchDepth, setResearchDepth] = useState(() => readResearchDepth(null))
   const [cohortsWithdrawn, setCohortsWithdrawn] = useState([])
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
@@ -103,6 +106,8 @@ export function AuthProvider({ children }) {
     ['seasonality_enabled', (d) => d.seasonality_enabled === true, setSeasonalityEnabled],
     // COV-04: the key rides the payload ONLY when on; absent reads as false.
     ['filing_blackline_enabled', (d) => d.filing_blackline_enabled === true, setFilingBlacklineEnabled],
+    // Research > Depth: several keys, each present only when on (researchDepthFlags.js).
+    ['research_depth', readResearchDepth, setResearchDepth],
     ['cohorts_withdrawn', (d) => (Array.isArray(d.cohorts_withdrawn) ? d.cohorts_withdrawn : []), setCohortsWithdrawn],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
@@ -313,7 +318,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

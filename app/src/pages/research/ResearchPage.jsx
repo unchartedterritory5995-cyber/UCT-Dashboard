@@ -24,6 +24,8 @@ import HistoryTab from './tabs/HistoryTab'
 import OptionsChainTab from './tabs/OptionsChainTab'
 import SeasonalityTab from './tabs/SeasonalityTab'
 import FilingChangesTab from './tabs/FilingChangesTab'
+import DepthTab from './depth/DepthTab'
+import { anyResearchDepth } from './depth/researchDepthFlags'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -111,13 +113,14 @@ import styles from './ResearchPage.module.css'
 // on the market-view side of the MY RESEARCH boundary. Ships DARK behind
 // DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled), same
 // mechanism and polarity as the Flow tab.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filing changes', 'Ask AI', 'My Research']
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filing changes', 'Depth', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
   'filing-changes': 'Filing changes',
+  depth: 'Depth',
   overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', options: 'Options', seasonality: 'Seasonality', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
@@ -129,7 +132,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -159,7 +162,10 @@ export default function ResearchPage() {
     // COV-01: seasonality, dark behind SEASONALITY_ENABLED.
     (t !== 'Seasonality' || seasonalityEnabled === true) &&
     // COV-04: filing-to-filing blackline, dark behind FILING_BLACKLINE_ENABLED.
-    (t !== 'Filing changes' || filingBlacklineEnabled === true))
+    (t !== 'Filing changes' || filingBlacklineEnabled === true) &&
+    // lane gaps-research: the Depth tab exists while ANY of its panels' flags is on;
+    // each panel inside it is gated by its own flag (depth/researchDepthFlags.js).
+    (t !== 'Depth' || anyResearchDepth(researchDepth)))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -212,6 +218,7 @@ export default function ResearchPage() {
       {active === 'Seasonality' && <SeasonalityTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Filing changes' && <FilingChangesTab sym={sym} />}
+      {active === 'Depth' && <DepthTab sym={sym} flags={researchDepth} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />

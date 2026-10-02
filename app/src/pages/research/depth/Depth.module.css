@@ -1,0 +1,27 @@
+/* Research > Depth panels (lane gaps-research). */
+.depth { display: flex; flex-direction: column; gap: 22px; }
+.panel { border-top: 1px solid var(--border); padding-top: 12px; }
+.panelTitle { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
+.lede { font-size: 13px; color: var(--text); margin: 4px 0 10px; }
+.note { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.muted { color: var(--text-muted); font-size: 12px; }
+.error { color: var(--loss); font-size: 13px; padding: 8px 0; }
+.form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.input { flex: 1 1 260px; min-width: 0; min-height: 36px; padding: 6px 10px; font-size: 13px;
+  background: var(--bg-elevated, transparent); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+.select { min-height: 36px; font-size: 13px; background: transparent; color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+.button { min-height: 36px; padding: 6px 14px; font-size: 13px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text); }
+.hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.hit { font-size: 13px; line-height: 1.5; color: var(--text); }
+.cite { font-size: 11px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.mark { background: transparent; color: var(--accent, var(--gain)); font-weight: 700; }
+.grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+.grid th, .grid td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.grid th[scope='row'], .grid thead th:first-child { text-align: left; }
+.grid thead th { color: var(--text-muted); font-weight: 600; }
+.scroll { overflow-x: auto; max-width: 100%; }
+.up { color: var(--gain); }
+.down { color: var(--loss); }
+.help { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; padding-left: 16px; }
