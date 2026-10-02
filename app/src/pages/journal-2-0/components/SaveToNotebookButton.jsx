@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ContextPopover from '../../../components/mobile/ContextPopover'
 import UIcon from '../../../components/ui/UIcon'
 import { useJournalToast, JournalToast } from '../lib/useJournalToast'
@@ -40,6 +40,31 @@ export default function SaveToNotebookButton({
   const [pending, setPending] = useState(null) // {anchor, capture} while the annotation box is open
   const [annotation, setAnnotation] = useState('')
   const [busy, setBusy] = useState(false)
+  const noteRef = useRef(null)
+
+  // ⭐ KEYBOARD FIRST: the box takes focus as soon as it is on screen, so a member who
+  // opened it with Enter can type at once. ⚠️ Measured in a real Chromium on the lane CX
+  // walk (2026-10-01): the anchored ContextPopover rendered with focus left on the
+  // trigger, while jsdom reported the textarea focused. The popover is measured before
+  // it is shown (`visibility: hidden`), and focusing a hidden node is a silent no-op, so
+  // this waits for the box to be visible and focuses it itself.
+  useEffect(() => {
+    if (!pending) return undefined
+    let tries = 0
+    let raf = 0
+    const tick = () => {
+      const el = noteRef.current
+      const shown = el && el.isConnected && getComputedStyle(el).visibility !== 'hidden'
+      if (shown) {
+        if (document.activeElement !== el) el.focus()
+        return
+      }
+      tries += 1
+      if (tries < 60) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [pending])
 
   const send = async (capture) => {
     setBusy(true)
@@ -92,6 +117,7 @@ export default function SaveToNotebookButton({
           title="Save to Notebook" width={280}>
           <div className={styles.box}>
             <textarea
+              ref={noteRef}
               className={styles.note}
               value={annotation}
               onChange={(ev) => setAnnotation(ev.target.value)}

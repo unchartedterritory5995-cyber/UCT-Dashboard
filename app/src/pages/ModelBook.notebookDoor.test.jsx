@@ -55,6 +55,8 @@ test('a real, named button; the member’s words ride along with a REFERENCE to 
 
   fireEvent.click(btn)
   const box = await screen.findByRole('textbox', { name: 'Your note on this (optional)' })
+  // Keyboard first: the box takes focus, so a member can type straight away.
+  await waitFor(() => expect(box).toHaveFocus())
   expect(sendMock).not.toHaveBeenCalled()                   // nothing is sent before Save
   fireEvent.change(box, { target: { value: '  the textbook VCP  ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
