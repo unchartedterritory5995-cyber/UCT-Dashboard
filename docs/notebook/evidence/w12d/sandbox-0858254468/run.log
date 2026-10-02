@@ -1,0 +1,18 @@
+  G-003.D1_signup_through_the_form: PASS -- POST /api/auth/signup 200 from the /signup form; /api/auth/me 200 names w12d-del-f466cb@local.dev (id 8274449b-3725-4273-bec2-6af84cb01005)
+  G-003.D2_note_with_attachment: PASS -- note 319b9b32a3ac4396834daab4148bc865: chip shown=True, stored body carries the text and the chip=True; 1 attachment file(s) on disk under ['j2_attachments\\8274449b-3725-4273-bec2-6af84cb01005']; j2 rows {'j2_settings': 1, 'j2_accounts': 1, 'j2_notes': 1, 'j2_notes_fts': 1, 'j2_note_recents': 1, 'j2_note_versions': 1, 'j2_note_documents': 1, 'j2_note_document_pages': 1, 'j2_note_document_pages_fts': 1}; users row 1; tombstone none=True
+  G-003.D3_member_requests_deletion: PASS -- POST /api/auth/request-deletion 200; 'A deletion request is on file' shown=True; GET /api/auth/deletion-request id=5fd51515-d0fe-450b-a5cc-b0daacd2fc0a
+  G-003.D4_owner_deletes_on_the_admin_page: PASS -- confirm dialog ['Permanently delete w12d-del-f466cb@local.dev? This cannot be undone.'] accepted; DELETE 200; purge ok=True, rows 3, attachment dirs 1, tombstone {'recorded': True, 'offsite': True, 'why': ''}; the row left the list=True
+  G-003.D5_data_gone_tombstone_kept: PASS -- /api/auth/me 401; sign-in 401; admin lookup 404; users row 0; j2 rows 0 across 72 j2 tables (were 9); attachment dirs 0 (were 1); tombstone row ['8274449b-3725-4273-bec2-6af84cb01005', '2026-10-02T17:30:59+00:00', '2026-10-02T17:30:59+00:00']; off-site object present {'v': 1, 'user_id': '8274449b-3725-4273-bec2-6af84cb01005', 'deleted_at': '2026-10-02T17:30:59+00:00'}
+  G-045.S0_engine_present: PASS -- startup fingerprint: '[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1'
+  G-045.S1_fixture_is_a_scan: PASS -- {'pages': 1, 'extractable_text_chars': 0, 'images_on_page': 1, 'word_in_file_bytes': False, 'bytes': 115467}; attached through the editor (chip=True, stored=True); the note's own title/body contain 'tourmaline'=False
+  G-045.S2_ocr_read_the_page: PASS -- document 32977261b175442dbca572cfcf30f67c status 'ready': pagesTotal 1, pagesFromOcr 1, pagesAwaitingOcr 0, ocrUnavailable False
+  G-045.walk_raised: FAIL -- TimeoutError: Locator.click: Timeout 15000ms exceeded.
+Call log:
+  - waiting for get_by_role("tab", name="Search notes").first
+    - locator resolved to <button role="tab" type="button" data-tour="search" aria-selected="true" title="Search notes" aria-label="Search notes" class="_sbHeaderBtn_uzeij_95 _sbHeaderBtnActive_uzeij_125">…</button>
+  - attempting click action
+    - waiting for element to be visible, en
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\w12d\sandbox-0858254468\integrity.md
+  W_no_page_errors: PASS -- 0 unforced page errors
+  W_driver_never_imported_api: PASS -- no api.* module in the driver's sys.modules
+VERDICT: FAIL -- G-045.walk_raised
