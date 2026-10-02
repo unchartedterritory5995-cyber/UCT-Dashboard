@@ -637,7 +637,11 @@ const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracke
 // which is the failure this list exists to prevent.
 const FEATURE_DATA_TABS = ["Top Flow", "Tracker", "Watchlist"];
 
-export default function OptionsFlowDashboard() {
+// TERMINAL-NEXT (2026-10-02): the UCT Terminal's GEX function opens this page on its GEX
+// view for one ticker (`/options-flow?view=gex&ticker=NVDA`, parsed by App.jsx's
+// OptionsFlowRoute). Both props only SEED initial state and default to exactly the old
+// values, so every existing mount (no props) is byte-identical in behaviour.
+export default function OptionsFlowDashboard({ initialMode = null, initialGexTicker = null } = {}) {
   // ── Render timeline instrument ───────────────────────────────────────────
   // "Options Flow renders 8-15 times before stabilising while UCT20 renders
   // 2-3" is a claim about a RUN, so it needs a count from a run rather than an
@@ -659,7 +663,7 @@ export default function OptionsFlowDashboard() {
 
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";  // gates the Discord push controls
-  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index" | "liveflow" | "darkpool" | "gex"
+  const [dataMode, setDataMode] = useState(initialMode === "gex" ? "gex" : "stocks"); // "stocks" | "index" | "liveflow" | "darkpool" | "gex"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
   // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges
@@ -873,8 +877,8 @@ export default function OptionsFlowDashboard() {
   // curation stays intuitive — sorting by another column re-orders the rows
   // but each one keeps its #N badge from the score ranking.
   const [tfSort, setTfSort] = useState({ col: "score", dir: "desc" });
-  const [gexTicker, setGexTicker] = useState("SPY");
-  const [gexInput, setGexInput] = useState("SPY");
+  const [gexTicker, setGexTicker] = useState(initialGexTicker || "SPY");
+  const [gexInput, setGexInput] = useState(initialGexTicker || "SPY");
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");

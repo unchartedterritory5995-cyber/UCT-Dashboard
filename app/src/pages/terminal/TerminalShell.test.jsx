@@ -180,6 +180,21 @@ describe('the command line drives the focused panel', () => {
     expect(screen.getByTestId('where').textContent).toBe('/breadth')
   })
 
+  it('NVDA GEX opens Options Flow ON its GEX view for that ticker', async () => {
+    renderAt('/terminal')
+    await type('NVDA GEX')
+    expect(screen.getByTestId('where').textContent).toBe('/options-flow?view=gex&ticker=NVDA')
+  })
+
+  it('a door that needs an argument says so instead of navigating to a broken URL', async () => {
+    renderAt('/terminal')
+    await type('NVDA CMP')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('CMP needs a comparator')
+    expect(screen.getByTestId('where').textContent).toBe('/terminal')
+    await type('NVDA CMP AMD')
+    expect(screen.getByTestId('where').textContent).toBe('/research/NVDA/compare/AMD')
+  })
+
   it('NVDA ERN opens the calendar with its own earnings deep link', async () => {
     renderAt('/terminal')
     await type('NVDA ERN')

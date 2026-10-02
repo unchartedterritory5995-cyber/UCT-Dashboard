@@ -25,6 +25,8 @@ export const FUNCTIONS = [
   // ── the Calendar section (owner ruling 2026-10-02: a first-class section of the shell) ──
   { code: 'CAL', label: 'Earnings & events calendar', group: 'Calendar',
     market: { panel: 'Calendar' } },
+  { code: 'MYST', label: 'My stocks hub (earnings, news, calls, filings)', group: 'Calendar',
+    market: { door: '/calendar/mystocks' } },
   { code: 'ERN', label: 'Earnings detail (calendar modal)', group: 'Calendar',
     // The calendar's own earnings modal, opened through its own deep-link contract
     // (`?earnings=SYM`) — the C1–C11 rows of the coexistence parity matrix.
@@ -66,6 +68,11 @@ export const FUNCTIONS = [
     ticker: { panel: 'Filings', section: 'filings' } },
   { code: 'FIL', label: 'Filing changes (blackline)', group: 'Security',
     ticker: { panel: 'FilingChanges', section: 'filing-changes', flag: 'filingBlacklineEnabled' } },
+  { code: 'CMP', label: 'Compare two securities', group: 'Security',
+    // `NVDA CMP AMD` — the research compare page, the comparator is the first arg.
+    ticker: { door: '/research/{sym}/compare/{arg0}', needsArg: 'a comparator, e.g. NVDA CMP AMD' } },
+  { code: 'RES', label: 'Full research page', group: 'Security',
+    ticker: { door: '/research/{sym}' } },
   { code: 'ASK', label: 'Ask AI', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
     market: { door: '/ai-search' } },
@@ -80,10 +87,15 @@ export const FUNCTIONS = [
     ticker: { panel: 'Flow', section: 'flow', flag: 'researchFlowTabEnabled' },
     market: { door: '/options-flow' } },
   { code: 'GEX', label: 'Gamma exposure', group: 'Options',
-    // GEX lives INSIDE the Options Flow page (its `gex` data mode), so it is a door.
-    market: { door: '/options-flow' } },
+    // GEX lives INSIDE the Options Flow page (its `gex` data mode), so it is a door — one
+    // that opens that page ON its GEX view for the ticker (App.jsx OptionsFlowRoute).
+    ticker: { door: '/options-flow?view=gex&ticker={sym}' },
+    market: { door: '/options-flow?view=gex' } },
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive' } },
+
+  { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool' } },
+  { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options', market: { door: '/flow-scoreboard' } },
 
   // ── the market ──
   { code: 'WIRE', label: 'Morning Wire', group: 'Market', market: { door: '/morning-wire' } },
@@ -91,6 +103,15 @@ export const FUNCTIONS = [
   { code: 'SCR', label: 'Stock screener', group: 'Market', market: { door: '/screener' } },
   { code: 'U20', label: 'UCT 20', group: 'Market', market: { door: '/uct-20' } },
   { code: 'DASH', label: 'Dashboard', group: 'Market', market: { door: '/dashboard' } },
+  { code: 'CHRT', label: 'Charts workspace', group: 'Market', market: { door: '/charts' } },
+  { code: 'PMKT', label: 'Post-market', group: 'Market', market: { door: '/post-market' } },
+  { code: 'CATH', label: 'Catalysts history', group: 'Market', market: { door: '/catalysts/history' } },
+  { code: 'SETL', label: 'Setup library', group: 'Market', market: { door: '/setup-library' } },
+  { code: 'FORM', label: 'Formula reference', group: 'Market', market: { door: '/formulas/reference' } },
+  { code: 'DESK', label: 'The Desk', group: 'Market', market: { door: '/desk' } },
+  { code: 'JRNL', label: 'Journal', group: 'Market', market: { door: '/journal' } },
+  { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { door: '/portfolio-heat' } },
+  { code: 'COMM', label: 'Community', group: 'Market', market: { door: '/community' } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell', market: { panel: 'Help' } },
@@ -118,6 +139,19 @@ export function variantFor(code, hasTicker) {
   if (!hasTicker && fn.market) return { variant: fn.market, scope: 'market' }
   if (hasTicker && !fn.ticker) return { variant: fn.market, scope: 'market', ignoredTicker: true }
   return { variant: null, reason: 'needs-ticker' }
+}
+
+/** Fill a door template: `{sym}` is the security, `{argN}` the Nth command argument, each
+ *  URL-encoded. Returns null when a placeholder has no value (the shell then says what is
+ *  missing — the variant's `needsArg` — rather than navigating to a broken URL). */
+export function fillDoor(door, { sym = null, args = [] } = {}) {
+  let missing = false
+  const out = String(door).replace(/\{(sym|arg(\d+))\}/g, (_, name, n) => {
+    const v = name === 'sym' ? sym : args[Number(n)]
+    if (!v) { missing = true; return '' }
+    return encodeURIComponent(String(v).toUpperCase())
+  })
+  return missing ? null : out
 }
 
 /** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. */

@@ -20,7 +20,7 @@ import jsonFetcher from '../../utils/jsonFetcher'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
 import parseCommand from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, researchHref, variantFor } from './functions'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, fillDoor, researchHref, variantFor } from './functions'
 import { panelComponent, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout, { GROUP_DOT, PANEL_COUNTS, nextGroup, panelSym } from './useTerminalLayout'
 import { TERMINAL_CALENDAR_PATH } from './terminalGate'
@@ -158,7 +158,12 @@ export default function TerminalShell() {
       return
     }
     if (variant.door) {
-      navigate(variant.door)
+      const to = fillDoor(variant.door, { sym, args: cmd.args })
+      if (!to) {
+        setNotice({ kind: 'error', text: `${cmd.code} needs ${variant.needsArg || 'a ticker'}.` })
+        return
+      }
+      navigate(to)
       return
     }
 

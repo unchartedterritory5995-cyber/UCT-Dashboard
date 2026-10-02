@@ -1,7 +1,7 @@
 # Coexistence parity matrix — `/calendar` (TERMINAL-CURRENT) carried into the UCT Terminal shell
 
-> ⛔ **GENERATED. Do not hand-edit.** `node tools/terminal_parity_matrix.mjs` writes it from
-> `app/src/pages/terminal/parityMatrix.js`, which DERIVES every row from `app/src/pages/Calendar.jsx`
+> ⛔ **GENERATED. Do not hand-edit.** `node tools/terminal_parity_matrix.mjs` writes it, and
+> DERIVES every row from `app/src/pages/Calendar.jsx`
 > (imports, `setPref` keys, URL params) and from the route table. `parityMatrix.test.js` fails when
 > this file and the derivation disagree, or when a row is GAP without a named owner (MG-7).
 

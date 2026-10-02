@@ -1,13 +1,15 @@
 // @vitest-environment node
 // MG-7 rail — every capability of today's `/calendar` page is CARRIED in the shell, or is a
-// GAP with a named owner. The rows are DERIVED (parityMatrix.js); this rail fails when:
+// GAP with a named owner. The rows are DERIVED (tools/terminal_parity_matrix.mjs); this rail fails when:
 //   * a carry fact stops holding (each verdict is computed from one, never asserted);
 //   * a GAP appears that KNOWN_GAPS does not name (a new uncovered capability);
 //   * the committed doc drifts from the derivation.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { SOURCE_FILES, DOC_PATH, KNOWN_GAPS, deriveRows, renderMarkdown } from './parityMatrix'
+// ⛔ The derivation lives in tools/ (dev tooling is not part of the app bundle); this rail
+// imports the SAME module the tool runs, so the two cannot disagree.
+import { SOURCE_FILES, DOC_PATH, KNOWN_GAPS, deriveRows, renderMarkdown } from '../../../../tools/terminal_parity_matrix.mjs'
 
 const SRC = path.join(process.cwd(), 'src')
 const REPO = path.resolve(process.cwd(), '..')

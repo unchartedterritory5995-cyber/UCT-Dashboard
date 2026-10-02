@@ -343,8 +343,15 @@ function JournalShellSelector() {
  */
 function OptionsFlowRoute() {
   const { search } = useLocation()
-  if (new URLSearchParams(search).get('view') === 'scoreboard') {
+  const params = new URLSearchParams(search)
+  if (params.get('view') === 'scoreboard') {
     return <Navigate to="/flow-scoreboard" replace />
+  }
+  // TERMINAL-NEXT: `?view=gex[&ticker=SYM]` opens the page on its GEX view (the UCT
+  // Terminal's GEX function). Seeds initial state only; a bad ticker falls back to SPY.
+  if (params.get('view') === 'gex') {
+    const t = (params.get('ticker') || '').toUpperCase()
+    return <OptionsFlow initialMode="gex" initialGexTicker={/^[A-Z][A-Z.-]{0,6}$/.test(t) ? t : null} />
   }
   return <OptionsFlow />
 }
