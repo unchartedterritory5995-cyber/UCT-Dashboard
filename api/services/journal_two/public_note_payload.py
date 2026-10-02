@@ -168,6 +168,13 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     ("widgetEmbed", "nhnlPulse"): "massive",
     ("widgetEmbed", "volumescan"): "massive",
     ("widgetEmbed", "scatter"): "massive",
+    # G-040 capture-only kinds (wave 10 L16): frozen snapshots saved into a note from
+    # the Screener, COT and Model Book. Each mixes sources -- screen results over
+    # Massive prices; CFTC positioning beside an ETF price proxy; the firm's curated
+    # library beside Massive charts -- so each is the neutral line until decided.
+    ("widgetEmbed", "screener"): "mixed",
+    ("widgetEmbed", "cot"): "mixed",
+    ("widgetEmbed", "modelbook"): "mixed",
     # financialFact -- by the fact's recorded source.
     ("financialFact", "fmp"): "fmp",
     ("financialFact", "finnhub"): "finnhub",
