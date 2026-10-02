@@ -106,6 +106,177 @@ def _late(d: str) -> datetime:
 ENTITY_AXES = frozenset({"dei_LegalEntity", "srt_ConsolidatedEntities"})
 
 
+# ⛔ every US exchange's CONTINUED-listing standard requires at least 500,000 publicly held shares (Nasdaq Capital Market;
+# NYSE / NYSE American more): a count below 100,000 cannot be the outstanding count of the LISTED security -- it is a
+# pre-combination shell (Viatris/Upjohn 2020: "100 shares", priced for ten months at the stitched Mylan bars), a sponsor
+# stake, or a truncated parse. Not a universal rule: an unlisted class (a convertible class B) may hold any count.
+LISTED_MINIMUM_SHARES = 100_000
+
+CAPITAL_EVENT_FORMS = OFFERING_FORMS | frozenset({"424B2", "425", "8-K12B", "8-K12G3", "SC TO-I", "SC TO-I/A", "DEFM14A",
+                                                   "PREM14A", "DEF 14C", "10-12B"})
+COMMON_SPLIT_FACTORS = (2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 50, 60, 75, 80, 100)
+
+
+def extreme_step_decisions(caps: dict, pclose: dict, runs_by_class: dict, obs_rows: list, ev_forms: list,
+                           known_splits: list) -> dict:
+    """{day: (reason, note)} to withhold for the FIRST unexplained >= 10x cap step that the evidence does not support.
+
+    For consecutive valued days a < b whose cap ratio, after removing the price move, is >= 10x:
+      1. each side's share state (every class run in force) must be CORROBORATED -- another filing's observation of the
+         same class within 400 days agrees within 1.5x. An uncorroborated side is refused (HR 2006: 15,200 shares of a
+         non-traded REIT's sponsor stake against the 227M-share NYSE common; RJF 1995: "1,249,014 shares", the leading
+         digit lost, 20.6M three months later; GNLN 2025: 223 split-adjusted shares).
+      2. a step BRIDGED by intermediate issuer counts (each move < 10x), or with a capital-event filing (offering, merger,
+         tender, registration) between the two counts or as the source of the later count, is a real capital change.
+      3. otherwise a state ratio within 3% of a common split factor with no ledger / evidence split between is a split
+         the ledger lacks: every earlier day is withheld (CMCL: 487.9M ordinary in 2007 against 19.2M in 2023 across a
+         consolidation, no capital event on file); any other such step is unproven and the earlier state is withheld.
+      Otherwise the step is a real capital change (issuance, conversion, recapitalization) and is served."""
+    days = sorted(caps)
+    if len(days) < 2:
+        return {}
+
+    def side(d):
+        out = []
+        for (_iss, ck), rs in runs_by_class.items():
+            for r in rs:
+                if r[0] <= d.isoformat() <= r[1]:
+                    out.append((ck, r))
+        return out
+
+    def corroborated(ck, r) -> bool:
+        a = date.fromisoformat(r[4])
+        for o in obs_rows:
+            if o[3] != ck or o[13] == r[3] or not o[8]:
+                continue
+            if abs((date.fromisoformat(o[4]) - a).days) <= 400 and abs(math.log(o[8] / r[2])) < math.log(1.5):
+                return True
+        return False
+
+    for a, b in zip(days, days[1:]):
+        if not (pclose.get(a) and pclose.get(b) and caps[a] > 0 and caps[b] > 0):
+            continue
+        q = (caps[b] / caps[a]) / (pclose[b] / pclose[a])
+        if abs(math.log(q)) < math.log(10):
+            continue
+        sa, sb = side(a), side(b)
+        if not sa or not sb:
+            continue
+        bad = [(ck, r) for ck, r in sa + sb if not corroborated(ck, r)]
+        if bad:
+            hold = {}
+            for ck, r in bad:
+                for d in days:
+                    if r[0] <= d.isoformat() <= r[1]:
+                        hold[d] = (R.SCALE_UNRESOLVED, f"ISOLATED_EXTREME_STATE {ck} {r[2]:.0f} (as of {r[4]}, {r[3]}): no "
+                                                       f"independent filing agrees within 400 days; cap step x{q:.3g}")
+            return hold
+        tot_a, tot_b = sum(r[2] for _c, r in sa), sum(r[2] for _c, r in sb)
+        ratio = tot_b / tot_a
+        asof_a = max(r[4] for _c, r in sa)
+        asof_b = min(r[4] for _c, r in sb)
+        k = max(ratio, 1 / ratio)
+        if len(sa) == 1 and len(sb) == 1 and sa[0][0] == sb[0][0]:
+            ck = sa[0][0]
+            mids = sorted((o[4], o[8]) for o in obs_rows if o[3] == ck and asof_a <= o[4] <= asof_b
+                          and o[18] in (R.ACCEPTED, R.ACCEPTED_RESTATED_BASIS))
+            vals = [sa[0][1][2]] + [v for _d, v in mids] + [sb[0][1][2]]
+            bridged = all(abs(math.log(y / x)) < math.log(10) for x, y in zip(vals, vals[1:]))
+        else:
+            bridged = False
+        if bridged:
+            continue                                     # gradual: every move between issuer counts is < 10x
+        src_b_form = next((o[14] for o in obs_rows if o[13] == sb[0][1][3]), None)
+        event = any(asof_a < fd <= asof_b for fd, _f in ev_forms) or (src_b_form in CAPITAL_EVENT_FORMS)
+        if event:
+            continue                                     # an offering / combination / tender between: a capital change
+        split_between = any(asof_a < s.isoformat() <= asof_b for s in known_splits)
+        if not split_between and any(abs(math.log(k / f)) < 0.03 for f in COMMON_SPLIT_FACTORS):
+            return {d: (R.HIST_SPLIT_UNRESOLVED, f"SPLIT_LIKE_EXTREME_STEP x{ratio:.4g} between {asof_a} and {asof_b}: "
+                                                 "no ledger or issuer split, no capital event")
+                    for d in days if d < b}
+        return {d: (R.SCALE_UNRESOLVED, f"UNPROVEN_EXTREME_STEP x{ratio:.4g} between {asof_a} and {asof_b}: not "
+                                        "bridged by issuer counts, no capital-event filing")
+                for d in days if any(r[0] <= d.isoformat() <= r[1] for _c, r in sa)}
+    return {}
+
+
+def _sym(s: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
+
+def symbol_reports(D, cik: int, filings: dict) -> list[tuple[str, set]]:
+    """[(filing_date, {symbols the filing's cover reports as THIS registrant's trading symbols})] (dei:TradingSymbol,
+    2019+). Debt / note symbols (digits) and placeholders are dropped."""
+    if getattr(D, "cov", None) is None:
+        return []
+    by: dict = {}
+    for accn, text in D.cov.execute("SELECT accn, text FROM cover_fact WHERE cik=? AND concept='dei:TradingSymbol'", (cik,)):
+        f = filings.get(accn)
+        if not f:
+            continue
+        for part in re.split(r"[,;/ ]+", text or ""):
+            s = _sym(part)
+            if s and not re.search(r"\d", s) and s not in ("NA", "NONE"):
+                by.setdefault((f["filing_date"], accn), set()).add(s)
+    return sorted((fd, v) for (fd, _a), v in by.items())
+
+
+def reported_symbol_switch(ticker: str, reports: list, issuer_tickers: list, event_symbols: list,
+                           counts: list) -> tuple[date, str] | None:
+    """⛔ THE ISSUER SAYS ITS SECURITY TRADED UNDER ANOTHER SYMBOL. When the registrant's own covers report symbol(s) S
+    that are neither `ticker` nor any symbol it is known to have used (its tickers, its Massive ticker history -- a
+    rename of THIS security keeps its stitched history: FB -> META, RIMM -> BB), and the share count jumps across the
+    switch to `ticker` (a combination, not a rename: Healthcare Trust of America reported "HTA" until 2022-05 and became
+    Healthcare Realty "HR" through the 2022-07-20 merger, 230M -> 380M shares), the bars of `ticker` before the switch
+    are another security's. Returns (first day the issuer is `ticker`, note) or None."""
+    T = _sym(ticker)
+    own = {_sym(x) for x in list(issuer_tickers) + list(event_symbols) if x}
+    own_roots = {o for o in own if len(o) >= 2}
+
+    def is_own(s):
+        return s == T or s in own or any(s.startswith(o) for o in own_roots)
+    other = [fd for fd, ss in reports if not any(is_own(s) for s in ss)]
+    if not other:
+        return None
+    last_other = max(other)
+    firsts = [fd for fd, ss in reports if fd > last_other and T in ss]
+    if not firsts:
+        return None
+    switch = date.fromisoformat(min(firsts))
+    lo = date.fromisoformat(last_other)
+    # the counts must be contemporaneous with the switch (within 150 days on each side), or a jump is just time
+    pre = [x for x in counts if lo - timedelta(days=150) <= x[0] <= lo]
+    post = [x for x in counts if lo < x[0] <= switch + timedelta(days=150)]
+    if not pre or not post or (switch - lo).days > 300:
+        return None
+    a = max(pre, key=lambda x: x[0])[1]
+    b = min(post, key=lambda x: x[0])[1]
+    if abs(math.log(b / a)) < math.log(1.25):
+        return None                                  # a rename: the count carries through
+    return switch, f"registrant reported {sorted({s for fd, ss in reports if fd == last_other for s in ss})} until {last_other}; {ticker} from {switch}; count {a:.0f} -> {b:.0f}"
+
+
+def split_in_trading_break(days: list, ex: date) -> bool:
+    """The ex date falls inside a > 90-day break in the bars: whether the bars before the break carry the split cannot
+    be seen (ALT 2007-07-25 1:50 -- the SPAC's last bar 07-24, the next bar 2009-11; AIM 2016/2019 -- bars 2013 -> 2019)."""
+    i = bisect.bisect_left(days, ex)
+    return 0 < i < len(days) and (days[i] - days[i - 1]).days > 90 and days[i - 1] < ex
+
+
+def own_counts_continuous(obs: list, eff: date, factor=lambda d: 1.0) -> bool:
+    """A successor's OWN periodic history before the effective date is the listed security's only when its share count
+    carries through (a holding-company formation keeps the count: MDU 2019, O-I 2019). A pre-merger SHELL's counts do not
+    (Linde plc: 25,000 shares on its 2017-2018 covers, 551M after the 2018-10-31 combination) -- that is a boundary."""
+    pre = sorted(o.value * factor(o.as_of) for _k, o, _m in obs if eff - timedelta(days=400) <= o.as_of < eff and o.value > 0)
+    post = sorted(o.value * factor(o.as_of) for _k, o, _m in obs if eff <= o.as_of <= eff + timedelta(days=400) and o.value > 0)
+    if not pre or not post:
+        return True
+    med = lambda v: v[len(v) // 2]
+    # medians, not extremes: one mis-scaled cover must not turn a holding-company formation into a boundary
+    return abs(math.log(med(post) / med(pre))) < math.log(10)
+
+
 def merge_evidence_splits(ledger_splits: list, evidence_splits: list) -> list:
     """⛔ An evidence split is the SAME event as a ledger split of the same factor (2%) within 60 days (OTEX 2014 2-for-1:
     issuer XBRL dates it 2014-01-23, the ledger 2014-02-19; adding both doubled every earlier count; CYRX 2015 1:12).
@@ -245,6 +416,38 @@ def ledger_split_verdict(s, obs: list) -> str:
     if pre and near and len(agree) * 3 >= 2 * len(pre + near) and any(o in agree for o in pre):
         return "CONTRADICTED"
     return "UNRESOLVED"
+
+
+def split_like_gaps(runs_by_class: dict, caps: dict, obs_rows: list, ev_dates: list, known_splits: list, seen: set) -> list[dict]:
+    """Consecutive SERVED states of one class whose ratio is within 2% of a split factor (2..100) with no ledger or
+    evidence split between their as-of dates, NOT bridged by intermediate issuer counts and with no capital-event filing
+    between: a split the ledger lacks, whatever the price did over the hold between (AMGN 1999-2000: 510M -> 1,027M
+    across the 1999 2-for-1 the pre-2003 ledger does not list). Returned as split-ledger gaps (confirmed by issuer split
+    evidence, otherwise every earlier day is withheld)."""
+    out = []
+    served = lambda r: any(r[0] <= d.isoformat() <= r[1] for d in caps)
+    for (_iss, ck), rs in runs_by_class.items():
+        rs = [r for r in rs if r[2] and served(r)]
+        for p, n in zip(rs, rs[1:]):
+            r = n[2] / p[2]
+            k = max(r, 1 / r)
+            f = next((f for f in COMMON_SPLIT_FACTORS if abs(math.log(k / f)) < 0.02), None)
+            ev_lo = (date.fromisoformat(p[4]) - timedelta(days=365)).isoformat()
+            # a capital event up to a year before (DCH 2026: the AXL/Dowlais combination doubled the count; its S-4 and
+            # 425s precede the last pre-closing count) makes a split-like ratio a combination, not a missing split
+            if f is None or any(p[4] < s <= n[4] for s in known_splits) or any(ev_lo < d <= n[4] for d in ev_dates):
+                continue
+            # only USABLE counts bridge (AMGN 1999: a rejected, truncated "51,710,608" is not an intermediate state)
+            mids = [o[8] for o in obs_rows if o[3] == ck and p[4] < o[4] < n[4] and o[18] in (R.ACCEPTED, R.ACCEPTED_RESTATED_BASIS)]
+            if any(min(abs(math.log(v / p[2])), abs(math.log(v / n[2]))) > math.log(1.15) for v in mids):
+                continue                              # the move happened gradually through issuer counts
+            ds = date.fromisoformat(n[0])
+            if ds in seen:
+                continue
+            out.append({"date": ds, "k": f, "direction": "FORWARD" if r > 1 else "REVERSE", "cls": ck,
+                        "prev_asof": date.fromisoformat(p[4]), "next_asof": date.fromisoformat(n[4]),
+                        "prev_accn": p[3], "next_accn": n[3]})
+    return out
 
 
 def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dict]:
@@ -655,7 +858,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     # own history = periodic filings at least a YEAR before the effective date (MDU since 1994); one 10-Q filed by the
     # new holding company 20 days before the effective date (Eaton plc 2012-11-14) is not a history
     if lin and any(v["form"] in ("10-K", "10-Q", "20-F", "40-F", "10-K405", "10-KSB", "10-QSB")
-                   and v["filing_date"] < (date.fromisoformat(lin[2]) - timedelta(days=365)).isoformat() for v in filings.values()):
+                   and v["filing_date"] < (date.fromisoformat(lin[2]) - timedelta(days=365)).isoformat() for v in filings.values()) \
+            and own_counts_continuous(obs, date.fromisoformat(lin[2]), Ledger(D.ref.get(primary, (None, []))[1]).factor_after):
         # the successor's OWN registrant record already carries periodic evidence before the effective date (the new
         # holding company kept the CIK: MDU 2019, O-I 2019, FirstCash 2021): nothing to stitch, nothing to bound
         w["lineage_applied"].append((cik, lin[0], "OWN_REGISTRANT_HISTORY", lin[2], None, lin[4], 0, "own periodic filings before effective"))
@@ -900,6 +1104,15 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 # ⛔ only splits the PRICES reflect: a split after the last bar (KUST 1:10 on 2026-10-01, bars end
                 # 09-29) was applied to the shares but not to the prices -> cap 10x low
                 cand_splits = [s_ for s_ in ref_c[1] if lst.start <= s_.ex_date <= cdays_all[-1]]
+                # ⛔ a ledger split dated INSIDE a > 90-day break in the bars (ALT 2007-07-25 1:50: the last bar of the
+                # SPAC is 07-24, the next one 2008-05): whether the bars before the break carry it cannot be seen
+                for s_ in cand_splits:
+                    i_ = bisect.bisect_left(cdays_all, s_.ex_date)
+                    if split_in_trading_break(cdays_all, s_.ex_date):
+                        ledger_unresolved.append(s_.ex_date)
+                        w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
+                                               "HELD_LEDGER_SPLIT_IN_TRADING_BREAK", s_.ex_date.isoformat(), s_.ratio,
+                                               "LEDGER", None, f"bars {cdays_all[i_ - 1]} -> {cdays_all[i_]}"))
                 cobs_raw = [o for k, o, _m in obs if k == c.class_key and o.value > 0]
                 kept_splits = []
                 for s_ in cand_splits:
@@ -988,7 +1201,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                         if not ads_at(o.known_from) and not adr_type:
                             conv.append(o)                      # the listed security is not an ADS at this time
                             continue
-                        rs = ratio_at(o.as_of, stmts, ledger, o.value * ledger.factor_after(o.as_of), ord_points, trade_breaks)
+                        # ⛔ a count is on the basis of the filing that reports it: when that filing states the ADS ratio
+                        # itself, it is that ratio (ATHM: the 20-F filed 2021-03-02 reports 479M ordinary shares as of
+                        # 2020-12-31 AFTER the 4:1 subdivision and titles "each ADS representing four ordinary shares";
+                        # the 2020 title "one ordinary share" made the state 4x for a year)
+                        rs = next((st_ for st_ in stmts if st_.accn == o.accn), None) or \
+                            ratio_at(o.as_of, stmts, ledger, o.value * ledger.factor_after(o.as_of), ord_points, trade_breaks)
                         if rs is None:
                             # a NEWER count we cannot convert still supersedes the older state: it BLOCKS
                             blocked.append(Checked(o, "REJECTED_ADR_RATIO_UNRESOLVED", note="no ADS ratio valid at as-of",
@@ -997,7 +1215,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                         conv.append(Obs(o.as_of, o.public_at, o.value / rs.ords_per_ads, o.source, o.accn, o.form,
                                         o.tag + f"/ADS{rs.ords_per_ads:g}@{rs.accn}", o.class_key, o.snippet, o.confidence))
                     cobs = conv
-                checked = validate(cobs, ledger) + blocked
+                listed_c = c.evidence == "listed" or st.kind in ("SINGLE", "ADR")
+                checked = validate(cobs, ledger, min_listed=LISTED_MINIMUM_SHARES if listed_c else 0) + blocked
                 for o in pre_listing:
                     checked.append(Checked(o, R.REJ_PRE_LISTING, note=f"as-of before listing start {lst.start}"))
                 cdays = [d for d in rdays if d in ccloses]
@@ -1098,6 +1317,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 n_aff += 1
         w["lineage_applied"].append((cik, lin[0], lin[1], lin[2], pred_cik_used or lin[3], lin[4], n_aff, lin_note[:300]))
     gaps = split_ledger_gaps(_runs_by_class(w, issuer_id), bars[primary][1], caps)
+    gaps += split_like_gaps(_runs_by_class(w, issuer_id), caps,
+                            [r_ for r_ in w["observation"] if r_[1] == issuer_id and r_[8] and r_[18] not in
+                             (R.REJ_CONFLICT, R.REJ_INVALID_UNIT, R.REJ_NONPOSITIVE)],
+                            sorted(v["filing_date"] for v in filings.values() if v["form"] in CAPITAL_EVENT_FORMS),
+                            sorted({s_.ex_date.isoformat() for _k, l_, c_ in ledgers_used for s_ in list(l_.splits) + list(c_)}),
+                            {g_["date"] for g_ in gaps})
     if ledger_unresolved:
         lu = max(ledger_unresolved)
         for d in [d for d in caps if d < lu]:
@@ -1121,6 +1346,17 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     del caps[d]
                     reasons_by_day[d] = R.HIST_SPLIT_UNRESOLVED
             first_val = min(caps) if caps else None
+    sym_switch = reported_symbol_switch(primary, symbol_reports(D, cik, filings), tickers,
+                                        [e_[2] for e_ in (D.ref.get(primary, (None, []))[0].events if D.ref.get(primary, (None, []))[0] else [])],
+                                        [(o.as_of, o.value * Ledger(D.ref.get(primary, (None, []))[1]).factor_after(o.as_of))
+                                         for k_, o, _m in obs if o.value > 0])
+    if sym_switch is not None:
+        w["lineage_applied"].append((cik, "SYMBOL_SWITCH", "REPORTED_SYMBOL", sym_switch[0].isoformat(), None, None,
+                                     len([d for d in caps if d < sym_switch[0]]), sym_switch[1][:300]))
+        for d in [d for d in caps if d < sym_switch[0]]:
+            del caps[d]
+            reasons_by_day[d] = R.TICKER_REUSE
+        first_val = min(caps) if caps else None
     if ads_unresolved_from is not None:
         for d in [d for d in caps if d >= ads_unresolved_from]:
             del caps[d]
@@ -1168,6 +1404,26 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     if d_ in caps:
                         del caps[d_]
                         reasons_by_day[d_] = R.PRICE_BASIS_INCONSISTENT
+    first_val = min(caps) if caps else None
+    # ⛔ EXTREME CAPITAL STEPS: a >= 10x cap step between consecutive VALUED days that the price does not explain is a
+    # DETECTOR, never authority. Each one is settled by the EVIDENCE behind the two share states (extreme_step_decisions):
+    # an uncorroborated extreme state is refused, a split-like ratio the ledger lacks is a split gap, an unbridged step
+    # with no capital-event filing between is unproven -- otherwise it is a real capital change and is served.
+    ev_forms = sorted((v["filing_date"], v["form"]) for v in filings.values() if v["form"] in CAPITAL_EVENT_FORMS)
+    known_splits = sorted({s_.ex_date for _k, l_, c_ in ledgers_used for s_ in list(l_.splits) + list(c_)})
+    obs_rows = [r_ for r_ in w["observation"] if r_[1] == issuer_id and r_[8] and r_[18] not in
+                (R.REJ_CONFLICT, R.REJ_INVALID_UNIT, R.REJ_NONPOSITIVE)]
+    for _pass in range(6):
+        dec_ = extreme_step_decisions(caps, bars[primary][1], _runs_by_class(w, issuer_id), obs_rows, ev_forms, known_splits)
+        if not dec_:
+            break
+        for d_, (rsn_, note_) in dec_.items():
+            if d_ in caps:
+                del caps[d_]
+                reasons_by_day[d_] = rsn_
+        for note_ in sorted({n_ for _r, n_ in dec_.values()}):
+            w["split_gap"].append((cik, None, None, "EXTREME_STEP", None, None, None, "HELD_EXTREME_STEP", None, None,
+                                   "EVIDENCE", None, note_[:400]))
     first_val = min(caps) if caps else None
     # write daily output
     for d, v in caps.items():

@@ -14,7 +14,8 @@ from .report3 import COHORTS, METRICS
 COLS = ("first_v1", "corrected_v1", "final_adjudicated_v1")
 
 
-def run(audits: list, scans: list, hist: list, adj: dict | None) -> dict:
+def run(audits: list, scans: list, hist: list, adj: dict | None, cols: tuple = COLS) -> dict:
+    COLS = tuple(cols)
     out = {"columns": ("production",) + COLS, "cohorts": {}}
     for c in COHORTS:
         if not all(c in a.get("cohorts", {}) for a in audits):
@@ -39,11 +40,12 @@ def main(argv=None) -> int:
     ap.add_argument("--scans", nargs=3, required=True)
     ap.add_argument("--history-adj", nargs=2, required=True)
     ap.add_argument("--adjudication")
+    ap.add_argument("--labels", nargs=3, default=list(COLS))
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     L = lambda p: json.load(open(p))
     res = run([L(p) for p in a.audits], [L(p) for p in a.scans], [L(p) for p in a.history_adj],
-              L(a.adjudication) if a.adjudication else None)
+              L(a.adjudication) if a.adjudication else None, a.labels)
     json.dump(res, open(a.out, "w"), indent=1)
     for c, ms in res["cohorts"].items():
         print(c, {m: tuple(v.values()) for m, v in ms.items()

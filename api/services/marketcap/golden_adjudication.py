@@ -55,3 +55,25 @@ def adjudication_goldens(g) -> None:
     held("TICKER_HISTORY", "COR", "2015-06-01", {"TICKER_REUSE_DIFFERENT_ISSUER"}, "Cencora was ABC until 2023-08-30")
     held("TICKER_HISTORY", "WM", "2005-06-01", {"TICKER_REUSE_DIFFERENT_ISSUER"}, "Waste Management was WMI until 2009-08-06")
     held("TICKER_HISTORY", "DDD", "2010-06-01", {"TICKER_REUSE_DIFFERENT_ISSUER"}, "3D Systems was TDSC until 2011-05-27")
+    # CAP-STEP PASS (the 52 V1-specific day-to-day steps and the second-order scan)
+    held("CAP_STEP", "HR", "2007-01-03", {"SUSPICIOUS_SHARE_COUNT", "TICKER_REUSE_DIFFERENT_ISSUER", "SHARE_COUNT_SCALE_UNRESOLVED"},
+         "15,200 shares of a non-traded REIT priced at another security's HR bars")
+    held("CAP_STEP", "HR", "2015-06-01", {"TICKER_REUSE_DIFFERENT_ISSUER"}, "the registrant reported HTA until 2022")
+    band("CAP_STEP", "HR", "2024-06-03", 4e9, 12e9, "Healthcare Realty after the 2022 combination")
+    held("CAP_STEP", "LIN", "2018-06-01", {"SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED", "PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE"},
+         "Linde plc's pre-combination shell (25,000 shares) is not the listed security")
+    band("CAP_STEP", "LIN", "2020-06-01", 80e9, 140e9, "Linde plc after the combination")
+    held("CAP_STEP", "RJF", "1995-06-01", {"SHARE_COUNT_SCALE_UNRESOLVED", "PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"},
+         "'1,249,014 shares' (a truncated parse) is uncorroborated")
+    held("CAP_STEP", "ALT", "2007-06-01", {"LEDGER_SPLIT_UNRESOLVED", "SHARE_COUNT_SCALE_UNRESOLVED"},
+         "a 1:50 ledger split inside a trading break")
+    held("CAP_STEP", "GNLN", "2025-01-02", {"SHARE_COUNT_SCALE_UNRESOLVED", "REGISTERED_ISSUANCE_EXCEEDS_SHARE_STATE"},
+         "an uncorroborated extreme state (223 split-adjusted shares)")
+    held("CAP_STEP", "VTRS", "2020-06-01", {"SUSPICIOUS_SHARE_COUNT", "PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE"},
+         "'100 shares' is below the listed-security minimum")
+    band("CAP_STEP", "VTRS", "2022-06-01", 8e9, 22e9, "Viatris after the combination")
+    band("CAP_STEP", "HON", "2025-06-02", 110e9, 180e9, "the issuer-stated 2026-06-29 1-for-2 the bars carry")
+    band("CAP_STEP", "HCM", "2020-06-01", 1.0e9, 6e9, "each count converted by its own filing's ADS ratio (was 10x)")
+    band("CAP_STEP", "SIRI", "2003-06-02", 0.8e9, 6e9, "the 2003 debt-for-equity recapitalization is a real capital change")
+    held("CAP_STEP", "AMGN", "1999-06-01", {"HISTORICAL_SPLIT_EVIDENCE_UNRESOLVED"}, "the 1999 2-for-1 splits the ledger lacks")
+

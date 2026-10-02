@@ -140,12 +140,12 @@ def _split_basis_shift(o: Obs, val: float, cur: "Checked", ledger: Ledger):
 
 
 def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol: float = 0.02,
-             basis_evidence: dict | None = None) -> list[Checked]:
+             basis_evidence: dict | None = None, min_listed: float = 0) -> list[Checked]:
     """Iterates the point-in-time pass: counts found to be a unit-error LEVEL (see the post-pass) are excluded from
     anchoring anything and the pass re-runs, until no new unit-error level appears (at most 4 passes)."""
     quarantine: set = set()
     for _ in range(4):
-        out, found = _validate_pass(obs, ledger, conflict_tol, dup_tol, basis_evidence, quarantine)
+        out, found = _validate_pass(obs, ledger, conflict_tol, dup_tol, basis_evidence, quarantine, min_listed)
         if not (found - quarantine):
             return out
         quarantine |= found
@@ -153,7 +153,7 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
 
 
 def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol: float,
-                   basis_evidence: dict | None, quarantine: set) -> tuple[list, set]:
+                   basis_evidence: dict | None, quarantine: set, min_listed: float = 0) -> tuple[list, set]:
     """Classify every observation, strictly POINT IN TIME: a decision about an observation uses only what was public
     by its own known_from -- or, when it needs corroboration, it becomes usable only once that corroboration is public.
     Deterministic: input order does not matter.
@@ -289,6 +289,11 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
                                           f"= the state in force before it")
                 continue
         c = Checked(o, st, val, pick, effective_from=t0)
+        if min_listed and o.value < min_listed:
+            decided[i] = Checked(o, R.REJ_SUSPICIOUS, val, pick, note=f"reported {o.value:g} shares: below the listed-security "
+                                                                       f"minimum ({min_listed:g}) -- not the listed count",
+                                 block=(t0, None, R.SUSPICIOUS_SHARE_COUNT))
+            continue
         if o.value < TINY_RAW:
             # another FILING and another CHANNEL: a pre-merger shell's cover and balance sheet both say "1,000 shares"
             # (RBBN, MLCI) or "1 share" (FTI) inside one filing -- that is not corroboration of a listed count
