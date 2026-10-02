@@ -54,8 +54,14 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 _REPO = Path(__file__).resolve().parents[1]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
+# The census pins and the shared-root tripwire, BEFORE any api.* import -- stated here as well
+# as reached through notebook_scale_benchmark, because tests/test_tools_pin_the_root.py reads
+# each tool's OWN module-level imports.
+import conftest  # noqa: E402,F401
 sys.path.insert(0, str(_REPO / "tools"))
-import notebook_scale_benchmark as nb  # noqa: E402  -- imports conftest FIRST (census pins + tripwire)
+import notebook_scale_benchmark as nb  # noqa: E402
 
 # This process only: the gate under test. A WRITE, spelled as update() so the
 # one-parse rail (tests/test_notebook_flag_parse.py), which counts any
