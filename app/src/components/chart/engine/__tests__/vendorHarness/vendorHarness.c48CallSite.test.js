@@ -344,9 +344,12 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(stamped).toEqual(['C01_highest10_cond', 'C02_lowest10_cond', 'C03_sma3_cond', 'C04_ema3_cond', 'C05_local_x1_cond',
       'H01_param_src1_cond', 'H02_local_x1_cond', 'H03_sma3_cond', 'H04_highest10_cond', 'H05_bar_index1_cond',
       'D01_highest3_even', 'D02_sma3_even', 'D03_local_y1_even'])
-    // the pane carries the first twelve plots: ten are refused, C06 and H06 computed
+    // R-P (2026-10-01): the pane carries every plot (TradingView's 64-row ceiling), so all
+    // THIRTEEN stamped rows are bound - each refused by name - and C06 / H06 are computed.
+    // (Under the old 12-row ceiling only the first ten stamped rows were carried.)
     const keys = door.def.meta.blockRuns.keys.map((k) => k.key)
-    expect(keys).toEqual(['value', 'out2', 'out3', 'out4', 'out5', 'out7', 'out8', 'out9', 'out10', 'out11'])
+    expect(keys).toHaveLength(stamped.length)
+    expect(keys.slice(0, 10)).toEqual(['value', 'out2', 'out3', 'out4', 'out5', 'out7', 'out8', 'out9', 'out10', 'out11'])
     for (const key of keys) {
       expect(cols[key], key).toBeUndefined()
       expect(errors[key].guard, key).toBe(BLOCK_RUNS_GUARD)

@@ -42,17 +42,19 @@ describe('C38 — vw-gradient: a colour component is a column', () => {
     expect(verdict.reason).not.toMatch(/refused on our side/)
   })
 
-  it('UNEDITED, on TradingView\'s history: the twelve rows the pane carries MATCH on all 300 bars', () => {
+  it('UNEDITED, on TradingView\'s history: every row the pane carries MATCHES on all 300 bars', () => {
     const { verdict, integrity } = gradeCapture(joinedFromListing(cap, { control: CONTROL }))
     expect(integrity.ok, (integrity.errors || []).join('; ')).toBe(true)
     const matched = verdict.plots.filter((p) => p.verdict === 'MATCH').map((p) => p.title)
-    expect(matched).toEqual(TITLES.slice(0, 12))
+    // R-P (2026-10-01): the pane's ceiling is TradingView's 64, so every non-constant row is
+    // carried and graded - 17 MATCH (was the first 12 under the old ceiling).
+    expect(matched).toEqual(TITLES.filter((t) => !CONSTANT_ROWS.includes(t)))
+    expect(matched).toHaveLength(17)
     for (const t of matched) {
       expect(plotOf(verdict, t).stats.matching, t).toBe(300)
       expect(plotOf(verdict, t).warmupBars, t).toBe(0)
     }
-    // the rest are not WRONG, they are not carried: the pane's twelve-row ceiling,
-    // and its rule that a constant row is hidden (its values still agree)
+    // the rest are not WRONG: a constant row is hidden by the pane's rule (its values still agree)
     for (const p of verdict.plots.filter((x) => x.verdict !== 'MATCH')) {
       expect(p.verdict, p.title).toBe('INCONCLUSIVE')
       if (CONSTANT_ROWS.includes(p.title)) {
