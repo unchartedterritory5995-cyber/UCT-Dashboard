@@ -832,6 +832,7 @@ import useEconomicSources from './chart/engine/useEconomicSources'
 import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from './chart/engine/economicPrimary'
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
+import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -841,8 +842,12 @@ import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 // this chunk already holds (`objectColumns`), so loading it from here splits
 // nothing out of the chart's chunk — registered from a shared hook it did, and
 // every route's preload list grew by a chunk.
-engineRegistry.registerRuntimeLaneLoader(() => import('./chart/engine/runtime/runtimeAsync.js')
-  .then((m) => m.ensureRuntimeLane()))
+// ⛔ AND THE LOADER CONSULTS THE RUNTIME GATE ITSELF, on the path that reaches the
+// lane (`memberPaneGate.test.js` walks it): the registry only calls it with the
+// gate on, and this says so where the import is.
+engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
+  ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
+  : Promise.reject(new Error('the runtime pane is switched off'))))
 
 const NOOP = () => {}
 
