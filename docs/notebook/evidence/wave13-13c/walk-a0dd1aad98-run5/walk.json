@@ -1,0 +1,160 @@
+{
+ "tool": "tools/notebook_w13c_walk.py",
+ "base": "http://127.0.0.1:8605",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13c\\walk-a0dd1aad98-run5\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 18:04:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 18:06:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 18:06:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13c\\walk-a0dd1aad98-run5\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T18-04-46.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_earnings_prep_enabled=True"
+  },
+  {
+   "id": "W1_list_1200",
+   "verdict": "PASS",
+   "detail": "section text: 'REPORTING SOON\\nYour watchlist, flagged and open-position names, next 7 days\\n$AMD\\nMon, Oct 5, time not announced yet\\nWatchlist\\nCreate prep note\\n$NVDA\\nWed, Oct 7, after the close\\nOpen position\\nCreate prep note'"
+  },
+  {
+   "id": "W2_no_note_without_a_click",
+   "verdict": "PASS",
+   "detail": "notes after showing the list: 1 (seeded 1); earnings-prep notes: 0"
+  },
+  {
+   "id": "W3_create_by_keyboard",
+   "verdict": "PASS",
+   "detail": "51 Tab presses reached the button; Enter drafted and opened note ad31eee2c8ec4651a752f4e615302e1e in 2.49s"
+  },
+  {
+   "id": "W4_body_sourced_and_labelled",
+   "verdict": "PASS",
+   "detail": "title=True; tags=True; ticker=True; date_sourced=True; after_the_close=True; implied_move=True; consensus=True; reactions=True; cited_note=True; position=True; recap_missing_labelled=True; trades_missing_labelled=True"
+  },
+  {
+   "id": "W5_editor_renders_labels",
+   "verdict": "PASS",
+   "detail": "editor shows the source lines, the labelled recap gap and the cited note's title=True"
+  },
+  {
+   "id": "W6_open_instead_of_redraft",
+   "verdict": "PASS",
+   "detail": "'Open the NVDA prep note' shown=True"
+  },
+  {
+   "id": "W7_frozen_values_survive_a_data_change",
+   "verdict": "PASS",
+   "detail": "list now says NVDA 2026-10-08; the note's revision unchanged=True, body unchanged=True"
+  },
+  {
+   "id": "W9_research_workspace_entry",
+   "verdict": "PASS",
+   "detail": "'Earnings prep' button on /journal/notebook/research/NVDA=True; workspace header after 5.2s"
+  },
+  {
+   "id": "W8_phone_390",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs clientWidth 390; button {'h': 44, 'w': 132.8125, 'right': 335}; tap drafted note 981d5e6315814611923137fa5f618e70; timing gap labelled in its body"
+  },
+  {
+   "id": "W10_gate_off_client",
+   "verdict": "PASS",
+   "detail": "Reporting soon absent=True; earnings-prep requests=[]"
+  },
+  {
+   "id": "W11_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13c\\walk-data-5\\implied_moves.db 2",
+  "dates": {
+   "today": "2026-10-02",
+   "AMD": "2026-10-05",
+   "META": "2026-10-06",
+   "NVDA": "2026-10-07",
+   "NVDA_moved": "2026-10-08"
+  },
+  "auth_me_flag": true,
+  "seed_http": {
+   "watchlist": 200,
+   "item": 200,
+   "position": 200,
+   "note": 200,
+   "seeded_note_id": "314f580c6d6a43f7a4541544bb8abf7a"
+  },
+  "soon_1_status": 200,
+  "home_section_text_1200": "REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMD\nMon, Oct 5, time not announced yet\nWatchlist\nCreate prep note\n$NVDA\nWed, Oct 7, after the close\nOpen position\nCreate prep note",
+  "note_nvda_text": "Drafted by UCT on Oct 2, 2026, 6:05 PM from the sources named under each value. The values are frozen in this note: they will not change when the data does.\nThe report\nDate:\n Wed, Oct 7, 2026\nSource: UCT earnings calendar, as of Oct 2, 2026, 6:04 PM.\nBefore or after the bell:\n after the close\nSource: UCT earnings calendar, as of Oct 2, 2026, 6:04 PM.\nExpected move (from options):\n ±7.2% ($13.10)\nSource: Options-implied move, captured by UCT before the report, as of Oct 2, 2026, 6:04 PM.\nWhat the Street expects (FY2027 Q3)\nEstimate\nA year ago\nGrowth\nEPS\n$1.31\n$0.81\n+61.7%\nRevenue\n$54.00B\n$35.10B\n+53.8%\nSource: UCT earnings data (consensus estimates and reported results), as of Oct 2, 2026, 6:04 PM.\nThe last four reactions\nQuarter\nReported\nEPS\nRevenue\nImplied move\nReaction\nFY2027 Q2\nWed, Aug 26\nBeat +4.2%\nBeat +1.1%\n±6.9%\n−3.1%\nFY2027 Q1\nWed, May 27\nMiss −1.3%\n—\n—\n+2.4%\nFY2026 Q4\nWed, Feb 25\nBeat +2.0%\nBeat +0.5%\n—\n−8.5%\nFY2026 Q3\nWed, Nov 19\nBeat +3.0%\nBeat +2.0%\n—\n+1.0%\nSource: UCT earnings data, reactions from UCT daily bars, as of Oct 2, 2026, 6:04 PM.\n— in a cell: UCT holds no value for it (no consensus to score against, no implied move captured before that report, or no bars for that day).\nLast call recap\n— not available: No stored call recap for NVDA. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar.\nSource: UCT call recap (stored).\nWhat the market will listen for\nGuidance: —\nThe metric that moves this stock: —\nAnything new: —\nMy history on the name\nMy notes\n[[note:314f580c6d6a43f7a4541544bb8abf7a]]\n (last edited Fri, Oct 2)\nSource: Your Notebook, as of Oct 2, 2026, 6:05 PM.\nMy trades\n— not available: You have no closed trades in NVDA in your journal.\nSource: Your trade journal.\nMy position going in\nLong 100 shares, at $180.00, stop $170.00, since Tue, Sep 22\nSource: Your open positions, as of Oct 2, 2026, 6:05 PM.\nHolding through it, trimming, or flat? Say why before the print, not after.\nWhere the stock sits going in\nIn a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.\nAfter the report\nThe numbers, the reaction, and whether the setup you described held.",
+  "W4_checks": {
+   "title": true,
+   "tags": true,
+   "ticker": true,
+   "date_sourced": true,
+   "after_the_close": true,
+   "implied_move": true,
+   "consensus": true,
+   "reactions": true,
+   "cited_note": true,
+   "position": true,
+   "recap_missing_labelled": true,
+   "trades_missing_labelled": true
+  },
+  "editor_text_1200": "Drafted by UCT on Oct 2, 2026, 6:05 PM from the sources named under each value. The values are frozen in this note: they will not change when the data does.\n\nThe report\n\nDate: Wed, Oct 7, 2026\n\nSource: UCT earnings calendar, as of Oct 2, 2026, 6:04 PM.\n\nBefore or after the bell: after the close\n\nSource: UCT earnings calendar, as of Oct 2, 2026, 6:04 PM.\n\nExpected move (from options): ±7.2% ($13.10)\n\nSource: Options-implied move, captured by UCT before the report, as of Oct 2, 2026, 6:04 PM.\n\nWhat the Street expects (FY2027 Q3)\n\n\n\n\n\t\n\nEstimate\n\n\t\n\nA year ago\n\n\t\n\nGrowth\n\n\n\n\nEPS\n\n\t\n\n$1.31\n\n\t\n\n$0.81\n\n\t\n\n+61.7%\n\n\n\n\nRevenue\n\n\t\n\n$54.00B\n\n\t\n\n$35.10B\n\n\t\n\n+53.8%\n\nSource: UCT earnings data (consensus estimates and reported results), as of Oct 2, 2026, 6:04 PM.\n\nThe last four reactions\n\nQuarter\n\n\t\n\nReported\n\n\t\n\nEPS\n\n\t\n\nRevenue\n\n\t\n\nImplied move\n\n\t\n\nReaction\n\n\n\n\nFY2027 Q2\n\n\t\n\nWed, Aug 26\n\n\t\n\nBeat +4.2%\n\n\t\n\nBeat +1.1%\n\n\t\n\n±6.9%\n\n\t\n\n−3.1%\n\n\n\n\nFY2027 Q1\n\n\t\n\nWed, May 27\n\n\t\n\nMiss −1.3%\n\n\t\n\n—\n\n\t\n\n—\n\n\t\n\n+2.4%\n\n\n\n\nFY2026 Q4\n\n\t\n\nWed, Feb 25\n\n\t\n\nBeat +2.0%\n\n\t\n\nBeat +0.5%\n\n\t\n\n—\n\n\t\n\n−8.5%\n\n\n\n\nFY2026 Q3\n\n\t\n\nWed, Nov 19\n\n\t\n\nBeat +3.0%\n\n\t\n\nBeat +2.0%\n\n\t\n\n—\n\n\t\n\n+1.0%\n\nSource: UCT earnings data, reactions from UCT daily bars, as of Oct 2, 2026, 6:04 PM.\n\n— in a cell: UCT holds no value for it (no consensus to score against, no implied move captured before that report, or no bars for that day).\n\nLast call recap\n\n— not available: No stored call recap for NVDA. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar.\n\nSource: UCT call recap (stored).\n\nWhat the market will listen for\n\nGuidance: —\n\nThe metric that moves this stock: —\n\nAnything new: —\n\nMy history on the name\nMy notes\n\nNVDA thesis (walk) (last edited Fri, Oct 2)\n\nSource: Your Notebook, as of Oct 2, 2026, 6:05 PM.\n\nMy trades\n\n— not available: You have no closed trades in NVDA in your journal.\n\nSource: Your trade journal.\n\nMy position going in\n\nLong 100 shares, at $180.00, stop $170.00, since Tue, Sep 22\n\nSource: Your open positions, as of Oct 2, 2026, 6:05 PM.\n\nHolding through it, trimming, or flat? Say why before the print, not after.\n\nWhere the stock sits going in\n\nIn a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.\n\nAfter the report\n\nThe numbers, the reaction, and whether the setup you described held.",
+  "W9_workspace_load_s": 5.2,
+  "W9_counts": {
+   "heading_NVDA": 1,
+   "earnings_prep_buttons": 1
+  },
+  "phone_geometry": {
+   "sw": 390,
+   "cw": 390,
+   "btn": {
+    "h": 44,
+    "w": 132.8125,
+    "right": 335
+   }
+  },
+  "home_section_text_390": "REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMD\nMon, Oct 5, time not announced yet\nWatchlist\nCreate prep note\n$NVDA\nThu, Oct 8, after the close\nOpen position\nOpen prep note"
+ }
+}
