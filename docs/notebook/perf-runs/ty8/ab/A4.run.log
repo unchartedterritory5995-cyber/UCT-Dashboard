@@ -1,0 +1,27 @@
+=== A4 : box status BEFORE ===
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-02T09:07:51
+=== A4 : copying dist-A into app/dist ===
+NotebookFlagGate-B36W-k0F.js
+NotebookFlagGate-k7IYPAg0.css
+=== A4 : running harness on port 8485 ===
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\uct-worktrees\notebook-w10-ty8\docs\notebook\perf-runs\ty8\ab\A4.sandbox.log; log: C:\Users\Patrick\uct-worktrees\notebook-w10-ty8\docs\notebook\perf-runs\ty8\ab\A4.integrity.md
+typing busy at 1 paragraphs: 59 windows, p50 5.4 ms/key, p95 7.7 ms/key (renderer main-thread busy time, trace-only pass)
+typing busy at 1,000 paragraphs: 59 windows, p50 9.6 ms/key, p95 14.42 ms/key (renderer main-thread busy time, trace-only pass)
+typing busy at 2,000 paragraphs: 59 windows, p50 12.85 ms/key, p95 15.67 ms/key (renderer main-thread busy time, trace-only pass)
+| measure | paragraphs | samples | p50 | p95 | budget | tree |
+|---|---:|---:|---:|---:|---:|---|
+| note_open | 1 | 20 | 33.6 ms | 52 ms | < 300 ms | `65599bb58` |
+| note_open | 1,000 | 20 | 97.9 ms | 139.6 ms | < 300 ms | `65599bb58` |
+| note_open | 2,000 | 20 | 158.8 ms | 177 ms | n/a | `65599bb58` |
+| typing_per_char | 1 | 60 | 4.5 ms | 15.2 ms | n/a | `65599bb58` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_per_char | 1,000 | 60 | 9.4 ms | 16.6 ms | n/a | `65599bb58` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_per_char | 2,000 | 60 | 12.1 ms | 17.5 ms | n/a | `65599bb58` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_busy_per_char | 1 | 59 | 5.4 ms | 7.7 ms | < 16 ms | `65599bb58` |
+| typing_busy_per_char | 1,000 | 59 | 9.6 ms | 14.42 ms | < 16 ms | `65599bb58` |
+| typing_busy_per_char | 2,000 | 59 | 12.85 ms | 15.67 ms | < 16 ms | `65599bb58` |
+VERDICT: PASS -- note open and typing within budget
+=== A4 : box status AFTER ===
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-02T09:10:16
+=== A4 : harness exit code 0 ===
