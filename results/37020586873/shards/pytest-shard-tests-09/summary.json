@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2604,
+  "passed": 2590,
+  "failed": 9,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 254.32,
+  "failed_files": [
+    "tests/test_program_doc_shas_resolve.py",
+    "tests/test_rate_limit_policy.py",
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py",
+    "tests/test_screener_filters.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "9 failed, 2590 passed, 5 skipped, 12 warnings in 254.32s (0:04:14)",
+  "ok": true
+}
