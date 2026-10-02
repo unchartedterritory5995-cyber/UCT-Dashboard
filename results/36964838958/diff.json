@@ -1,0 +1,67 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 8,
+    "fixed": 7,
+    "unchanged": 159,
+    "missing": 0,
+    "baseline": 166,
+    "current": 170,
+    "current_ran": 35938,
+    "new_flaky": 3,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 166 = unchanged 159 + fixed 7 + missing 0  |  current 170 = unchanged 159 + new 8 + new-but-flaky 3",
+  "invalid_because": [
+    "current: shards_success 18 of 19"
+  ],
+  "baseline_run_id": "36927227543",
+  "current_run_id": "36964838958",
+  "baseline_sha": "22f07e1bd2487383788ac632dddb8c80502d79ff",
+  "current_sha": "c346d1e6bcb47bb72a00eb8945d9c58eed57ad50",
+  "commit_range": "22f07e1bd2487383788ac632dddb8c80502d79ff..c346d1e6bcb47bb72a00eb8945d9c58eed57ad50",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_c45_withheld_doors|test_the_question_is_not_vacuous_and_can_answer_no",
+    "pytest|tests.test_c45_withheld_doors|test_the_whole_series_question_per_lane[tree3-alert3-sweep3]",
+    "pytest|tests.test_parity_scorecard|test_a_flag_record_naming_another_revision_is_refused",
+    "pytest|tests.test_parity_scorecard|test_a_flag_status_the_ledger_does_not_hold_is_refused",
+    "pytest|tests.test_parity_scorecard|test_every_cited_file_line_still_holds_its_fragment",
+    "pytest|tests.test_parity_scorecard|test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_requirement_tags|test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers",
+    "pytest|tests.test_requirement_tags|test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained",
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[company_about.get_profile-ok]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}

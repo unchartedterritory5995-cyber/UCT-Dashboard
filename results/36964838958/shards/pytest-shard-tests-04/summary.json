@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2324,
+  "passed": 2315,
+  "failed": 8,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 410.99,
+  "failed_files": [
+    "tests/test_concept_vocabulary.py",
+    "tests/test_definition_concierge.py",
+    "tests/test_deploy_watch.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "8 failed, 2315 passed, 1 skipped, 246 warnings in 410.99s (0:06:50)",
+  "ok": true
+}
