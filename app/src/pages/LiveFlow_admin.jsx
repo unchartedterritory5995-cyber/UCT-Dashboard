@@ -780,6 +780,7 @@ export default function LiveFlowAdmin() {
             }}>{isBacktest ? "replay" : "backtest"}</span>
             <input
               type="date"
+              aria-label="Backtest date"
               value={isBacktest ? backtestDate : mostRecentMarketDay()}
               min={thirtyDaysAgo()}
               max={formatDateForInput(new Date())}
@@ -959,6 +960,7 @@ export default function LiveFlowAdmin() {
                 <>
                   <label style={{ color: P.dm, fontSize: 10 }}>min grade:</label>
                   <select
+                    aria-label="Minimum grade"
                     value={simMinGrade}
                     onChange={(e) => {
                       const next = new URLSearchParams(searchParams);

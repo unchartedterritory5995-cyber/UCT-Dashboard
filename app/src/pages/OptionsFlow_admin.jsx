@@ -2572,6 +2572,7 @@ function SearchModal({onClose}){
         </div>
         {/* Input */}
         <input
+          aria-label="Search any ticker"
           autoFocus
           value={query}
           onChange={e=>setQuery(e.target.value)}
@@ -5160,7 +5161,7 @@ export default function OptionsFlowDashboard() {
         }} onClick={()=>document.getElementById("csv-admin-input").click()}>
           <div style={{fontSize:36,marginBottom:8}}>{dragOver?"📥":"📄"}</div>
           <div style={{color:dragOver?"#3cb868":"#c8d6e5",fontSize:13,fontWeight:600}}>{dragOver?"Drop CSV here":"Click or drag CSV file"}</div>
-          <input id="csv-admin-input" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+          <input id="csv-admin-input" aria-label="Upload flow CSV" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
         </div>
         {csvError && (
           <div style={{marginTop:12}}>
@@ -5417,7 +5418,7 @@ export default function OptionsFlowDashboard() {
                   background:dateFilter==="All"?P.cd:"transparent", color:dateFilter==="All"?P.ac:P.mt
                 }}>All {availableDates.length}d</button>
                 <span style={{ width:1, height:16, background:P.bd }}/>
-                <select value={dateFilter.startsWith("Last")||dateFilter==="All"?"":dateFilter}
+                <select aria-label="Flow date" value={dateFilter.startsWith("Last")||dateFilter==="All"?"":dateFilter}
                   onChange={e=>e.target.value&&setDateFilter(e.target.value)}
                   style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit", fontWeight:600, minWidth:120 }}>
                   <option value="">Select date...</option>
@@ -5463,7 +5464,7 @@ export default function OptionsFlowDashboard() {
             {/* Search + Quick Tickers + DTE */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
               <div style={{ display:"flex", gap:6, flex:"1 1 300px" }}>
-                <input type="text" value={gexInput}
+                <input type="text" aria-label="GEX ticker" value={gexInput}
                   onChange={e=>setGexInput(e.target.value.toUpperCase())}
                   onKeyDown={e=>{ if(e.key==="Enter") setGexTicker(gexInput.trim()); }}
                   placeholder="Enter ticker (SPY, NVDA, etc)"
@@ -6162,7 +6163,7 @@ export default function OptionsFlowDashboard() {
               color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             ↑ Re-upload CSV
           </button>
-          <input id="csv-reupload" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
+          <input id="csv-reupload" aria-label="Re-upload flow CSV" type="file" accept=".csv" style={{display:"none"}} onChange={onFileInput}/>
           {dbStatus && (
             <span style={{ fontSize:9, fontWeight:600, padding:"3px 10px", borderRadius:4, marginLeft:6,
               background: dbStatus.type==="ok"?P.bu+"22":dbStatus.type==="error"?P.be+"22":P.al,
@@ -7406,7 +7407,7 @@ export default function OptionsFlowDashboard() {
                         )}
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <input type="text" value={chartModalSearch}
+                        <input type="text" aria-label="Chart ticker" value={chartModalSearch}
                           onChange={e => setChartModalSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
                           onKeyDown={e => {
                             if (e.key === "Enter" && chartModalSearch.trim()) {
@@ -8318,7 +8319,7 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ position:"relative" }}>
-              <input type="text" value={search}
+              <input type="text" aria-label="Search ticker, theme, or sector" value={search}
                 onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); }}
                 placeholder="Search ticker, theme, or sector..."
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
@@ -8554,7 +8555,7 @@ export default function OptionsFlowDashboard() {
             {batchMode && (
               <Card>
                 <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
-                  <textarea value={batchTickers} onChange={e=>setBatchTickers(e.target.value.toUpperCase())}
+                  <textarea aria-label="Batch tickers" value={batchTickers} onChange={e=>setBatchTickers(e.target.value.toUpperCase())}
                     placeholder="Paste tickers: AAPL, TSLA, NVDA, META..."
                     rows={2}
                     style={{ flex:1, padding:"8px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", resize:"vertical" }}
@@ -8992,7 +8993,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                <input type="text" value={oiSearch}
+                <input type="text" aria-label="Search OI tickers" value={oiSearch}
                   onChange={e=>setOiSearch(e.target.value.toUpperCase())}
                   placeholder="Search ticker…"
                   style={{ width:140, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
@@ -9211,7 +9212,7 @@ export default function OptionsFlowDashboard() {
                     background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
                     fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>All</button>
                 {trackerDates.length > 0 && (
-                  <select value={trackerDateFilter==="All"?"":trackerDateFilter}
+                  <select aria-label="Tracker date" value={trackerDateFilter==="All"?"":trackerDateFilter}
                     onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
                     style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit", fontWeight:600 }}>
                     <option value="">Select date...</option>
@@ -9416,7 +9417,7 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                     {isEditing ? (
-                      <input type="number" step="0.5" min="0" max="10" value={item.score}
+                      <input type="number" aria-label={`${item.sym} score`} step="0.5" min="0" max="10" value={item.score}
                         onChange={e=>update("score",parseFloat(e.target.value)||0)}
                         onClick={e=>e.stopPropagation()}
                         style={{ width:40, background:P.al, border:"1px solid "+P.bd, borderRadius:3, color:P.wh, fontSize:11, padding:"1px 4px", fontFamily:"inherit" }}/>
@@ -9452,7 +9453,7 @@ export default function OptionsFlowDashboard() {
                     {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span></span>}
                   </div>
                   {isEditing ? (
-                    <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
+                    <textarea aria-label={`${item.sym} trade notes`} value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
                       onClick={e=>e.stopPropagation()}
                       placeholder="Trade notes, DP checks, GSA status..."
                       style={{ width:"100%", minHeight:40, marginTop:4, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", resize:"vertical" }}/>
@@ -9519,7 +9520,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </div>
                   <div style={{ display:"flex", gap:4 }}>
-                    <input value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
+                    <input aria-label={`Reason for removing ${item.sym}`} value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
                       onKeyDown={e=>e.key==="Enter"&&wlRemoveReason.trim()&&confirmRemove(wlRemoveReason.trim())}
                       placeholder="Or type a custom reason..."
                       style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}/>
@@ -9546,7 +9547,7 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {wlDates.length>0 && (
-                    <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
+                    <select aria-label="Watchlist date" value={wlDate} onChange={e=>wlLoad(e.target.value)}
                       style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}>
                       <option value={new Date().toISOString().slice(0,10)}>Today</option>
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
@@ -9569,11 +9570,11 @@ export default function OptionsFlowDashboard() {
                     🗑 Clear All
                   </button>
                   <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-                    <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                    <select aria-label="Discord post label" value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
                       style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
                       {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                     </select>
-                    <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                    <select aria-label="Discord post count" value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
                       style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
                       {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
                       <option value={99}>All</option>
@@ -9602,7 +9603,7 @@ export default function OptionsFlowDashboard() {
                 {discordPayload && (
                   <div style={{ marginTop:8, position:"relative" }}>
                     <div style={{ fontSize:9, color:P.ac, marginBottom:3, fontWeight:700 }}>📋 PAYLOAD — Select All (Ctrl+A) → Copy (Ctrl+C) → Paste in discord-push.html</div>
-                    <textarea readOnly value={discordPayload} onFocus={e=>e.target.select()}
+                    <textarea aria-label="Discord payload" readOnly value={discordPayload} onFocus={e=>e.target.select()}
                       style={{ width:"100%", height:60, background:P.bg, color:P.dm, border:"1px solid "+P.ac, borderRadius:6, padding:8, fontSize:9, fontFamily:"monospace", resize:"none", boxSizing:"border-box" }}/>
                     <button onClick={()=>setDiscordPayload("")} style={{ position:"absolute", top:0, right:0, background:"none", border:"none", color:P.dm, cursor:"pointer", fontSize:10 }}>✕</button>
                   </div>
@@ -9692,7 +9693,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bull watchlist" value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9712,7 +9713,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bear watchlist" value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9736,7 +9737,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ marginBottom:8, height:19 }}/>
                     {renderCol(right, filtBull, wlBull, "bull")}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bull watchlist" value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9760,7 +9761,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ marginBottom:8, height:19 }}/>
                     {renderCol(right, filtBear, wlBear, "bear")}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bear watchlist" value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
