@@ -157,6 +157,9 @@ NOTEBOOK_FLAGS = {
     "J2_SHARE_LINKS_ENABLED": False,         # enablement  — unset means OFF (share links, lane 8B)
     "NOTEBOOK_PUBLISH_ENABLED": False,       # enablement  — unset means OFF (publish-to-web, lane 8B)
     "NOTEBOOK_ONBOARDING_ENABLED": False,    # enablement  — unset means OFF (tour + sample notebook, lane 8C)
+    # Wave 11 lane 11A: voice and meeting notes. The route gate
+    # (journal_two/voice_notes.enabled) reads the same variable through flag_on.
+    "NOTEBOOK_VOICE_NOTES_ENABLED": False,   # enablement  — unset means OFF (voice notes, lane 11A)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

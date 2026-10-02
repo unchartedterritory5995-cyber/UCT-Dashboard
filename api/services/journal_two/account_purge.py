@@ -205,6 +205,18 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
 
+    # Wave 11 lane 11A: a voice note still on its way to a transcript holds the
+    # member's AUDIO (and the transcript so far) in this process's temp directory
+    # and memory -- never a table, so it is not in the manifest above. It goes now,
+    # not at the 2-hour sweep.
+    voice_jobs = 0
+    try:
+        from api.services.journal_two import voice_notes
+        voice_jobs = voice_notes.purge_user(user_id)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"voice notes: {e}")
+        log.warning("journal_two voice-note purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -212,6 +224,7 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         **report,
         "ok": not errors,
         "attachment_dirs_removed": freed_dirs,
+        "voice_jobs_removed": voice_jobs,
         "errors": errors,
         "tombstone": tomb,
     }

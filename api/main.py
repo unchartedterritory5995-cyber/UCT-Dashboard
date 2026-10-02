@@ -96,6 +96,9 @@ from api.routers import notebook_inbound_email as notebook_inbound_email_router
 # request by the router's own dependency). Its stream path is exempted from
 # gzip in _is_gzip_exempt below, or no event ever reaches the editor.
 from api.routers import notebook_writing_help as notebook_writing_help_router
+# Wave 11 lane 11A: voice and meeting notes (/api/j2/voice-notes/*), dark behind
+# NOTEBOOK_VOICE_NOTES_ENABLED (router-level 404).
+from api.routers import notebook_voice_notes as notebook_voice_notes_router
 # Wave 8 seam S8-2 (controller wiring): the five note-share routes MOVED out of
 # journal_two into notebook_shares (same paths, handlers and flag checks), and three
 # stub routers lanes 8B/8C fill without touching this file. notebook_shares MUST be
@@ -8878,6 +8881,8 @@ app.include_router(notebook_link_preview_router.router)
 # the family is kept together and the mount is railed by name
 # (tests/test_main_router_order.py).
 app.include_router(notebook_writing_help_router.router)
+# Wave 11 lane 11A: /api/j2/voice-notes/* -- same pre-journal_two slot as writing help.
+app.include_router(notebook_voice_notes_router.router)
 # Wave 8 seam S8-2: the share routes' own router, BEFORE journal_two (same family,
 # same pre-journal_two slot; tests/test_notebook_share_routes.py +
 # tests/test_main_router_order.py).
