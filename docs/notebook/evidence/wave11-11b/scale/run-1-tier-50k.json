@@ -1,0 +1,252 @@
+{
+ "tool": "notebook_w11b_scale",
+ "started_utc": "2026-10-02T04:06:54+00:00",
+ "git": "cef51969ce0ef2ba5d637fe3566df22f1d5d776f",
+ "reps": 20,
+ "warmup": 2,
+ "connection_model": "per-call (auth_db.get_connection per route call)",
+ "tiers": [
+  {
+   "tier": 50000,
+   "seed_ms": 37310.0,
+   "db_bytes": 613601280,
+   "fixture": {
+    "r_id": "77eebd0fb5b44d92b6040ab11901bbb8",
+    "avg_id": "7159d151a5d8457bbd3ad6b1036d4782",
+    "exit_id": "e20855e01ab84cd8b57c2c3572e151c6",
+    "plans": 9859,
+    "parents": {
+     "50": 50,
+     "500": 500
+    },
+    "parent_500": "4f18eca8d82c452596c32af804c0041f",
+    "write_note": "b7171b021371473ab36cd2e1646015f8",
+    "trades_linked": 2490,
+    "live_notes": 49021
+   },
+   "ops": {
+    "GET /notes, no computed sort or filter (baseline)": {
+     "p50_ms": 58.394,
+     "p95_ms": 79.125,
+     "max_ms": 82.818,
+     "min_ms": 47.037,
+     "reps": 20,
+     "samples_ms": [
+      53.905,
+      69.485,
+      56.576,
+      54.64,
+      47.037,
+      68.453,
+      66.72,
+      79.125,
+      82.818,
+      63.086,
+      58.394,
+      56.74,
+      53.58,
+      50.735,
+      61.282,
+      47.664,
+      62.745,
+      54.282,
+      73.817,
+      61.583
+     ],
+     "box_before": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 51408 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 51408   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 18964   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider",
+     "box_after": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 7 marked process(es) (gate 1, vitest 5, pytest 1); largest pid 18964 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 18964   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50284   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run src",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.126998154933501,
+       "reason": null,
+       "computedAt": "2026-10-02T04:07:35.539921+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes sorted by a rollup": {
+     "p50_ms": 88.984,
+     "p95_ms": 129.75,
+     "max_ms": 136.367,
+     "min_ms": 60.17,
+     "reps": 20,
+     "samples_ms": [
+      88.984,
+      108.478,
+      86.64,
+      65.872,
+      77.471,
+      69.697,
+      85.345,
+      68.694,
+      129.75,
+      117.619,
+      136.367,
+      126.041,
+      108.835,
+      113.037,
+      100.76,
+      113.945,
+      91.876,
+      82.552,
+      66.251,
+      60.17
+     ],
+     "box_before": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 9 marked process(es) (gate 1, vitest 7, pytest 1); largest pid 18964 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 18964   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50284   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run src\n    - vitest  pid 28104   \"node\"   \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w11c\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\" run src/pa\n    - vitest  pid 49256   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "box_after": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 7 marked process(es) (gate 1, vitest 5, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 13876   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run src",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-02T04:07:39.575278+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes filtered by a formula": {
+     "p50_ms": 141.192,
+     "p95_ms": 166.502,
+     "max_ms": 193.603,
+     "min_ms": 116.973,
+     "reps": 20,
+     "samples_ms": [
+      138.146,
+      135.282,
+      124.929,
+      137.866,
+      144.5,
+      153.551,
+      142.248,
+      160.554,
+      166.502,
+      141.192,
+      193.603,
+      147.971,
+      148.575,
+      151.385,
+      121.209,
+      116.973,
+      139.972,
+      150.409,
+      132.6,
+      136.342
+     ],
+     "box_before": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 9 marked process(es) (gate 1, vitest 7, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 13876   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run src\n    - vitest  pid 16160   \"node\"   \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w11c\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\" run src/pa\n    - vitest  pid 5136    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "box_after": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "check": {
+      "rows": 100,
+      "total": 5118,
+      "first_computed": {
+       "value": null,
+       "reason": "This note links to no notes yet",
+       "computedAt": "2026-10-02T04:07:45.595290+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 0,
+       "usedSize": 0,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET one note's properties (500-child parent)": {
+     "p50_ms": 32.192,
+     "p95_ms": 51.509,
+     "max_ms": 52.132,
+     "min_ms": 27.057,
+     "reps": 20,
+     "samples_ms": [
+      31.094,
+      28.863,
+      41.657,
+      27.363,
+      27.55,
+      32.3,
+      32.237,
+      31.563,
+      32.103,
+      33.336,
+      32.192,
+      38.895,
+      41.171,
+      52.132,
+      27.057,
+      27.921,
+      51.509,
+      27.73,
+      37.939,
+      44.682
+     ],
+     "box_before": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "box_after": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "check": {
+      "avg_r": 1.6664380095587528,
+      "set": 500
+     }
+    },
+    "property write, then the sorted read": {
+     "p50_ms": 99.084,
+     "p95_ms": 147.4,
+     "max_ms": 155.782,
+     "min_ms": 73.594,
+     "reps": 20,
+     "samples_ms": [
+      73.638,
+      80.483,
+      98.602,
+      94.395,
+      99.084,
+      103.973,
+      124.694,
+      97.848,
+      97.869,
+      94.403,
+      85.921,
+      73.594,
+      100.977,
+      125.018,
+      155.782,
+      147.4,
+      109.119,
+      137.915,
+      103.461,
+      110.094
+     ],
+     "box_before": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "box_after": "lock: HELD  C:\\ProgramData\\uct\\gate-box.lock\n  pid 49924 since 2026-10-01T23:06:02 [int-w13] scripts/gate_shards.py --shards 6 --out ../gate_w13\n  load: BUSY \u2014 6 marked process(es) (gate 1, vitest 4, pytest 1); largest pid 7516 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - gate    pid 49924   C:\\Python314\\python.exe scripts/gate_shards.py --shards 6 --out ../gate_w13\n    - vitest  pid 14192   \"C:\\Program Files\\nodejs\\\\node.exe\"  \"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js\" vitest run --s\n    - vitest  pid 50484   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\int-w13\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - pytest  pid 37444   C:\\Python314\\python.exe -m pytest tests/test_address_space.py -q -p no:cacheprovider\n    - vitest  pid 7516    \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 50804   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-02T04:07:53.016017+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    }
+   }
+  }
+ ],
+ "loglog_slope_p50": {},
+ "finished_utc": "2026-10-02T04:07:53+00:00"
+}
