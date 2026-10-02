@@ -2510,7 +2510,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === wl.id ? (
-            <input
+            <input aria-label="Rename watchlist"
               className={styles.renameInput}
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
@@ -2627,7 +2627,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               {expandedNote === item.id && (
                 <div className={styles.noteRow}>
                   {editable ? (
-                    <textarea
+                    <textarea aria-label="Note for this ticker"
                       className={styles.noteTextarea}
                       value={noteText}
                       onChange={e => setNoteText(e.target.value)}
@@ -2723,7 +2723,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === 'flagged' ? (
-            <input
+            <input aria-label="Rename the flagged list"
               className={styles.renameInput}
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
@@ -3191,7 +3191,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <form onSubmit={handleCreate}>
               <div className={styles.formGroup}>
                 <span className={styles.formLabel}>Name</span>
-                <input
+                <input aria-label="Name"
                   className={styles.input}
                   value={createForm.name}
                   onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
@@ -3202,7 +3202,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               </div>
               <div className={styles.formGroup}>
                 <span className={styles.formLabel}>Description</span>
-                <input
+                <input aria-label="Description"
                   className={styles.input}
                   value={createForm.description}
                   onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
@@ -3249,7 +3249,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <div className={styles.modalTitle}>Import Tickers</div>
             <div className={styles.formGroup}>
               <span className={styles.formLabel}>Paste tickers (comma or newline separated)</span>
-              <textarea
+              <textarea aria-label="Tickers to import"
                 className={`${styles.input} ${styles.importTextarea}`}
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
@@ -3305,11 +3305,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.alertPopover} style={{ top: alertPopover.y, left: alertPopover.x }} onClick={e => e.stopPropagation()}>
             <div className={styles.alertPopTitle}>Alert for {alertPopover.sym}</div>
             <div className={styles.alertForm}>
-              <select className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
+              <select aria-label="Alert direction" className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
                 <option value="above">Above</option>
                 <option value="below">Below</option>
               </select>
-              <input
+              <input aria-label="Alert price"
                 className={styles.alertInput}
                 type="number"
                 step="0.01"

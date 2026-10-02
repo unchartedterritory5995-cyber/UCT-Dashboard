@@ -763,12 +763,21 @@ describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
 // (the census header records that lesson). A file joins the list in the commit
 // that takes its last unnamed control away.
 export const NAMED_SURFACES = [
+  'app/src/components/TickerActions.jsx',
+  'app/src/components/chart/ChartSettingsModal.jsx',
   'app/src/components/chart/ChartToolbar.jsx',
+  'app/src/components/chart/ComparisonPicker.jsx',
   'app/src/pages/Admin.jsx',
   'app/src/pages/ModelBook.jsx',
   'app/src/pages/Settings.jsx',
+  'app/src/pages/Support.jsx',
+  'app/src/pages/ThemeTrackerPage.jsx',
+  'app/src/pages/Watchlists.jsx',
+  'app/src/pages/calendar/CalendarHeader.jsx',
   'app/src/pages/charts/PeriodSortConfig.jsx',
   'app/src/pages/desk/TeamSection.jsx',
+  'app/src/pages/modelbook/SetupsView.jsx',
+  'app/src/pages/modelbook/shared/ChartExampleKit.jsx',
 ]
 const NAMED = new Set(['labelled', 'hidden', 'n/a'])
 export const unnamedSites = (sites) => sites.filter((s) => !NAMED.has(s.label))

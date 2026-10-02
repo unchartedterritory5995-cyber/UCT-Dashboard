@@ -206,7 +206,7 @@ const ThemeSearchBox = memo(function ThemeSearchBox({ onDebounced }) {
   }, [val, onDebounced])
   return (
     <div className={styles.searchBar}>
-      <input
+      <input aria-label="Search themes or tickers"
         className={styles.searchInput}
         placeholder="Search themes or tickers…"
         value={val}
@@ -235,7 +235,7 @@ function AddStockRow({ onAdd, autoFocus = false }) {
   }
   return (
     <div className={`${styles.stockRow} ${styles.addStockRow}`} onClick={e => e.stopPropagation()}>
-      <input
+      <input aria-label="Add a ticker"
         ref={inputRef}
         className={styles.addStockInput}
         placeholder="＋ Add ticker…  (Enter)"
@@ -429,7 +429,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
                   <button className={styles.setConfirmNo} onClick={() => setConfirmDel(null)}>Cancel</button>
                 </div>
               ) : renamingId === s.id ? (
-                <input autoFocus className={styles.setInline} value={renameVal}
+                <input aria-label="Rename theme set" autoFocus className={styles.setInline} value={renameVal}
                   onChange={e => setRenameVal(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
@@ -470,7 +470,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
       <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
       {open && (
         <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up}>
-          <input autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
+          <input aria-label="Search themes" autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
           <div className={styles.addThemeList}>
             {list.map(t => {
               const has = inSet.has(t.slug)
@@ -486,7 +486,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
           </div>
           <div className={styles.setMenuSep} />
           <div className={styles.setNewRow}>
-            <input className={styles.setInline} placeholder="Create custom theme…" value={cname}
+            <input aria-label="New custom theme name" className={styles.setInline} placeholder="Create custom theme…" value={cname}
               onChange={e => setCname(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && cname.trim()) { onCreateCustom(cname.trim()); close() } }} />
             <button className={styles.setNewGo} disabled={!cname.trim()} onClick={() => { if (cname.trim()) { onCreateCustom(cname.trim()); close() } }}>Create</button>
@@ -1356,7 +1356,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             ) : activeSet ? (
               <div className={styles.editBarStatus}>
                 {barRenaming ? (
-                  <input autoFocus className={styles.editBarNameInput} value={barRenameText}
+                  <input aria-label="Rename this preset" autoFocus className={styles.editBarNameInput} value={barRenameText}
                     onChange={e => setBarRenameText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') commitBarRename(); if (e.key === 'Escape') setBarRenaming(false) }}
                     onBlur={commitBarRename} />
