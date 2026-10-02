@@ -148,10 +148,44 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
         # BEFORE per-day production cause over the expected interval (after BEFORE's first value: internal; before: inception)
         bcause = Counter()
         bartificial = 0
+        lost = Counter()                     # BEFORE valued, V1 not: by V1 reason
+        diff = Counter()                     # both valued: |V1/BEFORE - 1| bucket
+        mat_cause = Counter()                # material (> 5%) difference: attributed cause
+        cur_cmp = None
+        v1_reason_day = {}
+        for s_, e_, reason_, n_ in gapr.get(cik, []):
+            for d_ in days:
+                if s_ <= d_ <= e_:
+                    v1_reason_day[d_] = reason_
+        state_asof = {}
+        for ck_, rs_ in st_by_cik.get(cik, {}).items():
+            for r_ in rs_:
+                state_asof.setdefault(ck_, []).append(r_)
         if pt in v5tick:
             comp = v5doc["companies"].get(str(v5tick[pt])) or {}
-            proj = base_project(comp.get("pts") or [], days)
-            for d, (sh, why) in zip(days, proj):
+            proj = base_project(comp.get("pts") or [], days, with_pe=True)
+            for d, (sh, why, pe) in zip(days, proj):
+                if d in base and d not in v1:
+                    lost[v1_reason_day.get(d, "UNKNOWN")] += 1
+                if d in base and d in v1 and base[d]:
+                    q = v1[d] / base[d]
+                    dq = abs(q - 1)
+                    diff["<0.5%" if dq < 0.005 else "0.5-5%" if dq < 0.05 else "5-20%" if dq < 0.2 else ">20%"] += 1
+                    if dq >= 0.05:
+                        if "MULTI_LISTED" in kinds[cik] or any(len(r[3]) > 1 for r in comps[cik] if (r[0] or 0) <= d <= (r[1] or 99999999)):
+                            mat_cause["MULTI_CLASS_COMPANY_TOTAL"] += 1
+                        elif "ADR" in kinds[cik]:
+                            mat_cause["ADR_RATIO_APPLIED"] += 1
+                        else:
+                            cur = next((r_ for rs_ in state_asof.values() for r_ in rs_ if r_[0] <= d <= r_[1]), None)
+                            if cur and pe and cur[4] and cur[4] > pe:
+                                mat_cause["V1_NEWER_EVIDENCE"] += 1
+                            elif cur and pe and cur[4] and cur[4] < pe:
+                                mat_cause["V1_OLDER_EVIDENCE"] += 1
+                            else:
+                                mat_cause["SAME_PERIOD_DIFFERENT_VALUE"] += 1
+                if d in base and d in v1 and base[d] > 0:
+                    cur_cmp = (d, v1[d], base[d])
                 if d in base:
                     continue
                 cause = BASE_CAUSE.get(why if sh is None else "no_price", why)
@@ -211,6 +245,10 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                "before_causes": dict(bcause), "before_artificial_sessions": bartificial,
                "v1_internal_reasons": dict(v1_internal), "v1_unexplained": unexplained_v1, "v1_reasons_all": reasons,
                "contaminated_before_sessions": contam, "ticker_reuse": reuse,
+               "shadow": {"before_valued_v1_missing": dict(lost), "both_valued_diff": dict(diff),
+                          "material_diff_cause": dict(mat_cause),
+                          "current": None if not cur_cmp else {"d": cur_cmp[0], "v1": cur_cmp[1], "before": cur_cmp[2],
+                                                               "rel": cur_cmp[1] / cur_cmp[2] - 1}},
                "pre_edgar": bool(reasons.get("PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"))}
         # ---------------- anomalies on V1
         a = anomalies
@@ -364,6 +402,19 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
         "v1_unexplained_sessions": sum(r["v1_unexplained"] for r in rows),
         "v1_internal_reason_sessions": dict(sum((Counter(r["v1_internal_reasons"]) for r in rows), Counter()).most_common()),
         "v1_all_missing_reason_sessions": dict(sum((Counter(r["v1_reasons_all"]) for r in rows), Counter()).most_common())}
+    sh = [r["shadow"] for r in rows]
+    tot = lambda key: dict(sum((Counter(x[key]) for x in sh), Counter()).most_common())
+    cur = [x["current"] for x in sh if x["current"]]
+    out["shadow"] = {"before_valued_v1_missing_by_reason": tot("before_valued_v1_missing"),
+                     "both_valued_diff_buckets": tot("both_valued_diff"),
+                     "material_diff_cause_sessions": tot("material_diff_cause"),
+                     "current_compared": len(cur),
+                     "current_within_0_5pct": sum(1 for c in cur if abs(c["rel"]) < 0.005),
+                     "current_within_5pct": sum(1 for c in cur if abs(c["rel"]) < 0.05),
+                     "current_material": sorted(([r["ticker"], round(r["shadow"]["current"]["rel"], 4)] for r in rows
+                                                 if r["shadow"]["current"] and abs(r["shadow"]["current"]["rel"]) >= 0.05),
+                                                key=lambda x: -abs(x[1]))[:60],
+                     "securities_losing_all_history": sorted(r["ticker"] for r in rows if r["before"]["valued"] and not r["v1"]["valued"])}
     out["contamination"] = {"securities": sum(1 for r in rows if r["contaminated_before_sessions"]),
                             "before_sessions": sum(r["contaminated_before_sessions"] for r in rows)}
     out["worst50_before_missing"] = sorted(([r["ticker"], r["expected_sessions"] - r["before"]["valued"],

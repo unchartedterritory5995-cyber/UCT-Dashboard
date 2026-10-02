@@ -41,8 +41,9 @@ def _pe_utc(pe: str) -> int:
     return int(datetime(int(pe[:4]), int(pe[5:7]), int(pe[8:10]), tzinfo=timezone.utc).timestamp())
 
 
-def project(points: list, days: list[int]) -> list[tuple[float | None, str]]:
-    """Per bar: (shares or None, why) -- why in {ok, no_point, gap_point, stale}. Mirrors projectAsOfIndices."""
+def project(points: list, days: list[int], with_pe: bool = False) -> list[tuple]:
+    """Per bar: (shares or None, why) -- why in {ok, no_point, gap_point, stale}. Mirrors projectAsOfIndices.
+    with_pe=True appends the period end of the point in force (None when no point)."""
     pts = sorted(points, key=lambda p: p[0])
     out, j = [], -1
     for d in days:
@@ -50,13 +51,14 @@ def project(points: list, days: list[int]) -> list[tuple[float | None, str]]:
         while j + 1 < len(pts) and pts[j + 1][0] <= ref:
             j += 1
         if j < 0:
-            out.append((None, "no_point")); continue
+            out.append((None, "no_point") + ((None,) if with_pe else ())); continue
         t, v, pe, _m = pts[j]
+        tail = (str(pe) if pe else None,) if with_pe else ()
         if pe and (ref - _pe_utc(str(pe))) // 86400 > MAX_PERIOD_AGE_DAYS:
-            out.append((None, "stale")); continue
+            out.append((None, "stale") + tail); continue
         if v is None:
-            out.append((None, "gap_point")); continue
-        out.append((float(v), "ok"))
+            out.append((None, "gap_point") + tail); continue
+        out.append((float(v), "ok") + tail)
     return out
 
 
