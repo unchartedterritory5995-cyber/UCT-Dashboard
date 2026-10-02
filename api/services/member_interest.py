@@ -54,7 +54,7 @@ def _watchlist_syms(user_id: str) -> set:
             conn.close()
         return {r[0].upper() for r in rows if r and r[0]}
     except Exception as e:
-        _logger.info("member_interest watchlist syms failed: %s", e)
+        _logger.warning("member_interest._watchlist_syms failed for user %s: %s", user_id, e)
         return set()
 
 
@@ -72,23 +72,36 @@ def _flagged_syms(user_id: str) -> set:
             conn.close()
         return {r[0].upper() for r in rows if r and r[0]}
     except Exception as e:
-        _logger.info("member_interest flagged syms failed: %s", e)
+        _logger.warning("member_interest._flagged_syms failed for user %s: %s", user_id, e)
         return set()
 
 
 def _position_syms(user_id: str) -> set:
+    """The member's OPEN Journal 2.0 positions, as a set of upper-case symbols.
+
+    Reads through `journal_two.positions.list_open_positions` -- the one
+    service that already knows what "open" means on `j2_positions`
+    (`closed_at IS NULL`) and what the symbol column is called (`symbol`).
+    ⛔ This function used to carry its own SQL naming `sym` and
+    `status = 'open'`, neither of which `j2_positions` has: the query raised
+    on every call, the except below swallowed it at INFO, and every member's
+    open positions silently vanished from My Stocks. Owner scoping is the
+    same as before: `user_id = ?` on the member's own auth.db.
+    """
     try:
-        from api.services.journal_two import db as j2db  # noqa: F401 -- schema init
-        conn = sqlite3.connect(os.path.join(os.environ.get("DATA_DIR", "/data"), "auth.db"))
+        from api.services.journal_two.positions import list_open_positions
+        conn = sqlite3.connect(_auth_db_path())
+        conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(
-                "SELECT DISTINCT sym FROM j2_positions WHERE user_id = ? AND status = 'open'",
-                (user_id,)).fetchall()
+            positions = list_open_positions(user_id, conn)
         finally:
             conn.close()
-        return {r[0].upper() for r in rows if r and r[0]}
+        return {str(p["symbol"]).upper() for p in positions if p.get("symbol")}
     except Exception as e:
-        _logger.info("member_interest position syms failed: %s", e)
+        # WARNING, not INFO, and named: an empty set from here must never be
+        # indistinguishable from "this member holds nothing".
+        _logger.warning("member_interest._position_syms failed for user %s: %s",
+                        user_id, e)
         return set()
 
 
@@ -104,7 +117,7 @@ def _uct20_syms(user_id: str) -> set:
                 out.add(str(sym).upper())
         return out
     except Exception as e:
-        _logger.info("member_interest uct20 syms failed: %s", e)
+        _logger.warning("member_interest._uct20_syms failed: %s", e)
         return set()
 
 
@@ -194,7 +207,7 @@ def interest_for(user_id: str) -> dict:
         try:
             by_source[name] = source_fns[name](user_id)
         except Exception as e:
-            _logger.info("member_interest source %s failed for user %s: %s", name, user_id, e)
+            _logger.warning("member_interest.interest_for source %s failed for user %s: %s", name, user_id, e)
             by_source[name] = set()
 
     all_mine: set = set()
