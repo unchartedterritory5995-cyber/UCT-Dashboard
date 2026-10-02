@@ -64,6 +64,24 @@ describe('OptionsChainTab', () => {
     expect((await screen.findByTestId('chain-unavailable')).textContent).toMatch(/does not mean no options trade on SPY/)
   })
 
+  it('draws the payoff of a long call at the money, with its basis stated', async () => {
+    renderTab()
+    await screen.findByTestId('payoff')
+    // ATM 760 call, mid of 21.1/21.4 = 21.25 → $2,125 for one contract
+    expect(screen.getByTestId('payoff-facts').textContent)
+      .toBe('Costs $2,125 · Max loss -$2,125 · Max profit unlimited · Breakeven 781.25')
+    expect(screen.getByTestId('payoff-basis').textContent).toMatch(/priced at the mid of bid and ask, at expiration/)
+  })
+
+  it('a spread whose leg has no quote says so instead of drawing', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    renderTab()
+    await screen.findByTestId('payoff')
+    fireEvent.change(screen.getByLabelText('Strategy'), { target: { value: 'bear_put' } })
+    // 760 has a put; 770 does not, so a 760/770 bear put spread cannot be priced
+    expect((await screen.findByTestId('payoff-unpriced')).textContent).toMatch(/No two-sided quote for the 770 put/)
+  })
+
   it('offers no trade, run or send action', async () => {
     renderTab()
     await screen.findByTestId('options-chain')

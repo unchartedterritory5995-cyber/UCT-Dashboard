@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './OptionsChainTab.module.css'
+import PayoffPanel from './PayoffPanel'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -104,6 +105,7 @@ export default function OptionsChainTab({ sym }) {
           </tbody>
         </table>
       </div>
+      <PayoffPanel rows={rows} spot={Number(d.spot)} />
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA), greeks and IV exchange-derived · refreshed every {d.cache_seconds || 60}s
         {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}

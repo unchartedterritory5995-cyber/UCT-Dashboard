@@ -9,3 +9,11 @@
 .grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
 .strike, .strikeHead { text-align: center !important; font-weight: 700; color: var(--text-heading); background: var(--bg-surface); position: sticky; left: 0; }
 .atm td { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
+/* BRK-01 increment 2 — payoff at expiration, under the chain. */
+.payoff { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.payoff select { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.payoffChart { width: 100%; max-width: 640px; height: auto; display: block; margin: 6px 0; }
+.payoffZero { stroke: var(--border); stroke-width: 1; }
+.payoffSpot { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.payoffLine { stroke: var(--ut-gold, #c9a84c); stroke-width: 2; }
+.payoffFacts { font-size: 13px; color: var(--text); margin: 4px 0; font-variant-numeric: tabular-nums; }
