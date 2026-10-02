@@ -63,14 +63,17 @@ WALL_MAX_DIST_PCT = float(os.environ.get("GEX_WALL_MAX_DIST_PCT", "15.0"))
 # OI on 88/88 near-the-money SPY contracts. `massive` builds a chain in SCHWAB'S OWN SHAPE
 # (callExpDateMap / putExpDateMap keyed "YYYY-MM-DD:dte" -> strike -> [contract]) so every line
 # of the GEX arithmetic below runs unchanged on either source.
-# ⛔ DEFAULT IS `schwab`: nothing changes for a member until the parity read
-# (`get_gex_source_parity`, admin route) says the two agree and the owner flips the variable.
+# ⛔ CODE DEFAULT IS `schwab`. (Production has run `massive` since 2026-09-30 22:43Z by owner
+# ruling -- see GEX_CHAIN_SOURCE in docs/feature_flags.json. That is a SET value, not this default.)
+# `shadow` (2026-10-02) serves Schwab exactly and computes Massive OFF the served path, logging a
+# per-strike diff (`[gex-shadow]`, api/services/gex_massive.py) so the owner can compare first.
 GEX_SOURCE_ENV = "GEX_CHAIN_SOURCE"
-GEX_SOURCES = ("schwab", "massive")
+GEX_SOURCES = ("schwab", "massive")          # the two CHAINS a result can come from
+GEX_MODES = GEX_SOURCES + ("shadow",)        # what the variable may say
 # The vocabulary the flag ledger reads (feature_flag_index.mode_flags derives it by AST).
 # Keyed by the LITERAL name: feature_flag_index reads *_MODE_FLAGS keys as string constants.
-GEX_CHAIN_MODE_FLAGS = {"GEX_CHAIN_SOURCE": ("schwab", ("schwab", "massive"))}
-assert GEX_SOURCE_ENV in GEX_CHAIN_MODE_FLAGS and GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV][1] == GEX_SOURCES
+GEX_CHAIN_MODE_FLAGS = {"GEX_CHAIN_SOURCE": ("schwab", ("schwab", "massive", "shadow"))}
+assert GEX_SOURCE_ENV in GEX_CHAIN_MODE_FLAGS and GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV][1] == GEX_MODES
 MASSIVE_STRIKE_BAND_PCT = 15.0   # the same band WALL_MAX_DIST_PCT searches
 _MASSIVE_MAX_PAGES = 48          # 48 x 250 contracts
 _MASSIVE_BUDGET_S = 25.0
@@ -125,15 +128,25 @@ def to_schwab_shape(results: list, spot: float, today) -> dict:
             continue
         g = c.get("greeks") or {}
         side = out["callExpDateMap" if typ == "call" else "putExpDateMap"]
+        # ⛔ A field the snapshot did not send stays None. Massive omits `greeks` on contracts it
+        # cannot price (no quote, deep ITM); writing that as 0 made the contract read as ZERO
+        # GAMMA. None reaches get_gex_data, which names the strike as not computable instead.
         side.setdefault(f"{exp}:{dte}", {}).setdefault(str(float(strike)), []).append({
-            "openInterest": c.get("open_interest") or 0,
-            "gamma": g.get("gamma") or 0,
-            "delta": g.get("delta") or 0,
+            "openInterest": c.get("open_interest"),
+            "gamma": g.get("gamma"),
+            "delta": g.get("delta"),
         })
     return out
 
 
 async def _fetch_chain_massive(ticker: str, from_date: str, to_date: str) -> tuple:
+    """(data, error): the Massive walk below, through the server-side cache + single-flight
+    (api/services/gex_massive.py) so one window is walked at most once per CHAIN_TTL_S."""
+    from api.services import gex_massive
+    return await gex_massive.cached_chain(ticker, from_date, to_date, _walk_chain_massive)
+
+
+async def _walk_chain_massive(ticker: str, from_date: str, to_date: str) -> tuple:
     """(data, error): the licensed Massive snapshot, in Schwab's shape. Strikes within
     MASSIVE_STRIKE_BAND_PCT of spot (the band the wall search uses); paginated under a page
     and wall-clock budget. A truncated walk is REPORTED (`massive_truncated`), never silent."""
@@ -141,10 +154,11 @@ async def _fetch_chain_massive(ticker: str, from_date: str, to_date: str) -> tup
     from datetime import date as _date
     from api.services import polygon_options as po
     from api.services.massive import to_polygon_symbol
-    try:
-        key = po._api_key()
-    except RuntimeError as e:
-        return None, str(e)
+    key = po._api_key()
+    if not key:
+        # po._api_key() returns "" when unset (it never raised): say so instead of sending an
+        # unauthenticated request and reporting the 401 as a vendor error.
+        return None, "MASSIVE_API_KEY not set"
     sym = to_polygon_symbol(ticker)
     url = f"{po._BASE}/v3/snapshot/options/{sym}"
     try:
@@ -382,6 +396,8 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     """
     ticker = ticker.upper().strip()
     src = source if source in GEX_SOURCES else chain_source()
+    if src == "shadow":
+        return await _get_gex_shadow(ticker, dte_filter, adjusted)
 
     dte_map = {
         "0dte": 0, "1dte": 1, "2dte": 2, "3dte": 3,
@@ -426,6 +442,10 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
 
     # Aggregate GEX by strike
     strikes_map = {}
+    # LCQ-02: contracts the source returned WITHOUT open interest or gamma, per strike and side.
+    # They contribute nothing -- and the response says so per strike, so a strike built from
+    # them never reads as zero gamma (see `gexStatus` / `strikesUncomputable` below).
+    missing_map: Dict[float, dict] = {}
     net_delta = 0
 
     def process_chain(chain_map: dict, is_call: bool):
@@ -440,8 +460,12 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
                 except (ValueError, TypeError):
                     continue
                 for c in contracts:
-                    oi = c.get("openInterest") or 0
-                    gamma = c.get("gamma") or 0
+                    oi = c.get("openInterest")
+                    gamma = c.get("gamma")
+                    if oi is None or (gamma is None and oi > 0):
+                        m = missing_map.setdefault(strike, {"callMissing": 0, "putMissing": 0})
+                        m["callMissing" if is_call else "putMissing"] += 1
+                        continue
                     delta = c.get("delta") or 0
                     if oi <= 0:
                         continue
@@ -500,13 +524,28 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     process_chain(data.get("callExpDateMap", {}), is_call=True)
     process_chain(data.get("putExpDateMap", {}), is_call=False)
 
+    missing_contracts = sum(m["callMissing"] + m["putMissing"] for m in missing_map.values())
     if not strikes_map:
+        if missing_contracts:
+            return {"error": f"GEX not computable for {ticker}: {missing_contracts} contracts "
+                             f"came back without gamma or open interest", "chainSource": src}
         return {"error": f"No options data with greeks for {ticker}"}
 
     strikes_list = sorted(strikes_map.values(), key=lambda x: x["strike"])
     for s in strikes_list:
         s["gex"] = s["callGex"] + s["putGex"]
         s["totalOI"] = s["callOI"] + s["putOI"]
+        m = missing_map.get(s["strike"])
+        # "partial": the number is real but built WITHOUT the named contracts.
+        s["missingContracts"] = (m["callMissing"] + m["putMissing"]) if m else 0
+        s["gexStatus"] = "partial" if m else "ok"
+    # A strike with NO computable contract is not in `strikes` (it would draw as a zero bar);
+    # it is named here instead.
+    strikes_uncomputable = [
+        {"strike": k, "callMissing": m["callMissing"], "putMissing": m["putMissing"],
+         "gexStatus": "uncomputable"}
+        for k, m in sorted(missing_map.items()) if k not in strikes_map
+    ]
 
     total_gex = sum(s["gex"] for s in strikes_list)
     total_call_gex = sum(s["callGex"] for s in strikes_list)
@@ -638,7 +677,33 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         # ── LCQ-02: which chain produced these numbers ────────────────
         "chainSource": src,
         "chainTruncated": bool(data.get("massive_truncated")),
+        "contractsMissingGreeksOrOi": missing_contracts,
+        "strikesUncomputable": strikes_uncomputable,
     }
+
+
+async def _get_gex_shadow(ticker: str, dte_filter: str, adjusted: bool) -> dict:
+    """GEX_CHAIN_SOURCE=shadow: serve SCHWAB exactly; compute Massive OFF the served path and
+    log the per-strike diff. The Massive side starts concurrently (so it rides the same moment)
+    but the response never waits on it, and its failure can only reach the log."""
+    from api.services import gex_massive
+
+    massive_task = gex_massive.spawn_shadow(
+        get_gex_data(ticker, dte_filter, adjusted=adjusted, source="massive"))
+    served = await get_gex_data(ticker, dte_filter, adjusted=adjusted, source="schwab")
+
+    async def _compare():
+        try:
+            other = await massive_task
+        except Exception as e:  # noqa: BLE001 -- the shadow side may only ever log
+            other = {"error": f"shadow failed: {e}"}
+        gex_massive.log_shadow(gex_massive.shadow_record(ticker, dte_filter, adjusted, served, other))
+
+    if massive_task is not None:
+        gex_massive.spawn_shadow(_compare())
+    out = dict(served)
+    out["chainMode"] = "shadow"
+    return out
 
 
 def _wall_strike(w) -> Optional[float]:
@@ -671,28 +736,10 @@ async def get_gex_source_parity(ticker: str, dte_filter: str = "week") -> dict:
             out["massive_truncated"] = b.get("chainTruncated")
         return out
 
-    sa, sb = {s["strike"]: s["gex"] for s in a["strikes"]}, {s["strike"]: s["gex"] for s in b["strikes"]}
-    common = sorted(set(sa) & set(sb))
-    same_sign = sum(1 for k in common if (sa[k] >= 0) == (sb[k] >= 0))
-
-    def ranks(vals):
-        order = sorted(range(len(vals)), key=lambda i: vals[i])
-        r = [0.0] * len(vals)
-        for pos, i in enumerate(order):
-            r[i] = float(pos)
-        return r
-
-    rho = None
-    if len(common) >= 3:
-        ra, rb = ranks([abs(sa[k]) for k in common]), ranks([abs(sb[k]) for k in common])
-        n = len(common)
-        rho = round(1 - 6 * sum((x - y) ** 2 for x, y in zip(ra, rb)) / (n * (n * n - 1)), 3)
+    from api.services import gex_massive
     out.update(schwab=head(a), massive=head(b),
                massive_truncated=b.get("chainTruncated"),
-               strikes_common=len(common),
-               sign_agreement=round(same_sign / len(common), 3) if common else None,
-               abs_gex_rank_correlation=rho,
-               total_gex_ratio=(round(b["totalGex"] / a["totalGex"], 3) if a["totalGex"] else None),
+               **gex_massive.agreement(a, b),
                same_call_wall=_wall_strike(a["callWall"]) == _wall_strike(b["callWall"]),
                same_put_wall=_wall_strike(a["putWall"]) == _wall_strike(b["putWall"]))
     return out
