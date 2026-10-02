@@ -127,7 +127,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, seasonalityEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -204,7 +204,7 @@ export default function ResearchPage() {
       {active === 'Model Book' && <ModelBookTab sym={sym} />}
       {active === 'Decision Record' && <DecisionRecordTab sym={sym} />}
       {active === 'History' && <HistoryTab sym={sym} />}
-      {active === 'Options' && <OptionsChainTab sym={sym} />}
+      {active === 'Options' && <OptionsChainTab sym={sym} volSurface={optionsVolSurfaceEnabled === true} />}
       {active === 'Seasonality' && <SeasonalityTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}

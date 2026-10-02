@@ -381,6 +381,22 @@ const BARE_POLL_SITES = {
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,
+  // ⭐ BRK-01 (roadmap §3.3 / RM-L01) -- the Research > Options tab, two POST-CENSUS rows and ONE
+  // decision. The chain grid (increment 1) shipped its site without a row and turned this rail red
+  // in the full suite; increment 3 records that decision and makes the same one for the vol surface:
+  //   • BOTH ticks are pinned to the SERVER'S cache: polygon_options._CHAIN_TTL = 60 s for the
+  //     chain, and vol_surface caches the whole surface for that same 60 s. Polling faster cannot
+  //     return a newer number, and `useMobileSWR` doubling it to 120 s on a phone would show a
+  //     member a chain -- and a quote time on every IV point -- a full minute older than the
+  //     server already holds, on the one surface whose honesty is that quote time;
+  //   • both set `revalidateOnFocus: false` BY HAND, so the app-global half of the trade is kept,
+  //     and the wrapper would flip it to `true` (a fresh fan-out of up to 9 chains on every focus
+  //     for the surface);
+  //   • SWR's own `refreshWhenHidden` default already parks both ticks on a hidden tab, so the
+  //     wrapper's visibilitychange listener would duplicate it, and its `useMarketOpen` timer is
+  //     not the clock that matters here -- the server's cache is.
+  'app/src/pages/research/tabs/OptionsChainTab.jsx': 1,
+  'app/src/pages/research/tabs/VolSurfacePanel.jsx': 1,
 }
 
 function census() {
