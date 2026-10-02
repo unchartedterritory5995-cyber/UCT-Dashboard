@@ -1,0 +1,3467 @@
+{
+ "summary": {
+  "snapshot": "/c/w/breadth-us-gate/stage/breadth_daily_ohlc.db (production web store, 2026-09-15)",
+  "authority": "V1 (snapshot predates V2; see notes)",
+  "published_series": 62,
+  "ohlc_series": 29,
+  "scalar_series": 33,
+  "by_universe": {
+   "uct:OHLC": 29,
+   "uct:SCALAR": 15,
+   "us:SCALAR": 18
+  }
+ },
+ "series": [
+  {
+   "symbol": "UCTA5",
+   "name": "% of Stocks Above 5-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_5sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 379,
+      "from": "2008-01-16",
+      "to": "2023-12-29"
+     },
+     "intraday_recon": {
+      "rows": 4230,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4609,
+   "observed_daily_bars": 4230,
+   "observed_share": 0.9178,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4230,
+    "no_wick_either_side": 141
+   }
+  },
+  {
+   "symbol": "UCTA10",
+   "name": "% of Stocks Above 10-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_10sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 98,
+      "from": "2008-03-11",
+      "to": "2023-11-14"
+     },
+     "intraday_recon": {
+      "rows": 4564,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4662,
+   "observed_daily_bars": 4564,
+   "observed_share": 0.979,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4564,
+    "no_wick_either_side": 181
+   }
+  },
+  {
+   "symbol": "UCTA20",
+   "name": "% of Stocks Above 20-Day EMA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_20ema",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 25,
+      "from": "2008-01-23",
+      "to": "2022-10-04"
+     },
+     "intraday_recon": {
+      "rows": 4654,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4654,
+   "observed_share": 0.9947,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4654,
+    "no_wick_either_side": 191
+   }
+  },
+  {
+   "symbol": "UCTA40",
+   "name": "% of Stocks Above 40-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_40sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 2,
+      "from": "2010-05-10",
+      "to": "2011-11-30"
+     },
+     "intraday_recon": {
+      "rows": 4677,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4677,
+   "observed_share": 0.9996,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4677,
+    "no_wick_either_side": 233
+   }
+  },
+  {
+   "symbol": "UCTA50",
+   "name": "% of Stocks Above 50-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_50sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 239
+   }
+  },
+  {
+   "symbol": "UCTA100",
+   "name": "% of Stocks Above 100-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_100sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 276
+   }
+  },
+  {
+   "symbol": "UCTA200",
+   "name": "% of Stocks Above 200-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "uct",
+   "metric": "pct_above_200sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 317
+   }
+  },
+  {
+   "symbol": "UCTU4",
+   "name": "Stocks Up 4%+ Today",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_4pct_today",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1887
+   }
+  },
+  {
+   "symbol": "UCTD4",
+   "name": "Stocks Down 4%+ Today",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "down_4pct_today",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 954
+   }
+  },
+  {
+   "symbol": "UCTU20W",
+   "name": "Stocks Up 20%+ in 5 Days",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_20pct_5d",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1655
+   }
+  },
+  {
+   "symbol": "UCTD20W",
+   "name": "Stocks Down 20%+ in 5 Days",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "down_20pct_5d",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1956
+   }
+  },
+  {
+   "symbol": "UCTU25M",
+   "name": "Stocks Up 25%+ in a Month",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_25pct_month",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1096
+   }
+  },
+  {
+   "symbol": "UCTD25M",
+   "name": "Stocks Down 25%+ in a Month",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "down_25pct_month",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1364
+   }
+  },
+  {
+   "symbol": "UCTU50M",
+   "name": "Stocks Up 50%+ in a Month",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_50pct_month",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 1837
+   }
+  },
+  {
+   "symbol": "UCTD50M",
+   "name": "Stocks Down 50%+ in a Month",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "down_50pct_month",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 3220,
+    "all_equal": 5
+   }
+  },
+  {
+   "symbol": "UCTU25Q",
+   "name": "Stocks Up 25%+ in a Quarter",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_25pct_quarter",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 762
+   }
+  },
+  {
+   "symbol": "UCTD25Q",
+   "name": "Stocks Down 25%+ in a Quarter",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "down_25pct_quarter",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 777
+   }
+  },
+  {
+   "symbol": "UCTMU",
+   "name": "Momentum Up (13% in 34 Days)",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "magna_up",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 622
+   }
+  },
+  {
+   "symbol": "UCTMD",
+   "name": "Momentum Down (13% in 34 Days)",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "magna_down",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 373
+   }
+  },
+  {
+   "symbol": "UCTR5",
+   "name": "5-Day Up/Down Ratio",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "ratio_5day",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTR10",
+   "name": "10-Day Up/Down Ratio",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "ratio_10day",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTUV",
+   "name": "Up/Down Volume Ratio",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "uct",
+   "metric": "up_vol_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTNH",
+   "name": "New 52-Week Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "new_52w_highs",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 702
+   }
+  },
+  {
+   "symbol": "UCTNL",
+   "name": "New 52-Week Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "new_52w_lows",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 894
+   }
+  },
+  {
+   "symbol": "UCTNH20",
+   "name": "New 20-Day Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "new_20d_highs",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 401
+   }
+  },
+  {
+   "symbol": "UCTNL20",
+   "name": "New 20-Day Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "new_20d_lows",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 197
+   }
+  },
+  {
+   "symbol": "UCTATH",
+   "name": "New All-Time Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "new_ath",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 703
+   }
+  },
+  {
+   "symbol": "UCTPH",
+   "name": "% of Stocks at 52-Week Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "hi_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTPL",
+   "name": "% of Stocks at 52-Week Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "lo_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTNRH",
+   "name": "Stocks Within 5% of 52W High",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "near_52w_high",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     },
+     "intraday_recon": {
+      "rows": 1,
+      "from": "2025-04-07",
+      "to": "2025-04-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3883,
+   "observed_daily_bars": 1,
+   "observed_share": 0.0003,
+   "observed_from": "2025-04-07",
+   "observed_to": "2025-04-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 1
+   }
+  },
+  {
+   "symbol": "UCTHVC",
+   "name": "High-Volume Closes (52W Vol Hi)",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "hvc_52w",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTXR",
+   "name": "Stocks >7x ATR Extended (50MA)",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "uct",
+   "metric": "atr_ext_7",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTHS",
+   "name": "UCT Breadth Health Score",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "breadth_score",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 3882,
+      "from": "2008-01-02",
+      "to": "2023-12-29"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 3882,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTX",
+   "name": "UCT Exposure Rating",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "uct_exposure",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTMC",
+   "name": "McClellan Oscillator",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "mcclellan_osc",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 27
+   }
+  },
+  {
+   "symbol": "UCTAD",
+   "name": "Advance/Decline Line",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "adv_decline_cum",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTNA",
+   "name": "Net Advancers (Daily)",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "adv_decline",
+   "catalogue_presentation": "histogram",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 23
+   }
+  },
+  {
+   "symbol": "UCTS2",
+   "name": "Stage 2 Uptrend Count",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "stage2_count",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 365
+   }
+  },
+  {
+   "symbol": "UCTS4",
+   "name": "Stage 4 Downtrend Count",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "stage4_count",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {
+     "intraday_recon": {
+      "rows": 4679,
+      "from": "2008-01-02",
+      "to": "2026-08-07"
+     }
+    },
+    "observed_sources": [
+     "intraday_recon"
+    ],
+    "v2_owned_in_production": true
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4679,
+   "observed_daily_bars": 4679,
+   "observed_share": 1.0,
+   "observed_from": "2008-01-02",
+   "observed_to": "2026-08-07",
+   "verdict": "OHLC",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal",
+    "candles",
+    "bars"
+   ],
+   "quality": {
+    "observed_bars": 4679,
+    "no_wick_either_side": 327
+   }
+  },
+  {
+   "symbol": "UCTEW",
+   "name": "Equal-Weight vs Cap-Weight (RSP/SPY)",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "rsp_spy_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTSC",
+   "name": "Small-Cap vs Nasdaq (IWM/QQQ)",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "iwm_qqq_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTFG",
+   "name": "CNN Fear & Greed Index",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "cnn_fear_greed",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTPC",
+   "name": "CBOE Put/Call Ratio",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "cboe_putcall",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "UCTAAII",
+   "name": "AAII Bull-Bear Spread",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "uct",
+   "metric": "aaii_spread",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "collector EOD snapshot (UCT) else breadth_daily_ohlc close",
+    "ohlc_store_sources": {},
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "collector snapshot only (one value/day)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 0,
+   "observed_daily_bars": 0,
+   "observed_share": 0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A5",
+   "name": "% of Stocks Above 5-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_5sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A10",
+   "name": "% of Stocks Above 10-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_10sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A20",
+   "name": "% of Stocks Above 20-Day EMA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_20ema",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A40",
+   "name": "% of Stocks Above 40-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_40sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A50",
+   "name": "% of Stocks Above 50-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_50sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A100",
+   "name": "% of Stocks Above 100-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_100sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:A200",
+   "name": "% of Stocks Above 200-Day MA",
+   "group": "ma",
+   "family": "ma",
+   "universe": "us",
+   "metric": "pct_above_200sma",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:U4",
+   "name": "Stocks Up 4%+ Today",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "us",
+   "metric": "up_4pct_today",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:D4",
+   "name": "Stocks Down 4%+ Today",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "us",
+   "metric": "down_4pct_today",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:R5",
+   "name": "5-Day Up/Down Ratio",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "us",
+   "metric": "ratio_5day",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:R10",
+   "name": "10-Day Up/Down Ratio",
+   "group": "momentum",
+   "family": "momentum",
+   "universe": "us",
+   "metric": "ratio_10day",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:NH",
+   "name": "New 52-Week Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "us",
+   "metric": "new_52w_highs",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:NL",
+   "name": "New 52-Week Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "us",
+   "metric": "new_52w_lows",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:NETHL",
+   "name": "Net New 52-Week Highs-Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "us",
+   "metric": "net_new_high_low",
+   "catalogue_presentation": "histogram",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:PH",
+   "name": "% of Stocks at 52-Week Highs",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "us",
+   "metric": "hi_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:PL",
+   "name": "% of Stocks at 52-Week Lows",
+   "group": "highs_lows",
+   "family": "highs_lows",
+   "universe": "us",
+   "metric": "lo_ratio",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:UNI",
+   "name": "Universe Count",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "us",
+   "metric": "universe_count",
+   "catalogue_presentation": "line",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  },
+  {
+   "symbol": "US:NA",
+   "name": "Net Advancers (Daily)",
+   "group": "score_regime",
+   "family": "score_regime",
+   "universe": "us",
+   "metric": "adv_decline",
+   "catalogue_presentation": "histogram",
+   "canonical_source": {
+    "close": "breadth_daily_ohlc close (PIT universe, no collector)",
+    "ohlc_store_sources": {
+     "close_recon": {
+      "rows": 4703,
+      "from": "2008-01-02",
+      "to": "2026-09-11"
+     }
+    },
+    "observed_sources": [],
+    "v2_owned_in_production": false
+   },
+   "backend_storage_shape": "breadth_daily_ohlc(universe,date,metric,o,h,l,c,source)",
+   "bars_endpoint_shape": "{t,o,h,l,c,v:0[,ohlc:1]} \u2014 o/h/l synthesized close-to-close when unobserved",
+   "universal_data_shape": "secondaryBars entry {bars,status}; scalar projection = close",
+   "chart_input_shape": "OHLC payload {kind:'ohlc',bars} when Candles/Bars, else the close column",
+   "bars_served_daily": 4703,
+   "observed_daily_bars": 0,
+   "observed_share": 0.0,
+   "observed_from": null,
+   "observed_to": null,
+   "verdict": "SCALAR",
+   "presentations_before": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "presentations_after": [
+    "line",
+    "histogram",
+    "dots",
+    "area",
+    "step",
+    "lastValueHorizontal"
+   ],
+   "quality": {
+    "observed_bars": 0
+   }
+  }
+ ],
+ "notes": [
+  "Generated by the worktree's own api.services.breadth_symbols.build_breadth_bars (with the observed-OHLC mark) against a scratch COPY of the production web breadth_daily_ohlc store snapshot (2026-09-15). Read-only.",
+  "Authority = V1 in this snapshot. In production UCT is on BREADTH_AUTHORITY=v2: sessions 2026-03-23.. come from the frozen V2c2 artifact (35 V2_METRICS, sources intraday_recon_1m = observed, intraday_recon_1m_body = body) and validated live publications. The mark follows each row's own V2 source; that period is NOT in this snapshot and must be verified on production after deploy.",
+  "Collector-only metrics (UCTXR, UCTX, UCTAD, UCTEW, UCTSC, UCTFG, UCTPC, UCTAAII) show 0 bars here because the snapshot carries no collector history; in production they are collector EOD values with close-to-close bodies => SCALAR.",
+  "US universe: every row is close_recon (bodies) => SCALAR while BREADTH_AUTHORITY_US=v1. Under US V2 the 1-minute rows would mark automatically.",
+  "Market-indicator breadth-derived series (US:MCO/MCS/AD/ZBT) are recomputed scalars (family INDICATOR) => SCALAR, unchanged."
+ ],
+ "ucta5_golden_store_parity": {
+  "UCTA5": {
+   "served": 2000,
+   "observed": 1853,
+   "exact": 1853,
+   "mismatch": 0,
+   "observed_row_not_flagged": 0,
+   "flag_on_non_observed": 0,
+   "last5": [
+    {
+     "t": "2026-08-03",
+     "o": 42.4,
+     "h": 62.4,
+     "l": 42.4,
+     "c": 62.2,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-04",
+     "o": 65.9,
+     "h": 72.5,
+     "l": 63.9,
+     "c": 71.6,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-05",
+     "o": 74.7,
+     "h": 75.1,
+     "l": 64.5,
+     "c": 64.8,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-06",
+     "o": 64.8,
+     "h": 65.0,
+     "l": 53.0,
+     "c": 56.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-07",
+     "o": 48.7,
+     "h": 59.2,
+     "l": 48.7,
+     "c": 58.2,
+     "v": 0,
+     "ohlc": 1
+    }
+   ]
+  },
+  "UCTNH": {
+   "served": 2000,
+   "observed": 2000,
+   "exact": 2000,
+   "mismatch": 0,
+   "observed_row_not_flagged": 0,
+   "flag_on_non_observed": 0,
+   "last5": [
+    {
+     "t": "2026-08-03",
+     "o": 41.0,
+     "h": 112.0,
+     "l": 41.0,
+     "c": 108.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-04",
+     "o": 101.0,
+     "h": 178.0,
+     "l": 86.0,
+     "c": 177.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-05",
+     "o": 170.0,
+     "h": 183.0,
+     "l": 101.0,
+     "c": 115.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-06",
+     "o": 110.0,
+     "h": 137.0,
+     "l": 79.0,
+     "c": 106.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-07",
+     "o": 99.0,
+     "h": 128.0,
+     "l": 88.0,
+     "c": 128.0,
+     "v": 0,
+     "ohlc": 1
+    }
+   ]
+  },
+  "UCTNA": {
+   "served": 2000,
+   "observed": 2000,
+   "exact": 2000,
+   "mismatch": 0,
+   "observed_row_not_flagged": 0,
+   "flag_on_non_observed": 0,
+   "last5": [
+    {
+     "t": "2026-08-03",
+     "o": 326.0,
+     "h": 1318.0,
+     "l": 326.0,
+     "c": 1223.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-04",
+     "o": 309.0,
+     "h": 1235.0,
+     "l": 300.0,
+     "c": 1122.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-05",
+     "o": 252.0,
+     "h": 596.0,
+     "l": -736.0,
+     "c": -495.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-06",
+     "o": 43.0,
+     "h": 155.0,
+     "l": -529.0,
+     "c": -315.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-07",
+     "o": 321.0,
+     "h": 1003.0,
+     "l": 321.0,
+     "c": 794.0,
+     "v": 0,
+     "ohlc": 1
+    }
+   ]
+  },
+  "UCTU4": {
+   "served": 2000,
+   "observed": 2000,
+   "exact": 2000,
+   "mismatch": 0,
+   "observed_row_not_flagged": 0,
+   "flag_on_non_observed": 0,
+   "last5": [
+    {
+     "t": "2026-08-03",
+     "o": 14.0,
+     "h": 518.0,
+     "l": 14.0,
+     "c": 518.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-04",
+     "o": 40.0,
+     "h": 565.0,
+     "l": 32.0,
+     "c": 562.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-05",
+     "o": 36.0,
+     "h": 200.0,
+     "l": 36.0,
+     "c": 198.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-06",
+     "o": 26.0,
+     "h": 269.0,
+     "l": 26.0,
+     "c": 269.0,
+     "v": 0,
+     "ohlc": 1
+    },
+    {
+     "t": "2026-08-07",
+     "o": 63.0,
+     "h": 456.0,
+     "l": 63.0,
+     "c": 454.0,
+     "v": 0,
+     "ohlc": 1
+    }
+   ]
+  }
+ }
+}
