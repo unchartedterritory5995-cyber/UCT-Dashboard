@@ -174,12 +174,14 @@ describe('C45 — the two corpus programs that hold a failed tree, on their comm
     }
   }
 
-  it('vdubus-pattern-gen: ONE tree at 129 nodes (cap 128) — unknown on every bar, never read as `na`', () => {
-    const { reader, bars } = failedOf('vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28')
-    expect(reader.failed.length).toBe(1)
-    expect(reader.refusals.map((r) => r.guard)).toEqual(['budget:nodes'])
-    expect(reader.refusals[0].message).toMatch(/measures 129 and the cap is 128/)
-    for (const bar of [0, 300, bars.length - 1]) expect(reader.readUnknown(reader.failed[0], bar)).toBe(true)
+  it('vdubus-pattern-gen: the tree that measured 129 nodes (cap 128) now FITS and computes', () => {
+    // ⚰️ Under C45 alone this program held ONE tree at 129 nodes - over the cap, unknown on
+    // every bar. ⭐ wave 12: C47 drops the `na(X) ? 0 : X` guard round an X that is never `na`
+    // (`naGuardIsIdentity`), and the tree is under the cap: nothing fails, so nothing is withheld
+    // for it. vdubus stays MATCH on its capture (`vendorHarness.c22Vdubus`).
+    const { reader } = failedOf('vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28')
+    expect(reader.failed).toEqual([])
+    expect(reader.refusals.filter((r) => r.guard === 'budget:nodes')).toEqual([])
   }, 120000)
 
   it('k-clustering: 48 trees that hold a runtime-lane placeholder inside — each unknown on every bar', () => {

@@ -64,7 +64,7 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     const ours = runOurSide(cap)
     expect(ours.objects && ours.objects.ok, ours.objects && ours.objects.reason).toBe(true)
     expect(cap.objects.counts.tableCells).toBe(45)
-    expect(ours.objects.counts.tableCells).toBe(37)
+    expect(ours.objects.counts.tableCells).toBe(45) // wave 12: was 37 - C47 serves the forming quarter ('3M')
     const extra = subMultiset(ours.objects.texts.tableCells.map(String), cap.objects.texts.tableCells.map(String))
     expect(extra, `a cell TradingView does not show: ${JSON.stringify(extra)}`).toBeNull()
   })

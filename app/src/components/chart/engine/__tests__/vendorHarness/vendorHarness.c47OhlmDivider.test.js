@@ -101,14 +101,16 @@ describe('C47 — high-low-open-mid-ranges: the one line we do not hold is the f
   it('⭐ 503 of 504: every line and label we hold is TradingView\'s, at its id − 46', () => {
     const r = run()
     expect(r.vendor.lines).toHaveLength(504)
-    expect(r.ours('line')).toHaveLength(503)
+    // ⭐ wave 12: C49's session calendar answers the first week boundary (bar 2) that C47
+    // traced as the one uncomputable divider - so all 504 of TradingView's lines are ours.
+    expect(r.ours('line')).toHaveLength(504)
     expect(r.ours('label')).toHaveLength(504)
-    expect(offsets(r.ours('line'), r.vendorLines, sameLine)).toEqual([46])
-    expect(offsets(r.ours('label'), r.vendorLabels)).toEqual([46])
-    // the vendor's oldest (C44's "id 2151") is the one with no partner
+    expect(offsets(r.ours('line'), r.vendorLines, sameLine)).toEqual([45])
+    expect(offsets(r.ours('label'), r.vendorLabels)).toEqual([45]) // wave 12: one more line is created before them
+    // the vendor's oldest (C44's "id 2151") now HAS its partner: our first line
     expect(r.vendorLines[0].id).toBe(2151)
     expect(r.vendorLines[0].y1).toBe(82.21)
-    expect(r.ours('line')[0].id + 46).toBe(r.vendorLines[1].id)
+    expect(r.ours('line')[0].props.y1).toBe(82.21)
   }, 120000)
 
   it('45 of the 46 are the table\'s cells — the capture numbers them straight after the table', () => {
@@ -132,9 +134,10 @@ describe('C47 — high-low-open-mid-ranges: the one line we do not hold is the f
     const tree = dividers[0].when.tree
     const unknownAt = []
     for (let b = 0; b < r.bars.length; b++) if (r.reader.readUnknown(tree, b)) unknownAt.push(b)
-    expect(unknownAt).toEqual([0, 1, 2])
-    // and the run counts exactly those three as withheld — nothing else in the script
-    expect(r.out.stats.withheldUnknown).toBe(3)
+    // wave 12 (C49): only bar 0 (the listing day: the week's open is before the series) is
+    // unknown now; bars 1-2 are answered from the calendar, and bar 2 draws the divider.
+    expect(unknownAt).toEqual([0])
+    expect(r.out.stats.withheldUnknown).toBe(1)
     // the listing: a Thursday, then Friday, then the first Monday
     const week = (b) => tfBucket(isoDay(r.bars[b].t), 'W')
     expect(r.cap.history.startsAtBar0).toBe(true)
@@ -142,21 +145,21 @@ describe('C47 — high-low-open-mid-ranges: the one line we do not hold is the f
     expect(week(1)).toBe(week(0))
     expect(week(2)).not.toBe(week(1))
     // from bar 3 on the divider fires on exactly the bars a week opens
-    for (let b = 3; b < r.bars.length; b++) {
+    for (let b = 1; b < r.bars.length; b++) {
       expect(r.reader.readNode(tree, b) ? 1 : 0, `bar ${b}`).toBe(week(b) !== week(b - 1) ? 1 : 0)
     }
   }, 120000)
 
-  it('⭐ the control: ONE more divider on bar 2 is 504 of 504, at TradingView\'s id − 45 (the cells alone)', () => {
+  it('⭐ the control: ONE more divider on bar 2 is now one TOO MANY (505 against 504) - the bar-2 divider is drawn', () => {
+    // ⚰️ On C47 alone this added the missing first-week divider and reached 504 of 504.
+    // wave 12: C49 already draws that divider, so the extra one is a duplicate - which is
+    // exactly what proves the bar-2 divider is now ours.
     const r = run((text) => {
       expect(text.split(DIVIDER_CALL).length).toBe(2)       // the call appears once
       const eol = text.includes('\r\n') ? '\r\n' : '\n'
       return text.replace(DIVIDER_CALL, ONE_MORE_DIVIDER.join(eol))
     })
-    expect(r.ours('line')).toHaveLength(504)
+    expect(r.ours('line')).toHaveLength(505)
     expect(r.ours('label')).toHaveLength(504)
-    expect(offsets(r.ours('line'), r.vendorLines, sameLine)).toEqual([45])
-    expect(offsets(r.ours('label'), r.vendorLabels)).toEqual([45])
-    expect(r.ours('line')[0].props.y1).toBe(82.21)           // the partner of id 2151
   }, 120000)
 })

@@ -172,13 +172,15 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     expect(built.refusal.line).toBe(146)
   }, 60000)
 
-  it('⛔ graded: nothing about what is drawn moves — lines 203 / 200, DIVERGE, the run not started', () => {
+  it('⛔ graded: lines 203 / 0 (the 200 held lines withheld), DIVERGE, the run not started', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     const cap = capture(VP)
     const { verdict, integrity } = gradeCapture(cap)
     expect(integrity.ok).toBe(true)
     const counts = Object.fromEntries(verdict.objects.counts.map((c) => [c.family, [c.vendor, c.ours]]))
-    expect(counts.lines).toEqual([203, 200])
+    // wave 12 (C45, integrator ruling): the 200 lines were HELD at their creation point (bar 0,
+    // first close) with every later move lost - a position-unknown object. They are withheld now.
+    expect(counts.lines).toEqual([203, 0])
     expect(verdict.objects.verdict).toBe('DIVERGE')
     const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c47_vp', name: 'c47' })
     expect(d.ok, d.reason).toBe(true)

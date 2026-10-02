@@ -443,12 +443,13 @@ describe('C41 — a dead arm that reads below the chart, and a tree that could n
     expect(r.refusals[0].guard).toBe('budget:nodes')
     expect(Number.isNaN(r.readNode(node, bars.length - 1))).toBe(true)
     expect(everyBar(r, node).every((u) => u === true)).toBe(true)
-    // ⛔ control: a failed tree that reads NO lower timeframe reads as it always has
+    // wave 12 (C45): a failed tree is unknown on every bar WHETHER OR NOT it reads a lower
+    // timeframe - C41's rule generalised (a NaN condition picked a text's last arm and drew it).
     const g2 = buildGraph({ a: PLAIN_TREE })
     const r2 = computeObjectColumns(g2, { ops: [{ props: { y: { v: 'graph', node: g2.outputRoots.a } } }] }, bars,
       { tf: 'D', inputs: {}, budget: { maxNodes: 1 } })
     expect(r2.failed).toEqual([g2.outputRoots.a])
-    expect(everyBar(r2, g2.outputRoots.a).some((u) => u === true)).toBe(false)
+    expect(everyBar(r2, g2.outputRoots.a).every((u) => u === true)).toBe(true)
   })
 
   it('⭐ trees form (a document under the byte budget): the same', () => {
@@ -461,7 +462,7 @@ describe('C41 — a dead arm that reads below the chart, and a tree that could n
     expect(everyBar(r, 0).every((u) => u === true)).toBe(true)
     const r2 = objectReaderFor(def(PLAIN_TREE), bars, { tf: 'D' })
     expect(r2.failed).toEqual([0])
-    expect(everyBar(r2, 0).some((u) => u === true)).toBe(false)
+    expect(everyBar(r2, 0).every((u) => u === true)).toBe(true) // wave 12 (C45), as above
   })
 })
 
