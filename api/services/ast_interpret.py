@@ -917,8 +917,9 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
 
 def _pivot_col(series: Sequence[float], left: int, right: int,
                beats: Callable[[float, float], bool]) -> List[float]:
-    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the STRICT
-    extreme of ``[i-left, i+right]``, and NOT COMPUTABLE everywhere else.
+    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the extreme
+    of ``[i-left, i+right]`` -- beating every bar on its RIGHT and at least
+    matching every bar on its LEFT -- and NOT COMPUTABLE everywhere else.
 
     ⭐⭐ THIS IS THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and
     it is legal precisely because the entry DECLARES it: ``forward: "arg2"`` is
@@ -927,11 +928,11 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
     backward-only and ``parse.js`` refuses a negative at the door -- so the
     manifest stays the single authority on forward reach.
 
-    ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
-    uniquely the extreme. A ``>=`` reading emits both and looks entirely
-    reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
-    ``high`` and 15 in ``low``, which is why those counts are asserted rather
-    than an absence.
+    ⭐⭐ H1 (2026-10-02) -- A PLATEAU'S LAST BAR IS THE PIVOT, READ OFF
+    TRADINGVIEW (``interpret.js::pivotCol`` carries the evidence): a tie on the
+    LEFT pivots (``pivot-point-supertrend``'s capture, bars 473/474), a tie on
+    the RIGHT does not (``liquidity-pools`` and ``price-action-as-in-book``
+    diverge when it does). It was strict on both sides.
 
     ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
     The first ``left`` bars and the last ``right`` bars have a window that runs
@@ -967,7 +968,9 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
             # it states the rule at the site, and it STOPS being redundant the
             # moment `beats` is anything but a strict comparison. Labelled so
             # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
-            if math.isnan(w) or not beats(v, w):
+            # a tie on the LEFT still pivots (the plateau's last bar); one on the
+            # RIGHT does not
+            if math.isnan(w) or not (beats(v, w) or (j < i and v == w)):
                 ok = False
                 break
         if ok:

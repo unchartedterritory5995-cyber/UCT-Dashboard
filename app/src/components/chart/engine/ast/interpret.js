@@ -1200,8 +1200,9 @@ function windowArgExtreme(series, lo, hi, better) {
   return NaN
 }
 
-/** `pivothigh`/`pivotlow` — the bar's own value where it is the STRICT extreme of
- *  `[i-left, i+right]`, and NOT COMPUTABLE everywhere else.
+/** `pivothigh`/`pivotlow` — the bar's own value where it is the extreme of
+ *  `[i-left, i+right]` — beating every bar on its RIGHT and at least matching
+ *  every bar on its LEFT — and NOT COMPUTABLE everywhere else.
  *
  *  ⭐⭐ THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and it is
  *  legal precisely because the entry DECLARES it: `forward: 'arg2'` is what
@@ -1210,10 +1211,19 @@ function windowArgExtreme(series, lo, hi, better) {
  *  refuses a negative at the door — so the manifest stays the single authority
  *  on forward reach.
  *
- *  ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
- *  uniquely the extreme. A `>=` reading emits both and looks entirely
- *  reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
- *  `high` and 15 in `low`.
+ *  ⭐⭐ H1 (2026-10-02) — A PLATEAU'S LAST BAR IS THE PIVOT, READ OFF TRADINGVIEW.
+ *  The rule was STRICT on both sides ("two equal maxima mean neither bar is
+ *  uniquely the extreme"), which reads well and is not what TradingView does:
+ *  - `pivot-point-supertrend-rddt-1d-2026-09-27`: bars 473 and 474 both print a
+ *    152.44 high, and TradingView's `pivothigh(2, 2)` fires on 474 (its center
+ *    line moves at bar 476 by exactly that pivot) — a tie on the LEFT is a pivot.
+ *    Strict on the left, the script's line diverged on 131 of 631 bars; with the
+ *    tie admitted it matches on all 631.
+ *  - `liquidity-pools-…` and `price-action-as-in-book-…` (both plot their pivots)
+ *    go DIVERGE the moment a tie on the RIGHT is admitted too — so the right side
+ *    stays strict, and a plateau pivots once, on its last bar.
+ *  Every other capture that reads a pivot grades the same under both readings.
+ *  `ast_interpret._pivot_col` is the same rule.
  *
  *  ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
  *  The TAIL is the interesting one: those bars are *not yet decidable*, not
@@ -1244,7 +1254,9 @@ function pivotCol(series, left, right, beats) {
       // bar. ⛔ KEPT to state the rule at the site, and because it stops being
       // redundant the moment `beats` is anything but a strict comparison — not
       // because it guards anything today (`lesson_gate_that_cannot_fail`).
-      if (Number.isNaN(w) || !beats(v, w)) { ok = false; break }
+      // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
+      // does not
+      if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
     }
     if (ok) out[i] = v
   }
