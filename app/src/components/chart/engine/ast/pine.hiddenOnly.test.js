@@ -37,36 +37,51 @@ const guardsOf = (r) => [...new Set((r.refusals || []).map((x) => x.guard))]
 const HEAD = '//@version=5\nindicator("Band demo")\n'
 
 describe('⛔ branch A — every survivor is a helper the author hid', () => {
-  it('⭐⭐ the script that made this a ruling refuses instead of offering `ohlc4`', () => {
+  // ⚰️⚰️ THE SCRIPT THAT MADE THIS A RULING TRANSLATES NOW (H1, 2026-10-02), and it is
+  // the right outcome rather than a lost witness: its nine visible columns refused
+  // at `pine:state` because its trailing stops reset on a test that reads the stop.
+  // The RANGE window decides that test (`interpret.js::RANGE_TOP`), so the columns
+  // are real and the fill edge is a helper BESIDE them — branch B, below. The rule
+  // itself is railed by the constructed cases in this block, both spellings.
+  it('⭐⭐ the script that made this a ruling now offers its supertrend — and still never the `ohlc4` edge', () => {
     const r = translatePine(read(path.join(OOS, 'high_engagement__03-supertrend-kivancozbilgic.pine')))
-    expect(guardsOf(r).sort()).toEqual(['pine:hidden-only', 'pine:state'])
-    expect(r.ok).toBe(false)
-    // ⛔ NOTHING IS SELECTED. Before the ruling this was output 6 — the fill edge —
-    // and the definition a member saved would have been named for a Supertrend.
-    expect(r.selected).toBe(-1)
+    expect(guardsOf(r)).not.toContain('pine:hidden-only')
+    expect(guardsOf(r)).not.toContain('pine:state')
+    expect(r.selected).toBeGreaterThanOrEqual(0)
     const anchor = r.outputs[6]
     expect(anchor.formula).toBe('(open + high + low + close) / 4')
     expect(anchor.hidden).toBe(true)
     expect(anchor.hiddenReason).toBe('fill-anchor')
     expect(anchor.handle).toBe('mPlot')
+    expect(r.selected).not.toBe(6)
+    expect(r.outputs[r.selected].hidden).toBeFalsy()
   })
 
   it('⭐ the visible plots keep their own refusals — the line is ADDED, not substituted', () => {
     // The member needs both halves: what failed, and why the survivor is not offered.
-    const r = translatePine(read(path.join(OOS, 'high_engagement__03-supertrend-kivancozbilgic.pine')))
-    const state = (r.refusals || []).filter((x) => x.guard === 'pine:state')
-    expect(state).toHaveLength(9)
+    const r = translatePine(`${HEAD}var float m = na
+m := m + close
+edge = plot(ohlc4, "")
+top = plot(m, "Top")
+fill(edge, top)
+`)
+    expect((r.refusals || []).filter((x) => x.guard === 'pine:state').length).toBeGreaterThan(0)
     const hidden = (r.refusals || []).filter((x) => x.guard === 'pine:hidden-only')
     expect(hidden).toHaveLength(1)
     expect(hidden[0].message).toBe(REFUSALS['pine:hidden-only'])
     expect(hidden[0].message).toMatch(/helper series the author hid/)
-    expect(hidden[0].line).toBe(29)
+    expect(hidden[0].line).toBe(5)
   })
 
   it('⭐ and the `display.none` spelling reaches the same sentence', () => {
-    // `10-supertrend.pine:71` is `plot(ohlc4, …, display = display.none)`. Same
-    // class, different spelling — it used to decline in silence on this point.
-    const r = translatePine(read(path.join(FIX, '10-supertrend.pine')))
+    // ⚰️ `10-supertrend.pine:71` (`plot(ohlc4, …, display = display.none)`) was this
+    // case's witness until its visible columns translated (H1); the spelling is
+    // written out here instead.
+    const r = translatePine(`${HEAD}var float m = na
+m := m + close
+plot(ohlc4, "edge", display = display.none)
+plot(m, "Top")
+`)
     expect(guardsOf(r)).toContain('pine:hidden-only')
     expect(r.selected).toBe(-1)
     expect(r.outputs.find((o) => o.formula).hiddenReason).toBe('author')

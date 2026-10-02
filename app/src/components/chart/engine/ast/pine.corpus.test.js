@@ -299,8 +299,11 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:plot-offset', // 03, 14 (12 left 2026-09-26: `displacement - 1` now folds)
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 12, 14, 15
-      'pine:hidden-only', // 10 — every visible column refuses and the survivor is
-      // the author's own `display.none` fill edge (ruling 1.2, 2026-09-12)
+      // ⚰️ `pine:hidden-only` LEFT THIS LIST 2026-10-02 (H1) — `10-supertrend`'s
+      // visible columns translate now (its trailing stops are ratchets the range
+      // window decides), so its `display.none` fill edge sits beside them and no
+      // corpus script reaches ruling 1.2. Constructed cases in
+      // `pine.hiddenOnly.test.js` rail it instead.
       // ⚰️ `pine:undefined` LEFT THIS LIST 2026-08-27, and it left because the
       // door stopped being WRONG rather than because it stopped being strict.
       // This module keeps a hand-typed `PINE_KNOWN_BUILTINS` whose own comment
@@ -401,7 +404,12 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     //                 need lookback 1013 > 960; the screener lane refuses them by
     //                 name instead of offering a column it cannot save. The fold
     //                 before read `trend_initialized` as its initializer `false`.
-    expect(fired.size).toBe(10)
+    // ⚰️ 10 → 9 ON 2026-10-02 (H1), AND A WIN. `pine:hidden-only` LEAVES: its only
+    // corpus witness, `10-supertrend`, translates — its trailing stops reset on a
+    // test that reads the stop, which the RANGE window decides — so its fill edge
+    // sits beside real columns and ruling 1.2 has nothing to refuse. Constructed
+    // cases in `pine.hiddenOnly.test.js` still rail the guard.
+    expect(fired.size).toBe(9)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -600,7 +608,11 @@ describe('the whole corpus, in one number', () => {
     // carried the `!0`), so the trend re-initialised on every break. Read by
     // position they need lookback 1013 > 960, and the screener lane now refuses
     // them `pine:budget` rather than offer a column that cannot be saved.
-    expect(translating).toBe(13)
+    // ⭐ 13 → 14 ON 2026-10-02 (H1). `10-supertrend.pine` is back, and NOT on R-F's
+    // rolling min: its band is a SWITCHED recurrence decided by the RANGE window
+    // (`interpret.js::RANGE_TOP`), published only where every earlier history gives
+    // one value — held to the listing run over AGEN and RDDT, 0 bars disagree.
+    expect(translating).toBe(14)
     // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
     // The count went DOWN while a script was ADDED, which is the only reason
     // anybody looked: −8 from `03-rsi-directional-momentum-scanner`, +1 from 15.
@@ -669,7 +681,13 @@ describe('the whole corpus, in one number', () => {
     // SAVED — the same standing as `volume-spikes…`'s plain 1000 > 960, which this
     // lane's budget check deliberately does not take (see `pine.js`, "A plain
     // over-long window … is NOT taken here"); the member door refuses them by name.
-    expect(columns).toBe(47)
+    // ⭐ 47 → 56 ON 2026-10-02 (H1), AND THE NINE ARE THE NINE R-F TOOK: `10-supertrend`'s
+    // two plots, four markers and three alerts. Answered in the R-F paragraph's own
+    // terms — the admission did NOT reopen: the band is a SWITCHED recurrence whose
+    // reset test reads the stop, decided by the RANGE window (`interpret.js::RANGE_TOP`)
+    // and published only where every earlier history gives one value, never a 250-bar
+    // rolling min. Held to the listing run (`ratchetServedScripts.test.js`).
+    expect(columns).toBe(56)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus

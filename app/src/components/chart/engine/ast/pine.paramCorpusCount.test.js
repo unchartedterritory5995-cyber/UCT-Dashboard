@@ -90,7 +90,12 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // screener lane refuses it (`pine:budget`). It was the script whose single
     // `swing_length` parameter expanded to 570 locators, which is why one wrong
     // script moves the locator total by 578.
-expect(translating.length, 'scripts that translate at all').toBe(13)
+    // ⭐ RE-FROZEN 2026-10-02 (H1) — 13 → 14 scripts, 29 → 31 params, 276 → 872 locator
+    // occurrences. ONE named mover: `10-supertrend.pine` is back in the translating set,
+    // NOT on R-F's rolling min — its band is a SWITCHED ratchet the RANGE window decides
+    // (`interpret.js::RANGE_TOP`), published only where every earlier history gives one
+    // value. Its folded formula is large, which is why one script moves the locators by 596.
+expect(translating.length, 'scripts that translate at all').toBe(14)
         // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
     // 1,208 → 536 locator occurrences. One script left the translating set:
     // `10-supertrend.pine`, which was folding its Supertrend band to
@@ -98,7 +103,7 @@ expect(translating.length, 'scripts that translate at all').toBe(13)
     // the running band. The locator drop is large because that one folded formula was
     // enormous; losing a single WRONG script can move a total more than losing several
     // right ones, which is why the movers are NAMED rather than the delta explained.
-expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(13)
+expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(14)
   })
 
   it('reproduces the "29 total adjustable parameters" claim under the distinct-id counting', () => {
@@ -133,7 +138,12 @@ expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parame
     // screener lane refuses it (`pine:budget`). It was the script whose single
     // `swing_length` parameter expanded to 570 locators, which is why one wrong
     // script moves the locator total by 578.
-expect(totalDistinctParams, 'sum of distinct parameter ids across all 13 scripts').toBe(29)
+    // ⭐ RE-FROZEN 2026-10-02 (H1) — 13 → 14 scripts, 29 → 31 params, 276 → 872 locator
+    // occurrences. ONE named mover: `10-supertrend.pine` is back in the translating set,
+    // NOT on R-F's rolling min — its band is a SWITCHED ratchet the RANGE window decides
+    // (`interpret.js::RANGE_TOP`), published only where every earlier history gives one
+    // value. Its folded formula is large, which is why one script moves the locators by 596.
+expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(31)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -181,7 +191,9 @@ expect(totalDistinctParams, 'sum of distinct parameter ids across all 13 scripts
     // `trigger()`, which refused `pine:state` until `selfOffsetLag` knew the
     // chain's own partial binding; they translate now, and each nests the Donchian
     // window `i_period` feeds. Distinct ids and scripts are unchanged.
-expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 13 scripts').toBe(276)
+    // ⭐ 276 → 872 ON 2026-10-02 (H1), ONE named mover: `10-supertrend.pine` translates
+    // again on the ratchet window (see the pins above).
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(872)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {

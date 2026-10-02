@@ -4082,11 +4082,40 @@ export function forgetsOnReset(node, table) {
     const inner = n.type === 'call' && table.functions[n.name] && table.functions[n.name].recurrence
     if (Array.isArray(n.args)) n.args.forEach((a, i) => { if (!inner || i !== inner.body) stack.push(a) })
   }
+  // ⭐⭐ H1 — A RATCHET'S TEST. `up := close[1] > up1 ? max(up, up1) : up` (every
+  // supertrend, every ATR trailing stop) resets on a test that READS the stop:
+  // price closing through it. From an unknown state C12s cannot decide that test,
+  // but the RANGE window can (`interpret.js::RANGE_TOP`): the test splits the
+  // state at a number the data fixes, so it is admitted when every read of the
+  // state inside it is one side of an ORDERING comparison against something that
+  // does not read the state — bare `self`, or `nz(self, k)`. `&&`, `||` and `!`
+  // over such tests are read the same way. ⛔ NOT `na(self)` and NOT `==`: a
+  // latch that fires while unset, or on one exact value, is never narrowed by the
+  // data, so it stays the refusal it was (and `forgetsItsSeed`'s
+  // `reseedsOnceSet` keeps naming it). ⛔ AND NOT A CONSTANT: `self > 3 ? 0 :
+  // self + 1` splits the state at a point the data never moves, so a state that
+  // starts far below it is never squeezed onto one value — a counter with a
+  // threshold stays refused (`switchedCounter.test.js`). The ratchet compares
+  // the stop with PRICE, which moves.
+  const isSelf = (x) => !!x && x.type === 'series' && x.name === bind
+  const stateRead = (x) => isSelf(x)
+    || (!!x && x.type === 'call' && x.name === 'nz' && Array.isArray(x.args) && x.args.length === 2
+      && isSelf(x.args[0]) && !carries(x.args[1]))
+  const orderingTest = (x) => {
+    if (!x || typeof x !== 'object' || !carries(x)) return true
+    const a = x.args || []
+    if (x.type === 'op' && (x.name === '&&' || x.name === '||' || x.name === '!')) return a.every(orderingTest)
+    if (x.type === 'op' && (x.name === '<' || x.name === '<=' || x.name === '>' || x.name === '>=') && a.length === 2) {
+      const moving = (y) => !carries(y) && typeof constantValueOf(y) !== 'number'
+      return (stateRead(a[0]) && moving(a[1])) || (stateRead(a[1]) && moving(a[0]))
+    }
+    return false
+  }
   const resets = (n) => {
     if (!n || typeof n !== 'object') return true
     if (!carries(n)) return true
     const args = n.args || []
-    if (n.type === 'op' && n.name === '?:' && args.length === 3 && !carries(args[0])) {
+    if (n.type === 'op' && n.name === '?:' && args.length === 3 && orderingTest(args[0])) {
       return resets(args[1]) || resets(args[2])
     }
     return false
@@ -12802,8 +12831,18 @@ export class Resolver {
     // fresh `Resolver` per output, so only something every Resolver agrees on
     // survives across "the same input feeds two plots." Until C46 that was the
     // call node's object identity; it is now the call's ordinal in the source.
+    // ⭐ H1 (2026-10-02) — THE PINNED LANE MINTS ONLY WHAT IT PINS. A script the
+    // frozen map holds in the pinned (plain strict) lane — `param-ids.json` — may
+    // not GAIN an id there: that artifact and `paramIdLegacy`'s dense-entry rail
+    // are its whole address book. So when a script that used to refuse starts
+    // translating (a ratchet) and a column reaches an input the old walk never
+    // did, that input folds to its default with no id in this lane — a literal,
+    // exactly what TradingView draws until it is moved. Every other lane mints it
+    // at its source id as before.
+    const pinnedOut = !!(this.paramMint && this.paramMint.lane === 0 && Array.isArray(this.paramMint.legacy)
+      && !this.paramMint.legacy.includes(paramOrdinalOf(this.paramMint, node.tok)))
     const mintable = !!(this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
-      && resolved && resolved.type === 'num' && Number.isFinite(resolved.value))
+      && resolved && resolved.type === 'num' && Number.isFinite(resolved.value)) && !pinnedOut
     const mintEntry = () => {
       // ⭐⭐ C46 — THE ID IS THE CALL'S PLACE IN THE SOURCE, NOT ITS TURN IN THE
       // WALK. This was a counter: the N-th input the walk resolved first. What
@@ -12885,7 +12924,16 @@ export class Resolver {
         // here, at the same point in the same walk, keeps every id where it was
         // (`builderInputs.withColourInputs` verifies it). The leaf carries no
         // `__uctParamId`: the identifier is the knob now, not a literal to edit.
-        if (mintable && this.mintDeclared && this.mintDeclared.has(boundName)) mintEntry()
+        // ⭐ H1 (2026-10-02) — AND SO IS ONE A FROZEN ID ALREADY ADDRESSES. When a
+        // script that used to refuse starts translating (a ratchet: supertrend-
+        // explorer's `changeATR`, atr-god's `mult_st_1..4`), an input the old walk
+        // minted as a literal can now reach a column that DECLARES it — and a
+        // declared input does not mint, so its frozen id would vanish from the
+        // lane. The frozen table (`paramIdLegacy.js`) is the address; an input
+        // holding one keeps it, minted beside the knob exactly as above.
+        const frozen = mintable && this.paramMint && Array.isArray(this.paramMint.legacy)
+          && this.paramMint.legacy.includes(paramOrdinalOf(this.paramMint, node.tok))
+        if (mintable && ((this.mintDeclared && this.mintDeclared.has(boundName)) || frozen)) mintEntry()
         return leaf
       }
       // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
@@ -21752,6 +21800,8 @@ function newParamMint(tokens, opts) {
     sites,
     ordinalAt,
     legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(tokens)], legacyLaneOf(opts)),
+    // ⭐ H1 — which lane, so the pinned one (0) can refuse to grow (`resolveInput`)
+    lane: legacyLaneOf(opts),
   }
 }
 

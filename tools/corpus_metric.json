@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-10-02",
   "scripts": 266,
-  "host_ok": 64,
-  "screener_ok": 58,
+  "host_ok": 69,
+  "screener_ok": 62,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -167,13 +167,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:state",
         "pine:block",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
-        "pine:state",
         "pine:block",
         "pine:strategy-call"
       ]
@@ -211,14 +209,10 @@
     },
     {
       "file": "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
@@ -561,12 +555,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:arity",
-        "pine:state"
+        "pine:arity"
       ],
       "screenerGuards": [
-        "pine:arity",
-        "pine:state"
+        "pine:arity"
       ]
     },
     {
@@ -1793,14 +1785,10 @@
     },
     {
       "file": "pivot-point-supertrend__HN4w1eNW3B.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
@@ -1911,14 +1899,10 @@
     },
     {
       "file": "qqe-signals__EhBrwQPjZ1.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "range-filter-bs-signals__eCVFctFlqp.pine",
@@ -2407,16 +2391,10 @@
     },
     {
       "file": "supertrend-explorer__V4MsmtCeKs.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:state",
-        "pine:hidden-only"
-      ],
-      "screenerGuards": [
-        "pine:state",
-        "pine:hidden-only"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
@@ -2435,16 +2413,11 @@
     },
     {
       "file": "supertrend-strategy__rcRbtoBiKG.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:state",
-        "pine:hidden-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:declaration-strategy",
-        "pine:state",
-        "pine:hidden-only"
+        "pine:declaration-strategy"
       ]
     },
     {
