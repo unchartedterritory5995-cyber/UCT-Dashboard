@@ -6,6 +6,7 @@ FastAPI's 404 before identity is read, exactly like seasonality and COV-04.
 
   FILING_SEARCH_ENABLED            GET /api/research/filing-search            FT-058/059/060
   EARNINGS_REACTION_PANEL_ENABLED  GET /api/research/earnings-reaction/{sym}  FT-005
+  EVENTS_TIMELINE_ENABLED          GET /api/research/events/{sym}             FT-064
 
 Every handler is a plain `def`: each one reads local SQLite stores, which is
 blocking I/O, and an `async def` that awaits nothing would run it ON the event
@@ -77,3 +78,17 @@ def _earnings_reaction_armed() -> None:
 def earnings_reaction_route(sym: str, _user: dict = Depends(require_paid)):
     from api.services import earnings_reaction_panel as svc
     return svc.panel(_sym(sym))
+
+
+# ── FT-064 events staged relative to the print (EVTS) ───────────────────────
+
+def _events_armed() -> None:
+    from api.services import events_timeline
+    if not events_timeline.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/events/{sym}", dependencies=[Depends(_events_armed)])
+def events_route(sym: str, _user: dict = Depends(require_paid)):
+    from api.services import events_timeline as svc
+    return svc.timeline(_sym(sym))

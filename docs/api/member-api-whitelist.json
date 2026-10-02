@@ -2318,6 +2318,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/events/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/expected-move/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

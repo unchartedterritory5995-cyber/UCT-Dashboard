@@ -1397,6 +1397,12 @@
       "where": [],
       "note": "FT-005 (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Earnings reaction and GET /api/research/earnings-reaction/{sym}. Per reported quarter (8), on the reacting session the Earnings strip already chooses (earnings_reaction's rule, reused): the 5-session run-in, the opening gap, the close-to-close reaction and the 5-session drift after it (a drift whose sessions have not traded is 'pending', never 0), each summary with its n; beside them 20-session realized vol and the next print's implied move from the front ATM straddle (expiry, strike, both marks, read time). Request path: the earnings payload from CACHE only (a miss schedules earnings_intel's existing background rebuild and answers pending), our own daily bars, and the implied move NEVER fetched in the request (a miss is queued on the module's one-thread worker). ENABLEMENT GATE, default OFF, read per request on the auth payload (earnings_reaction_panel_enabled, present only when on); unset = the route 404s before identity and the panel is absent. Arm: railway variables --service web --set EARNINGS_REACTION_PANEL_ENABLED=1 (owner). Rollback = unset it."
     },
+    "EVENTS_TIMELINE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-064 EVTS (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Events around the print and GET /api/research/events/{sym}. Every event is placed against its NEAREST earnings print (reported quarters plus the next scheduled one) and labelled T-n / T / T+n in WEEKDAYS (exchange holidays not removed; the payload says so). Sources, all stores this pod already holds, no vendor call: the cached earnings payload (earnings_intel; a miss schedules its background rebuild and the events come back unstaged with the reason), UCT's catalyst engine history (catalysts.db), the filing-search index's 10-K/10-Q dates, and #main-chat mention spikes (buzz.db: >= 3x the trailing 20-weekday median and >= 5 mentions). Each source's state is returned; a source that could not be read is 'error', never folded into 'empty'. ENABLEMENT GATE, default OFF, read per request on the auth payload (events_timeline_enabled, present only when on); unset = the route 404s before identity and the panel is absent. Arm: railway variables --service web --set EVENTS_TIMELINE_ENABLED=1 (owner). Rollback = unset it."
+    },
     "FILING_SEARCH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

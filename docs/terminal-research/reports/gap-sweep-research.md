@@ -39,3 +39,4 @@ Router: `api/routers/research_depth.py`. Client gate list:
 |---|---|---|---|---|
 | 1 | FT-058/059/060 | `FILING_SEARCH_ENABLED` | `GET /api/research/filing-search` | SEC EDGAR primary documents via `fundamentals_pit.sec_client`, sections by the COV-04 extractor; every hit cites form, accession, filing date, section, URL |
 | 2 | FT-005 | `EARNINGS_REACTION_PANEL_ENABLED` | `GET /api/research/earnings-reaction/{sym}` | UCT daily bar store; quarters from the cached earnings payload; implied move from the front ATM straddle with its read time |
+| 3 | FT-064 | `EVENTS_TIMELINE_ENABLED` | `GET /api/research/events/{sym}` | Per event: earnings payload, UCT catalyst engine (catalysts.db), filing-search index, #main-chat mention store; each source's read state returned |

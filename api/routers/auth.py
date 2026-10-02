@@ -245,6 +245,7 @@ def _filing_blackline_flag() -> dict:
 _RESEARCH_DEPTH_SURFACES = (
     ("filing_search_enabled", "filing_search"),
     ("earnings_reaction_panel_enabled", "earnings_reaction_panel"),
+    ("events_timeline_enabled", "events_timeline"),
 )
 
 
