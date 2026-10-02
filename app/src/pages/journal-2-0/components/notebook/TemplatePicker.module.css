@@ -310,3 +310,32 @@
     align-items: center;
   }
 }
+
+/* Wave 12 lane 12A: the door to the community gallery (only while its gate is on). */
+.galleryDoor {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 5px 12px;
+  min-height: 28px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--ut-gold);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.galleryDoor:hover {
+  background: rgba(220, 187, 94, 0.08);
+}
+.galleryDoor:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 1024px) {
+  .galleryDoor {
+    min-height: var(--tap-min);
+  }
+}

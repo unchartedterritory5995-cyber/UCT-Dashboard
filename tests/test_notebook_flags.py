@@ -39,6 +39,8 @@ NOTEBOOK_KEYS = [
     "notebook_formulas_enabled",
     # Wave 11 lane 11D: the trade-plan canvas — an enablement gate.
     "notebook_trade_canvas_enabled",
+    # Wave 12 lane 12A: the community template gallery — an enablement gate.
+    "notebook_template_gallery_enabled",
 ]
 
 

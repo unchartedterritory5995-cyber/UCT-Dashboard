@@ -172,6 +172,10 @@ NOTEBOOK_FLAGS = {
     # `notebook_trade_canvas_enabled` and every create door + the board's editing
     # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
     "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
+    # Wave 12 lane 12A: the community template gallery. The router's gate
+    # (journal_two/template_gallery.enabled) reads the same variable through
+    # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

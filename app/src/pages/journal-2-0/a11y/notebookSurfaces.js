@@ -45,6 +45,13 @@ export const SURFACES = Object.freeze({
   // it" sheet, opened from either template-picker's own cards or from the
   // "Your templates" section it renders inside.
   'components/notebook/TemplatePreview.jsx': { coveredBy: 'template-picker' },
+  // Wave 12 lane 12A: the community template gallery (dark behind
+  // notebook_template_gallery_enabled, so template-picker never renders it); rail
+  // a11y/templateGallery.a11y.test.jsx. The admin review queue it renders
+  // (components/admin/TemplateGalleryReviewPanel.jsx) is outside this population and is
+  // read by the community-gallery-review recipe.
+  'components/notebook/TemplateGallery.jsx': { recipe: 'community-gallery-browse' },
+  'components/notebook/GalleryPublishForm.jsx': { recipe: 'gallery-publish-form' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
