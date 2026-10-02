@@ -1,0 +1,491 @@
+{
+  "tool": "notebook_w11b_formula_walk",
+  "base": "http://127.0.0.1:8586",
+  "data_dir": "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/w11b-walk4",
+  "started_utc": "2026-10-02T02:57:23+00:00",
+  "sandbox_env": {
+    "NOTEBOOK_FORMULAS_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the auth payload carries notebook_formulas_enabled = true",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "fixtures written through the sandbox's HTTP doors (5 notes, 3 links)",
+      "result": "PASS"
+    },
+    {
+      "row": "create the number property Entry and set it to 100 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Stop and set it to 95 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Target and set it to 115 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Exit and set it to 110 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "the server holds Entry 100 / Stop 95 / Target 115 / Exit 110 on the trade plan",
+      "result": "PASS",
+      "saw": {
+        "Entry": 100,
+        "Stop": 95,
+        "Target": 115,
+        "Exit": 110
+      }
+    },
+    {
+      "row": "the live preview reads the value on the open note before saving",
+      "result": "PASS",
+      "saw": "On this note: 2",
+      "selects": [
+        "keyboard",
+        "keyboard"
+      ]
+    },
+    {
+      "row": "the starter names the property",
+      "result": "PASS",
+      "saw": "R-multiple"
+    },
+    {
+      "row": "the R-multiple row shows 2 on the trade plan",
+      "result": "PASS",
+      "saw": "2"
+    },
+    {
+      "row": "the formula is STORED by property id, not by name",
+      "result": "PASS",
+      "saw": "({@74cccdb1629541ecb9b7ce2bec17d656} - {@ca6304d14d744df794e8a71d96937944}) / ({@ca6304d14d744df794e8a71d96937944} - {@fb42209d23b949bcb74990b61a84cafa})"
+    },
+    {
+      "row": "changing Exit to 120 recomputes R-multiple to 4",
+      "result": "PASS",
+      "saw": "4"
+    },
+    {
+      "row": "fixture values for the other two trade plans (R 0.4 and R 3) through HTTP",
+      "result": "PASS"
+    },
+    {
+      "row": "the rollup editor says what it will compute",
+      "result": "PASS",
+      "saw": "Average of R-multiple across notes this note links to",
+      "selects": [
+        "keyboard",
+        "keyboard",
+        "keyboard",
+        "keyboard"
+      ]
+    },
+    {
+      "row": "Avg R on the week plan is 2.2 -- the average of R 4 and R 0.4",
+      "result": "PASS",
+      "saw": "2.2"
+    },
+    {
+      "row": "the month plan's Avg R is 3 (one linked plan, R 3), computed on the server",
+      "result": "PASS",
+      "saw": 3.0
+    },
+    {
+      "row": "Enter on the Avg R header sorts ascending: week (2.2) before month (3)",
+      "result": "PASS",
+      "saw": [
+        "week",
+        "month"
+      ]
+    },
+    {
+      "row": "ascending puts the valued rows first and the empties last",
+      "result": "PASS",
+      "saw": [
+        "\tWeek plan 215832\t\u2014\tToday\t\u2014\t\u2014\t\u2014\t\u2014\t\u2014",
+        "\tMonth plan 215832\t\u2014\tToday\t\u2014\t\u2014\t\u2014\t\u2014\t\u2014"
+      ]
+    },
+    {
+      "row": "Enter again sorts descending: month (3) before week (2.2)",
+      "result": "PASS",
+      "saw": [
+        "month",
+        "week"
+      ]
+    },
+    {
+      "row": "descending puts the month plan at the very top",
+      "result": "PASS",
+      "saw": "\tMonth plan 215832\t\u2014\tToday\t\u2014\t\u2014\t\u2014\t\u2014\t\u2014"
+    },
+    {
+      "row": "filter Avg R is above 2.5 leaves the month plan and drops the week plan",
+      "result": "PASS",
+      "select": "keyboard"
+    },
+    {
+      "row": "no uncaught page error during the walk",
+      "result": "PASS",
+      "saw": []
+    }
+  ],
+  "keyboard": [
+    {
+      "step": "open the property picker (Entry)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Entry)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Entry",
+      "keys": [
+        "type 'Entry'"
+      ]
+    },
+    {
+      "step": "type of Entry",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Entry",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Entry = 100",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Stop)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Stop)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Stop",
+      "keys": [
+        "type 'Stop'"
+      ]
+    },
+    {
+      "step": "type of Stop",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Stop",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Stop = 95",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Target)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Target)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Target",
+      "keys": [
+        "type 'Target'"
+      ]
+    },
+    {
+      "step": "type of Target",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Target",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Target = 115",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Exit)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Exit)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Exit",
+      "keys": [
+        "type 'Exit'"
+      ]
+    },
+    {
+      "step": "type of Exit",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Exit",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Exit = 110",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (formula)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (formula)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type Formula",
+      "keys": [
+        "type-ahead 'For'"
+      ]
+    },
+    {
+      "step": "starter R-multiple",
+      "keys": [
+        "type-ahead 'R-m'"
+      ]
+    },
+    {
+      "step": "Create R-multiple",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "select the Exit value",
+      "keys": [
+        "Control+a"
+      ]
+    },
+    {
+      "step": "commit Exit = 120",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (rollup)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (rollup)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Avg R",
+      "keys": [
+        "type 'Avg R'"
+      ]
+    },
+    {
+      "step": "type Rollup",
+      "keys": [
+        "type-ahead 'Rol'"
+      ]
+    },
+    {
+      "step": "source",
+      "keys": [
+        "type-ahead 'Not'"
+      ]
+    },
+    {
+      "step": "aggregate",
+      "keys": [
+        "type-ahead 'Ave'"
+      ]
+    },
+    {
+      "step": "property",
+      "keys": [
+        "type-ahead 'R-m'"
+      ]
+    },
+    {
+      "step": "Create Avg R",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "switch to the table view",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "sort by Avg R (ascending)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "sort by Avg R (descending)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the Avg R filter",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "filter op",
+      "keys": [
+        "Home"
+      ]
+    },
+    {
+      "step": "apply the filter",
+      "keys": [
+        "Enter"
+      ]
+    }
+  ],
+  "screenshots": [
+    "01-trade-plan-open.png",
+    "02-four-numbers.png",
+    "03-formula-preview.png",
+    "04-formula-saved.png",
+    "05-rollup-editor.png",
+    "06-rollup-saved.png",
+    "07-table.png",
+    "08-table-sorted-asc.png",
+    "09-table-sorted-desc.png",
+    "10-table-filtered.png"
+  ],
+  "run_tag": "215832",
+  "fixtures": {
+    "a": "0534da8588b14cbfac23f8f3f2f1ff32",
+    "b": "b1e955fe44ee41c9a967304a54b38737",
+    "c": "9066b03469a24405bc78db9a3bdb6e33",
+    "p1": "13d8fff00fa547559782dcf886876aea",
+    "p2": "8b07e2e8cebc42c18ea670026afc9523"
+  },
+  "page_errors": [],
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w11b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-57-24.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-01 21:57:31",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-01 21:58:20",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-01 22:00:14",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-01 22:00:24",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w11b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-57-24.md",
+  "finished_utc": "2026-10-02T03:00:54+00:00"
+}
