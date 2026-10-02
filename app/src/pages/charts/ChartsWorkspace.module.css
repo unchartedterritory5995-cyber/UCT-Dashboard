@@ -1238,6 +1238,24 @@
 }
 .wAddChipLbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* TERM-001 — the board-size bound, stated in words where the member meets it. */
+.wAddChip:disabled { cursor: not-allowed; opacity: 0.45; }
+.wAddChip:disabled:hover { background: transparent; border-color: transparent; color: var(--text-bright, #e5e7eb); }
+.boardBoundNote {
+  padding: 8px 12px; font-size: 11.5px; line-height: 1.45;
+  color: var(--text-bright, #e5e7eb); border-bottom: 1px solid var(--border, #1f2937);
+}
+.boardBoundStatus {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 4px 8px 0; padding: 7px 12px; border-radius: 7px;
+  border: 1px solid var(--accent, #dcbb5e); background: var(--bg-elevated, #111827);
+  color: var(--text-bright, #e5e7eb); font-size: 12px; line-height: 1.45;
+}
+.boardBoundStatus button {
+  margin-left: auto; flex: none; background: transparent; border: none; cursor: pointer;
+  color: var(--text-muted, #6b7280); font: inherit; min-height: 24px;
+}
+
 /* ── Open/Save layout menus ── */
 .menuSection {
   padding: 6px 14px 2px; font-size: 9px; text-transform: uppercase;
