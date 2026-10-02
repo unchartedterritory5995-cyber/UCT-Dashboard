@@ -94,6 +94,48 @@ recorded it here.
     follow-up if the gallery grows.
 14. **Featuring needs approval first.** Only an approved template can become a UCT pick.
 
+## The real-browser walk (reading; the raw records were committed first)
+
+Instrument: `tools/notebook_w12a_gallery_walk.py` (local sandbox through
+`scripts/hub_sandbox_boot.py`, Playwright Chromium, its own contexts, ports 8580-8584). Three
+runs, every raw record under `docs/notebook/evidence/wave12-12a/`:
+
+| Run | Tip | Raw | What it showed |
+|---|---|---|---|
+| 1 | `e5c86829db` | `walk-e5c86829db/walk.json` | NOT RUN: setup could not sign the second member up (signup is 3/minute per IP and the harness signed the admin up again per member). Sandbox CLEAN at all four checkpoints. Instrument fixed in `0b80ee9945`. |
+| 2 | `0b80ee9945` | `walk-0b80ee9945/walk.json` | G1 FAIL: the stored copy kept `http://127.0.0.1:8580/journal/notebook?note=<id>` (a product defect, fixed in `e22ed6873a`, see below). G4 INCONCLUSIVE: the walk read Use template's message after "Make a note from it" had closed its dialog (an instrument defect; its screenshots show the copy and the new note were made). Every other row PASS. Sandbox CLEAN. |
+| 3 | `e22ed6873a` | `walk-e22ed6873a/walk.json` | All ten rows PASS. Sandbox CLEAN at all four checkpoints (62 db files hashed). |
+
+Run 3, row by row (from `walk-e22ed6873a/walk.json`):
+
+* **G0** the payload carries `notebook_template_gallery_enabled: true` for the author, the member
+  and the admin; the six firm picks are listed; the member's `viewer.admin` is false.
+* **G1** publish by mouse (New note, Templates, Share, Category, Submit for review): the message
+  "Submitted … for review." renders; the copy is `pending`; leak list empty; the image is gone;
+  the task is unchecked; the stored text reads "Ask email address first", "see linked note",
+  "pasted in-app link".
+* **G2** before review the member's list does not carry it and its full read answers 404.
+* **G3** the admin approves from the Review queue; "Approved … It is listed now." renders and the
+  member's list carries it.
+* **G4** the member searches, filters by Trade plan, previews (the sheet shows the scrubbed
+  body), presses Use this template ("Added … to Your templates."), and "Make a note from it"
+  opens a new note of that title (`/journal/notebook?note=8818ee2b…`).
+* **G5** report with a reason and a note; the thanks sentence renders; the admin queue carries
+  the report and does not name the reporter.
+* **G6** the admin hides it: the member's list loses it, the author's row reads
+  `{status: approved, hidden: true}`; Unhide restores it to the member's list.
+* **G7** keyboard: Enter on the focused door puts focus on the "Community gallery" heading; Tab
+  walks Browse, Your submissions, the search box, All; Back to templates returns focus to the
+  door; focus never sat on `<body>`.
+* **G8** 390 px with touch: no sideways scroll (scrollWidth 390 = clientWidth 390) and no
+  gallery control under 44 px.
+* **G9** no page error across the walk.
+
+Limits of this walk, stated rather than implied: the desktop rows ran at 1280 x 900, not 1200;
+the gate-off state was not walked in a browser (the rails cover it: every route is the one 404,
+and the door and Share are absent while the flag is not latched on); G4's `picks` list includes
+the section's own "UCT PICKS" heading because the walk read every level-4 heading in it.
+
 ## A finding for share and publish (not changed here)
 
 Walk run 2 (`docs/notebook/evidence/wave12-12a/walk-0b80ee9945/walk.json`, row G1) published a
