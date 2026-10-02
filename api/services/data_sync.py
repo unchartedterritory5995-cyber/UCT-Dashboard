@@ -416,6 +416,21 @@ def _make_tarball() -> str:
         if has_db:
             snap_db_path = os.path.join(tmpdir, "bars.db")
             _backup_sqlite_db(db_path, snap_db_path)
+            # ⛔⛔ THE SNAPSHOT CARRIES EVERY INDEX THE WEB EXPECTS (incident
+            # 2026-10-02). The backup copies the WORKER's bars.db, which never
+            # had the web-only `idx_ohlcv_daily_bydate`; installed on web, the
+            # missing index made every later boot start a 31 GB CREATE INDEX
+            # that held the write lock for ~13 min through three failed deploys.
+            # Built here on the PRIVATE copy (no lock contention, no member
+            # traffic); a no-op once the source carries them. Raising here fails
+            # the upload rather than shipping a short snapshot.
+            # Rail: tests/test_bars_snapshot_carries_indexes.py.
+            from api.services import bars_sqlite as _bs_idx
+            _t_idx = time.time()
+            _created = _bs_idx.ensure_indexes_at(snap_db_path)
+            if _created:
+                logger.info(f"[data_sync] snapshot copy lacked {_created}; built in "
+                            f"{time.time() - _t_idx:.1f}s so the install carries them")
             # Gate BEFORE tarring: a malformed or empty DB must never become the
             # fleet's snapshot of truth (2026-07-03 outage). Raises
             # SnapshotIntegrityError, which upload_snapshot catches → skip + retry.

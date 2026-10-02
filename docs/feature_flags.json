@@ -270,6 +270,14 @@
       ],
       "note": ""
     },
+    "BARS_BYDATE_INDEX_BUILD_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-02",
+      "where": [
+        "web"
+      ],
+      "note": "Incident 2026-10-02 (docs/incidents/2026-10-02-web-boot-bydate-index.md). Arms a SCHEDULED web-side build of idx_ohlcv_daily_bydate, only inside BARS_BYDATE_INDEX_BUILD_WINDOW_ET (default 02-05 ET) and never within 30 min of process start; the build waits at most 2 s for bars.db's write lock (busy => retry next tick). DARK ON PURPOSE: the index now ships inside every R2 snapshot (data_sync._make_tarball builds it on the copy), so the web should never need it; while it runs (~13 min on the 31 GB store) it holds the write transaction and saturates the volume. The owner's door is POST /api/admin/bars/bydate-index/build (admin, ignores this flag); state at GET /api/admin/bars/bydate-index. Rollback: unset."
+    },
     "BARSPACK_WEB_INGEST_ENABLED": {
       "status": "armed",
       "where": [

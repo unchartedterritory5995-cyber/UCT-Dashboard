@@ -1404,6 +1404,27 @@ def warm_universe_stop(request: Request):
     return {"status": "stopped", "was_running": was_running}
 
 
+@router.get("/api/admin/bars/bydate-index")
+def bydate_index_status(_admin: dict = Depends(require_admin)):
+    """State of `idx_ohlcv_daily_bydate` on THIS pod's bars.db and of its last build
+    attempt. ADMIN. Plain `def` (threadpool): it reads the SQLite catalog."""
+    from api.services import bars_bydate_index
+    return bars_bydate_index.status()
+
+
+@router.post("/api/admin/bars/bydate-index/build")
+def bydate_index_build(_admin: dict = Depends(require_admin)):
+    """The OWNER's door to the web-side by-date index build (incident 2026-10-02).
+
+    Starts ONE background build and returns at once; a second call while one runs
+    is refused, and the build itself gives up within a couple of seconds if another
+    writer holds bars.db (retry later). ⚠️ While it runs (~13 min on the 31 GB store)
+    it holds bars.db's write transaction and saturates the volume: run it at low
+    traffic. Normally unnecessary -- the index ships with the R2 snapshot."""
+    from api.services import bars_bydate_index
+    return bars_bydate_index.trigger_build_async()
+
+
 @router.get("/api/admin/reconciliation-status")
 def reconciliation_status():
     """Return current state of the bars-reconciliation worker (no auth — read-only).
