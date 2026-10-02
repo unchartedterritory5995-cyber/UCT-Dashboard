@@ -27,6 +27,9 @@ export const WRITING_HELP_ACTION_LABELS = Object.freeze({
   rewrite: 'Rewrite',
   continue: 'Continue',
   translate: 'Translate',
+  // Wave 11 lane 11C: a block an approved AI change set added ("Ask Notebook to
+  // do something") -- the same node and label row, its own word.
+  ai_change: 'AI change',
 })
 
 /**
@@ -74,7 +77,9 @@ export default function AskInsertView({ node }) {
         role="group"
         aria-label={summary
           ? `AI-written summary by Compass: ${question || label}`
-          : `Written with Compass writing help: ${question || label}`}
+          : action === 'ai_change'
+            ? `Added by an AI change set: ${question || label}`
+            : `Written with Compass writing help: ${question || label}`}
       >
         <div
           className={styles.header}

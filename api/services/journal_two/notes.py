@@ -5029,6 +5029,8 @@ def patch_note_tags(
     add: list[str],
     remove: list[str],
     conn: sqlite3.Connection | None = None,
+    *,
+    expected_updated_at: str | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Wave 6 (controller-added, lane D's M14) — `PATCH /notes/{id}/tags`:
     applies a tag DELTA to the note's STORED list, read and written inside
@@ -5050,7 +5052,13 @@ def patch_note_tags(
     wrote the row. A client cannot derive it from the answer's revision --
     when another writer satisfied the same delta between the client's read
     and this call, nothing is written and the answer carries THAT writer's
-    revision, which a timestamp compare would record as the client's own."""
+    revision, which a timestamp compare would record as the client's own.
+
+    `expected_updated_at` (wave 11 lane 11C, keyword-only, default None = every
+    existing caller unchanged) makes the delta a compare-and-set against the
+    revision a caller REVIEWED: an AI change set applies a tag the member
+    approved on the note as they saw it, so a note that moved since raises
+    `NoteConflictError` under the same lock, before anything is written."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5062,6 +5070,8 @@ def patch_note_tags(
         if row is None:
             conn.rollback()
             return None, False
+        if expected_updated_at is not None and row["updated_at"] != expected_updated_at:
+            raise NoteConflictError("note changed since the caller's baseline")
         existing_tags = json.loads(row["tags"] or "[]")
         patched = patched_tag_list(existing_tags, add, remove)
         if patched is None:

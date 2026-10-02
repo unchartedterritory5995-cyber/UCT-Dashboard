@@ -48,6 +48,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_publish_enabled: false,     // publish-to-web (lane 8B)
   notebook_onboarding_enabled: false,  // first-run tour + sample notebook (lane 8C)
   notebook_voice_notes_enabled: false, // wave 11 lane 11A: voice and meeting notes — absent ⇒ OFF
+  notebook_ai_actions_enabled: false,  // wave 11 lane 11C "Ask Notebook to do something" — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

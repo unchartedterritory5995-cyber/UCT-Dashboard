@@ -68,6 +68,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteStats.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteTagsField.jsx': { coveredBy: 'editor' },
   'components/notebook/UnsentTrashDialog.jsx': { recipe: 'unsent-trash' },
+  // Wave 11 lane 11C: "Ask Notebook to do something" on Research Home, and the AI change
+  // sets a note's History lists; rail a11y/aiActions.a11y.test.jsx (request, review, applied).
+  'components/notebook/AiActionsPanel.jsx': { recipe: 'ai-actions-review' },
+  'components/notebook/AiChangeSetHistory.jsx': { recipe: 'ai-change-set-history' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },

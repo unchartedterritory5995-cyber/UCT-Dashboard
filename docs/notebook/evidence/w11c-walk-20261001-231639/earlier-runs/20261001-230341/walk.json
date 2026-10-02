@@ -1,0 +1,379 @@
+{
+ "tool": "tools/notebook_w11c_walk.py",
+ "base": "http://127.0.0.1:8602",
+ "requests": [
+  "tag every note that mentions NVDA earnings with earnings-nvda; add a task \"Check the NVDA print\" to every note that mentions NVDA earnings; move every note that mentions 2024 trade review to folder 2024 Reviews; delete every note that mentions NVDA earnings",
+  "tag every note that mentions Rates and the dollar with macro"
+ ],
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11c-walk-20261001-230341\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 23:03:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 23:04:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-01 23:05:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11c-walk-20261001-230341\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w11c\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T23-03-44.md"
+ },
+ "failure": "the walk raised TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"heading\", name=\"AI change set undone\")\n",
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W1_box_by_keyboard",
+   "verdict": "PASS",
+   "detail": "50 Tab presses reached the toggle; Enter opened it; the request box has focus=True"
+  },
+  {
+   "id": "W2_planned_by_keyboard",
+   "verdict": "PASS",
+   "detail": "Ctrl+Enter planned it; review heading shown=True, focus on H3"
+  },
+  {
+   "id": "W3_review_list",
+   "verdict": "PASS",
+   "detail": "groups ['NVDA thesis', 'AMD vs NVDA', '2024 trade review: MSFT']; 5 checkboxes all checked; skipped: 2 locked + 3 disallowed (delete) with their reasons"
+  },
+  {
+   "id": "W4_no_write_before_approve",
+   "verdict": "PASS",
+   "detail": "every seeded note's updatedAt is what it was before the plan"
+  },
+  {
+   "id": "W5_uncheck_and_apply_by_keyboard",
+   "verdict": "PASS",
+   "detail": "Tab x1 to 'Add tag “earnings-nvda”', Space unchecked it; Tab x6 to 'Apply 4 changes', Enter; status: 'Applied 4 changes.'"
+  },
+  {
+   "id": "W6_notes_after_apply",
+   "verdict": "PASS",
+   "detail": "A tags ['semis'] (its tag was unchecked) + AI task block; B tags ['earnings-nvda'] + AI task block; C in folder '2024 Reviews'; locked D and unrelated E untouched"
+  },
+  {
+   "id": "W7_provenance_and_view_is_read_only",
+   "verdict": "PASS",
+   "detail": "label 'Compass · AI change' shown=True; named group=True; A's revision unchanged after viewing=True"
+  },
+  {
+   "id": "W8_undo_by_keyboard_restores",
+   "verdict": "PASS",
+   "detail": "Tab x1 to Undo, Enter; status 'Undid 4 changes. Your notes are back as they were.'; every note's tags, folder and body are what they were before the set=True"
+  },
+  {
+   "id": "W10_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "flag_on_payload": true,
+  "ids": {
+   "A": "0ce48f2fb151439998023c96c2f6ca1b",
+   "B": "7669701b366c426caf87b73089c614c9",
+   "C": "d10fb112d0c34cd0823ea380656640fd",
+   "D": "aedf8a965f304809b98d97beb90a2078",
+   "E": "8bab8e40b17640a3a5e6340d9bbf74d8"
+  },
+  "before": {
+   "A": {
+    "updatedAt": "2026-10-02T04:04:11.059094+00:00",
+    "tags": [
+     "semis"
+    ],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Long NVDA into the print. NVDA earnings land Nov 19."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "B": {
+    "updatedAt": "2026-10-02T04:04:11.106725+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "AMD reports next week; NVDA earnings set the tone for the group."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "C": {
+    "updatedAt": "2026-10-02T04:04:11.149445+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "My 2024 trade review of the MSFT breakout."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "D": {
+    "updatedAt": "2026-10-02T04:04:11.270397+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "NVDA earnings plan, locked on purpose."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "E": {
+    "updatedAt": "2026-10-02T04:04:11.221907+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Rates and the dollar drive the tape."
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "review": {
+   "legends": [
+    "NVDA thesis",
+    "AMD vs NVDA",
+    "2024 trade review: MSFT"
+   ],
+   "labels": [
+    "Add tag “earnings-nvda”",
+    "Add a task at the end",
+    "Add tag “earnings-nvda”",
+    "Add a task at the end",
+    "Move to 2024 Reviews (a new folder)"
+   ],
+   "descriptions": [
+    "Before: semis\nAfter: semis, earnings-nvda",
+    "Before: …Long NVDA into the print. NVDA earnings land Nov 19.\nAfter: ☐ Check the NVDA print",
+    "Before: (no tags)\nAfter: earnings-nvda",
+    "Before: …AMD reports next week; NVDA earnings set the tone for the group.\nAfter: ☐ Check the NVDA print",
+    "Before: Unfiled\nAfter: 2024 Reviews"
+   ],
+   "skipped": "Locked NVDA plan: That note is locked, so it is never changed.\nLocked NVDA plan: That note is locked, so it is never changed.\nNVDA thesis: Notebook AI can't do that — it can only add or remove tags, set a property, move a note to a folder, add a block at the end of a note, or create a note. Nothing was deleted, rewritten or shared.\nLocked NVDA plan: Notebook AI can't do that — it can only add or remove tags, set a property, move a note to a folder, add a block at the end of a note, or create a note. Nothing was deleted, rewritten or shared.\nAMD vs NVDA: Notebook AI can't do that — it can only add or remove tags, set a property, move a note to a folder, add a block at the end of a note, or create a note. Nothing was deleted, rewritten or shared."
+  },
+  "after_apply": {
+   "A": {
+    "updatedAt": "2026-10-02T04:04:17.657001+00:00",
+    "tags": [
+     "semis"
+    ],
+    "folderId": null,
+    "lastBlock": {
+     "type": "askInsert",
+     "attrs": {
+      "insertedAt": "2026-10-02T04:04:17.644875+00:00",
+      "scope": null,
+      "question": "tag every note that mentions NVDA earnings with earnings-nvda; add a task \"Check the NVDA print\" to every note that mentions NVDA earnings; move every note that mentions 2024 trade review to folder 2024 Reviews; delete every note that mentions NVDA earnings",
+      "action": "ai_change",
+      "model": "claude-sonnet-5"
+     },
+     "content": [
+      {
+       "type": "taskList",
+       "content": [
+        {
+         "type": "taskItem",
+         "attrs": {
+          "checked": false
+         },
+         "content": [
+          {
+           "type": "paragraph",
+           "content": [
+            {
+             "type": "text",
+             "text": "Check the NVDA print"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "B": {
+    "updatedAt": "2026-10-02T04:04:17.619147+00:00",
+    "tags": [
+     "earnings-nvda"
+    ],
+    "folderId": null,
+    "lastBlock": {
+     "type": "askInsert",
+     "attrs": {
+      "insertedAt": "2026-10-02T04:04:17.610858+00:00",
+      "scope": null,
+      "question": "tag every note that mentions NVDA earnings with earnings-nvda; add a task \"Check the NVDA print\" to every note that mentions NVDA earnings; move every note that mentions 2024 trade review to folder 2024 Reviews; delete every note that mentions NVDA earnings",
+      "action": "ai_change",
+      "model": "claude-sonnet-5"
+     },
+     "content": [
+      {
+       "type": "taskList",
+       "content": [
+        {
+         "type": "taskItem",
+         "attrs": {
+          "checked": false
+         },
+         "content": [
+          {
+           "type": "paragraph",
+           "content": [
+            {
+             "type": "text",
+             "text": "Check the NVDA print"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "C": {
+    "updatedAt": "2026-10-02T04:04:17.704601+00:00",
+    "tags": [],
+    "folderId": "4cf07e2e884941d6927f7b69f1b00917",
+    "lastBlock": {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "My 2024 trade review of the MSFT breakout."
+      }
+     ]
+    }
+   },
+   "D": {
+    "updatedAt": "2026-10-02T04:04:11.270397+00:00",
+    "tags": [],
+    "folderId": null,
+    "lastBlock": {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA earnings plan, locked on purpose."
+      }
+     ]
+    }
+   },
+   "E": {
+    "updatedAt": "2026-10-02T04:04:11.221907+00:00",
+    "tags": [],
+    "folderId": null,
+    "lastBlock": {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Rates and the dollar drive the tape."
+      }
+     ]
+    }
+   }
+  },
+  "after_undo": {
+   "A": {
+    "updatedAt": "2026-10-02T04:04:22.685786+00:00",
+    "tags": [
+     "semis"
+    ],
+    "folderId": null
+   },
+   "B": {
+    "updatedAt": "2026-10-02T04:04:22.713672+00:00",
+    "tags": [],
+    "folderId": null
+   },
+   "C": {
+    "updatedAt": "2026-10-02T04:04:22.669701+00:00",
+    "tags": [],
+    "folderId": null
+   },
+   "D": {
+    "updatedAt": "2026-10-02T04:04:11.270397+00:00",
+    "tags": [],
+    "folderId": null
+   },
+   "E": {
+    "updatedAt": "2026-10-02T04:04:11.221907+00:00",
+    "tags": [],
+    "folderId": null
+   }
+  }
+ }
+}

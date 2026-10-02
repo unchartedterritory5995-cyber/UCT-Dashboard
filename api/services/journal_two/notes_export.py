@@ -898,6 +898,9 @@ def _ask_citation_n(attrs: Any) -> int | str | None:
 _WRITING_HELP_ACTION_LABELS = {
     "summarize": "Summarize", "rewrite": "Rewrite",
     "continue": "Continue", "translate": "Translate",
+    # Wave 11 lane 11C: a block an approved AI change set added (ai_actions.ACTION_ATTR).
+    # ⛔ Without this row such a block exported as "From Ask Notebook", a provenance it does not have.
+    "ai_change": "AI change",
 }
 
 # Wave 11 lane 11A: AI-written blocks that are NOT writing help but carry the same

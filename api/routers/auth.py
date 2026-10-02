@@ -160,6 +160,10 @@ NOTEBOOK_FLAGS = {
     # Wave 11 lane 11A: voice and meeting notes. The route gate
     # (journal_two/voice_notes.enabled) reads the same variable through flag_on.
     "NOTEBOOK_VOICE_NOTES_ENABLED": False,   # enablement  — unset means OFF (voice notes, lane 11A)
+    # Wave 11 lane 11C: "Ask Notebook to do something" (journal_two/ai_actions.py).
+    # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
+    # variable per request through `flag_on`.
+    "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

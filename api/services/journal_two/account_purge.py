@@ -135,6 +135,13 @@ _DIRECT_USER_TABLES = (
     # leaves with it. Self-ensured by note_semantic.py (never db.py), so on a
     # pod where meaning search never ran this is a "no such table" no-op.
     "j2_note_embeddings",
+    # Wave 11 (lane 11C, "Ask Notebook to do something") -- the member's AI change
+    # sets: the request they typed, the validated plan, and one row per proposed
+    # change (with what an undo needs: a previous tag, folder or property value,
+    # or the block that was added). Self-ensured by ai_actions.py (never db.py),
+    # so on a pod where the door never ran this is a "no such table" no-op.
+    "j2_ai_change_sets",
+    "j2_ai_change_items",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
