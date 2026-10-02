@@ -176,6 +176,10 @@ NOTEBOOK_FLAGS = {
     # (journal_two/template_gallery.enabled) reads the same variable through
     # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
+    # Wave 13 lane 13A: plan vs execution grading. The router's gate
+    # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_plan_grading_enabled`.
+    "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

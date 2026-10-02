@@ -41,6 +41,8 @@ NOTEBOOK_KEYS = [
     "notebook_trade_canvas_enabled",
     # Wave 12 lane 12A: the community template gallery — an enablement gate.
     "notebook_template_gallery_enabled",
+    # Wave 13 lane 13A: plan vs execution grading — an enablement gate.
+    "notebook_plan_grading_enabled",
 ]
 
 

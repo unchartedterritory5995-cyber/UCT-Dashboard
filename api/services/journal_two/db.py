@@ -1988,6 +1988,24 @@ _PHASE_2_ALTERS = [
     # two columns; `_upgrade_fts_map_note_rowid` (end of ensure_schema) fills the
     # rows, replaces the triggers and builds the covering index on it.
     "ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER",
+    # Wave 13 (lane 13A): plan vs execution grading. ONE row per graded trade, the plan
+    # FROZEN at the first match (ruling R4): the numbers read, where they came from (a
+    # note, a Compass verdict, or the member saying "no plan"), the note version that was
+    # read and the moment that content became current. Only a member's Re-link replaces
+    # it, and the replaced row is kept in `previous_json` (R-11). Keyed on the STABLE
+    # trade_ref (ext:<external_id> broker / id:<row id> manual, trade_refs.py) -- never
+    # j2_trades.id, which a broker purge+reinsert reissues. An unplanned trade has NO
+    # row (unplanned is not frozen: a plan linked later still matches). Purged with the
+    # account (account_purge.py). Grades are computed on read from these frozen inputs
+    # and the trade's own fills; nothing here ever writes j2_trades.
+    "CREATE TABLE IF NOT EXISTS j2_trade_plan_links ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, symbol TEXT NOT NULL, "
+    "source_kind TEXT NOT NULL, match_tier TEXT NOT NULL, "
+    "note_id TEXT, verdict_id TEXT, version_id TEXT, plan_as_of TEXT, "
+    "plan_json TEXT NOT NULL, flags_json TEXT NOT NULL DEFAULT '[]', "
+    "matched_at TEXT NOT NULL, relinked_at TEXT, "
+    "relink_count INTEGER NOT NULL DEFAULT 0, previous_json TEXT, "
+    "PRIMARY KEY (user_id, trade_ref))",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

@@ -197,6 +197,8 @@ NOT_REHEARSED = {
     "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "dark (wave 12 12A): waits for its real-browser walk and "
                                          "the owner naming who reviews submissions",
+    "NOTEBOOK_PLAN_GRADING_ENABLED": "dark (wave 13 13A): plan vs execution grading; waits for the "
+                                     "wave-13 PR and the owner's arming order (P6)",
     # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
     # "owner decision" is that body's "Decisions for you" list.
     "NOTEBOOK_VOICE_NOTES_ENABLED": "dark (wave 11 11A): voice and meeting notes -- Whisper "

@@ -52,6 +52,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_formulas_enabled: false,    // wave 11 (lane 11B): formula + rollup properties — absent ⇒ OFF
   notebook_trade_canvas_enabled: false, // wave 11 lane 11D: the trade-plan canvas — absent ⇒ OFF
   notebook_template_gallery_enabled: false, // wave 12 lane 12A: the community template gallery — absent ⇒ OFF
+  notebook_plan_grading_enabled: false, // wave 13 lane 13A: plan vs execution grading — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 
