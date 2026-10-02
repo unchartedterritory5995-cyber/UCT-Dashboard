@@ -362,15 +362,23 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
                  f"{n2.get('updatedAt') == before_updated}, body unchanged={body2 == body}")
 
         # W9 -- the research workspace entry point (1200)
+        # Run 2 measured this page loading AFTER a 30 s wait: the workspace's own summary read
+        # resolves the company name through providers this sandbox has no keys for. The wait is
+        # on the workspace HEADER (the page's own answer), and its load time is recorded.
+        t9 = time.time()
         pg.goto(base + "/journal/notebook/research/NVDA", wait_until="domcontentloaded")
         h._dismiss_intro(pg)
         prep_btn = pg.get_by_role("button", name="Earnings prep")
         try:
-            prep_btn.wait_for(state="visible", timeout=30000)
+            pg.get_by_role("heading", name="NVDA", exact=True).wait_for(state="visible", timeout=90000)
+            loaded = round(time.time() - t9, 1)
+            prep_btn.wait_for(state="visible", timeout=5000)
             ok9 = True
         except Exception:  # noqa: BLE001
-            ok9 = False
-        w.record("W9_research_workspace_entry", ok9, f"'Earnings prep' button on /journal/notebook/research/NVDA={ok9}")
+            loaded, ok9 = None, False
+        w.raw["W9_workspace_load_s"] = loaded
+        w.record("W9_research_workspace_entry", ok9,
+                 f"'Earnings prep' button on /journal/notebook/research/NVDA={ok9}; workspace header after {loaded}s")
         w.shot(pg, "W9-research-workspace-1200")
 
         # W8 -- 390 px, touch
