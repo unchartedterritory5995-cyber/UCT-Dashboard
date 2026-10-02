@@ -382,6 +382,9 @@ const BARE_POLL_SITES = {
   // tab that already pins revalidateOnFocus:false; the wrapper would turn focus
   // revalidation back on and add a market-open timer for one 60s chain refresh.
   'app/src/pages/research/tabs/OptionsChainTab.jsx': 1,
+  // COV-04 Filing changes (2026-10-01): a JOB-STATUS poll, not a background
+  // tick: 5s only while the server says `pending` (an SEC fetch queued), 0 after.
+  'app/src/pages/research/tabs/FilingChangesTab.jsx': 1,
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,
