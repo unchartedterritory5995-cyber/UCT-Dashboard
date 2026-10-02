@@ -292,6 +292,36 @@ class TestRequestPath:
         assert len(_blackline_threads()) == before
 
 
+def _code_only(path: Path) -> str:
+    """The module's source with every comment and string literal (docstrings
+    included) removed, so a literal hunt cannot be satisfied or defeated by prose."""
+    import io
+    import tokenize
+    keep = []
+    for tok in tokenize.generate_tokens(io.StringIO(path.read_text(encoding="utf-8")).readline):
+        if tok.type in (tokenize.COMMENT, tokenize.STRING):
+            continue
+        keep.append(tok.string)
+    return " ".join(keep)
+
+
+class TestOneTransport:
+    SRC = Path(fb.__file__)
+
+    def test_sec_is_reached_only_through_sec_client(self):
+        code = _code_only(self.SRC)
+        for banned in ("urllib", "requests", "httpx", "aiohttp", "urlopen", "socket"):
+            assert banned not in code.split(), f"{banned} in filing_blackline.py code"
+        assert "sec_client" in code.split() and "get_bytes" in code
+
+    def test_the_hunt_ignores_prose(self, tmp_path):
+        p = tmp_path / "m.py"
+        p.write_text('"""uses urllib"""\n# import requests\nx = "httpx"\n', encoding="utf-8")
+        code = _code_only(p)
+        assert code.split() == ["x", "="]
+        assert not any(w in code for w in ("urllib", "requests", "httpx"))
+
+
 class TestRoute:
     PAID = {"id": 1, "email": "p@x.dev", "role": "admin", "plan": "pro"}
 
