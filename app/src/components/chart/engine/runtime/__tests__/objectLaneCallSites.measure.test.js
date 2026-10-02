@@ -71,7 +71,10 @@ const SCRIPTS = fs.existsSync(DIR)
  *  and the first draft of THIS paragraph said "eleven" and "four `switch`es",
  *  both hand-counted off the printout and both wrong, within an hour of being
  *  written. The table above is derived; the next reader should re-derive it. */
-const GUARD = process.env.GUARD || 'runtime:declaration'
+// ⚰️ R1 (2026-10-02): the default was `runtime:declaration`, which R1 emptied (strategies now
+// compile in this lane), and the instrument said so — "blocks no script". Re-pointed at
+// `runtime:library`, the largest row the owned runtime census still shows (33).
+const GUARD = process.env.GUARD || 'runtime:library'
 
 /** Every refusal, with the source line it names. */
 function refusals() {

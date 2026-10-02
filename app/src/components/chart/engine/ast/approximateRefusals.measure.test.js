@@ -178,7 +178,9 @@ describe('⭐⭐ refusals that do not know their own line', () => {
     // no `line`, no `at`. ⭐ The unreadable colour is written on the line ABOVE
     // and the refusal reports the `bgcolor` statement — an honest approximation,
     // marked as one, which is what the flag is for.
-    const approx = build(`myCol = #00e67610${LF}bgcolor(myCol)${LF}`)
+    // ⚰️ R1 (2026-10-02): `#00e67610` is now SERVED (eight digits, `objectHexToPacked`);
+    // re-anchored on a seven-digit literal, which still throws a bare `ColourError`.
+    const approx = build(`myCol = #00e6761${LF}bgcolor(myCol)${LF}`)
     expect(approx && approx.ok === false, 'the approximate fixture did not refuse').toBe(true)
     expect((approx.refusal || {}).message, 'a different refusal fired')
       .toContain('not a colour this engine can read')
