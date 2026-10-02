@@ -277,3 +277,16 @@ describe('small helpers', () => {
     expect(BIG_STEP % GRID).toBe(0)
   })
 })
+
+describe('placing a new card', () => {
+  it('lands in the middle when free, and NEXT TO (never on top of) a card already there', async () => {
+    const { placeFor, SIZES } = await import('./tradeCanvas')
+    const cam = { x: 0, y: 0, z: 1 }
+    const first = placeFor(emptyBoard(), cam, 1200, 700, SIZES.text)
+    const board = addItems(emptyBoard(), [makeTextCard(first)]).board
+    const second = placeFor(board, cam, 1200, 700, SIZES.text)
+    const a = board.items[0]
+    const overlap = second.x < a.x + a.w && second.x + SIZES.text.w > a.x && second.y < a.y + a.h && second.y + SIZES.text.h > a.y
+    expect(overlap).toBe(false)
+  })
+})

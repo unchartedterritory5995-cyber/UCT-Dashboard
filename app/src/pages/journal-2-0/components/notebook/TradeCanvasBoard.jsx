@@ -291,9 +291,12 @@ export default function TradeCanvasBoard({
     if (refused || !added.length) { say('This canvas is full (300 items). Delete something to add more.'); return null }
     if (!commit(next)) return null
     setSelection(new Set(added))
+    // A free spot may be off screen: bring the new card into view.
+    const { w, h } = sizeRef.current
+    if (!itemOnScreen(item, camRef.current, w, h)) applyCamera(centerOn(item, camRef.current, w, h), { sync: true })
     say(`${what} added.`)
     return added[0]
-  }, [commit, say])
+  }, [applyCamera, commit, say])
 
   const addText = useCallback((kind = 'text', at = null) => {
     if (!editable) return

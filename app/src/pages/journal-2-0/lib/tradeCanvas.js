@@ -569,10 +569,30 @@ export function centerOn(item, cam, vw, vh) {
   return { ...cam, x: vw / 2 - (item.x + item.w / 2) * cam.z, y: vh / 2 - (item.y + item.h / 2) * cam.z }
 }
 
-/** Where a new item lands: the middle of the screen, nudged off any item already there. */
+/** Where a new item lands: the middle of the screen when that is free, else the
+ *  nearest free spot around it (rings of card-sized steps), so a new card never
+ *  hides under the last one. Falls back to a small diagonal nudge. */
 export function placeFor(board, cam, vw, vh, size) {
-  let x = snap((vw / 2 - cam.x) / cam.z - size.w / 2)
-  let y = snap((vh / 2 - cam.y) / cam.z - size.h / 2)
+  const cx = snap((vw / 2 - cam.x) / cam.z - size.w / 2)
+  const cy = snap((vh / 2 - cam.y) / cam.z - size.h / 2)
+  const pad = GRID * 2
+  const free = (x, y) => !board.items.some((it) => x < it.x + it.w + pad && x + size.w + pad > it.x
+    && y < it.y + it.h + pad && y + size.h + pad > it.y)
+  if (free(cx, cy)) return { x: cx, y: cy }
+  const sx = size.w + GRID * 3
+  const sy = size.h + GRID * 3
+  for (let ring = 1; ring <= 4; ring += 1) {
+    for (let j = -ring; j <= ring; j += 1) {
+      for (let i = -ring; i <= ring; i += 1) {
+        if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue
+        const x = snap(cx + i * sx)
+        const y = snap(cy + j * sy)
+        if (free(x, y)) return { x, y }
+      }
+    }
+  }
+  let x = cx
+  let y = cy
   for (let i = 0; i < 40 && board.items.some((it) => Math.abs(it.x - x) < GRID && Math.abs(it.y - y) < GRID); i += 1) {
     x += GRID * 3; y += GRID * 3
   }
