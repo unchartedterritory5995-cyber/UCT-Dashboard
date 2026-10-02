@@ -61,6 +61,12 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
+    "ARTIFACT_VERSIONS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-01",
+      "where": [],
+      "note": "COV-06 (version history on user-authored artefacts), ENABLEMENT GATE, default OFF, read per call in api/services/artifact_versions.py::is_enabled(). SERVICE: web. What it arms: (1) every committed save of a member's saved screen (api/services/screener/saved_screens.py create/update) and of a member's OWN user-scope named chart layout (api/services/charts_layout_service.py upsert) is snapshotted into the artifact_versions table of the TERM-021 store FILE (/data/workspace_docs.db, path read from workspace_doc_store._DB_PATH - same file and nightly backup, its own table; workspace_doc_versions is untouched), after a pre-write baseline of the value the save replaced; (2) GET /api/artifact-versions/{screen|layout}/{id}, GET .../{version} and POST .../restore (compare-and-set on base_version, 409 on a stale base), owner-scoped (somebody else's artefact is 404), screens paid (402); (3) the History control in the Screener's My screens rows and in the /charts Layout Dock's right-click menu, which render nothing unless the list route answers 200. Retention: newest 10 per artefact (Bloomberg MNRS), after coalescing a save superseded by the next save within 60 s (named layouts auto-save ~400 ms after each arrangement change); a baseline, a restore and the version a restore replaced are never coalesced; every removal is recorded in artifact_version_prune_log, and retention runs only while armed. A restore writes the old stored TEXT back verbatim through the artefact's own store and appends it as a NEW version, so it is itself undoable; it never restores a screen's publication (is_public/share_token) or a layout's name. Unset: no I/O, no file opened or created, saves byte-identical, every route 404, the UI control absent (tests/test_artifact_versions.py). NOT ARMED: no owner decision yet; nothing blocks it technically, but STORE_BACKUP must keep covering workspace_docs (it does today). REVERSAL: unset it and redeploy web if the unset does not restart it. The rows are LEFT IN PLACE; never delete them to undo an arming."
+    },
     "BREADTH_V2_PRODUCER_ENABLED": {
       "status": "dark",
       "where": ["breadth-v2-runner"],
