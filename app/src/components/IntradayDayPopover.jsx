@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from './StockChart'
 import UIcon from './ui/UIcon'
+import Input from './ui/Input'
 
 const POPOVER_W = 460
 const POPOVER_H = 360
@@ -209,7 +210,7 @@ export default function IntradayDayPopover({ symbol, date, stockId, isAdmin, anc
                   <span style={{ fontSize: 11, color: 'var(--text-muted, #8b8778)' }}>
                     {uploadMsg || 'TradingView export: time, open, high, low, close, Volume'}
                   </span>
-                  <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onIntradayFile} />
+                  <Input aria-label="Upload intraday CSV" ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onIntradayFile} />
                 </div>
               )}
             </div>
