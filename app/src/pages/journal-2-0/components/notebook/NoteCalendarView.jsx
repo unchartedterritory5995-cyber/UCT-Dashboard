@@ -3,6 +3,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { buildMonthGrid, monthLabel, dowLabels, todayET, monthOffset } from '../../lib/calendar'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
 import BlockedBadge from './BlockedBadge'
+import { ComputedChips } from './ComputedValue'
 import styles from './NoteCalendarView.module.css'
 
 /**
@@ -182,6 +183,7 @@ export default function NoteCalendarView({
             title case). Competitive audit finding UX #15, 2026-09-22. */}
         {isBlocked && <BlockedBadge compact className={styles.chipBlockedIcon} />}
         {n.title || 'Untitled'}
+        <ComputedChips computed={n.computed} className={styles.chipComputed} />
       </button>
     )
   }

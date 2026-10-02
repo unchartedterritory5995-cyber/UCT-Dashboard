@@ -961,6 +961,17 @@ export default function NotebookTab() {
     if (activeView) return // a saved view's spec is server-resolved; ad-hoc filters don't apply on top of it
     setPropertyFilter([{ propertyId, op: 'eq', value }])
   }
+  // Wave 11 (lane 11B): one computed column's numeric condition, set from its
+  // header. Replaces that column's condition and keeps every other one; a saved
+  // view's filter is server-resolved, so nothing applies on top of it.
+  const handleComputedFilter = (propertyId, cond) => {
+    if (activeView) return
+    setPropertyFilter((prev) => {
+      const rest = (prev || []).filter((c) => c.propertyId !== propertyId)
+      const next = cond ? [...rest, { propertyId, ...cond }] : rest
+      return next.length ? next : null
+    })
+  }
   const handlePropertySort = (propertyId) => {
     if (activeView) return
     setPropertySort((prev) => ({
@@ -2363,6 +2374,8 @@ export default function NotebookTab() {
                 propertySort={activeView ? activeView.spec?.propertySort : propertySort}
                 onPropertySortChange={handlePropertySort}
                 onQuickFilter={handleQuickFilter}
+                propertyFilter={activeView ? null : propertyFilter}
+                onComputedFilter={activeView ? null : handleComputedFilter}
                 onOpenNote={openNote}
                 blockedNoteIds={blockedNoteIds}
                 selection={selectionOn ? {

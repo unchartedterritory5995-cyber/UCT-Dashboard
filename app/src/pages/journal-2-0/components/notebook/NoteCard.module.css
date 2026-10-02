@@ -207,3 +207,8 @@
   .shelfBtn { min-height: var(--tap-min); }
   .selectWrap > .shelfWrap { padding-left: 48px; }
 }
+
+/* Wave 11 (lane 11B): formula + rollup values on the card. */
+.computed {
+  margin-top: 4px;
+}

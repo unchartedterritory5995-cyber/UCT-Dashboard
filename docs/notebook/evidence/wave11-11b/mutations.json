@@ -1,0 +1,56 @@
+[
+ {
+  "mutation": "cycle check (server): find_cycle disabled",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 1 passed, 26 deselected, 2472 warnings in 3.10s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "4e110b7a6cfbd503"
+ },
+ {
+  "mutation": "cycle check (client): findCycle disabled",
+  "file": "app/src/pages/journal-2-0/lib/formula/computed.js",
+  "exit": 1,
+  "totals": "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (19)\u001b[39m",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "26c39783eb30d74a"
+ },
+ {
+  "mutation": "tenant isolation (links): member note not joined on user_id",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 3 passed, 27 deselected, 3425 warnings in 4.71s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "4e110b7a6cfbd503"
+ },
+ {
+  "mutation": "tenant isolation (trades): trade row not joined on user_id",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 3 passed, 27 deselected, 3425 warnings in 4.12s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "4e110b7a6cfbd503"
+ },
+ {
+  "mutation": "no-eval (server): a literal evaluated through eval()",
+  "file": "api/services/journal_two/formula_engine.py",
+  "exit": 1,
+  "totals": "1 failed, 166 passed, 698 warnings in 1.26s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "5432298756ec21e1"
+ },
+ {
+  "mutation": "no-eval (client): a literal evaluated through Function()",
+  "file": "app/src/pages/journal-2-0/lib/formula/formulaEngine.js",
+  "exit": 1,
+  "totals": "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m166 passed\u001b[39m\u001b[22m\u001b[90m (168)\u001b[39m",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "b7d56cb0bbd37da7"
+ }
+]

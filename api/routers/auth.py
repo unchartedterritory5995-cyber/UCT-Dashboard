@@ -164,6 +164,9 @@ NOTEBOOK_FLAGS = {
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
     "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
+    # Wave 11 lane 11B: formula and rollup properties. The route side reads the same
+    # variable through `note_computed.formulas_enabled()` -> `flag_on`, per request.
+    "NOTEBOOK_FORMULAS_ENABLED": False,      # enablement  — unset means OFF (formulas + rollups, lane 11B)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
