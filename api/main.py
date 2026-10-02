@@ -9011,6 +9011,8 @@ from api.routers import indicator_vision as indicator_vision_router  # noqa: E40
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 from api.routers import indicator_telemetry as indicator_telemetry_router  # noqa: E402
 app.include_router(indicator_telemetry_router.router)  # /api/indicator-telemetry/event — Phase One Track C, client half (import_submitted/compile_finished only)
+from api.routers import pine_libraries as pine_libraries_router  # noqa: E402
+app.include_router(pine_libraries_router.router)  # /api/pine/libraries/* — L1: an imported Pine library's source + licence, from a data-dir store (never git)
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
