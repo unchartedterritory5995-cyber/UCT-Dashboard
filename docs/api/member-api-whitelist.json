@@ -2348,6 +2348,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/ftd/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/history/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

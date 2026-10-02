@@ -7,6 +7,7 @@ FastAPI's 404 before identity is read, exactly like seasonality and COV-04.
   FILING_SEARCH_ENABLED            GET /api/research/filing-search            FT-058/059/060
   EARNINGS_REACTION_PANEL_ENABLED  GET /api/research/earnings-reaction/{sym}  FT-005
   EVENTS_TIMELINE_ENABLED          GET /api/research/events/{sym}             FT-064
+  FTD_DATASET_ENABLED              GET /api/research/ftd/{sym}                FT-068 (FTD)
 
 Every handler is a plain `def`: each one reads local SQLite stores, which is
 blocking I/O, and an `async def` that awaits nothing would run it ON the event
@@ -92,3 +93,17 @@ def _events_armed() -> None:
 def events_route(sym: str, _user: dict = Depends(require_paid)):
     from api.services import events_timeline as svc
     return svc.timeline(_sym(sym))
+
+
+# ── FT-068 fails-to-deliver ─────────────────────────────────────────────────
+
+def _ftd_armed() -> None:
+    from api.services import ftd_dataset
+    if not ftd_dataset.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/ftd/{sym}", dependencies=[Depends(_ftd_armed)])
+def ftd_route(sym: str, _user: dict = Depends(require_paid)):
+    from api.services import ftd_dataset as svc
+    return svc.series(_sym(sym))

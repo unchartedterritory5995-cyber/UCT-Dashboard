@@ -8095,6 +8095,18 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-sun", hour=3, minute=40, timezone=_ET),
                 id="filing_search_reindex", max_instances=1, replace_existing=True, coalesce=True,
             )
+
+            def _ftd_ingest_job():
+                from api.services import ftd_dataset as _ftd
+                r = _ftd.run_ingest()
+                if not r.get("skipped"):
+                    print(f"[scheduler] SEC fails-to-deliver ingest: {r}")
+
+            _scheduler.add_job(
+                _ftd_ingest_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=10, timezone=_ET),
+                id="ftd_ingest", max_instances=1, replace_existing=True, coalesce=True,
+            )
             print("[startup] research depth jobs scheduled (flag-gated per run)")
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")

@@ -12,6 +12,7 @@ export const RESEARCH_DEPTH_KEYS = [
   'filing_search_enabled',
   'earnings_reaction_panel_enabled',
   'events_timeline_enabled',
+  'ftd_dataset_enabled',
 ]
 
 export function readResearchDepth(d) {

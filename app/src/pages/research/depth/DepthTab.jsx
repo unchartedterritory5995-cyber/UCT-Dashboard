@@ -1,6 +1,7 @@
 import FilingSearchPanel from './FilingSearchPanel'
 import EarningsReactionPanel from './EarningsReactionPanel'
 import EventsPanel from './EventsPanel'
+import FtdPanel from './FtdPanel'
 import styles from './Depth.module.css'
 
 // Research > Depth (lane gaps-research). A container only: each panel is its own
@@ -12,6 +13,7 @@ export default function DepthTab({ sym, flags }) {
     <div className={styles.depth} data-testid="research-depth">
       {f.earnings_reaction_panel_enabled === true && <EarningsReactionPanel sym={sym} />}
       {f.events_timeline_enabled === true && <EventsPanel sym={sym} />}
+      {f.ftd_dataset_enabled === true && <FtdPanel sym={sym} />}
       {f.filing_search_enabled === true && <FilingSearchPanel sym={sym} />}
     </div>
   )
