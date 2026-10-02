@@ -270,3 +270,15 @@ def test_reverse_split_recount_only_when_issuance_was_registered_after_the_count
     assert [t.reason for t in timeline(ch, days_, events=offer_after_count)] == [R.REVERSE_SPLIT_RECOUNT] * 2
     offer_before_count = [(date(2021, 8, 2), R.REVERSE_SPLIT_RECOUNT, date(2021, 7, 1))]       # count already reflects it
     assert all(t.value for t in timeline(ch, days_, events=offer_before_count))
+
+
+def test_registered_quantity_is_evidence_of_issuance_never_a_count():
+    """ZBAO F-1 2026-08-31: 'resale ... of up to an aggregate of 414,275,709 Class A Ordinary Shares' (state: 16.2M)."""
+    h = PR.parse_registered("This prospectus relates to the offer and resale by the investors listed in the table under "
+                            "Selling Shareholders of up to an aggregate of 414,275,709 Class A Ordinary Shares (including ...)")
+    assert h.class_label == "A" and h.count == 414_275_709 and h.as_of is None
+    assert PR.parse_registered("This prospectus relates to 1,000,000 American Depositary Shares") is None
+    # the timeline event it produces withholds the superseded count (and never values anything)
+    ch = validate([ob(date(2025, 9, 9), date(2025, 9, 10), 16_245_132, R.OFFERING_TEXT, form="F-1")], Ledger())
+    tl = timeline(ch, [date(2026, 8, 31), date(2026, 9, 1)], events=[(date(2026, 9, 1), R.ISSUANCE_EXCEEDS_STATE, date(2026, 9, 1))])
+    assert tl[0].value == 16_245_132 and tl[1].reason == R.ISSUANCE_EXCEEDS_STATE

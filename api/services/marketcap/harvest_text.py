@@ -143,11 +143,14 @@ def prosp_one(cik, accn, form, fd, doc):
     b = get_head(filing_base(cik, accn) + "/" + doc, 350_000) if doc else None
     if b is None:
         return [(cik, accn, form, fd, "NO_FILE", None, None, None, None, None, None)]
-    r = prospectus.parse(textcover.normalize(b), date.fromisoformat(fd))
+    t = textcover.normalize(b)
+    r = prospectus.parse(t, date.fromisoformat(fd))
+    reg = prospectus.parse_registered(t)
+    extra = [(cik, accn, form, fd, "REGISTERED", reg.class_label, reg.count, fd, reg.rule, reg.snippet[:400], "")] if reg else []
     if not r.hits:
-        return [(cik, accn, form, fd, r.status, None, None, None, None, None, r.note[:300])]
+        return [(cik, accn, form, fd, r.status, None, None, None, None, None, r.note[:300])] + extra
     return [(cik, accn, form, fd, r.status, h.class_label, h.count, h.as_of.isoformat(), h.rule, h.snippet[:400], r.note[:300])
-            for h in r.hits]
+            for h in r.hits] + extra
 
 
 def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | None) -> dict:

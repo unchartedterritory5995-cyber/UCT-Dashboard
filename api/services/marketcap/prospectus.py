@@ -136,3 +136,30 @@ def parse(text: str, filing_date: date) -> ProspResult:
     if "COMMON" in classes and len(classes) > 1:
         return ProspResult("AMBIGUOUS", hits, "unlabelled and class-labelled counts")
     return ProspResult("MULTI_CLASS" if classes != {"COMMON"} else "OK", hits)
+
+
+# The cover page's REGISTERED quantity ("This prospectus relates to the offer and resale ... of up to an aggregate of
+# 414,275,709 Class A Ordinary Shares", ZBAO F-1 2026-08-31). Not a share count -- evidence that the count in force is
+# superseded when the registered quantity dwarfs it (the build withholds; it never estimates a count from it).
+REGISTERED_RX = [
+    re.compile(rf"(?:relates?\s+to|covers?|registers?|registering)\s+(?:the\s+)?(?:offer(?:ing)?\s+and\s+)?(?:re)?sale[^.;]{{0,240}}?"
+               rf"(?:of\s+)?(?:up\s+to\s+)?(?:an\s+aggregate\s+of\s+)?{NUM}\s+{SHARES}", re.I),
+    re.compile(rf"we\s+are\s+offering\s+(?:up\s+to\s+)?(?:an\s+aggregate\s+of\s+)?{NUM}\s+{SHARES}", re.I),
+]
+
+
+def parse_registered(text: str, cover_chars: int = 40_000) -> ProspHit | None:
+    t = for_matching(text[:cover_chars])
+    for rx in REGISTERED_RX:
+        m = rx.search(t)
+        if not m:
+            continue
+        seg = t[m.start():m.end()]
+        if ADS_NEAR.search(seg):
+            continue
+        g = m.groups()
+        ns = next((x for x in g if x and re.fullmatch(r"\d{1,3}(?:,\d{3})+|\d{5,}", x)), None)
+        letters = [x.upper() for x in g if x and re.fullmatch(r"[a-zA-Z]", x)]
+        if ns:
+            return ProspHit(letters[0] if letters else "COMMON", float(ns.replace(",", "")), None, "REGISTERED_QUANTITY", seg[:300])
+    return None

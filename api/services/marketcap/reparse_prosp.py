@@ -28,11 +28,14 @@ def _one(r):
     b = gzip.decompress(open(p, "rb").read())
     if b == b"\x00404":
         return [(cik, accn, form, fd, "NO_FILE", None, None, None, None, None, None)]
-    res = prospectus.parse(textcover.normalize(b), date.fromisoformat(fd))
+    t = textcover.normalize(b)
+    res = prospectus.parse(t, date.fromisoformat(fd))
+    reg = prospectus.parse_registered(t)
+    extra = [(cik, accn, form, fd, "REGISTERED", reg.class_label, reg.count, fd, reg.rule, reg.snippet[:400], "")] if reg else []
     if not res.hits:
-        return [(cik, accn, form, fd, res.status, None, None, None, None, None, res.note[:300])]
+        return [(cik, accn, form, fd, res.status, None, None, None, None, None, res.note[:300])] + extra
     return [(cik, accn, form, fd, res.status, h.class_label, h.count, h.as_of.isoformat(), h.rule, h.snippet[:400], res.note[:300])
-            for h in res.hits]
+            for h in res.hits] + extra
 
 
 def run(inputs: str, done: str, out: str, procs: int = 8) -> dict:

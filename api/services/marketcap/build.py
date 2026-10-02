@@ -774,6 +774,24 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 events += unlisted_split_events(cdays_all, ccloses, ref_c[1], counts_)
                 if st.kind == "ADR":
                     events += [(t_, R.ADR_RATIO) for t_ in ads_changes] + [(b_, R.ADR_RATIO) for b_ in trade_breaks]
+                # ⛔ REGISTERED ISSUANCE that dwarfs the state in force (ZBAO 2026: F-1s registering the resale of up to
+                # 414,275,709 Class A shares while the last count was 16.2M): the state is superseded by authoritative
+                # evidence of issuance -> withheld from the registration's public close until a newer count (never an
+                # estimate). Only registrations >= 3x the state; large issuers never register 3x their count.
+                if D.prosp is not None and st.kind != "ADR":
+                    usable_ = [ch for ch in checked if ch.usable and "REDUNDANT" not in ch.flags and ch.effective_from]
+                    for raccn, rfd, rcls, rcnt in D.prosp.execute(
+                            "SELECT accn, filing_date, class, count FROM prosp_obs WHERE cik=? AND status='REGISTERED' AND count IS NOT NULL",
+                            (cik,)):
+                        if (rcls or "COMMON") != c.class_key:
+                            continue
+                        f_ = filings.get(raccn)
+                        kd = Obs(date.fromisoformat(rfd), _ts(f_["public_at"]) if f_ else _evidence_public(D, raccn, rfd), 1.0,
+                                 R.OFFERING_TEXT, raccn, "").known_from
+                        cur_ = max((ch for ch in usable_ if ch.effective_from <= kd and (ch.valid_until is None or ch.valid_until > kd)),
+                                   key=lambda ch: (ch.obs.as_of, -ch.obs.rank, ch.obs.public_at), default=None)
+                        if cur_ and cur_.normalized and rcnt * ledger.factor_after(date.fromisoformat(rfd)) >= 3 * cur_.normalized:
+                            events.append((kd, R.ISSUANCE_EXCEEDS_STATE, kd))
                 tl = timeline(checked, cdays, edgar, events=events)
                 states[c.class_key] = dict(zip(cdays, tl))
                 for ch in checked:
