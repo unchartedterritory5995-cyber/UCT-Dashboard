@@ -394,10 +394,17 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
             nid = note_id_from(pg)
             body = body_of(nid) if nid else ""
             reqs = res["voice_requests"][n0:]
-            ok = (how == "preview" and "Desk session" in prev_text and "NVDA is holding the gap" in prev_text
+            # ⚰️ Run 3 checked the transcript against the preview's TEXT; it sits in a closed
+            # <details>, which the browser does not render, so the check could never pass. The
+            # stored note is where the transcript must be.
+            facts = {"requests": reqs, "note_id": nid, "preview_names_the_desk": "Desk session" in prev_text,
+                     "ai_label_in_preview": "AI-written · Compass · Voice note summary" in prev_text,
+                     "body_has": {k: (k in body) for k in ("Desk session: ", "voice_summary",
+                                                          "NVDA is holding the gap", "taskList", "toggle")}}
+            ok = (how == "preview" and facts["preview_names_the_desk"] and facts["ai_label_in_preview"]
                   and not any(r.endswith("/transcribe") or r == "POST /jobs" for r in reqs)
-                  and "Desk session: " in body and "voice_summary" in body)
-            record("V5_desk_session", "PASS" if ok else "FAIL", requests=reqs, note_id=nid)
+                  and all(facts["body_has"].values()))
+            record("V5_desk_session", "PASS" if ok else "FAIL", **facts)
             pg.close()
 
         def tab_to(pg, pattern, limit=60):
