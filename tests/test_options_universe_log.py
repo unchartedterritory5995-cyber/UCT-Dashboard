@@ -94,6 +94,41 @@ def test_a_summary_can_be_REBUILT_from_the_stored_contracts_file(tmp_path):
     assert gzip.decompress(out.read_bytes()) == gzip.decompress(stored[keys["underlyings"]])
 
 
+def _quoted(occ, und, exp, strike, typ, bid, ask, px=100.0):
+    r = rec(occ, und, exp, strike, typ, px=px)
+    r["last_quote"] = {"bid": bid, "ask": ask}
+    return r
+
+
+def test_the_FRONT_straddle_is_the_first_expiry_AFTER_the_session_with_both_legs_two_sided():
+    """BRK-10's implied move: straddle / price at a print's pre-print close."""
+    s = log._Summary(dt.date(2026, 9, 30))
+    for r in [
+        _quoted("a", "AAPL", "2026-09-30", 100, "call", 9.0, 9.2),   # expires TODAY: not front
+        _quoted("b", "AAPL", "2026-09-30", 100, "put", 9.0, 9.2),
+        _quoted("c", "AAPL", "2026-10-02", 100, "call", 2.0, 2.2),   # ATM, but the put
+        _quoted("d", "AAPL", "2026-10-02", 100, "put", 0.0, 2.0),    # has no bid: one-sided
+        _quoted("e", "AAPL", "2026-10-02", 101, "call", 1.5, 1.7),   # nearest strike with BOTH
+        _quoted("f", "AAPL", "2026-10-02", 101, "put", 2.4, 2.6),
+        _quoted("g", "AAPL", "2026-10-09", 100, "call", 3.0, 3.2),   # a later expiry
+        _quoted("h", "AAPL", "2026-10-09", 100, "put", 3.0, 3.2),
+    ]:
+        s.add(log.contract_row(r))
+    (row,) = list(s.rows())
+    assert row["front_expiration"] == "2026-10-02" and row["front_dte"] == 2
+    assert row["front_strike"] == 101
+    assert row["front_straddle"] == pytest.approx(1.6 + 2.5)
+
+
+def test_no_two_sided_front_quote_means_no_straddle_not_a_guess():
+    s = log._Summary(dt.date(2026, 9, 30))
+    s.add(log.contract_row(_quoted("a", "XYZ", "2026-10-02", 100, "call", 1.0, 1.2)))
+    s.add(log.contract_row(_quoted("b", "XYZ", "2026-10-02", 100, "put", None, 1.2)))
+    (row,) = list(s.rows())
+    assert row["front_expiration"] == "2026-10-02"
+    assert row["front_straddle"] is None and row["front_strike"] is None
+
+
 def test_no_contract_in_the_window_means_no_atm_iv_not_a_guess():
     s = log._Summary(dt.date(2026, 9, 30))
     s.add(log.contract_row(rec("a", "XYZ", "2026-10-02", 10, "call")))
