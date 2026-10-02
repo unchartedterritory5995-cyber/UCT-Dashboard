@@ -34,6 +34,7 @@
     "app/src/pages/research/tabs/FlowTab.jsx",
     "app/src/pages/research/tabs/NewsTab.jsx",
     "app/src/pages/research/tabs/OwnershipTab.jsx",
+    "app/src/pages/screener/options/OptionsScreener.jsx",
     "app/src/pages/screener/shell/ScannerShell.jsx"
   ],
   "coverage_line_exempt": {
