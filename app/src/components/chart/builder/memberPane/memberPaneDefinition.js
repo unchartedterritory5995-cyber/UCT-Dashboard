@@ -225,8 +225,28 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
   // did, and the fact that it now asks a second question is invisible.
   const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
-  if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
+  // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`) THE TRANSLATOR CARRIED. A paint
+  // that is withheld by name, hidden by its author (`display.none`) or `na` draws
+  // nothing, so it never reaches the document; the withheld ones are disclosed
+  // below, in words.
+  const allPaints = ((t.presentation || {}).paints || []).filter(Boolean)
+  const drawnPaints = allPaints.filter((p) => !p.withheld && !p.hidden && !p.na)
+  const drawsPaints = drawnPaints.length > 0
+  if (!visible.length && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
     return no('this script declares nothing a chart can draw', null, t)
+  }
+  // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
+  // TradingView shades the script's OWN pane; that pane exists here only when a
+  // series is bound in it, and this script binds none — so the shading would land
+  // nowhere (or, worse, on the price pane, which the author did not ask for).
+  // A `barcolor` needs no pane of its own (it recolours the chart's candles), so
+  // it does not trip this.
+  if (!visible.length && !drawsObjects && t.presentation && t.presentation.overlay !== true
+      && drawnPaints.some((p) => p.kind === 'bgcolor')) {
+    return no('this script draws only a background in a pane of its own, and a pane with no '
+      + 'series in it is not built here — so the shading is not drawn rather than drawn '
+      + 'over the price chart. TO UNBLOCK: give the script `overlay = true`, or a plot.',
+    'pine:paint-pane', t)
   }
 
   // ⛔⛔ THE LINT SCOPE MUST BE THE SCOPE THE DOOR WILL USE.
@@ -273,6 +293,8 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // one would leave a `colorMode` naming a column nobody declared.
   const conditionRows = []
   const conditionKeyByFormula = new Map()
+  /** ⭐ B1 — the paints this document draws (`definition.paints`), built below. */
+  const docPaints = []
   const conditionColumnFor = (cc) => {
     if (!cc || typeof cc.formula !== 'string' || !cc.ast) return null
     const formula = cc.formula
@@ -438,6 +460,44 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // property it claimed is stronger without it — "the last fill's removal removes
     // the column" is what the acceptance pins, and it holds because a removed fill
     // never mints.
+    // ⭐⭐ B1 — A PAINT'S COLOUR RULE BECOMES A CONDITION COLUMN THROUGH THE SAME
+    // `conditionColumnFor` a plot and a fill use, so a paint and a plot coloured
+    // by one condition share one column, and the renderer reads a paint's colour
+    // exactly as it reads a plot's (`pool.columnColorsForPlot`).
+    for (const p of drawnPaints) {
+      // `line` is the call's source line: what a disclosure, and the vendor harness's
+      // pairing with TradingView's own colorer plots, name the paint by.
+      const doc = {
+        kind: p.kind,
+        ...(Number.isInteger(p.line) ? { line: p.line } : {}),
+        ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+      }
+      if (typeof p.color === 'string') doc.color = p.color
+      if (Number.isFinite(p.opacity)) doc.opacity = p.opacity
+      if (typeof p.colorUp === 'string' && typeof p.colorDown === 'string') {
+        const k = conditionColumnFor(p.colorCondition)
+        if (!k) continue
+        Object.assign(doc, { colorMode: `column:${k}`, colorUp: p.colorUp, colorDown: p.colorDown })
+      } else if (Array.isArray(p.colorPalette) && p.colorPalette.length >= 2) {
+        const k = conditionColumnFor(p.colorIndex)
+        if (!k) continue
+        Object.assign(doc, { colorMode: `column:${k}`, colorPalette: p.colorPalette.slice() })
+      } else if (p.colorGradient && typeof p.colorGradient.from === 'string') {
+        const g = p.colorGradient
+        const k = conditionColumnFor(g)
+        if (!k) continue
+        Object.assign(doc, {
+          colorMode: `column:${k}`,
+          colorGradient: {
+            from: g.from, to: g.to,
+            ...(Number.isInteger(g.transparency) ? { transparency: g.transparency } : {}),
+          },
+        })
+      } else if (typeof doc.color !== 'string') {
+        continue
+      }
+      docPaints.push(doc)
+    }
     for (const cr of conditionRows) rows.push(cr)
   }
 
@@ -613,6 +673,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   } catch (err) {
     return no(`the document could not be built: ${String((err && err.message) || err)}`, null, t)
   }
+  // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
+  // only when there are any, so every other document keeps its exact shape.
+  if (docPaints.length) definition.paints = docPaints
   // ⭐ THE CONDITIONS THE PANE DECLINED, AS SENTENCES — ruling D1's disclosure,
   // produced here rather than left for the pane to compose. A member whose script
   // declares an alert should be told where it went, on the surface that did not
@@ -642,6 +705,17 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       seen.add(key)
       notes.push(n)
     }
+  }
+  // ⭐ B1 — A PAINT THAT IS NOT DRAWN IS SAID SO, by line and by reason. A
+  // member who wrote `bgcolor(...)` and sees no shading is owed the sentence.
+  for (const p of allPaints) {
+    if (!p.withheld) continue
+    const name = `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}`
+    const note = `${name} is not drawn: ${p.withheld.reason}.`
+    const key = `${name} :: ${note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push({ name, note })
   }
   // ⭐ 2026-09-26 — A PARAMETER WITHHELD BECAUSE IT SETS A DISPLACEMENT THE
   // DOCUMENT CANNOT RECOMPUTE, said in words beside the others. Silence would

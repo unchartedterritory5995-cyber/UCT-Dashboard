@@ -1982,6 +1982,61 @@ function validateFills(plots, errors) {
 }
 
 /**
+ * ⭐⭐ B1 — `paints`: a Pine `bgcolor(…)` (the bar's background, behind the
+ * series of the script's pane) or `barcolor(…)` (the chart's own candles), one
+ * entry per call the translator carried. The colour is said the way a plot's
+ * is — a static `color` (+ `opacity`), or `colorMode: "column:<key>"` with
+ * `colorUp`/`colorDown`, a `colorPalette`, or a `colorGradient` — so the
+ * renderer reads it through `pool.columnColorsForPlot`, the reader a plot uses.
+ *
+ * ⛔ OPTIONAL, and absent on every document that predates it. A paint with
+ * nothing to draw is refused: a `kind` this renderer does not know, no colour at
+ * all, or a column no plot declares — each would register and draw nothing.
+ */
+const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
+function validatePaints(paints, columnKeys, errors) {
+  if (paints === undefined) return
+  if (!Array.isArray(paints)) {
+    errors.push(`paints: expected an array, got ${fmt(paints)}`)
+    return
+  }
+  const isColour = (v) => isNonEmptyString(v)
+  paints.forEach((p, i) => {
+    const path = `paints[${i}]`
+    if (!isPlainObject(p)) { errors.push(`${path}: expected an object, got ${fmt(p)}`); return }
+    if (!PAINT_KINDS.includes(p.kind)) {
+      errors.push(`${path}.kind: expected one of ${list(PAINT_KINDS)}, got ${fmt(p.kind)}`)
+    }
+    if (p.title !== undefined && typeof p.title !== 'string') errors.push(`${path}.title: expected a string, got ${fmt(p.title)}`)
+    if (p.line !== undefined && !(Number.isInteger(p.line) && p.line > 0)) errors.push(`${path}.line: expected a positive whole number, got ${fmt(p.line)}`)
+    if (p.opacity !== undefined && !(isFiniteNumber(p.opacity) && p.opacity >= 0 && p.opacity <= 1)) {
+      errors.push(`${path}.opacity: expected a number in [0, 1], got ${fmt(p.opacity)}`)
+    }
+    if (p.color !== undefined && !isColour(p.color)) errors.push(`${path}.color: expected a colour string, got ${fmt(p.color)}`)
+    if (p.colorMode === undefined) {
+      if (!isColour(p.color)) errors.push(`${path}: a paint must declare a colour (color, or colorMode "column:<key>")`)
+      return
+    }
+    if (typeof p.colorMode !== 'string' || !p.colorMode.startsWith('column:')) {
+      errors.push(`${path}.colorMode: expected "column:<key>", got ${fmt(p.colorMode)}`)
+      return
+    }
+    const col = p.colorMode.slice('column:'.length)
+    if (!columnKeys.has(col)) {
+      errors.push(`${path}.colorMode: ${fmt(p.colorMode)} references column ${fmt(col)}, which no plot declares`)
+    }
+    const ways = [
+      isColour(p.colorUp) && isColour(p.colorDown),
+      Array.isArray(p.colorPalette) && p.colorPalette.length >= 2 && p.colorPalette.every(isColour),
+      isPlainObject(p.colorGradient) && isColour(p.colorGradient.from) && isColour(p.colorGradient.to),
+    ].filter(Boolean).length
+    if (ways !== 1) {
+      errors.push(`${path}: colorMode ${fmt(p.colorMode)} needs exactly one of colorUp/colorDown, a colorPalette of two or more colours, or a colorGradient`)
+    }
+  })
+}
+
+/**
  * The data-bearing plots and `compute.trees` are ONE key set, in both
  * directions. A plot with no tree is a column nothing ever fills (the
  * `plots[].repaint` shape: declarable and inert); a tree with no plot is
@@ -2329,6 +2384,7 @@ export function validateDefinition(def) {
     validateFills(plots, errors)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
+    validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array
