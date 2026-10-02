@@ -262,6 +262,43 @@ def get_bytes(key: str) -> Optional[bytes]:
         return None
 
 
+# ── Bounded tarball reads (TERM-014, 2026-10-02) ─────────────────────────────
+# A snapshot/delta tarball is pulled from R2 in pieces of AT MOST this many bytes
+# and decompressed as it arrives; the whole object is never held in memory.
+#
+# WHY: `merge_snapshot` used to do `resp["Body"].read()` on the base tarball. On
+# 2026-10-02 the base was 8,332,085,147 bytes (7.76 GiB). The web pod's periodic
+# puller ran it at ~17:00:55Z; RssAnon rose 7,914 MiB in ~3 minutes (the download)
+# and held for ~30 minutes (the extract + integrity_check + merge, during which
+# `data` stayed referenced), then dropped at once when the merge returned at
+# 17:34:41Z. `download_snapshot` had already been moved to stream-to-disk after the
+# 2026-08-31 ~10 GB spike; the merge path -- the web pod's DEFAULT path -- had not.
+_STREAM_READ_BYTES = 8 * 1024 * 1024
+
+
+class _BoundedReader:
+    """File-like view over an R2 response body that never forwards a read larger
+    than `_STREAM_READ_BYTES` (an unbounded `read()` / `read(-1)` is clamped too).
+    Short reads are fine: tarfile's stream mode loops until it has what it needs."""
+
+    def __init__(self, body):
+        self._body = body
+
+    def read(self, size=-1):
+        if size is None or size < 0 or size > _STREAM_READ_BYTES:
+            size = _STREAM_READ_BYTES
+        return self._body.read(size)
+
+
+def _extract_tar_stream(body, dest: str) -> None:
+    """Decompress + extract a .tar.gz R2 body into `dest` WHILE it downloads.
+    Resident memory is bounded by `_STREAM_READ_BYTES` plus tarfile's own buffers,
+    independent of the object's size. Same extraction semantics as the previous
+    `tarfile.open(fileobj=BytesIO(data), mode="r:gz").extractall(dest)`."""
+    with tarfile.open(fileobj=_BoundedReader(body), mode="r|gz") as tar:
+        tar.extractall(dest)
+
+
 def credentials_ok() -> bool:
     """Public probe for misconfiguration. Returns True iff the env vars
     needed to talk to R2 are all set. Used by the worker's health endpoint
@@ -981,14 +1018,15 @@ def merge_snapshot(ts: str) -> bool:
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
     try:
         resp = client.get_object(Bucket=bucket, Key=key)
-        data = resp["Body"].read()
     except Exception as e:
         logger.warning(f"[data_sync] merge download failed for {key}: {e}")
         return False
+    logger.info(f"[data_sync] merge start {key} "
+                f"({resp.get('ContentLength', '?')} bytes, streamed)")
     tmpdir = tempfile.mkdtemp(prefix="data_sync_merge_")
     try:
-        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-            tar.extractall(tmpdir)
+        # Streamed: never `resp["Body"].read()` -- see _STREAM_READ_BYTES.
+        _extract_tar_stream(resp["Body"], tmpdir)
         src_db = os.path.join(tmpdir, "bars.db")
         if not os.path.exists(src_db):
             logger.warning(f"[data_sync] snapshot {ts} has no bars.db; skip merge")
@@ -1188,11 +1226,10 @@ def apply_delta(ts: str) -> bool:
         return False
     tmpdir = tempfile.mkdtemp(prefix="data_sync_delta_apply_")
     try:
-        data = client.get_object(
+        body = client.get_object(
             Bucket=bucket, Key=f"{_DELTA_PREFIX}{ts}.tar.gz"
-        )["Body"].read()
-        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-            tar.extractall(tmpdir)
+        )["Body"]
+        _extract_tar_stream(body, tmpdir)   # streamed, same bound as the base
         src = os.path.join(tmpdir, "delta.db")
         if not os.path.exists(src) or not _verify_snapshot_db(src):
             logger.warning(f"[data_sync] delta {ts} missing/invalid; skipping")
