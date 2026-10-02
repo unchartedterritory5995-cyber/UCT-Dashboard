@@ -240,6 +240,17 @@ def _filing_blackline_flag() -> dict:
         return {}
 
 
+def _options_screener_flag() -> dict:
+    """COV-02/03: the Screener's "Options" view -- the SAME reader the routes' dark gate
+    uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
+    payload is byte-identical to before the lane. The client reads `=== true`. Never raises."""
+    try:
+        from api.services.research import options_screener
+        return {"options_screener_enabled": True} if options_screener.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
 def _options_vol_surface_enabled() -> bool:
     """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
     surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
@@ -567,6 +578,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
+        **_options_screener_flag(),
         **_charts_list_subscribe_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────

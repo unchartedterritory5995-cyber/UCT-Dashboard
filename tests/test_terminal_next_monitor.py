@@ -189,7 +189,7 @@ def test_every_post_carries_the_commit_and_a_timestamp(monkeypatch):
 
 def test_the_job_registry_matches_the_four_schedules():
     assert set(_load().JOBS) == {"ticking", "catalyst", "gate-check", "weekly", "cadence",
-                                 "options-log"}
+                                 "options-log", "options-screen"}
 
 
 # ───────────────────────── the ET schedule, and the DST hazard it exists for
@@ -203,7 +203,7 @@ def _et(y, mo, d, h, mi):
 @pytest.mark.parametrize("when,expect", [
     ((2026, 9, 14, 7, 20), ["catalyst"]),      # Monday
     ((2026, 9, 14, 9, 12), ["ticking"]),
-    ((2026, 9, 14, 16, 30), ["gate-check", "options-log"]),   # options-log: weekdays
+    ((2026, 9, 14, 16, 30), ["gate-check", "options-log", "options-screen"]),   # weekdays; screen AFTER log
     ((2026, 9, 19, 8, 0), ["weekly"]),         # Saturday
     ((2026, 9, 14, 9, 13), []),                # one minute off
     ((2026, 9, 19, 9, 12), []),                # Saturday: ticking is weekdays only
