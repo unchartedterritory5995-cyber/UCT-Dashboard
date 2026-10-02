@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-10-02",
   "scripts": 266,
-  "host_ok": 71,
-  "screener_ok": 64,
+  "host_ok": 73,
+  "screener_ok": 65,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -12,11 +12,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:reassign",
+        "pine:block",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:reassign",
+        "pine:block",
         "pine:function"
       ]
     },
@@ -261,14 +261,10 @@
     },
     {
       "file": "auto-trendline-dojiemoji__c21f83602c.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
@@ -1756,14 +1752,10 @@
     },
     {
       "file": "pa-zigzag-fibonacci-fan__2001.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:reassign"
-      ],
-      "screenerGuards": [
-        "pine:reassign"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "parabolic-sar__xoeoPMOWGJ.pine",
@@ -2629,10 +2621,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {

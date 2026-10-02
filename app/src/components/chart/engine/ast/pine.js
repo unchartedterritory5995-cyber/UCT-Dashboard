@@ -3062,6 +3062,29 @@ export function blockStatements(toks, indents, indent) {
       for (const part of parts) out.push({ header: part, body: [], sub: [] })
       continue
     }
+    // ⭐⭐ H2 — A `:=` SEGMENT IS A STATEMENT TOO, and a block can hang under
+    // the LAST segment. Pine runs a comma line's statements left to right, so
+    //
+    //     int _direction = na , _direction := switch      — 3-level-zigzag-semafor:18
+    //         _isUp[1] and _isDown => -1
+    //     recent_dn2:=recent_dn1, i_recent_dn2 := i_recent_dn1   — auto-trendline:119
+    //
+    // are the statements written on separate lines. Same all-or-nothing rule as
+    // above: every segment a binding or a bare-name mutation, and a block opener
+    // (`if`/`switch`/…, `=>`) in the LAST segment only — the body below then
+    // belongs to that segment and no other, because no earlier one opened it.
+    const splits = commaStatementSplit(header, body.length > 0)
+    if (splits) {
+      splits.forEach((part, k) => {
+        const last = k === splits.length - 1
+        out.push({
+          header: part,
+          body: last ? body : [],
+          sub: last && body.length ? blockStatements(body, indents, bodyIndent) : [],
+        })
+      })
+      continue
+    }
     // ⚰️ A REFUSAL HERE FOR AN UNSPLITTABLE TOP-LEVEL COMMA WAS WRITTEN AND
     // REMOVED THE SAME HOUR. The argument for it was real — `a = 1, plot(close)`
     // binds the whole line, the `plot` is never collected, and the script refuses
@@ -3083,6 +3106,35 @@ export function blockStatements(toks, indents, indent) {
 }
 
 export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
+
+/** H2 — the segments of a comma line that carries at least one `:=`-family
+ *  mutation, or null when the line is not exactly a run of statements.
+ *  (`blockStatements` splits an all-`=` line itself, and keeps that path.)
+ *
+ *  ⛔ A segment is a binding (`isBindingSegment`) or `name <op> expr` with `<op>`
+ *  one of `MUTATORS` and a bare name on the left. ⛔ No segment but the last may
+ *  open a block (a top-level `=>` or a `BLOCK_OPENERS` word): with a body the
+ *  last one MUST, so the body has exactly one owner; without a body none may. */
+function commaStatementSplit(header, hasBody) {
+  const parts = splitTopLevel(header, ',')
+  if (parts.length < 2) return null
+  const opens = (toks) => findTop(toks, (t) => isPunct(t, '=>')
+    || (t.kind === 'ident' && BLOCK_OPENERS.has(t.value))) >= 0
+  const isMutation = (toks) => toks.length >= 3 && toks[0].kind === 'ident'
+    && !String(toks[0].value).includes('.')
+    && toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
+    && findTop(toks.slice(2), (t) => t.kind === 'punct' && (t.value === '=' || MUTATORS.has(t.value))) < 0
+  let mutates = false
+  for (let k = 0; k < parts.length; k += 1) {
+    const part = parts[k]
+    const last = k === parts.length - 1
+    if (opens(part) && !(last && hasBody)) return null
+    if (last && hasBody && !opens(part)) return null
+    if (isMutation(part)) { mutates = true; continue }
+    if (!isBindingSegment(part)) return null
+  }
+  return mutates ? parts : null
+}
 
 /** Is this token run `… name = expression`, i.e. one binding?
  *
