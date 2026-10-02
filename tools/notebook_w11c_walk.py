@@ -288,9 +288,15 @@ def run(base: str, w: Walk) -> None:
         pg3.on("pageerror", lambda e: errors.append(str(e)[:300]))
         pg3.goto(f"{base}/journal/notebook?note={ids['E']}", wait_until="domcontentloaded")
         h._dismiss_intro(pg3)
-        pg3.get_by_role("button", name="Version history").first.wait_for(state="attached", timeout=30000)
-        pg3.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
-        tm = tab_to(pg3, "el.tagName === 'BUTTON' && el.getAttribute('aria-label') === 'More note actions'", 150)
+        # ⛔ Not get_by_role("Version history"): that button sits in the More panel, which is
+        # `hidden` until opened, and a role query skips hidden elements.
+        pg3.locator('button[aria-label="More note actions"]').first.wait_for(state="visible", timeout=30000)
+        # ⛔ Start from the header's Outline control, never from the top of the page: a Tab walk
+        # from the top passes THROUGH the note body, and a Tab inside the editor edits the note
+        # (measured: the first run's traversal PUT the note, and the history undo then -- correctly
+        # -- refused it as "edited since"). The start point is focused; every step after is a key.
+        pg3.get_by_role("button", name="Outline").first.focus()
+        tm = tab_to(pg3, "el.tagName === 'BUTTON' && el.getAttribute('aria-label') === 'More note actions'", 10)
         pg3.keyboard.press("Enter")
         th = tab_to(pg3, "el.getAttribute('aria-label') === 'Version history'", 40)
         pg3.keyboard.press("Enter")
@@ -301,15 +307,21 @@ def run(base: str, w: Walk) -> None:
         except Exception:  # noqa: BLE001
             listed = False
         w.shot(pg3, "W9-history-lists-the-set")
+        e_before_undo = read_note(req, base, ids["E"])
         tu = tab_to(pg3, f"(el.getAttribute('aria-label') || '') === {json.dumps('Undo AI change set “' + REQUEST_2 + '”')}", 80) if listed else -1
         if tu > 0:
             pg3.keyboard.press("Enter")
-            pg3.get_by_text("Undid 1 change. Your notes are back as they were.").wait_for(state="visible", timeout=30000)
+            try:
+                pg3.get_by_text("Undid 1 change. Your notes are back as they were.").wait_for(state="visible", timeout=30000)
+            except Exception:  # noqa: BLE001 -- recorded below by the row, with what the page said
+                w.raw["w9_status_text"] = pg3.get_by_role("status").all_inner_texts()
         w.shot(pg3, "W9-history-undone")
         e_after = read_note(req, base, ids["E"])
         w.raw["w9"] = {"tags_after_apply": e_tagged["tags"], "tags_after_history_undo": e_after["tags"],
+                       "untouched_before_undo": e_before_undo["updatedAt"] == e_tagged["updatedAt"],
                        "tabs": {"more": tm, "history": th, "undo": tu}}
         w.record("W9_history_lists_and_undoes", listed and tu > 0 and e_tagged["tags"] == ["macro"]
+                 and e_before_undo["updatedAt"] == e_tagged["updatedAt"]
                  and e_after["tags"] == [],
                  f"E tagged {e_tagged['tags']} by the second set; Version history listed it={listed}; "
                  f"Undo reached by Tab x{tu}; E tags now {e_after['tags']}")
