@@ -281,6 +281,9 @@ def run_walk(base: str, art: Path) -> None:
             dlg.get_by_role("button", name="Use this template").click()
             added = sheet.get_by_text(f"Added “{title}” to Your templates.")
             added.wait_for(timeout=15000)
+            # Read NOW: "Make a note from it" closes the New note dialog this text lives in
+            # (walk run 2, 0b80ee9945: reading it after the click timed out on a gone node).
+            use_message = added.inner_text()
             copies = [t["name"] for t in B.get(base + "/api/j2/note-templates").json()["templates"]]
             before = {n["id"] for n in B.get(base + "/api/j2/notes?limit=200").json().get("notes", [])}
             sheet.get_by_role("button", name="Make a note from it").click()
@@ -295,7 +298,7 @@ def run_walk(base: str, art: Path) -> None:
             s3 = shot(pg, "g4-note-made")
             record("G4_browse_preview_use",
                    "PASS" if title in copies and made and made.get("title") == title else "FAIL",
-                   picks=pick_titles, preview_excerpt=preview_text, use_message=added.inner_text(),
+                   picks=pick_titles, preview_excerpt=preview_text, use_message=use_message,
                    member_templates=copies, note_made={"id": (made or {}).get("id"), "title": (made or {}).get("title")},
                    url_after=pg.url.split(base, 1)[-1], screenshots=[s1, s2, s3])
             pg.close()

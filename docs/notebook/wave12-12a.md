@@ -94,6 +94,22 @@ recorded it here.
     follow-up if the gallery grows.
 14. **Featuring needs approval first.** Only an approved template can become a UCT pick.
 
+## A finding for share and publish (not changed here)
+
+Walk run 2 (`docs/notebook/evidence/wave12-12a/walk-0b80ee9945/walk.json`, row G1) published a
+template holding `http://127.0.0.1:8580/journal/notebook?note=<id>` as text, and the gallery
+copy kept it, with the other note's id. The reducer's in-app test decides by HOST
+(`_internal_href`: only `uctintelligence.com`), so the app reached through any other name passes
+as external. In production the usual name is `uctintelligence.com`, which is scrubbed. The
+Railway service address (`web-production-05cb6.up.railway.app`, named in CLAUDE.md) is not.
+
+Gallery mode now also scrubs any address with an in-app SHAPE (a `/journal/` or `/api/` path, or
+a `note=` query) on any host (`_in_app_shape`), railed by
+`test_gallery_mode_scrubs_an_in_app_address_on_ANY_host`. **Share links and published pages
+still decide by host** (a control test pins that, so the difference is deliberate and visible).
+Whether they should take the same rule is the owner's call: it would also scrub an ordinary
+external address that happens to have a `/journal/` path.
+
 ## Not done here, on purpose
 
 * No new editor node type, so nothing joins the never-revert list (`docs/notebook/wave5-rollback.md`).

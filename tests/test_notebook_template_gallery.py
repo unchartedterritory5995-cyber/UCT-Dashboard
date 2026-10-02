@@ -133,6 +133,7 @@ def _distinguishing_body(owner: str) -> dict:
         p(t("see "), {"type": "noteLink", "attrs": {"noteId": SECRET_NOTE}}),                    # -> "linked note"
         p(t("my thesis", {"type": "link", "attrs": {"href": f"/journal/notebook?note={SECRET_NOTE}"}})),  # link goes
         p(t(f"Pasted https://uctintelligence.com/journal/notebook?note={SECRET_NOTE} here")),   # scrubbed
+        p(t(f"and http://127.0.0.1:8580/journal/notebook?note={SECRET_NOTE} too")),            # any host
         p(t("Mail trader@example.com or "), t("me", {"type": "link", "attrs": {"href": "mailto:trader@example.com"}})),
         {"type": "image", "attrs": {"src": own_att, "alt": "my chart"}},                        # private image
         {"type": "image", "attrs": {"src": "https://example.com/chart.png", "alt": "web"}},     # any image goes

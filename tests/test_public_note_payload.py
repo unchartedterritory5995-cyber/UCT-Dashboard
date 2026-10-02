@@ -382,6 +382,36 @@ def test_gallery_mode_scrubs_email_addresses_as_text_and_as_mailto_links():
     assert "here" in texts_in(out) and "https://example.com/contact" in dumped
 
 
+FOREIGN_HOST_IN_APP = [
+    f"http://127.0.0.1:8580/journal/notebook?note={OTHER}",                       # a sandbox
+    f"https://web-production-05cb6.up.railway.app/journal/notebook?note={OTHER}",  # the Railway name
+    f"https://example.org/anything?x=1&note={OTHER}",                               # a note= query
+    "http://localhost:8000/api/j2/notes/abc",
+]
+
+
+@pytest.mark.parametrize("url", FOREIGN_HOST_IN_APP)
+def test_gallery_mode_scrubs_an_in_app_address_on_ANY_host(url):
+    """Wave 12 12A walk run 2 (0b80ee9945, G1): the host test passed a pasted
+    `http://127.0.0.1:8580/journal/notebook?note=<id>` as external. Gallery mode judges the
+    address's SHAPE too -- as text, as a link mark, as a link card and as an embed's fallback."""
+    link = {"type": "link", "attrs": {"href": url}}
+    bodies = [doc(p(t(f"see {url} now"))), doc(p(t("words", link))),
+              doc({"type": "linkPreview", "attrs": {"url": url, "title": "T"}}),
+              doc({"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": url}})]
+    for body in bodies:
+        out = json.dumps(reduce(body, "gallery"))
+        assert OTHER not in out and "note=" not in out and "/journal/" not in out and "/api/" not in out, (url, out)
+
+
+def test_CONTROL_gallery_shape_rule_keeps_ordinary_web_addresses_and_share_mode_is_unchanged():
+    keep = "https://example.com/blog/how-i-trade?ref=nav"
+    assert texts_in(reduce(doc(p(t(f"Read {keep}."))), "gallery")) == [f"Read {keep}."]
+    foreign = FOREIGN_HOST_IN_APP[0]
+    # share/publish still decide by host: this is recorded as an owner question, not changed here
+    assert foreign in json.dumps(reduce(doc(p(t(foreign))), "share"))
+
+
 def test_an_unknown_type_is_dropped_at_run_time():
     """Fail closed: a type nobody has declared never reaches a stranger."""
     out = reduce(doc(p(t("kept")), {"type": "brandNewNode", "attrs": {"secret": "s3"}}), "share")

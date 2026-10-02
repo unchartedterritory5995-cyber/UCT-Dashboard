@@ -367,14 +367,38 @@ def _is_public_address(address: str) -> bool:
     return path.startswith(_PUBLIC_PATH_PREFIXES)
 
 
-def _scrub_in_app_addresses(text: str) -> str:
+_IN_APP_PATHS = ("/journal/", "/api/")
+_NOTE_QUERY = re.compile(r"(^|[?&])note=", re.IGNORECASE)
+
+
+def _in_app_shape(href: Any) -> bool:
+    """GALLERY MODE ONLY (wave 12 12A walk run 2, `0b80ee9945` G1): an address that LOOKS like
+    one of this app's -- a `/journal/` or `/api/` path, or a `note=` query -- whatever host it
+    names. `_internal_href` decides by HOST, so the app reached through any other name (a
+    sandbox's 127.0.0.1, the Railway service address) passed as external and a pasted
+    `.../journal/notebook?note=<id>` kept the other note's id. Share and publish are unchanged
+    (that is the owner's question, docs/notebook/wave12-12a.md); a template is copied into
+    strangers' notebooks, so it errs further."""
+    if not isinstance(href, str) or not _WEB_URL.match(href.strip()):
+        return False
+    try:
+        parts = urlsplit(href.strip())
+    except ValueError:
+        return True
+    return parts.path.startswith(_IN_APP_PATHS) or bool(_NOTE_QUERY.search(parts.query or ""))
+
+
+def _scrub_in_app_addresses(text: str, strict: bool = False) -> str:
     """`text` with every in-app address replaced by `IN_APP_LINK_TEXT`; an external address and
-    a public page's own address stay."""
+    a public page's own address stay. `strict` (gallery mode) also replaces an address that has
+    an in-app SHAPE on any host (`_in_app_shape`)."""
     def repl(m: "re.Match[str]") -> str:
         s = m.group(0)
         core = s.rstrip(_TRAILING_PUNCT)
         tail = s[len(core):]
         if core and _internal_href(core) and not _is_public_address(core):
+            return IN_APP_LINK_TEXT + tail
+        if core and strict and _in_app_shape(core) and not _is_public_address(core):
             return IN_APP_LINK_TEXT + tail
         return s
     return _ADDRESS_IN_TEXT.sub(repl, text)
@@ -390,7 +414,7 @@ def scrub_gallery_text(text: Any) -> str:
     rules its body's text nodes get -- in-app addresses and email addresses go."""
     if not isinstance(text, str):
         return ""
-    return scrub_emails(_scrub_in_app_addresses(text))
+    return scrub_emails(_scrub_in_app_addresses(text, strict=True))
 
 
 def _public_image_src(src: Any, attachment_base: str) -> str | None:
@@ -436,7 +460,7 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         `{provider, ref}` on render (webEmbeds.js), never from this string."""
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     if t == "linkPreview":
-        if _internal_href(attrs.get("url")):
+        if _internal_href(attrs.get("url")) or (ctx.mode == "gallery" and _in_app_shape(attrs.get("url"))):
             return None
         if ctx.mode == "gallery" and attrs.get("image") is not None:
             return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
@@ -445,7 +469,7 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         return node
     if t == "webEmbed":
         url = attrs.get("url")
-        if url is not None and _internal_href(url):
+        if url is not None and (_internal_href(url) or (ctx.mode == "gallery" and _in_app_shape(url))):
             node = {**node, "attrs": {**attrs, "url": None}}
         return node
     return node
@@ -475,7 +499,7 @@ def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
             href = (m.get("attrs") or {}).get("href")
             if _internal_href(href):
                 continue
-            if mode == "gallery" and str(href).strip().lower().startswith("mailto:"):
+            if mode == "gallery" and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
                 continue                             # gallery: an address is personal; the words stay
         if action in ("mark", "link-mark"):
             out.append(m)
@@ -602,7 +626,7 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
         out["attrs"] = {**attrs, "checked": False}
     if t == "text" and isinstance(out.get("text"), str):
-        out["text"] = _scrub_in_app_addresses(out["text"])      # wave-8 walk W3
+        out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.mode == "gallery")  # walk W3
         if ctx.mode == "gallery":
             out["text"] = scrub_emails(out["text"])
     if "marks" in node:
