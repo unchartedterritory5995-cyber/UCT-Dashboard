@@ -107,3 +107,20 @@ Build = `MCAP_V1-<utc>`; SQLite with tables `security`, `ticker_map`, `observati
 `ads_ratio`, `coverage`, `manifest`; deterministic ordering; manifest records code commit, input file sha256s
 (companyfacts bulk, submissions, fetched filings cache, reference pull, split ledger, bars export) and the output sha256.
 Rollback = previous build. V5 hash checked before and after every build.
+
+## 11. 2026-10-01 amendments (found by the universe audit; the owner rulings are unchanged)
+
+- **Acceptance authority (no lookahead).** data.sec.gov submissions `acceptanceDateTime` can be EDGAR Eastern time labelled "Z" (the Fundamentals V5 acceptance audit). At the 16:00 ET close that is a one-day lookahead. `inputs.db` had 5,906 such filings, 3,712 of them with share facts. Evidence public times now come from `acceptance.py`, in this order:
+  1. the corrected V5 filing table;
+  2. the EDGAR acceptance record (header, else the index "Accepted" field; America/New_York → UTC);
+  3. the later of the two readings of the submissions value.
+
+  The build refuses to run without `acceptance.db`.
+- **Combined filings.** A cover is a sequence of entity blocks (`dei:EntityCentralIndexKey`), and only the filer's block counts. `dei:LegalEntityAxis` / `srt:ConsolidatedEntities` members are other registrants, never share classes. Several different values from one filing for one as-of date are all refused; the old code picked the smallest (AEP 2011–2015 took a subsidiary's 1,400,000; UAL 2010 took 205).
+- **Instrument kind.** A ticker is a common-equity component only if its Massive type is equity AND its name does not describe a preferred, warrant, right, unit or debt instrument. GOOGN, a depositary share of Series B Mandatory Convertible Preferred, had been priced as Alphabet's class B.
+- **Split-ledger-gap hold (fail closed).** The adjusted bars include splits that Massive's split ledger lacks, mostly before 2003. When consecutive states move by a clean factor k or 1/k while the adjusted price is continuous and the cap jumps, every earlier day is withheld as `CORPORATE_ACTION_HOLD`. No factor is inferred. Restoring that history requires authoritative split evidence (owner decision).
+- **Evidence extraction.**
+  - Text covers: new "N million" table and statement shapes. The text harvest now covers all 118,908 pre-XBRL periodic filings; it had stopped at 82,051.
+  - IPO prospectuses: new summary-table shapes. A count stated assuming the option is exercised is refused. The builder considers the last three registration statements, because a final amendment is often exhibits-only.
+  - ADR ratios: also read from the depositary's F-6 / F-6EF, including the "five (5)" form.
+- **Audit and baseline.** `baseline.py` reproduces production Market Cap exactly. `universe_audit.py` measures BEFORE vs V1 on identity-safe intervals, with anomaly classes A–P and S and sub-reasons for internal stale gaps. `session_report.py` gives a session-level before/after for one security.
