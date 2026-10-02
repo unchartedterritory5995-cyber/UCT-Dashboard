@@ -61,7 +61,11 @@ describe('C46 — documents saved under the walk-order ids', () => {
       for (const id of new Set([...Object.keys(was.params), ...Object.keys(manifest)])) {
         const a = was.params[id]
         const b = manifest[id]
-        if (!a || !b) { moved.push({ script, id, was: a ? a.sourceName : '(absent)', now: b ? b.sourceName : '(absent)' }); continue }
+        // ⭐ A GAIN IS AN APPEND (C46 ruling 3; R-P 2026-10-01): an id the saved document never
+        // held, minted because the door now carries more of the script, moves nothing a member
+        // saved. Only an id the saved document HELD and the door no longer builds is a move.
+        if (!a && b) continue
+        if (!b) { moved.push({ script, id, was: a.sourceName, now: '(absent)' }); continue }
         const same = a.sourceName === b.sourceName && a.title === b.title && a.type === b.type
           && a.default === b.default && a.locators === (b.locators || []).length
           && a.locatorsSha === sha(stable(b.locators))
@@ -85,7 +89,11 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!applied.ok) { wrong.push({ script, id, problem: applied.error }); continue }
         doc = applied.definition
       }
-      if (JSON.stringify(valuesOf(doc)) !== JSON.stringify(was.editedState)) {
+      // every input the member saved holds the value they saved; an input the door gained
+      // since (an append) holds its default and is not part of what was saved
+      const nowValues = valuesOf(doc)
+      const savedKeys = Object.keys(was.editedState)
+      if (JSON.stringify(Object.fromEntries(savedKeys.map((k) => [k, nowValues[k]]))) !== JSON.stringify(was.editedState)) {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved

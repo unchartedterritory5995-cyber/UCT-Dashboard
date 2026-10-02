@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date, datetime, timedelta
 from typing import Optional
 
+from api.services.breadth_daily_ohlc import ohlc_is_observed as _ohlc_is_observed
 from api.services.breadth_universes import DEFAULT_UNIVERSE
 
 _log = logging.getLogger("breadth_symbols")
@@ -514,12 +515,32 @@ def _friday_of_week(d: _date) -> _date:
     return d + timedelta(days=(4 - d.weekday()))
 
 
+# ── Which bars carry an OBSERVED open/high/low ───────────────────────────────
+#
+# ⭐⭐ A BREADTH BAR IS ONE OF TWO THINGS AND THE PAYLOAD NOW SAYS WHICH. Every bar's
+# CLOSE is the number of record. Its O/H/L is EITHER an observation of the metric through
+# the session (a store row from `breadth_daily_ohlc.OBSERVED_OHLC_SOURCES`) OR a
+# close-to-close body built here from yesterday's and today's value — four numbers that
+# look like an auction and describe none. A line reads only the close and cannot tell the
+# difference; a candle or an OHLC bar would present the body as an observation.
+#
+# So an observed bar carries `"ohlc": 1` and every other bar carries nothing. ⚠️ ADDITIVE
+# AND FAIL-CLOSED: no value moves, a reader that ignores the key is unaffected, and a
+# payload built before the key existed (or a body) simply has no observed bars — the chart
+# then refuses Candles/Bars rather than drawing a body as one.
+OHLC_OBSERVED_KEY = "ohlc"
+
+
 def _resample(daily_candles: list[dict], tf: str) -> list[dict]:
     """Roll close-to-close DAILY candles up to weekly / monthly OHLC.
 
     daily_candles: oldest-first [{t:'YYYY-MM-DD', o,h,l,c,v}]. For 'W' the bucket
     key is the week's Friday; for 'M' it is the month's first. O = first day's open,
-    C = last day's close, H/L = extremes over the bucket."""
+    C = last day's close, H/L = extremes over the bucket.
+
+    ⛔ A PERIOD IS OBSERVED ONLY IF EVERY DAY IN IT IS. One body day contributes an
+    unobserved open (if it is first) or a range that is only its body, so the period's
+    O/H/L would no longer be an observation — it keeps its values and loses the mark."""
     if tf == "D" or not daily_candles:
         return daily_candles
     buckets: dict[str, dict] = {}
@@ -533,11 +554,15 @@ def _resample(daily_candles: list[dict], tf: str) -> list[dict]:
         b = buckets.get(key)
         if b is None:
             buckets[key] = {"t": key, "o": c["o"], "h": c["h"], "l": c["l"], "c": c["c"], "v": 0}
+            if c.get(OHLC_OBSERVED_KEY) == 1:
+                buckets[key][OHLC_OBSERVED_KEY] = 1
             order.append(key)
         else:
             b["h"] = max(b["h"], c["h"])
             b["l"] = min(b["l"], c["l"])
             b["c"] = c["c"]
+            if c.get(OHLC_OBSERVED_KEY) != 1:
+                b.pop(OHLC_OBSERVED_KEY, None)
     return [buckets[k] for k in order]
 
 
@@ -732,7 +757,7 @@ def _build_breadth_series(sym: str, metric: str,
     ohlc_map = {}
     try:
         from api.services import breadth_daily_ohlc
-        ohlc_map = breadth_daily_ohlc.history(metric, universe=universe)
+        ohlc_map = breadth_daily_ohlc.history(metric, universe=universe, with_source=True)
     except Exception:
         ohlc_map = {}
 
@@ -771,7 +796,10 @@ def _build_breadth_series(sym: str, metric: str,
                     continue
                 closes_by_date[d] = ac
                 if ao is not None:
-                    ohlc_map[d] = {"o": ao, "h": ah, "l": al, "c": ac}
+                    # the row's own V2 source, so an observed 1-minute OHLC can be told from a
+                    # `_body` row (o=h=l=c) — provenance only, the values are unchanged
+                    src = ((ba.v2_rows(d).get(metric) or ())[4:5] or (None,))[0]
+                    ohlc_map[d] = {"o": ao, "h": ah, "l": al, "c": ac, "src": src}
                 else:
                     ohlc_map.pop(d, None)     # an authority body: no stale V1 wick survives
 
@@ -784,15 +812,20 @@ def _build_breadth_series(sym: str, metric: str,
         ro = _finite((row or {}).get("o")) if row else None
         rh = _finite((row or {}).get("h")) if row else None
         rl = _finite((row or {}).get("l")) if row else None
+        observed = False
         if row and None not in (ro, rh, rl):
             o, c = ro, v
             h = max(rh, o, c)
             l = min(rl, o, c)
+            observed = _ohlc_is_observed(row.get("src"), metric)
         else:
             o, c = (prev if prev is not None else v), v   # close-to-close body
             h, l = max(o, c), min(o, c)
-        daily.append({"t": d, "o": round(o, 4), "h": round(h, 4),
-                      "l": round(l, 4), "c": round(c, 4), "v": 0})
+        bar = {"t": d, "o": round(o, 4), "h": round(h, 4),
+               "l": round(l, 4), "c": round(c, 4), "v": 0}
+        if observed:
+            bar[OHLC_OBSERVED_KEY] = 1
+        daily.append(bar)
         prev = v
 
     return daily   # SEALED days only; today's developing candle is a serve-time append
@@ -808,7 +841,20 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
     intentionally simpler than the old baked-in candle (which also merged the store's
     intraday high/low wick) — breadth history is close-to-close by nature, and the wick
     would have been build-time-stale under the long sealed-cache TTL anyway. Never mutates
-    the cached list (returns a new one)."""
+    the cached list (returns a new one).
+
+    ⭐ 2026-10-02 — AN OBSERVED DEVELOPING BAR, WHEN THE ACCUMULATOR HAS ONE. The live
+    accumulator (`breadth_daily_ohlc.update_intraday`, fed the same anchored per-minute
+    samples as the intraday path) holds today's open = first sample, high/low = extremes so
+    far, close = latest. Read at SERVE time (one primary-key read), so it is never build-time
+    stale. When it exists the developing bar takes its open/high/low, keeps the live value
+    as its close (the number a Line shows), widens high/low to include that close — itself
+    an observation — and is marked observed. Otherwise it stays the unmarked body above.
+
+    ⛔ ONLY FOR A SERIES WHOSE SEALED HISTORY IS ALREADY ATTESTED. A body-only series (UV
+    ratio, HVC) is scalar; one observed developing bar would make it candle-capable for the
+    afternoon and refuse again at the collector's seal — a presentation that flips under the
+    member. Capability comes from the history; today's observation extends it."""
     today = _et_today()
     if not (today and daily and daily[-1]["t"] < today):
         return daily
@@ -818,8 +864,18 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
     o = daily[-1]["c"]
     c = live_val
     h, l = max(o, c), min(o, c)
-    return daily + [{"t": today, "o": round(o, 4), "h": round(h, 4),
-                     "l": round(l, 4), "c": round(c, 4), "v": 0}]
+    bar = {"t": today, "o": round(o, 4), "h": round(h, 4),
+           "l": round(l, 4), "c": round(c, 4), "v": 0}
+    if any(b.get(OHLC_OBSERVED_KEY) == 1 for b in daily):
+        try:
+            from api.services import breadth_daily_ohlc
+            row = breadth_daily_ohlc.live_row(today, metric)
+        except Exception:
+            row = None
+        if row and breadth_daily_ohlc.ohlc_is_observed("live", metric):
+            bar.update({"o": round(row["o"], 4), "h": round(max(row["h"], c), 4),
+                        "l": round(min(row["l"], c), 4), OHLC_OBSERVED_KEY: 1})
+    return daily + [bar]
 
 
 def _refresh_series(sym: str, metric: str,

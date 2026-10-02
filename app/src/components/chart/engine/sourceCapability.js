@@ -24,20 +24,22 @@
 // data can mean. A style added there and forgotten here is caught by
 // `sourceCapability.test.js`, which asserts the two stay in step.
 
-import { PLOT_STYLES } from './presentation'
+import { PLOT_STYLES, OHLC_PLOT_STYLES } from './presentation'
 
 /**
  * Every style a ONE-NUMBER-PER-PERIOD source may wear.
  *
- * ⭐ THIS IS THE WHOLE LIST MINUS `candles`, BY CONSTRUCTION RATHER THAN BY HAND.
+ * ⭐ THIS IS THE WHOLE LIST MINUS THE FOUR-FIELD STYLES (`candles`, `bars`), BY
+ * CONSTRUCTION RATHER THAN BY HAND.
  * Writing the six out would be a list to forget to update; deriving it means a
  * seventh scalar style added to `PLOT_STYLES` is automatically offered to every
  * scalar source, and the only thing this file ever has to decide is candles.
  */
-export const SCALAR_STYLES = Object.freeze(PLOT_STYLES.filter((s) => s !== 'candles'))
+export const SCALAR_STYLES = Object.freeze(PLOT_STYLES.filter((s) => !OHLC_PLOT_STYLES.includes(s)))
 
-/** Every style a source with a genuine auction period may wear. */
-export const OHLC_STYLES = Object.freeze([...SCALAR_STYLES, 'candles'])
+/** Every style a source with a genuine auction period may wear — the scalar ones
+ *  (drawn from the close) plus Candles and Bars. */
+export const OHLC_STYLES = Object.freeze([...SCALAR_STYLES, ...OHLC_PLOT_STYLES])
 
 /**
  * A catalogue `presentation` → the style a newly added series STARTS as.

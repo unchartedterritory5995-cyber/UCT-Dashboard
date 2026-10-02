@@ -499,6 +499,41 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 # daily-bar WICK guess, which was wrong).
 _TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
 
+# ⭐ TRUSTED IS NOT THE SAME AS OBSERVED. Every source above is a trustworthy CLOSE, but
+# only these sampled the metric THROUGH the session, so only their open/high/low are an
+# observation: 'live' (the intraday accumulator), 'intraday_recon' (the minute-file replay,
+# open = first RTH bucket, high/low = sampled extremes widened to the EOD close) and V2's
+# 'intraday_recon_1m'. 'close_recon' and V2's 'intraday_recon_1m_body' are BODIES — one
+# value a day — and the chart's close-to-close fallback is a body too. The chart marks a bar
+# whose O/H/L came from one of these, and draws Candles/Bars from nothing else.
+OBSERVED_OHLC_SOURCES = frozenset(("live", "intraday_recon", "intraday_recon_1m"))
+
+# ⛔⛔ 'live' IS OBSERVED ONLY FOR A METRIC THE SAMPLE ACTUALLY MEASURES (prod-found
+# 2026-10-02). The accumulator is fed the whole DERIVED live row: the per-sample
+# measurements AND fields carried from yesterday (`breadth_live.NOT_LIVE` — Fear & Greed,
+# put/call, exposure…, constant all session) AND scores/ratios derived from rolling rows
+# (breadth_score, ratio_5day, hi/lo ratio…). Its 'live' row for a carried field is o=h=l=c of
+# yesterday's number — a body — and UCTHS shipped 35 marked bars from exactly that. These are
+# the metrics `breadth_live.compute_metrics` (+ the recon's composites) measures per sample:
+# the same set the minute-file replay observes (`intraday_recon`), so one definition of
+# "observed" serves both. V2's own sources carry their provenance and are not restricted.
+LIVE_OBSERVED_METRICS = frozenset((
+    "adv_decline", "advancing", "declining", "down_20pct_5d", "down_25pct_month",
+    "down_25pct_quarter", "down_4pct_today", "down_50pct_month", "magna_down", "magna_up",
+    "mcclellan_osc", "near_52w_high", "new_20d_highs", "new_20d_lows", "new_52w_highs",
+    "new_52w_lows", "new_ath", "pct_above_100sma", "pct_above_10sma", "pct_above_200sma",
+    "pct_above_20ema", "pct_above_40sma", "pct_above_50sma", "pct_above_5sma",
+    "stage2_count", "stage4_count", "universe_count", "up_20pct_5d", "up_25pct_month",
+    "up_25pct_quarter", "up_4pct_today", "up_50pct_month",
+))
+
+
+def ohlc_is_observed(src, metric: str) -> bool:
+    """Is a store row's open/high/low an OBSERVATION of `metric` through the session?"""
+    if src not in OBSERVED_OHLC_SOURCES:
+        return False
+    return src != "live" or metric in LIVE_OBSERVED_METRICS
+
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,
                universe: str = DEFAULT_UNIVERSE) -> int:
@@ -977,20 +1012,51 @@ def _rebuild_after_write(conn, dates) -> None:
         pass
 
 
+def live_row(date: str, metric: str, universe: str = DEFAULT_UNIVERSE) -> Optional[dict]:
+    """The live accumulator's row for one (date, metric) — `{o, h, l, c}` — or None.
+
+    ⭐ THE DEVELOPING SESSION'S OBSERVED OHLC. `update_intraday` seeds o=h=l=c from the
+    first anchored, non-degraded sample of the session and then only extends h/l and moves
+    c, so o is the first observation, h/l the extremes so far and c the latest. Only a row
+    whose source is still 'live' qualifies; anything else (a body, a recon) is not today's
+    accumulation. A single primary-key read; None on any error. Read-only."""
+    if not date or not metric:
+        return None
+    try:
+        _ensure_init()
+        with _conn() as c:
+            r = c.execute(
+                "SELECT o, h, l, c FROM breadth_daily_ohlc "
+                "WHERE universe=? AND date=? AND metric=? AND source='live'",
+                (_uni(universe), date, metric),
+            ).fetchone()
+    except Exception:
+        return None
+    if not r:
+        return None
+    vals = [_finite(x) for x in r]
+    if None in vals:
+        return None
+    return {"o": vals[0], "h": vals[1], "l": vals[2], "c": vals[3]}
+
+
 def history(metric: str, limit: int = 6000,
-            universe: str = DEFAULT_UNIVERSE) -> dict:
+            universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
     only. A breadth metric's true intraday high/low can only come from sampling the actual
     value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every
     stock hits its extreme at once and are wildly too wide, so they are NOT served. Empty on
-    any error (callers fall back to close-to-close bodies)."""
+    any error (callers fall back to close-to-close bodies).
+
+    `with_source=True` adds each row's `src` (its store source) — OPT-IN provenance for the
+    chart's observed-OHLC mark (`OBSERVED_OHLC_SOURCES`). Off, the row shape is unchanged."""
     if not metric:
         return {}
     # ⭐ BREADTH AUTHORITY: a universe V2 owns is answered by the seam (breadth_authority),
     # never by this store. None = not owned → the V1 store below, unchanged.
     try:
         from api.services import breadth_authority as _ba
-        _v2 = _ba.universe_history(metric, universe, limit)
+        _v2 = _ba.universe_history(metric, universe, limit, with_source=with_source)
     except Exception:
         _v2 = None
     if _v2 is not None:
@@ -1000,13 +1066,15 @@ def history(metric: str, limit: int = 6000,
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:
         with _conn() as c:
-            for (d, o, h, l, cl) in c.execute(
-                f"SELECT date, o, h, l, c FROM breadth_daily_ohlc "
+            for (d, o, h, l, cl, src) in c.execute(
+                f"SELECT date, o, h, l, c, source FROM breadth_daily_ohlc "
                 f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
                 f"ORDER BY date DESC LIMIT ?",
                 (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit)),
             ).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
+                if with_source:
+                    out[d]["src"] = src
     except Exception:
         return {}
     return out
