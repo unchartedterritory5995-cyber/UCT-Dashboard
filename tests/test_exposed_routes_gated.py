@@ -1150,7 +1150,13 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
         for name, user in callers.items():
             monkeypatch.setattr(fa, "validate_session", lambda _c, _u=user: dict(_u))
             try:
-                if gate(uct_session="test-session") is not None:
+                # Every Header() argument passed as a STRING, as the bars probe
+                # below does: called directly, an omitted one is FastAPI's Header
+                # default OBJECT, and the moment PUSH_SECRET is set (another test
+                # module set it at import) hmac.compare_digest(Header(), str)
+                # raised TypeError: green alone, red in company.
+                if gate(uct_session="test-session", authorization="",
+                        x_uct_proxy_user="", x_uct_proxy_sig="") is not None:
                     out.add(name)
             except HTTPException:
                 pass
