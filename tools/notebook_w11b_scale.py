@@ -57,7 +57,10 @@ _REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO / "tools"))
 import notebook_scale_benchmark as nb  # noqa: E402  -- imports conftest FIRST (census pins + tripwire)
 
-os.environ["NOTEBOOK_FORMULAS_ENABLED"] = "1"   # this process only: the gate under test
+# This process only: the gate under test. A WRITE, spelled as update() so the
+# one-parse rail (tests/test_notebook_flag_parse.py), which counts any
+# os.environ[...] subscript as a read, does not mistake it for a second parse.
+os.environ.update(NOTEBOOK_FORMULAS_ENABLED="1")
 
 from api.services.journal_two import db as j2db  # noqa: E402
 from api.services.journal_two import note_properties as np_  # noqa: E402
