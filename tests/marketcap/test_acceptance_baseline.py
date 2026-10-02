@@ -107,5 +107,16 @@ def test_preferred_depositary_shares_are_never_a_common_equity_class():
     assert N.search("Alphabet Inc. Depositary Shares representing a 1/20th Interest in a Share of Series B "
                     "Mandatory Convertible Preferred Stock")
     for name in ("Alphabet Inc. Class C Capital Stock", "Berkshire Hathaway Inc. Class B", "Unity Software Inc.",
-                 "United Rentals Inc", "Seniortronics"):
+                 "United Rentals Inc", "Seniortronics", "Brookdale Senior Living, Inc.", "Our Bond, Inc. Common Stock",
+                 "Energy Transfer LP Common Units representing limited partner interests",
+                 "America Movil S.A.B de C.V American Depositary Shares (each representing the right to receive twenty "
+                 "(20) Series B Shares)",
+                 "Braskem S.A. American Depositary Shares (Each representing Two Class A  Preferred Shares)"):
         assert not N.search(name), name
+    for name in ("Diversified Healthcare Trust 5.625% Senior Notes due 2042",
+                 "Entergy Mississippi, LLC First Mortgage Bonds, 4.90% Series due October 1, 2066",
+                 "AGNC Investment Corp. Depositary Shares, each representing a 1/1,000th interest in a share of 6.875% "
+                 "Series D Fixed-to-Floating Cumulative Redeemable Preferred Stock",
+                 "Acme Acquisition Corp. Units, each consisting of one share and one-half of one warrant",
+                 "Acme Acquisition Corp. Warrants"):
+        assert N.search(name), name

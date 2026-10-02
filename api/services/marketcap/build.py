@@ -41,8 +41,13 @@ EQUITY_TYPES = {"CS", "ADRC", "OS", "NYRS", "GDR", "ADRS", None}
 # ⛔ Massive types some PREFERRED / hybrid instruments "CS": GOOGN = "Alphabet Inc. Depositary Shares representing a
 # 1/20th Interest in a Share of Series B Mandatory Convertible Preferred Stock" (listed 2026-06-03) was taken as
 # Alphabet's listed CLASS B -- class B was priced at ~$49 and the company had 82 valued sessions of 5,563.
-NOT_COMMON_EQUITY = re.compile(r"\bpreferred\b|\bpreference\s+shares?\b|\bwarrants?\b|\brights?\b|\bunits?\b"
-                               r"|\bnotes?\b|\bdebentures?\b|\bbonds?\b|\bbaby\s+bonds?\b|\bsenior\b|\bsubordinated\b", re.I)
+# Only UNAMBIGUOUS non-common instruments. MEASURED over-exclusion of a broader first version: "Brookdale Senior Living",
+# MLP "Common Units representing limited partner interests" (the issuer's equity), "Our Bond, Inc. Common Stock",
+# ADSs "each representing the right to receive 20 Series B Shares" (AMX) and ADSs over foreign ECONOMIC preferred
+# shares (Braskem, Bancolombia) are all equity and stay in.
+NOT_COMMON_EQUITY = re.compile(r"\bpreferred\s+stock\b|\bwarrants?\b|\brights?\b(?!\s+to\s+receive)"
+                               r"|\bunits?,?\s+each\s+consisting\b|\bnotes?\s+due\b|\bsenior\s+(?:notes?|secured|unsecured|debentures?)\b"
+                               r"|\bsubordinated\b|\bdebentures?\b|\bmortgage\s+bonds?\b|\bbonds?\s+due\b|\d%", re.I)
 FPI_FORMS = ("20-F", "40-F", "20-F/A", "40-F/A", "6-K")
 
 SCHEMA = """
@@ -425,6 +430,15 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
     pref = D.ref.get(primary, (None, []))[0]
     diverge = bool(pref and pref.share_class_shares and pref.weighted_shares
                    and abs(pref.share_class_shares / pref.weighted_shares - 1) > 0.05)
+    # ⛔ Massive's WEIGHTED figure is a stale period average (APH: 2.47B weighted vs 1.23B current after its 2024 2:1
+    # split): weighted vs share-class divergence flagged 207 single-class issuers as multi-class suspects (2026-10-01).
+    # The divergence counts only if Massive's CURRENT share-class figure also disagrees (> 5%) with OUR latest
+    # authoritative non-dimensional count -- equal means the total IS that one class. (Detection only, never a value.)
+    if diverge and pref.share_class_shares:
+        latest = max(((o.as_of, o.value) for k_, o, _m in obs if k_ == "COMMON"
+                      and o.source in (R.COVER_XBRL, R.BALANCE_SHEET_XBRL) and o.value > 0), default=None)
+        if latest and abs(latest[1] / pref.share_class_shares - 1) <= 0.05:
+            diverge = False
     multi_suspect = not is_adr and (len(listings) >= 2 or diverge)
 
     # per regime: structure, component class states, capitalization
