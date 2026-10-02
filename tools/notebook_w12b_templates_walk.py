@@ -197,6 +197,18 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
         pg = page_for(wide, "1200")
         pg.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60000)
         ph._dismiss_intro(pg)
+        # Run 1 waited only for the INLINE gallery (the empty-notebook state) and timed out
+        # with nothing on disk to say why. The gallery has two doors: inline on an empty
+        # notebook, and the toolbar's "Templates" sheet. Use whichever this page offers,
+        # say which, and keep a screenshot of what the page showed first.
+        pg.wait_for_selector(".ProseMirror, [data-template-key], button:has-text('Templates')",
+                             state="visible", timeout=60000)
+        shot(pg, "notebook-landing-1200")
+        door = "inline (empty notebook)"
+        if pg.locator("[data-template-key]").count() == 0:
+            door = "toolbar Templates sheet"
+            pg.get_by_role("button", name="Templates", exact=True).filter(visible=True).first.click()
+        rec["gallery_door"] = door
         pg.wait_for_selector("[data-template-key]", state="visible", timeout=45000)
         cards = pg.eval_on_selector_all(
             "[data-template-key]",
@@ -226,6 +238,7 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
             dlg.wait_for(state="hidden", timeout=10000)
         except Exception as e:  # noqa: BLE001 -- informational only
             rec["preview_dialog_breakout"] = {"error": f"{type(e).__name__}: {str(e)[:200]}"}
+            shot(pg, "preview-dialog-error")
         pg.close()
 
         # ── N: create a note from each template, open the walkthrough by keyboard ──
@@ -324,13 +337,26 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
                 shot(pg, f"{label}-{key}")
             pg.close()
 
+        def guarded_walk(ctx, label, key):
+            # One template's failure is a row, never the end of the walk.
+            try:
+                walk_one(ctx, label, key)
+            except Exception as e:  # noqa: BLE001 -- recorded with a screenshot
+                row(f"[{label}] {key}: walked to the end", "FAIL", why=f"{type(e).__name__}: {str(e)[:300]}")
+                for p in ctx.pages:
+                    try:
+                        shot(p, f"{label}-{key}-error")
+                        p.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+
         for key in keys:
-            walk_one(wide, "1200", key)
+            guarded_walk(wide, "1200", key)
         phone = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
                                     reduced_motion="reduce")
         ph._signup_or_login(phone.request, base, MEMBER[0], MEMBER[1], MEMBER[2])
         for key in PHONE_KEYS:
-            walk_one(phone, "390", key)
+            guarded_walk(phone, "390", key)
         errs = rec["page_errors"]
         row("no uncaught page error during the walk", "PASS" if not errs else "FAIL", saw=errs[:5] or None)
         browser.close()
