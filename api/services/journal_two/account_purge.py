@@ -150,6 +150,12 @@ _DIRECT_USER_TABLES = (
     "j2_template_gallery",
     "j2_template_gallery_reports",
     "j2_template_gallery_uses",
+    # Wave 13 (lane 13I-1, the technical fingerprint) -- the member's chart-block index (a
+    # projection of their notes) and the freeze ledger of each block's fingerprint.
+    # Self-ensured by chart_blocks.py (never db.py), so on a pod where the routes never ran
+    # this is a "no such table" no-op.
+    "j2_chart_blocks",
+    "j2_chart_fingerprints",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

@@ -213,6 +213,9 @@ NOT_REHEARSED = {
     "NOTEBOOK_TRADE_CANVAS_ENABLED": "dark (wave 11 11D): the trade-plan canvas note (schema level 3, "
                                      "NEVER-REVERT); no route of its own, only the doors that make "
                                      "a canvas",
+    # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": "dark (wave 13 13I-1): the technical fingerprint and "
+                                       "chart-block index API; no member surface until 13I-2",
 }
 
 

@@ -41,6 +41,8 @@ NOTEBOOK_KEYS = [
     "notebook_trade_canvas_enabled",
     # Wave 12 lane 12A: the community template gallery — an enablement gate.
     "notebook_template_gallery_enabled",
+    # Wave 13 lane 13I-1: the technical fingerprint + chart-block index — an enablement gate.
+    "notebook_ta_fingerprint_enabled",
 ]
 
 

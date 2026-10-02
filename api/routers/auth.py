@@ -176,6 +176,10 @@ NOTEBOOK_FLAGS = {
     # (journal_two/template_gallery.enabled) reads the same variable through
     # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
+    # Wave 13 lane 13I-1: the technical fingerprint and the chart-block index. The router's
+    # gate (journal_two/tech_fingerprint.enabled) reads the same variable through flag_on,
+    # per request; the payload key is `notebook_ta_fingerprint_enabled`.
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": False,  # enablement — unset means OFF (fingerprint, lane 13I-1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
