@@ -85,7 +85,7 @@ import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
   computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
-  CLOCK_PERIOD_SECONDS, computePeriodCalendar, PERIOD_CALENDAR_CLOSURES_FROM,
+  CLOCK_PERIOD_SECONDS, computePeriodCalendar,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -4204,13 +4204,6 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + '(measured on BITSTAMP:BTCUSD 1D). This chart is missing the opening day of at least one week, month, '
     + 'quarter or year, so what this indicator draws from them is withheld across that period; the rest is '
     + 'drawn. What would settle it: nothing to capture — the missing daily bar.',
-  'time-anchor:session-open-missing': () => `${ANCHOR_SPELLED} are the open of the period's first session `
-    + 'as TradingView\'s calendar has it. Before 2000 that calendar applies no market closure, and a period '
-    + 'that opens on a holiday there is drawn from it (measured on AMEX:SPY 1D back to 1993: 31 weeks, 9 '
-    + 'months, 7 quarters, 6 years). From 2000 it applies them, and at least one week, month, quarter or year '
-    + 'on this chart opens on a session it holds and the chart has no bar for. The one such period measured is '
-    + 'the Hurricane Sandy week of 2012, so what this indicator draws from them is withheld across that '
-    + 'period; the rest is drawn. What would settle it: a ruling on that one witness, or a second one.',
   'time-anchor:utc-day-clock': () => 'This chart stamps a daily bar at 09:30 New York; on a symbol that trades '
     + 'every day TradingView stamps it at 00:00 UTC (BITSTAMP:BTCUSD 1D, every bar). Where a bar and the open '
     + `of its week, month, quarter or year sit on opposite sides of a New York clock change the two differ by `
@@ -4237,13 +4230,6 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'last 5-minute bar\'s. This chart holds no daily bars beside its own, so everything this indicator draws '
     + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
     + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
-  'time-close:period-end-missing': () => `${CLOSE_SPELLED} are the close of the period's last session as `
-    + 'TradingView\'s calendar has it. Before 2000 that calendar applies no market closure, and a period that '
-    + 'ends on a holiday there is drawn from it (measured on AMEX:SPY 1D back to 1993: 13 weeks, 2 months). '
-    + 'From 2000 it applies them, and at least one completed week or month on this chart ends on a session it '
-    + 'holds and the chart has no bar for. The one such period measured is the week of 2001-09-10, so what '
-    + 'this indicator draws from them is withheld across that period; the rest is drawn. What would settle '
-    + 'it: a ruling on that one witness, or a second one.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -4436,25 +4422,26 @@ function nameChartClock(opts, codes, tf) {
  *  days, bar 0 of the 2023 one −3 / −23 / −52 / −52, and every intraday capture's
  *  first bars read a year open months before the window — which C30 withheld
  *  because a first-bar tree cannot name a bar the series does not hold.
- *  What is still withheld there, each by name:
- *    · a period, AFTER the series' first, whose first session has no bar, dated
- *      from the day the calendar applies closures
- *      (`PERIOD_CALENDAR_CLOSURES_FROM`): `time-anchor:session-open-missing`.
- *      Before that day every such period is a holiday the calendar keeps open —
- *      31 weeks, 9 months, 7 quarters and 6 years of AMEX:SPY, every bar equal to
- *      the vendor — and is SERVED. From it, the one witness is the Hurricane
- *      Sandy week of 2012 (the calendar reproduces it: Monday 2012-10-29); one
- *      week is not a rule, so it stays withheld pending a ruling.
- *    · a completed week / month whose last session has no bar, by the same date
- *      rule: `time-close:period-end-missing` (served before the boundary: 13
- *      weeks, 2 months; withheld from it: the week of 2001-09-10).
+ *  ⭐ RULING (integrator, 2026-10-01): A PERIOD WHOSE FIRST / LAST SESSION HAS NO
+ *  BAR IS ANSWERED FROM THE CALENDAR TOO — the calendar is the rule, bar or no
+ *  bar. Before `TRADINGVIEW_CLOSURES_FROM` that is every holiday-opened period
+ *  (31 weeks, 9 months, 7 quarters, 6 years of AMEX:SPY) and every holiday-ended
+ *  one (13 weeks, 2 months). From it, it is the six days the vendor's calendar
+ *  keeps open and no bar exists for: the Hurricane Sandy week (`time("W")` on
+ *  2012-10-31..11-02 reads Monday 2012-10-29 09:30) and the week of 2001-09-10
+ *  (`time_close("W")` on its one bar reads Friday 2001-09-14 16:00). The
+ *  full-history capture holds those bars and `vendorHarness.c49CapturedClock`
+ *  grades them; C49 first withheld them (`time-anchor:session-open-missing`,
+ *  `time-close:period-end-missing` — both codes are gone).
+ *  What is still withheld there:
  *    · a root that reads the anchor `k` bars back, on its first `k` bars: the
  *      anchor of a bar before the window is not a bar this series holds
  *      (`ta.change(time("W")) != 0` would otherwise read a confident FALSE on
  *      bar 0, where the vendor reads TRUE whenever the window opens a week).
- *  ⛔ The boundary is bracketed by the capture, not assumed: the last period the
- *  vendor answers from the calendar ends Friday 1999-12-24, the first it answers
- *  from the bars opens Tuesday 2000-01-18 (`vendorHarness.c49CapturedClock`).
+ *  ⛔ The calendar's boundary is bracketed by the capture, not assumed: the last
+ *  period the vendor answers from the calendar day ends Friday 1999-12-24, the
+ *  first it answers from the first session opens Tuesday 2000-01-18
+ *  (`vendorHarness.c49CapturedClock`).
  *
  *  ⛔ WITHHELD WHOLE (`chartClockWhole`): a chart timeframe no capture measured;
  *  an intraday chart with a bar outside the regular session; a daily chart with
@@ -4499,7 +4486,6 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   }
   const session = whole.regime.kind === 'session'
   const calendar = session ? computePeriodCalendar(bars, tf) : null
-  const everyBarItsOwnPeriod = tf === 'W' || tf === 'M'
   const time = anchors.length && !session ? clockColumn(ccLeaf('time'), bars, inputs, budget, scalars, opts) : null
   for (const a of anchors) {
     const period = periodAnchorPeriod(a)
@@ -4508,17 +4494,6 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
       // ⛔ `calendar` is null only when a bar's instant is unreadable, which the
       // regime already answered `unreadable` for: fail closed rather than trust it.
       if (!calendar) { mask.fill(1); return mask }
-      if (!everyBarItsOwnPeriod) {
-        const first = calendar.firstDay[period]
-        let withheld = false
-        for (let i = 0; i < n; i++) {
-          // a period after the series' first opens on bar i
-          if (i > 0 && first[i] !== first[i - 1]) {
-            withheld = calendar.day[i] !== first[i] && calendar.day[i] >= PERIOD_CALENDAR_CLOSURES_FROM
-          }
-          if (withheld) { unknown[i] = 1; partial.add('time-anchor:session-open-missing') }
-        }
-      }
       spread(unknown, a, true)
       continue
     }
@@ -4536,25 +4511,8 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
     }
     spread(unknown, a, false)
   }
-  for (const c of closes) {
-    const unknown = new Float64Array(n)
-    if (!calendar) { mask.fill(1); return mask }
-    if (!everyBarItsOwnPeriod) {
-      const last = calendar.lastDay[periodCloseParts(c).code]
-      let from = 0
-      for (let i = 1; i <= n; i++) {
-        if (i < n && last[i] === last[i - 1]) continue
-        // bars [from, i) share one period. A COMPLETED period (another follows)
-        // whose last bar is not its last session is unknown from the boundary on.
-        if (i < n && calendar.day[i - 1] !== last[from] && calendar.day[i - 1] >= PERIOD_CALENDAR_CLOSURES_FROM) {
-          for (let k = from; k < i; k++) unknown[k] = 1
-          partial.add('time-close:period-end-missing')
-        }
-        from = i
-      }
-    }
-    spread(unknown, c, false)
-  }
+  // a period close is the calendar's on every bar (ruling 2026-10-01): nothing to withhold per bar
+  if (closes.length && !calendar) { mask.fill(1); return mask }
   nameChartClock(opts, [...partial], tf)
   return mask
 }

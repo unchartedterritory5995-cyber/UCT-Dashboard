@@ -86,7 +86,6 @@ from api.services.indicator_compute import (
     CLOCK_PERIOD_SECONDS,
     compute_clock,
     compute_period_calendar,
-    PERIOD_CALENDAR_CLOSURES_FROM,
     compute_donchian_raw,
     compute_ichimoku_raw,
     compute_macd_raw,
@@ -3940,8 +3939,7 @@ CHART_CLOCK_WHOLE = (
     "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
-    "time-anchor:period-open-missing", "time-anchor:session-open-missing",
-    "time-anchor:utc-day-clock", "time-close:period-end-missing",
+    "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
 )
 
 
@@ -4388,7 +4386,6 @@ def period_anchor_mask(tree: Any, bars: List[dict],
 
     session = whole["regime"]["kind"] == "session"
     calendar = compute_period_calendar(bars, tf) if session else None
-    every_bar_its_own_period = tf in ("W", "M")
     time_col = (_clock_column(_cc_leaf("time"), bars, inputs, budget, scalars, opts)
                 if anchors and not session else None)
     for a in anchors:
@@ -4397,17 +4394,8 @@ def period_anchor_mask(tree: Any, bars: List[dict],
         if session:
             if calendar is None:
                 return [1] * n
-            if not every_bar_its_own_period:
-                first = calendar["first_day"][period]
-                day = calendar["day"]
-                withheld = False
-                for i in range(n):
-                    # a period after the series' first opens on bar i
-                    if i > 0 and first[i] != first[i - 1]:
-                        withheld = day[i] != first[i] and day[i] >= PERIOD_CALENDAR_CLOSURES_FROM
-                    if withheld:
-                        unknown[i] = 1
-                        name("time-anchor:session-open-missing")
+            # ruling 2026-10-01: a period whose first session has no bar is the
+            # calendar's answer too; only the bar before the series is unknown
             spread(unknown, a, True)
             continue
         # every day of the week (C36): the literal tree, the period's CALENDAR
@@ -4430,26 +4418,9 @@ def period_anchor_mask(tree: Any, bars: List[dict],
                 unknown[i] = 1
                 name("time-anchor:utc-day-clock")
         spread(unknown, a, False)
-    for c in closes:
-        unknown = [0] * n
-        if calendar is None:
-            return [1] * n
-        if not every_bar_its_own_period:
-            last = calendar["last_day"][period_close_parts(c)[0]]
-            day = calendar["day"]
-            start = 0
-            for i in range(1, n + 1):
-                if i < n and last[i] == last[i - 1]:
-                    continue
-                # bars [start, i) share one period. A COMPLETED period (another
-                # follows) whose last bar is not its last session is unknown from
-                # the boundary on.
-                if i < n and day[i - 1] != last[start] and day[i - 1] >= PERIOD_CALENDAR_CLOSURES_FROM:
-                    for k in range(start, i):
-                        unknown[k] = 1
-                    name("time-close:period-end-missing")
-                start = i
-        spread(unknown, c, False)
+    # a period close is the calendar's on every bar (ruling 2026-10-01)
+    if closes and calendar is None:
+        return [1] * n
     _name_chart_clock(opts, partial)
     return mask
 

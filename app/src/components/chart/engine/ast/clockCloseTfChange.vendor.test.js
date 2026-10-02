@@ -156,7 +156,7 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     expect(early.map((i) => etClockAt(cols.timeclose[i]).h)).toEqual(early.map(() => 13))
   })
 
-  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 and the Sandy week withheld', () => {
+  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 withheld', () => {
     // `time("W"/"M")` before the first period boundary the series shows is an open
     // from bars before the window (`interpret.js::periodAnchorMask`): bar 0 (the
     // listing, 1993-01-29) and the boundary bar that reads it one back through
@@ -182,8 +182,13 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     // of a bar before the series through `ta.change`; and, for the week, the
     // Hurricane Sandy week's three bars plus the Monday that reads them one back —
     // the one period from 2000 on whose first session has no bar, still withheld.
+    //
+    // ⚰️ RE-PINNED 2026-10-01 (integrator ruling on C49). K14 read
+    // ['1993-01-29', '2012-10-31', '2012-11-01', '2012-11-02', '2012-11-05']: the
+    // full-history capture holds the Sandy week and the calendar reproduces it, so it
+    // is served. What is left is bar 0 alone.
     const dateOf = (i) => bars[i].t
-    const pinned = { K14: ['1993-01-29', '2012-10-31', '2012-11-01', '2012-11-02', '2012-11-05'], K15: ['1993-01-29'] }
+    const pinned = { K14: ['1993-01-29'], K15: ['1993-01-29'] }
     for (const k of DAILY_ONLY) {
       expect(rows[k].values, `${k}: ${rows[k].refusal && rows[k].refusal.message}`).toBeTruthy()
       const c = col(TITLES, k)

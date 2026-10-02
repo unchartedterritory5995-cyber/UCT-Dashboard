@@ -55,7 +55,7 @@
  *    rather than a NaN pad, so its line starts at zero on the first bar.
  */
 
-import { tradingViewCloseMinute, TRADINGVIEW_CLOSURES_FROM } from '../../lib/marketClock/tradingViewSession.js'
+import { tradingViewCloseMinute } from '../../lib/marketClock/tradingViewSession.js'
 
 // Not-yet-computable. See the whitespace note above before handing this to LWC.
 const NA = NaN
@@ -1626,10 +1626,6 @@ function lastVendorSession(end, span) {
  *    opening `YYYYMMDD`. `null` when a bar's instant is unreadable.
  */
 export const PERIOD_CALENDAR_CODES = Object.freeze(['W', 'M', '3M', '12M'])
-/** The first `YYYYMMDD` whose NYSE closures the vendor's calendar applies — the ONE
- *  boundary, `tradingViewSession.js::TRADINGVIEW_CLOSURES_FROM`, as the number a clock
- *  column compares against. Derived, never restated. */
-export const PERIOD_CALENDAR_CLOSURES_FROM = Number(TRADINGVIEW_CLOSURES_FROM.replace(/-/g, ''))
 export function computePeriodCalendar(bars, tf) {
   const length = bars && bars.length ? bars.length : 0
   const out = { day: new Float64Array(length), open: {}, close: {}, firstDay: {}, lastDay: {} }

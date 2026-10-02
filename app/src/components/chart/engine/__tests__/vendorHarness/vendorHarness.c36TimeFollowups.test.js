@@ -348,10 +348,11 @@ describe('C36 · 1 — a session chart: the anchor is the first session THE VEND
     expect(vendor(TC_SPY, 'Q08_timeW_minus_time_DAYS').slice(i, i + 3)).toEqual([-2, -3, -4])
   })
 
-  it('Q08–Q11 (`time("W" / "M" / "3M" / "12M") − time`): 0 wrong values on 4,800 bars; the Sandy week withheld, not answered', () => {
+  it('Q08–Q11 (`time("W" / "M" / "3M" / "12M") − time`): equal to TradingView on all 4,800 bars — the Sandy week answered from the calendar', () => {
     // C49 — the first partial period (1 / 1 / 20 / 84 bars) is served from the
-    // calendar; what is left is, for the week, Sandy's three bars
-    for (const [title, withheld] of [['Q08_timeW_minus_time_DAYS', 3], ['Q09_timeM_minus_time_DAYS', 0],
+    // calendar. ⚰️ RE-PINNED 2026-10-01 (integrator ruling): the Sandy week's three
+    // bars were withheld (3 / 0 / 0 / 0); the calendar reproduces them and they are served.
+    for (const [title, withheld] of [['Q08_timeW_minus_time_DAYS', 0], ['Q09_timeM_minus_time_DAYS', 0],
       ['Q10_time3M_minus_time_DAYS', 0], ['Q11_time12M_minus_time_DAYS', 0]]) {
       const p = byTitle.get(title)
       expect(p.stats.valueMismatches, title).toBe(0)
@@ -360,23 +361,24 @@ describe('C36 · 1 — a session chart: the anchor is the first session THE VEND
     }
   })
 
-  it('it is named — and on the 900-bar capture, whose holiday Mondays the vendor\'s calendar DOES close, nothing is', () => {
+  it('nothing is withheld for it (ruling 2026-10-01: was `time-anchor:session-open-missing`) — Wed 2012-10-31 reads Monday 10-29 09:30', () => {
     const sandy = on(TC_SPY, pine(['plot(time("W"), "w")']))
-    expect(noteCodes(sandy)).toEqual(['time-anchor:session-open-missing'])
-    expect(sandy.notes.join('\n')).toMatch(/Hurricane Sandy/)
+    expect(noteCodes(sandy)).toEqual([])
+    expect(column(sandy)[dates.indexOf('2012-10-31')]).toBe(Date.UTC(2012, 9, 29, 13, 30))
     const recent = on(D1, pine(['plot(time("W"), "w")']))
     expect(noteCodes(recent)).toEqual([])
     expect(column(recent).filter(Number.isNaN).length).toBe(0)
   })
 
-  it('⭐ C49 — before 2000 the vendor\'s calendar applies no closure, and the full-history capture measured it: those periods are SERVED from the calendar; only the Sandy week is withheld', () => {
+  it('⭐ C49 — before 2000 the vendor\'s calendar applies no closure, and the full-history capture measured it: those periods are SERVED from the calendar, and so is the Sandy week (ruling 2026-10-01)', () => {
     // ⚰️ This asserted the opposite ("no daily chart was measured: those periods are
     // withheld") until `vw-time-tf-spy-1d-full-2026-10-01` measured 1993 → 2000.
     const bars = toProductBars(LONG)
     const ours = on(LONG, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
     const w = column(ours, 0)
     const withheld = w.map((v, i) => (Number.isNaN(v) ? bars[i].t : null)).filter(Boolean)
-    expect(withheld).toEqual(['2012-10-31', '2012-11-01', '2012-11-02'])
+    expect(withheld).toEqual([])                                  // was the Sandy week's three, until the ruling
+    for (const d of ['2012-10-31', '2012-11-01', '2012-11-02']) expect(w[bars.findIndex((b) => b.t === d)], d).toBe(Date.UTC(2012, 9, 29, 13, 30))
     // Tue 1999-01-19 (MLK Monday: a holiday the calendar keeps open) reads MONDAY 01-18 09:30 New York
     expect(w[bars.findIndex((b) => b.t === '1999-01-19')]).toBe(Date.UTC(1999, 0, 18, 14, 30))
     // the year is served on every bar; 1999 opens on Fri 01-01, a day with no bar
@@ -644,16 +646,18 @@ describe('C36 · 5 — `time_close("W" | "M")` on AMEX:SPY 1D: the close of the 
     expect(ours.objects.chartClock).toEqual([])
   })
 
-  it('⛔ a completed period whose last session has no bar: withheld across it, named — on 8,473 sessions, only the week of 2001-09-10 (C49: before 2000 it is served from the calendar)', () => {
+  it('⭐ a completed period whose last session has no bar reads the calendar\'s close: on 8,473 sessions nothing is withheld (ruling 2026-10-01)', () => {
     const long = toProductBars(LONG)
     const ours = on(LONG, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")']))
-    expect(noteCodes(ours)).toEqual(['time-close:period-end-missing'])
+    expect(noteCodes(ours)).toEqual([])
     const withheld = (i) => column(ours, i).map((v, k) => (Number.isNaN(v) ? long[k].t : null)).filter(Boolean)
     // ⚰️ 53 and 40 bars until `vw-time-close-tf-spy-1d-full-2026-10-01` measured the
     // 13 weeks and 2 months before 2000 that end on a holiday: the calendar's close.
-    // the vendor's session keeps 2001-09-11..14 open and the chart holds no bar for them
-    expect(withheld(0)).toEqual(['2001-09-10'])
+    // ⚰️ then ['2001-09-10'] (`time-close:period-end-missing`) until the integrator
+    // ruled the one witness served: the vendor's session keeps 2001-09-11..14 open.
+    expect(withheld(0)).toEqual([])
     expect(withheld(1)).toEqual([])
+    expect(column(ours, 0)[long.findIndex((b) => b.t === '2001-09-10')]).toBe(Date.UTC(2001, 8, 14, 20, 0))
     // Thu 1999-04-01 (Good Friday has no bar) reads FRIDAY 04-02 16:00 New York
     expect(column(ours, 0)[long.findIndex((b) => b.t === '1999-04-01')]).toBe(Date.UTC(1999, 3, 2, 21, 0))
   })

@@ -45,9 +45,9 @@ import {
   SIXTY_WITNESSED_TF, requestBaseNode, requestBaseOf, interpret, periodAnchorMask,
 } from '../../ast/interpret.js'
 import {
-  computePeriodCalendar, PERIOD_CALENDAR_CODES, PERIOD_CALENDAR_CLOSURES_FROM, barOpenInstant,
+  computePeriodCalendar, PERIOD_CALENDAR_CODES, barOpenInstant,
 } from '../../../indicators.js'
-import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../../lib/marketClock/tradingViewSession.js'
+import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES, tradingViewCloseMinute } from '../../../../../lib/marketClock/tradingViewSession.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const load = (name) => JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/harness', `${name}.json`), 'utf8'))
@@ -157,8 +157,8 @@ describe('C49 · 1 — the rule, against the vendor\'s own numbers (no member do
   }
 
   it('the rule is not the first-bar rule: on the full daily capture the two part on 124 / 165 / 414 / 1,497 bars', () => {
-    // ⭐ exactly the bars C36 withheld as `session-open-missing` plus the first
-    // partial period — and all but the Sandy week's three are before 2000
+    // ⭐ exactly the bars C36 withheld (a period whose first session has no bar) plus
+    // the first partial period — and all but the Sandy week's three are before 2000
     const times = CAP.D_T.bars.rows.map((r) => r[0])
     const dates = times.map((t) => ny(t).ymd)
     const cal = computePeriodCalendar(toProductBars(CAP.D_T), 'D')
@@ -212,7 +212,6 @@ describe('C49 · 1 — the rule, against the vendor\'s own numbers (no member do
     expect(lastCalendar).toBe('1999-12-24')                    // Christmas, observed on a Friday: no bar, and the week closes on it
     expect(barsAnswered[0]).toBe('2000-01-18')                 // the Tuesday after MLK Monday: the first holiday week read off the bars
     expect(TRADINGVIEW_CLOSURES_FROM > lastCalendar && TRADINGVIEW_CLOSURES_FROM <= barsAnswered[0]).toBe(true)
-    expect(PERIOD_CALENDAR_CLOSURES_FROM).toBe(Number(TRADINGVIEW_CLOSURES_FROM.replace(/-/g, '')))
     // and from that boundary on, the only weeks the vendor answers from the calendar are the two it never closed
     expect(calendarAnswered.filter((d) => d >= '2000-01-01')).toEqual(['2001-09-14'])
     expect(TRADINGVIEW_UNAPPLIED_CLOSURES.map((c) => c.date)).toEqual(['2001-09-11', '2001-09-12', '2001-09-13', '2001-09-14', '2012-10-29', '2012-10-30'])
@@ -256,13 +255,23 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
     })
   }
 
-  it('time("W") − time: 8,473 bars equal to TradingView; the Hurricane Sandy week\'s three withheld, by name', () => {
+  // ⭐ RULING (integrator, 2026-10-01): the Sandy week is SERVED. This read 8,473 equal and three
+  // withheld (`time-anchor:session-open-missing`); the capture holds those three bars and the
+  // calendar reproduces them, which is a witness. The rail grades them against the fixture.
+  it('time("W") − time: equal to TradingView on all 8,476 bars — the Hurricane Sandy week reads Monday 2012-10-29, a day with no bar', () => {
     for (const [g, rows] of [[T, OPEN_ROW], [Q, OPEN_ROW_Q]]) {
-      expect(g.byTitle.get(rows.W).stats, rows.W).toMatchObject({ matching: 8473, valueMismatches: 0, naMismatches: 3 })
-      expect(g.withheld(rows.W), rows.W).toEqual(SANDY)
+      expect(g.byTitle.get(rows.W).verdict, rows.W).toBe('MATCH')
+      expect(g.byTitle.get(rows.W).stats, rows.W).toMatchObject({ matching: 8476, valueMismatches: 0, naMismatches: 0 })
+      expect(g.withheld(rows.W), rows.W).toEqual([])
     }
-    expect(noteCodes(T.ours)).toEqual(['time-anchor:session-open-missing'])
-    expect(T.ours.notes.join('\n')).toMatch(/Hurricane Sandy week of 2012/)
+    expect(noteCodes(T.ours)).toEqual([])
+    // the three bars themselves, the vendor's number and ours, through the door
+    const v = vendor(CAP.D_T, OPEN_ROW.W)
+    const dates = CAP.D_T.bars.rows.map((r) => ny(r[0]).ymd)
+    expect(SANDY.map((d) => v[dates.indexOf(d)])).toEqual([-2, -3, -4])
+    const ours = Array.from(T.ours.plots.find((p) => p.title === OPEN_ROW.W).column)
+    expect(SANDY.map((d) => ours[dates.indexOf(d)])).toEqual([-2, -3, -4])
+    expect(dates.includes('2012-10-29') || dates.includes('2012-10-30')).toBe(false)
   })
 
   it('the bars this lane lifted are real: 31 holiday-opened weeks before 2000 read the calendar\'s Monday, not the first bar', () => {
@@ -279,11 +288,11 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
     expect(opened).toContain('1999-01-19')
     expect(v[CAP.D_T.bars.rows.findIndex((r) => ny(r[0]).ymd === '1999-01-19')]).toBe(-1)   // MLK Monday 1999-01-18
     expect(v[0]).toBe(-4)                                                          // Fri 1993-01-29 → Mon 01-25, before the listing
-    // each is served, and equal: the row MATCHes on every bar but Sandy's (above)
+    // each is served, and equal: the row MATCHes on every bar, Sandy's included (above)
   })
 
-  it('the new-period events: equal on every bar but bar 0 (it reads the anchor of a bar before the series) and, for the week, Sandy\'s four', () => {
-    expect(T.withheld(EVENT_ROW.W)).toEqual(['1993-01-29', ...SANDY, '2012-11-05'])
+  it('the new-period events: equal on every bar but bar 0 (it reads the anchor of a bar before the series) — the Sandy week\'s four included', () => {
+    expect(T.withheld(EVENT_ROW.W)).toEqual(['1993-01-29'])
     expect(T.withheld(EVENT_ROW.M)).toEqual(['1993-01-29'])
     expect(T.withheld(EVENT_ROW['3M'])).toEqual(['1993-01-29'])
     for (const code of ['W', 'M', '3M']) expect(T.byTitle.get(EVENT_ROW[code]).stats.valueMismatches, code).toBe(0)
@@ -299,18 +308,27 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
     expect(Q.byTitle.get('Q13_newMonthClose').verdict).toBe('MATCH')
   })
 
-  it('time_close("W"): 8,475 bars equal to TradingView; the week of 2001-09-10 withheld, by name', () => {
-    expect(Q.byTitle.get(CLOSE_ROW.W).stats).toMatchObject({ matching: 8475, valueMismatches: 0, naMismatches: 1 })
-    expect(Q.withheld(CLOSE_ROW.W)).toEqual(['2001-09-10'])
-    expect(Q.withheld('Q12_newWeekClose')).toEqual(['2001-09-10', '2001-09-17'])
-    expect(noteCodes(Q.ours)).toEqual(['time-anchor:session-open-missing', 'time-close:period-end-missing'])
-    expect(Q.ours.notes.join('\n')).toMatch(/week of 2001-09-10/)
-    // the lifted ones are real: Thu 1999-04-01 reads 1.2708 days — Good Friday 16:00, a day with no bar
+  // ⭐ RULING (integrator, 2026-10-01): the week of 2001-09-10 is SERVED (was 8,475 equal, one bar
+  // withheld as `time-close:period-end-missing`).
+  it('time_close("W"): equal to TradingView on all 8,476 bars — Monday 2001-09-10 reads Friday 09-14 16:00, four sessions with no bar later', () => {
+    expect(Q.byTitle.get(CLOSE_ROW.W).verdict).toBe('MATCH')
+    expect(Q.byTitle.get(CLOSE_ROW.W).stats).toMatchObject({ matching: 8476, valueMismatches: 0, naMismatches: 0 })
+    expect(Q.withheld(CLOSE_ROW.W)).toEqual([])
+    expect(Q.byTitle.get('Q12_newWeekClose').verdict).toBe('MATCH')
+    expect(Q.withheld('Q12_newWeekClose')).toEqual([])
+    expect(noteCodes(Q.ours)).toEqual([])
     const v = vendor(CAP.D_Q, CLOSE_ROW.W)
-    expect(v[CAP.D_Q.bars.rows.findIndex((r) => ny(r[0]).ymd === '1999-04-01')]).toBeCloseTo(1.2708, 4)
+    const dates = CAP.D_Q.bars.rows.map((r) => ny(r[0]).ymd)
+    const ours = Array.from(Q.ours.plots.find((p) => p.title === CLOSE_ROW.W).column)
+    const i = dates.indexOf('2001-09-10')
+    expect(dates[i + 1]).toBe('2001-09-17')
+    expect(v[i]).toBeCloseTo(4.2708, 4)                       // Mon 09:30 → Fri 16:00
+    expect(ours[i]).toBeCloseTo(v[i], 9)
+    // Thu 1999-04-01 reads 1.2708 days — Good Friday 16:00, a day with no bar
+    expect(v[dates.indexOf('1999-04-01')]).toBeCloseTo(1.2708, 4)
   })
 
-  it('⚠️ the two withheld weeks are NOT a second rule — the calendar reproduces both; they are withheld because each is the one witness of its kind', () => {
+  it('⭐ the two weeks are NOT a second rule — they are the calendar\'s six unapplied closures, and a calendar that applied them answers both wrong', () => {
     const bars = toProductBars(CAP.D_Q)
     const cal = computePeriodCalendar(bars, 'D')
     const at = (ymd) => bars.findIndex((b) => b.t === ymd)
@@ -318,6 +336,8 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
     expect(ny(cal.open.W[at('2012-10-31')])).toEqual({ ymd: '2012-10-29', hm: '09:30', wd: 'Mon' })
     expect(cal.close.W[at('2001-09-10')]).toBe(instants(CAP.D_Q, CLOSE_ROW.W)[at('2001-09-10')])
     expect(ny(cal.close.W[at('2001-09-10')])).toEqual({ ymd: '2001-09-14', hm: '16:00', wd: 'Fri' })
+    // the six days are sessions to this calendar, and NYSE closures to the exchange's
+    for (const c of TRADINGVIEW_UNAPPLIED_CLOSURES) expect(tradingViewCloseMinute(Number(c.date.replace(/-/g, ''))), c.date).toBe(960)
   })
 
   it('`time(timeframe.period)` and `time("60")` equal `time` on all 8,476 bars', () => {

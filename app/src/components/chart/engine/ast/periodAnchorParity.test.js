@@ -122,6 +122,11 @@ const BARSETS = {
   // chart has no bar for: Christmas (Fri 12-25), New Year (Fri 01-01), MLK (Mon 01-18),
   // Presidents' Day (Mon 02-15) and Good Friday (Fri 04-02)
   holidays1999: () => dailyBars([1998, 11, 21], 80, { drop: ['1998-12-25', '1999-01-01', '1999-01-18', '1999-02-15', '1999-04-02'] }),
+  // ⭐ ruling 2026-10-01 — the two periods from 2000 on whose first / last session has no bar,
+  // as the vendor's own daily series has them: Hurricane Sandy (Mon 2012-10-29 and Tue 10-30
+  // are sessions its calendar keeps and no bar exists for) and the week of 2001-09-10 (Tue..Fri)
+  sandy2012: () => dailyBars([2012, 9, 15], 30, { drop: ['2012-10-29', '2012-10-30'] }),
+  sept2001: () => dailyBars([2001, 7, 27], 30, { drop: ['2001-09-11', '2001-09-12', '2001-09-13', '2001-09-14'] }),
   // 15-minute regular-session bars over 16 vendor sessions from Thu 2025-01-02 (the Carter
   // closure of Thu 01-09 and MLK Monday 01-20 among the days skipped), and the same with
   // one pre-market bar (08:00) on the third session
@@ -204,6 +209,8 @@ const CASES = [
   // ⭐⭐ C49 — the vendor's calendar. Before 2000 it applies no closure: a holiday is a
   // session it holds, and the period that opens (or ends) on it is served from it
   ...['W', 'M', 'Q', 'Y', 'change(W)', 'closeW', 'closeM'].map((k) => [`${k} · 1999 holidays · D`, k, 'holidays1999', { tf: 'D' }]),
+  ...['W', 'M', 'change(W)', 'closeW'].map((k) => [`${k} · Sandy 2012 · D`, k, 'sandy2012', { tf: 'D' }]),
+  ...['W', 'closeW', 'closeM'].map((k) => [`${k} · September 2001 · D`, k, 'sept2001', { tf: 'D' }]),
   // the charts below and above daily that the captures cover
   ...['W', 'M', 'Q', 'Y', 'change(W)', 'own', 'sixty'].map((k) => [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }]),
   ...['W', 'sixty', 'own'].map((k) => [`${k} · 15m with a pre-market bar · 15`, k, 'ext15', { tf: '15' }]),
@@ -368,36 +375,42 @@ describe('C36 · the fixture is not vacuous', () => {
     expect(col('Q · every day, gaps · D').slice(at('2025-04-02')).every((v) => v === null)).toBe(true)
   })
 
-  it('⛔ a session chart: a period whose opening bar is not the first session of the calendar is withheld across it, and named', () => {
+  // ⭐ RULING 2026-10-01 — the calendar is the rule, bar or no bar. C49 first withheld a period from
+  // 2000 on whose first session has no bar (`time-anchor:session-open-missing`); the full-history
+  // capture holds the one such week (Hurricane Sandy) and the calendar reproduces it, so it is served.
+  it('⭐ a session chart: a period whose first session has no bar reads that session’s 09:30 — the calendar, not the chart’s first bar', () => {
     const bars = PARITY.bars.mondayMissing
     const at = (date) => bars.findIndex((b) => b.t === date)
     const name = (k) => `${k} · a Monday and the year's first session missing · D`
     const w = col(name('W'))
     expect(at('2025-01-13')).toBe(-1)
-    expect(w.slice(at('2025-01-14'), at('2025-01-21')).every((v) => v === null)).toBe(true)   // Tue..Fri of that week
-    expect(w[at('2025-01-10')]).not.toBeNull()
+    // Tue..Fri of that week read MONDAY 01-13 09:30 New York, a day this chart has no bar for
+    for (let i = at('2025-01-14'); i < at('2025-01-21'); i++) expect(w[i], bars[i].t).toBe(Date.UTC(2025, 0, 13, 14, 30))
+    expect(w[at('2025-01-10')]).toBe(Date.UTC(2025, 0, 6, 14, 30))
     expect(w[at('2025-01-21')]).toBe(Date.UTC(2025, 0, 21, 14, 30))   // CONTROL: MLK Monday is a closure — Tuesday IS the open
-    // the week of Mon 2024-12-30 holds Thu 01-02's gap but opens on its Monday: served
     expect(w[at('2025-01-03')]).toBe(Date.UTC(2024, 11, 30, 14, 30))
-    // January, the first quarter and the year all open on Fri 01-03 here; the calendar says Thu 01-02
+    // January, the first quarter and the year open on Fri 01-03 on this chart; the calendar says Thu 01-02
+    expect(at('2025-01-02')).toBe(-1)
     for (const k of ['M', 'Q', 'Y']) {
       const c = col(name(k))
-      expect(c.slice(at('2025-01-03')).filter((v) => v !== null).length, k).toBe(k === 'M' ? bars.length - at('2025-02-03') : 0)
-      expect(codes(name(k)), k).toEqual(['time-anchor:session-open-missing'])
+      expect(c[at('2025-01-03')], k).toBe(Date.UTC(2025, 0, 2, 14, 30))
+      expect(c.slice(at('2025-01-03')).filter((v) => v === null).length, k).toBe(0)
+      expect(codes(name(k)), k).toEqual([])
     }
     expect(col(name('M'))[at('2025-02-03')]).toBe(Date.UTC(2025, 1, 3, 14, 30))
-    expect(codes(name('W'))).toEqual(['time-anchor:session-open-missing'])
+    expect(codes(name('W'))).toEqual([])
   })
 
-  it('⛔ a quarter (and a year) whose whole first month is missing opens on a later month’s first session: withheld, where the month itself is served', () => {
+  it('⭐ a quarter (and a year) whose whole first month is missing still opens on January’s first session', () => {
     const bars = PARITY.bars.januaryMissing
     const feb = bars.findIndex((b) => b.t === '2025-02-03')
     expect(bars[feb - 1].t).toBe('2024-12-31')
     expect(col('M · January missing · D')[feb]).toBe(Date.UTC(2025, 1, 3, 14, 30))
     expect(codes('M · January missing · D')).toEqual([])
     for (const k of ['Q', 'Y']) {
-      expect(col(`${k} · January missing · D`).slice(feb).every((v) => v === null), k).toBe(true)
-      expect(codes(`${k} · January missing · D`), k).toEqual(['time-anchor:session-open-missing'])
+      expect(col(`${k} · January missing · D`)[feb], k).toBe(Date.UTC(2025, 0, 2, 14, 30))
+      expect(nulls(`${k} · January missing · D`), k).toBe(0)
+      expect(codes(`${k} · January missing · D`), k).toEqual([])
     }
   })
 
@@ -439,9 +452,33 @@ describe('C36 · the fixture is not vacuous', () => {
     // the week of Mon 1998-12-21 ends on Christmas Friday 16:00, a day with no bar; Good Friday likewise
     expect(col(name('closeW'))[at('1998-12-24')]).toBe(Date.UTC(1998, 11, 25, 21, 0))
     expect(col(name('closeW'))[at('1999-04-01')]).toBe(Date.UTC(1999, 3, 2, 21, 0))
-    // CONTROL — the same shape from 2000 on (the bars of `mondayMissing`, `fridayMissing`) is withheld
-    expect(codes("W · a Monday and the year's first session missing · D")).toEqual(['time-anchor:session-open-missing'])
-    expect(codes('closeW · a Friday missing · D')).toEqual(['time-close:period-end-missing'])
+    // the same shape from 2000 on (the bars of `mondayMissing`, `fridayMissing`) is served from the calendar
+    // too (ruling 2026-10-01) — what differs across the boundary is whether a HOLIDAY is a session
+    expect(codes("W · a Monday and the year's first session missing · D")).toEqual([])
+    expect(codes('closeW · a Friday missing · D')).toEqual([])
+  })
+
+  it('⭐ ruling 2026-10-01 — the Sandy week opens Monday 2012-10-29 09:30 and the week of 2001-09-10 closes Friday 09-14 16:00: sessions the calendar keeps, bars nobody has', () => {
+    const sandy = PARITY.bars.sandy2012
+    const sAt = (date) => sandy.findIndex((b) => b.t === date)
+    for (const gone of ['2012-10-29', '2012-10-30']) expect(sAt(gone)).toBe(-1)
+    const w = col('W · Sandy 2012 · D')
+    for (const day of ['2012-10-31', '2012-11-01', '2012-11-02']) expect(w[sAt(day)], day).toBe(Date.UTC(2012, 9, 29, 13, 30))
+    expect(w[sAt('2012-10-26')]).toBe(Date.UTC(2012, 9, 22, 13, 30))
+    expect(w[sAt('2012-11-05')]).toBe(Date.UTC(2012, 10, 5, 14, 30))    // EST from Sunday 11-04
+    // the week's first BAR (Wed 10-31) is not a new week against Fri 10-26? it is: the anchor moved
+    expect(col('change(W) · Sandy 2012 · D')[sAt('2012-10-31')]).toBe(1)
+    expect(col('change(W) · Sandy 2012 · D')[sAt('2012-11-01')]).toBe(0)
+    for (const k of ['W', 'M', 'closeW']) { expect(nulls(`${k} · Sandy 2012 · D`), k).toBe(0); expect(codes(`${k} · Sandy 2012 · D`), k).toEqual([]) }
+    const sept = PARITY.bars.sept2001
+    const pAt = (date) => sept.findIndex((b) => b.t === date)
+    for (const gone of ['2001-09-11', '2001-09-12', '2001-09-13', '2001-09-14']) expect(pAt(gone)).toBe(-1)
+    const c = col('closeW · September 2001 · D')
+    expect(c[pAt('2001-09-10')]).toBe(Date.UTC(2001, 8, 14, 20, 0))
+    expect(c[pAt('2001-09-07')]).toBe(Date.UTC(2001, 8, 7, 20, 0))
+    expect(c[pAt('2001-09-17')]).toBe(Date.UTC(2001, 8, 21, 20, 0))
+    expect(col('W · September 2001 · D')[pAt('2001-09-17')]).toBe(Date.UTC(2001, 8, 17, 13, 30))
+    for (const k of ['W', 'closeW', 'closeM']) { expect(nulls(`${k} · September 2001 · D`), k).toBe(0); expect(codes(`${k} · September 2001 · D`), k).toEqual([]) }
   })
 
   it('⭐ C49 — a 15-minute regular-session chart: the period opens at 09:30 of the calendar\'s first session, and `time("60")` is the 60-minute bucket', () => {
@@ -573,15 +610,18 @@ describe('C36 · the fixture is not vacuous', () => {
     }
   })
 
-  it('⛔ a completed week whose last session has no bar is withheld across that week, and named — the weeks around it are drawn', () => {
+  // ⭐ RULING 2026-10-01 — was withheld (`time-close:period-end-missing`); the one witness (the week
+  // of 2001-09-10) is in the full-history capture and the calendar reproduces it.
+  it('⭐ a completed week whose last session has no bar reads that session’s close — the calendar, not the chart’s last bar', () => {
     const bars = PARITY.bars.fridayMissing
     const at = (date) => bars.findIndex((b) => b.t === date)
     const w = col('closeW · a Friday missing · D')
     expect(at('2025-01-17')).toBe(-1)
-    expect(w.slice(at('2025-01-13'), at('2025-01-21')).every((v) => v === null)).toBe(true)   // Mon..Thu of that week
-    expect(w[at('2025-01-10')]).toBe(Date.UTC(2025, 0, 10, 21, 0))                            // the week before: Fri 16:00 EST
-    expect(w[at('2025-01-21')]).not.toBeNull()                                                // the week after (Monday a closure)
-    expect(codes('closeW · a Friday missing · D')).toEqual(['time-close:period-end-missing'])
+    for (let i = at('2025-01-13'); i < at('2025-01-21'); i++) expect(w[i], bars[i].t).toBe(Date.UTC(2025, 0, 17, 21, 0))   // Mon..Thu: Fri 16:00 EST
+    expect(w[at('2025-01-10')]).toBe(Date.UTC(2025, 0, 10, 21, 0))
+    expect(w[at('2025-01-21')]).toBe(Date.UTC(2025, 0, 24, 21, 0))
+    expect(nulls('closeW · a Friday missing · D')).toBe(0)
+    expect(codes('closeW · a Friday missing · D')).toEqual([])
   })
 
   it('`time_close("W")` is withheld whole, and named, off a session-only daily chart', () => {

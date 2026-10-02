@@ -52,9 +52,6 @@ from typing import Dict, List, Optional, Tuple, Union
 #: The ONE calendar, read for the C8 close columns as TradingView applies it
 #: (2026-09-28). Stdlib plus the ``nyse_calendar`` leaf, so this pulls no service in.
 from api.services.tradingview_session import tradingview_close_minute as _tv_close_minute
-from api.services.tradingview_session import (
-    TRADINGVIEW_CLOSURES_FROM_YYYYMMDD as _TV_CLOSURES_FROM_YYYYMMDD,
-)
 
 Number = float
 MaybeNum = Optional[float]
@@ -1866,10 +1863,6 @@ def _last_vendor_session(end: date, span: int) -> Optional[date]:
 #: ``indicators.js::PERIOD_CALENDAR_CODES``.
 PERIOD_CALENDAR_CODES = ("W", "M", "3M", "12M")
 
-#: The first ``YYYYMMDD`` whose NYSE closures the vendor's calendar applies -- the
-#: ONE boundary (``tradingview_session.TRADINGVIEW_CLOSURES_FROM_YYYYMMDD``), read,
-#: never restated. Mirrors ``indicators.js::PERIOD_CALENDAR_CLOSURES_FROM``.
-PERIOD_CALENDAR_CLOSURES_FROM = _TV_CLOSURES_FROM_YYYYMMDD
 
 
 def compute_period_calendar(bars: List[dict], tf: Optional[str] = None) -> Optional[dict]:

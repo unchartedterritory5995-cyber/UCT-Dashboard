@@ -91,7 +91,9 @@ def test_the_fixture_is_not_vacuous():
     # time_close("W"): every session bar served; a weekend-bar chart withheld whole
     assert all(v is not None for v in cases["closeW · weekdays · D"]["expected"])
     assert cases["closeW · every day · D"]["codes"] == ["time-close:weekend-bars"]
-    assert cases["closeW · a Friday missing · D"]["codes"] == ["time-close:period-end-missing"]
+    # ruling 2026-10-01: a week whose last session has no bar reads the calendar's close (was withheld)
+    assert cases["closeW · a Friday missing · D"]["codes"] == []
+    assert all(v is not None for v in cases["closeW · a Friday missing · D"]["expected"])
     named = {code for c in cases.values() for code in c["codes"]}
     assert named <= set(ai.CHART_CLOCK_WITHHELD_CODES)
     # every code but the nested one (a tree the translator will not write) is exercised
