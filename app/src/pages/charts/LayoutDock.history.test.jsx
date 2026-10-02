@@ -76,3 +76,31 @@ test('a restore hands the restored row to the workspace', async () => {
   await flush()
   expect(onRestored).toHaveBeenCalledWith(row)
 })
+
+// COV-06 follow-up: a deleted layout is brought back from the library.
+test('library: Recently deleted brings a deleted layout back and hands its row to the workspace', async () => {
+  const row = { id: 9, name: 'Old Swing', scope: 'user', layout: { widgets: [], cols: 24 } }
+  let deleted = [{ artifact_id: 9, label: 'Old Swing', head: 3, deleted_at: 1_800_000_000 }]
+  stubFetch(true, {
+    '/api/artifact-versions/layout/deleted': () => res(200, { deleted }),
+    '/api/artifact-versions/layout/9/undelete': () => { deleted = []; return res(200, { version: 4, artifact: row }) },
+  })
+  const onRestored = vi.fn()
+  render(<LayoutDock entries={ENTRIES} activeId={1} onRestored={onRestored} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Layout library' }))
+  await flush()
+  fireEvent.click(screen.getByRole('button', { name: 'Recently deleted (1)' }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Bring back Old Swing' })) })
+  await flush()
+  expect(onRestored).toHaveBeenCalledWith(row)
+  expect(screen.getByTestId('recently-deleted-layout').textContent).toContain('“Old Swing” is back.')
+})
+
+test('library, dark: no Recently deleted', async () => {
+  stubFetch(false, { '/api/artifact-versions/layout/deleted': () => res(200, { deleted: [{ artifact_id: 9, label: 'X', head: 1 }] }) })
+  render(<LayoutDock entries={ENTRIES} activeId={1} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Layout library' }))
+  await flush()
+  expect(screen.getByRole('menu', { name: 'Layout library' })).toBeInTheDocument()
+  expect(screen.queryByTestId('recently-deleted-layout')).toBeNull()
+})

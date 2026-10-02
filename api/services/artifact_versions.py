@@ -1,4 +1,5 @@
-"""COV-06 — version history on a member's own named artefacts: saved screens and named layouts.
+"""COV-06 — version history on a member's own named artefacts: saved screens, named layouts and
+watchlists.
 
 DARK behind ``ARTIFACT_VERSIONS_ENABLED`` (read per call). Unset, ``record_save`` returns before
 any I/O, every route answers 404, and no file is opened or created.
@@ -20,6 +21,12 @@ was — dropping it is the data-loss path history exists to close):
     content: a restore never re-publishes a screen its owner unpublished);
   * ``layout`` — ``{"layout_json": ..., "groups_json": ...}`` (the NAME is not content: it is
     UNIQUE per member, so restoring an old name could collide; ``label`` records it for display).
+  * ``watchlist`` — ``{"name", "description", "items_json"}``. ``items_json`` is the list's
+    MEMBERSHIP as one snapshot (``[{"sym", "notes"}, ...]`` in display order), because a list is
+    edited in many small writes (add / remove / reorder / note) and only the whole list is a
+    state a member can return to. Publication (``is_public``) is not content. A list whose items
+    are not the member's (the flagged shadow list, an admin INDEX list, a LINKED list) has no
+    history: its owner of record is a sync, a curator, or a source.
 
 THE RULES.
   * SNAPSHOT ON EVERY SAVE (``record_save``), after the artefact's own write committed. A save
@@ -40,6 +47,13 @@ THE RULES.
       2. DEPTH: of what survives, the newest ``RETAIN_VERSIONS`` (10, Bloomberg MNRS) are kept.
   * A hook failure never fails the member's save: it is counted (``stats()``), logged, and the
     next save's baseline step heals the gap.
+
+  * DELETE KEEPS A TOMBSTONE (``record_delete``): a delete while armed appends the content it
+    removed (a ``baseline`` first if that content was never versioned) and then a ``delete`` row
+    holding the same payload. The history therefore OUTLIVES the artefact, and the artefact can be
+    brought back from any kept version (the routers' ``undelete``). A tombstone is never coalesced
+    (only save-after-save is), and the save that follows it always appends — a ``delete`` head is
+    not "the current content".
 
 ⛔ REVERSAL: unset ``ARTIFACT_VERSIONS_ENABLED``. Saves stop being recorded, the routes answer
 404, retention stops, and the rows are LEFT IN PLACE. Never delete them to undo an arming.
@@ -63,18 +77,21 @@ SCHEMA_VERSION = 1
 
 KIND_SCREEN = "screen"
 KIND_LAYOUT = "layout"
-KINDS = (KIND_SCREEN, KIND_LAYOUT)
+KIND_WATCHLIST = "watchlist"
+KINDS = (KIND_SCREEN, KIND_LAYOUT, KIND_WATCHLIST)
 
 #: The fields that ARE an artefact's content, per kind. A payload carries exactly these.
 CONTENT_FIELDS = {
     KIND_SCREEN: ("name", "spec_json"),
     KIND_LAYOUT: ("layout_json", "groups_json"),
+    KIND_WATCHLIST: ("name", "description", "items_json"),
 }
 
 SOURCE_BASELINE = "baseline"
 SOURCE_SAVE = "save"
 SOURCE_RESTORE = "restore"
-SOURCES = (SOURCE_BASELINE, SOURCE_SAVE, SOURCE_RESTORE)
+SOURCE_DELETE = "delete"
+SOURCES = (SOURCE_BASELINE, SOURCE_SAVE, SOURCE_RESTORE, SOURCE_DELETE)
 
 #: Bloomberg MNRS keeps ten.
 RETAIN_VERSIONS = 10
@@ -195,6 +212,21 @@ def get_version(user_id: str, kind: str, artifact_id, version: int) -> Optional[
     return {**_meta(r), "payload": json.loads(r["payload_json"])}
 
 
+def owned_ids(user_id: str, kind: str) -> list[dict]:
+    """Every artefact of ``kind`` this member has history for, with its HEAD row's metadata,
+    newest first. The router decides which of them no longer exist (the delete is the artefact
+    store's fact, not this one's)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT v.* FROM artifact_versions v JOIN ("
+            "  SELECT artifact_id, MAX(version) AS hv FROM artifact_versions"
+            "  WHERE user_id=? AND kind=? GROUP BY artifact_id) h"
+            " ON v.artifact_id=h.artifact_id AND v.version=h.hv"
+            " WHERE v.user_id=? AND v.kind=? ORDER BY v.created_at DESC, v.id DESC",
+            (str(user_id), kind, str(user_id), kind)).fetchall()
+    return [{"artifact_id": r["artifact_id"], **_meta(r)} for r in rows]
+
+
 def stats() -> dict:
     return {"enabled": is_enabled(), "hook_failures": dict(_HOOK_FAILURES)}
 
@@ -239,7 +271,9 @@ def _record(user_id, kind, artifact_id, *, before, after, label, source, restore
         try:
             h = _head_row(c, user_id, kind, artifact_id)
             head_v = h["version"] if h else 0
-            head_sha = h["content_sha256"] if h else None
+            # A tombstone holds the content that was REMOVED, not what is stored now: the save
+            # after it (an undelete) must always append.
+            head_sha = h["content_sha256"] if h and h["source"] != SOURCE_DELETE else None
             if before is not None:
                 before = content(kind, before)
                 before_sha = _sha(_canonical(before))
@@ -254,6 +288,47 @@ def _record(user_id, kind, artifact_id, *, before, after, label, source, restore
             head_v += 1
             _append(c, user_id, kind, artifact_id, head_v, payload=after, source=source,
                     label=label, restored_from=restored_from)
+            _prune(c, user_id, kind, artifact_id)
+            c.execute("COMMIT")
+        except BaseException:
+            if c.in_transaction:
+                c.execute("ROLLBACK")
+            raise
+    return {"appended": True, "version": head_v}
+
+
+def record_delete(user_id, kind: str, artifact_id, *, before: dict,
+                  label: Optional[str] = None) -> Optional[dict]:
+    """Record that an artefact was deleted: its last content (``before``) as a ``baseline`` if it
+    is not already the head, then a ``delete`` tombstone carrying the same payload. ``None`` while
+    dark or on a hook failure — NEVER raises into the member's delete."""
+    if not is_enabled():
+        return None
+    try:
+        return _record_delete(user_id, kind, artifact_id, before=before, label=label)
+    except Exception as exc:  # noqa: BLE001 -- counted and logged; the delete already committed
+        _HOOK_FAILURES["record"] += 1
+        logger.warning("[artifact_versions] tombstone write failed %s/%s/%s: %s", user_id, kind, artifact_id, exc)
+        return None
+
+
+def _record_delete(user_id, kind, artifact_id, *, before, label) -> dict:
+    if kind not in KINDS:
+        raise ValueError(f"unknown kind {kind!r}")
+    before = content(kind, before)
+    before_sha = _sha(_canonical(before))
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            h = _head_row(c, user_id, kind, artifact_id)
+            head_v = h["version"] if h else 0
+            if h is None or h["content_sha256"] != before_sha:
+                head_v += 1
+                _append(c, user_id, kind, artifact_id, head_v, payload=before,
+                        source=SOURCE_BASELINE, label=label, restored_from=None)
+            head_v += 1
+            _append(c, user_id, kind, artifact_id, head_v, payload=before,
+                    source=SOURCE_DELETE, label=label, restored_from=None)
             _prune(c, user_id, kind, artifact_id)
             c.execute("COMMIT")
         except BaseException:

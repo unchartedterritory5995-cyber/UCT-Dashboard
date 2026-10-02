@@ -80,6 +80,8 @@ import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../components/artifactHistory/RecentlyDeleted'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 import { fetchTf } from '../components/chart/timeframes'
@@ -1087,6 +1089,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
+  // COV-06: version history on the member's own lists + Recently deleted. Both
+  // controls are HIDDEN unless ARTIFACT_VERSIONS_ENABLED answers; the probe runs
+  // only where they can render (the unscoped My Lists view, or an open menu).
+  const [wlHistoryId, setWlHistoryId] = useState(null)
+  const [wlDeletedRev, setWlDeletedRev] = useState(0)
+  const wlHistoryAvailable = useArtifactVersionsAvailable(!pickList || !!ctxMenu || !!wlHistoryId)
   // Prebuilt (curated UCT) lists are opened via a `community:<id>` key, but /api/watchlists/public
   // EXCLUDES is_prebuilt lists (they live in their own tab). So a picked prebuilt list must be
   // resolved against BOTH pools, or it opens with 0 items. `communityLists` still drives the
@@ -1713,6 +1721,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   async function handleDeleteList(id) {
     if (!confirm('Delete this watchlist?')) return
     await fetch(`/api/watchlists/${id}`, { method: 'DELETE' })
+    setWlDeletedRev(n => n + 1)
     setExpandedLists(prev => { const n = new Set(prev); n.delete(id); return n })
     mutateMine()
     mutateCommunity()
@@ -3079,6 +3088,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 }
                 return shown.map(wl => renderWatchlistGroup(wl, true))
               })()}
+              {/* COV-06: a deleted list's history outlives it; bring it back here. */}
+              {!pickList && wlHistoryAvailable && (
+                <RecentlyDeleted kind="watchlist" noun="list" refreshKey={wlDeletedRev}
+                  onBroughtBack={() => { mutateMine() }} />
+              )}
             </>
           )}
 
@@ -3459,6 +3473,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 setCtxMenu(null)
               }}>Import tickers</button>
             )}
+            {wlHistoryAvailable && ctxMenu.isOwner && ctxMenu.id !== 'flagged'
+              && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id))
+              && !myLists?.find(w => w.id === ctxMenu.id)?.is_prebuilt && (
+              <button className={styles.ctxItem} data-testid="watchlist-history-open" onClick={() => {
+                setWlHistoryId(ctxMenu.id)
+                setCtxMenu(null)
+              }}>Version history</button>
+            )}
             {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})
@@ -3482,6 +3504,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           </div>
         )
       })()}
+
+      {/* COV-06: one list's version history. Restore is the only write. */}
+      {wlHistoryId && wlHistoryAvailable && (
+        <Sheet open onClose={() => setWlHistoryId(null)} title="Version history">
+          <ArtifactHistory
+            kind="watchlist"
+            artifactId={wlHistoryId}
+            title={`Version history · ${myLists?.find(w => w.id === wlHistoryId)?.name || 'List'}`}
+            onRestored={() => { mutateMine() }}
+            onUnavailable={() => setWlHistoryId(null)}
+          />
+        </Sheet>
+      )}
 
     </div>
   )

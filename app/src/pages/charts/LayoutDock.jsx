@@ -31,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import UIcon from '../../components/ui/UIcon'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 import {
   DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock,
   movePin, removePin, addPin,
@@ -142,7 +143,9 @@ export default function LayoutDock({
   // only while ARTIFACT_VERSIONS_ENABLED answers, and only for YOUR OWN layouts
   // (a prebuilt is firm-curated and has no member history).
   const [historyEntry, setHistoryEntry] = useState(null)
-  const historyAvailable = useArtifactVersionsAvailable(!!menu || !!historyEntry)
+  const historyAvailable = useArtifactVersionsAvailable(!!menu || !!historyEntry || libraryOpen)
+  // COV-06: bumped on a library delete so Recently deleted re-reads.
+  const [deletedRev, setDeletedRev] = useState(0)
   const dockRef = useRef(null)
 
   const closePopovers = useCallback(() => {
@@ -371,7 +374,10 @@ export default function LayoutDock({
               {confirmDeleteId === e.id ? (
                 <button
                   type="button" className={styles.libraryDelConfirm}
-                  onClick={() => { onDelete?.(e); setConfirmDeleteId(null) }}
+                  onClick={() => {
+                    setConfirmDeleteId(null)
+                    Promise.resolve(onDelete?.(e)).finally(() => setDeletedRev(n => n + 1))
+                  }}
                 >Delete?</button>
               ) : (
                 <button
@@ -395,6 +401,12 @@ export default function LayoutDock({
               </div>
             ))}
           </>)}
+          {/* COV-06: a deleted layout's history outlives it; bring it back here.
+              Hidden unless ARTIFACT_VERSIONS_ENABLED answers and something was deleted. */}
+          {historyAvailable && (
+            <RecentlyDeleted kind="layout" noun="layout" refreshKey={deletedRev}
+              onBroughtBack={(res) => onRestored?.(res?.artifact)} />
+          )}
         </div>
       )}
 

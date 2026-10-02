@@ -263,6 +263,19 @@ def get_themes_for_ticker(sym):
         conn.close()
 
 
+def get_theme(theme_id):
+    """One theme's own row (no memberships), or ``None`` when no such theme exists. The
+    existence check ``get_theme_holdings`` cannot give: it answers ``[]`` for an unknown id."""
+    conn = get_connection()
+    try:
+        r = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
+        return dict(r) if r else None
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+
+
 def get_theme_holdings(theme_id, tier_filter=None):
     """Return holdings for a theme (owner + engine merged), optionally filtered by tier."""
     conn = get_connection()

@@ -2685,8 +2685,9 @@ export default function ChartsWorkspace() {
   // Delete — reuses the workspace's own handler, so deleting the layout you are
   // IN still falls back to UCT Default rather than leaving you on a ghost.
   const handleDockDelete = useCallback((entry) => {
-    if (!entry || entry.id === UCT_DEFAULT_ID) return
-    handleDeleteTemplate(entry.id)
+    if (!entry || entry.id === UCT_DEFAULT_ID) return undefined
+    // Returned so the dock can re-read Recently deleted once the delete landed.
+    return handleDeleteTemplate(entry.id)
   }, [handleDeleteTemplate])
 
   // COV-06 — a named layout was restored from its version history. The library

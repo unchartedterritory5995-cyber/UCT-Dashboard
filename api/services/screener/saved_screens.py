@@ -121,11 +121,39 @@ def restore_content(screen_id, user_id, payload, *, restored_from):
 
 
 def delete(screen_id, user_id):
+    before = _stored(screen_id, user_id) if artifact_versions.is_enabled() else None
     with auth_db.get_connection() as c:
         cur = c.execute("DELETE FROM screener_saved_screens WHERE id=? AND user_id=?",
                         (screen_id, user_id))
         c.commit()
-        return cur.rowcount > 0
+        gone = cur.rowcount > 0
+    if gone and before is not None:
+        # COV-06: the history outlives the screen (a tombstone), so a delete can be undone.
+        artifact_versions.record_delete(user_id, artifact_versions.KIND_SCREEN, screen_id,
+                                        before=before, label=before["name"])
+    return gone
+
+
+def undelete_content(screen_id, user_id, payload, *, restored_from):
+    """COV-06: bring a DELETED screen back from one of its kept versions, under its OLD id (so its
+    history continues). It comes back UNPUBLISHED: publication is not content, and a link the
+    owner's delete killed must not come back to life. ``None`` if the id is taken (it exists)."""
+    if _stored(screen_id, user_id) is not None:
+        return None
+    now = int(time.time())
+    with auth_db.get_connection() as c:
+        taken = c.execute("SELECT 1 FROM screener_saved_screens WHERE id=?", (screen_id,)).fetchone()
+        if taken:
+            return None
+        c.execute(
+            "INSERT INTO screener_saved_screens "
+            "(id,user_id,name,spec_json,is_public,share_token,created_at,updated_at) "
+            "VALUES (?,?,?,?,0,NULL,?,?)",
+            (screen_id, user_id, payload["name"], payload["spec_json"], now, now))
+        c.commit()
+    rec = get(screen_id, user_id)
+    res = _version(user_id, rec, before=None, source="restore", restored_from=restored_from)
+    return rec, res
 
 
 def get_public(share_token):
