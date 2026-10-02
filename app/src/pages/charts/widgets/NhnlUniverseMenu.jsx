@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom'
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './NhnlDropdown.module.css'
+import Input from '../../../components/ui/Input'
 
 const fetcher = (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : null))
 
@@ -150,7 +151,7 @@ export default function NhnlUniverseMenu({ activeKey, onPick, addClassName }) {
           style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.width, width: 230 }}
         >
           <div className={styles.searchWrap}>
-            <input
+            <Input aria-label="Search universes"
               ref={searchRef}
               className={styles.searchInput}
               value={q}
