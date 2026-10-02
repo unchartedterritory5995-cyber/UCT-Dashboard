@@ -326,7 +326,12 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         w.record("W4_body_sourced_and_labelled", all(checks4.values()),
                  "; ".join(f"{k}={v}" for k, v in checks4.items()))
 
-        # W5 -- the editor shows it
+        # W5 -- the editor shows it. The cited note is a noteLink whose view fetches its live title,
+        # so it reads "…" until that answers (run 4 sampled it first): WAIT for the title.
+        try:
+            pg.locator(".ProseMirror").first.get_by_text("NVDA thesis (walk)").first.wait_for(state="visible", timeout=20000)
+        except Exception as e:  # noqa: BLE001 -- recorded; the row below then fails on the text
+            w.raw["W5_wait_error"] = str(e)[:300]
         ed = pg.locator(".ProseMirror").first.inner_text()
         w.raw["editor_text_1200"] = ed[:6000]
         ok5 = ("Source: UCT earnings calendar" in ed and "not available: No stored call recap for NVDA" in ed
@@ -368,7 +373,8 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         t9 = time.time()
         pg.goto(base + "/journal/notebook/research/NVDA", wait_until="domcontentloaded")
         h._dismiss_intro(pg)
-        prep_btn = pg.get_by_role("button", name="Earnings prep")
+        # exact: the note row "Earnings Prep — NVDA (…)" is a button too (run 4 counted 2)
+        prep_btn = pg.get_by_role("button", name="Earnings prep", exact=True)
         try:
             pg.get_by_role("heading", name="NVDA", exact=True).first.wait_for(state="visible", timeout=90000)
             loaded = round(time.time() - t9, 1)
