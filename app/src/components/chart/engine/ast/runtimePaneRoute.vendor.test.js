@@ -126,10 +126,11 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
 
   it('⛔ GATE ON: a script the runtime lane cannot build keeps the host refusal, with the reason it was not routed', () => {
     vi.stubEnv(FLAG, '1')
-    // Coupled latches plus a read of another timeframe: the host refusal is the
-    // coupled one, the route is declined because the repaint verdict cannot be
-    // stated without the linter.
-    const src = `${SOURCE}\nhtf = request.security(syminfo.tickerid, "W", close)\n`
+    // Coupled latches plus a `varip`: the host refusal is the coupled one, the
+    // route is declined because the runtime lane refuses `varip` by name.
+    // (⚰️ RT2: this appended an unused weekly read, declined as an unstated
+    // repaint class; the class is now stated and an unused read stops nothing.)
+    const src = `${SOURCE}\nvarip int rt2Ticks = 0\n`
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(built.ok).toBe(false)
     expect(built.reason).toMatch(/declined/)
