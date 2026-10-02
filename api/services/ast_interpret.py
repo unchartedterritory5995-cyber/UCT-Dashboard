@@ -227,6 +227,22 @@ TF_RESAMPLABLE = ("W", "M")
 #: (`lesson_rail_the_mirror_not_just_the_lane`).
 TF_BASE_BARS = {"W": 5, "M": 21}
 
+#: ⭐⭐ C47 — THE PERIODS A *FORMING* READ (`tf_live`) MAY NAME: everything `tf`
+#: resamples, plus the calendar QUARTER (`"3M"`). The mirror of
+#: `interpret.js::TF_LIVE_RESAMPLABLE`, where the ruling and its two witnesses
+#: live (`vw-time-tf-spy-1d-2026-09-28` for the boundaries,
+#: `high-low-open-mid-ranges-rddt-1d-2026-09-28` for the values).
+#:
+#: ⛔ `tf` DOES NOT GAIN IT — `TF_RESAMPLABLE`, the ladder, and every gate that
+#: asks them (`assert_scannable`, the sweep) are exactly what they were. A
+#: separate tuple, not a third entry. ⛔ AND ONLY FROM DAILY BARS: a base that is
+#: not stated, or is not `"D"`, refuses by name (`_assert_live_resamplable`).
+TF_LIVE_RESAMPLABLE = TF_RESAMPLABLE + ("3M",)
+
+#: Base bars per forming period, for the lookback sum — `TF_BASE_BARS` plus the
+#: quarter (three 21-bar months; rounded UP, the safe direction).
+TF_LIVE_BASE_BARS = dict(TF_BASE_BARS, **{"3M": 63})
+
 
 def _assert_sym_placement(root: Any) -> None:
     """Refuse a `sym` that sits UNDER a `tf` — THE ONE PLACE THAT DECIDES.
@@ -335,6 +351,64 @@ def _assert_resamplable(code):
                 % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
 
 
+_NO_BASE = object()
+
+
+def _assert_live_resamplable(code, base=_NO_BASE):
+    """C47 — the same decision for a FORMING read (`tf_live`): the ONE place that
+    says which periods it may name (``TF_LIVE_RESAMPLABLE``). ``base`` is passed by
+    the evaluator only; the lookback sum has no base and asks the tuple alone.
+
+    ⛔ The quarter is read from DAILY bars and from nothing else — a base the
+    caller did not state is not assumed to be daily. Mirrors
+    ``interpret.js::assertLiveResamplable``.
+    """
+    if code not in TF_LIVE_RESAMPLABLE:
+        _refuse("interpret:timeframe",
+                "%r — a forming higher-timeframe read resamples %s from the bars it "
+                "is given. The declared ladder is %s; a code outside it is not a "
+                "timeframe this table knows."
+                % (code, ", ".join(TF_LIVE_RESAMPLABLE), ", ".join(TF_LADDER)))
+    if base is not _NO_BASE and code not in TF_RESAMPLABLE and base != "D":
+        _refuse("interpret:timeframe",
+                "%r is read from DAILY bars only — its boundaries and values were "
+                "measured against TradingView on daily charts — and these bars are %s."
+                % (code, "of no stated timeframe" if base is None else repr(str(base))))
+
+
+def _resample_quarterly_iso(daily_bars):
+    """C47 — ISO-dated daily bars → calendar-quarter bars, in order.
+
+    The quarter's twin of ``bars_fetch._resample_monthly_iso`` (same fields, same
+    first-open / max-high / min-low / last-close / summed-volume aggregation, the
+    period's first calendar day as ``t``), kept HERE because a quarter exists for
+    the forming read only and `bars_fetch` owns what the chart's own bars are.
+    Held equal to ``interpret.js::resampleTo`` by ``tests/test_ast_tf_live_quarter.py``,
+    which grades both lanes against the same TradingView capture.
+    """
+    from api.services import bars_fetch                              # noqa: PLC0415
+    quarters = {}
+    for bar in daily_bars:
+        try:
+            dt = datetime.datetime.strptime(bar["t"], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        key = (dt.year, (dt.month - 1) // 3 + 1)
+        if key not in quarters:
+            quarters[key] = {
+                "t": "%04d-%02d-01" % (dt.year, (key[1] - 1) * 3 + 1),
+                "o": bar["o"], "h": bar["h"], "l": bar["l"], "c": bar["c"],
+                "v": bars_fetch._bar_volume(bar),
+            }
+        else:
+            q = quarters[key]
+            q["h"] = max(q["h"], bar["h"])
+            q["l"] = min(q["l"], bar["l"])
+            q["c"] = bar["c"]
+            q["v"] += bars_fetch._bar_volume(bar)
+    return [quarters[k] for k in sorted(quarters)]
+
+
 
 def _tf_rank(code: Any) -> Optional[int]:
     """Position on the ladder, or ``None`` for a code it does not declare."""
@@ -394,6 +468,8 @@ def _tf_bucket(iso: str, code: str) -> Any:
     two by one period at every year boundary.
     """
     d = datetime.datetime.strptime(iso, "%Y-%m-%d")
+    if code == "3M":                      # C47 — the calendar quarter (`tf_live` only)
+        return (d.year, (d.month - 1) // 3 + 1)
     return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
 
 
@@ -3102,8 +3178,8 @@ def max_lookback(ast: Any) -> int:
             # multiplied by the span, rounded UP because a lookback that is too
             # small answers off a warmup it never had.
             code = str(node.get("value"))
-            _assert_resamplable(code)
-            seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_BASE_BARS[code])
+            _assert_live_resamplable(code)
+            seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_LIVE_BASE_BARS[code])
             continue
         if kind == "sym":
             # ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar —
@@ -5024,7 +5100,11 @@ def _interpret_column(ast: Any, bars: List[dict],
             return out
         if kind in ("tf", "tf_live"):
             code = str(n.get("value"))
-            _assert_resamplable(code)
+            # ⭐ C47 — a forming read may also name the quarter, from daily bars.
+            if kind == "tf_live":
+                _assert_live_resamplable(code, (opts or {}).get("tf"))
+            else:
+                _assert_resamplable(code)
             # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
             # base is. `opts["tf"]` is what the caller knows and the bars do not;
             # absent, this check cannot run and does not pretend to \u2014 the same
@@ -5055,6 +5135,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # it, which `screener/candles.py` already says in as many words.
             from api.services import bars_fetch                      # noqa: PLC0415
             resample = (bars_fetch._resample_weekly_iso if code == "W"
+                        else _resample_quarterly_iso if code == "3M"
                         else bars_fetch._resample_monthly_iso)
             htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
 

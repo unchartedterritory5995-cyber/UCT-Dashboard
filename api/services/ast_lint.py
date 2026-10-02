@@ -605,6 +605,11 @@ _CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_li
 #: lets a formula claim it reads less history than it does.
 _TF_BASE_BARS = {"W": 5, "M": 21}
 
+#: ⭐ C47 — the spans a FORMING read (`tf_live`) may carry: the mirror of
+#: ``ast_interpret.TF_LIVE_BASE_BARS`` (the quarter, read live only), bound to it
+#: by a test for the same forced reason as the table above.
+_TF_LIVE_BASE_BARS = dict(_TF_BASE_BARS, **{"3M": 63})
+
 
 def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """The dependency window of a whole tree, in bars.
@@ -852,12 +857,12 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # daily bars of its own week. Any positive value yields the same badge,
             # so this is stated for the reader rather than for the verdict.
             code = str(node.get("value"))
-            span = _TF_BASE_BARS.get(code)
+            span = _TF_LIVE_BASE_BARS.get(code)
             if len(args) != 1 or span is None:
                 reach_of[id(node)] = unknown(
                     "a live higher-timeframe node carries one child and a timeframe "
                     "this engine resamples (%s), got %r over %d"
-                    % (", ".join(sorted(_TF_BASE_BARS)), node.get("value"), len(args)))
+                    % (", ".join(sorted(_TF_LIVE_BASE_BARS)), node.get("value"), len(args)))
             else:
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
                 back = cb if cb in (UNKNOWN, UNBOUNDED) else int(cb) * span

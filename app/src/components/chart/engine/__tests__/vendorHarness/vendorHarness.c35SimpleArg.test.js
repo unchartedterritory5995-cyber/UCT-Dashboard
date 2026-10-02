@@ -135,11 +135,17 @@ describe('C35 — a `simple` argument sizes its window per call site (artemis, R
     expect(r.refusal.message).toContain('`len` is declared `simple` in `drmEngine`')
   }, 60000)
 
-  it('⛔ the script as written still stops, on its next wall: `smooth`\'s `switch` over the method', () => {
+  // ⭐ C47 MOVED THIS WALL. It read `pine:block@233` — `smooth`'s `switch` over the
+  // `simple string` method, the wall this file's header names. That `switch` is
+  // now chosen per call site (`vendorHarness.c47SimpleSwitch`, which runs the
+  // vendor's `smooth` verbatim against the same two plots), so the script as
+  // written goes one wall further and stops there, by name. This file's own rails
+  // above are untouched: they still run `drmEngine` with `smooth` substituted.
+  it('⛔ the script as written still stops, on its next wall: a windowed builtin over a series this lane computes', () => {
     const cap = load()
     const built = buildRuntimeIr(cap.source.text, { bars: [], inputs: {}, pane: true, basePeriod: 'D', tf: 'D' })
     expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('pine:block')
-    expect(built.refusal.line).toBe(233)
+    expect(built.refusal.guard).toBe('runtime:call-windowed-state')
+    expect(built.refusal.line).toBe(281)
   }, 60000)
 })

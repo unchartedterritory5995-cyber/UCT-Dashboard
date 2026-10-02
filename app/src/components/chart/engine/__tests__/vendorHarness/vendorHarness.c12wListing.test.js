@@ -128,10 +128,22 @@ describe('C12w — the plot lane: trend-duration-forecast HMA, value AND colour 
     expect(p.stats.colorMismatches).toBe(0)
   }, 60000)
 
-  it('⛔ CONTROL — without the listing statement the drawn colour differs on the formerly curtained bars', () => {
+  // ⚰️ Until C47 this was a CONTROL that the listing statement MATTERED here:
+  // without it the colour differed on bars 58–230 (`moved > 0`) — the wrong
+  // colour, drawn. ⭐ C47 — `var trend = bool(na)` is a v6 `bool` latch now
+  // (`pine.js::v6BoolNaLatch`): a SWITCHED state, known from its first
+  // assignment on (bar 58) whatever the fetch start, so behind the curtain those
+  // bars carry TradingView's colour too. The listing statement still decides
+  // the bars BEFORE the first assignment (the latch's `false`), which is what
+  // `vendorHarness.c47BoolNaLatch` pins.
+  it('⭐ C47 — without the listing statement the colour from the first assignment on is still TradingView\'s', () => {
     const listed = hmaOf(runOurSide(cap)).colors
     const curtained = hmaOf(runOurSide(withoutListing(cap))).colors
+    // non-vacuity: a colour is drawn on every one of those bars, and two differ
+    const span = listed.slice(58, 231)
+    expect(span.every((c) => typeof c === 'string' && c.length > 0)).toBe(true)
+    expect(new Set(span).size).toBeGreaterThan(1)
     const moved = listed.filter((c, i) => i >= 58 && i <= 230 && c !== curtained[i]).length
-    expect(moved).toBeGreaterThan(0)
+    expect(moved).toBe(0)
   }, 60000)
 })
