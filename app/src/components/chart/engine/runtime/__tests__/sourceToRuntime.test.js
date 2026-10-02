@@ -279,7 +279,10 @@ plot(a)
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],
-    ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],
+    // ⚰️ R1 (2026-10-02): `strategy("s")` now compiles (C50 carried into this
+    // lane, `runtimeStrategy.test.js`). The declaration still refused is a library.
+    ['a library', `//@version=5\nlibrary("s")\nplot(close)\n`, 'runtime:declaration'],
+    ['a strategy VALUE', `//@version=5\nstrategy("s")\nplot(strategy.position_size)\n`, 'pine:strategy-call'],
   ]
   for (const [label, src, guard] of CASES) {
     it(`${label} → \`${guard}\``, () => {

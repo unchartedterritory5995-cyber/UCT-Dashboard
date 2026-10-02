@@ -13096,7 +13096,7 @@ function refuseUnmeasuredNamedArgs(pineName, args, tok, signature) {
  *  DISCARDED as long as three positional ones were present — reading a request
  *  while ignoring a parameter we cannot name is precisely the silent
  *  mistranslation this door exists against. */
-function positionaliseSecurityArgs(args) {
+export function positionaliseSecurityArgs(args) {
   const slots = new Array(REQUEST_SECURITY_ARGS.length).fill(undefined)
   let positionals = 0
   let seenNamed = false
