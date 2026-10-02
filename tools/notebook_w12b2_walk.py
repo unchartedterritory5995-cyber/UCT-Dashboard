@@ -62,6 +62,25 @@ def _own(d: dict) -> bool:
     return d.get("source") == "user_set" and not str(d.get("id", "")).startswith("builtin:")
 
 
+# The doors a template apply writes or reads through. Run 2 caught the Journal's own
+# background broker sync answering 503 on a sandbox with no SnapTrade config
+# (api/routers/broker_sync.py: "Brokerage sync is not configured."), which says nothing
+# about the template. Every other error is still RECORDED beside the row, never dropped.
+APPLY_DOORS = ("/api/j2/property-defs", "/api/j2/notes")
+
+
+def _is_apply_door(path: str) -> bool:
+    return any(path == d or path.startswith(d + "/") or path.startswith(d + "?") for d in APPLY_DOORS)
+
+
+def _apply_errors(rec: dict) -> list[dict]:
+    return [e for e in rec["api_log"] if e["status"] >= 400 and _is_apply_door(e["path"])]
+
+
+def _other_errors(rec: dict) -> list[dict]:
+    return [e for e in rec["api_log"] if e["status"] >= 400 and not _is_apply_door(e["path"])]
+
+
 def sandbox_env(formulas_on: bool) -> dict[str, str]:
     return {
         "NOTEBOOK_FORMULAS_ENABLED": "1" if formulas_on else "0",   # the gate, on the SANDBOX only
@@ -260,8 +279,9 @@ def _drive(base: str, on: bool, row, rec: dict, shots: pathlib.Path) -> None:
         else:
             row("not one formula definition was requested", "PASS" if not formula_posts else "FAIL",
                 saw=len(formula_posts))
-        bad_api = [e for e in rec["api_log"] if e["status"] >= 400]
-        row("no /api/ response so far is a 4xx or 5xx", "PASS" if not bad_api else "FAIL", saw=bad_api[:5])
+        bad_api = _apply_errors(rec)
+        row("no response from the apply's own doors (property-defs, notes) so far is a 4xx or 5xx",
+            "PASS" if not bad_api else "FAIL", saw=bad_api[:5])
 
         shown = pg.locator("li[data-prop-row]").evaluate_all("els => els.map(e => e.getAttribute('data-prop-row'))")
         want_ids = [by[n]["id"] for n in want_names if n in by]
@@ -295,9 +315,9 @@ def _drive(base: str, on: bool, row, rec: dict, shots: pathlib.Path) -> None:
         shot(pg, "tracker-filled")
 
         if not on:
-            bad_api = [e for e in rec["api_log"] if e["status"] >= 400]
-            row("no /api/ response in the whole walk is a 4xx or 5xx", "PASS" if not bad_api else "FAIL",
-                saw=bad_api[:5])
+            bad_api = _apply_errors(rec)
+            row("no response from the apply's own doors in the whole walk is a 4xx or 5xx",
+                "PASS" if not bad_api else "FAIL", saw=bad_api[:5], other_errors=_other_errors(rec))
             row("no uncaught page error during the walk", "PASS" if not errors else "FAIL", saw=errors[:5])
             browser.close()
             return
@@ -367,8 +387,9 @@ def _drive(base: str, on: bool, row, rec: dict, shots: pathlib.Path) -> None:
         row("Enter again sorts descending: 3, 2, -1",
             "PASS" if desc == ["n3(R 3)", "n1(R 2)", "n2(R -1)"] else "FAIL", saw=desc)
         shot(pg, "table-sorted-desc")
-        bad_api = [e for e in rec["api_log"] if e["status"] >= 400]
-        row("no /api/ response in the whole walk is a 4xx or 5xx", "PASS" if not bad_api else "FAIL", saw=bad_api[:5])
+        bad_api = _apply_errors(rec)
+        row("no response from the apply's own doors in the whole walk is a 4xx or 5xx",
+            "PASS" if not bad_api else "FAIL", saw=bad_api[:5], other_errors=_other_errors(rec))
         row("no uncaught page error during the walk", "PASS" if not errors else "FAIL", saw=errors[:5])
         browser.close()
 
