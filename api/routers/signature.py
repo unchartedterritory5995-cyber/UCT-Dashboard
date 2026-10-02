@@ -307,15 +307,19 @@ def _read_flow_source(sym: str, source: str, cutoff_iso: str,
     wrong. A column it does not recognise is a 400 — which lands here as a
     FAILED read, not as a quiet tape.
 
-    **No credential is forwarded.** `/api/flow/ticker/{symbol}` declares no auth
-    dependency on either service, so sending the caller's session cookie to an
-    env-configurable base URL would buy nothing and hand a live credential to
-    whatever `_flow_base_url()` happens to resolve to.
+    **The SERVICE credential rides, never the member's.** ⚰️ This said
+    `/api/flow/ticker/{symbol}` "declares no auth dependency" — false since
+    2026-08-09, when every flow read became `require_flow_user`, so this read was
+    401 on every call and the flow leg came back empty. It now carries the
+    PUSH_SECRET bearer that gate accepts (`flow_proxy.internal_read_headers`);
+    the caller's session cookie is still never forwarded.
     """
+    from api import flow_proxy
     url = f"{_flow_base_url()}/api/flow/ticker/{sym}"
     try:
         with httpx.stream("GET", url,
                           params={"source": source, "cols": _FLOW_COLS_PARAM},
+                          headers=flow_proxy.internal_read_headers(),
                           timeout=timeout) as resp:
             if resp.status_code != 200:
                 logger.warning("signature: flow read for %s (%s) returned HTTP %s",

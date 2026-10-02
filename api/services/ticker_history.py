@@ -212,8 +212,8 @@ def _flow_auth_headers() -> dict:
     """`/api/flow/*` is `require_flow_user`; an internal read carries the PUSH_SECRET bearer it
     accepts (the Discord /flow card's door, `flow_card_from_page.fetch_product`). Without a
     secret the read is refused (401) and the lane is `unavailable` -- never a quiet tape."""
-    secret = (os.environ.get("PUSH_SECRET") or "").strip()
-    return {"Authorization": f"Bearer {secret}"} if secret else {}
+    from api import flow_proxy
+    return flow_proxy.internal_read_headers()
 
 
 def _flow_request(path: str, params: dict):

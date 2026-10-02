@@ -571,13 +571,16 @@ def test_the_flow_base_skips_the_self_request_when_the_proxy_is_on(monkeypatch):
     assert sig._flow_base_url() == "http://override.test:1234", "the override wins"
 
 
-def test_flow_is_read_from_the_proxied_surface_and_forwards_no_credential(monkeypatch):
+def test_flow_is_read_from_the_proxied_surface_with_the_service_credential_only(monkeypatch):
     """web's own flow.db is a FROZEN pre-cutover copy — a local read would serve
-    stale-forever flow. /api/flow/ticker declares no auth dependency on either
-    service, so forwarding the caller's session cookie to an env-configurable
-    base URL would buy nothing and leak a live credential."""
+    stale-forever flow. Every flow read is `require_flow_user` (2026-08-09), so
+    the read carries the PUSH_SECRET bearer that gate accepts — and NEVER the
+    member's session cookie. ⚰️ This test used to assert NO header at all, on
+    the stale premise that the route declared no auth: it pinned a read that
+    was 401 on every call in production."""
     from api import flow_proxy
     monkeypatch.setattr(flow_proxy, "PROXY_ENABLED", False)
+    monkeypatch.setenv("PUSH_SECRET", "svc-secret-test")
     monkeypatch.setenv("SIGNATURE_FLOW_BASE", "http://flow.test:8080")
     seen = _flow_probe(monkeypatch)
 
@@ -592,7 +595,7 @@ def test_flow_is_read_from_the_proxied_surface_and_forwards_no_credential(monkey
     assert seen["params"] == {"source": "stocks",
                               "cols": ",".join(flow_breakout.FLOW_COLS)}
     assert seen["timeout"] == 15.0
-    assert not (seen["headers"] or {}), f"no credential may ride along: {seen['headers']}"
+    assert seen["headers"] == {"Authorization": "Bearer svc-secret-test"}, seen["headers"]
     assert "cookie" not in str(seen).lower()
     assert [r["Premium"] for r in by_date["2026-06-21"]] == ["$1.2M"]
 

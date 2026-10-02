@@ -839,8 +839,10 @@ def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
     import io as _io
     import httpx
     try:
+        from api import flow_proxy
         r = httpx.get(f"{_flow_base_url()}/api/flow/ticker/{sym}",
-                      params={"source": source}, timeout=2.5)
+                      params={"source": source},
+                      headers=flow_proxy.internal_read_headers(), timeout=2.5)
     except Exception:
         return None
     if r.status_code != 200 or not r.text:
