@@ -1,0 +1,246 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 7,
+    "fixed": 12,
+    "unchanged": 159,
+    "missing": 0,
+    "baseline": 171,
+    "current": 166,
+    "current_ran": 35586,
+    "new_flaky": 0,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 7
+  },
+  "arithmetic": "baseline 171 = unchanged 159 + fixed 12 + missing 0  |  current 166 = unchanged 159 + new 7 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36864226025",
+  "current_run_id": "36927227543",
+  "baseline_sha": "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15",
+  "current_sha": "22f07e1bd2487383788ac632dddb8c80502d79ff",
+  "commit_range": "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15..22f07e1bd2487383788ac632dddb8c80502d79ff",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_buzz_ingest|test_a_truncated_backfill_RESUMES_instead_of_restarting",
+    "pytest|tests.test_buzz_ingest|test_backfill_reports_truncation_when_a_fetch_fails",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[company_about.get_profile-ok]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.fundamentals_pit.test_v5_cutover|test_methodology_is_byte_identical_to_the_frozen_base",
+    "pytest|tests.test_audit_sandbox_env|test_NO_variable_points_at_the_shared_data_root",
+    "pytest|tests.test_audit_sandbox_env|test_it_REDIRECTS_EVERY_pin_the_census_derives",
+    "pytest|tests.test_audit_sandbox_env|test_the_BARE_ROOT_pins_are_redirected_too",
+    "pytest|tests.test_audit_sandbox_env|test_the_quiet_flags_blank_a_webhook_rather_than_removing_it",
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_e2e_sandbox_guard|test_build_environment_produces_a_usable_env_for_a_real_sandbox_root",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_shared_data_root_guard|test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var",
+    "pytest|tests.test_shared_data_root_guard|test_the_literals_no_env_var_can_move_are_named_not_forgotten"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_buzz_ingest|test_a_truncated_backfill_RESUMES_instead_of_restarting": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_buzz_ingest.py or anything it imports"
+    },
+    "pytest|tests.test_buzz_ingest|test_backfill_reports_truncation_when_a_fetch_fails": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_buzz_ingest.py or anything it imports"
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_notes_cas_is_atomic.py or anything it imports"
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_notes_cas_is_atomic.py or anything it imports"
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_notes_cas_is_atomic.py or anything it imports"
+    },
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[company_about.get_profile-ok]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_term072_fmp_parity.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.fundamentals_pit.test_v5_cutover|test_methodology_is_byte_identical_to_the_frozen_base": {
+      "class": "test-file-change",
+      "commits": [
+        "85beba54c",
+        "026aeda5f"
+      ],
+      "workstreams": [
+        {
+          "commit": "85beba54c",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "026aeda5f",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_audit_sandbox_env|test_NO_variable_points_at_the_shared_data_root": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_audit_sandbox_env|test_it_REDIRECTS_EVERY_pin_the_census_derives": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_audit_sandbox_env|test_the_BARE_ROOT_pins_are_redirected_too": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_audit_sandbox_env|test_the_quiet_flags_blank_a_webhook_rather_than_removing_it": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_e2e_sandbox_guard|test_build_environment_produces_a_usable_env_for_a_real_sandbox_root": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_e2e_sandbox_guard.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f771f3d0b..22f07e1bd touched tests/test_parity_scorecard.py or anything it imports"
+    },
+    "pytest|tests.test_shared_data_root_guard|test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_shared_data_root_guard|test_the_literals_no_env_var_can_move_are_named_not_forgotten": {
+      "class": "imported-file-change",
+      "commits": [
+        "0e7d0561a"
+      ],
+      "workstreams": [
+        {
+          "commit": "0e7d0561a",
+          "workstream": "origin/integrate/wave9-2026-09-30",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    }
+  }
+}
