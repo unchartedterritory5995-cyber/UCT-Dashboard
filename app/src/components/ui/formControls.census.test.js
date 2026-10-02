@@ -807,6 +807,7 @@ export const NAMED_SURFACES = [
   'app/src/pages/breadth/BreadthViewsCustomizePanel.jsx',
   'app/src/pages/breadth/CustomizePanel.jsx',
   'app/src/pages/calendar/CalendarHeader.jsx',
+  'app/src/pages/charts/ChartsWorkspace.jsx',
   'app/src/pages/charts/CompareSymbolsPanel.jsx',
   'app/src/pages/charts/PeriodSortConfig.jsx',
   'app/src/pages/charts/ReplayPanel.jsx',
@@ -877,7 +878,7 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 // in the commit that earned it. Never raise it — name the control instead.
 //
 //   2026-10-01  140  (start of the lane/term-067-batch run)
-export const UNNAMED_BASELINE = 76
+export const UNNAMED_BASELINE = 75
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)

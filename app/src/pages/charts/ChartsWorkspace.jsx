@@ -55,6 +55,8 @@ import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y a
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
+import Checkbox from '../../components/ui/Checkbox'
+import Input from '../../components/ui/Input'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -3079,7 +3081,7 @@ export default function ChartsWorkspace() {
                   <div className={styles.menuDivider} />
                   <div className={styles.menuForm}>
                     <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
-                    <input
+                    <Input aria-label="Template name"
                       className={styles.menuInput}
                       placeholder="Template name"
                       value={saveAsName}
@@ -3089,7 +3091,7 @@ export default function ChartsWorkspace() {
                     />
                     {isAdmin && (
                       <label className={styles.menuCheck}>
-                        <input type="checkbox" checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
+                        <Checkbox checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
                         Prebuilt (available to all users)
                       </label>
                     )}
