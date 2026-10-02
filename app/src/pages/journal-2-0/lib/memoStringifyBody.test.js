@@ -14,7 +14,7 @@ import {
 import { Editor } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
 import { createMemoDocJSON } from './memoDocJSON'
-import { createMemoStringify, stringifyDraftPayload } from './memoStringifyBody'
+import { createIncrementalJoin, createMemoStringify, stringifyDraftPayload } from './memoStringifyBody'
 import { buildAskInsertNode, appendAskInsert } from './askInsert'
 import { insertColumns } from './columnsNode'
 
@@ -168,6 +168,170 @@ describe('createMemoStringify: an unchanged sibling subtree is REUSED, never re-
     const body = toJSON(ed.state.doc)
     expect(a(body)).toBe(b(body))
     expect(a(body)).toBe(JSON.stringify(body))
+  })
+
+  it('a keystroke at the END of a 2,000-paragraph note (the exact size the typing budget measures) still calls the native JSON.stringify a BOUNDED number of times', () => {
+    const content = Array.from({ length: 2000 }, (_, i) => P(`paragraph ${i}`))
+    const ed = mount(content)
+    const toJSON = createMemoDocJSON()
+    const stringify = createMemoStringify()
+    stringify(toJSON(ed.state.doc))
+
+    ed.chain().setTextSelection(ed.state.doc.content.size - 1).insertContent('x').run()
+
+    const spy = vi.spyOn(JSON, 'stringify')
+    const out = stringify(toJSON(ed.state.doc))
+    spy.mockRestore()
+    expect(spy.mock.calls.length).toBeLessThan(10)
+    expect(out).toBe(JSON.stringify(ed.getJSON()))
+  })
+
+  it('an edit in the MIDDLE of a 2,000-paragraph note (both a non-empty prefix AND a non-empty suffix) stays byte-identical and bounded', () => {
+    const content = Array.from({ length: 2000 }, (_, i) => P(`paragraph ${i}`))
+    const ed = mount(content)
+    const toJSON = createMemoDocJSON()
+    const stringify = createMemoStringify()
+    stringify(toJSON(ed.state.doc))
+
+    // Paragraph 1000, deep in the middle, so the fix's prefix AND suffix
+    // slices are both non-empty -- unlike every other test in this file,
+    // which edits the first or last node.
+    const targetText = 'paragraph 1000'
+    let foundPos = null
+    ed.state.doc.descendants((node, pos) => {
+      if (foundPos === null && node.isText && node.text === targetText) foundPos = pos
+      return foundPos === null
+    })
+    expect(foundPos).not.toBeNull()
+    ed.chain().setTextSelection(foundPos + targetText.length).insertContent('Q').run()
+
+    const spy = vi.spyOn(JSON, 'stringify')
+    const out = stringify(toJSON(ed.state.doc))
+    spy.mockRestore()
+    expect(spy.mock.calls.length).toBeLessThan(10)
+    expect(out).toBe(JSON.stringify(ed.getJSON()))
+    expect(out).toContain('paragraph 1000Q')
+  })
+
+  it('repeated edits at FAR-APART positions stay byte-identical across every step (exercises the offset-shift math under more than one remote edit)', () => {
+    const content = Array.from({ length: 500 }, (_, i) => P(`paragraph ${i}`))
+    const ed = mount(content)
+    const toJSON = createMemoDocJSON()
+    const stringify = createMemoStringify()
+    expect(stringify(toJSON(ed.state.doc))).toBe(JSON.stringify(ed.getJSON()))
+
+    const insertAfterText = (text, suffix) => {
+      let pos = null
+      ed.state.doc.descendants((node, p) => {
+        if (pos === null && node.isText && node.text === text) pos = p
+        return pos === null
+      })
+      expect(pos).not.toBeNull()
+      ed.chain().setTextSelection(pos + text.length).insertContent(suffix).run()
+    }
+
+    insertAfterText('paragraph 5', 'A')
+    expect(stringify(toJSON(ed.state.doc))).toBe(JSON.stringify(ed.getJSON()))
+    insertAfterText('paragraph 480', 'B')
+    expect(stringify(toJSON(ed.state.doc))).toBe(JSON.stringify(ed.getJSON()))
+    insertAfterText('paragraph 5A', 'C')   // back near the FIRST edit site again
+    expect(stringify(toJSON(ed.state.doc))).toBe(JSON.stringify(ed.getJSON()))
+    insertAfterText('paragraph 250', 'D')  // a third, previously-untouched site
+    expect(stringify(toJSON(ed.state.doc))).toBe(JSON.stringify(ed.getJSON()))
+  })
+})
+
+describe('createIncrementalJoin: the mechanism behind the doc-level fix above, in isolation', () => {
+  it('matches a plain map+join on the very first call', () => {
+    const join = createIncrementalJoin()
+    const arr = ['a', 'bb', 'ccc']
+    const compute = (x) => x.toUpperCase()
+    expect(join(arr, compute)).toBe(arr.map(compute).join(','))
+  })
+
+  it('calls compute() for ONLY the changed element when one element changes at the END (the ordinary "append a character" keystroke)', () => {
+    const join = createIncrementalJoin()
+    const arr1 = ['a', 'b', 'c', 'd', 'e']
+    let calls = []
+    const compute = (x) => { calls.push(x); return x.toUpperCase() }
+    expect(join(arr1, compute)).toBe('A,B,C,D,E')
+
+    calls = []
+    const arr2 = arr1.slice()
+    arr2[4] = 'z'
+    expect(join(arr2, compute)).toBe('A,B,C,D,Z')
+    // The naive `arr.map(compute).join(',')` this replaces would call compute()
+    // on every element; the fix calls it on only the one that changed.
+    expect(calls).toEqual(['z'])
+  })
+
+  it('calls compute() for ONLY the changed element when it is in the MIDDLE (non-empty prefix AND suffix)', () => {
+    const join = createIncrementalJoin()
+    const arr1 = ['a', 'b', 'c', 'd', 'e']
+    const identity = (x) => x
+    join(arr1, identity)
+    const arr2 = arr1.slice()
+    arr2[2] = 'C'
+    const calls = []
+    const countingCompute = (x) => { calls.push(x); return x }
+    expect(join(arr2, countingCompute)).toBe('a,b,C,d,e')
+    expect(calls).toEqual(['C'])
+  })
+
+  it('a contiguous multi-element change recomputes only that range', () => {
+    const join = createIncrementalJoin()
+    const identity = (x) => x
+    join(['a', 'b', 'c', 'd', 'e'], identity)
+    const calls = []
+    const countingCompute = (x) => { calls.push(x); return x }
+    expect(join(['a', 'B', 'C', 'd', 'e'], countingCompute)).toBe('a,B,C,d,e')
+    expect(calls).toEqual(['B', 'C'])
+  })
+
+  it('returns the cached result with ZERO compute() calls when handed the exact same array reference back', () => {
+    const join = createIncrementalJoin()
+    const arr = ['a', 'b']
+    let calls = []
+    const compute = (x) => { calls.push(x); return x }
+    join(arr, compute)
+    calls = []
+    expect(join(arr, compute)).toBe('a,b')
+    expect(calls).toEqual([])
+  })
+
+  it('falls back to a full, correct recompute when the array LENGTH changes (an inserted or removed element)', () => {
+    const join = createIncrementalJoin()
+    const identity = (x) => x
+    join(['a', 'b', 'c'], identity)
+    expect(join(['a', 'b', 'x', 'c'], identity)).toBe('a,b,x,c')
+    expect(join(['a', 'c'], identity)).toBe('a,c')
+  })
+
+  it('stays byte-identical to plain map+join across a long run of mixed single-element, multi-element and length-changing edits (property-style)', () => {
+    const join = createIncrementalJoin()
+    const compute = (x) => `[${x}]`
+    let arr = Array.from({ length: 30 }, (_, i) => `v${i}`)
+    expect(join(arr.slice(), compute)).toBe(arr.map(compute).join(','))
+    let seed = 12345
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+    for (let step = 0; step < 200; step += 1) {
+      const next = arr.slice()
+      const op = rand()
+      if (op < 0.1 && next.length > 1) {
+        next.splice(Math.floor(rand() * next.length), 1)
+      } else if (op < 0.2) {
+        next.splice(Math.floor(rand() * (next.length + 1)), 0, `new${step}`)
+      } else if (op < 0.3 && next.length > 2) {
+        const i = Math.floor(rand() * (next.length - 1))
+        next[i] = `${next[i]}*`
+        next[i + 1] = `${next[i + 1]}*`
+      } else {
+        const i = Math.floor(rand() * next.length)
+        next[i] = `${next[i]}*`
+      }
+      arr = next
+      expect(join(arr.slice(), compute)).toBe(arr.map(compute).join(','))
+    }
   })
 })
 
