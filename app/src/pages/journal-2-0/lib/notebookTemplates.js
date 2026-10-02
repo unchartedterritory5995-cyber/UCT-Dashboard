@@ -1,26 +1,37 @@
 /**
- * Journal 2.0 — Notebook template library (V1 of the templates plan:
- * docs/superpowers/specs/2026-07-12-notebook-templates-plan.md).
+ * Journal 2.0 — Notebook template library (first planned in
+ * docs/superpowers/specs/2026-07-12-notebook-templates-plan.md; deepened in wave 12,
+ * lane 12B, docs/notebook/WAVE-12-PLAN.md §2.3).
  *
- * Eight firm-authored, data-aware TipTap scaffolds in three families
- * (Rituals / Around a trade / Mindset). Each `build(ctx)` returns a fresh,
- * valid TipTap doc; `ctx` comes from lib/templateContext.js and every field
- * is optional — a template must always produce a sane doc with a bare `{}`
- * (graceful blanks: no data ⇒ the prompt scaffold, never an error).
+ * The firm-authored, data-aware TipTap scaffolds, grouped by FAMILIES below (how many
+ * there are is the length of TEMPLATES, never a number typed here -- this header said
+ * "eight in three families" long after it stopped being true). Each `build(ctx)` returns
+ * a fresh, valid TipTap doc; `ctx` comes from lib/templateContext.js and every field is
+ * optional — a template must always produce a sane doc with a bare `{}` (graceful
+ * blanks: no data ⇒ the prompt scaffold, never an error).
  *
- * ⚠️ Extension-set constraint (see lib/tiptap.js `buildExtensions`): the editor
- * runs StarterKit + Image + Link + Placeholder + SlashMenu + VideoTimestamp.
- * StarterKit does NOT include @tiptap/extension-table, so a template MUST NOT
- * contain table/tableRow/tableCell/tableHeader nodes — TipTap silently drops
- * unknown nodes on load, corrupting the doc. Structure is expressed with
- * headings + paragraphs + bullet lists + horizontal rules ONLY
- * (guarded by containsTableNode in the test suite).
+ * Node types: ANY type in the Notebook's schema table (lib/notebookSchema.js) may be
+ * used, and the rail derives the allowed set from that table rather than a typed list.
+ * Wave 12 lifted the old "no tables" rule on purpose: the editor has registered
+ * @tiptap/extension-table (and callout and toggle) since wave 6 (lib/tiptap.js), so a
+ * table no longer drops on load. ⛔ No template may need a NEW node type — that is a
+ * schema change with a never-revert rule (WAVE-12-PLAN.md §3), not a template change.
+ * The Notebook-only builders for toggle / callout / table live in lib/templateBlocks.js;
+ * the shared lib/tiptapDocBuilders.js stays as it is (the Model Book imports it too).
+ *
+ * Walkthroughs: every catalog entry carries `walkthrough` (3-5 short steps, data, so a
+ * preview can show it), and `build` ends the body with it as a COLLAPSED toggle titled
+ * "How to use this template". The gallery's card preview and `templateStructure` skip
+ * that toggle (see `templateStructure`), or every card would preview the walkthrough.
  *
  * Keys are STABLE API: trade-review / weekly-plan / daily-prep predate this
- * catalog (P5-B3) and are deep-linkable via /journal/notebook?new=<key>.
+ * catalog (P5-B3) and are deep-linkable via /journal/notebook?new=<key>. A key keeps
+ * its meaning when its body is deepened (wave 12: trade-review, weekly-review,
+ * monthly-review).
  */
 
 import { h, p, labeled, linkP, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
+import { callout, isWalkthroughNode, metricTable, table, walkthroughToggle } from './templateBlocks'
 
 // ── Families (picker grouping) ────────────────────────────────────────────────
 
@@ -31,9 +42,220 @@ export const FAMILIES = [
   { key: 'mind', label: 'Mindset' },
 ]
 
-// ── The eight templates ───────────────────────────────────────────────────────
+// ── Trade plans by setup (wave 12) ───────────────────────────────────────────
 
-export const TEMPLATES = [
+/**
+ * One body for every setup plan, so a member learns the shape once: the regime line,
+ * what qualifies, a checklist, the numbers table, the setup's one rule, invalidation and
+ * management. Only the words are the setup's own.
+ */
+function setupPlanBody({ setup, checklist, numbers, rule, invalidation, management }) {
+  return (ctx = {}) =>
+    doc([
+      labeled('Regime:', ctx.regimeLine || '—'),
+      h(2, 'The setup'),
+      p(setup),
+      h(2, 'Checklist'),
+      bullets(checklist),
+      h(2, 'The numbers'),
+      table(['', 'Value', 'Why there'], numbers.map((label) => [label, '', ''])),
+      callout('warning', rule),
+      hr(),
+      h(2, 'Invalidation'),
+      p(invalidation),
+      h(2, 'Management'),
+      bullets(management),
+      h(2, 'After the trade'),
+      p('When it closes, write a Trade Post-Mortem and link it here.'),
+    ])
+}
+
+const SETUP_PLANS = [
+  {
+    key: 'breakout-plan',
+    label: 'Base Breakout Plan',
+    family: 'trades',
+    when: 'A leader is tightening up near a pivot',
+    description: 'A base, a pivot, and the volume that proves the breakout is real.',
+    tags: ['trade-plan', 'breakout'],
+    needs: { regime: true },
+    walkthrough: [
+      'Check the Regime line first. Breakouts work best in a healthy market.',
+      'Go down the checklist. A base that misses two items is not the setup.',
+      'Fill the numbers before the open: the pivot, the stop, and the size.',
+      'Buy only through the pivot on volume, and no more than a few percent above it.',
+      'Write the management plan now, then follow it once you are in.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Breakout Plan — ${ctx.ticker}` : 'Base Breakout Plan'),
+    build: setupPlanBody({
+      setup: 'A stock in a prior uptrend builds a base: a cup, a flat base, or a series of tighter pullbacks. The pivot is the high of the tightest area, and the trade is the move through it.',
+      checklist: [
+        'Prior uptrend into the base (a real advance, not a drift)',
+        'The pullbacks get smaller from left to right',
+        'Volume dries up in the tightest part of the base',
+        'Relative strength line at or near new highs',
+        'The group is acting well, not just this one name',
+      ],
+      numbers: ['Pivot (entry)', 'Stop', 'Risk per share', 'First target', 'Shares'],
+      rule: 'Buy it at the pivot, not far above it. A late entry turns a normal pullback into a stop-out.',
+      invalidation: 'It breaks out, then closes back inside the base on volume. A breakout that cannot hold the pivot is a failed breakout.',
+      management: [
+        'Stop under the low of the last tight area, or the breakout day low',
+        'Sell a first piece into strength at two to three times your risk',
+        'Raise the stop to breakeven once the trade has room under it',
+        'Trail the rest with a short moving average, such as the 10-day',
+      ],
+    }),
+  },
+  {
+    key: 'pullback-plan',
+    label: 'Pullback / Flag Plan',
+    family: 'trades',
+    when: 'A leader pulls back to its moving average',
+    description: 'An orderly pullback in an uptrend, and the bounce that resumes it.',
+    tags: ['trade-plan', 'pullback'],
+    needs: { regime: true },
+    walkthrough: [
+      'Confirm the uptrend before anything else: higher highs and rising averages.',
+      'Judge the pullback: light volume and tight candles are what you want.',
+      'Pick the trigger: the prior day\'s high, the flag high, or a reclaim of the average.',
+      'Fill the numbers with the stop under the pullback low.',
+      'If it closes through the average on heavy volume, the plan is off.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Pullback Plan — ${ctx.ticker}` : 'Pullback / Flag Plan'),
+    build: setupPlanBody({
+      setup: 'A leader in a clear uptrend pulls back in an orderly way to a rising short moving average (the 10- or 21-day), or to the 50-day for the first time. The trade is the bounce that resumes the trend.',
+      checklist: [
+        'Established uptrend: higher highs, rising averages',
+        'Pullback on lighter volume than the advance',
+        'Tight, small-range candles near the average',
+        'The average is rising, not flattening out',
+        'The stock still leads its group',
+      ],
+      numbers: ['Trigger (entry)', 'Stop', 'Risk per share', 'Prior high (first target)', 'Shares'],
+      rule: 'Buy strength off support, not weakness into it. Wait for the bounce to start.',
+      invalidation: 'It closes decisively through the average on heavy volume, or undercuts the pullback low.',
+      management: [
+        'Stop under the pullback low or the average it bounced from',
+        'Take a first piece as it retests the prior high',
+        'Raise the stop as it makes a new higher low',
+        'Exit the rest on a close below the average you used',
+      ],
+    }),
+  },
+  {
+    key: 'episodic-pivot-plan',
+    label: 'Episodic Pivot / Gap Plan',
+    family: 'trades',
+    when: 'A stock gaps up hard on a real catalyst',
+    description: 'A big gap on news and volume, and the opening range that sets the trade.',
+    tags: ['trade-plan', 'episodic-pivot'],
+    needs: { regime: true },
+    walkthrough: [
+      'Name the catalyst first. No real news, no episodic pivot.',
+      'Check the gap and the premarket volume against the stock\'s normal day.',
+      'Let the opening range form, then fill the numbers from it.',
+      'Enter on the break of the opening range high, with the stop at the low of the day.',
+      'If it fills the gap, step aside. The story did not hold.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Episodic Pivot Plan — ${ctx.ticker}` : 'Episodic Pivot / Gap Plan'),
+    build: setupPlanBody({
+      setup: 'A real catalyst (an earnings beat and raise, a new product, a big contract) gaps a stock up sharply on very heavy volume. The best ones were quiet or neglected before the news. The trade is the first push after the open.',
+      checklist: [
+        'A real, company-specific catalyst you can name',
+        'A gap of roughly 10% or more',
+        'Volume far above normal, already in the premarket',
+        'The stock was not already extended before the news',
+        'It holds the gap through the first minutes of trading',
+      ],
+      numbers: ['Opening range high (entry)', 'Low of day (stop)', 'Risk per share', 'Gap fill level', 'Shares'],
+      rule: 'The gap is the signal. If it fills the gap, the story did not hold, and neither do you.',
+      invalidation: 'It loses the low of the day, or trades back into the gap. Either says the buyers who drove the gap are gone.',
+      management: [
+        'Stop at the low of the day, or the opening range low',
+        'Sell a first piece into the first strong extension',
+        'Hold the rest while it stays above the gap-day low',
+        'Expect a follow-through day; judge the trade again at the second close',
+      ],
+    }),
+  },
+  {
+    key: 'undercut-rally-plan',
+    label: 'Undercut & Rally Plan',
+    family: 'trades',
+    when: 'A stock dips under a key low and takes it back',
+    description: 'A shakeout under an obvious level, and the reclaim that traps the sellers.',
+    tags: ['trade-plan', 'undercut-rally'],
+    needs: { regime: true },
+    walkthrough: [
+      'Name the level being undercut: a prior low, or a key moving average.',
+      'Wait. The undercut alone is not the trade.',
+      'Enter when the stock reclaims the level, same day or next.',
+      'Put the stop just under the undercut low; that is where you are wrong.',
+      'If it falls back below the level and stays there, you are out.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Undercut & Rally Plan — ${ctx.ticker}` : 'Undercut & Rally Plan'),
+    build: setupPlanBody({
+      setup: 'A stock in a healthy uptrend drops under an obvious level, a prior swing low or the 50-day, shaking out the weak holders. Then it reclaims that level on the same or the next day. The trade is the reclaim.',
+      checklist: [
+        'The undercut level is obvious: everyone is watching it',
+        'The stock was in an uptrend before the undercut',
+        'The undercut is brief: a day or two, not a breakdown',
+        'The reclaim comes on rising volume',
+        'The market is not breaking down at the same time',
+      ],
+      numbers: ['Undercut level', 'Reclaim (entry)', 'Undercut low (stop)', 'Risk per share', 'Shares'],
+      rule: 'Enter on the reclaim, never on the undercut. Until the level is back, it is just a breakdown.',
+      invalidation: 'It reclaims the level, then closes back below it. The trap failed, and the sellers were right.',
+      management: [
+        'Stop just under the undercut low',
+        'Sell a first piece into the prior high or resistance',
+        'Raise the stop to the reclaimed level once it holds a day',
+        'Trail the rest with the short moving average',
+      ],
+    }),
+  },
+  {
+    key: 'parabolic-short-plan',
+    label: 'Parabolic Short Plan',
+    family: 'trades',
+    when: 'A stock has gone vertical and starts to crack',
+    description: 'A short against an exhausted run, entered only after the first crack.',
+    tags: ['trade-plan', 'parabolic-short'],
+    needs: { regime: true },
+    walkthrough: [
+      'Measure the run: how far, how fast, how far above the 10-day average.',
+      'Look for exhaustion, such as a gap up that fades or climax volume.',
+      'Wait for the crack: the first red day, or a failed opening range high.',
+      'Size small. A short squeeze can run far past any stop you set.',
+      'Cover into the first support, such as the 10- or 20-day average.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Parabolic Short Plan — ${ctx.ticker}` : 'Parabolic Short Plan'),
+    build: setupPlanBody({
+      setup: 'A stock runs straight up for several days, far above its short moving averages, often on a story the market has fallen in love with. The trade is the short after the run shows its first real crack, not before.',
+      checklist: [
+        'Several up days in a row, far above the 10-day average',
+        'Signs of exhaustion: a gap up that fades, or climax volume',
+        'The first crack has happened: a red day, or a failed push higher',
+        'Shares are available to borrow, and the cost is acceptable',
+        'You can name the support it is likely to fall back to',
+      ],
+      numbers: ['Entry (after the crack)', 'High of day (stop)', 'Risk per share', 'First support (cover)', 'Shares (small)'],
+      rule: 'Never short strength. Wait for the first crack, size small, and respect the high of the day.',
+      invalidation: 'It reclaims the high of the day. A parabolic stock that makes a new high has not cracked yet.',
+      management: [
+        'Stop above the high of the day; never move it higher',
+        'Cover a first piece at the first support, such as the 10-day average',
+        'Cover the rest into the 20-day average or the gap fill',
+        'Do not re-short the same run after you are stopped out',
+      ],
+    }),
+  },
+]
+
+// ── The catalog (TEMPLATES, below, is this with each walkthrough appended) ────
+
+const CATALOG = [
   {
     key: 'daily-prep',
     label: 'Daily Game Plan',
@@ -42,6 +264,13 @@ export const TEMPLATES = [
     description: 'Regime, levels, scenarios, and your risk budget for the day.',
     tags: ['game-plan'],
     needs: { regime: true, positions: true },
+    walkthrough: [
+      'Write it before the open, not after the first trade.',
+      'The regime line and your open positions fill in from your data. Check they match what you see.',
+      'Write each scenario as "if X happens, I do Y", with the price that sets it off.',
+      'Set the daily stop as a number. When you hit it, you are done for the day.',
+      'After the close, start a Post-Market Debrief. It quotes this plan back to you.',
+    ],
     defaultTitle: (ctx = {}) => `Game Plan — ${ctx.dateShort || 'Today'}`,
     build: (ctx = {}) =>
       doc([
@@ -81,6 +310,12 @@ export const TEMPLATES = [
     description: 'Grade the day against the morning plan in five minutes.',
     tags: ['debrief'],
     needs: { gamePlan: true },
+    walkthrough: [
+      'Write it the same day, within an hour of the close.',
+      'The top section quotes today\'s Daily Game Plan when you wrote one. Grade each trade against it.',
+      'Name the process wins even on a red day, and the leaks even on a green one.',
+      'End with one thing to do differently at the next open, and put it in tomorrow\'s plan.',
+    ],
     defaultTitle: (ctx = {}) => `Debrief — ${ctx.dateShort || 'Today'}`,
     build: (ctx = {}) => {
       const gp = ctx.gamePlanNote
@@ -114,6 +349,13 @@ export const TEMPLATES = [
     description: 'Context, focus, A+ setups, and the risk plan for the week.',
     tags: ['weekly-plan'],
     needs: { regime: true },
+    walkthrough: [
+      'Write it over the weekend or before Monday\'s open.',
+      'Start from the market: regime, breadth, and which groups are leading.',
+      'List three A+ setups at most, each with the trigger you are waiting for.',
+      'Fit the risk plan to the regime: smaller in a choppy tape, normal in a healthy one.',
+      'At the end of the week, grade it in a Weekly Review.',
+    ],
     defaultTitle: (ctx = {}) => `Weekly Plan — wk of ${ctx.weekOfText || 'this week'}`,
     build: (ctx = {}) =>
       doc([
@@ -151,21 +393,44 @@ export const TEMPLATES = [
     description: 'Patterns, leaks, and the ONE commitment for next week.',
     tags: ['weekly-review'],
     needs: {},
+    walkthrough: [
+      'Fill the numbers table first, straight from your journal, before any opinions.',
+      'Check last week\'s ONE commitment honestly: kept or not.',
+      'Count your plan adherence: trades on the plan, stops honored.',
+      'Patterns and leaks come from several trades, never from one.',
+      'Write next week\'s ONE commitment like a rule and carry it into the Weekly Plan.',
+    ],
     defaultTitle: (ctx = {}) => `Weekly Review — wk of ${ctx.weekOfText || 'this week'}`,
     build: () =>
       doc([
         h(2, 'The numbers'),
-        bullets([
-          'Trades / wins / losses: —',
-          'Net R: —',
-          'Best trade & why: —',
-          'Worst trade & why: —',
+        p('Straight from the journal, before any opinions.'),
+        metricTable([
+          'Trades taken',
+          'Wins / losses',
+          'Net R',
+          'Average winner (R)',
+          'Average loser (R)',
+          'Largest loss (R)',
         ]),
+        h(2, "Last week's commitment"),
+        p('What did you commit to last week, and did you keep it? Yes or no, then one line on why.'),
+        h(2, 'Plan adherence'),
+        bullets([
+          'Trades that were on the weekly plan: — of —',
+          'Stops honored as planned: — of —',
+          'Biggest rule break: —',
+        ]),
+        h(2, 'The market this week'),
+        p('Regime, breadth, and which groups led. Did your trading fit the tape, or fight it?'),
+        h(2, 'Best and worst trade'),
+        bullets(['Best trade & why: —', 'Worst trade & why: —']),
+        hr(),
         h(2, 'Three strongest patterns'),
         bullets(['—', '—', '—']),
         h(2, 'Three biggest leaks'),
         bullets(['—', '—', '—']),
-        hr(),
+        callout('note', 'A pattern needs at least two trades behind it. One trade is an anecdote.'),
         h(2, 'ONE commitment'),
         p('The single rule next week will be judged against. One. Write it like a rule, not a wish.'),
       ]),
@@ -178,16 +443,32 @@ export const TEMPLATES = [
     description: 'Zoom out from week-to-week — what actually moved the account this month.',
     tags: ['monthly-review'],
     needs: {},
+    walkthrough: [
+      'Do it after the month closes, with that month\'s weekly reviews open beside it.',
+      'Fill the numbers table, then the edge-by-setup table: one row per setup you traded.',
+      'Look for what repeated across the weeks, not the single best or worst trade.',
+      'Check whether last month\'s change stuck before you choose a new one.',
+      'Pick one change only: sizing, setups, or process.',
+    ],
     defaultTitle: (ctx = {}) => `Monthly Review — ${ctx.dateShort || 'this month'}`,
     build: () =>
       doc([
         h(2, 'The month in numbers'),
-        bullets([
-          'Net P&L / R: —',
-          'Win rate and average R per trade: —',
-          'Best trade & why: —',
-          'Worst trade & why: —',
+        p('Fill these from the journal first; the opinions come after.'),
+        metricTable([
+          'Net P&L',
+          'Net R',
+          'Trades taken',
+          'Win rate',
+          'Average winner / average loser (R)',
+          'Largest drawdown in the month',
         ]),
+        h(2, 'Edge by setup'),
+        table(['Setup', 'Trades', 'Win rate', 'Net R'], [['', '', '', ''], ['', '', '', ''], ['', '', '', '']]),
+        h(2, "Last month's change"),
+        p('Did the one change you committed to last month stick? What did it do to the numbers?'),
+        h(2, 'Best and worst trade'),
+        bullets(['Best trade & why: —', 'Worst trade & why: —']),
         h(2, 'What worked'),
         p('The setups, conditions, or habits that paid this month — keep doing these.'),
         h(2, 'What did not'),
@@ -207,6 +488,12 @@ export const TEMPLATES = [
     description: 'The long view — equity curve, edge by setup, and whether the plan still fits.',
     tags: ['quarterly-review'],
     needs: {},
+    walkthrough: [
+      'Use the three monthly reviews as your source.',
+      'Edge by setup: keep what carried the quarter, question what cost more than it earned.',
+      'Reread your trading plan and ask whether it still fits your account and your schedule.',
+      'Set process goals for next quarter, not P&L targets.',
+    ],
     defaultTitle: (ctx = {}) => `Quarterly Review — ${ctx.dateShort || 'this quarter'}`,
     build: () =>
       doc([
@@ -235,6 +522,12 @@ export const TEMPLATES = [
     description: 'Bull case, bear case, catalysts, risks, and what would prove you wrong.',
     tags: ['thesis'],
     needs: {},
+    walkthrough: [
+      'Set Long or Short in the Research Type property, not in the text.',
+      'Write the bear case as strongly as the bull case.',
+      'Name what would prove you wrong as a price, a number, or an event.',
+      'Link supporting and opposing notes in the Thesis Evidence section as you find them.',
+    ],
     // Direction (Long/Short) is NOT a body field here -- checkpoint §47:
     // set it once via the Research Type property (below the title, added
     // automatically by the editor's Properties section) rather than
@@ -268,6 +561,12 @@ export const TEMPLATES = [
     description: 'Why the theme is moving, the names that lead it, and how to trade it.',
     tags: ['theme-research'],
     needs: {},
+    walkthrough: [
+      'Start with why money is moving into or out of the theme right now.',
+      'Name the leaders and the laggards, and say why for each.',
+      'Write down what would confirm the theme is real, so you can check it later.',
+      'Finish with the trade: the name with the best structure and the setup you want.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} Theme Notes` : 'Sector / Theme Research'),
     build: () =>
       doc([
@@ -285,6 +584,48 @@ export const TEMPLATES = [
       ]),
   },
   {
+    key: 'sector-note',
+    label: 'Sector Note',
+    family: 'research',
+    when: 'Your weekly or biweekly check on a group',
+    description: 'Where a group stands, which names lead it, and where the money is moving.',
+    tags: ['sector-note'],
+    needs: {},
+    walkthrough: [
+      'Name the sector or its ETF at the top, and date the note.',
+      'Read the group\'s trend against its 50- and 200-day lines, and its strength against SPY.',
+      'Fill the leaders table with the strongest three to five names and the setup each is in.',
+      'Write what would change your mind about the group.',
+      'Write a new Sector Note every week or two and compare it with the last one.',
+    ],
+    defaultTitle: (ctx = {}) => `Sector Note — ${ctx.ticker || ctx.dateShort || 'this week'}`,
+    build: () =>
+      doc([
+        labeled('Sector / ETF:', '—'),
+        h(2, 'Where the group stands'),
+        bullets([
+          'Trend: above or below the 50- and 200-day lines: —',
+          'Relative strength against SPY: rising, flat, or falling: —',
+          'Breadth inside the group: how many names are acting well: —',
+        ]),
+        h(2, 'Leaders'),
+        table(['Ticker', 'Setup', 'Relative strength', 'Level to watch'], [
+          ['', '', '', ''],
+          ['', '', '', ''],
+          ['', '', '', ''],
+        ]),
+        h(2, 'Laggards'),
+        p('The weakest names, and whether they are dragging the group or just left behind.'),
+        hr(),
+        h(2, 'Money flow'),
+        p('Is money rotating into the group or out of it? Volume, gaps, and how the leaders react to news.'),
+        h(2, 'What would change my mind'),
+        p('The price action or event that would flip your read on the group.'),
+        h(2, 'Names to act on'),
+        p('The one or two names worth a Trade Plan this week, and the trigger for each.'),
+      ]),
+  },
+  {
     key: 'watchlist-thesis',
     label: 'Watchlist Thesis',
     family: 'research',
@@ -292,6 +633,12 @@ export const TEMPLATES = [
     description: 'Why it earned a spot on the list, and the trigger that promotes it to a trade.',
     tags: ['watchlist'],
     needs: {},
+    walkthrough: [
+      'Write it the day the name goes on your list.',
+      'Describe the setup forming and the level that matters.',
+      'The trigger is the exact price or event that turns watching into trading.',
+      'When it triggers, start a Trade Plan for it.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} — Watchlist Thesis` : 'Watchlist Thesis'),
     build: () =>
       doc([
@@ -314,6 +661,12 @@ export const TEMPLATES = [
     description: 'The date, the expectation, and what a beat or miss does to the chart.',
     tags: ['catalyst'],
     needs: {},
+    walkthrough: [
+      'Record the event, its date, and what the market expects.',
+      'Before the event, write what you do on a beat, a miss, and an in-line report.',
+      'Decide your position going in, and say why.',
+      'After the event, fill in the update and compare the reaction with your scenarios.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} — Catalyst Tracker` : 'Catalyst Tracker'),
     build: () =>
       doc([
@@ -329,6 +682,49 @@ export const TEMPLATES = [
       ]),
   },
   {
+    key: 'earnings-prep',
+    label: 'Earnings Prep',
+    family: 'research',
+    when: 'The days before a company reports',
+    description: 'The expectations, the reaction history, and what to listen for, before the report.',
+    tags: ['earnings', 'earnings-prep'],
+    needs: {},
+    walkthrough: [
+      'Fill the report date and the expectations table from the consensus and last year\'s numbers.',
+      'Fill the last four reactions: the gap, and where the stock closed that day.',
+      'List the two or three things the market will listen for beyond the headline numbers.',
+      'Note where the stock sits going in: in a base, extended, or broken.',
+      'If you will trade the report, size it in an Earnings Play Plan.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Earnings Prep — ${ctx.ticker}` : 'Earnings Prep'),
+    build: () =>
+      doc([
+        h(2, 'The report'),
+        bullets(['Date, before or after the bell: —', 'Expected move (from options): —']),
+        h(2, 'What the Street expects'),
+        table(['', 'Estimate', 'A year ago', 'Actual'], [
+          ['EPS', '', '', ''],
+          ['Revenue', '', '', ''],
+          ['Key metric', '', '', ''],
+        ]),
+        h(2, 'The last four reactions'),
+        table(['Quarter', 'Beat or miss', 'Gap', 'Close that day'], [
+          ['', '', '', ''],
+          ['', '', '', ''],
+          ['', '', '', ''],
+          ['', '', '', ''],
+        ]),
+        hr(),
+        h(2, 'What the market will listen for'),
+        bullets(['Guidance: —', 'The metric that moves this stock: —', 'Anything new: —']),
+        h(2, 'Where the stock sits going in'),
+        p('In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.'),
+        callout('info', 'This note is the homework. If you trade the report, size it in an Earnings Play Plan.'),
+        h(2, 'After the report'),
+        p('The numbers, the reaction, and whether the setup you described held.'),
+      ]),
+  },
+  {
     key: 'ipo-notes',
     label: 'IPO / New Issue Notes',
     family: 'research',
@@ -336,6 +732,12 @@ export const TEMPLATES = [
     description: 'The business, the float, and whether it belongs on a fresh-issue watchlist.',
     tags: ['ipo'],
     needs: {},
+    walkthrough: [
+      'Write down the business and why it is coming public now.',
+      'Record the float, the lockup date, and the pricing against the range.',
+      'Watch the first days and describe the base it builds, or fails to.',
+      'Wait for a proper base, or enough time, before you consider a trade.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} — IPO Notes` : 'IPO / New Issue Notes'),
     build: () =>
       doc([
@@ -358,6 +760,12 @@ export const TEMPLATES = [
     description: 'Capture it while it is fresh — the claims, the tone, and the one thing that mattered.',
     tags: ['meeting-notes'],
     needs: {},
+    walkthrough: [
+      'Fill in "Who / what" first.',
+      'Capture the key points while you listen; tidy them afterward.',
+      'Note the tone, not just the words.',
+      'Before you close the note, write the one thing that mattered and any follow-up.',
+    ],
     defaultTitle: (ctx = {}) => `Meeting Notes — ${ctx.dateShort || 'Today'}`,
     build: () =>
       doc([
@@ -381,6 +789,13 @@ export const TEMPLATES = [
     description: 'Setup, execution, and the lesson — while it’s fresh.',
     tags: ['trade-review'],
     needs: {},
+    walkthrough: [
+      'Write it right after the trade closes, while you still remember the decisions.',
+      'Fill the plan-versus-actual table from your order history.',
+      'Grade the setup, the entry, and the exit separately. A losing trade can be a good trade.',
+      'Name what went right and what went wrong as decisions, not outcomes.',
+      'End with one lesson you can carry into the next trade.',
+    ],
     defaultTitle: (ctx = {}) =>
       ctx.ticker ? `Trade Post-Mortem — ${ctx.ticker}` : 'Trade Post-Mortem',
     build: () =>
@@ -393,11 +808,31 @@ export const TEMPLATES = [
           'Stop placement and dollar risk',
           'Target(s) and the plan to manage the position',
         ]),
+        h(2, 'Plan versus what happened'),
+        table(['', 'Plan', 'Actual'], [
+          ['Entry', '', ''],
+          ['Stop', '', ''],
+          ['Exit', '', ''],
+          ['Size', '', ''],
+          ['Result (R)', '', ''],
+        ]),
+        h(2, 'Grade the trade'),
+        bullets([
+          'Setup quality (A / B / C): —',
+          'Entry execution: —',
+          'Exit execution: —',
+          'Followed the plan? —',
+        ]),
+        callout('info', 'Grade the decisions, not the P&L. A well-run loser is a good trade; a lucky winner is not.'),
         hr(),
         h(2, 'What went right'),
         p('What did you execute well — regardless of the outcome?'),
         h(2, 'What went wrong'),
         p('Where did process break down? Be specific and honest.'),
+        h(2, 'What the market was doing'),
+        p('Index trend, the group the stock belongs to, and whether either helped or hurt the trade.'),
+        h(2, 'Would I take it again?'),
+        p('Same setup, same conditions: yes or no, and what you would change.'),
         h(2, 'The lesson'),
         p('One sentence you can carry into the next trade.'),
       ]),
@@ -410,6 +845,12 @@ export const TEMPLATES = [
     description: 'A dated block per day the position is alive — thesis, stop, action.',
     tags: ['swing-log'],
     needs: { positions: true },
+    walkthrough: [
+      'Start it the day you enter.',
+      'Your open positions fill in at the top when you have any. Otherwise, write the position in.',
+      'Add a dated block each day the position is open: thesis, stop, action.',
+      'When the trade closes, write a Trade Post-Mortem.',
+    ],
     defaultTitle: (ctx = {}) =>
       ctx.ticker ? `Swing Log — ${ctx.ticker}` : 'Swing Position Log',
     build: (ctx = {}) =>
@@ -435,6 +876,12 @@ export const TEMPLATES = [
     description: 'The report, the play, and sizing for binary risk.',
     tags: ['earnings'],
     needs: {},
+    walkthrough: [
+      'Fill in the report date, the expected move, and the last four reactions.',
+      'Choose the play: hold through, enter after the reaction, or sit out.',
+      'Size so the worst gap is survivable. A stop does not protect you overnight.',
+      'Write the invalidation before the report, not after it.',
+    ],
     defaultTitle: (ctx = {}) =>
       ctx.ticker ? `Earnings Play — ${ctx.ticker}` : 'Earnings Play Plan',
     build: () =>
@@ -461,6 +908,13 @@ export const TEMPLATES = [
     description: 'Entry, stop, target, size, and the line that invalidates it — written before you are in it.',
     tags: ['trade-plan'],
     needs: {},
+    walkthrough: [
+      'Write it before you place the order.',
+      'Fill in entry, stop, target, and size as numbers.',
+      'Invalidation is the thesis failing, which can come before the stop.',
+      'Decide now how you will scale out, trail, or add.',
+      'For a base breakout, a pullback, a gap, an undercut, or a parabolic short, that setup\'s own plan goes deeper.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `Trade Plan — ${ctx.ticker}` : 'Trade Plan'),
     build: () =>
       doc([
@@ -475,6 +929,7 @@ export const TEMPLATES = [
         p('How you scale, trail, or add — decided now, not in the middle of the trade.'),
       ]),
   },
+  ...SETUP_PLANS,
   {
     key: 'position-sizing-worksheet',
     label: 'Position Sizing Worksheet',
@@ -483,6 +938,12 @@ export const TEMPLATES = [
     description: 'Work the math once, in writing, instead of eyeballing it under pressure.',
     tags: ['sizing'],
     needs: {},
+    walkthrough: [
+      'Fill in account size, risk percent, entry, and stop.',
+      'Risk per share is entry minus stop.',
+      'Shares = account x risk percent / risk per share.',
+      'Check the total open risk across every position before you enter.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} — Position Size` : 'Position Sizing Worksheet'),
     build: () =>
       doc([
@@ -509,6 +970,12 @@ export const TEMPLATES = [
     description: 'The rules for one setup, written down so future-you trades it the same way every time.',
     tags: ['playbook'],
     needs: {},
+    walkthrough: [
+      'Name the setup and describe it well enough to recognize it cold.',
+      'Write the entry criteria, including what disqualifies it.',
+      'Record the typical stop and how you take profits.',
+      'Link trade reviews of this setup here as you take it.',
+    ],
     defaultTitle: () => 'Setup Playbook Entry',
     build: () =>
       doc([
@@ -532,6 +999,12 @@ export const TEMPLATES = [
     description: 'Strategy, strikes, and the greeks that matter — sized for defined risk.',
     tags: ['options'],
     needs: {},
+    walkthrough: [
+      'Start with the view: direction or volatility, and the time it needs.',
+      'Fill in the structure: strategy, strikes, expiration, debit or credit, max risk.',
+      'Think through time decay and implied volatility before the trade, especially around a catalyst.',
+      'Write the exit for both outcomes, profit and loss.',
+    ],
     defaultTitle: (ctx = {}) => (ctx.ticker ? `Options Plan — ${ctx.ticker}` : 'Options Trade Plan'),
     build: () =>
       doc([
@@ -559,6 +1032,12 @@ export const TEMPLATES = [
     description: 'A run through the portfolio-level questions a single-trade plan never asks.',
     tags: ['risk'],
     needs: { positions: true },
+    walkthrough: [
+      'Use it before you size up, and once a week.',
+      'Your open positions fill in at the top when you have any.',
+      'Answer each portfolio question with a number.',
+      'End with an action: trim, hedge, or do not add.',
+    ],
     defaultTitle: (ctx = {}) => `Risk Checklist — ${ctx.dateShort || 'Today'}`,
     build: (ctx = {}) =>
       doc([
@@ -585,6 +1064,13 @@ export const TEMPLATES = [
     description: 'Name the rule, name the cost, and say what stops it next time.',
     tags: ['mistake-log'],
     needs: {},
+    walkthrough: [
+      'Write it the day it happens.',
+      'Name the rule precisely.',
+      'Record the sequence of decisions and what it cost.',
+      'Search your earlier entries for the same rule.',
+      'Write one concrete change that stops it next time.',
+    ],
     defaultTitle: (ctx = {}) => `Mistake Log — ${ctx.dateShort || 'Today'}`,
     build: () =>
       doc([
@@ -609,6 +1095,12 @@ export const TEMPLATES = [
     description: 'The running list of rules you have actually earned the hard way.',
     tags: ['lessons'],
     needs: {},
+    walkthrough: [
+      'Keep one running note for your lessons.',
+      'Add one lesson per entry, and date it.',
+      'Link back to the trade or note it came from.',
+      'Reread it before each new week.',
+    ],
     defaultTitle: () => 'Lessons Learned',
     build: () =>
       doc([
@@ -626,6 +1118,11 @@ export const TEMPLATES = [
     description: 'Process goals you can control, not P&L targets you cannot.',
     tags: ['goals'],
     needs: {},
+    walkthrough: [
+      'Write goals you control: actions, not P&L.',
+      'For each goal, say how you will know it was kept.',
+      'Set a review date, and grade yourself honestly on it.',
+    ],
     defaultTitle: (ctx = {}) => `Trading Goals — ${ctx.dateShort || 'Today'}`,
     build: () =>
       doc([
@@ -647,6 +1144,13 @@ export const TEMPLATES = [
     description: 'Cut size, find the leak, and earn your way back up — written before the next trade, not during it.',
     tags: ['drawdown'],
     needs: {},
+    walkthrough: [
+      'Write it before your next trade, not during one.',
+      'Fill in where things stand, with numbers.',
+      'Cut size first, and write the reduced size as a number.',
+      'Name the one thing to fix.',
+      'Say exactly what earns the full size back.',
+    ],
     defaultTitle: (ctx = {}) => `Drawdown Recovery Plan — ${ctx.dateShort || 'Today'}`,
     build: () =>
       doc([
@@ -673,6 +1177,11 @@ export const TEMPLATES = [
     description: 'Three fields, sixty seconds. Naming it is the win.',
     tags: ['tilt'],
     needs: {},
+    walkthrough: [
+      'Use it the moment a trade goes sideways.',
+      'Three fields, sixty seconds: what happened, the mistake, the cost in R.',
+      'Then step away. Writing this note was the disciplined move.',
+    ],
     defaultTitle: (ctx = {}) => `Tilt Log — ${ctx.dateShort || 'Today'}`,
     build: () =>
       doc([
@@ -688,24 +1197,25 @@ export const TEMPLATES = [
   },
 ]
 
-/** Node types that the editor's extension set cannot render (no table ext). */
-export const TABLE_NODE_TYPES = new Set([
-  'table',
-  'tableRow',
-  'tableCell',
-  'tableHeader',
-])
-
 /**
- * Recursively test whether a TipTap node (or doc) contains any table-family
- * node anywhere in its subtree. Used by tests to guarantee templates stay
- * within the editor's extension set.
+ * Every catalog entry, with its `build` ending the body in the walkthrough: a COLLAPSED
+ * toggle titled "How to use this template" (lib/templateBlocks.js). The steps stay on the
+ * entry as data (`walkthrough`), so a preview can show them without building a doc.
  */
-export function containsTableNode(node) {
-  if (!node || typeof node !== 'object') return false
-  if (TABLE_NODE_TYPES.has(node.type)) return true
-  return (node.content || []).some(containsTableNode)
+function withWalkthrough(entry) {
+  const body = entry.build
+  const steps = entry.walkthrough
+  if (!Array.isArray(steps) || steps.length === 0) return entry
+  return {
+    ...entry,
+    build: (ctx = {}) => {
+      const d = body(ctx)
+      return doc([...((d && d.content) || []), walkthroughToggle(steps)])
+    },
+  }
 }
+
+export const TEMPLATES = CATALOG.map(withWalkthrough)
 
 /** Lookup a template by its stable key. */
 export function getTemplate(key) {
@@ -758,20 +1268,30 @@ export const STRUCTURE_PROBE_CONTEXT = Object.freeze({
  * identically, in `build({})`'s order. What only the no-data branch writes ("No game
  * plan found for today -- ...", "Regime: --", the placeholder position list) and what
  * only data writes are both left out: neither is the note the member will get.
+ *
+ * ⛔ The walkthrough toggle is left out too (wave 12, lane 12B). It is in every build,
+ * data or not, so the comparison above would keep it -- and the gallery's preview, which
+ * reads THIS, would then preview "How to use this template" instead of the template.
+ * This is the ONE place it is skipped; `templatePreview` inherits it. The rail
+ * (notebookTemplates.test.js, "the preview never shows the walkthrough") is
+ * mutation-proved against removing this filter.
  */
 export function templateStructure(tpl) {
   if (!tpl || typeof tpl.build !== 'function') return []
   const withData = new Set((tpl.build(STRUCTURE_PROBE_CONTEXT)?.content || []).map((n) => JSON.stringify(n)))
-  return (tpl.build({})?.content || []).filter((n) => withData.has(JSON.stringify(n)))
+  return (tpl.build({})?.content || [])
+    .filter((n) => !isWalkthroughNode(n))
+    .filter((n) => withData.has(JSON.stringify(n)))
 }
 
 /**
  * The first lines of a template, from its STRUCTURE (templateStructure above): the
  * headings and prompts it writes for every member, never its no-data scaffold, and
  * never a second, hand-typed description. A line is
- * `{ kind: 'heading' | 'text' | 'bullet', text }`; empty paragraphs and rules are
- * skipped, a list contributes one line per item. A template whose structure yields
- * no line has no preview -- the card shows its description alone.
+ * `{ kind: 'heading' | 'text' | 'bullet', text }`; empty paragraphs, rules and tables
+ * are skipped (a table's text joined into one line reads as noise, "EntryPlanActual..."),
+ * a list contributes one line per item. A template whose structure yields no line has
+ * no preview -- the card shows its description alone.
  */
 export function templatePreview(tpl, maxLines = PREVIEW_LINES) {
   const lines = []
@@ -781,6 +1301,7 @@ export function templatePreview(tpl, maxLines = PREVIEW_LINES) {
   }
   for (const node of templateStructure(tpl)) {
     if (lines.length >= maxLines) break
+    if (node.type === 'table') continue
     if (node.type === 'heading') push('heading', nodeText(node))
     else if (node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList') {
       for (const item of node.content || []) push('bullet', nodeText(item))
