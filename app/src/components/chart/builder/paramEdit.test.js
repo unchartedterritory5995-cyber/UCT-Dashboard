@@ -39,7 +39,7 @@ indicator("t")
 length = input.int(14, "Length", minval=1, maxval=200, step=1)
 plot(rsi(close, length))
 `)
-    const result = applyParamEdit(def, '__uct_param_1', 21)
+    const result = applyParamEdit(def, '__uct_param_1001', 21)
     expect(result.ok, result.error).toBe(true)
     expect(result.definition.compute.ast.args[1]).toEqual({ type: 'num', value: 21 })
     expect(result.definition.compute.source).toBe('rsi(close, 21)')
@@ -53,7 +53,7 @@ indicator("t")
 length = input.int(14, "Length", minval=1, maxval=200, step=1)
 plot(rsi(close, length))
 `)
-    const result = applyParamEdit(def, '__uct_param_1', 500)
+    const result = applyParamEdit(def, '__uct_param_1001', 500)
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/<= 200/)
     // Nothing changed.
@@ -66,7 +66,7 @@ indicator("t")
 length = input.int(14, "Length")
 plot(rsi(close, length))
 `)
-    const result = applyParamEdit(def, '__uct_param_1', 14.5)
+    const result = applyParamEdit(def, '__uct_param_1001', 14.5)
     expect(result.ok).toBe(false)
     expect(result.error).toMatch(/whole number/)
   })
@@ -77,10 +77,10 @@ indicator("t")
 length = input.int(14, "Length")
 plot(rsi(close, length))
 `)
-    const changed = applyParamEdit(def, '__uct_param_1', 30)
+    const changed = applyParamEdit(def, '__uct_param_1001', 30)
     expect(changed.ok).toBe(true)
-    const entry = def.compute.paramManifest.__uct_param_1
-    const reset = applyParamEdit(changed.definition, '__uct_param_1', entry.default)
+    const entry = def.compute.paramManifest.__uct_param_1001
+    const reset = applyParamEdit(changed.definition, '__uct_param_1001', entry.default)
     expect(reset.ok).toBe(true)
     expect(reset.definition.compute.source).toBe(def.compute.source)
   })
@@ -91,7 +91,7 @@ indicator("t")
 mult = input.float(2.0, "Mult", minval=0.1, maxval=10.0)
 plot(close * mult)
 `)
-    const result = applyParamEdit(def, '__uct_param_1', 2.5)
+    const result = applyParamEdit(def, '__uct_param_1001', 2.5)
     expect(result.ok, result.error).toBe(true)
     expect(result.definition.compute.source).toBe('close * 2.5')
   })
@@ -102,17 +102,17 @@ indicator("t")
 useLong = input.bool(true, "Use Long Length")
 plot(sma(close, useLong))
 `)
-    expect(def.compute.paramManifest.__uct_param_1).toMatchObject({
+    expect(def.compute.paramManifest.__uct_param_1001).toMatchObject({
       sourceName: 'useLong', title: 'Use Long Length', type: 'bool', default: 1,
     })
-    const off = applyParamEdit(def, '__uct_param_1', 0)
+    const off = applyParamEdit(def, '__uct_param_1001', 0)
     expect(off.ok, off.error).toBe(true)
     expect(off.definition.compute.ast.args[1]).toEqual({ type: 'num', value: 0 })
     expect(off.definition.compute.source).toBe('sma(close, 0)')
     // ⛔ THE ORIGINAL IS UNTOUCHED, exactly like every other type's own test above.
     expect(def.compute.ast.args[1].value).toBe(1)
 
-    const backOn = applyParamEdit(off.definition, '__uct_param_1', 1)
+    const backOn = applyParamEdit(off.definition, '__uct_param_1001', 1)
     expect(backOn.ok, backOn.error).toBe(true)
     expect(backOn.definition.compute.ast.args[1]).toEqual({ type: 'num', value: 1 })
   })
@@ -124,7 +124,7 @@ useLong = input.bool(true, "Use Long Length")
 plot(sma(close, useLong))
 `)
     for (const bad of [2, -1, 0.5, NaN, Infinity]) {
-      const result = applyParamEdit(def, '__uct_param_1', bad)
+      const result = applyParamEdit(def, '__uct_param_1001', bad)
       expect(result.ok, `${bad} must be refused`).toBe(false)
       expect(result.error).toMatch(/must be 0 or 1/)
     }
@@ -159,7 +159,7 @@ function multiTreeDefinition(period) {
       trees, treesHash: treesHash(trees), scanPlot: 'scan',
       sources: { scan: `sma(close,${period})`, plot2: `rsi(close,${period})` },
       paramManifest: {
-        __uct_param_1: {
+        __uct_param_1001: {
           sourceName: 'length', title: 'Length', type: 'int', default: period,
           min: 1, max: 200, step: 1, options: null,
           locators: [
@@ -176,7 +176,7 @@ function multiTreeDefinition(period) {
 describe('one parameter feeding two trees updates both, atomically', () => {
   it('⭐⭐ both trees change, treesHash changes, scanPlot mirrors compute.ast', () => {
     const def = multiTreeDefinition(14)
-    const result = applyParamEdit(def, '__uct_param_1', 21)
+    const result = applyParamEdit(def, '__uct_param_1001', 21)
     expect(result.ok, result.error).toBe(true)
     const d = result.definition
     expect(d.compute.trees.scan.args[1].value).toBe(21)
@@ -189,8 +189,8 @@ describe('one parameter feeding two trees updates both, atomically', () => {
   it('⛔⛔ a locator that cannot round-trip refuses the WHOLE edit, leaving BOTH trees untouched', () => {
     const def = multiTreeDefinition(14)
     // Corrupt one locator's astPath so its target is not a {type:'num'} node.
-    def.compute.paramManifest.__uct_param_1.locators[1] = { treeIndex: 'plot2', astPath: ['args', 0] }
-    const result = applyParamEdit(def, '__uct_param_1', 21)
+    def.compute.paramManifest.__uct_param_1001.locators[1] = { treeIndex: 'plot2', astPath: ['args', 0] }
+    const result = applyParamEdit(def, '__uct_param_1001', 21)
     expect(result.ok).toBe(false)
     // Neither tree changed -- atomicity, not a partial write.
     expect(def.compute.trees.scan.args[1].value).toBe(14)
@@ -199,8 +199,8 @@ describe('one parameter feeding two trees updates both, atomically', () => {
 
   it('⛔ a detached locator (its tree no longer exists) is skipped, not fatal, if others survive', () => {
     const def = multiTreeDefinition(14)
-    def.compute.paramManifest.__uct_param_1.locators[1] = { treeIndex: 'nonexistent', astPath: ['args', 1] }
-    const result = applyParamEdit(def, '__uct_param_1', 21)
+    def.compute.paramManifest.__uct_param_1001.locators[1] = { treeIndex: 'nonexistent', astPath: ['args', 1] }
+    const result = applyParamEdit(def, '__uct_param_1001', 21)
     expect(result.ok, result.error).toBe(true)
     expect(result.definition.compute.trees.scan.args[1].value).toBe(21)
   })
@@ -224,7 +224,7 @@ length = input.int(14, "Length")
 plot(rsi(close, length))
 `)
     const state = reconcileParams(def)
-    expect(state.__uct_param_1).toEqual({ state: ATTACHED, value: 14, reason: null })
+    expect(state.__uct_param_1001).toEqual({ state: ATTACHED, value: 14, reason: null })
   })
 
   it('⛔ zero locators is DETACHED', () => {
@@ -232,11 +232,11 @@ plot(rsi(close, length))
       compute: {
         ast: { type: 'num', value: 1 },
         paramManifest: {
-          __uct_param_1: { sourceName: 'x', title: 'X', type: 'int', default: 1, locators: [] },
+          __uct_param_1001: { sourceName: 'x', title: 'X', type: 'int', default: 1, locators: [] },
         },
       },
     }
-    expect(reconcileParams(def).__uct_param_1.state).toBe(DETACHED)
+    expect(reconcileParams(def).__uct_param_1001.state).toBe(DETACHED)
   })
 
   it('⛔ a locator whose path does not resolve is DETACHED (removed binding)', () => {
@@ -244,22 +244,22 @@ plot(rsi(close, length))
       compute: {
         ast: { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }] },
         paramManifest: {
-          __uct_param_1: {
+          __uct_param_1001: {
             sourceName: 'x', title: 'X', type: 'int', default: 14,
             locators: [{ treeIndex: null, astPath: ['args', 1] }],
           },
         },
       },
     }
-    const s = reconcileParams(def).__uct_param_1
+    const s = reconcileParams(def).__uct_param_1001
     expect(s.state).toBe(DETACHED)
     expect(s.value).toBeNull()
   })
 
   it('⛔⛔ one of two locators resolving is PARTIALLY_DETACHED, never a half-shown value', () => {
     const def = multiTreeDefinition(14)
-    def.compute.paramManifest.__uct_param_1.locators[1] = { treeIndex: 'nonexistent', astPath: ['args', 1] }
-    const s = reconcileParams(def).__uct_param_1
+    def.compute.paramManifest.__uct_param_1001.locators[1] = { treeIndex: 'nonexistent', astPath: ['args', 1] }
+    const s = reconcileParams(def).__uct_param_1001
     expect(s.state).toBe(PARTIALLY_DETACHED)
     expect(s.value).toBeNull()
   })
@@ -267,7 +267,7 @@ plot(rsi(close, length))
   it('⛔⛔ two locators disagreeing is CONFLICTED, never a silently-picked value', () => {
     const def = multiTreeDefinition(14)
     def.compute.trees.plot2.args[1].value = 21 // manually diverged from scan's 14
-    const s = reconcileParams(def).__uct_param_1
+    const s = reconcileParams(def).__uct_param_1001
     expect(s.state).toBe(CONFLICTED)
     expect(s.value).toBeNull()
   })
@@ -277,14 +277,14 @@ plot(rsi(close, length))
       compute: {
         ast: { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'series', name: 'len' }] },
         paramManifest: {
-          __uct_param_1: {
+          __uct_param_1001: {
             sourceName: 'len', title: 'Length', type: 'int', default: 14,
             locators: [{ treeIndex: null, astPath: ['args', 1] }],
           },
         },
       },
     }
-    expect(reconcileParams(def).__uct_param_1.state).toBe(NON_LITERAL)
+    expect(reconcileParams(def).__uct_param_1001.state).toBe(NON_LITERAL)
   })
 
   it('⭐⭐ Track F v1.1: a window-bound `input.bool` reconciles ATTACHED with a real 0/1 value', () => {
@@ -294,7 +294,7 @@ useLong = input.bool(false, "Use Long Length")
 plot(sma(close, useLong))
 `)
     const state = reconcileParams(def)
-    expect(state.__uct_param_1).toEqual({ state: ATTACHED, value: 0, reason: null })
+    expect(state.__uct_param_1001).toEqual({ state: ATTACHED, value: 0, reason: null })
   })
 
   it('⭐ a definition with no paramManifest reconciles to an empty object', () => {

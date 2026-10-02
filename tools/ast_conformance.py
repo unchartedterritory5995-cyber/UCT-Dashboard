@@ -152,7 +152,12 @@ REL_TOL = 1e-9
 #: `parse.js` produces for `EXPR[N]`. `test_ast_conformance.py` derives the same
 #: set from every `type` in the committed corpus, so a name added here without a
 #: corpus case lands RED rather than reading as coverage.
-CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
+#: ⭐ `ltf` (C41) is the read BELOW the chart's timeframe. Its intraday supply
+#: exists only on a chart, so in this census — which supplies none, in either
+#: lane — it is NOT COMPUTABLE on every bar, and the case that carries it is an
+#: `_allNaN` row: what the two lanes must agree on is exactly that.
+CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
+                        "ltf")
 
 #: LANE-NATIVE ESCAPE PROBES -- the control that keeps "it errored" from reading
 #: as "it was safe". The must-refuse corpus names JS reaches (`toString`,

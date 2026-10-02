@@ -1,18 +1,25 @@
 // app/src/components/chart/engine/lowerTf.test.js
 //
-// ─── C27 — the lower-timeframe rules, one at a time (`lowerTf.js`) ────────────
+// ─── C27 / C41 — the lower-timeframe rules, one at a time (`lowerTf.js`) ──────
 //
 // Synthetic bars at known New York instants, so every rule is read against a
 // case built to break exactly it. The vendor replay (TradingView's own bars) is
 // `__tests__/vendorHarness/vendorHarness.c27LowerTf.test.js`.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
+// ⭐ C41 — a read below the chart is served only behind `VITE_PINE_LOWER_TF_ENABLED`
+// (`lowerTfGate.js`, default OFF). Everything here is about the SERVED read, so the
+// gate is on for the file; the flag-off behaviour has its own cases.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+afterAll(() => { vi.unstubAllEnvs() })
 import {
-  LOWER_TF_REFUSAL as R, LOWER_TF_WITNESS, LOWER_TF_SOURCE, lowerTfWitnessed, lowerTfRefusal,
+  LOWER_TF_REFUSAL as R, LOWER_TF_WITNESS, LOWER_TF_CODE_WITNESS, LOWER_TF_CHART_WITNESS, LOWER_TF_SOURCE,
+  lowerTfWitnessed, lowerTfRefusal,
   isLowerTfRequest, intrabarSeries, intrabarGroups, intrabarArrays, readLowerTf, lowerTfFetchPlan,
-  BARS_ROUTE_MAX,
+  BARS_ROUTE_MAX, lowerTfCodesOf, lowerTfWindowsOf, lowerTfWindowsNeeded, resolveLowerTf, lowerTfSignature,
 } from './lowerTf.js'
 import { parseFormula } from './ast/parse.js'
+import { interpret, lowerTfMask } from './ast/interpret.js'
 import { tradingViewCloseMinute } from '../../../lib/marketClock/tradingViewSession.js'
 
 // New York wall clock → unix seconds, for a date whose UTC offset we state.
@@ -33,7 +40,7 @@ function storeDay(y, m, d, off, stepMin, fromMin, toMin, start = 0) {
 }
 const daily = (iso) => ({ t: Number(iso.replace(/-/g, '')), o: 1, h: 1, l: 1, c: 1, v: 1 })
 
-describe('C27 — which requests are lower-timeframe, and why nothing is served yet', () => {
+describe('C27 / C41 — which requests are lower-timeframe, which are served, and why the rest are not', () => {
   it('a minute code on a D/W/M chart is a lower-timeframe request; D/W/M codes are not', () => {
     expect(isLowerTfRequest('15', 'D')).toBe(true)
     expect(isLowerTfRequest('60', 'W')).toBe(true)
@@ -44,34 +51,64 @@ describe('C27 — which requests are lower-timeframe, and why nothing is served 
     expect(isLowerTfRequest('60', '15')).toBe(false)
   })
 
-  it('⛔ the witness table has two unwitnessed rows, so every served shape is refused BY NAME', () => {
-    expect(LOWER_TF_WITNESS.requestValue).toBe(null)
-    expect(LOWER_TF_WITNESS.requestSession).toBe(null)
-    expect(lowerTfWitnessed()).toBe(false)
-    const r = lowerTfRefusal({ code: '60', base: 'D' })
+  it('⭐ C41 — every rule names its capture, so the witnessed shapes are SERVED (null)', () => {
+    for (const [rule, capture] of Object.entries(LOWER_TF_WITNESS)) {
+      expect(capture, rule).toMatch(/^vw-/)
+    }
+    expect(LOWER_TF_WITNESS.requestValue).toContain('vw-lower-tf-spy-1d-2026-09-30')
+    expect(LOWER_TF_WITNESS.requestSession).toContain('vw-lower-tf-rddt-1d-2026-09-30')
+    expect(lowerTfWitnessed()).toBe(true)
+    for (const code of ['5', '15', '60', '240']) {
+      expect(lowerTfRefusal({ code, base: 'D' }), code).toBe(null)
+      expect(lowerTfRefusal({ code, base: 'W' }), code).toBe(null)
+    }
+  })
+
+  it('⛔ a rule with no capture refuses EVERY served shape by name (the gate can fire)', () => {
+    const gap = { ...LOWER_TF_WITNESS, requestValue: null }
+    expect(lowerTfWitnessed(gap)).toBe(false)
+    const r = lowerTfRefusal({ code: '60', base: 'D' }, gap)
     expect(r.code).toBe(R.UNWITNESSED)
     expect(r.why).toContain('lower-tf:unwitnessed')
     expect(r.why).toContain('vw-lower-tf.pine')
-    // control: the SAME request with every row witnessed is served (null)
-    const all = Object.fromEntries(Object.keys(LOWER_TF_WITNESS).map((k) => [k, 'capture']))
-    expect(lowerTfWitnessed(all)).toBe(true)
-    expect(lowerTfRefusal({ code: '60', base: 'D' }, all)).toBe(null)
+    expect(lowerTfRefusal({ code: '60', base: 'D' }, { ...LOWER_TF_WITNESS, requestSession: '' }).code)
+      .toBe(R.UNWITNESSED)
+  })
+
+  it('⛔ a code or a chart period no capture shows stays `lower-tf:unwitnessed`', () => {
+    // the store could build 1 and 30, but no committed capture reads them below a chart
+    expect(LOWER_TF_CODE_WITNESS['1']).toBe(null)
+    expect(LOWER_TF_CODE_WITNESS['30']).toBe(null)
+    expect(lowerTfRefusal({ code: '1', base: 'D' }).code).toBe(R.UNWITNESSED)
+    expect(lowerTfRefusal({ code: '30', base: 'D' }).code).toBe(R.UNWITNESSED)
+    // a monthly chart: no capture
+    expect(LOWER_TF_CHART_WITNESS.M).toBe(null)
+    expect(lowerTfRefusal({ code: '60', base: 'M' }).code).toBe(R.UNWITNESSED)
+    // every code the store builds has a witness row (a capture or null) — none is implied
+    expect(Object.keys(LOWER_TF_CODE_WITNESS).sort()).toEqual(Object.keys(LOWER_TF_SOURCE).sort())
   })
 
   it('the shape refusals come first and each names its own reason, witnessed or not', () => {
-    const all = Object.fromEntries(Object.keys(LOWER_TF_WITNESS).map((k) => [k, 'capture']))
-    expect(lowerTfRefusal({ code: '15', base: 'D', array: true }, all).code).toBe(R.INTRABAR_ARRAY)
-    expect(lowerTfRefusal({ code: '15', base: 'D', other: 'SPY' }, all).code).toBe(R.OTHER_SYMBOL)
-    expect(lowerTfRefusal({ code: '15', base: 'D', lookahead: true }, all).code).toBe(R.LOOKAHEAD)
-    expect(lowerTfRefusal({ code: '15', base: '60' }, all).code).toBe(R.INTRADAY_CHART)
-    expect(lowerTfRefusal({ code: '240', base: 'D' }, all).code).toBe(R.NOT_SERVED)
-    expect(lowerTfRefusal({ code: '3', base: 'D' }, all).code).toBe(R.NOT_SERVED)
+    expect(lowerTfRefusal({ code: '15', base: 'D', array: true }).code).toBe(R.INTRABAR_ARRAY)
+    expect(lowerTfRefusal({ code: '15', base: 'D', session: 'ticker.modify' }).code).toBe(R.SESSION)
+    expect(lowerTfRefusal({ code: '15', base: 'D', other: 'SPY' }).code).toBe(R.OTHER_SYMBOL)
+    expect(lowerTfRefusal({ code: '15', base: 'D', lookahead: true }).code).toBe(R.LOOKAHEAD)
+    expect(lowerTfRefusal({ code: '15', base: 'D', screen: true }).code).toBe(R.SCREEN)
+    expect(lowerTfRefusal({ code: '15', base: '60' }).code).toBe(R.INTRADAY_CHART)
+    expect(lowerTfRefusal({ code: '3', base: 'D' }).code).toBe(R.NOT_SERVED)
+    expect(lowerTfRefusal({ code: '480', base: 'D' }).code).toBe(R.NOT_SERVED)
+    // each sentence carries its own code, so a surface can name it without matching prose
+    for (const args of [{ array: true }, { session: 'ticker.new' }, { other: 'SPY' }, { lookahead: true }, { screen: true }]) {
+      const r = lowerTfRefusal({ code: '60', base: 'D', ...args })
+      expect(r.why.startsWith(`${r.code}: `), r.code).toBe(true)
+    }
   })
 
-  it('⭐ the store timeframe each code is built from — 60 from 15, because the store\'s 60 is clock-aligned', () => {
+  it('⭐ the store timeframe each code is built from — 60 and 240 from 15: the store\'s own 60 is clock-aligned', () => {
     expect(LOWER_TF_SOURCE['60']).toBe('15')
+    expect(LOWER_TF_SOURCE['240']).toBe('15')
     for (const c of ['1', '5', '15', '30']) expect(LOWER_TF_SOURCE[c]).toBe(c)
-    expect(LOWER_TF_SOURCE['240']).toBeUndefined()
+    expect(LOWER_TF_SOURCE['3']).toBeUndefined()
   })
 })
 
@@ -188,6 +225,28 @@ describe('C27 — which intrabars sit inside each chart bar, and when a chart ba
   it('an intraday chart is not a D/W/M chart', () => {
     expect(() => intrabarGroups([], { sessions: new Map(), damage: [] }, '60', 0)).toThrow()
   })
+
+  it('⭐ C41 — 240 minutes buckets at 09:30 and 13:30 (the second cut at the close); a half-day has one', () => {
+    const s = intrabarSeries(storeDay(2026, 9, 21, EDT, 15, 4 * 60, 20 * 60), '240', '15')
+    const opens = s.bars.map((b) => { const d = new Date(b.t * 1000); return (d.getUTCHours() - EDT) * 60 + d.getUTCMinutes() })
+    expect(opens).toEqual([570, 810])
+    expect(s.bars[0].v).toBe(160) // sixteen 15-minute slots
+    expect(s.bars[1].v).toBe(100) // ten: 13:30–16:00
+    expect(s.sessions.get(20260921).complete).toBe(true)
+    const half = intrabarSeries(storeDay(2025, 11, 28, EST, 15, 570, 780), '240', '15')
+    expect(half.bars).toHaveLength(1)
+    expect(half.sessions.get(20251128).complete).toBe(true)
+  })
+
+  it('⛔ C41 — a reach that runs off the FRONT of the supply is unknown, not a warm-up `na`', () => {
+    const s = intrabarSeries(week, '60', '15')
+    const chart = ['2026-09-21', '2026-09-22'].map(daily)
+    // Monday's last intrabar is index 6: an expression reaching 7 intrabars back reads before
+    // our history begins (TradingView's own series starts earlier), so Monday is unknown
+    expect(intrabarGroups(chart, s, 'D', 7)[0]).toBe(null)
+    expect(intrabarGroups(chart, s, 'D', 6)[0]).not.toBe(null)
+    expect(intrabarGroups(chart, s, 'D', 7)[1]).not.toBe(null)
+  })
 })
 
 describe('C27 — reading a lower timeframe through the real interpreter', () => {
@@ -222,7 +281,7 @@ describe('C27 — reading a lower timeframe through the real interpreter', () =>
   })
 })
 
-describe('C27 — what the product would fetch', () => {
+describe('C27 / C41 — what the product fetches', () => {
   it('the store timeframe and a depth covering the chart bars and the reach, extended hours counted', () => {
     const p = lowerTfFetchPlan('60', 10, 20)
     expect(p.tf).toBe('15')
@@ -231,6 +290,136 @@ describe('C27 — what the product would fetch', () => {
     const big = lowerTfFetchPlan('1', 5000, 0)
     expect(big.bars).toBe(BARS_ROUTE_MAX)
     expect(big.capped).toBe(true)
-    expect(lowerTfFetchPlan('240', 10, 0)).toBe(null)
+    expect(lowerTfFetchPlan('240', 10, 0).tf).toBe('15')
+    expect(lowerTfFetchPlan('3', 10, 0)).toBe(null)
+    // ⛔ the cap is the route's, never raised
+    expect(BARS_ROUTE_MAX).toBe(60000)
+  })
+
+  const defOf = (lowerTf) => ({ id: 'u_x', meta: { recurrenceOrigin: 'pine', ...(lowerTf ? { lowerTf } : {}) } })
+
+  it('⭐ the codes are the member door\'s stamp; one window per STORE timeframe, the deepest plan', () => {
+    expect(lowerTfCodesOf(defOf(['240', '15', '60', '15']))).toEqual(['15', '60', '240'])
+    expect(lowerTfCodesOf(defOf())).toEqual([])
+    expect(lowerTfCodesOf(null)).toEqual([])
+    const w = lowerTfWindowsOf(defOf(['15', '60', '240']), 'D', 100)
+    expect(w).toHaveLength(1) // 15, 60 and 240 are all built from the store's 15
+    expect(w[0].tf).toBe('15')
+    expect(w[0].bars).toBeLessThanOrEqual(BARS_ROUTE_MAX)
+    expect(lowerTfWindowsOf(defOf(['5', '60']), 'D', 100).map((x) => x.tf)).toEqual(['5', '15'])
+    // a deep chart is capped at the route's limit, never above it
+    expect(lowerTfWindowsOf(defOf(['60']), 'D', 5000)[0].bars).toBe(BARS_ROUTE_MAX)
+    expect(lowerTfWindowsOf(defOf(['60']), 'W', 5000)[0].bars).toBe(BARS_ROUTE_MAX)
+  })
+
+  it('⛔ NOTHING is fetched for a document that reads no lower timeframe, or on a chart that serves none', () => {
+    expect(lowerTfWindowsOf(defOf(), 'D', 5000)).toEqual([])
+    expect(lowerTfWindowsOf(defOf([]), 'D', 5000)).toEqual([])
+    expect(lowerTfWindowsOf(defOf(['60']), '60', 5000)).toEqual([]) // an intraday chart
+    expect(lowerTfWindowsOf(defOf(['60']), 'M', 5000)).toEqual([])  // a monthly chart: unwitnessed
+    const defs = { a: defOf(), b: defOf(['60']) }
+    const look = (id) => defs[id]
+    expect(lowerTfWindowsNeeded([{ defId: 'a' }], look, 'D', 300)).toEqual([])
+    expect(lowerTfWindowsNeeded([], look, 'D', 300)).toEqual([])
+    expect(lowerTfWindowsNeeded(null, look, 'D', 300)).toEqual([])
+    expect(lowerTfWindowsNeeded([{ defId: 'a' }, { defId: 'b' }], look, 'D', 300).map((x) => x.tf)).toEqual(['15'])
+    // a hidden instance draws nothing, so it fetches nothing
+    expect(lowerTfWindowsNeeded([{ defId: 'b', hidden: true }], look, 'D', 300)).toEqual([])
+  })
+})
+
+describe('C41 — what one binding is handed (`resolveLowerTf`) and what `interpret` does with it', () => {
+  const week = [21, 22, 23].flatMap((d, i) => storeDay(2026, 9, d, EDT, 15, 4 * 60, 20 * 60, i * 100))
+  const chart = ['2026-09-18', '2026-09-21', '2026-09-22', '2026-09-23'].map(daily)
+  const def = { id: 'u_x', meta: { recurrenceOrigin: 'pine', lowerTf: ['60', '240'] } }
+  const have = new Map([['15', { bars: week, status: 'available' }]])
+  const ltf = (formula, code) => ({ type: 'ltf', value: code, args: [parseFormula(formula).ast] })
+  // extended hours come first in a store day: 04:00–20:00 is 64 slots, the regular
+  // session's are the 23rd..48th, so its LAST 15-minute close is 48 (+100 a day)
+  const lastClose = (dayIndex) => dayIndex * 100 + 48
+
+  it('⭐ a D chart is served every witnessed code, from the one store window they are built from', () => {
+    const r = resolveLowerTf(def, { tf: 'D', lowerTf: have })
+    expect(r.served).toEqual(['60', '240'])
+    expect(r.refused).toEqual([])
+    expect(Object.keys(r.supply).sort()).toEqual(['240', '60'])
+    expect(r.supply['60'].bars).toHaveLength(21)
+    expect(r.supply['240'].bars).toHaveLength(6)
+    // the same store bars resolve to the SAME supply object: a paint that changes nothing rebuilds nothing
+    expect(resolveLowerTf(def, { tf: 'D', lowerTf: have }).supply['60']).toBe(r.supply['60'])
+  })
+
+  it('⛔ a document that reads no lower timeframe resolves to null (nothing is built)', () => {
+    expect(resolveLowerTf({ id: 'u_y', meta: { recurrenceOrigin: 'pine' } }, { tf: 'D', lowerTf: have })).toBe(null)
+  })
+
+  it('⛔ each binding that cannot be served is refused BY NAME and supplied nothing', () => {
+    const codeOf = (ctx) => resolveLowerTf(def, ctx).refused.map((x) => x.refusal)
+    expect(codeOf({ tf: 'D', lowerTf: have, framed: true })).toEqual([R.FRAMED, R.FRAMED])
+    expect(codeOf({ tf: '60', lowerTf: have })).toEqual([R.INTRADAY_CHART, R.INTRADAY_CHART])
+    expect(codeOf({ tf: 'M', lowerTf: have })).toEqual([R.UNWITNESSED, R.UNWITNESSED])
+    expect(codeOf({ tf: 'D', lowerTf: null })).toEqual([R.NO_BARS, R.NO_BARS])
+    expect(codeOf({ tf: 'D', lowerTf: new Map([['15', { bars: [], status: 'loading' }]]) })).toEqual([R.NO_BARS, R.NO_BARS])
+    expect(resolveLowerTf(def, { tf: 'D', lowerTf: new Map([['15', { bars: [], status: 'denied' }]]) }).refused[0].reason)
+      .toContain('denied')
+    for (const ctx of [{ tf: 'D', framed: true, lowerTf: have }, { tf: '60', lowerTf: have }, { tf: 'D' }]) {
+      expect(resolveLowerTf(def, ctx).supply).toEqual({})
+    }
+  })
+
+  it('⭐ `interpret` reads the supplied `ltf`: each chart bar its LAST regular-session intrabar', () => {
+    const { supply } = resolveLowerTf(def, { tf: 'D', lowerTf: have })
+    const col = interpret(ltf('close', '60'), chart, {}, undefined, undefined, { tf: 'D', lowerTf: supply })
+    expect(Number.isNaN(col[0])).toBe(true) // 09-18: before the supply — withheld
+    expect(Array.from(col.slice(1))).toEqual([lastClose(0), lastClose(1), lastClose(2)])
+    const c240 = interpret(ltf('close', '240'), chart, {}, undefined, undefined, { tf: 'D', lowerTf: supply })
+    expect(Array.from(c240.slice(1))).toEqual([lastClose(0), lastClose(1), lastClose(2)])
+    // the child runs on the intraday series: an intrabar difference, not a daily one
+    const d = interpret(ltf('close - close[1]', '60'), chart, {}, undefined, undefined, { tf: 'D', lowerTf: supply })
+    expect(d[2]).toBe(2)
+  })
+
+  it('⛔ an UNSUPPLIED `ltf` is not computable on every bar — never the chart\'s own bars under its name', () => {
+    const tree = ltf('close', '60')
+    for (const opts of [{ tf: 'D' }, { tf: 'D', lowerTf: {} }, { tf: 'D', lowerTf: { 15: {} } }, undefined]) {
+      const col = interpret(tree, chart, {}, undefined, undefined, opts)
+      expect(Array.from(col).every((v) => Number.isNaN(v))).toBe(true)
+      expect(Array.from(lowerTfMask(tree, chart, opts))).toEqual([1, 1, 1, 1])
+    }
+  })
+
+  it('⛔ a bar the supply does not cover is WITHHELD downstream — `nz` never turns it into 0', () => {
+    const { supply } = resolveLowerTf(def, { tf: 'D', lowerTf: have })
+    const opts = { tf: 'D', lowerTf: supply }
+    const nz = { type: 'call', name: 'nz', args: [ltf('close', '60'), { type: 'num', value: 0 }] }
+    const col = interpret(nz, chart, {}, undefined, undefined, opts)
+    expect(Number.isNaN(col[0])).toBe(true) // NOT 0
+    expect(col[1]).toBe(lastClose(0))
+    expect(Array.from(lowerTfMask(nz, chart, opts))).toEqual([1, 0, 0, 0])
+    // a chart-side offset reads the unknown bar one bar later: withheld there too
+    const lag = { type: 'offset', value: 1, args: [ltf('close', '60')] }
+    expect(Array.from(lowerTfMask(lag, chart, opts))).toEqual([1, 1, 0, 0])
+    // control: a tree with no `ltf` has no mask at all
+    expect(lowerTfMask(parseFormula('close').ast, chart, opts)).toBe(null)
+  })
+
+  it('⛔ `ltf` stands alone: under another request, or holding one, it is refused', () => {
+    const { supply } = resolveLowerTf(def, { tf: 'D', lowerTf: have })
+    const opts = { tf: 'D', lowerTf: supply }
+    const under = { type: 'tf', value: 'W', args: [ltf('close', '60')] }
+    expect(() => interpret(under, chart, {}, undefined, undefined, opts)).toThrow(/lower-timeframe read/)
+    const holding = { type: 'ltf', value: '60', args: [{ type: 'tf', value: 'W', args: [parseFormula('close').ast] }] }
+    expect(() => interpret(holding, chart, {}, undefined, undefined, opts)).toThrow(/lower-timeframe read/)
+    expect(() => interpret({ type: 'ltf', value: 'W', args: [parseFormula('close').ast] }, chart, {}, undefined,
+      undefined, opts)).toThrow(/whole number of minutes/)
+  })
+
+  it('the compute signature moves when a window lands, and is empty for a document that reads none', () => {
+    expect(lowerTfSignature({ meta: {} }, have)).toBe('')
+    const loading = lowerTfSignature(def, new Map([['15', { bars: [], status: 'loading' }]]))
+    const landed = lowerTfSignature(def, have)
+    expect(loading).not.toBe(landed)
+    expect(lowerTfSignature(def, null)).not.toBe(landed)
+    expect(lowerTfSignature(def, have)).toBe(landed)
   })
 })

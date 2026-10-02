@@ -11,8 +11,9 @@
 // window's average inside the statement that fills this one.
 //
 // ⭐ WHAT IS PINNED, from the listing (the capture's `startsAtBar0`):
-//   * 27 of TradingView's 28 labels, each its text and its y, in its creation
-//     order — every label we draw is one of TradingView's;
+//   * ALL 28 of TradingView's labels, each its text and its y, in its creation
+//     order (⭐ C47 — 27 until the v6 `bool(na)` latch; the first flip's label,
+//     TradingView's id 2 at bar 58, is `vendorHarness.c47BoolNaLatch`'s);
 //   * the table's average row, "23" and "19", at TradingView's addresses and
 //     text colours;
 //   * ⭐ C43 — THE LINE, and `LabelProbLen` (id 82). `LengthLine.set_x2(
@@ -24,10 +25,10 @@
 //     removal, exact on every bar no add ran (`objectWindowPositions`). Both at
 //     TradingView's x RANK (the capture stores x as a dense rank) and y.
 //     ⚰️ C22 held the line (it was drawn one bar long before) and the label.
-// ⛔ WHAT IS NOT DRAWN, named:
-//   * TradingView's first label (id 2, bar 58): our `trend` reads `na` until the
-//     HMA exists (`ta.rising` of `na`), so the first flip compares against `na`
-//     and is not seen — withheld by construction, never guessed;
+// ⚰️ WHAT WAS NOT DRAWN until C47: TradingView's first label (id 2, bar 58) — our
+//     `trend` read `na` until the HMA existed, so the first flip compared against
+//     `na` and was not seen. In v6 `var trend = bool(na)` is `false`
+//     (`pine.js::v6BoolNaLatch`), and the capture's own label is the witness.
 //   * (served since C32) the 30 cells whose text is per-iteration — the index
 //     column `str.tostring(i + 1)` and `bullishCount.get(i)` read by the loop
 //     counter — are pinned in `vendorHarness.c32Collections`. ⭐ With C25 (a loop
@@ -75,22 +76,23 @@ describe("⭐ C22 — trend-duration-forecast draws TradingView's labels and ave
     return { cap, run, lines: fam('line'), labels: fam('label'), tables: fam('table') }
   }
 
-  it('⭐ from the listing: 27 labels, each TradingView\'s text and y, in its creation order', () => {
+  it('⭐ from the listing: all 28 labels, each TradingView\'s text and y, in its creation order', () => {
     const { cap, labels, lines } = runTd(true)
     expect(cap.history.startsAtBar0).toBe(true)
     const vendor = cap.objects.records.labels
     expect(vendor).toHaveLength(28)
-    // the one we withhold, by id: the first flip's label
-    const expected = vendor.filter((l) => l.id !== 2)
+    // ⭐ C47 — none withheld. ⚰️ Until C47 this filtered TradingView's id 2 out
+    // (the first flip's label) and pinned 27.
+    const expected = vendor
     expect(labels.map((l) => [l.props.text, l.props.y])).toEqual(expected.map((l) => [l.t, l.y]))
     // ⭐ C43 — the probable-length label (TradingView's id 82) is among them, last made
     expect(labels[labels.length - 1].props.text).toBe('Probable Length\n23')
     // and every x at TradingView's RANK: the capture stores x as a dense rank
-    // over all its objects; ours lacks the withheld id 2, which is rank 0
+    // over all its objects, id 2 (the first flip) at rank 0
     expect(vendor.find((l) => l.id === 2).x).toBe(0)
     const all = [...new Set([...labels.map((l) => l.props.x), ...lines.flatMap((l) => [l.props.x1, l.props.x2])])]
       .sort((a, b) => a - b)
-    const rank = (x) => all.indexOf(x) + 1
+    const rank = (x) => all.indexOf(x)
     expect(labels.map((l) => rank(l.props.x))).toEqual(expected.map((l) => l.x))
   })
 
@@ -153,9 +155,9 @@ describe("⭐ C22 — trend-duration-forecast draws TradingView's labels and ave
     expect(prob.props.x).toBe(Math.trunc((p.x1 + p.x2) / 2))
     expect(prob.props.y).toBe(v.y1)
     // ⭐ and every one of those x's at TradingView's RANK (the capture's x is a
-    // dense rank over all its objects; ours lacks the withheld id 2, rank 0)
+    // dense rank over all its objects; ⭐ C47 — id 2, rank 0, is drawn now)
     const all = [...new Set([...labels.map((l) => l.props.x), p.x1, p.x2])].sort((a, b) => a - b)
-    const rank = (x) => all.indexOf(x) + 1
+    const rank = (x) => all.indexOf(x)
     expect([rank(p.x1), rank(p.x2)]).toEqual([v.x1, v.x2])
     const v82 = cap.objects.records.labels.find((l) => l.id === 82)
     expect(rank(prob.props.x)).toBe(v82.x)

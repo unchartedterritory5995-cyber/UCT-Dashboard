@@ -6,8 +6,8 @@
 // block harvest) — `vendorHarness.c31Loops.test.js` rails that against the
 // captures. THIS file pins the plot lane: a loop's writes refuse by name wherever
 // the loop stands (scalars, both array spellings, a nested `if` of the body),
-// and the main walk still refuses the block at its loop, so no plot and no
-// parameter address moves.
+// and the main walk still refuses the block at its loop, so no plot moves
+// (unwitnessed on the plot lane — see the rail below; C46).
 //
 // ⭐ AND THE TEXT FOLD (`unrollTextLoop`): a counted `for` with literal ascending
 // bounds whose body only appends to TEXT is folded pass by pass. Descending
@@ -46,8 +46,12 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
   })
 
   it('⛔ THE MAIN WALK STILL REFUSES THE BLOCK AT ITS LOOP — the step-over belongs to the object lane', () => {
-    // A chain the main walk folded would reach inputs a refused one never did,
-    // and a saved script's parameter ids are an address (`paramIds.test.js`).
+    // ⚰️ The reason here was parameter ids (a chain the main walk folds reaches
+    // inputs a refused one never did). C46 removed that reason: an id is the input
+    // call's place in the source. It stays refused BY NAME because no committed
+    // capture shows a value written below a loop in a block and read at the top
+    // level — queued in `docs/pine/capture-queue-2026-10-01-loop-in-block.md`
+    // (probe `vw-loop-in-block.pine`); the fold is on `pine/c46-stepover-trial`.
     const t = translatePine(src(
       'float m = 0.0',
       'if close > open',
@@ -57,6 +61,9 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
       'plot(m, "m")',
     ))
     expect(outputOk(t, 'm')).toBe(false)
+    // …and by name: the member is told which name, and that the fold stopped at the loop.
+    expect(refusalNames(t).some((r) => r.startsWith('pine:reassign|') && r.includes('`m`') && r.includes('`for`')),
+      refusalNames(t).join(' / ')).toBe(true)
   })
 
   it('⛔ an array the loop pushes into (method form) refuses when read after it', () => {

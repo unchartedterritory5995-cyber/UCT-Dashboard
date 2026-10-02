@@ -375,6 +375,12 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # "ticker" is the literal text ``ticker``.
     "symtext": ("type", "name"),
     "textop": ("type", "name", "args"),
+    # ⭐ C41 — THE READ BELOW THE CHART'S TIMEFRAME — `ltf(expr, "60")`. `tf`'s
+    # key set and `tf`'s reason: the code is the node. Written by the Pine member
+    # door for `request.security(syminfo.tickerid, "60", …)` on a daily chart;
+    # ⛔ without this row the STORE would refuse a document every other door
+    # accepts (the trap `offset` documents above).
+    "ltf": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 
@@ -1046,19 +1052,46 @@ def requirement_tags(definition: dict) -> list:
     }
     if not by_tag:
         return []
+    # ⭐ C45 — AND THE `series` ROSTER, which the manifest has always said this
+    # walk reads (`window_dependent.what`: *"the spec carries a `series` roster
+    # beside `calls` and the stamping walk reads both"*) and which it did not: an
+    # `isfirst` LEAF is a `series` node, the walk collected call names only, and a
+    # saved pane document reading `barstate.isfirst` was stamped with nothing.
+    leaves_by_tag = {
+        name: set(spec.get("series") or ())
+        for name, spec in tags_spec.items()
+        if isinstance(spec, Mapping) and spec.get("calls")
+    }
+    # ⭐⭐ C45 — THE ONE SHAPE A TAGGED CALL IS NOT TAGGED IN: a PERIOD ANCHOR,
+    # `valuewhenOccurrence(<period first>, time, 0)` — what `time("W")` translates
+    # to. It is bounded by its period and both interpreters withhold exactly the
+    # bars it cannot answer, so it is not a fact about the request
+    # (`_requirement_tags.occurrence_dependent._not_the_period_anchor`).
+    # ⛔ RECOGNISED BY THE INTERPRETER'S OWN RECOGNISER, the one
+    # `period_anchor_mask` asks — never a second description of the shape here.
+    from api.services import ast_interpret
+    anchor = ast_interpret.is_period_anchor
 
     called: set = set()
+    leaves: set = set()
     unreadable = False
 
     def walk(node):
         nonlocal unreadable
         if isinstance(node, Mapping):
-            if node.get("type") == "call":
+            kind = node.get("type")
+            if kind == "call":
+                if anchor(node):
+                    return
                 name = node.get("name")
                 if isinstance(name, str):
                     called.add(name)
                 else:
                     unreadable = True
+            elif kind == "series":
+                name = node.get("name")
+                if isinstance(name, str):
+                    leaves.add(name)
             for v in node.values():
                 walk(v)
         elif isinstance(node, Sequence) and not isinstance(node, (str, bytes)):
@@ -1073,7 +1106,7 @@ def requirement_tags(definition: dict) -> list:
 
     out = []
     for tag, names in by_tag.items():
-        if unreadable or (called & names):
+        if unreadable or (called & names) or (leaves & leaves_by_tag.get(tag, set())):
             out.append(tag)
     return sorted(out)
 

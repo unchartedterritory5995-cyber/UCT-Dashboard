@@ -167,8 +167,11 @@ describe('⛔ the unserved colour calls keep their refusal', () => {
     // ⚰️ C18 — it COMPILES now and stops the RUN by name unless the caller holds a
     // probe (`colours.js`; the probe half is `c18UnmeasuredProbe.test.js`). So the
     // refusal is asked of the run, with the same three sentences.
+    // ⭐ C48 re-pin — an EMPTY range (`1, 1`) stood here; it is measured now (the
+    // zero colour, `vw-colour-components` E01–E03). What no capture reads is a
+    // value OUTSIDE reversed bounds.
     let err = null
-    try { run('bgcolor(color.from_gradient(close, 1, 1, color.red, color.green))\nplot(close)') } catch (e) { err = e }
+    try { run('bgcolor(color.from_gradient(close, 1e12, 1e11, color.red, color.green))\nplot(close)') } catch (e) { err = e }
     expect(err, 'the run must stop, not draw a guessed colour').not.toBe(null)
     expect(err.name).toBe('ColourError')
     expect(err.message).toContain('color.from_gradient')

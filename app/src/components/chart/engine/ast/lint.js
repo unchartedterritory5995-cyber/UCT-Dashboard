@@ -85,6 +85,10 @@ import {
  *  proof, so the copy stays and a test binds the two.
  *  ⭐ THE BINDING LIVES IN THE TEST, where both modules may be imported at once. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
+/** ⭐ C47 — the spans a FORMING read (`tf_live`) may carry: the mirror of
+ *  `interpret.js::TF_LIVE_BASE_BARS` (the quarter, read live only), bound to it
+ *  by `lint.test.js` for the same forced reason as the table above. */
+export const TF_LIVE_BASE_BARS = Object.freeze({ ...TF_BASE_BARS, '3M': 63 })
 
 // --------------------------------------------------------------------------- //
 // the vocabulary
@@ -222,6 +226,7 @@ function argYieldsBool(node, table) {
       return own(functions, node.name) ? functions[node.name].yields === 'bool' : false
     }
     case 'sym':
+    case 'ltf':
     case 'tf_live':
     case 'tf': {
       const args = Array.isArray(node.args) ? node.args : []
@@ -674,11 +679,11 @@ export function astReach(ast, opts = {}) {
         // the verdict is DERIVED here by a walker that already runs, instead of
         // being threaded in by hand and dropped by the next refactor.
         const args = Array.isArray(node.args) ? node.args : []
-        const span = TF_BASE_BARS[String(node.value)]
+        const span = TF_LIVE_BASE_BARS[String(node.value)]
         if (args.length !== 1 || span === undefined) {
           reachOf.set(node, noteUnknown(
             'a live higher-timeframe node carries one child and a timeframe this '
-            + `engine resamples (${Object.keys(TF_BASE_BARS).sort().join(', ')}), got `
+            + `engine resamples (${Object.keys(TF_LIVE_BASE_BARS).sort().join(', ')}), got `
             + `${JSON.stringify(node.value)} over ${args.length}`))
           break
         }
@@ -699,6 +704,23 @@ export function astReach(ast, opts = {}) {
         if (args.length !== 1) {
           reachOf.set(node, noteUnknown(
             `a symbol node carries exactly one child, got ${args.length}`))
+          break
+        }
+        reachOf.set(node, reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN })
+        break
+      }
+      case 'ltf': {
+        // ⭐ C41 — A READ BELOW THE CHART changes WHICH BARS the child runs on,
+        // never WHEN the chart bar is answered: the last intrabar of a chart bar
+        // that has closed (`engine/lowerTf.js`; a forming one is withheld). The
+        // child's reach is counted in intrabars, and a chart bar holds at least
+        // one, so it passes straight through as an upper bound in chart bars —
+        // the same number `interpret.js::maxLookback` gives. Mirrors `ast_lint`.
+        const args = Array.isArray(node.args) ? node.args : []
+        if (args.length !== 1 || !/^[1-9][0-9]*$/.test(String(node.value))) {
+          reachOf.set(node, noteUnknown(
+            'a lower-timeframe node carries exactly one child and a whole number of minutes, got '
+            + `${JSON.stringify(node.value)} over ${args.length}`))
           break
         }
         reachOf.set(node, reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN })

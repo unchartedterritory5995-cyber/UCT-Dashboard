@@ -1,0 +1,75 @@
+//@version=6
+indicator("UCTPROBE_VW_INT_ARRAY_AVG_NEG", overlay = false, max_labels_count = 100, max_lines_count = 100)
+
+// --- 2026-10-01 C43 - `l.set_x2(l.get_x1() + a.avg() + 1)` WHEN THE SUM IS NEGATIVE --
+//
+// `vw-int-array-avg-spy-1d-2026-09-30` showed the float sum is cut to an int with the
+// fraction dropped (2.5 -> 2, 3.5 -> 3). Every value there was positive, so truncation
+// toward zero and floor were the same number. They differ only when the ARGUMENT is
+// negative, so the Z / Y lines start at bar 0 (`get_x1()` is 0) and the means are
+// -1.5, -2.5, -0.5, -3.5:
+//
+//   row   mean   x1 + mean + 1   truncation   floor
+//   Z01   -1.5       -0.5            0          -1
+//   Z02   -2.5       -1.5           -1          -2
+//   Z03   -0.5        0.5            0           0     (CONTROL: same either way)
+//   Z04   -3.5       -2.5           -2          -3
+//   Y01   `l.set_x2(a.avg())`, mean -1.5:  -1 / -2
+//   Y02   mean -2.5:  -2 / -3          Y03  mean -0.5:  0 / -1
+//   N01-N03  the same three means on a line whose x1 is far from 0 (the sum is
+//            POSITIVE): `get_x2() - get_x1()` - truncation and floor agree there
+//            (-1, -2, 0); a rule applied to the mean alone would read 0, -1, 1.
+//   P01   CONTROL, positive: mean 1.5, x1 = 0 -> 2.
+//   A01-A04  the means themselves as plot values.
+//
+// A line anchored at a NEGATIVE bar index may be a runtime error; its text and bar
+// are then the reading for the Z / Y rows, and N / P / A need a file without them.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (none). Labels are made on the last bar.
+
+array<int> m15 = array.from(-1, -2)
+array<int> m25 = array.from(-2, -3)
+array<int> m05 = array.from(0, -1)
+array<int> m35 = array.from(-3, -4)
+array<int> p15 = array.from(1, 2)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(m15.avg(), "A01_avg_n1_n2")
+plot(m25.avg(), "A02_avg_n2_n3")
+plot(m05.avg(), "A03_avg_0_n1")
+plot(m35.avg(), "A04_avg_n3_n4")
+
+f_zero(array<int> a) =>
+    l = line.new(0, close, 10, close)
+    l.set_x2(l.get_x1() + a.avg() + 1)
+    l.get_x2()
+
+f_bare(array<int> a) =>
+    l = line.new(0, close, 10, close)
+    l.set_x2(a.avg())
+    l.get_x2()
+
+f_far(array<int> a) =>
+    l = line.new(bar_index - 20, close, bar_index - 10, close)
+    l.set_x2(l.get_x1() + a.avg() + 1)
+    l.get_x2() - l.get_x1()
+
+if barstate.islast
+    label.new(bar_index, 0, "A10 tostring mean -1.5|" + str.tostring(m15.avg()))
+    label.new(bar_index, 0, "A11 ## mean -1.5|" + str.tostring(m15.avg(), "##"))
+    label.new(bar_index, 0, "A12 ## mean -2.5|" + str.tostring(m25.avg(), "##"))
+    label.new(bar_index, 0, "A13 ## mean -0.5|" + str.tostring(m05.avg(), "##"))
+    label.new(bar_index, 0, "A14 int(-1.5) CONTROL|" + str.tostring(int(-1.5)))
+    label.new(bar_index, 0, "A15 math.floor(-1.5) CONTROL|" + str.tostring(math.floor(-1.5)))
+    label.new(bar_index, 0, "A16 math.round(-1.5) CONTROL|" + str.tostring(math.round(-1.5)))
+    label.new(bar_index, 0, "P01 x2 mean 1.5 x1 0 CONTROL|" + str.tostring(f_zero(p15)))
+    label.new(bar_index, 0, "N01 dx far mean -1.5|" + str.tostring(f_far(m15)))
+    label.new(bar_index, 0, "N02 dx far mean -2.5|" + str.tostring(f_far(m25)))
+    label.new(bar_index, 0, "N03 dx far mean -0.5|" + str.tostring(f_far(m05)))
+    label.new(bar_index, 0, "Z03 x2 mean -0.5 x1 0 CONTROL|" + str.tostring(f_zero(m05)))
+    label.new(bar_index, 0, "Z01 x2 mean -1.5 x1 0|" + str.tostring(f_zero(m15)))
+    label.new(bar_index, 0, "Z02 x2 mean -2.5 x1 0|" + str.tostring(f_zero(m25)))
+    label.new(bar_index, 0, "Z04 x2 mean -3.5 x1 0|" + str.tostring(f_zero(m35)))
+    label.new(bar_index, 0, "Y01 x2 = mean -1.5|" + str.tostring(f_bare(m15)))
+    label.new(bar_index, 0, "Y02 x2 = mean -2.5|" + str.tostring(f_bare(m25)))
+    label.new(bar_index, 0, "Y03 x2 = mean -0.5|" + str.tostring(f_bare(m05)))

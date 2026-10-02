@@ -671,6 +671,11 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // count, which only the chart knows; the producer still owns the wording
   // (`parse.js::requirementNote`) and the consumer supplies the number.
   const requirementTags = requirementTagsRaised(t)
+  // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key.
+  const blockRunKeys = drawable.flatMap((o, i) => {
+    const hit = ((t.blockRuns && t.blockRuns.outputs) || []).find((x) => x.index === (t.outputs || []).indexOf(o))
+    return hit ? [{ key: keyAt(i), gates: hit.gates }] : []
+  })
   definition.meta = {
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
@@ -688,6 +693,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐⭐ C41 — the lower timeframes the trees read (`translatePine`'s `lowerTf`,
+    // one code per `ltf` node). A chart fetches this symbol's intraday bars for
+    // them and the bind decides which are served (`engine/lowerTf.js`); absent
+    // for every script that reads none, so no other document changes and no
+    // other chart fetches anything.
+    ...(Array.isArray(t.lowerTf) && t.lowerTf.length ? { lowerTf: t.lowerTf } : {}),
     // ⭐⭐ C43 — the `runtime.error` calls the translation placed (each with the
     // conditions it stands under) and the ones it could not (by name). Absent for
     // every script that writes no `runtime.error`, so no other document changes.
@@ -706,6 +717,11 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         }),
       },
     } : {}),
+    // ⭐⭐ C48 — the plots that read a call in a block that may not run on every
+    // bar, each with that block's guard as a tree: the bind refuses the plot, by
+    // name, on a chart where the block runs after a bar it skipped
+    // (`engine/blockRuns.js`). Absent for every script with no such plot.
+    ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 
   return {

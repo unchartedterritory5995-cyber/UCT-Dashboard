@@ -18,6 +18,12 @@ The rules these would settle, and the withholdings they would lift, are in
 | `vw-time-tf-bitstamp-btcusd-1d-2026-09-30` (was Q-T1) | the week starts Monday with weekend bars present; the month / quarter / year open on the 1st; the anchor is the period's CALENDAR open even when the chart holds no bar for it; the daily bar's own `time` is 00:00 UTC |
 | `vw-time-close-tf-spy-1d-2026-09-30` | `time_close("W" / "M" / "3M" / "12M")` = the close of the period's last session, the forming period its scheduled close — and, on its rows Q08–Q11, the Hurricane Sandy week, where the first-bar rule for `time("W")` is wrong |
 | `vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30` | on a symbol that trades every day `time_close(<tf>)` is the NEXT period's open, and bare `time_close` is the next 00:00 UTC |
+| `vw-time-tf-spy-1d-full-2026-10-01`, `vw-time-close-tf-spy-1d-full-2026-10-01` (was Q-T5) | ONE rule answers all 8,476 bars: the open / close of the period's first / last session as the vendor's CALENDAR has it (no closure before 2000; not the six 9/11 and Sandy days). C49 serves the pre-2000 holiday periods and the first partial period from it; the Sandy week and the week of 2001-09-10 stay withheld by name |
+| `vw-time-tf-fx-eurusd-1d-2026-10-01`, `vw-time-close-tf-fx-eurusd-1d-2026-10-01` (was Q-T2) | an FX daily bar opens 17:00 New York Sunday to Thursday; the week opens on the calendar's Sunday 17:00. Measured and left withheld (`time-anchor:weekend-bars`): this chart stamps a daily bar at 09:30 New York on its date, 16.5 h from that open |
+| `vw-time-tf-spy-15-2026-10-01`, `vw-time-tf-spy-5-2026-10-01` (was Q-T3) | `time(timeframe.period)` is `time`; `time("60")` is the 60-minute bucket from 09:30; the periods open at 09:30 of the calendar's first session. Served on regular-session bars (C49) |
+| `vw-time-tf-spy-{1w,1m}-2026-10-01`, `vw-time-close-tf-spy-{1w,1m}-2026-10-01` (was Q-T4) | a period request on a chart above daily is keyed on the day the bar OPENS. Served (C49) |
+
+What is still owed after C49 is in `docs/pine/capture-queue-2026-10-01-c49-clock.md`.
 
 ## What is still withheld or refused, and why
 

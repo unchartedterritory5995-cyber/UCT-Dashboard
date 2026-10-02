@@ -523,9 +523,13 @@ describe('ruling 3.5 — a timeframe literal that names the base', () => {
     // its sentence now also names why that is refused (`lowerTf.js`) — one clause,
     // appended; the shared sentence around it is unchanged, which is what this
     // compares. The clause is asserted to be there, and to be absent for `D` on 60.
+    // ⭐ C41 (2026-09-30): the two rules C27 lacked a capture for are witnessed, so
+    // on a CHART (the host lane) `'5'` on a daily base is served as an `ltf` node.
+    // This `read` is the SCREEN lane, which holds daily bars only: it still
+    // refuses, and the clause names that (`lower-tf:screen`).
     const lowerClause = / Below the chart's own timeframe: [\s\S]*?(?= ⚠️ THIS IS NOT THE SAME REQUEST)/
     expect(unservable.message).toMatch(lowerClause)
-    expect(unservable.message).toContain('lower-tf:unwitnessed')
+    expect(unservable.message).toContain('lower-tf:screen')
     expect(onHourly.message).not.toMatch(lowerClause)
     const strip = (m) => String(m).replace(/`[^`]+` is not one of them/, '<tf> is not one of them')
       .replace(lowerClause, '')

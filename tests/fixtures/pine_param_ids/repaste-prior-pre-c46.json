@@ -1,0 +1,141 @@
+{
+ "_about": "C46 - the document the builder (BuilderSheet: Import tab -> Use -> Save) POSTed at base e4e24524ef for an OUT-OF-CORPUS script, under the walk-order parameter ids (slow = _1, fast = _2: the order the walk resolved them, not source order). Never regenerated. Read by BuilderSheet.pineRepaste.test.jsx (the door) and tests/test_param_repaste_c46.py (the server).",
+ "script": "//@version=5\nindicator(\"C46 re-paste\")\nfast = input.int(9, \"Fast\")\nslow = input.int(21, \"Slow\")\nplot(ta.ema(close, slow) - ta.ema(close, fast), \"Spread\")\n",
+ "definition": {
+  "schemaVersion": 1,
+  "id": "u_c10209ac240e",
+  "version": 1,
+  "compute": {
+   "kind": "ast",
+   "fn": "sha256:90616a7e029df1d3e3eb042b563d210573a9aa3216d2d75c4eb091ddc75ccda9",
+   "rev": 1,
+   "ast": {
+    "type": "op",
+    "name": "-",
+    "args": [
+     {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 21
+       }
+      ]
+     },
+     {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 9
+       }
+      ]
+     }
+    ]
+   },
+   "source": "ema(close, 21) - ema(close, 9)",
+   "paramManifest": {
+    "__uct_param_1": {
+     "sourceName": "slow",
+     "title": "Slow",
+     "type": "int",
+     "default": 21,
+     "min": null,
+     "max": null,
+     "step": null,
+     "options": null,
+     "locators": [
+      {
+       "treeIndex": null,
+       "astPath": [
+        "args",
+        0,
+        "args",
+        1
+       ]
+      }
+     ]
+    },
+    "__uct_param_2": {
+     "sourceName": "fast",
+     "title": "Fast",
+     "type": "int",
+     "default": 9,
+     "min": null,
+     "max": null,
+     "step": null,
+     "options": null,
+     "locators": [
+      {
+       "treeIndex": null,
+       "astPath": [
+        "args",
+        1,
+        "args",
+        1
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "meta": {
+   "name": "C46 repaste",
+   "shortName": "C46 repaste",
+   "category": "Custom",
+   "description": "(the 21-bar exponential average of close) minus (the 9-bar exponential average of close)",
+   "tags": [
+    "custom"
+   ],
+   "tier": "premium",
+   "repaint": "non-repainting",
+   "freshness": "live"
+  },
+  "placement": {
+   "target": "pane",
+   "pane": {
+    "height": 0.15
+   }
+  },
+  "inputs": [
+   {
+    "key": "color",
+    "type": "color",
+    "label": "Color",
+    "default": "#c9a84c"
+   },
+   {
+    "key": "lineWidth",
+    "type": "int",
+    "label": "Line width",
+    "default": 1,
+    "min": 1,
+    "max": 4,
+    "step": 1
+   }
+  ],
+  "plots": [
+   {
+    "key": "value",
+    "label": "C46 repaste",
+    "style": "line",
+    "color": "$color",
+    "width": "$lineWidth",
+    "role": "primary",
+    "legend": {
+     "decimals": 2
+    }
+   }
+  ]
+ }
+}

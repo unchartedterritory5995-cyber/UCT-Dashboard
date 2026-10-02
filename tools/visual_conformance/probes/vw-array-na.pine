@@ -1,0 +1,68 @@
+//@version=6
+indicator("UCTPROBE_VW_ARRAY_NA_V6", overlay = false)
+
+// ─── 2026-10-01 — AN `na` ELEMENT IN AN ARRAY REDUCTION AND AN ARRAY SEARCH (Q-C47-3) ─
+//
+// The runtime lane STOPS a run, by name, the moment `array.min` / `array.max` /
+// `array.sum` / `array.avg` meets an `na` element, or `array.indexof` /
+// `array.includes` is asked for `na` (`runtime/collections.js`: `realNumbers`,
+// `searchable`) — because what Pine answers there has not been measured. That is
+// what stops artemis-oscillator-pro's KNN vote on bar 7 (C47): its distances are
+// `na` while its features warm up, and the vote is
+//
+//     int mi = array.indexof(kDist, array.min(kDist))
+//     kBull += array.get(knnOut, mi)
+//     array.set(kDist, mi, 999.0)
+//
+// TradingView ran that on every bar without a runtime error, so SOME answer
+// exists for each row below. Every array is rebuilt on every bar, so each plot is
+// one constant and bar 0's answer is visible on every bar.
+//
+//   row   candidate answers
+//   N01   array.min(3, na, 1, 2)          1 (na skipped)  |  na (na poisons)
+//   N02   array.max(3, na, 1, 2)          3               |  na
+//   N03   array.sum(3, na, 1, 2)          6               |  na
+//   N04   array.avg(3, na, 1, 2)          2 (of three)    |  1.5 (of four)  |  na
+//   N05   array.min(na, na)               na              |  a runtime error
+//   N06   array.indexof(a, na)            1 (na matches na)  |  -1 (never)
+//   N07   array.includes(a, na)           1               |  0
+//   N08   array.indexof(a, array.min(a))  2 (the index of 1)
+//   N09   array.indexof(all-na, array.min(all-na))   0  |  -1
+//   N10   array.get(a, -1)                2 (v6: the last element)  |  a runtime error
+//   N11   the artemis vote over (na, na, 0.5, na, 0.2) with outcomes (1, 0, 1, 1, 0), K = 2
+//         — which two elements it picks: the sum of their outcomes
+//   N12   the same vote over five `na` distances — whether it runs at all
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, >= 200 bars. No inputs. A compile failure or a runtime
+// error is itself a reading — record the message and which row raised it (comment
+// rows out from the bottom until the study loads, and record each row removed).
+
+plot(bar_index, "N00_bar_index_CONTROL")
+
+a = array.from(3.0, float(na), 1.0, 2.0)
+plot(array.min(a), "N01_min_with_na")
+plot(array.max(a), "N02_max_with_na")
+plot(array.sum(a), "N03_sum_with_na")
+plot(array.avg(a), "N04_avg_with_na")
+
+b = array.from(float(na), float(na))
+plot(array.min(b), "N05_min_all_na")
+
+plot(array.indexof(a, float(na)), "N06_indexof_na")
+plot(array.includes(a, float(na)) ? 1 : 0, "N07_includes_na")
+plot(array.indexof(a, array.min(a)), "N08_indexof_of_min")
+plot(array.indexof(b, array.min(b)), "N09_indexof_of_min_all_na")
+plot(array.get(a, -1), "N10_get_minus_one")
+
+vote(array<float> dist, array<int> outcome, int k) =>
+    array<float> d = array.copy(dist)
+    int bull = 0
+    for _k = 0 to k - 1
+        int mi = array.indexof(d, array.min(d))
+        bull += array.get(outcome, mi)
+        array.set(d, mi, 999.0)
+    bull
+
+outs = array.from(1, 0, 1, 1, 0)
+plot(vote(array.from(float(na), float(na), 0.5, float(na), 0.2), outs, 2), "N11_vote_mixed_na")
+plot(vote(array.from(float(na), float(na), float(na), float(na), float(na)), outs, 2), "N12_vote_all_na")

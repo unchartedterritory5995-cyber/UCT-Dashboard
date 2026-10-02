@@ -33,6 +33,17 @@
 //     period's open, which this chart's clock does not hold: withheld by name.
 //
 // (4 is the Python mirror: `ast/periodAnchorParity.test.js`.)
+//
+// ⭐⭐ C49 (2026-10-01) — RE-PINNED WHERE CAPTURE ROUND 3 MOVED THE RULE, each with
+// its reason beside it. On a New York session chart `time(<period>)` /
+// `time_close(<period>)` are the vendor's SESSION CALENDAR
+// (`indicators.js::computePeriodCalendar`; `vendorHarness.c49CapturedClock.test.js`
+// holds the captures), so: the first partial period is served; a pre-2000 holiday
+// period is served from the calendar (it was withheld here as unmeasured); the
+// 60-minute, 5-minute, weekly and monthly charts are served where C36 named them
+// unmeasured; and `time("60")` has its own tree. What C36 found is unchanged where
+// the captures did not move it: the BTCUSD every-day rows, one weekend day, a read
+// of other bars, an unreadable clock, the Sandy week (still withheld, by name).
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -43,6 +54,7 @@ import { translatePine } from '../../ast/pine.js'
 import {
   interpret, periodFirstCondition, periodAnchorMask, isPeriodAnchor, isChartOwnTime, isPeriodClose,
   chartOwnTimeNode, periodCloseNode, OWN_TIME_WITNESSED_TF, PERIOD_CLOSE_CODES, CHART_CLOCK_WITHHELD,
+  OWN_TIME_WITNESSED_TF_C36, chartOwnTimeTfs, chartSixtyTimeNode, isChartSixtyTime,
 } from '../../ast/interpret.js'
 import { buildGraph } from '../../ast/graph.js'
 import { computeObjectColumns } from '../../objectColumns'
@@ -57,6 +69,8 @@ const W1 = load('vw-clock-close-tfchange-spy-1w-2026-09-28.json')
 const BTC = load('vw-time-tf-bitstamp-btcusd-1d-2026-09-30.json')
 const TC_SPY = load('vw-time-close-tf-spy-1d-2026-09-30.json')
 const TC_BTC = load('vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30.json')
+// C49 — a chart timeframe NO capture of these probes measured (NYSE:RDDT, 240 minutes)
+const R240 = load('vw-bar-counters-rddt-240-2026-09-30.json')
 
 const pine = (lines) => ['//@version=6', 'indicator("c36", overlay=true)', ...lines].join('\n')
 const on = (capture, src) => runOurSide({ ...capture, source: { ...capture.source, text: src } })
@@ -270,8 +284,7 @@ describe('C36 · 1 — one weekend day but not the other is neither capture\'s s
   it('CONTROL — the same scripts on the weekday series are SERVED, with no reason given', () => {
     const plot = on(WEEKDAYS, pine(['plot(time("W"), "t")', 'plot(na(time("W")) ? 111 : 222, "r")']))
     const w = column(plot, 0)
-    expect(w.filter(Number.isNaN).length).toBeGreaterThan(0)       // the first partial week
-    expect(w.filter(Number.isNaN).length).toBeLessThan(6)
+    expect(w.filter(Number.isNaN).length).toBe(0)                  // C49: the first partial week too
     expect(new Set(column(plot, 1).filter((v) => !Number.isNaN(v)))).toEqual(new Set([222]))
     expect(noteCodes(plot)).toEqual([])
     const label = on(WEEKDAYS, pine(['if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
@@ -335,10 +348,12 @@ describe('C36 · 1 — a session chart: the anchor is the first session THE VEND
     expect(vendor(TC_SPY, 'Q08_timeW_minus_time_DAYS').slice(i, i + 3)).toEqual([-2, -3, -4])
   })
 
-  it('Q08–Q11 (`time("W" / "M" / "3M" / "12M") − time`): 0 wrong values on 4,800 bars; the Sandy week withheld, not answered', () => {
-    // first partial period: 1 / 1 / 20 / 84 bars; plus, for the week, Sandy's three
-    for (const [title, withheld] of [['Q08_timeW_minus_time_DAYS', 1 + 3], ['Q09_timeM_minus_time_DAYS', 1],
-      ['Q10_time3M_minus_time_DAYS', 20], ['Q11_time12M_minus_time_DAYS', 84]]) {
+  it('Q08–Q11 (`time("W" / "M" / "3M" / "12M") − time`): equal to TradingView on all 4,800 bars — the Sandy week answered from the calendar', () => {
+    // C49 — the first partial period (1 / 1 / 20 / 84 bars) is served from the
+    // calendar. ⚰️ RE-PINNED 2026-10-01 (integrator ruling): the Sandy week's three
+    // bars were withheld (3 / 0 / 0 / 0); the calendar reproduces them and they are served.
+    for (const [title, withheld] of [['Q08_timeW_minus_time_DAYS', 0], ['Q09_timeM_minus_time_DAYS', 0],
+      ['Q10_time3M_minus_time_DAYS', 0], ['Q11_time12M_minus_time_DAYS', 0]]) {
       const p = byTitle.get(title)
       expect(p.stats.valueMismatches, title).toBe(0)
       expect(p.stats.naMismatches, title).toBe(withheld)
@@ -346,57 +361,64 @@ describe('C36 · 1 — a session chart: the anchor is the first session THE VEND
     }
   })
 
-  it('it is named — and on the 900-bar capture, whose holiday Mondays the vendor\'s calendar DOES close, nothing is', () => {
+  it('nothing is withheld for it (ruling 2026-10-01: was `time-anchor:session-open-missing`) — Wed 2012-10-31 reads Monday 10-29 09:30', () => {
     const sandy = on(TC_SPY, pine(['plot(time("W"), "w")']))
-    expect(noteCodes(sandy)).toEqual(['time-anchor:session-open-missing'])
-    expect(sandy.notes.join('\n')).toMatch(/Hurricane Sandy/)
+    expect(noteCodes(sandy)).toEqual([])
+    expect(column(sandy)[dates.indexOf('2012-10-31')]).toBe(Date.UTC(2012, 9, 29, 13, 30))
     const recent = on(D1, pine(['plot(time("W"), "w")']))
     expect(noteCodes(recent)).toEqual([])
-    expect(column(recent).filter(Number.isNaN).length).toBe(1)
+    expect(column(recent).filter(Number.isNaN).length).toBe(0)
   })
 
-  it('before 2000 the vendor\'s calendar applies no closure and no daily chart was measured: those periods are withheld, and only those', () => {
+  it('⭐ C49 — before 2000 the vendor\'s calendar applies no closure, and the full-history capture measured it: those periods are SERVED from the calendar, and so is the Sandy week (ruling 2026-10-01)', () => {
+    // ⚰️ This asserted the opposite ("no daily chart was measured: those periods are
+    // withheld") until `vw-time-tf-spy-1d-full-2026-10-01` measured 1993 → 2000.
     const bars = toProductBars(LONG)
     const ours = on(LONG, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
     const w = column(ours, 0)
     const withheld = w.map((v, i) => (Number.isNaN(v) ? bars[i].t : null)).filter(Boolean)
-    expect(withheld.length).toBeGreaterThan(100)
-    expect(withheld.filter((d) => !(d < '2000-01-01' || (d >= '2012-10-31' && d <= '2012-11-02')))).toEqual([])
-    // served from 2000 on, the Sandy week aside
-    expect(w.filter((v, i) => bars[i].t >= '2000-01-01' && Number.isNaN(v)).length).toBe(3)
-    // the year is served on every bar from 2000 on
+    expect(withheld).toEqual([])                                  // was the Sandy week's three, until the ruling
+    for (const d of ['2012-10-31', '2012-11-01', '2012-11-02']) expect(w[bars.findIndex((b) => b.t === d)], d).toBe(Date.UTC(2012, 9, 29, 13, 30))
+    // Tue 1999-01-19 (MLK Monday: a holiday the calendar keeps open) reads MONDAY 01-18 09:30 New York
+    expect(w[bars.findIndex((b) => b.t === '1999-01-19')]).toBe(Date.UTC(1999, 0, 18, 14, 30))
+    // the year is served on every bar; 1999 opens on Fri 01-01, a day with no bar
     const y = column(ours, 1)
-    expect(y.filter((v, i) => bars[i].t >= '2000-01-01' && Number.isNaN(v)).length).toBe(0)
+    expect(y.filter(Number.isNaN).length).toBe(0)
+    expect(y[bars.findIndex((b) => b.t === '1999-01-04')]).toBe(Date.UTC(1999, 0, 1, 14, 30))
   })
 })
 
-describe('C36 · 2 — a chart that is not daily: withheld as before, and now it says why', () => {
-  it('60m: the plot lane names `time-anchor:not-daily`, with the chart\'s own timeframe and the capture that settles it', () => {
-    const ours = on(H60, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
+describe('C36 · 2 — a chart timeframe no capture measured: withheld as before, and it says why', () => {
+  // ⭐ C49 — the 60-minute chart these tests used IS measured now (and served); the
+  // unmeasured chart here is a 240-minute one.
+  it('240m: the plot lane names `time-anchor:not-daily`, with the chart\'s own timeframe and the capture that settles it', () => {
+    const ours = on(R240, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
     expect(allNaN(column(ours, 0)) && allNaN(column(ours, 1))).toBe(true)
     expect(noteCodes(ours)).toEqual(['time-anchor:not-daily'])
     const note = ours.notes.find((n) => n.includes('time-anchor:not-daily'))
     expect(note).toMatch(/on 2 plot\(s\)/)
-    expect(note).toMatch(/This chart's timeframe is `60`/)
-    expect(note).toMatch(/On a 1D chart it draws/)
+    expect(note).toMatch(/This chart's timeframe is `240`/)
+    expect(note).toMatch(/5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts/)
     expect(note).toMatch(/`vw-time-tf` probe measured on this timeframe/)
   })
 
-  it('60m: the object lane carries the same reason', () => {
-    const ours = on(H60, pine(['if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
+  it('240m: the object lane carries the same reason', () => {
+    const ours = on(R240, pine(['if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
     expect(ours.objects.counts.labels).toBe(0)
-    expect(ours.objects.chartClock).toEqual([{ code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('60') }])
+    expect(ours.objects.chartClock).toEqual([{ code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('240') }])
   })
 
-  it('CONTROL — the same plots on the daily chart report nothing (the first partial period is a per-bar matter)', () => {
-    const ours = on(D1, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
-    expect(noteCodes(ours)).toEqual([])
-    expect(column(ours, 0).filter(Number.isNaN).length).toBe(1)
-    expect(column(ours, 1).filter(Number.isNaN).length).toBe(214)
+  it('CONTROL — the same plots on the daily and the 60-minute chart are served on every bar, and report nothing', () => {
+    for (const cap of [D1, H60]) {
+      const ours = on(cap, pine(['plot(time("W"), "w")', 'plot(time("12M"), "y")']))
+      expect(noteCodes(ours)).toEqual([])
+      expect(column(ours, 0).filter(Number.isNaN).length).toBe(0)
+      expect(column(ours, 1).filter(Number.isNaN).length).toBe(0)
+    }
   })
 
-  it('CONTROL — a script with no `time(<timeframe>)` reports nothing on the 60m chart', () => {
-    const ours = on(H60, pine(['plot(close)', 'if barstate.islast', '    label.new(bar_index, high, "x")']))
+  it('CONTROL — a script with no `time(<timeframe>)` reports nothing on the 240m chart', () => {
+    const ours = on(R240, pine(['plot(close)', 'if barstate.islast', '    label.new(bar_index, high, "x")']))
     expect(noteCodes(ours)).toEqual([])
     expect(ours.objects.chartClock).toEqual([])
   })
@@ -426,10 +448,10 @@ describe('C36 · 2 — the mask itself: a read of OTHER bars, and the graph-form
     }
   })
 
-  it('CONTROL — the same anchor on the chart\'s own bars is known after its first partial period, and names nothing', () => {
+  it('CONTROL — the same anchor on the chart\'s own bars is known on every bar (C49: its first partial period too), and names nothing', () => {
     const sink = new Map()
     const mask = Array.from(periodAnchorMask(anchor, bars, {}, undefined, undefined, { tf: 'D', chartClockSink: sink }))
-    expect(mask.filter((m) => m === 1).length).toBe(3)
+    expect(mask.filter((m) => m === 1).length).toBe(0)
     expect(sink.size).toBe(0)
     expect(periodAnchorMask({ type: 'series', name: 'close' }, bars, {}, undefined, undefined, { tf: 'D', chartClockSink: sink })).toBeNull()
   })
@@ -438,9 +460,9 @@ describe('C36 · 2 — the mask itself: a read of OTHER bars, and the graph-form
     const tree = { type: 'call', name: 'na', args: [anchor] }
     const graph = buildGraph({ a: tree })
     const program = { ops: [{ props: { y: { v: 'graph', node: graph.outputRoots.a } } }] }
-    const sixty = computeObjectColumns(graph, program, toProductBars(H60), { tf: '60', inputs: {} })
-    expect(sixty.chartClock).toEqual([{ code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('60') }])
-    expect(sixty.readUnknown(graph.outputRoots.a, 0)).toBe(true)
+    const unmeasured = computeObjectColumns(graph, program, toProductBars(R240), { tf: '240', inputs: {} })
+    expect(unmeasured.chartClock).toEqual([{ code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('240') }])
+    expect(unmeasured.readUnknown(graph.outputRoots.a, 0)).toBe(true)
     const daily = computeObjectColumns(graph, program, bars, { tf: 'D', inputs: {} })
     expect(daily.chartClock).toEqual([])
     expect(daily.readUnknown(graph.outputRoots.a, bars.length - 1)).toBe(false)
@@ -472,28 +494,41 @@ describe('C36 · 3 — `time(timeframe.period)` and `time("60")`: the bar\'s own
         expect(p.stats).toMatchObject({ matching: 300, valueMismatches: 0, naMismatches: 0 })
       })
     }
-    it('⛔ the seven period rows draw NOTHING on the hourly chart — 0 wrong values, every bar withheld', () => {
-      for (const title of ['T01_timeW_minus_time_DAYS', 'T02_timeM_minus_time_DAYS', 'T03_time3M_minus_time_DAYS',
-        'T04_time12M_minus_time_DAYS', 'T07_newWeek', 'T08_newMonth', 'T09_newQuarter']) {
-        const p = byTitle.get(title)
-        expect(p.stats.valueMismatches, title).toBe(0)
-        expect(p.stats.matching, title).toBe(0)
-        expect(p.stats.naMismatches, title).toBe(300)
+    it('⭐ C49 — the seven period rows on the hourly chart: 0 wrong values; the four anchors on all 300 bars, the three events on all but bar 0', () => {
+      // ⚰️ "draw NOTHING on the hourly chart" until C49: C30 read this capture's bar 0
+      // as a different rule. It is the calendar's (`vendorHarness.c30TimeAnchor.test.js`).
+      for (const title of ['T01_timeW_minus_time_DAYS', 'T02_timeM_minus_time_DAYS', 'T03_time3M_minus_time_DAYS', 'T04_time12M_minus_time_DAYS']) {
+        expect(byTitle.get(title).stats, title).toMatchObject({ matching: 300, valueMismatches: 0, naMismatches: 0 })
+      }
+      for (const title of ['T07_newWeek', 'T08_newMonth', 'T09_newQuarter']) {
+        expect(byTitle.get(title).stats, title).toMatchObject({ matching: 299, valueMismatches: 0, naMismatches: 1 })
       }
     })
   })
 
-  it('a 5-minute chart is not one of the two measured: every bar withheld, named, in both lanes', () => {
-    expect(OWN_TIME_WITNESSED_TF).toEqual(['D', '60'])
-    const ours = on(M5, pine(['plot(time(timeframe.period), "own")', 'plot(time("60"), "sixty")', 'plot(time, "t")']))
+  it('a 240-minute chart is not one of the measured ones: every bar withheld, named, in both lanes', () => {
+    expect(OWN_TIME_WITNESSED_TF).toEqual(['5', '15', '60', 'D', 'W', 'M'])
+    expect(OWN_TIME_WITNESSED_TF_C36).toEqual(['D', '60'])
+    const ours = on(R240, pine(['plot(time(timeframe.period), "own")', 'plot(time("60"), "sixty")', 'plot(time, "t")']))
     expect(ours.ok, ours.refusal).toBe(true)
     expect(allNaN(column(ours, 0)) && allNaN(column(ours, 1))).toBe(true)
     expect(column(ours, 2).some(Number.isNaN)).toBe(false)
     expect(noteCodes(ours)).toEqual(['time-own:chart-unwitnessed'])
-    expect(ours.notes.join('\n')).toMatch(/This chart's timeframe is `5`/)
-    const label = on(M5, pine(['if barstate.islast', '    label.new(bar_index, high, na(time(timeframe.period)) ? "na" : "known")']))
+    expect(ours.notes.join('\n')).toMatch(/timeframe is `240`/)
+    const label = on(R240, pine(['if barstate.islast', '    label.new(bar_index, high, na(time(timeframe.period)) ? "na" : "known")']))
     expect(label.objects.counts.labels).toBe(0)
     expect(label.objects.chartClock.map((r) => r.code)).toEqual(['time-own:chart-unwitnessed'])
+  })
+
+  it('⭐ C49 — a 5-minute chart WITH extended-hours bars: `time(timeframe.period)` is the bar\'s own time; `time("60")` is withheld and named (only regular-session bars were measured)', () => {
+    const hm = M5.bars.rows.map((r) => new Date(r[0] * 1000).toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' }))
+    expect(hm.some((x) => x < '09:30') || hm.some((x) => x >= '16:00')).toBe(true)
+    const ours = on(M5, pine(['plot(time(timeframe.period), "own")', 'plot(time("60"), "sixty")', 'plot(time, "t")', 'plot(time("W"), "w")']))
+    expect(ours.ok, ours.refusal).toBe(true)
+    expect(column(ours, 0)).toEqual(column(ours, 2))
+    expect(allNaN(column(ours, 1)) && allNaN(column(ours, 3))).toBe(true)
+    expect(noteCodes(ours)).toEqual(['time-clock:outside-session'])
+    expect(ours.notes.join('\n')).toMatch(/pre-market, after-hours or weekend bar/)
   })
 
   it('CONTROL — the same label on the 60m and 1D charts IS drawn, and reads the known answer', () => {
@@ -504,18 +539,29 @@ describe('C36 · 3 — `time(timeframe.period)` and `time("60")`: the bar\'s own
     }
   })
 
-  it('the tree is the ONE builder\'s, gated on the two measured bar lengths', () => {
+  it('the tree is the ONE builder\'s, gated on the measured bar lengths — and C36\'s two-length tree is still recognised, as what it was', () => {
     const S = (body, opts) => translatePine(`//@version=6\nindicator("t")\n${body}\n`, opts)
     const own = S('plot(time(timeframe.period))', { strict: true })
     expect(own.ok).toBe(true)
-    expect(own.outputs[own.selected].formula).toBe('periodseconds == 86400 || periodseconds == 3600 ? time * 1000 : 0 / 0')
+    expect(own.outputs[own.selected].formula).toBe('periodseconds == 300 || periodseconds == 900 || periodseconds == 3600 '
+      + '|| periodseconds == 86400 || periodseconds == 604800 || periodseconds == 2628003 ? time * 1000 : 0 / 0')
     expect(own.outputs[own.selected].ast).toEqual(chartOwnTimeNode(true))
     expect(isChartOwnTime(own.outputs[own.selected].ast)).toBe(true)
-    expect(S('plot(time("60"))', { strict: true }).outputs[0].ast).toEqual(chartOwnTimeNode(true))
+    expect(chartOwnTimeTfs(own.outputs[own.selected].ast)).toEqual(OWN_TIME_WITNESSED_TF)
+    // ⭐ C49 — `time("60")` writes its OWN tree: below 60 minutes it is not the bar's time
+    const sixty = S('plot(time("60"))', { strict: true }).outputs[0].ast
+    expect(sixty).toEqual(chartSixtyTimeNode(true))
+    expect(isChartSixtyTime(sixty)).toBe(true)
+    expect(isChartOwnTime(sixty)).toBe(false)
     // a name bound to the chart's own timeframe is the same question
     expect(S('tf = timeframe.period\nplot(time(tf))', { strict: true }).outputs[0].ast).toEqual(chartOwnTimeNode(true))
+    // the tree C36 wrote for BOTH spellings: recognised, and still 1D and 60 minutes only
+    const c36 = chartOwnTimeNode(true, OWN_TIME_WITNESSED_TF_C36)
+    const on = (secs) => ({ type: 'op', name: '==', args: [{ type: 'series', name: 'periodseconds' }, { type: 'num', value: secs }] })
+    expect(c36.args[0]).toEqual({ type: 'op', name: '||', args: [on(86400), on(3600)] })
+    expect(chartOwnTimeTfs(c36)).toEqual(['D', '60'])
     // a member's own ternary over the same leaves, one literal different, is NOT it
-    const near = JSON.parse(JSON.stringify(chartOwnTimeNode(true)).replace('3600', '900'))
+    const near = JSON.parse(JSON.stringify(c36).replace('3600', '900'))
     expect(isChartOwnTime(near)).toBe(false)
   })
 
@@ -527,16 +573,18 @@ describe('C36 · 3 — `time(timeframe.period)` and `time("60")`: the bar\'s own
       expect(t.ok, tf).toBe(false)
       expect(t.refusal.guard, tf).toBe('pine:function')
     }
-    // a chart the translation is TOLD is neither 1D nor 60m
-    for (const base of ['5', '15', 'W', 'M']) {
+    // a chart the translation is TOLD is none of the measured ones (C49: 5 / 15 / W / M joined them)
+    for (const base of ['1', '30']) {
       for (const body of ['plot(time(timeframe.period))', 'plot(time("60"))']) {
         const t = S(body, { strict: true, basePeriod: base })
         expect(t.ok, `${body} on ${base}`).toBe(false)
-        expect(t.refusal.message, base).toMatch(/1D and 60-minute charts only/)
-        expect(t.refusal.message, base).toMatch(/same probe on this timeframe/)
+        expect(t.refusal.message, base).toMatch(/5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts only/)
+        expect(t.refusal.message, base).toMatch(/same\s+probe on this timeframe/)
       }
     }
-    expect(S('plot(time(timeframe.period))', { strict: true, basePeriod: '60' }).ok).toBe(true)
+    for (const base of ['5', '15', '60', 'D', 'W', 'M']) {
+      for (const body of ['plot(time(timeframe.period))', 'plot(time("60"))']) expect(S(body, { strict: true, basePeriod: base }).ok, `${body} on ${base}`).toBe(true)
+    }
     // a screen
     const screen = S('plot(time(timeframe.period))', {})
     expect(screen.ok).toBe(false)
@@ -598,18 +646,20 @@ describe('C36 · 5 — `time_close("W" | "M")` on AMEX:SPY 1D: the close of the 
     expect(ours.objects.chartClock).toEqual([])
   })
 
-  it('⛔ a completed period whose last session has no bar: withheld across it, named — on 8,473 sessions, only before 2000 and in the week of 2001-09-10', () => {
+  it('⭐ a completed period whose last session has no bar reads the calendar\'s close: on 8,473 sessions nothing is withheld (ruling 2026-10-01)', () => {
     const long = toProductBars(LONG)
     const ours = on(LONG, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")']))
-    expect(noteCodes(ours)).toEqual(['time-close:period-end-missing'])
+    expect(noteCodes(ours)).toEqual([])
     const withheld = (i) => column(ours, i).map((v, k) => (Number.isNaN(v) ? long[k].t : null)).filter(Boolean)
-    const w = withheld(0)
-    const m = withheld(1)
-    expect([w.length, m.length]).toEqual([53, 40])
-    // the vendor's session keeps 2001-09-11..14 open and the chart holds no bar for them
-    expect(w.filter((d) => !(d < '2000-01-01' || d === '2001-09-10'))).toEqual([])
-    expect(w).toContain('2001-09-10')
-    expect(m.filter((d) => !(d < '2000-01-01'))).toEqual([])
+    // ⚰️ 53 and 40 bars until `vw-time-close-tf-spy-1d-full-2026-10-01` measured the
+    // 13 weeks and 2 months before 2000 that end on a holiday: the calendar's close.
+    // ⚰️ then ['2001-09-10'] (`time-close:period-end-missing`) until the integrator
+    // ruled the one witness served: the vendor's session keeps 2001-09-11..14 open.
+    expect(withheld(0)).toEqual([])
+    expect(withheld(1)).toEqual([])
+    expect(column(ours, 0)[long.findIndex((b) => b.t === '2001-09-10')]).toBe(Date.UTC(2001, 8, 14, 20, 0))
+    // Thu 1999-04-01 (Good Friday has no bar) reads FRIDAY 04-02 16:00 New York
+    expect(column(ours, 0)[long.findIndex((b) => b.t === '1999-04-01')]).toBe(Date.UTC(1999, 3, 2, 21, 0))
   })
 
   it('the tree is vocabulary both lanes already hold — `tf_live(<period>, timeclose)`, gated on a daily bar', () => {
@@ -639,11 +689,13 @@ describe('C36 · 5 — `time_close("W" | "M")` on AMEX:SPY 1D: the close of the 
     const screen = S('plot(time_close("W"))', {})
     expect(screen.ok).toBe(false)
     expect(screen.refusal.message).toMatch(/only on a chart pane/)
-    for (const base of ['60', '5', 'W', 'M']) {
+    for (const base of ['60', '5']) {
       const t = S('plot(time_close("M"))', { strict: true, basePeriod: base })
       expect(t.ok, base).toBe(false)
-      expect(t.refusal.message, base).toMatch(/measured on a DAILY chart only/)
+      expect(t.refusal.message, base).toMatch(/measured on 1D, 1W and 1M charts only/)
     }
+    // C49 — the weekly and monthly charts were measured (`vw-time-close-tf-spy-{1w,1m}-2026-10-01`)
+    for (const base of ['D', 'W', 'M']) expect(S('plot(time_close("M"))', { strict: true, basePeriod: base }).ok, base).toBe(true)
     const req = S('plot(request.security(syminfo.tickerid, "W", time_close("M")))', { strict: true })
     expect(req.ok).toBe(false)
     expect(req.refusal.message).toMatch(/inside a `request.security` at `W`/)
@@ -674,18 +726,28 @@ describe('C36 · 5 — `time_close("W" | "M")` everywhere it was NOT measured: w
     const ours = on(TC_BTC, pine(['plot(time_close("W"), "w")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
     expect(noteCodes(ours)).toEqual(['time-close:weekend-bars'])
     expect(ours.objects.counts.labels).toBe(0)
+    // ⚠️ C49 — an explicit ceiling: three member-door runs over 5,491 bars in one test. Alone it
+    // takes 7–10 s; inside the full chart suite on a loaded box it crossed the 15 s default.
+  }, 60000)
+
+  it('an hourly chart: the plot is withheld and named — not an `interpret:timeframe` refusal of the `tf_live` read', () => {
+    const ours = on(H60, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
+    expect(ours.ok, ours.refusal).toBe(true)
+    expect(ours.plots.map((p) => p.missingReason || null)).toEqual([null, null])
+    expect(allNaN(column(ours, 0)) && allNaN(column(ours, 1))).toBe(true)
+    expect(noteCodes(ours)).toEqual(['time-close:not-daily'])
+    expect(ours.notes.join('\n')).toContain('This chart\'s timeframe is `60`')
+    expect(ours.objects.counts.labels).toBe(0)
   })
 
-  it('a WEEKLY and an hourly chart: the plot is withheld and named — not an `interpret:timeframe` refusal of the `tf_live` read', () => {
-    for (const [cap, tf] of [[W1, 'W'], [H60, '60']]) {
-      const ours = on(cap, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
-      expect(ours.ok, ours.refusal).toBe(true)
-      expect(ours.plots.map((p) => p.missingReason || null)).toEqual([null, null])
-      expect(allNaN(column(ours, 0)) && allNaN(column(ours, 1))).toBe(true)
-      expect(noteCodes(ours)).toEqual(['time-close:not-daily'])
-      expect(ours.notes.join('\n')).toContain(`This chart's timeframe is \`${tf}\``)
-      expect(ours.objects.counts.labels).toBe(0)
-    }
+  it('⭐ C49 — a WEEKLY chart is measured now: served on every bar, and still never an `interpret:timeframe` refusal', () => {
+    const ours = on(W1, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")', 'plot(time_close, "own")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
+    expect(ours.ok, ours.refusal).toBe(true)
+    expect(ours.plots.map((p) => p.missingReason || null)).toEqual([null, null, null])
+    expect(column(ours, 0).some(Number.isNaN) || column(ours, 1).some(Number.isNaN)).toBe(false)
+    expect(column(ours, 0)).toEqual(column(ours, 2))                // a weekly bar's week closes when the bar does
+    expect(noteCodes(ours)).toEqual([])
+    expect(ours.objects.texts.labels).toEqual(['known'])
   })
 
   it('CONTROL — the same script on the daily capture is drawn and names nothing', () => {

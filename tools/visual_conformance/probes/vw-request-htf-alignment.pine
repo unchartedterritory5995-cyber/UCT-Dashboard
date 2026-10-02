@@ -1,0 +1,65 @@
+//@version=6
+indicator("UCTPROBE_VW_REQ_HTF_ALIGN", overlay = false)
+
+// ─── 2026-10-01 C49 — `request.security` AT A TIMEFRAME ABOVE THE CHART'S, ON
+//     HISTORICAL BARS AND ON THE FORMING ONE ───────────────────────────────────
+//
+// `request-realtime-alignment.pine` asked ONE request — the chart symbol's "D"
+// close — on a 5-minute chart, and settled it (captures
+// `request-realtime-alignment-spy-5-2026-10-01` and `…-b-…`):
+//
+//   look-ahead ON   every bar of a finished day reads THAT day's daily close;
+//   look-ahead OFF  every bar reads the PREVIOUS day's close, except the day's
+//                   last bar, which reads that day's own;
+//   the forming bar ON and OFF read the same number: the forming daily bar's
+//                   current close.
+//
+// Our weekly / monthly request on a DAILY chart is `tf` (look-ahead off) or
+// `tf_live` (on), a resample of the daily bars. `tf` reads the last CLOSED period
+// on EVERY bar. If the rule above holds one timeframe up, that is wrong in two
+// places — the LAST daily bar of a completed week / month (TradingView: that
+// period's own close; `tf`: the one before), and the FORMING daily bar
+// (TradingView: the forming period's current close; `tf`: the last closed one).
+// Nothing committed measures a weekly or monthly request on a daily chart with
+// look-ahead off as a plain series, so neither reading is proven. This probe is
+// that measurement.
+//
+//   A01–A03  the weekly close: look-ahead ON, OFF, and the default (must equal OFF);
+//   A04–A05  the monthly close: ON, OFF;
+//   A06      `close[1]` of the weekly bar with look-ahead ON — the "non-repainting"
+//            idiom, the commonest spelling in the corpus;
+//   A07      the weekly HIGH with look-ahead off (a value that moves inside the week);
+//   A08      the DAILY close, default merge — the identity on 1D, the 5-minute
+//            reading on an intraday chart;
+//   A09      the 60-minute close, default merge — ABOVE a 5 / 15-minute chart,
+//            below a daily one;
+//   A10–A13  the chart's own close, `barstate.isrealtime`, `dayofweek`, and the
+//            new-week event, to say which bars the rows above were read on.
+//
+// ⛔ CAPTURE (docs/pine/capture-queue-2026-10-01-c49-clock.md):
+//   Q-R1  AMEX:SPY 1D, ≥ 400 bars, market CLOSED (every bar historical);
+//   Q-R2  AMEX:SPY 1D during regular hours, the newest daily bar FORMING — twice,
+//         a few minutes apart, like packet #3;
+//   Q-R3  AMEX:SPY 5 and 60 minutes, regular session, ≥ 2 weeks of bars.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+wOn  = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)
+wOff = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_off)
+plot(wOn,  "A01_close_W_lookahead_ON")
+plot(wOff, "A02_close_W_lookahead_OFF")
+plot(request.security(syminfo.tickerid, "W", close), "A03_close_W_default")
+
+plot(request.security(syminfo.tickerid, "M", close, lookahead = barmerge.lookahead_on),  "A04_close_M_lookahead_ON")
+plot(request.security(syminfo.tickerid, "M", close, lookahead = barmerge.lookahead_off), "A05_close_M_lookahead_OFF")
+
+plot(request.security(syminfo.tickerid, "W", close[1], lookahead = barmerge.lookahead_on), "A06_prev_W_close_ON")
+plot(request.security(syminfo.tickerid, "W", high, lookahead = barmerge.lookahead_off),    "A07_high_W_lookahead_OFF")
+
+plot(request.security(syminfo.tickerid, "D", close),  "A08_close_D_default")
+plot(request.security(syminfo.tickerid, "60", close), "A09_close_60_default")
+
+plot(close, "A10_chart_close")
+plot(barstate.isrealtime ? 1 : 0, "A11_isrealtime")
+plot(dayofweek, "A12_dayofweek")
+plot(ta.change(time("W")) != 0 ? 1 : 0, "A13_newWeek")

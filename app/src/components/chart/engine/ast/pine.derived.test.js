@@ -478,6 +478,8 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // ⛔ THE POPULATION IS SPLIT BY `hostAdmissible`, WHICH IS THE MANIFEST'S OWN
     // ANSWER, so a third collision of either kind classifies itself.
     const laneOnly = hostAdmissible(TABLE)
+    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+    const HOST_SPELLING = { valuewhenOccurrence: 'ta.valuewhen(close > open, volume, 1)' }
     for (const name of collisions) {
       const spec = TABLE.functions[name]
       // The PINE spelling, with PINE's arity — one argument for `ta.barssince`.
@@ -496,10 +498,17 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
           .toBeTruthy()
         // …and the SAME script is served on the host lane, or the split is a
         // refusal wearing a ruling's clothes.
+        // ⭐ C45 — THE HOST SPELLING IS THE ONE THAT REACHES THE FUNCTION. `cum`
+        // is written under its own name with one argument; `valuewhenOccurrence`
+        // is reached ONLY through Pine's `ta.valuewhen(condition, source,
+        // occurrence)` (its literal spelling is not Pine, and the host lane has
+        // no measured argument order for it). The claim is unchanged: the lane
+        // the tag accepts really serves the function.
+        const hostCall = own(HOST_SPELLING, name) ? HOST_SPELLING[name] : `${name}(volume)`
         expect(translatePine(
           `//@version=6
 indicator("x")
-plot(${name}(volume))
+plot(${hostCall})
 `,
           { strict: true },
         ).ok, `${name} refuses on the HOST lane too — then nothing serves it`).toBe(true)

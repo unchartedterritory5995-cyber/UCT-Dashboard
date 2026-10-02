@@ -168,7 +168,9 @@ describe('⭐ 3 — a request for this chart at this chart\'s period is the expr
     // …and on daily bars the host folds it to the child, as this lane does
     const d = translatePine(`${V6}${HTF}plot(request.security(syminfo.tickerid, higher_timeframe, close, lookahead = barmerge.lookahead_off))\n`,
       { strict: true, basePeriod: 'D' })
-    expect(d.outputs[0].formula).toBe('close')
+    // ⭐ C49 — re-pinned from `'close'`: the fold carries the gate of the base it was
+    // translated for (`interpret.js::requestBaseNode`); on daily bars it IS the child.
+    expect(d.outputs[0].formula).toBe('86400 != periodseconds ? 0 / 0 : close')
   })
 
   it('⛔ a MUTABLE period or symbol is never read as the built-in', () => {

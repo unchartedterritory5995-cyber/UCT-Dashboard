@@ -60,6 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
+import { barIndexVerdict, thresholdUnknown } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
 // THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
@@ -85,7 +86,7 @@ import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
   computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
-  CLOCK_PERIOD_SECONDS,
+  CLOCK_PERIOD_SECONDS, computePeriodCalendar,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -301,6 +302,33 @@ export const isIntradayTf = (code) => {
  *  intraday, and a member whose weekly window silently draws nothing. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
 
+/** ⭐⭐ C47 — THE PERIODS A *FORMING* READ (`tf_live`) MAY NAME: everything `tf`
+ *  resamples, plus the calendar QUARTER (`'3M'`). The mirror of
+ *  `ast_interpret.TF_LIVE_RESAMPLABLE`.
+ *
+ *  ⭐ WITNESSED, both halves:
+ *    boundaries  a quarter opens on the first session of January, April, July
+ *                and October — `vw-time-tf-spy-1d-2026-09-28` (C30, the anchor
+ *                `time("3M")` on every bar of AMEX:SPY 1D);
+ *    values      `high-low-open-mid-ranges-rddt-1d-2026-09-28` prints
+ *                `request.security(syminfo.tickerid, '3M', <open | high | low |
+ *                hl2>[, [1]], lookahead = barmerge.lookahead_on)` in eight table
+ *                cells — this quarter's and last quarter's — and the bucketed
+ *                daily bars reproduce all eight to the digit
+ *                (`vendorHarness.c47Quarter`, `tests/test_ast_tf_live_quarter.py`).
+ *
+ *  ⛔ `tf` (the last CLOSED period) DOES NOT GAIN IT. No capture shows
+ *  `request.security(…, '3M', x)` without look-ahead, so `TF_RESAMPLABLE` — and
+ *  with it the ladder, `BASE_TF`, the screener's sweep and every door that asks
+ *  that list — is exactly what it was. A separate list, not a third entry.
+ *  ⛔ AND ONLY FROM DAILY BARS: both captures are 1D charts. A base that is not
+ *  stated, or is not `'D'`, refuses by name (`assertLiveResamplable`). */
+export const TF_LIVE_RESAMPLABLE = Object.freeze([...TF_RESAMPLABLE, '3M'])
+
+/** Base bars per forming period, for the lookback sum — `TF_BASE_BARS` plus the
+ *  quarter (three 21-bar months; rounded UP, the safe direction). */
+export const TF_LIVE_BASE_BARS = Object.freeze({ ...TF_BASE_BARS, '3M': 63 })
+
 /** Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
  *
  *  ⛔⛔ THIS EXISTS BECAUSE THE ANSWER WAS GIVEN TWICE AND THE COPIES DISAGREED.
@@ -334,10 +362,26 @@ export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
  *  once per tree, so the gate that runs before a sweep and the gate that answers
  *  inside it cannot disagree. Mirrors `ast_interpret._assert_sym_placement`. */
 function assertSymPlacement(root, refuse) {
-  const stack = [[root, false]]
+  const stack = [[root, false, false, false]]
   while (stack.length) {
-    const [node, underTf] = stack.pop()
+    const [node, underTf, underRequest, underLtf] = stack.pop()
     if (!node || typeof node !== 'object') continue
+    // ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE. `ltf` hands its child the
+    // chart symbol's INTRADAY bars and maps the answer back onto the chart's own
+    // bars: under another request (`tf` / `tf_live` / `sym` / `ltf`) those are
+    // not the bars it would be mapped onto, and a request INSIDE it would
+    // resample or re-align intraday bars no capture shows TradingView reading.
+    // Refused here, statically, for the reason `sym` under `tf` is.
+    if (node.type === LTF && underRequest) {
+      refuse('interpret:timeframe',
+        '— a lower-timeframe read (`ltf`) cannot sit inside another request: it is mapped '
+        + 'onto the chart\'s own bars, and those are not the bars that request hands its child')
+    }
+    if (underLtf && (node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym')) {
+      refuse('interpret:timeframe',
+        `— a \`${node.type}\` read cannot sit inside a lower-timeframe read (\`ltf\`): `
+        + 'its child runs on intraday bars, and a request made from those is not one this engine reads')
+    }
     if (node.type === 'sym' && underTf) {
       const ticker = String(node.value)
       refuse('interpret:symbol',
@@ -348,8 +392,26 @@ function assertSymPlacement(root, refuse) {
         + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
     }
     if (Array.isArray(node.args)) {
-      for (const a of node.args) stack.push([a, underTf || node.type === 'tf' || node.type === 'tf_live'])
+      const isTf = node.type === 'tf' || node.type === 'tf_live'
+      for (const a of node.args) {
+        stack.push([a, underTf || isTf, underRequest || isTf || node.type === 'sym' || node.type === LTF,
+          underLtf || node.type === LTF])
+      }
     }
+  }
+}
+
+/** ⭐ C41 — the node type of a read BELOW the chart's own timeframe
+ *  (`parse.js::NODE_TYPES`; the rules are `engine/lowerTf.js`'s). */
+const LTF = 'ltf'
+
+/** ⭐ C41 — an `ltf` node names a whole number of MINUTES and nothing else. Which
+ *  codes are SERVED is `engine/lowerTf.js`'s answer, given per binding as the
+ *  supply (`opts.lowerTf`); this only refuses a node no door writes. */
+function assertLowerCode(code, refuse) {
+  if (!/^[1-9][0-9]*$/.test(code)) {
+    refuse('interpret:timeframe',
+      `— a lower-timeframe read (\`ltf\`) names a whole number of minutes; got ${JSON.stringify(code)}`)
   }
 }
 
@@ -359,6 +421,25 @@ function assertResamplable(code, refuse) {
       `'${code}' — this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
       + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
       + 'outside it is not a timeframe this table knows.')
+  }
+}
+
+/** ⭐ C47 — the same decision for a FORMING read (`tf_live`): the ONE place that
+ *  says which periods it may name (`TF_LIVE_RESAMPLABLE`). `base` is passed by
+ *  the evaluator only; the lookback sum has no base and asks the list alone.
+ *  ⛔ The quarter is read from DAILY bars and from nothing else — a base the
+ *  caller did not state is not assumed to be daily. */
+function assertLiveResamplable(code, refuse, base) {
+  if (!TF_LIVE_RESAMPLABLE.includes(code)) {
+    refuse('interpret:timeframe',
+      `'${code}' — a forming higher-timeframe read resamples `
+      + `${TF_LIVE_RESAMPLABLE.join(', ')} from the bars it is given. The declared ladder is `
+      + `${TF_LADDER.join(', ')}; a code outside it is not a timeframe this table knows.`)
+  }
+  if (base !== undefined && !TF_RESAMPLABLE.includes(code) && base !== 'D') {
+    refuse('interpret:timeframe',
+      `'${code}' is read from DAILY bars only — its boundaries and values were measured against `
+      + `TradingView on daily charts — and these bars are ${base === null ? 'of no stated timeframe' : `'${String(base)}'`}.`)
   }
 }
 
@@ -457,6 +538,9 @@ function isoWeekKey(iso) {
 /** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
 export function tfBucket(iso, code) {
   if (code === 'W') return isoWeekKey(iso)
+  // ⭐ C47 — the calendar quarter: months 1–3, 4–6, 7–9, 10–12 (see
+  // `TF_LIVE_RESAMPLABLE` for the two captures that witness it).
+  if (code === '3M') return `${iso.slice(0, 4)}-Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`
   return iso.slice(0, 7)                             // YYYY-MM
 }
 
@@ -705,13 +789,40 @@ export const switchedVarSeed = (seed) => ({
  *  the reading, so a counter is exact from the listing and — being switched and
  *  never forgetting — withheld everywhere else (the curtain default). */
 const ONE = () => ({ type: 'num', value: 1 })
-export const readingSeed = (seed, reading) => (reading === 'update'
-  ? { type: 'op', name: '*', args: [ONE(), { type: 'op', name: '*', args: [ONE(), seed] }] }
-  : { type: 'op', name: '*', args: [ONE(), seed] })
+const oneTimes = (x) => ({ type: 'op', name: '*', args: [ONE(), x] })
+export const readingSeed = (seed, reading) => (reading === 'update' ? oneTimes(oneTimes(seed)) : oneTimes(seed))
+/** ⭐⭐ C47 — a THIRD reading, `'held'`, for ONE seed: `false`. Written
+ *  `0 != (0 / 0)`. The state ENTERS bar 0 holding `false` whichever way it is
+ *  read — bare, or through `x[k]` — and bar 0 runs the update from it. That is a
+ *  Pine v6 `bool` latch (`pine.js::v6BoolNaLatch`): a v6 `bool` is never `na`,
+ *  so a history read that reaches before bar 0 is `false`, the same `false`
+ *  `var x = bool(na)` starts with. So, FROM THE LISTING ONLY: the pass reads
+ *  the real seed `false`; a `?:` in the update whose test is `na` holds the
+ *  state (an `if` that did not run) instead of carrying the `na` into it; and
+ *  `x[k]` on the bars it reaches before bar 0 answers `false` — KNOWN,
+ *  where a `var` of any other type is unknown there (`enteringStateUnknown`:
+ *  initializer or `na`).
+ *  ⛔ VALUE-SAFE like the other two: a comparison against `NaN` is `0` in both
+ *  lanes (`cmp`), so every reader that does not know the shape reads `0` — and
+ *  it only ever rides inside a switched mark, `NaN` to those readers.
+ *  ⛔ NOT the cast's own fold: `bool(x)` is `x != 0`, the literal on the RIGHT
+ *  (`pine.js`), so no translated `bool(na)` of any version is this shape.
+ *  ⚠️ The `!= 0` is also why this shape and not another: `probeValuesOf` probes
+ *  a tree at every literal an `==` / `!=` compares against, and the object
+ *  lane's probe memo for `0` is shared across a pass's trees. */
+export const heldFalseSeed = () => ({
+  type: 'op',
+  name: '!=',
+  args: [{ type: 'num', value: 0 }, { type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }],
+})
+const isHeldFalseSeed = (n) => !!n && n.type === 'op' && n.name === '!=' && Array.isArray(n.args)
+  && n.args.length === 2 && !!n.args[0] && n.args[0].type === 'num' && n.args[0].value === 0
+  && isZeroOverZero(n.args[1])
 const isOneTimes = (n) => !!n && n.type === 'op' && n.name === '*' && Array.isArray(n.args)
   && n.args.length === 2 && n.args[0] && n.args[0].type === 'num' && n.args[0].value === 1
-/** `{reading: 'seed' | 'update', seed}` for a reading mark, else null. */
+/** `{reading: 'seed' | 'update' | 'held', seed}` for a reading mark, else null. */
 export const readingOf = (n) => {
+  if (isHeldFalseSeed(n)) return { reading: 'held', seed: { type: 'num', value: 0 } }
   if (!isOneTimes(n)) return null
   const inner = n.args[1]
   return isOneTimes(inner) ? { reading: 'update', seed: inner.args[1] } : { reading: 'seed', seed: inner }
@@ -815,6 +926,10 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
   // itself, or the update run from it (a history read on bar 0 is Pine's `na`).
   const starts = reading === 'seed' ? [s0]
     : reading === 'update' ? [stepT(0, beforeBar0(), (lag) => (lag > 0 ? NaN : s0))]
+      // ⭐ C47 — a `'held'` latch (`heldFalseSeed`) takes this ordinary pair, and
+      // needs no start of its own: its arms are literals or the held value, so
+      // the two candidates differ only on a bar where an arm FIRES — and there
+      // the switched window answers the literal whatever the state was.
       : [s0, stepT(0, beforeBar0(), firstRead)]
   if (!reading && twoWay && guardedReads > 0) {
     if (guardedReads > LISTING_MAX_GUARDED_READS) {
@@ -1261,6 +1376,15 @@ function valueWhenOccurrence(cond, src, occurrence) {
  *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
 export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
 export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
+/** ⭐⭐ C45 — A READ THAT LANDS BEFORE THE FIRST BAR HELD: is its answer one this
+ *  series can give? Only when the series provably starts at the symbol's first
+ *  bar (ruling R-W) — there is no earlier bar and the read is Pine's `na`.
+ *  Anywhere else TradingView holds bars this window does not and answers a
+ *  VALUE (`vw-mbb-auto-spy-1d-2026-09-30`: 225 of 300 reads land before the
+ *  capture's window and none is `na`), so the read is UNKNOWN, never `na`.
+ *  ONE rule, asked by `historyReadMask` (the plot lane) and by the object reader
+ *  (`objectColumns.js`, which the object runtime's `atCheck` asks). */
+export const historyBeforeFirstKnown = (fromListing) => fromListing === true
 
 /** ⭐⭐ C38 — `barsAgo(src, back, limit)`: Pine's `src[back]` with a PER-BAR
  *  `back`. The rule is the one above (measured, C29 rule 7): an `na` count
@@ -2980,7 +3104,7 @@ function flatten(root) {
     // children nothing checked.
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
         || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live'
-        || node.type === 'textop') {
+        || node.type === LTF || node.type === 'textop') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -3404,14 +3528,25 @@ export function maxLookback(ast) {
       // ⭐ THE FORMING PERIOD, SO NO `+1`: a base bar reads the bucket it is IN,
       // not the one before it. Mirrors `ast_interpret.max_lookback`'s arm.
       const code = String(node.value)
-      assertResamplable(code, refuse)
-      seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_BASE_BARS[code]))
+      assertLiveResamplable(code, refuse)
+      seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_LIVE_BASE_BARS[code]))
       continue
     }
     if (node.type === 'sym') {
       // ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar — same
       // timeframe, so no span factor and no +1: `sym` changes WHICH INSTRUMENT,
       // not which period. Mirrors `ast_interpret.max_lookback`'s `sym` arm.
+      seen.set(node, seen.get(node.args[0]))
+      continue
+    }
+    if (node.type === LTF) {
+      // ⭐ C41 — THE CHILD'S OWN, UNMULTIPLIED, and an UPPER bound in chart bars:
+      // the child's reach is counted in INTRABARS and every chart bar holds at
+      // least one, so it can never need more chart bars than that. Rounding up is
+      // the safe direction (the `tf` arm's argument). How far back the INTRADAY
+      // supply must reach is `lowerTf.js::lowerTfFetchPlan`'s, not this number's.
+      // Mirrors `ast_interpret.max_lookback`'s `ltf` arm.
+      assertLowerCode(String(node.value), refuse)
       seen.set(node, seen.get(node.args[0]))
       continue
     }
@@ -3588,7 +3723,7 @@ export function nodeCount(ast, held) {
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
  *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym'])
+const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -3823,7 +3958,91 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     if (whole && whole.why.length) return nan(Array.isArray(bars) ? bars.length : 0)
   }
   const out = withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
-  return withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts)
+  return withLowerTfWithheld(ast, bars, withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts), opts)
+}
+
+/** The supply for one lower-timeframe code, or null when the caller gave none:
+ *  `{bars: intraday bars, groups(chartBars, reach) → (number[]|null)[]}`. */
+function lowerSupplyOf(opts, code) {
+  const all = opts && opts.lowerTf
+  const sup = all && typeof all === 'object' && Object.prototype.hasOwnProperty.call(all, code) ? all[code] : null
+  return sup && Array.isArray(sup.bars) && sup.bars.length && typeof sup.groups === 'function' ? sup : null
+}
+
+/** ⭐⭐ C41 — DOES THIS TREE READ BELOW THE CHART'S TIMEFRAME? Iterative. */
+export function treeReadsLowerTf(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === LTF) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** ⭐⭐ C41 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON A LOWER-TIMEFRAME READ WE
+ *  CANNOT MAKE, as a 0/1 column (1 = withheld), or null when the tree holds no
+ *  `ltf` node.
+ *
+ *  A chart bar's `ltf` read is unknown when the supply does not cover it WHOLE
+ *  (`lowerTf.js::intrabarGroups`: a session of its period incomplete, an
+ *  intrabar missing within the child's reach, the reach running off the front of
+ *  our intraday history) or when no supply was given at all. TradingView holds a
+ *  value there — or `na`, where ITS intraday history ends, which is not ours to
+ *  know — so a `NaN` would read downstream as Pine's `na` (`nz` → 0, `na(x)` →
+ *  true): a confident wrong value. Those bars are UNKNOWN, and so is every root
+ *  bar within the tree's reach of one (`maxLookback` is a tree sum — the C12s
+ *  argument, `symAlignmentMask`'s rule).
+ *
+ *  ⛔ UNLIKE `symAlignmentMask` IT IS ASKED WHATEVER THE CALLER SUPPLIED: only the
+ *  member door writes an `ltf` node, and an unsupplied one has no value to show. */
+export function lowerTfMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const nodes = []
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    // ⛔ not descended into: nothing may sit inside one (`assertSymPlacement`)
+    if (node.type === LTF) { nodes.push(node); continue }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1, like the masks beside it
+  const mask = new Float64Array(n)
+  // ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself.
+  const rootReach = maxLookback(tree)
+  for (const a of nodes) {
+    const sup = lowerSupplyOf(opts, String(a.value))
+    if (!sup) { mask.fill(1); return mask }
+    let reach = Math.max(0, rootReach - maxLookback(a))
+    if (!Number.isFinite(reach)) reach = n
+    const groups = sup.groups(bars, maxLookback(a.args[0]))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const g = groups[i]
+      if (!g || !g.length) last = i
+      if (i - last <= reach) mask[i] = 1
+    }
+  }
+  return mask
+}
+
+/** Withhold (`NaN`) the bars `lowerTfMask` names — see there. A COPY: the column
+ *  may be the memoised one another plot shares. */
+function withLowerTfWithheld(ast, bars, out, opts) {
+  if (opts && typeof opts.prefixProbe === 'number') return out
+  if (!isColumn(out) || !treeReadsLowerTf(ast)) return out
+  const mask = lowerTfMask(ast, bars, opts)
+  if (!mask) return out
+  const copy = Float64Array.from(out)
+  for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
+  return copy
 }
 
 /** ⭐⭐ C30 — "THIS BAR OPENS A NEW <period>" for `time("W"|"M"|"3M"|"12M")`, the
@@ -3901,22 +4120,6 @@ function periodFirstMonth(period) {
   return null
 }
 
-/** ⭐⭐ C36 — THE OPEN OF THE FIRST SESSION OF THE BAR'S WEEK / MONTH, AS THE
- *  VENDOR'S CALENDAR HAS IT: `tf_live(<W|M>, time)`, the period bar's own `time`
- *  (`indicators.js::barOpenInstant` — Monday 09:30, Tuesday after a closure the
- *  vendor applies, and Monday all the same where it applies none).
- *
- *  ⛔ WHY THE ANCHOR IS CHECKED AGAINST IT. `valuewhenOccurrence` names the first
- *  bar the chart HOLDS; the vendor answers the first SESSION ITS CALENDAR HOLDS.
- *  They part where the calendar keeps a day open that has no bar: on
- *  `vw-time-close-tf-spy-1d-2026-09-30` (4,800 bars from 2007) `time("W") - time`
- *  reads −2 / −3 / −4 on Wed 2012-10-31 .. Fri 11-02 — the Hurricane Sandy week,
- *  whose Monday and Tuesday the vendor's session does not close — where the
- *  first-bar rule reads 0 / −1 / −2. Three bars, a wrong value. The vendor's
- *  calendar also applies no closure before 2000, where nothing measured a daily
- *  chart. So a period whose opening bar is not this instant is withheld. */
-const periodSessionOpen = (period) => ({ type: 'tf_live', value: period === 'W' ? 'W' : 'M', args: [ccLeaf('time')] })
-
 /** Is `node` exactly `shape` — type, name, value and arguments, node for node?
  *  Early exit on the first difference, so asking it of every `?:` in a large tree
  *  costs the size of the BUILDER's tree at most, never the member's. */
@@ -3953,6 +4156,37 @@ export function periodAnchorPeriod(node) {
 }
 export function isPeriodAnchor(node) { return periodAnchorPeriod(node) !== null }
 
+/** ⭐⭐ C49 — THE WHOLE TREE `time("W"|"M"|"3M"|"12M")` TRANSLATES TO, gate and unit
+ *  included: `periodseconds == 86400 ? <anchor> [* 1000] : na`. ONE builder, read
+ *  by the translator (`pine.js::periodAnchorOf`) and by the recogniser below, so
+ *  the shape written and the shape recognised cannot drift — and node for node the
+ *  tree C30 has written since 2026-09-30, so a document saved before this lane is
+ *  recognised too.
+ *
+ *  ⛔ THE SHAPE IS A NAME, NOT A RECIPE, ON A NEW YORK SESSION CHART. Read
+ *  literally it says "the `time` of the first daily bar of the period, and nothing
+ *  off a daily chart". Capture round 3 (2026-10-01) showed what the vendor
+ *  answers instead: the open of the period's first CALENDAR session, with or
+ *  without a bar for it, on every chart timeframe measured
+ *  (`indicators.js::computePeriodCalendar`, where the counts are). So the
+ *  evaluator answers this shape from that calendar wherever `chartClockRegime`
+ *  says the chart is one the captures cover, and literally everywhere else (an
+ *  every-day daily chart, where the literal reading is the witnessed one). */
+export function periodAnchorNode(period, ms) {
+  const first = periodFirstCondition(period)
+  if (!first) return null
+  const secs = ccCall('valuewhenOccurrence', [first, ccLeaf('time'), ccNum(0)])
+  const onDaily = ccOp('==', [ccLeaf('periodseconds'), ccNum(CLOCK_PERIOD_SECONDS.D)])
+  return ccOp('?:', [onDaily, ms ? ccOp('*', [secs, ccNum(1000)]) : secs, ccOp('/', [ccNum(0), ccNum(0)])])
+}
+const PERIOD_ANCHOR_GATES = ['W', 'M', '3M', '12M'].flatMap((p) => [true, false].map((ms) => [p, periodAnchorNode(p, ms)]))
+/** Is this node the gated anchor tree above — node for node? → the period, or null. */
+export function periodAnchorGatePeriod(node) {
+  if (!node || node.type !== 'op' || node.name !== '?:') return null
+  for (const [period, shape] of PERIOD_ANCHOR_GATES) if (matchesShape(node, shape)) return period
+  return null
+}
+
 /** ⭐⭐ C36 — `time(timeframe.period)` AND `time("60")`: THE BAR'S OWN `time`, ON
  *  THE CHART TIMEFRAMES A CAPTURE WITNESSED, and nowhere else.
  *
@@ -3971,17 +4205,66 @@ export function isPeriodAnchor(node) { return periodAnchorPeriod(node) !== null 
  *  and the shape recognised cannot drift. `ms` is Pine's unit (a script that
  *  declares a `//@version`); the versionless form is the engine's seconds, exactly
  *  as the bare `time` name is reconciled. */
-export const OWN_TIME_WITNESSED_TF = Object.freeze(['D', '60'])
-export function chartOwnTimeNode(ms) {
-  const on = (tf) => ccOp('==', [ccLeaf('periodseconds'), ccNum(CLOCK_PERIOD_SECONDS[tf])])
-  const witnessed = OWN_TIME_WITNESSED_TF.map(on).reduce((a, b) => ccOp('||', [a, b]))
-  return ccOp('?:', [witnessed, ms ? ccOp('*', [ccLeaf('time'), ccNum(1000)]) : ccLeaf('time'), ccOp('/', [ccNum(0), ccNum(0)])])
+/** ⭐⭐ C49 — THE LIST WIDENS, AND THE OLD SHAPE KEEPS ITS OLD MEANING.
+ *  `time(timeframe.period)` equals `time` on every bar of the 5-minute, 15-minute,
+ *  weekly and monthly captures too (`vw-time-tf-spy-{5,15,1w,1m}-2026-10-01`: 3,300
+ *  / 3,300 / 1,758 / 406). `OWN_TIME_WITNESSED_TF` is that measured list and the
+ *  tree a translation writes NOW; `OWN_TIME_WITNESSED_TF_C36` is the two-chart tree
+ *  C36 wrote, which a saved document still carries.
+ *  ⛔ THE C36 TREE IS NOT WIDENED, because it cannot say which spelling wrote it:
+ *  C36 translated `time("60")` to the SAME tree, and on a 5- or 15-minute chart
+ *  `time("60")` is NOT the bar's own time (`chartSixtyTimeNode`). Serving that
+ *  tree as `time` there would be right for one spelling and wrong for the other,
+ *  so it stays what it was — 1D and 60 minutes — and is withheld by name elsewhere. */
+export const OWN_TIME_WITNESSED_TF = Object.freeze(['5', '15', '60', 'D', 'W', 'M'])
+export const OWN_TIME_WITNESSED_TF_C36 = Object.freeze(['D', '60'])
+const onPeriod = (tf) => ccOp('==', [ccLeaf('periodseconds'), ccNum(CLOCK_PERIOD_SECONDS[tf])])
+const onAnyPeriod = (tfs) => tfs.map(onPeriod).reduce((a, b) => ccOp('||', [a, b]))
+const ccNa = () => ccOp('/', [ccNum(0), ccNum(0)])
+export function chartOwnTimeNode(ms, tfs = OWN_TIME_WITNESSED_TF) {
+  return ccOp('?:', [onAnyPeriod(tfs), ms ? ccOp('*', [ccLeaf('time'), ccNum(1000)]) : ccLeaf('time'), ccNa()])
 }
-const OWN_TIME_SHAPES = [true, false].map((ms) => chartOwnTimeNode(ms))
-/** Is this node the gated own-time tree above — node for node, nothing looser? */
-export function isChartOwnTime(node) {
-  if (!node || node.type !== 'op' || node.name !== '?:') return false
-  return OWN_TIME_SHAPES.some((shape) => matchesShape(node, shape))
+const OWN_TIME_SHAPES = [OWN_TIME_WITNESSED_TF, OWN_TIME_WITNESSED_TF_C36]
+  .flatMap((tfs) => [true, false].map((ms) => [tfs, chartOwnTimeNode(ms, tfs)]))
+/** The chart timeframes this gated own-time tree is served on, or null when the
+ *  node is not one — node for node, nothing looser. */
+export function chartOwnTimeTfs(node) {
+  if (!node || node.type !== 'op' || node.name !== '?:') return null
+  for (const [tfs, shape] of OWN_TIME_SHAPES) if (matchesShape(node, shape)) return tfs
+  return null
+}
+export function isChartOwnTime(node) { return chartOwnTimeTfs(node) !== null }
+
+/** ⭐⭐ C49 — `time("60")`: THE OPEN OF THE 60-MINUTE BAR THE CHART BAR SITS IN.
+ *
+ *  THE READING (probe `vw-time-tf.pine`, row T06). On a chart at or above 60
+ *  minutes it is the bar's own `time` — 300 / 300 hourly, 8,476 / 8,476 daily,
+ *  1,758 / 1,758 weekly, 406 / 406 monthly bars. On a chart BELOW it, it is not:
+ *  `vw-time-tf-spy-15-2026-10-01` and `vw-time-tf-spy-5-2026-10-01` read the open of
+ *  the 60-minute bucket counted from the session open — 09:30 for the 09:30–10:25
+ *  bars, then 10:30, 11:30 … 15:30 — on 3,300 / 3,300 bars each (it equals `time`
+ *  on 888 and 296 of them). The tree says exactly that, in vocabulary both lanes
+ *  hold: `dayopentime + 34200` is 09:30 New York, and the bucket is floored from it.
+ *  ⛔ REGULAR-SESSION BARS ONLY below 60 minutes: both captures hold 09:30–16:00
+ *  and nothing else, so a 5- or 15-minute chart with a pre-market, after-hours or
+ *  weekend bar is withheld whole and named (`time-clock:outside-session`). */
+export const SIXTY_BUCKET_TF = Object.freeze(['5', '15'])
+export const SIXTY_OWN_TF = Object.freeze(['60', 'D', 'W', 'M'])
+export const SIXTY_WITNESSED_TF = Object.freeze([...SIXTY_BUCKET_TF, ...SIXTY_OWN_TF])
+const SESSION_OPEN_SECONDS = 9 * 3600 + 30 * 60
+export function chartSixtyTimeNode(ms) {
+  const sessionOpen = () => ccOp('+', [ccLeaf('dayopentime'), ccNum(SESSION_OPEN_SECONDS)])
+  const bucket = ccOp('+', [sessionOpen(), ccOp('*', [
+    ccCall('floor', [ccOp('/', [ccOp('-', [ccLeaf('time'), sessionOpen()]), ccNum(3600)])]), ccNum(3600)])])
+  const secs = ccOp('?:', [onAnyPeriod(SIXTY_BUCKET_TF), bucket,
+    ccOp('?:', [onAnyPeriod(SIXTY_OWN_TF), ccLeaf('time'), ccNa()])])
+  return ms ? ccOp('*', [secs, ccNum(1000)]) : secs
+}
+const SIXTY_SHAPES = [true, false].map((ms) => chartSixtyTimeNode(ms))
+/** Is this node the `time("60")` tree above — node for node? */
+export function isChartSixtyTime(node) {
+  if (!node || node.type !== 'op') return false
+  return SIXTY_SHAPES.some((shape) => matchesShape(node, shape))
 }
 
 /** ⭐⭐ C36 — `time_close("W")` AND `time_close("M")` ON A DAILY CHART: the close of
@@ -4019,6 +4302,69 @@ export function isPeriodClose(node) {
   if (!node || node.type !== 'op' || node.name !== '?:') return false
   return PERIOD_CLOSE_SHAPES.some((shape) => matchesShape(node, shape))
 }
+/** ⭐⭐ C49 — A `request.security(<own symbol>, <timeframe>, x)` IS TRANSLATED FOR
+ *  ONE CHART TIMEFRAME, AND CARRIES A GATE THAT SAYS WHICH:
+ *  `<base seconds> != periodseconds ? na : <the request's tree>`.
+ *
+ *  WHY. The member door translates ONCE, for a daily base, and the saved tree is
+ *  then bound on whatever chart the member opens. On a daily base a request for
+ *  `"D"` folds to its own expression (ruling 3.5, 2026-09-11: "the daily bars" ARE
+ *  the bars in hand) and one for `"W"` / `"M"` becomes `tf` / `tf_live`, a resample
+ *  of those daily bars. Both are statements about a DAILY chart. On any other chart
+ *  the same tree read the wrong bars — the fold drew the chart's own 5-MINUTE
+ *  series under the name of the daily one, and the resample built its week out of
+ *  intraday bars — where ruling 3.5 itself records that the intraday case "is
+ *  REFUSED rather than folded, so the difference can never reach a member as a
+ *  number" (`tests/fixtures/vendor/divergences.json`). The refusal it relies on
+ *  reads the base the TRANSLATION is told, which the member door never is.
+ *
+ *  MEASURED, on the capture that asks exactly this
+ *  (`request-realtime-alignment-spy-5-2026-10-01`, AMEX:SPY 5 minutes, 300 bars,
+ *  the newest one forming): for `request.security(tickerid, "D", close)`
+ *  TradingView answers the day's own DAILY close on every bar with look-ahead on,
+ *  and the PREVIOUS day's close with it off (the day's last bar reads the day's
+ *  own). The fold answered the 5-minute close: wrong on 299 of 300 bars for each,
+ *  by up to 6.61 and 7.42 — right only on the one bar still forming. And the daily close it
+ *  shows is the DAILY bar's (762.63 on 2026-09-30), not the last 5-minute bar's
+ *  (762.46): a week or a month resampled out of intraday bars closes on the wrong
+ *  print too.
+ *
+ *  So every such request carries this gate, as C30's anchor and C36's own-time
+ *  tree carry theirs for the same reason, and `periodAnchorMask` WITHHOLDS the
+ *  whole tree by name (`request:other-timeframe`) on a chart whose timeframe is
+ *  stated and is not the base — never Pine's `na`, which `nz(…)` would turn into a
+ *  confident 0.
+ *  ⭐ A chart whose timeframe is NOT STATED evaluates the request as it always
+ *  has: `periodseconds` is blank there and a comparison with a blank is false.
+ *  That is the server's daily consumers (a user-series alert, the screen
+ *  backtest), whose bars are daily by construction.
+ *  ⛔ The literal sits on the LEFT of the comparison on purpose: a member's own
+ *  `timeframe.in_seconds() != 86400 ? na : x` keeps its own meaning. And a `tf`
+ *  node written in this platform's OWN formula language carries no gate and is
+ *  untouched: its meaning is ours, not a vendor's. */
+export function requestBaseNode(base, child) {
+  const secs = CLOCK_PERIOD_SECONDS[base]
+  if (secs === undefined) return child
+  return ccOp('?:', [ccOp('!=', [ccNum(secs), ccLeaf('periodseconds')]), ccNa(), child])
+}
+const REQUEST_BASE_CONDS = Object.keys(CLOCK_PERIOD_SECONDS)
+  .map((base) => [base, ccOp('!=', [ccNum(CLOCK_PERIOD_SECONDS[base]), ccLeaf('periodseconds')])])
+const REQUEST_BASE_NA = ccNa()
+/** The base period a gated request tree was translated for — node for node on its
+ *  gate — or null. */
+export function requestBaseOf(node) {
+  if (!node || node.type !== 'op' || node.name !== '?:' || !Array.isArray(node.args) || node.args.length !== 3) return null
+  if (!matchesShape(node.args[1], REQUEST_BASE_NA)) return null
+  for (const [base, cond] of REQUEST_BASE_CONDS) if (matchesShape(node.args[0], cond)) return base
+  return null
+}
+
+/** `{code, ms}` of a period-close node (its period, and whether it is in Pine's
+ *  milliseconds), or null. */
+export function periodCloseParts(node) {
+  if (!isPeriodClose(node)) return null
+  return { code: String(periodCloseInner(node).value), ms: node.args[1].type !== 'tf_live' }
+}
 /** The `tf_live(<code>, timeclose)` inside a period-close node (in SECONDS). */
 const periodCloseInner = (node) => (node.args[1].type === 'tf_live' ? node.args[1] : node.args[1].args[0])
 
@@ -4038,75 +4384,102 @@ const CLOSE_SPELLED = '`time_close("W")` and `time_close("M")`'
 const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not stated')
 export const CHART_CLOCK_WITHHELD = Object.freeze({
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
-    + 'quarter or year — are read here on a DAILY chart only (measured against TradingView on AMEX:SPY 1D, '
-    + `capture \`vw-time-tf-spy-1d-2026-09-28\`). This chart's timeframe is ${tfSpelled(tf)}, where TradingView `
-    + 'follows a different rule that has not been derived, so everything this indicator draws from them is '
-    + 'withheld on this chart rather than drawn wrong. On a 1D chart it draws. What would settle it here: the '
-    + '`vw-time-tf` probe measured on this timeframe.',
+    + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
+    + 'timeframes measured against TradingView on AMEX:SPY (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, '
+    + `\`vw-time-tf-spy-60-2026-09-28\`). This chart's timeframe is ${tfSpelled(tf)}, which none of them is, so `
+    + 'everything this indicator draws from them is withheld on this chart rather than assumed. What would '
+    + 'settle it here: the `vw-time-tf` probe measured on this timeframe.',
   'time-anchor:weekend-bars': () => `${ANCHOR_SPELLED} are measured on a Monday-to-Friday session (AMEX:SPY 1D) `
     + 'and on a symbol that trades every day of the week (BITSTAMP:BTCUSD 1D). This chart\'s daily bars include '
-    + 'a Saturday or a Sunday but not both, which is neither — a week that opens on a Sunday evening has not '
-    + 'been measured against TradingView — so everything this indicator draws from them is withheld on this '
-    + 'chart rather than drawn wrong. What would settle it: the `vw-time-tf` probe on a 1D chart of such a '
-    + 'symbol (an FX pair).',
+    + 'a Saturday or a Sunday but not both, which is neither. An FX pair is such a chart and WAS measured '
+    + '(`vw-time-tf-fx-eurusd-1d-2026-10-01`): TradingView opens its daily bar at 17:00 New York the evening '
+    + 'before, its week on the Sunday 17:00 bar, and its month by the trading day. This chart stamps a daily bar '
+    + 'at 09:30 New York on its own date, which is not that instant, so everything this indicator draws from '
+    + 'them is withheld on this chart rather than drawn off a different clock. What would settle it: this chart '
+    + 'reading such a symbol\'s daily bar at the session\'s own open.',
   'time-anchor:other-bars': () => `${ANCHOR_SPELLED}, \`time(timeframe.period)\` and \`time("60")\` are read `
     + 'here on the chart\'s own bars only. This indicator reads one inside a request for another timeframe or '
     + 'symbol, which no capture has measured, so everything it draws from that read is withheld. What would '
     + 'settle it: a `request.security(…, time("W"))` row added to the `vw-time-tf` probe.',
-  'time-own:chart-unwitnessed': (tf) => '`time(timeframe.period)` and `time("60")` are read as the bar\'s own '
-    + '`time` on 1D and 60-minute charts only — the two charts TradingView was measured on (captures '
-    + '`vw-time-tf-spy-1d-2026-09-28`, `vw-time-tf-spy-60-2026-09-28`). This chart\'s timeframe is '
-    + `${tfSpelled(tf)}, so everything this indicator draws from them is withheld on this chart rather than `
-    + 'assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.',
-  'time-clock:unreadable': () => `${ANCHOR_SPELLED}, ${CLOSE_SPELLED} are placed by each bar's own date and `
-    + 'time. These daily bars carry no clock this engine can read (they are keyed by a date number, not a '
-    + 'date), so the day of the week a bar falls on — and whether the symbol trades weekends — cannot be '
-    + 'told, and everything this indicator draws from them is withheld. What would settle it: nothing to '
-    + 'capture — the bars\' own keys.',
+  'time-own:chart-unwitnessed': (tf) => '`time(timeframe.period)` and `time("60")` are read on 5-minute, '
+    + '15-minute, 60-minute, 1D, 1W and 1M charts — the charts TradingView was measured on (captures '
+    + '`vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`); an indicator saved '
+    + 'before 2026-10-01 carries the older reading, which covers 1D and 60-minute charts only. This chart\'s '
+    + `timeframe is ${tfSpelled(tf)}, so everything this indicator draws from them is withheld on this chart `
+    + 'rather than assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.',
+  'time-clock:unreadable': () => `${ANCHOR_SPELLED}, ${CLOSE_SPELLED}, \`time(timeframe.period)\` and `
+    + '`time("60")` are placed by each bar\'s own date and time. These bars carry no clock this engine can read '
+    + '(they are keyed by a date number, not a date, or reach back before 1990), so the day of the week a bar '
+    + 'falls on — and whether the symbol trades weekends — cannot be told, and everything this indicator draws '
+    + 'from them is withheld. What would settle it: nothing to capture — the bars\' own keys.',
+  'time-clock:outside-session': (tf) => `${ANCHOR_SPELLED} and \`time("60")\` are measured below a daily chart `
+    + 'on regular-session bars only — 09:30 to 16:00 New York, Monday to Friday (AMEX:SPY 5, 15 and 60 minutes). '
+    + `This ${tfSpelled(tf)} chart holds at least one pre-market, after-hours or weekend bar, where which open `
+    + 'TradingView answers — the regular session\'s or the extended one\'s — has not been measured, so '
+    + 'everything this indicator draws from them is withheld on this chart. With extended hours switched off '
+    + 'it draws. What would settle it: the `vw-time-tf` probe on AMEX:SPY 5 with the extended session on.',
   'time-anchor:period-open-missing': () => `On a symbol that trades every day, ${ANCHOR_SPELLED} are the `
     + 'period\'s calendar open — Monday, the 1st — whether or not the chart holds a bar for that day '
     + '(measured on BITSTAMP:BTCUSD 1D). This chart is missing the opening day of at least one week, month, '
     + 'quarter or year, so what this indicator draws from them is withheld across that period; the rest is '
     + 'drawn. What would settle it: nothing to capture — the missing daily bar.',
-  'time-anchor:session-open-missing': () => `${ANCHOR_SPELLED} are the open of the period's first session `
-    + 'as TradingView\'s calendar has it (measured on AMEX:SPY 1D). At least one week, month, quarter or '
-    + 'year on this chart opens on a day that calendar keeps open and the chart holds no bar for — it applies '
-    + 'no closure before 2000, nor the two Hurricane Sandy days of 2012 — so what this indicator draws from '
-    + 'them is withheld across that period; the rest is drawn. What would settle it: the `vw-time-tf` probe '
-    + 'on AMEX:SPY 1D with history before 2000.',
   'time-anchor:utc-day-clock': () => 'This chart stamps a daily bar at 09:30 New York; on a symbol that trades '
     + 'every day TradingView stamps it at 00:00 UTC (BITSTAMP:BTCUSD 1D, every bar). Where a bar and the open '
     + `of its week, month, quarter or year sit on opposite sides of a New York clock change the two differ by `
     + `an hour, so what this indicator draws from ${ANCHOR_SPELLED} is withheld on those bars; the rest is `
     + 'drawn. What would settle it: this chart reading such a symbol\'s daily bar at 00:00 UTC.',
   'time-close:not-daily': (tf) => `${CLOSE_SPELLED} — the close of the last session of the bar's week or `
-    + 'month — are read here on a DAILY chart only (measured against TradingView on AMEX:SPY 1D, capture '
-    + `\`vw-time-close-tf-spy-1d-2026-09-30\`). This chart's timeframe is ${tfSpelled(tf)}, so everything this `
-    + 'indicator draws from them is withheld on this chart rather than assumed. On a 1D chart it draws. What '
-    + 'would settle it here: the `vw-time-close-tf` probe measured on this timeframe.',
+    + 'month — are read here on 1D, 1W and 1M charts, the timeframes measured against TradingView on AMEX:SPY '
+    + '(captures `vw-time-close-tf-spy-{1d-full,1w,1m}-2026-10-01`). This chart\'s timeframe is '
+    + `${tfSpelled(tf)}, where the probe was not run, so everything this indicator draws from them is withheld `
+    + 'on this chart rather than assumed. What would settle it here: the `vw-time-close-tf` probe measured on '
+    + 'this timeframe.',
   'time-close:weekend-bars': () => `${CLOSE_SPELLED} are read here as the close of the period's last `
     + 'New York session (AMEX:SPY 1D). This chart\'s daily bars include a Saturday or a Sunday; on a symbol '
     + 'that trades weekends TradingView answers the NEXT period\'s open (BITSTAMP:BTCUSD 1D: next Monday '
-    + '00:00 UTC), which this chart\'s daily clock does not hold, so everything this indicator draws from '
-    + 'them is withheld on this chart rather than drawn wrong. What would settle it: this chart reading such '
-    + 'a symbol\'s daily bar at 00:00 UTC.',
-  'time-close:period-end-missing': () => `${CLOSE_SPELLED} are measured equal to the \`time_close\` of the `
-    + 'period\'s last daily bar (AMEX:SPY 1D, 2007 → 2026). On this chart at least one completed week or '
-    + 'month ends on a day TradingView\'s session calendar keeps open and the chart holds no bar for (before '
-    + '2000 it keeps every holiday open), and which of the two TradingView answers there has not been '
-    + 'measured, so what this indicator draws from them is withheld across that period; the rest is drawn. '
-    + 'What would settle it: the `vw-time-close-tf` probe on AMEX:SPY 1D with history before 2000.',
+    + '00:00 UTC; FX:EURUSD 1D: Friday 17:00 New York), which this chart\'s daily clock does not hold, so '
+    + 'everything this indicator draws from them is withheld on this chart rather than drawn wrong. What '
+    + 'would settle it: this chart reading such a symbol\'s daily bar at its session\'s own open.',
+  'request:other-timeframe': (tf) => 'This indicator reads another timeframe of its own symbol with '
+    + '`request.security`. Here that read is built for a 1D chart: a daily request is the chart\'s own bars, '
+    + `and a weekly or monthly one is made from them. This chart's timeframe is ${tfSpelled(tf)}, where the `
+    + 'bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture '
+    + '`request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day\'s own '
+    + 'close with look-ahead on, the previous day\'s with it off, and a close that is the daily bar\'s, not the '
+    + 'last 5-minute bar\'s. This chart holds no daily bars beside its own, so everything this indicator draws '
+    + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
+    + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
+  // ⭐⭐ C45 — `bar_index` (see `barIndexMask`).
+  'bar-index:window': () => '`bar_index` counts bars from the first bar of the symbol\'s history on '
+    + 'TradingView. This chart\'s loaded bars start later, so its count is lower by a number of bars it '
+    + 'cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window '
+    + 'calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test '
+    + 'against one exact bar — would not be TradingView\'s, so everything this indicator draws from such a '
+    + 'value is withheld on this chart rather than drawn wrong. What only measures a distance between bars '
+    + '(`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  'bar-index:early-bars': () => 'A test of `bar_index` against a fixed number (`bar_index > 100`) is answered '
+    + 'here only where TradingView\'s longer history cannot change the answer. This chart\'s count is lower '
+    + 'than TradingView\'s by an unknown number of bars: where the test is already true here it is true '
+    + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
+    + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
+    + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars'])
+  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window'])
 
-/** Every chart-clock node of a tree: the anchors, the period closes, a count of
- *  own-time nodes, and whether any sits under `tf` / `tf_live` / `sym`. */
+/** Every chart-clock node of a tree: the anchors, the period closes, the own-time
+ *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
+ *  under `tf` / `tf_live` / `sym` — and the base periods of its gated requests
+ *  (`requestBaseOf`), which are walked THROUGH: the request's own tree may read a
+ *  clock of its own. */
 function scanChartClock(tree) {
   const anchors = []
   const closes = []
-  let owns = 0
+  const owns = []
+  const sixties = []
+  const folds = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -4121,7 +4494,12 @@ function scanChartClock(tree) {
     }
     if (isChartOwnTime(node)) {
       if (under) nested = true
-      owns += 1
+      owns.push(node)
+      continue
+    }
+    if (isChartSixtyTime(node)) {
+      if (under) nested = true
+      sixties.push(node)
       continue
     }
     if (isPeriodClose(node)) {
@@ -4129,10 +4507,14 @@ function scanChartClock(tree) {
       closes.push(node)
       continue
     }
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const base = requestBaseOf(node)
+    if (base !== null && !folds.includes(base)) folds.push(base)
+    // C41: an `ltf` child runs on the symbol's INTRADAY series, another clock, so a
+    // chart-clock node under one is nested exactly as it is under a request.
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, nested }
+  return { anchors, closes, owns, sixties, folds, nested }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -4142,114 +4524,178 @@ function clockColumn(node, bars, inputs, budget, scalars, opts) {
     { ...(opts || {}), crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
 }
 
-/** Which weekend days this bar series holds, by the SAME `dayofweek` column the
- *  week key reads (Pine's: 1 = Sunday, 7 = Saturday). */
-function weekendDays(bars, inputs, budget, scalars, opts) {
-  const col = clockColumn(ccLeaf('dayofweek'), bars, inputs, budget, scalars, opts)
+/** ⭐⭐ C49 — WHICH CLOCK A CHART'S `time(<period>)` / `time_close(<period>)` IS
+ *  ANSWERED FROM. One decision, read by the evaluator (`interpretOnce`) and by the
+ *  mask (`periodAnchorMask`), so what is computed and what is withheld cannot
+ *  disagree about the chart they are looking at.
+ *
+ *  `kind`:
+ *    `session`         a New York equity session, as far as the bars can show: a
+ *                      1D chart with no weekend bar; a 5 / 15 / 60-minute chart
+ *                      whose every bar opens Monday..Friday inside 09:30–16:00;
+ *                      a 1W or 1M chart. ANSWERED FROM THE VENDOR'S SESSION
+ *                      CALENDAR (`indicators.js::computePeriodCalendar`).
+ *    `every-day`       a 1D chart holding both a Saturday and a Sunday bar (C36,
+ *                      BITSTAMP:BTCUSD): the literal first-bar tree.
+ *    `one-weekend-day` a 1D chart with a Saturday or a Sunday bar but not both
+ *                      (an FX week): withheld — see `time-anchor:weekend-bars`.
+ *    `outside-session` a 5 / 15 / 60-minute chart with a bar outside the regular
+ *                      session or on a weekend: withheld, unmeasured.
+ *    `unreadable`      a bar with no readable clock: a blank is not "no weekend bars".
+ *    `unwitnessed`     any other chart timeframe (1, 30, 240 …, or none stated).
+ *
+ *  ⚠️ A 1W / 1M CHART CANNOT SHOW ITS SESSION. A weekly bar is keyed by a date and
+ *  stamped by `barOpenInstant` — the New York reading — whatever the symbol. On a
+ *  symbol that trades every day that stamp is already not the vendor's (C36,
+ *  "an every-day clock"), and a period read here inherits it. Stated, not hidden.
+ *
+ *  The three columns are the chart's own `dayofweek` (Pine's: 1 = Sunday … 7 =
+ *  Saturday), `hour` and `minute`, New York. */
+export const PERIOD_ANCHOR_WITNESSED_TF = Object.freeze(['5', '15', '60', 'D', 'W', 'M'])
+export const PERIOD_ANCHOR_INTRADAY_TF = Object.freeze(['5', '15', '60'])
+export const PERIOD_CLOSE_WITNESSED_TF = Object.freeze(['D', 'W', 'M'])
+export function chartClockRegime(tf, dayofweek, hour, minute) {
+  if (!PERIOD_ANCHOR_WITNESSED_TF.includes(tf)) return { kind: 'unwitnessed', sat: false, sun: false }
+  const n = dayofweek ? dayofweek.length : 0
   let sat = false
   let sun = false
-  // ⛔ A BLANK CLOCK IS NOT "NO WEEKEND BARS". The unit gate blanks every
-  // time-derived column on a series it cannot read (a daily bar keyed by a
-  // `YYYYMMDD` number), and a `tf_live` read resamples such bars by their DATE all
-  // the same — so without this a weekend-trading symbol's `time_close("W")` would
-  // be served off New York's calendar on exactly the bars that cannot say what
-  // day they are.
-  let blank = false
-  for (let i = 0; i < col.length; i++) {
-    if (col[i] === 7) sat = true
-    else if (col[i] === 1) sun = true
-    else if (col[i] !== col[i]) blank = true
+  let off = false
+  for (let i = 0; i < n; i++) {
+    const d = dayofweek[i]
+    // ⛔ A BLANK CLOCK IS NOT "NO WEEKEND BARS". The unit gate blanks every
+    // time-derived column on a series it cannot read (a daily bar keyed by a
+    // `YYYYMMDD` number), and such bars cannot say what day they are.
+    if (d !== d) return { kind: 'unreadable', sat: false, sun: false }
+    if (d === 7) sat = true
+    else if (d === 1) sun = true
+    const second = hour[i] * 3600 + minute[i] * 60
+    if (second < SESSION_OPEN_SECONDS || second >= SESSION_CLOSE_SECONDS) off = true
   }
-  return { sat, sun, blank }
+  if (tf === 'D') {
+    if (sat && sun) return { kind: 'every-day', sat, sun }
+    return { kind: sat !== sun ? 'one-weekend-day' : 'session', sat, sun }
+  }
+  if (PERIOD_ANCHOR_INTRADAY_TF.includes(tf)) return { kind: sat || sun || off ? 'outside-session' : 'session', sat, sun }
+  return { kind: 'session', sat, sun }
+}
+const SESSION_CLOSE_SECONDS = 16 * 3600
+/** `dayofweek * 10000 + hour * 100 + minute` — the three columns the regime reads,
+ *  in ONE pass over the chart's clock rather than three. */
+const REGIME_PACK = ccOp('+', [ccOp('+', [ccOp('*', [ccLeaf('dayofweek'), ccNum(10000)]),
+  ccOp('*', [ccLeaf('hour'), ccNum(100)])]), ccLeaf('minute')])
+function chartClockRegimeOf(bars, inputs, budget, scalars, opts) {
+  const tf = opts ? opts.tf : undefined
+  if (!PERIOD_ANCHOR_WITNESSED_TF.includes(tf)) return chartClockRegime(tf)
+  const pack = clockColumn(REGIME_PACK, bars, inputs, budget, scalars, opts)
+  const n = pack.length
+  const dow = new Float64Array(n)
+  const hour = new Float64Array(n)
+  const minute = new Float64Array(n)
+  for (let i = 0; i < n; i++) {
+    const v = pack[i]
+    dow[i] = v !== v ? NaN : Math.floor(v / 10000)
+    hour[i] = Math.floor((v % 10000) / 100)
+    minute[i] = v % 100
+  }
+  return chartClockRegime(tf, dow, hour, minute)
 }
 
 /** ⭐⭐ C36 — THE WHOLE-SERIES DECISION, made before anything is evaluated: null
- *  when the tree holds no chart-clock node, else `{scan, why, everyDay}` where
+ *  when the tree holds no chart-clock node, else `{scan, why, regime}` where
  *  `why` lists the `CHART_CLOCK_WHOLE` codes (empty = nothing withheld whole) and
- *  `everyDay` says the daily bars cover every day of the week. Writes each code's
+ *  `regime` is `chartClockRegime`'s answer for these bars. Writes each code's
  *  sentence to `opts.chartClockSink`. */
 function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   const scan = scanChartClock(tree)
-  if (!scan.anchors.length && !scan.closes.length && !scan.owns) return null
+  const clocked = scan.anchors.length || scan.closes.length || scan.owns.length || scan.sixties.length
+  if (!clocked && !scan.folds.length) return null
   const tf = opts ? opts.tf : undefined
   const why = []
-  if (scan.nested) why.push('time-anchor:other-bars')
-  const days = (scan.anchors.length || scan.closes.length) && tf === 'D'
-    ? weekendDays(bars, inputs, budget, scalars, opts) : null
-  if (days && days.blank) why.push('time-clock:unreadable')
-  if (scan.anchors.length) {
-    if (tf !== 'D') why.push('time-anchor:not-daily')
-    else if (!days.blank && days.sat !== days.sun) why.push('time-anchor:weekend-bars')
+  const add = (code) => { if (!why.includes(code)) why.push(code) }
+  // ⭐ C49 — a request translated for one base period, on a chart that STATES
+  // another timeframe: those are not the bars it asked for (`requestBaseNode`). An
+  // unstated timeframe is the server's daily consumers, and is served as it always was.
+  if (typeof tf === 'string' && tf && scan.folds.some((base) => base !== tf)) add('request:other-timeframe')
+  if (!clocked) {
+    nameChartClock(opts, why, tf)
+    return { scan, why, regime: chartClockRegime(undefined), everyDay: false }
   }
-  if (scan.owns && !OWN_TIME_WITNESSED_TF.includes(tf)) why.push('time-own:chart-unwitnessed')
+  if (scan.nested) add('time-anchor:other-bars')
+  const regime = chartClockRegimeOf(bars, inputs, budget, scalars, opts)
+  if (regime.kind === 'unreadable') add('time-clock:unreadable')
+  if (scan.anchors.length) {
+    if (regime.kind === 'unwitnessed') add('time-anchor:not-daily')
+    else if (regime.kind === 'one-weekend-day') add('time-anchor:weekend-bars')
+    else if (regime.kind === 'outside-session') add('time-clock:outside-session')
+  }
+  // `time(timeframe.period)`: each tree is served on the charts ITS shape names
+  for (const own of scan.owns) if (!chartOwnTimeTfs(own).includes(tf)) add('time-own:chart-unwitnessed')
+  if (scan.sixties.length) {
+    if (!SIXTY_WITNESSED_TF.includes(tf)) add('time-own:chart-unwitnessed')
+    else if (SIXTY_BUCKET_TF.includes(tf) && regime.kind === 'outside-session') add('time-clock:outside-session')
+  }
   if (scan.closes.length) {
-    if (tf !== 'D') why.push('time-close:not-daily')
-    else if (!days.blank && (days.sat || days.sun)) why.push('time-close:weekend-bars')
+    if (!PERIOD_CLOSE_WITNESSED_TF.includes(tf)) add('time-close:not-daily')
+    else if (regime.kind === 'every-day' || regime.kind === 'one-weekend-day') add('time-close:weekend-bars')
   }
   nameChartClock(opts, why, tf)
-  return { scan, why, everyDay: !!days && !days.blank && days.sat && days.sun }
+  return { scan, why, regime, everyDay: regime.kind === 'every-day' }
 }
 function nameChartClock(opts, codes, tf) {
   const sink = opts && opts.chartClockSink
   if (sink && typeof sink.set === 'function') for (const code of codes) sink.set(code, CHART_CLOCK_WITHHELD[code](tf))
 }
 
-/** ⭐⭐ C30 — THE BARS OF A TREE WHOSE ANSWER READS A PERIOD ANCHOR WE DO NOT
- *  HOLD, as a 0/1 column (1 = withheld), or null when the tree reads no anchor.
+/** ⭐⭐ C30 / C36 / C49 — THE BARS OF A TREE WHOSE ANSWER READS A `time(<period>)`
+ *  / `time_close(<period>)` WE CANNOT ANSWER, as a 0/1 column (1 = withheld), or
+ *  null when the tree reads none.
  *
- *  Measured on `vw-time-tf-spy-1d-2026-09-28` (the rule is `pine.js::periodAnchorOf`'s):
- *  the anchor equals the vendor on every bar from the first period boundary the
- *  series shows; before it the vendor answers an open from bars our window does
- *  not hold. So each anchor node is UNKNOWN on the bars where its own column is
- *  `NaN`, and — the C12s / C26 argument, `maxLookback` being a tree sum — so is
- *  every root bar within `maxLookback(root) − maxLookback(anchor)` bars of one
- *  (`ta.change(time("W")) != 0` reaches one bar back, and would otherwise read a
- *  confident FALSE on the first boundary, where the vendor reads TRUE).
+ *  ⭐⭐ C49 — ON A NEW YORK SESSION CHART THE ANSWER IS THE VENDOR'S CALENDAR
+ *  (`chartClockRegime` kind `session`; `indicators.js::computePeriodCalendar`):
+ *  the open of the period's first session, the close of its last, bar or no bar,
+ *  on 5 / 15 / 60-minute, 1D, 1W and 1M charts. So the FIRST PARTIAL PERIOD is
+ *  answered too — bar 0 of the full-history capture reads −4 / −28 / −28 / −28
+ *  days, bar 0 of the 2023 one −3 / −23 / −52 / −52, and every intraday capture's
+ *  first bars read a year open months before the window — which C30 withheld
+ *  because a first-bar tree cannot name a bar the series does not hold.
+ *  ⭐ RULING (integrator, 2026-10-01): A PERIOD WHOSE FIRST / LAST SESSION HAS NO
+ *  BAR IS ANSWERED FROM THE CALENDAR TOO — the calendar is the rule, bar or no
+ *  bar. Before `TRADINGVIEW_CLOSURES_FROM` that is every holiday-opened period
+ *  (31 weeks, 9 months, 7 quarters, 6 years of AMEX:SPY) and every holiday-ended
+ *  one (13 weeks, 2 months). From it, it is the six days the vendor's calendar
+ *  keeps open and no bar exists for: the Hurricane Sandy week (`time("W")` on
+ *  2012-10-31..11-02 reads Monday 2012-10-29 09:30) and the week of 2001-09-10
+ *  (`time_close("W")` on its one bar reads Friday 2001-09-14 16:00). The
+ *  full-history capture holds those bars and `vendorHarness.c49CapturedClock`
+ *  grades them; C49 first withheld them (`time-anchor:session-open-missing`,
+ *  `time-close:period-end-missing` — both codes are gone).
+ *  What is still withheld there:
+ *    · a root that reads the anchor `k` bars back, on its first `k` bars: the
+ *      anchor of a bar before the window is not a bar this series holds
+ *      (`ta.change(time("W")) != 0` would otherwise read a confident FALSE on
+ *      bar 0, where the vendor reads TRUE whenever the window opens a week).
+ *  ⛔ The calendar's boundary is bracketed by the capture, not assumed: the last
+ *  period the vendor answers from the calendar day ends Friday 1999-12-24, the
+ *  first it answers from the first session opens Tuesday 2000-01-18
+ *  (`vendorHarness.c49CapturedClock`).
  *
- *  ⛔ ON ANY CHART BUT A DAILY ONE (`opts.tf !== 'D'`, an absent `tf` included)
- *  EVERY BAR IS WITHHELD: the tree's own gate answers `NaN` there, which is not
- *  the vendor's answer either — nothing measured `time("W")` off a daily chart.
- *  An anchor under `tf` / `sym` reads other bars: the whole tree is withheld.
+ *  ⛔ WITHHELD WHOLE (`chartClockWhole`): a chart timeframe no capture measured;
+ *  an intraday chart with a bar outside the regular session; a daily chart with
+ *  one weekend day; an unreadable clock; a read under `tf` / `sym`.
  *
- *  ⛔⛔ C36 — A PERIOD WHOSE OPENING BAR IS NOT THE CALENDAR'S FIRST SESSION IS
- *  WITHHELD (`periodSessionOpen`, `time-anchor:session-open-missing`): the Sandy
- *  week of 2012 read three bars wrong under the first-bar rule, and every
- *  holiday-opened period before 2000 is unmeasured on a daily chart.
+ *  ⭐⭐ C36 — A DAILY CHART WHOSE BARS COVER EVERY DAY OF THE WEEK keeps the
+ *  literal first-bar tree, off `vw-time-tf-bitstamp-btcusd-1d-2026-09-30` (5,491
+ *  bars): a Monday-first week, the calendar month / quarter / year. Withheld
+ *  there, by name: a period whose opening bar is NOT its calendar first day
+ *  (`time-anchor:period-open-missing`), a bar across a New York clock change from
+ *  its anchor (`time-anchor:utc-day-clock` — this chart stamps a date-keyed daily
+ *  bar at 09:30 New York, the vendor at 00:00 UTC), and the first partial period
+ *  (no sentence: every chart has one).
  *
- *  ⭐⭐ C36 — A DAILY CHART WHOSE BARS COVER EVERY DAY OF THE WEEK IS SERVED, off
- *  `vw-time-tf-bitstamp-btcusd-1d-2026-09-30` (5,491 bars): the same keys — a
- *  Monday-first week, the calendar month / quarter / year — and the anchor is the
- *  `time` of the period's first daily bar. Two things are withheld there, by name:
- *    · a period whose opening bar is NOT its calendar first day
- *      (`periodCalendarFirst`): the vendor anchors to the calendar open, a day the
- *      chart holds no bar for (`time-anchor:period-open-missing`);
- *    · a bar on the other side of a New York clock change from its anchor
- *      (`time-anchor:utc-day-clock`). This chart stamps a date-keyed daily bar at
- *      09:30 New York (`indicators.js::barOpenInstant`); the vendor stamps this
- *      symbol's at 00:00 UTC (5,491 / 5,491 bars, 13.5 h or 14.5 h apart). Within
- *      one regime `time(tf) − time` is the vendor's whole number of days; across
- *      a change it is an hour off (30 / 666 / 1,138 / 3,540 bars for W / M / 3M /
- *      12M), so those bars are not served. ⚠️ The anchor's ABSOLUTE instant is
- *      this chart's `time` of that bar, and so carries that same offset on every
- *      bar — the bare `time` column's, not the anchor's.
- *  ⛔ A daily chart with a Saturday OR a Sunday bar but not both is neither
- *  capture's shape (an FX week opening on a Sunday evening): every bar withheld.
+ *  ⭐ `time(timeframe.period)` / `time("60")` ride the same mask: known on every
+ *  bar of a chart their tree names, withheld on every bar of any other.
  *
- *  ⭐ C36 — `time(timeframe.period)` / `time("60")` (`isChartOwnTime`) ride the
- *  same mask: known on every bar of a chart in `OWN_TIME_WITNESSED_TF`, withheld
- *  on every bar of any other.
- *
- *  ⭐⭐ C36 — `time_close("W" | "M")` (`isPeriodClose`): withheld whole off a daily
- *  chart and on one with a weekend bar (the vendor answers the next period's open
- *  there, at an instant this chart's clock does not hold). On a Monday-to-Friday
- *  daily chart every bar is served — the forming period too, the calendar's
- *  scheduled close — EXCEPT a completed period whose last bar's own `time_close`
- *  is not the period's close: the calendar keeps a day open that the chart has no
- *  bar for (every holiday before 2000; 2001-09-11..14), and whether the vendor
- *  answers the calendar or the last bar there is not measured (the capture is
- *  2007 → 2026, where the two agree on 4,800 / 4,800 bars).
- *
- *  ⭐ Every withholding but an anchor's first partial period is NAMED:
+ *  ⭐ Every withholding but an every-day anchor's first partial period is NAMED:
  *  `opts.chartClockSink` (a Map the caller owns, code → sentence) receives each
  *  reason, so the plot lane, the object lane and the member's disclosure strip
  *  read the decision this function made rather than re-deriving it. */
@@ -4265,64 +4711,44 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   const tf = opts ? opts.tf : undefined
   const partial = new Set()
   const rootReach = maxLookback(tree)
-  const spread = (unknown, node) => {
+  const spread = (unknown, node, fromBefore) => {
     const reach = Math.max(0, rootReach - maxLookback(node))
-    let last = -Infinity
+    // `fromBefore`: the bar BEFORE the series is unknown too (index −1)
+    let last = fromBefore ? -1 : -Infinity
     for (let i = 0; i < n; i++) {
       if (unknown[i]) last = i
       if (i - last <= reach) mask[i] = 1
     }
   }
-  const time = anchors.length ? clockColumn(ccLeaf('time'), bars, inputs, budget, scalars, opts) : null
+  const session = whole.regime.kind === 'session'
+  const calendar = session ? computePeriodCalendar(bars, tf) : null
+  const time = anchors.length && !session ? clockColumn(ccLeaf('time'), bars, inputs, budget, scalars, opts) : null
   for (const a of anchors) {
-    const col = clockColumn(a, bars, inputs, budget, scalars, opts)
     const period = periodAnchorPeriod(a)
     const unknown = new Float64Array(n)
+    if (session) {
+      // ⛔ `calendar` is null only when a bar's instant is unreadable, which the
+      // regime already answered `unreadable` for: fail closed rather than trust it.
+      if (!calendar) { mask.fill(1); return mask }
+      spread(unknown, a, true)
+      continue
+    }
+    // every day of the week (C36): the literal tree, its period's CALENDAR first day, one clock regime
+    const col = clockColumn(a, bars, inputs, budget, scalars, opts)
     for (let i = 0; i < n; i++) if (col[i] !== col[i]) unknown[i] = 1
     const opens = clockColumn(a.args[0], bars, inputs, budget, scalars, opts)
-    if (whole.everyDay) {
-      // every day of the week: the period's CALENDAR first day, and one clock regime
-      const first = clockColumn(periodCalendarFirst(period), bars, inputs, budget, scalars, opts)
-      let calendarOpen = true
-      for (let i = 0; i < n; i++) {
-        if (opens[i] === 1) calendarOpen = first[i] === 1
-        if (unknown[i]) continue
-        if (!calendarOpen) { unknown[i] = 1; partial.add('time-anchor:period-open-missing') }
-        else if ((time[i] - col[i]) % 86400 !== 0) { unknown[i] = 1; partial.add('time-anchor:utc-day-clock') }
-      }
-    } else {
-      // a Monday-to-Friday session: the opening bar must be the calendar's first session
-      const session = clockColumn(periodSessionOpen(period), bars, inputs, budget, scalars, opts)
-      const firstMonth = periodFirstMonth(period)
-      const month = firstMonth ? clockColumn(firstMonth, bars, inputs, budget, scalars, opts) : null
-      let sessionOpen = true
-      for (let i = 0; i < n; i++) {
-        if (opens[i] === 1) sessionOpen = time[i] === session[i] && (!month || month[i] === 1)
-        if (unknown[i]) continue
-        if (!sessionOpen) { unknown[i] = 1; partial.add('time-anchor:session-open-missing') }
-      }
+    const first = clockColumn(periodCalendarFirst(period), bars, inputs, budget, scalars, opts)
+    let calendarOpen = true
+    for (let i = 0; i < n; i++) {
+      if (opens[i] === 1) calendarOpen = first[i] === 1
+      if (unknown[i]) continue
+      if (!calendarOpen) { unknown[i] = 1; partial.add('time-anchor:period-open-missing') }
+      else if ((time[i] - col[i]) % 86400 !== 0) { unknown[i] = 1; partial.add('time-anchor:utc-day-clock') }
     }
-    spread(unknown, a)
+    spread(unknown, a, false)
   }
-  const barClose = closes.length ? clockColumn(ccLeaf('timeclose'), bars, inputs, budget, scalars, opts) : null
-  for (const c of closes) {
-    const col = clockColumn(periodCloseInner(c), bars, inputs, budget, scalars, opts)
-    const unknown = new Float64Array(n)
-    let from = 0
-    for (let i = 0; i <= n; i++) {
-      if (i < n && (i === 0 || col[i] === col[i - 1])) continue
-      // bars [from, i) share one period close. A blank close is unknown; so is a
-      // COMPLETED period (another follows) whose last bar does not close on it.
-      const blank = from < n && col[from] !== col[from]
-      const completedElsewhere = i < n && !blank && barClose[i - 1] !== col[from]
-      if (blank || completedElsewhere) {
-        for (let k = from; k < i; k++) unknown[k] = 1
-        if (completedElsewhere) partial.add('time-close:period-end-missing')
-      }
-      from = i
-    }
-    spread(unknown, c)
-  }
+  // a period close is the calendar's on every bar (ruling 2026-10-01): nothing to withhold per bar
+  if (closes.length && !calendar) { mask.fill(1); return mask }
   nameChartClock(opts, [...partial], tf)
   return mask
 }
@@ -4379,7 +4805,7 @@ export function historyReadMask(tree, bars, inputs, budget, scalars, opts) {
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       const k = historyBackOf(back[i])
-      if (!historyReadable(k, limit) || (!fromListing && i - k < 0)) {
+      if (!historyReadable(k, limit) || (i - k < 0 && !historyBeforeFirstKnown(fromListing))) {
         last = unbounded && last !== -Infinity ? last : i
       }
       if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
@@ -4403,14 +4829,96 @@ function readsRecurrenceBinding(tree) {
   return false
 }
 
+/** ⭐⭐ C45 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON WHERE THE SERIES STARTS,
+ *  as a 0/1 column (1 = withheld), or null when no bar is.
+ *
+ *  Pine's `bar_index` counts from the first bar of the symbol's history; the
+ *  `barindex` leaf counts from the first bar HANDED to this engine. They differ
+ *  by an unknown `D ≥ 0` unless the series starts at the listing (ruling R-W —
+ *  the same fact that lets a `var` seed from bar 0). `barIndexShift.js` proves,
+ *  from the tree alone, how the value moves with `D`:
+ *
+ *    'inv'   it does not — served; TradingView's number;
+ *    'pos'   it IS a bar index — withheld as a VALUE, served as a drawing's
+ *            x-coordinate (`opts.barIndexUse === 'position'`: the object lane,
+ *            whose runtime decides per property which of the two it is);
+ *    'dep'   anything else — withheld, every bar.
+ *
+ *  An ordering test against the index (`bar_index > 100`) is the one per-bar
+ *  case: withheld on the bars where a larger `D` could change this chart's
+ *  answer (`thresholdUnknown`) and — `maxLookback` being a tree sum, C30 / C38's
+ *  argument — on every root bar within reach of one; from the first such bar on
+ *  under a function whose memory is unbounded (`lookback: "series"`); the whole
+ *  tree under `tf` / `sym`.
+ *  ⚠️ A recurrence is NOT unbounded here, and that is the one point this mask
+ *  differs from `historyReadMask` on: it applies only OFF the listing, where
+ *  `accum` is the bounded window — its value on bar i reads the last `W` bars and
+ *  nothing older, and `maxLookback` already counts `W`.
+ *
+ *  ⛔ Asked ONLY of a document that declares Pine's meaning
+ *  (`opts.barIndexAbsolute === true`, `nativeRegistry.barIndexAbsoluteFor`). The
+ *  formula language's own `barindex` is "the bar's position in the series" by its
+ *  declared sentence and claims no other platform's number. */
+export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
+  if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
+  const verdict = barIndexVerdict(tree)
+  const n = Array.isArray(bars) ? bars.length : 0
+  const whole = () => {
+    nameChartClock(opts, ['bar-index:window'], opts.tf)
+    return new Float64Array(n).fill(1)
+  }
+  if (verdict.cls === 'dep' || (verdict.cls === 'pos' && opts.barIndexUse !== 'position')) return whole()
+  if (!verdict.thresholds.length) return null
+  const wanted = new Map(verdict.thresholds.map((t) => [t.node, t]))
+  const found = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (wanted.has(node)) found.push({ t: wanted.get(node), nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  // a threshold the walk did not meet is not one this mask can vouch for
+  if (found.length !== wanted.size) return whole()
+  const mask = new Float64Array(n)
+  let any = false
+  const rootReach = maxLookback(tree)
+  for (const { t, nested, unbounded } of found) {
+    if (nested || readsRecurrenceBinding(t.node)) return whole()
+    // ⛔ No `try`: a gap this pass cannot compute refuses the tree, by its own
+    // guard — it is the comparison's two sides, which the tree's own run computed.
+    const gap = toColumn(interpretOnce({ type: 'op', name: '-', args: [t.node.args[0], t.node.args[1]] },
+      bars, inputs, budget, scalars,
+      { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
+    const reach = Math.max(0, rootReach - maxLookback(t.node))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (thresholdUnknown(t.node.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, ['bar-index:early-bars'], opts.tf)
+  return mask
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30) or `historyReadMask` (C38), one channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38) or `barIndexMask` (C45), one
+ *  channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
-  const a = periodAnchorMask(tree, bars, inputs, budget, scalars, opts)
-  const h = historyReadMask(tree, bars, inputs, budget, scalars, opts)
-  if (!a || !h) return a || h
-  const out = new Float64Array(Math.max(a.length, h.length))
-  for (let i = 0; i < out.length; i++) out[i] = (a[i] || h[i]) ? 1 : 0
+  const masks = [
+    periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
+    historyReadMask(tree, bars, inputs, budget, scalars, opts),
+    barIndexMask(tree, bars, inputs, budget, scalars, opts),
+  ].filter(Boolean)
+  if (masks.length <= 1) return masks[0] || null
+  const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
+  for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
   return out
 }
 
@@ -4472,7 +4980,7 @@ export function symAlignmentMask(tree, bars, opts) {
       if (under) nested = true
       nodes.push(node)
     }
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -4594,7 +5102,7 @@ export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts
       if (under) crossesBars = true
       nodes.push(node)
     }
-    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym'
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -4865,7 +5373,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // is UNKNOWN (the probe, so `unknownMask` withholds what reads it) unless
         // both readings are `na` — an unmarked seed whose bar-0 value is `na`.
         // Without a probe it is `NaN` either way, so no plotted value moves.
-        if (opts && opts.historyFromListing === true && typeof opts.prefixProbe === 'number'
+        // ⭐⭐ C47 — …AND A `'held'` STATE (`heldFalseSeed`: a Pine v6 `bool`) IS
+        // KNOWN THERE: every read before bar 0 answers the seed, so from the
+        // listing `x[k]` is the seed on each of the first `k` bars — a value, not
+        // a probe. Behind the curtain nothing changes (`NaN`, as above).
+        const held = opts && opts.historyFromListing === true && back >= 1 ? heldEnteringSeed(n.args[0]) : null
+        if (held !== null) {
+          for (let i = 0; i < Math.min(back, length); i++) out[i] = held
+        } else if (opts && opts.historyFromListing === true && typeof opts.prefixProbe === 'number'
             && back >= 1 && back <= length && enteringStateUnknown(n.args[0])) {
           out[back - 1] = opts.prefixProbe
         }
@@ -4920,7 +5435,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       case 'tf':
       case 'tf_live': {
         const code = String(n.value)
-        assertResamplable(code, refuse)
+        // ⭐ C47 — a forming read may also name the quarter, from daily bars.
+        if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
+        else assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
         // is. `opts.tf` is what the caller knows and the bars do not; absent, this
         // check cannot run and does not pretend to \u2014 the same fail-closed-but-say-so
@@ -4970,6 +5487,35 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           const b = at.get(tfBucket(iso, code))
           if (live) out[i] = child[b]
           else if (b > 0) out[i] = child[b - 1]
+        }
+        return out
+      }
+      case LTF: {
+        // ⭐⭐ C41 — A READ BELOW THE CHART'S OWN TIMEFRAME (`engine/lowerTf.js`
+        // states every rule). The child is evaluated on the chart symbol's
+        // INTRADAY series and each chart bar reads its LAST intrabar's value
+        // (witnessed: `vw-lower-tf-*-2026-09-30` L02/L03/L04).
+        //
+        // ⛔ THE INTERPRETER DOES NOT FETCH AND DOES NOT BUCKET — THE CALLER
+        // SUPPLIES (`opts.lowerTf[code] = {bars, groups}`, built per binding by
+        // `lowerTf.js::resolveLowerTf`). An unsupplied code is NOT COMPUTABLE on
+        // every bar, and a chart bar the supply does not cover WHOLE (`groups`
+        // answers null for it) is not computable either: both are WITHHELD by
+        // `lowerTfMask` — never read as Pine's `na`.
+        const code = String(n.value)
+        assertLowerCode(code, refuse)
+        const sup = lowerSupplyOf(opts, code)
+        if (!sup) return nan(length)
+        const child = toColumn(
+          interpret(n.args[0], sup.bars, inputs, budget, scalars,
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
+              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined }),
+          sup.bars.length)
+        const groups = sup.groups(bars, maxLookback(n.args[0]))
+        const out = nan(length)
+        for (let i = 0; i < length; i++) {
+          const g = groups[i]
+          if (g && g.length) out[i] = child[g[g.length - 1]]
         }
         return out
       }
@@ -5119,6 +5665,52 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     return !Number.isNaN(toColumn(evalNode(seedNode), length)[0])
   }
 
+  // ⭐⭐ C49 — `time(<period>)` / `time_close(<period>)` ON A NEW YORK SESSION CHART
+  // ARE THE VENDOR'S CALENDAR, NOT THE TREE'S LITERAL READING. The recognised
+  // shapes (`periodAnchorNode`, `periodCloseNode` — each a NAME for what the
+  // script asked) are answered here from `computePeriodCalendar`, on exactly the
+  // charts `chartClockRegime` calls `session`; on any other chart this returns
+  // `undefined` and the node is evaluated as written (an every-day daily chart:
+  // the literal first-bar tree IS the witnessed reading there). What is withheld
+  // is `periodAnchorMask`'s, which asks the same regime of the same bars.
+  let clockRegime = null
+  let periodCalendar
+  const sessionCalendar = () => {
+    if (clockRegime === null) {
+      clockRegime = chartClockRegime(opts ? opts.tf : undefined, scope.dayofweek, scope.hour, scope.minute)
+    }
+    if (clockRegime.kind !== 'session') return null
+    if (periodCalendar === undefined) periodCalendar = computePeriodCalendar(bars, opts.tf)
+    return periodCalendar
+  }
+  const chartClockValue = (n) => {
+    if (n.type === 'call') {
+      if (n.name !== 'valuewhenOccurrence') return undefined
+      const period = periodAnchorPeriod(n)
+      const calendar = period === null ? null : sessionCalendar()
+      return calendar ? Float64Array.from(calendar.open[period]) : undefined
+    }
+    if (n.type !== 'op' || n.name !== '?:') return undefined
+    // the anchor's own gate says "daily only"; on a session chart the value branch answers
+    if (periodAnchorGatePeriod(n) !== null) return sessionCalendar() ? evalNode(n.args[1]) : undefined
+    const close = periodCloseParts(n)
+    if (close === null || !PERIOD_CLOSE_WITNESSED_TF.includes(opts ? opts.tf : undefined)) return undefined
+    const calendar = sessionCalendar()
+    if (!calendar) return undefined
+    const out = Float64Array.from(calendar.close[close.code])
+    if (close.ms) for (let i = 0; i < out.length; i++) out[i] *= 1000
+    return out
+  }
+
+  /** ⭐ C47 — the value a `'held'` recurrence (`heldFalseSeed`) enters bar 0
+   *  with — `false` — or null when `child` is not one. See the `offset` arm. */
+  const heldEnteringSeed = (child) => {
+    if (!child || child.type !== 'call' || !own(RECURRENCES, child.name)) return null
+    const real = switchedSeedOf(child.args[fnSpec(child.name).recurrence.seed])
+    const spelled = real ? readingOf(real) : null
+    return spelled && spelled.reading === 'held' ? spelled.seed.value : null
+  }
+
   const evalNode = (n) => {
     // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
     // per step with a different running value; caching it would freeze the
@@ -5141,7 +5733,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       memo.set(id, shared)
       return shared
     }
-    const value = evalNodeRaw(n)
+    const special = chartClockValue(n)
+    const value = special !== undefined ? special : evalNodeRaw(n)
     if (id !== undefined) {
       memo.set(id, value)
       if (crossMemo !== null) crossMemo.set(n, value)
@@ -5451,6 +6044,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
      *  memo is keyed by node AND guard context, and lives for one call — a shared
      *  node is one Pine value at one point in the bar, so answering it once is
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
+    /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
+    let heldLatch = false
     const stepListing = (x, j, history, read, strict = false) => {
       const memo = new Map()
       // ⛔ C19 — BY SHAPE only where every read is `history`: then two nodes of
@@ -5479,8 +6074,16 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             // `strict` (C12s): a condition that is not computable (`NaN`) picks no
             // arm the member can rely on, so the switched window reads it as
             // unknown rather than as the `NaN` the column would carry.
+            // ⭐⭐ C47 — and in a `'held'` recurrence (`heldFalseSeed`: a Pine v6
+            // `bool` latch) the listing pass reads a `na` test as NOT TAKEN: the
+            // state holds. `if c` → `c ? v : self` otherwise carries the `na` into
+            // the state (`TERNARY`), and a v6 `bool` is never `na`. Only here: from
+            // the listing a `na` test is Pine's own `na` (a warm-up), where behind
+            // the curtain it is a value this engine does not have (`strict`, above).
             v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
-              ? LISTING_UNKNOWN : TERNARY(values[0], values[1], values[2])
+              ? LISTING_UNKNOWN
+              : heldLatch && Number.isNaN(values[0]) ? values[2]
+                : TERNARY(values[0], values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {
@@ -5499,6 +6102,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // ⭐ C29 — a spelled bar-0 reading rides inside the switched mark (`readingSeed`).
     const spelled = switchedReal ? readingOf(switchedReal) : null
     const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
+    heldLatch = !!spelled && spelled.reading === 'held'
     const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the

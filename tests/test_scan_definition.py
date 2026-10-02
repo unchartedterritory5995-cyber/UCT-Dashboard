@@ -422,7 +422,7 @@ def test_the_node_types_this_module_branches_on_ARE_the_declared_ones():
                 scan_definition._OFFSET, scan_definition._TF,
                 scan_definition._SYM, scan_definition._TF_LIVE,
                 scan_definition._STR, scan_definition._SYMTEXT,
-                scan_definition._TEXTOP)
+                scan_definition._TEXTOP, scan_definition._LTF)
     assert set(branched) == set(ast_interpret.NODE_TYPES)
     assert len(set(branched)) == len(ast_interpret.NODE_TYPES)
     assert set(branched) == set(user_definitions.NODE_TYPES)
@@ -467,9 +467,14 @@ def test_the_gates_are_a_CLOSED_set_and_an_unknown_one_cannot_be_raised():
     # thing across two symbols or two runs, and no check in this file can see
     # that. The name is DECLARED here because this tuple is what a surface
     # branches on. See `tests/test_requirement_consumers.py`.
+    # ⚠️ `withheld` JOINED IN C45 (C36's decision 6): the sweep would answer "no
+    # number" for every symbol on every bar — a period clock its date-keyed daily
+    # bars do not carry, or a Pine document's absolute `bar_index`. Admitted before,
+    # stamped `scannable: true`, and `not_computable` every night. See
+    # `tests/test_c45_withheld_doors.py`.
     assert scan_definition.GATES == (
         "kind", "tree", "hash", "yields", "symbol", "cadence", "budget",
-        "requirements")
+        "requirements", "withheld")
     for gate in scan_definition.GATES:
         assert scan_definition.ScanRefused(gate, "x").gate == gate
     with pytest.raises(ValueError, match="not one of this module's gates"):

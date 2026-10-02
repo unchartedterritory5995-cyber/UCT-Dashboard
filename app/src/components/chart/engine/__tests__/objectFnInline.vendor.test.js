@@ -64,12 +64,12 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     const ours = runOurSide(cap)
     expect(ours.objects && ours.objects.ok, ours.objects && ours.objects.reason).toBe(true)
     expect(cap.objects.counts.tableCells).toBe(45)
-    expect(ours.objects.counts.tableCells).toBe(37)
+    expect(ours.objects.counts.tableCells).toBe(45) // wave 12: was 37 - C47 serves the forming quarter ('3M')
     const extra = subMultiset(ours.objects.texts.tableCells.map(String), cap.objects.texts.tableCells.map(String))
     expect(extra, `a cell TradingView does not show: ${JSON.stringify(extra)}`).toBeNull()
   })
 
-  it('⭐ its lines are held (C30: 503 of 504) and its labels are the 504 (C33)', () => {
+  it('⭐ its lines are held (C49: all 504) and its labels are the 504 (C33)', () => {
     vi.stubEnv(FLAG, '1')
     const cap = load('high-low-open-mid-ranges')
     const ours = runOurSide(cap)
@@ -78,7 +78,9 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     // the collector cut it whole. C30 serves `time("W")` on a daily chart, and the
     // family is held: 503 of TradingView's 504, each one a vendor line
     // (`vendorHarness.c30TimeAnchor.test.js` holds them to the records).
-    expect(ours.objects.counts.lines).toBe(503)
+    // ⭐ C49 — re-pinned 503 → 504: the vendor's oldest line sat on a bar of the first
+    // partial week, which C30 withheld and the calendar now answers (`vendorHarness.c30TimeAnchor`).
+    expect(ours.objects.counts.lines).toBe(504)
     // ⚰️ LABELS WERE 0 TOO: every label create was lost (an `input.timeframe`
     // text, a getter and its history in a text, an `na` text-colour arm). C33
     // carries them, so the family lost nothing and holds TradingView's 504 —

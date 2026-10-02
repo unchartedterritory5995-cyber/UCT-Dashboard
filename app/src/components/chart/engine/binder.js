@@ -92,6 +92,7 @@ import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
+import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
@@ -715,9 +716,14 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
           secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
           exchangeOf: ctx.exchangeOf,
+          // ⭐ C41 — the same intraday supply the plot beside it is handed.
+          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
           // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
           // document's own declaration is asked inside `objectReaderFor`.
           ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
+          // surface states it.
+          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
@@ -780,7 +786,7 @@ export function createBinder({ chart, LWC }) {
       // bars can draw a different picture once that statement arrives.
       // ⭐ C37 — and the chart's own colours: a theme change repaints the objects
       // that wear them, with the bars and the program unchanged.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}:${theme.fg || ''}/${theme.bg || ''}`
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}${ctx.barIndexFromFirstBar === true ? ':bar0' : ''}:${theme.fg || ''}/${theme.bg || ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -1271,8 +1277,15 @@ export function createBinder({ chart, LWC }) {
       // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
       // (or changes) must recompute, exactly as a symbol SOURCE does above.
       const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      // ⭐ C41 — and this symbol's intraday windows, for a document that reads
+      // below the chart: a window that lands (or changes) must recompute. '' for
+      // every document that reads none (one property read).
+      const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
+      const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+        + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
+        + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
@@ -1318,11 +1331,18 @@ export function createBinder({ chart, LWC }) {
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
+            // not the series the caller described.
+            ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
             // frame's timeframe, the secondary's are the chart's).
-            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame }))
+            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame,
+            // ⭐⭐ C41 — this symbol's intraday bars per store timeframe, for a Pine
+            // document that reads BELOW the chart (`lowerTf.js` decides what is
+            // served; a framed instance is served none).
+            lowerTf }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least

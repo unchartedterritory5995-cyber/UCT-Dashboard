@@ -315,6 +315,20 @@ const TYPES_NOT_PICKABLE = Object.freeze({
       + 'somebody forgot — and it is a separate entry from `tf` above precisely so '
       + 'that giving `tf` a row does not silently excuse this one.',
   },
+  ltf: {
+    guard: 'picker:no-row',
+    why: '🔴 THE FOURTH MODIFIER WITH NO ROW (C41), AND THE ONE A CONDITION CANNOT '
+      + 'USE AT ALL. `ltf(expr, "60")` reads BELOW the chart\'s timeframe: its child '
+      + 'runs on the symbol\'s intraday bars, which only a chart\'s bind supplies '
+      + '(`engine/lowerTf.js`). The Conditions picker builds SCREENS, and a screen '
+      + 'holds daily bars only — `scan_definition.assert_scannable` refuses an `ltf` '
+      + 'tree by name — so a picker row for it would build a condition no sweep can '
+      + 'run. It is written by the Pine member door alone '
+      + '(`request.security(syminfo.tickerid, "60", …)` on a daily chart) and drawn '
+      + 'on a chart. ⛔ The exemption is about the PICKER only: it parses, hashes, '
+      + 'reads back as a sentence, and is graded on TradingView\'s own bars in '
+      + '`vendorHarness.c41LowerTfServe.test.js`.',
+  },
 })
 
 /** The types the picker is on record as having no row for — subtracted wherever

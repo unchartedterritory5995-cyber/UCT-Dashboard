@@ -306,6 +306,12 @@ CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
         "`lookahead_on` honestly and carries a repainting badge for it; nothing "
         "a member ASKS for in English should author one, so it is translated-only."
     ),
+    "ltf": (
+        "the read below the chart's own timeframe (C41). It exists to translate "
+        "Pine's `request.security(syminfo.tickerid, \"60\", …)` on a daily chart and "
+        "is evaluated on a symbol's intraday bars, which only a chart supplies — a "
+        "saved screen holds none and refuses it — so it is translated-only."
+    ),
 })
 
 

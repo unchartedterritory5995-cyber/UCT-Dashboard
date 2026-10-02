@@ -2029,6 +2029,17 @@
       "last_changed": "never set",
       "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
     },
+    "VITE_PINE_LOWER_TF_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken — built dark on branch pine/c41-lower-tf-serve (2026-10-01) by integrator ruling: the rule is witnessed, the store's intraday bars are not measured",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-10-01, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-10-01T00:00:00Z",
+      "note": "May a `request.security` at a timeframe BELOW a daily or weekly chart's own (5, 15, 60, 240 minutes) be served? Read in ONE place, app/src/components/chart/engine/lowerTfGate.js::lowerTfServingEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its one caller is engine/lowerTf.js (`lowerTfRefusal` - the translate door and the bind - and `lowerTfWindowsOf`, the fetch). IT IS OFF, and off is the behaviour before C41: the read is refused by name (`lower-tf:store-unmeasured`), no `ltf` node is emitted, nothing is stamped and nothing is fetched. WHY: C41 proved the rule on TradingView's own intraday bars; in the product the bars come from our store (`/api/bars/<ticker>?tf=15`), which has not been measured against TradingView's. WHAT FLIPS IT is that measurement, not a preference: commit a store payload under tests/fixtures/store/ and read app/src/components/chart/engine/__tests__/storeIntradayAgreement.test.js (it skips by name until the payload exists). What arming changes for a member: scripts with such a read translate (corpus, pane on: mtf-dashboard-pro attaches; ema-ribbon's 15m / 1H / 4H rows and bias cells draw), and a chart carrying one fetches this symbol's 15- or 5-minute bars once per store timeframe (capped at 60,000 bars). Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
+    },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
       "status": "armed",
       "where": [
