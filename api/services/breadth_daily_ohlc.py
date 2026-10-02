@@ -499,6 +499,15 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 # daily-bar WICK guess, which was wrong).
 _TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
 
+# ⭐ TRUSTED IS NOT THE SAME AS OBSERVED. Every source above is a trustworthy CLOSE, but
+# only these sampled the metric THROUGH the session, so only their open/high/low are an
+# observation: 'live' (the intraday accumulator), 'intraday_recon' (the minute-file replay,
+# open = first RTH bucket, high/low = sampled extremes widened to the EOD close) and V2's
+# 'intraday_recon_1m'. 'close_recon' and V2's 'intraday_recon_1m_body' are BODIES — one
+# value a day — and the chart's close-to-close fallback is a body too. The chart marks a bar
+# whose O/H/L came from one of these, and draws Candles/Bars from nothing else.
+OBSERVED_OHLC_SOURCES = frozenset(("live", "intraday_recon", "intraday_recon_1m"))
+
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,
                universe: str = DEFAULT_UNIVERSE) -> int:
@@ -978,19 +987,22 @@ def _rebuild_after_write(conn, dates) -> None:
 
 
 def history(metric: str, limit: int = 6000,
-            universe: str = DEFAULT_UNIVERSE) -> dict:
+            universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
     only. A breadth metric's true intraday high/low can only come from sampling the actual
     value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every
     stock hits its extreme at once and are wildly too wide, so they are NOT served. Empty on
-    any error (callers fall back to close-to-close bodies)."""
+    any error (callers fall back to close-to-close bodies).
+
+    `with_source=True` adds each row's `src` (its store source) — OPT-IN provenance for the
+    chart's observed-OHLC mark (`OBSERVED_OHLC_SOURCES`). Off, the row shape is unchanged."""
     if not metric:
         return {}
     # ⭐ BREADTH AUTHORITY: a universe V2 owns is answered by the seam (breadth_authority),
     # never by this store. None = not owned → the V1 store below, unchanged.
     try:
         from api.services import breadth_authority as _ba
-        _v2 = _ba.universe_history(metric, universe, limit)
+        _v2 = _ba.universe_history(metric, universe, limit, with_source=with_source)
     except Exception:
         _v2 = None
     if _v2 is not None:
@@ -1000,13 +1012,15 @@ def history(metric: str, limit: int = 6000,
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:
         with _conn() as c:
-            for (d, o, h, l, cl) in c.execute(
-                f"SELECT date, o, h, l, c FROM breadth_daily_ohlc "
+            for (d, o, h, l, cl, src) in c.execute(
+                f"SELECT date, o, h, l, c, source FROM breadth_daily_ohlc "
                 f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
                 f"ORDER BY date DESC LIMIT ?",
                 (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit)),
             ).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
+                if with_source:
+                    out[d]["src"] = src
     except Exception:
         return {}
     return out
