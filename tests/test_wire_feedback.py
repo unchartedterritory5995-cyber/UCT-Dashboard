@@ -66,7 +66,6 @@ def test_note_capped_at_2000():
     assert len(fb["overall"]["note"]) == 2000
 
 
-os.environ.setdefault("PUSH_SECRET", "test-secret-123")
 from fastapi.testclient import TestClient
 from api.main import app
 
@@ -79,7 +78,11 @@ def test_internal_requires_bearer():
                       headers={"Authorization": "Bearer wrong"}).status_code == 401
 
 
-def test_internal_valid_bearer_returns_votes_list():
+def test_internal_valid_bearer_returns_votes_list(monkeypatch):
+    # Scoped to THIS test: a module-level os.environ.setdefault leaked the
+    # secret into every later test module (test_exposed_routes_gated's gate
+    # ladder then crashed on hmac.compare_digest(Header(), str)).
+    monkeypatch.setenv("PUSH_SECRET", "test-secret-123")
     # ⚠️ THE 200 USED TO COME FROM A PRODUCTION FILE. Nothing here creates the
     # `wire_feedback` table: the route reached `C:\data\wire_feedback.db`, the
     # owner's live store, which of course has it. The `_fresh_store()` tests
