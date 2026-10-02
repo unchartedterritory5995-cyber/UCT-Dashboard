@@ -40,6 +40,10 @@ export function AuthProvider({ children }) {
   const [optionsVolSurfaceEnabled, setOptionsVolSurfaceEnabled] = useState(false)
   const [seasonalityEnabled, setSeasonalityEnabled] = useState(false)
   const [filingBlacklineEnabled, setFilingBlacklineEnabled] = useState(false)
+  // COV-05 / COV-07 / COV-09 (RM-L19): three dark Research tabs, default FALSE.
+  const [researchPeopleEnabled, setResearchPeopleEnabled] = useState(false)
+  const [estimateHistoryEnabled, setEstimateHistoryEnabled] = useState(false)
+  const [filingsFeedEnabled, setFilingsFeedEnabled] = useState(false)
   const [cohortsWithdrawn, setCohortsWithdrawn] = useState([])
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
@@ -103,6 +107,9 @@ export function AuthProvider({ children }) {
     ['seasonality_enabled', (d) => d.seasonality_enabled === true, setSeasonalityEnabled],
     // COV-04: the key rides the payload ONLY when on; absent reads as false.
     ['filing_blackline_enabled', (d) => d.filing_blackline_enabled === true, setFilingBlacklineEnabled],
+    ['research_people_enabled', (d) => d.research_people_enabled === true, setResearchPeopleEnabled],
+    ['estimate_history_enabled', (d) => d.estimate_history_enabled === true, setEstimateHistoryEnabled],
+    ['filings_feed_enabled', (d) => d.filings_feed_enabled === true, setFilingsFeedEnabled],
     ['cohorts_withdrawn', (d) => (Array.isArray(d.cohorts_withdrawn) ? d.cohorts_withdrawn : []), setCohortsWithdrawn],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
@@ -313,7 +320,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

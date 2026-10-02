@@ -381,6 +381,11 @@ const BARE_POLL_SITES = {
   // COV-04 Filing changes (2026-10-01): a JOB-STATUS poll, not a background
   // tick: 5s only while the server says `pending` (an SEC fetch queued), 0 after.
   'app/src/pages/research/tabs/FilingChangesTab.jsx': 1,
+  // COV-09 Filings feed (2026-10-02): the request path is CACHE-ONLY (the server's own poll
+  // refreshes the market feed every FILINGS_FEED_POLL_MINUTES, default 5), so this tick reads a
+  // cache: 5s only while the server says `pending` (a ticker read queued), else 60s. Bare, not
+  // `useMobileSWR`, to keep the app-global `revalidateOnFocus: false` the wrapper would flip.
+  'app/src/pages/research/tabs/FilingsFeedTab.jsx': 1,
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,

@@ -229,6 +229,21 @@ def _seasonality_enabled() -> bool:
         return False
 
 
+def _research_cov_flags() -> dict:
+    """COV-05 / COV-07 / COV-09 (RM-L19): the three Research tabs' switches -- the SAME
+    readers their routes' dark gates use. Never raises; a failed read is OFF."""
+    out = {"research_people_enabled": False, "estimate_history_enabled": False,
+           "filings_feed_enabled": False}
+    try:
+        from api.services import estimate_history, filings_feed, research_people
+        out["research_people_enabled"] = bool(research_people.is_enabled())
+        out["estimate_history_enabled"] = bool(estimate_history.is_enabled())
+        out["filings_feed_enabled"] = bool(filings_feed.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        pass
+    return out
+
+
 def _filing_blackline_flag() -> dict:
     """COV-04: the Research "Filing changes" tab -- the SAME reader the route's dark gate
     uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
@@ -526,6 +541,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         "options_chain_enabled": _options_chain_enabled(),
         "options_vol_surface_enabled": _options_vol_surface_enabled(),
         "seasonality_enabled": _seasonality_enabled(),
+        **_research_cov_flags(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten
