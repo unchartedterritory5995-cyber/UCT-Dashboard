@@ -309,6 +309,15 @@ export function lowerIrProgram(ir, opts = {}) {
         throw new LoweringGap('history over an expression',
           'only a column and a variable have committed history in this runtime yet')
       }
+      case EXPR.HIST_SLOT_DYN: {
+        // ⭐⭐ RT3 — THE LIVE VALUE FIRST, THEN THE OFFSET. `x[0]` is `x` at this
+        // point in the program (never the ring, which holds PAST bars), so the
+        // opcode needs the live value beside the ring; it pops both.
+        expr(e.of)
+        expr(e.back)
+        emit(OP.READ_HIST_SLOT_DYN, e.slot)
+        return
+      }
       case EXPR.HIST_DYN: {
         // ⭐ THE OFFSET IS PUSHED FIRST, so the opcode pops exactly one value.
         // `of` is a COLUMN or a SERIES by construction — `ir.js` refuses a READ

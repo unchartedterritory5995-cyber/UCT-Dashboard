@@ -41,12 +41,12 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
-import { bindConstsFor, foldBound } from './bind.js'
+import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
   makeIrProgram, SLOT, EXPR, STMT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
-  histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
+  histDyn, histSlotDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing, readGlobal,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
@@ -604,6 +604,10 @@ const CONVERSION_NAMES = Object.freeze(new Set(['int', 'float', 'bool']))
  *  both halves are required: a static estimate cannot see a data-dependent bound,
  *  and a running counter alone lets a hopeless program start. */
 const MAX_HISTORY_SLOTS = 512
+/** ⭐⭐ RT3 — the deepest ring a BOUNDED dynamic offset may size. Pine's own
+ *  ceiling: `max_bars_back` cannot exceed 5000, so a history reference deeper
+ *  than this is an error in Pine itself, never a number this lane would owe. */
+const MAX_DYNAMIC_HISTORY_DEPTH = 5000
 
 // ── mutability pre-scan ─────────────────────────────────────────────────────
 
@@ -2625,6 +2629,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  on the same bar. ⭐ Non-null only inside a request's value — the one
    *  region that has somewhere to put them. */
   let hoistSink = null
+  /** ⭐⭐ RT3 — a `for` counter's proven range while its body is lowered: slot →
+   *  `{lo, hi}` when both bounds fold before bar 0 and the body never assigns the
+   *  counter; `{blocked}` (the refusal that stopped a bound folding, which may
+   *  name a FRAME parameter a call site can fix) otherwise. Read only by
+   *  `offsetRange`. */
+  const loopRanges = new Map()
   /** ⭐⭐⭐ THE SAME MECHANISM, AT THE ROOT STATEMENT LIST — the sink a history
    *  offset, a finite window or a `ta.change` over an EXPRESSION writes its
    *  committed series into. Non-null ONLY while lowering a statement of the
@@ -3124,6 +3134,161 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // true of it, and a typo still says what is true of that.
     return foldConstNode(e, at,
       'a bar offset that is only known while the bar is running', scope)
+  }
+
+  /** ⭐⭐ RT3 — THE RANGE A RUNTIME OFFSET CAN TAKE, PROVED BEFORE BAR 0, or `null`.
+   *
+   *  Interval arithmetic over the parse tree: a whole number that folds (the
+   *  frozen resolver, frame constants first — `foldConstNode`'s own answer) is
+   *  `[v, v]`; a `for` counter whose bounds fold is `[min, max]` of them (Pine's
+   *  loop is inclusive and runs toward `to` either way, so the counter never
+   *  leaves that span; `loopRanges`); `+`, `-`, `*` and a unary minus combine
+   *  ranges. ⛔ Anything else is `null` — unbounded — and the caller keeps its
+   *  refusal: a `%`, a call, a slot that is not a counter, a counter the body
+   *  assigns. A counter whose bound did not fold THROWS that bound's refusal,
+   *  which names the frame parameter a call site may fix (`simpleSpecialisation`).
+   *  @returns {{lo:number, hi:number}|null} */
+  const offsetRange = (e, at, scope, depth = 0) => {
+    if (!e || typeof e !== 'object' || depth > 32) return null
+    if (e.type === 'number') return Number.isFinite(e.value) ? { lo: e.value, hi: e.value } : null
+    if (e.type === 'name' && scope) {
+      const s = scope.lookup(e.name)
+      if (s !== null && loopRanges.has(s)) {
+        const r = loopRanges.get(s)
+        if (r && r.blocked) throw r.blocked
+        return r && Number.isFinite(r.lo) ? r : null
+      }
+    }
+    if (e.type === 'name' || e.type === 'binary' || e.type === 'unary') {
+      const c = constValueOf(e, scope)
+      if (c && Number.isFinite(c.value)) return { lo: c.value, hi: c.value }
+      // a frame name a call site can fix is carried by name (`frameName`), so the
+      // call site can specialise on it; any other unfoldable NAME is unbounded.
+      if (e.type === 'name') {
+        if (c && typeof c.frameName === 'string') throw frameBoundRefusal(c.frameName, at)
+        return null
+      }
+    }
+    if (e.type === 'unary' && e.op === '-') {
+      const r = offsetRange(e.arg, at, scope, depth + 1)
+      return r ? { lo: -r.hi, hi: -r.lo } : null
+    }
+    if (e.type === 'binary' && (e.op === '+' || e.op === '-' || e.op === '*')) {
+      const a = offsetRange(e.left, at, scope, depth + 1)
+      if (!a) return null
+      const b = offsetRange(e.right, at, scope, depth + 1)
+      if (!b) return null
+      if (e.op === '+') return { lo: a.lo + b.lo, hi: a.hi + b.hi }
+      if (e.op === '-') return { lo: a.lo - b.hi, hi: a.hi - b.lo }
+      const ps = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
+      return { lo: Math.min(...ps), hi: Math.max(...ps) }
+    }
+    return null
+  }
+
+  /** ⭐⭐ RT3 — a `for` counter's range, for `loopRanges`. Both bounds fold or the
+   *  range is `{blocked}`; a body that assigns the counter (`:=` or a compound
+   *  form, at any depth) has no range at all. */
+  /** ⭐⭐ RT3 — a parse expression's value before bar 0, WITHOUT side effects (no
+   *  refusal raised, no diagnostic noted): `{value}` when it folds — the frozen
+   *  resolver over the frame's own constants first (`constantArgOf`'s rule, so
+   *  the two cannot disagree), then constant ARITHMETIC over what it resolved
+   *  (`bind.js::foldScalar`, `n - 1`, `len * 2`); `{frameName}` when a frame name
+   *  a call site could fix stopped it; `null` otherwise. */
+  const constValueOf = (e, scope) => {
+    let n = e
+    if (owner !== null && scope) {
+      let foreign = null
+      const sub = (x, d) => {
+        if (!x || typeof x !== 'object' || d > 64) return x
+        if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
+        if (x.type === 'name' && typeof x.name === 'string') {
+          const s = scope.lookup(x.name)
+          if (s !== null && slots[s] && slots[s].owner === owner) {
+            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+            if (foreign === null) foreign = x.name
+          }
+          return x
+        }
+        const out = {}
+        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
+        return out
+      }
+      n = sub(e, 0)
+      if (foreign !== null) return { frameName: foreign }
+    }
+    let canonical
+    try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
+    if (!canonical) return null
+    if (canonical.type === 'num') return Number.isFinite(canonical.value) ? { value: canonical.value } : null
+    try {
+      const v = foldScalar(canonical, {})
+      return Number.isFinite(v) ? { value: v } : null
+    } catch (err) {
+      if (err instanceof NotFoldable) return null
+      throw err
+    }
+  }
+
+  /** ⭐⭐ RT3 — the refusal a frame name that bounds a dynamic offset raises,
+   *  carrying its name so the CALL SITE can fix it (`simpleSpecialisation`). */
+  const frameBoundRefusal = (frameName, at) => {
+    const r = new RuntimeRefusal('runtime:history-dynamic-offset',
+      `\`${frameName}\` bounds this offset, and is given a value by this script, `
+      + 'but not one the engine can read before bar 0', at)
+    r.frameName = frameName
+    return r
+  }
+
+  const forCounterRange = (name, fromToks, toToks, body, at, scope) => {
+    const assigns = (list) => (list || []).some((st) => {
+      const t = st.header || []
+      for (let k = 0; k + 1 < t.length; k += 1) {
+        const op = t[k + 1]
+        if (t[k].kind === 'ident' && t[k].value === name && op.kind === 'punct'
+          && (op.value === ':=' || (op.value.length === 2 && op.value.endsWith('=')
+            && MUTATOR_OPS.has(op.value[0])))) return true
+      }
+      return assigns(st.sub)
+    })
+    if (assigns(body)) return null
+    const fold = (toks) => {
+      let e
+      try { e = parseWholeExpression(toks) } catch { return null }
+      return constValueOf(e, scope)
+    }
+    const a = fold(fromToks)
+    const b = fold(toToks)
+    if (a && b && Number.isFinite(a.value) && Number.isFinite(b.value)) {
+      return { lo: Math.min(a.value, b.value), hi: Math.max(a.value, b.value) }
+    }
+    const fname = [a, b].map((c) => c && c.frameName).find((x) => typeof x === 'string')
+    return { blocked: fname ? frameBoundRefusal(fname, at) : null }
+  }
+
+  /** ⭐⭐ RT3 — `x[n]` over a variable's ring with `n` only known while the bar
+   *  runs: admitted when `offsetRange` proves `0 <= n <= hi <= 5000`, with the
+   *  ring sized to `hi`; otherwise the refusal `foldOffset` raised stands. */
+  const boundedSlotOffset = (varSlot, n, at, scope, refusal) => {
+    const e = n && typeof n === 'object' ? n.expr : null
+    if (!e || !(refusal instanceof RuntimeRefusal) || refusal.guard !== 'runtime:history-dynamic-offset') throw refusal
+    let r
+    try {
+      r = offsetRange(e, at, scope)
+    } catch (err) {
+      // a bound a call site may fix: carry ITS name, so the call site can
+      // specialise on it (`simpleSpecialisation`), as a window length's does.
+      if (err instanceof RuntimeRefusal && typeof err.frameName === 'string') throw frameBoundRefusal(err.frameName, at)
+      throw err
+    }
+    if (!r || !Number.isFinite(r.lo) || !Number.isFinite(r.hi) || r.lo < 0) throw refusal
+    const depth = Math.ceil(r.hi)
+    if (depth > MAX_DYNAMIC_HISTORY_DEPTH) throw refusal
+    if (depth === 0) return read(varSlot)
+    const h = owner !== null
+      ? fnHistorySlotFor(owner, varSlot, depth, at)
+      : historySlotFor(varSlot, depth, at)
+    return histSlotDyn(varSlot, h, lowerExpr(e, scope), depth)
   }
 
   /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
@@ -4009,7 +4174,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
           }
-          const back = foldOffset(node.n, at, scope)
+          let back
+          try {
+            back = foldOffset(node.n, at, scope)
+          } catch (err) {
+            // ⭐⭐ RT3 — a runtime offset this lane can BOUND is read from a ring
+            // sized to the bound; anything else keeps its refusal.
+            return boundedSlotOffset(varSlot, node.n, at, scope, err)
+          }
           // ⭐ `x[0]` IS `x`. Pine says so, and routing it through the ring would
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
@@ -5725,9 +5897,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // can collide with.
         const toSlot = newSlot(`${nameTok.value} to`, false)
         const stepSlot = newSlot(`${nameTok.value} by`, false)
+        // ⭐⭐ RT3 — the counter's proven range, for a history offset it sizes.
+        loopRanges.set(slot, forCounterRange(nameTok.value, fromToks, toToks, st.sub, locate(first), scope))
         loopDepth += 1
         let body
-        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
+        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ THE PER-ITERATION VALUES RIDE THE MEMBER'S OWN LOOP.
         //
         // They used to be emitted as a PARALLEL loop at the end of the program,
