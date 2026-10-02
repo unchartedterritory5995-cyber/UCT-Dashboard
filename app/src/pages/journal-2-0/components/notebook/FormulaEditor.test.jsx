@@ -121,6 +121,19 @@ describe('FormulaEditor', () => {
     expect(screen.getByRole('status').textContent).toMatch(/Circular reference/)
   })
 
+  it('a cycle through ANOTHER formula is named, with the path, before Save', async () => {
+    const user = userEvent.setup()
+    const defs = [
+      ...DEFS,
+      { id: 'a1', name: 'A', type: 'formula', source: 'user_set', config: { expression: '{@b1} + 1' } },
+      { id: 'b1', name: 'B', type: 'formula', source: 'user_set', config: { expression: '{@e1}' } },
+    ]
+    render(<Harness selfId="b1" defs={defs} />)
+    await user.type(screen.getByRole('textbox', { name: 'Formula' }), '{{A} * 2')
+    expect(screen.getByRole('status').textContent).toBe(
+      "Circular reference: B -> A -> B. A formula can't depend on its own result.")
+  })
+
   it('a starter fills the formula and hands the starter up (to name the property)', async () => {
     const user = userEvent.setup()
     const onStarter = vi.fn()
