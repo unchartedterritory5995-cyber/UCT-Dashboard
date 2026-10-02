@@ -30,7 +30,7 @@ WORD = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven":
         "one hundred": 100, "a": 1, "an": 1}
 ADS = r"(?:american\s+depositary\s+shares?|american\s+depository\s+shares?|ADSs?|ADRs?|depositary\s+shares?)"
 SH = r"(?:ordinary\s+shares?|common\s+shares?|shares?\s+of\s+common\s+stock|shares?(?:\s+of\s+the\s+company)?|equity\s+shares?|class\s+a\s+ordinary\s+shares?)"
-NUMW = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d+(?:_\d+)?|one hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
+NUMW = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d{1,3}(?:,\d{3})+|\d+(?:_\d+)?|one hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
 RX = [
     # "American Depositary Shares, each representing one-fifth of one ordinary share" / "each representing 5 ordinary shares"
     re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
@@ -56,7 +56,7 @@ class RatioStatement:
 
 
 def _val(tok: str) -> float | None:
-    t = tok.lower().replace("_", ".")
+    t = tok.lower().replace("_", ".").replace(",", "")
     if t in FRAC:
         return FRAC[t]
     if t in WORD:
@@ -144,7 +144,7 @@ def valid_statements(statements: list[RatioStatement], ads_ledger: Ledger, ord_p
     4 -> 10 -> 100 ordinary shares; Massive's ADS name says 100). Unconfirmable -> dropped (fail closed)."""
     import math
     out, prev = [], None
-    pts = sorted(ord_points)
+    pts = sorted(x for x in ord_points if x[1] and x[1] > 0)
     for st in sorted(statements, key=lambda x: x.as_of):
         if prev is not None:
             evs = [e for e in ads_ledger.splits if prev.as_of < e.ex_date <= st.as_of]
@@ -154,7 +154,7 @@ def valid_statements(statements: list[RatioStatement], ads_ledger: Ledger, ord_p
                     q *= e.ratio
                 before = [v for d, v in pts if d <= evs[0].ex_date]
                 after = [v for d, v in pts if d >= evs[-1].ex_date]
-                if not (before and after) or abs(math.log(after[0] / before[-1]) - math.log(q)) > math.log(1.25):
+                if not (before and after) or not (before[-1] > 0 and after[0] > 0) or                         abs(math.log(after[0] / before[-1]) - math.log(q)) > math.log(1.25):
                     continue
         out.append(st)
         prev = st
@@ -162,7 +162,7 @@ def valid_statements(statements: list[RatioStatement], ads_ledger: Ledger, ord_p
 
 
 def ratio_at(a: date, statements: list[RatioStatement], ads_ledger: Ledger, value: float | None = None,
-             ord_points: list | tuple = ()) -> RatioStatement | None:
+             ord_points: list | tuple = (), breaks: list | tuple = ()) -> RatioStatement | None:
     """The statement valid at `a`: the latest one ON/BEFORE `a`, else the nearest LATER one within BACKWARD_DAYS -- in
     both cases with no ADS ledger event between it and `a`, and with the ordinary-share basis continuous between them
     (no >= 3x move in the ordinary count: DXF's ordinary shares were subdivided 100:1 in 2025 while its last ratio
@@ -172,6 +172,10 @@ def ratio_at(a: date, statements: list[RatioStatement], ads_ledger: Ledger, valu
         if any(lo < s.ex_date <= hi for s in ads_ledger.splits):
             return False
         if st.as_of > a and (st.as_of - a).days > BACKWARD_DAYS:
+            return False
+        # ⛔ a break in trading (> 90 days without bars: delisted, later re-listed) ends an ADS program -- LATAM's
+        # 1:1 ADS (to 2020) and its 2025 ADS of 2,000 shares share one ticker and no ledger event
+        if any(lo < b <= hi for b in breaks):
             return False
         vals = [v for d, v in ord_points if lo <= d <= hi]
         near = min(ord_points, key=lambda x: abs((x[0] - st.as_of).days), default=None)

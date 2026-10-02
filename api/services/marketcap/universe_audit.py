@@ -29,13 +29,14 @@ from zoneinfo import ZoneInfo
 
 from .baseline import project as base_project
 from .build import load_ref
+from . import reasons as RC
 
 ET = ZoneInfo("America/New_York")
 EXPLAINED_V1 = {"PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE", "PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE",
                 "TICKER_REUSE_DIFFERENT_ISSUER", "IPO_CAPITALIZATION_UNRESOLVED", "MULTI_CLASS_UNRESOLVED",
                 "COMPLEX_CAPITAL_STRUCTURE_UNRESOLVED", "ADR_RATIO_UNRESOLVED", "SHARE_STATE_STALE",
                 "CORPORATE_ACTION_HOLD", "SOURCE_CONFLICT", "QUARANTINED", "WITHHELD", "NO_VALID_PRICE",
-                "NOT_YET_LISTED", "DELISTED", "OTHER_EXPLAINED"}
+                "NOT_YET_LISTED", "DELISTED", "OTHER_EXPLAINED"} | (set(RC.REASON_CODES) - {RC.BUG})
 BASE_CAUSE = {"stale": "SHARE_STATE_EXPIRED", "gap_point": "V5_GAP_OR_WITHHELD", "no_point": "NO_SHARE_POINT",
               "no_price": "PRICE_MISSING"}
 
@@ -211,6 +212,7 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                 v1_internal[reason] += n
         unexplained_v1 = sum(n for r, n in v1_internal.items() if r not in EXPLAINED_V1) + (unexpl or 0)
         # every INTERNAL SHARE_STATE_STALE run gets an honest sub-reason
+        my_sub = Counter()
         for s, e, reason, n in gapr.get(cik, []):
             if reason != "SHARE_STATE_STALE" or not v1r["first"] or not (s > v1r["first"] and e < (v1r["last"] or 0)):
                 continue
@@ -232,6 +234,7 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                 else:
                     sub = "FILED_EVIDENCE_REFUSED_OR_CONFLICTING"
             stale_sub[sub] += n
+            my_sub[sub] += n
             stale_sub_sec[sub].add(cik)
             if len(stale_examples[sub]) < 12:
                 stale_examples[sub].append([pt, s, e, n, [f for _a, f in fl][:6]])
@@ -244,6 +247,7 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                "before": {k: br[k] for k in ("first", "last", "valued", "internal_days", "internal_gaps", "longest", "trailing")},
                "before_causes": dict(bcause), "before_artificial_sessions": bartificial,
                "v1_internal_reasons": dict(v1_internal), "v1_unexplained": unexplained_v1, "v1_reasons_all": reasons,
+               "stale_internal_subreasons": dict(my_sub),
                "contaminated_before_sessions": contam, "ticker_reuse": reuse,
                "shadow": {"before_valued_v1_missing": dict(lost), "both_valued_diff": dict(diff),
                           "material_diff_cause": dict(mat_cause),

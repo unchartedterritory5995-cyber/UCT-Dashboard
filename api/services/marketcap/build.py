@@ -66,6 +66,9 @@ CREATE TABLE regime(issuer_id TEXT, start TEXT, end TEXT, classes TEXT, kind TEX
 CREATE TABLE cap_daily(cik INTEGER, d INTEGER, cap REAL, PRIMARY KEY(cik, d)) WITHOUT ROWID;
 CREATE TABLE gap_run(cik INTEGER, start INTEGER, end INTEGER, reason TEXT, n_days INTEGER);
 CREATE TABLE econ_request(cik INTEGER, accn TEXT, regime_start TEXT, regime_end TEXT);
+CREATE INDEX observation_issuer ON observation(issuer_id, class_key);
+CREATE INDEX state_run_issuer ON state_run(issuer_id, class_key);
+CREATE INDEX gap_run_cik ON gap_run(cik);
 CREATE TABLE split_gap(cik INTEGER, d TEXT, k INTEGER, direction TEXT, cls TEXT, prev_asof TEXT, next_asof TEXT,
   status TEXT, ex_date TEXT, ratio REAL, source TEXT, accn TEXT, snippet TEXT);
 CREATE TABLE lineage_applied(cik INTEGER, kind TEXT, status TEXT, effective TEXT, pred_cik INTEGER, accn TEXT, days INTEGER, note TEXT);
@@ -153,6 +156,22 @@ def _authority(D):
         from .acceptance import Authority
         D.acc = Authority(None)
     return D.acc
+
+
+class _Filing(dict):
+    """A filing row whose public time is resolved through the acceptance authority only when evidence asks for it
+    (an issuer can have 100k+ filings -- bank 424B2s -- of which a few hundred are share evidence)."""
+
+    def __init__(self, D, accn: str, acc_raw, **kw):
+        super().__init__(**kw)
+        self._D, self._a, self._raw = D, accn, acc_raw
+
+    def __missing__(self, k):
+        if k in ("public_at", "acc_source"):
+            pa, src = _authority(self._D).resolve(self._a, self._raw, self["filing_date"])
+            self["public_at"], self["acc_source"] = pa.isoformat(), src
+            return self[k]
+        raise KeyError(k)
 
 
 def _evidence_public(D, accn: str, filed: str) -> datetime:
@@ -354,10 +373,15 @@ def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> t
     return out, "OK"
 
 
-def unlisted_split_events(days: list, closes: dict, ledger_splits) -> list[tuple]:
+def unlisted_split_events(days: list, closes: dict, ledger_splits, counts: list | None = None) -> list[tuple]:
     """Split-LIKE one-day price steps the split ledger does not explain: the close moves by a clean factor k or 1/k
-    (k = 2..100, within 3%) with no ledger split within 7 days. DETECTION ONLY: no factor is inferred and nothing is
-    re-based -- a count dated before the step is simply not carried across it (ELVR-class consolidations)."""
+    (k = 2..100, within 3%) with no ledger split within 7 days.
+
+    ⛔ MEASURED 2026-10-02 (trial build): a price step alone is a GLITCH far more often than a split -- of 1,904
+    decidable steps 1,445 had a CONTINUOUS share count on both sides (ASB's one-day x16..x65 ticks), 42 had the share
+    count move by the inverse factor. So with `counts` [(as_of, shares)] a step is an event only when the authoritative
+    counts on either side CONFIRM it (next / previous within 30% of 1/step). The event only WITHHOLDS the days between
+    the step and the next count; no factor is ever inferred and nothing is re-based."""
     out = []
     ex = [s_.ex_date for s_ in ledger_splits]
     for a_, b_ in zip(days, days[1:]):
@@ -373,6 +397,12 @@ def unlisted_split_events(days: list, closes: dict, ledger_splits) -> list[tuple
             continue
         if any(abs((e - b_).days) <= 7 for e in ex):
             continue
+        if counts is not None:
+            before = [v for a_d, v in counts if a_d < b_]
+            after = [v for a_d, v in counts if a_d >= b_]
+            if not (before and after and before[-1] > 0 and after[0] > 0
+                    and abs(math.log(after[0] / before[-1]) + math.log(r)) < math.log(1.3)):
+                continue
         out.append((b_, R.UNLISTED_SPLIT_SUSPECTED))
     return out
 
@@ -385,8 +415,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     # UTC -- a one-day lookahead at the daily close). See acceptance.py.
     filings = {}
     for a, f, fd, acc_raw, rd in D.inp.execute("SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=?", (cik,)):
-        pa, src = _authority(D).resolve(a, acc_raw, fd)
-        filings[a] = {"form": f, "filing_date": fd, "public_at": pa.isoformat(), "report_date": rd, "acc_source": src}
+        filings[a] = _Filing(D, a, acc_raw, form=f, filing_date=fd, report_date=rd)
     foreign = any(v["form"] in FPI_FORMS for v in filings.values())
     first_filing = min((date.fromisoformat(v["filing_date"]) for v in filings.values()), default=None)
     edgar = EDGAR_FOREIGN if foreign else EDGAR_DOMESTIC
@@ -431,6 +460,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
         lin = D.lineage.execute("SELECT kind, status, effective, pred_cik, accn, each_class, ratio FROM lineage WHERE succ_cik=? "
                                 "AND effective IS NOT NULL ORDER BY effective LIMIT 1", (cik,)).fetchone()
     lin_eff = date.fromisoformat(lin[2]) if lin else None
+    if lin and any(v["form"] in ("10-K", "10-Q", "20-F", "40-F", "10-K405", "10-KSB", "10-QSB") and v["filing_date"] < lin[2]
+                   for v in filings.values()):
+        # the successor's OWN registrant record already carries periodic evidence before the effective date (the new
+        # holding company kept the CIK: MDU 2019, O-I 2019, FirstCash 2021): nothing to stitch, nothing to bound
+        w["lineage_applied"].append((cik, lin[0], "OWN_REGISTRANT_HISTORY", lin[2], None, lin[4], 0, "own periodic filings before effective"))
+        lin = None
     lin_reason, lin_note, pred_cik_used = None, "", None
     pred_listed_rows = []
     if lin:
@@ -440,8 +475,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             if D.pred is not None:
                 for a, f, fd, acc_raw, rd in D.pred.inp.execute(
                         "SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=?", (pred_cik,)):
-                    pa, src = _authority(D).resolve(a, acc_raw, fd)
-                    pf[a] = {"form": f, "filing_date": fd, "public_at": pa.isoformat(), "report_date": rd, "acc_source": src}
+                    pf[a] = _Filing(D, a, acc_raw, form=f, filing_date=fd, report_date=rd)
             if not pf:
                 lin_reason, lin_note = R.SUCCESSOR_UNRESOLVED, f"predecessor {pred_cik} evidence not staged"
             else:
@@ -471,19 +505,25 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     if D.cov is not None:
         sym_rows = D.cov.execute(
             "SELECT accn, member, label, concept, text FROM cover_fact WHERE cik=? AND concept IN ('dei:TradingSymbol','dei:Security12bTitle') "
-            "ORDER BY accn", (cik,)).fetchall()
+            "ORDER BY accn DESC", (cik,)).fetchall()                # the LATEST filing's class -> symbol mapping wins
         fk_by_accn = filing_key_maps(D.cov, cik)
         for accn_, mem, lab, concept, text in sym_rows:
             if invalid_member(mem, lab):
                 continue
             k = fk_by_accn.get(accn_, {}).get((mem, lab)) or class_key(mem, lab)
             if concept == "dei:TradingSymbol":
+                # ⛔ 2009-2012 XBRL tagged the FILER's lowercase entity symbol ("rusha", "hov", "unf") under EVERY class
+                # context: it is not a class's exchange listing (anomaly G: class B priced at the class A ticker)
+                if not text or text.strip() == text.strip().lower():
+                    continue
                 sym = text.strip().upper().replace(".", "-")
                 for t in listings:
                     if t.upper().replace(".", "-") == sym:
                         listed.setdefault(k, t)
     for k_, text in pred_listed_rows:                    # the predecessor's symbols, never overriding the successor's
-        sym = (text or "").strip().upper().replace(".", "-")
+        if not text or text.strip() == text.strip().lower():
+            continue
+        sym = text.strip().upper().replace(".", "-")
         for t in listings:
             if t.upper().replace(".", "-") == sym:
                 listed.setdefault(k_, t)
@@ -656,15 +696,20 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     pre_listing = [o for o in cobs if o.as_of < lst.start and o.source != R.IPO_PROSPECTUS]
                     cobs = [o for o in cobs if not (o.as_of < lst.start and o.source != R.IPO_PROSPECTUS)]
                 blocked = []
+                trade_breaks = [d2 for d1, d2 in zip(cdays_all, cdays_all[1:]) if (d2 - d1).days > 90]
                 if st.kind == "ADR":
                     ord_points = sorted((o.as_of, o.value * ledger.factor_after(o.as_of)) for o in cobs)
-                    stmts = valid_statements(ratio_stmts, ledger, ord_points)
+                    # ⛔ a ratio statement speaks for the ADS program of THIS listing (registered up to 120 days before
+                    # it trades): LATAM's 2023 statements (1 ADS = 1 share, the pre-bankruptcy program, delisted 2020)
+                    # were applied to the 2025 re-listed ADS of 2,000 shares -> cap 2,000x
+                    stmts = valid_statements([s_ for s_ in ratio_stmts if s_.as_of >= lst.start - timedelta(days=120)],
+                                             ledger, ord_points)
                     conv = []
                     for o in cobs:
                         if not ads_at(o.known_from):
                             conv.append(o)                      # the listed security is not an ADS at this time
                             continue
-                        rs = ratio_at(o.as_of, stmts, ledger, o.value * ledger.factor_after(o.as_of), ord_points)
+                        rs = ratio_at(o.as_of, stmts, ledger, o.value * ledger.factor_after(o.as_of), ord_points, trade_breaks)
                         if rs is None:
                             # a NEWER count we cannot convert still supersedes the older state: it BLOCKS
                             blocked.append(Checked(o, "REJECTED_ADR_RATIO_UNRESOLVED", note="no ADS ratio valid at as-of",
@@ -679,9 +724,10 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 cdays = [d for d in rdays if d in ccloses]
                 # corporate actions across which a count dated BEFORE them is never carried
                 events = [(s_.ex_date, R.REVERSE_SPLIT_RECOUNT) for s_ in ledger.splits if s_.ratio < 1]
-                events += unlisted_split_events(cdays_all, ccloses, ref_c[1])
+                counts_ = sorted((ch.obs.as_of, ch.obs.value) for ch in checked if ch.usable and "REDUNDANT" not in ch.flags)
+                events += unlisted_split_events(cdays_all, ccloses, ref_c[1], counts_)
                 if st.kind == "ADR":
-                    events += [(t_, R.ADR_RATIO) for t_ in ads_changes]
+                    events += [(t_, R.ADR_RATIO) for t_ in ads_changes] + [(b_, R.ADR_RATIO) for b_ in trade_breaks]
                 tl = timeline(checked, cdays, edgar, events=events)
                 states[c.class_key] = dict(zip(cdays, tl))
                 for ch in checked:

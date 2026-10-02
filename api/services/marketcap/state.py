@@ -78,6 +78,12 @@ def _logr(a: float, b: float) -> float:
     return abs(math.log10(a / b))
 
 
+def _unit_signature(a: float, b: float) -> bool:
+    """a / b is an exact power of 1,000 (thousands / millions mis-scaling), within ~5%."""
+    lr = math.log10(a / b)
+    return any(abs(lr - k) < 0.02 for k in (3, -3, 6, -6))
+
+
 DISCONTINUITY = math.log10(3)        # a >= 3x move against the state in force needs independent corroboration
 AGREE = math.log10(1.5)              # an observation corroborates another within 1.5x
 CORROBORATE_DAYS = 200               # ... when their as-of dates are within this many days
@@ -151,11 +157,12 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
             return other_channel and (a.accn != b.accn or a.source != b.source)
         return other_channel or a.as_of != b.as_of
 
-    def corroborated_at(o: Obs, val: float, channel_only: bool = False) -> date | None:
-        """The earliest close at which an INDEPENDENT observation agreeing with `val` (1.5x) is public."""
+    def corroborated_at(o: Obs, val: float, channel_only: bool = False, other_filing: bool = False) -> date | None:
+        """The earliest close at which an INDEPENDENT observation agreeing with `val` (1.5x) is public. With
+        `other_filing` the corroboration must come from ANOTHER filing (a unit error repeats inside one filing)."""
         best = None
         for c, cb in cands:
-            if c is o or not independent(o, c, channel_only):
+            if c is o or not independent(o, c, channel_only) or (other_filing and c.accn == o.accn):
                 continue
             if abs((c.as_of - o.as_of).days) > CORROBORATE_DAYS:
                 continue
@@ -222,7 +229,7 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
                                  for c2, cb in cands):
             contra = "contradicted >= 3x inside its own filing"
         if contra:
-            t = corroborated_at(o, val)
+            t = corroborated_at(o, val, other_filing=ref is not None and _unit_signature(val, ref))
             if t is None:
                 decided[i] = Checked(o, R.REJ_SCALE_UNRESOLVED, val, pick, note=contra + "; no independent corroboration",
                                      block=(t0, None, R.SCALE_UNRESOLVED))
@@ -253,6 +260,25 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
         decided[i] = c
         if c.usable:
             accepted.append(i)
+
+    # ⛔ UNIT / SCALE ERROR SIGNATURE (AMTX 32,564, HNRG 28,309, SSYS 49,328: counts filed IN THOUSANDS in BOTH the
+    # cover and the balance sheet of one filing, so the two channels "corroborate" each other). A count that sits an
+    # EXACT power of 1,000 away from the accepted counts of the filings on BOTH sides of it (which agree with each
+    # other), or -- for the first count -- from the next two filings, is a unit error: it is WITHHELD over its
+    # interval (blocking; never rescaled, nothing substituted). This uses later filings only to WITHHOLD.
+    acc_order = sorted((j for j in decided if decided[j].usable), key=lambda j: (decided[j].obs.as_of, decided[j].obs.public_at))
+    for n_, j in enumerate(acc_order):
+        c = decided[j]
+        others = [decided[x] for x in acc_order if decided[x].obs.accn != c.obs.accn and decided[x].usable]
+        prev = [x for x in others if x.obs.as_of < c.obs.as_of][-1:]
+        nxt = [x for x in others if x.obs.as_of > c.obs.as_of][:2]
+        sides = prev + nxt[:1] if prev else nxt[:2]
+        if len(sides) < 2 or not all(_unit_signature(c.normalized, x.normalized) for x in sides):
+            continue
+        if _logr(sides[0].normalized, sides[1].normalized) >= AGREE:
+            continue
+        decided[j] = replace(c, status=R.REJ_SCALE_UNRESOLVED, block=(c.effective_from, None, R.SCALE_UNRESOLVED),
+                             note=f"unit-error signature: {c.normalized:.0f} vs {sides[0].normalized:.0f} / {sides[1].normalized:.0f}")
 
     for i, (o, rest) in enumerate(prim):
         c = decided[i]

@@ -27,11 +27,11 @@ SHARES = (r"(?:(?:class\s+([a-z])\s+)?(?:ordinary\s+shares?|common\s+shares?|sha
 RULES = [
     # "based on 40,985,063 Class A Ordinary Shares outstanding as of June 15, 2026"
     ("BASED_ON_N_OUTSTANDING_AS_OF", re.compile(
-        rf"based\s+(?:up)?on\s+(?:an\s+aggregate\s+of\s+|approximately\s+)?{NUM}\s+{SHARES}\s+(?:issued\s+and\s+)?outstanding"
+        rf"based\s+(?:up)?on\s+(?:an\s+aggregate\s+of\s+|approximately\s+)?{NUM}\s+(?:of\s+(?:our|the\s+company's)\s+)?{SHARES}\s+(?:issued\s+and\s+)?outstanding"
         rf"\s+(?:as\s+of|at|on)\s+({DATE})", re.I)),
     # "As of June 15, 2026, there were 40,985,063 Class A Ordinary Shares (issued and) outstanding"
     ("AS_OF_THERE_WERE_N", re.compile(
-        rf"(?:as\s+of|at|on)\s+({DATE}),?\s+(?:there\s+were|we\s+had)\s+(?:approximately\s+)?{NUM}\s+{SHARES}\s+"
+        rf"(?:as\s+of|at|on)\s+({DATE}),?\s+(?:there\s+were|we\s+had)\s+(?:only\s+|approximately\s+)?{NUM}\s+(?:of\s+our\s+)?{SHARES}\s+"
         rf"(?:issued\s+and\s+)?outstanding", re.I)),
     # "40,985,063 Class A Ordinary Shares were (issued and) outstanding as of June 15, 2026"
     ("N_OUTSTANDING_AS_OF", re.compile(

@@ -118,7 +118,9 @@ def build_index(sub_zip: str, out: str) -> dict:
 
 def _norm_fileno(fn: str) -> set:
     a, b = fn.split("-")
-    return {f"{a.zfill(3)}-{b}", f"{a}-{b}", f"{a.lstrip('0') or '0'}-{b}"}
+    heads = {a, a.zfill(3), a.lstrip("0") or "0"}
+    tails = {b, b.zfill(5), b.lstrip("0") or "0"}
+    return {f"{h}-{t}" for h in heads for t in tails}
 
 
 def harvest(inputs: str, fileno_db: str, out: str) -> dict:
@@ -143,8 +145,8 @@ def harvest(inputs: str, fileno_db: str, out: str) -> dict:
         own_n = set().union(*(_norm_fileno(x) for x in own)) if own else set()
         preds = {}
         for fn in c["file_numbers"]:
-            if _norm_fileno(fn) & own_n:
-                continue
+            # ⭐ a successor may KEEP the predecessor's Exchange Act file number (Rule 12g-3): a number the successor
+            # also uses still identifies the OTHER registrant that filed under it before the effective date
             for v in _norm_fileno(fn):
                 for pc, pn, first, last in idx.execute("SELECT cik, name, first, last FROM fileno WHERE fileno=?", (v,)):
                     if pc != cik and first <= fd:
