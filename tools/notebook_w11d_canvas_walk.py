@@ -178,6 +178,19 @@ EMPTY_POINT = r"""
 }
 """
 
+PICK_VISIBLE = r"""
+() => {
+  const vp = document.querySelector('[role="application"]').getBoundingClientRect()
+  for (const el of document.querySelectorAll('[data-canvas-item][data-kind="text"]')) {
+    const r = el.getBoundingClientRect()
+    if (r.left < vp.left + 20 || r.right > vp.right - 300 || r.top < vp.top + 20 || r.bottom > vp.bottom - 80) continue
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    if (hit && hit.closest('[data-canvas-item]') === el) return el.getAttribute('data-canvas-item')
+  }
+  return null
+}
+"""
+
 
 def text_card(i, x, y, text, kind="text"):
     d = {"id": f"w{i}", "kind": kind, "x": x, "y": y, "w": 240 if kind == "text" else 180,
@@ -264,6 +277,14 @@ def run_walk(base: str, art: Path) -> None:
             H._dismiss_intro(pg)
             app(pg).wait_for(timeout=30000)
 
+        def show_board(pg):
+            # The board sits under the note's title, tags and properties: at 1280x900 its lower
+            # half is below the fold (run 1, C3-moved-resized.jpg). A member scrolls it into
+            # view; the mouse rows do the same, or their coordinates land outside the window.
+            pg.get_by_role("application", name=re.compile("Trade-plan canvas")).evaluate(
+                "el => el.scrollIntoView({block: 'center'})")
+            pg.wait_for_timeout(200)
+
         def card(pg, item_id):
             return pg.locator(f'[data-canvas-item="{item_id}"]')
 
@@ -313,6 +334,7 @@ def run_walk(base: str, art: Path) -> None:
         def c2():
             pg, nid = state["page"], state["canvas"]
             n_bars0 = len(res["bars_requests"])
+            show_board(pg)
             # 1. a live chart, from the hint's first step
             pg.get_by_role("button", name="Add a chart").click()
             dlg = pg.get_by_role("dialog", name="Add a chart")
@@ -331,7 +353,10 @@ def run_walk(base: str, art: Path) -> None:
             pg.get_by_role("toolbar", name="Canvas tools").get_by_role("button", name=re.compile(r"^Text")).click()
             box = pg.get_by_role("textbox", name="Card text")
             box.fill("Base breakout over the 50-day on volume")
-            pg.get_by_role("toolbar", name="Canvas tools").click(position={"x": 2, "y": 2})   # blur commits
+            # blur commits: a click on EMPTY board (run 1 clicked the toolbar's corner, which
+            # was the Text button, and made a second card)
+            ep = pg.evaluate(EMPTY_POINT)
+            pg.mouse.click(ep["x"], ep["y"])
             # 4. entry / stop / target on the NVDA chart
             pg.get_by_role("toolbar", name="Canvas tools").get_by_role("button", name=re.compile(r"^Levels$")).click()
             dlg = pg.get_by_role("dialog", name="Add price levels")
@@ -365,7 +390,10 @@ def run_walk(base: str, art: Path) -> None:
                   and levels == [("entry", 182.5, True), ("stop", 171, True), ("target", 205, True)]
                   and b["edges"][0]["from"] == text["id"] and b["edges"][0]["to"] == nvda["id"]
                   and text.get("text") == "Base breakout over the 50-day on volume"
-                  and frozen_req and all(f"to={FROZEN_DAY}" in u for u in frozen_req)
+                  and [i["kind"] for i in b["items"]].count("text") == 1
+                  and frozen_req and all(f"to={FROZEN_DAY}" in u for u in frozen_req if "tf=D" in u)
+                  and any("tf=D" in u for u in frozen_req)
+                  and not any("warm=1" in u for u in frozen_req + live_req)
                   and live_req and not any("to=" in u for u in live_req))
             record("C2_add_by_mouse", "PASS" if ok else "FAIL", items=[(i["kind"], i.get("symbol"), i.get("mode"), i.get("asOf")) for i in b["items"]],
                    levels=levels, edges=b["edges"], frozen_bars_requests=frozen_req[:4], live_bars_requests=live_req[:4],
@@ -376,6 +404,8 @@ def run_walk(base: str, art: Path) -> None:
         def c3():
             pg, nid, tid = state["page"], state["canvas"], state["text_id"]
             before = next(i for i in board_of(nid)["items"] if i["id"] == tid)
+            pg.get_by_role("button", name="Show everything").click()
+            show_board(pg)
             box = card(pg, tid).bounding_box()
             sx, sy = box["x"] + 30, box["y"] + 30
             pg.mouse.move(sx, sy)
@@ -385,9 +415,14 @@ def run_walk(base: str, art: Path) -> None:
             pg.mouse.up()
             b, moved = wait_board(nid, lambda b: next(i for i in b["items"] if i["id"] == tid)["x"] != before["x"])
             after_move = next(i for i in b["items"] if i["id"] == tid)
-            # resize by the handle (the card is selected after the drag)
+            # resize by the handle (the card is selected after the drag). Fit first: run 1's
+            # drag left the card at the board's lower edge, its handle under the selection bar.
+            pg.get_by_role("button", name="Show everything").click()
+            show_board(pg)
             handle = pg.locator(f'[data-canvas-resize="{tid}"]')
             hb = handle.bounding_box()
+            hit = pg.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return e ? (e.getAttribute('data-canvas-resize') || String(e.className) || e.tagName) : null }",
+                              [hb["x"] + hb["width"] / 2, hb["y"] + hb["height"] / 2])
             pg.mouse.move(hb["x"] + hb["width"] / 2, hb["y"] + hb["height"] / 2)
             pg.mouse.down()
             for s in range(1, 11):
@@ -406,7 +441,7 @@ def run_walk(base: str, art: Path) -> None:
             record("C3_move_resize_delete_undo_by_mouse", "PASS" if ok else "FAIL",
                    before={k: before[k] for k in ("x", "y", "w", "h")},
                    after_move={k: after_move[k] for k in ("x", "y")}, after_resize={k: after_resize[k] for k in ("w", "h")},
-                   deleted=deleted, edges_after_delete=edges_after_delete, undone=undone)
+                   deleted=deleted, edges_after_delete=edges_after_delete, undone=undone, handle_hit=hit)
 
         # ── C4 ─────────────────────────────────────────────────────────────
         @guarded("C4_keyboard_only")
@@ -532,18 +567,26 @@ def run_walk(base: str, art: Path) -> None:
             touch("touchEnd", [])
             pg.wait_for_timeout(200)
             z1 = pg.get_by_role("button", name="Show everything").inner_text()
-            # a level through the real control (no keyboard, no drag)
+            # a level through the real control (no keyboard, no drag). Run 1: Playwright scrolled
+            # the button to the very top, under the app's fixed phone header, and the tap landed on
+            # the header. A member scrolls the board into view first; so does the walk.
             n = len(board_of(nid)["levels"])
-            pg.get_by_role("toolbar", name="Canvas tools").get_by_role("button", name=re.compile(r"^Levels$")).tap()
-            dlg = pg.get_by_role("dialog", name="Add price levels")
-            dlg.get_by_label("Custom level (optional)").fill("Phone level")
-            dlg.get_by_label("Its price").fill("199")
-            dlg.get_by_role("button", name="Add levels").tap()
-            b, added = wait_board(nid, lambda b: len(b["levels"]) == n + 1)
+            added, level_error = False, None
+            try:
+                pg.get_by_role("toolbar", name="Canvas tools").evaluate("el => el.scrollIntoView({block: 'center'})")
+                pg.wait_for_timeout(300)
+                pg.get_by_role("toolbar", name="Canvas tools").get_by_role("button", name=re.compile(r"^Levels$")).tap(timeout=10000)
+                dlg = pg.get_by_role("dialog", name="Add price levels")
+                dlg.get_by_label("Custom level (optional)").fill("Phone level")
+                dlg.get_by_label("Its price").fill("199")
+                dlg.get_by_role("button", name="Add levels").tap(timeout=10000)
+                b, added = wait_board(nid, lambda b: len(b["levels"]) == n + 1)
+            except Exception as e:  # noqa: BLE001 -- recorded with the other facts
+                level_error = f"{type(e).__name__}: {str(e)[:600]}"
             shot(pg, "C5-phone-after")
             ok = overflow <= 1 and not small and layer_t1 != layer_t0 and z1 != z0 and added
             record("C5_touch_390", "PASS" if ok else "FAIL", sideways_overflow_px=overflow, controls_under_44px=small,
-                   pan_transform=[layer_t0, layer_t1], pinch_zoom=[z0, z1], level_added=added)
+                   pan_transform=[layer_t0, layer_t1], pinch_zoom=[z0, z1], level_added=added, level_error=level_error)
             phone.close()
 
         # ── C6 ─────────────────────────────────────────────────────────────
@@ -570,8 +613,12 @@ def run_walk(base: str, art: Path) -> None:
             elapsed_easy = round((time.time() - state.get("t_easy_start", time.time())) * 1000)
             open_canvas(pg, nid)
             back = pg.get_by_role("list", name="Notes that link to this one")
-            back.wait_for(timeout=15000)
-            back_titles = back.inner_text()
+            try:
+                back.wait_for(timeout=15000)
+                back_titles = back.inner_text()
+            except Exception:  # noqa: BLE001 -- recorded as absent, the row continues
+                back_titles = ""
+            toasts = pg.evaluate("() => [...document.querySelectorAll('[role=status],[role=alert]')].map((e) => e.textContent.trim()).filter(Boolean).slice(0, 6)")
             shot(pg, "C6-linked-from")
             bl = api.get(base + f"/api/j2/notes/{nid}/backlinks").json()
             graph = api.get(base + "/api/j2/notes/graph").json()
@@ -597,7 +644,7 @@ def run_walk(base: str, art: Path) -> None:
             second_is_canvas = bool(second) and get_note(second[0])["bodyJson"]["content"][0]["type"] == "tradeCanvas"
             state["thesis"], state["second_canvas"] = thesis, second[0] if second else None
             ok = linked and title in back_titles and edge and second_is_canvas
-            record("C6_link_from_a_thesis", "PASS" if ok else "FAIL", thesis=thesis, linked=linked,
+            record("C6_link_from_a_thesis", "PASS" if ok else "FAIL", thesis=thesis, linked=linked, status_lines_on_canvas=toasts,
                    linked_from_text=back_titles[:200], backlinks_api=bl, graph_edge=edge,
                    slash_second_canvas=second, second_is_canvas=second_is_canvas,
                    ms_create_to_linked_scripted=elapsed_easy)
@@ -703,7 +750,8 @@ def run_walk(base: str, art: Path) -> None:
             shot(pg, "C10-200-zoomed")
             # pan (empty space), instrumented
             pg.keyboard.press("0")
-            pg.wait_for_timeout(500)
+            show_board(pg)
+            pg.wait_for_timeout(300)
             empty = pg.evaluate(EMPTY_POINT)
             pg.mouse.move(empty["x"], empty["y"])
             pg.mouse.down()
@@ -715,8 +763,13 @@ def run_walk(base: str, art: Path) -> None:
             pg.wait_for_timeout(300)
             pan = pg.evaluate(PROBE_READ)
             # drag one card, instrumented
-            target = pg.locator('[data-canvas-item="w44"]')
+            # the target must be ON SCREEN and on top (run 1 picked a card the pan had moved
+            # out of the board and dragged the sidebar's text instead)
+            tid = pg.evaluate(PICK_VISIBLE)
+            state["drag_target"] = tid
+            target = pg.locator(f'[data-canvas-item="{tid}"]')
             tb = target.bounding_box()
+            x0 = next(i for i in items if i["id"] == tid)["x"]
             pg.mouse.move(tb["x"] + 10, tb["y"] + 10)
             pg.mouse.down()
             pg.wait_for_timeout(150)            # the press selects the card (one render); then measure the MOVES
@@ -726,19 +779,19 @@ def run_walk(base: str, art: Path) -> None:
             pg.mouse.up()
             pg.wait_for_timeout(500)
             drag = pg.evaluate(PROBE_READ)
-            moved_board, moved = wait_board(big, lambda b: next(i for i in b["items"] if i["id"] == "w44")["x"] != 4 * 300 + 0)
+            moved_board, moved = wait_board(big, lambda b: next(i for i in b["items"] if i["id"] == tid)["x"] != x0)
             shot(pg, "C10-200-after-drag")
             (art / "C10-frames.json").write_text(json.dumps({"pan": pan, "drag": drag}, indent=1), encoding="utf-8")
             pan_touched = [t for t in (pan or {}).get("touched", [])]
             drag_touched = [t for t in (drag or {}).get("touched", [])]
-            ok = (at_fit > 0 and zoomed < 200 and moved and not pan_touched and set(drag_touched) <= {"w44"})
+            ok = (at_fit > 0 and zoomed < 200 and moved and not pan_touched and set(drag_touched) == {tid})
             summary = {k: (pan or {}).get(k) for k in ("frames", "p50", "p95", "max", "mounted", "unmounted")}
             dsum = {k: (drag or {}).get(k) for k in ("frames", "p50", "p95", "max", "mounted", "unmounted")}
             record("C10_200_cards", "PASS" if ok else "FAIL", open_ms_navigation_to_first_card=open_ms,
                    cards_in_dom_at_fit=at_fit, zoom_at_fit=zoom_fit, cards_in_dom_zoomed=zoomed, zoom_zoomed=zoom_in,
                    pan_frames=summary, pan_longtasks=(pan or {}).get("longtasks"), pan_cards_touched=pan_touched,
                    drag_frames=dsum, drag_longtasks=(drag or {}).get("longtasks"), drag_cards_touched=drag_touched,
-                   drag_committed=moved, raw="C10-frames.json")
+                   drag_target=tid, drag_committed=moved, raw="C10-frames.json")
             pg.close()
 
         # ── C11 ────────────────────────────────────────────────────────────
@@ -769,6 +822,9 @@ def run_walk(base: str, art: Path) -> None:
             pg.get_by_role("button", name=re.compile("New thesis")).wait_for(timeout=20000)   # control
             research_door = pg.get_by_role("button", name=re.compile("Plan this trade")).count()
             # /canvas is not offered in a text note
+            if not state.get("thesis"):
+                state["thesis"] = api.post(base + "/api/j2/notes", data={"title": f"Text note {run}", "bodyJson": {
+                    "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x"}]}]}}).json()["note"]["id"]
             pg.goto(base + f"/journal/notebook?note={state['thesis']}")
             pg.locator(".ProseMirror").first.wait_for(timeout=20000)
             pg.locator(".ProseMirror").first.click()

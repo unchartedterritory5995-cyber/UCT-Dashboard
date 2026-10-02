@@ -57,7 +57,7 @@ function ChartBody({ item, levels, showChart }) {
   return (
     <ChartBoundary>
       <Suspense fallback={placeholder}>
-        <ChartEmbed attrs={attrs} />
+        <ChartEmbed attrs={attrs} backgroundWarm={false} />
       </Suspense>
     </ChartBoundary>
   )

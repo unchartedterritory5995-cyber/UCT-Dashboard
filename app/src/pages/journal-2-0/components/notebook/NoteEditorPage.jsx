@@ -1830,12 +1830,30 @@ export default function NoteEditorPage({
       return next
     }, { replace: true })
   }, [setSearchParams])
-  const acceptCanvasLink = useCallback(() => {
-    const ed = editorRef.current
+  const acceptCanvasLink = useCallback(async () => {
     const canvasId = linkCanvasId
-    if (!ed || ed.isDestroyed || !canvasId) return
-    if (lockedRef.current || !ed.isEditable) {
+    if (!canvasId) return
+    if (lockedRef.current) {
       setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    // ⛔ Walk run 1 (11D): the offer is shown the moment the note opens, while the editor
+    // is still adopting the note (not yet editable). A press then was refused with the
+    // LOCKED sentence -- false -- and nothing was linked. Wait for the editor (bounded),
+    // and say the true thing if it never becomes editable.
+    let ed = editorRef.current
+    for (let i = 0; i < 25 && (!ed || ed.isDestroyed || !ed.isEditable); i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 200))
+      ed = editorRef.current
+      if (lockedRef.current) break
+    }
+    if (!ed || ed.isDestroyed || !ed.isEditable || lockedRef.current) {
+      setUploadToast({
+        message: lockedRef.current ? 'This note is locked — unlock it in the Notebook first'
+          : 'This note is still opening — press Add link again in a moment.',
+        tone: 'error',
+      })
       return
     }
     const end = ed.state.doc.content.size

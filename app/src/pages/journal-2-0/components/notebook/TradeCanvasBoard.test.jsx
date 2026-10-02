@@ -27,8 +27,8 @@ vi.mock('./TradeCanvasItem', async (orig) => {
 // it is the attrs it is handed, captured here.
 const chartAttrs = new Map()
 vi.mock('./ChartEmbed', () => ({
-  default: function FakeChartEmbed({ attrs }) {
-    chartAttrs.set(attrs.params.symbol + attrs.params.tf, attrs)
+  default: function FakeChartEmbed({ attrs, backgroundWarm }) {
+    chartAttrs.set(attrs.params.symbol + attrs.params.tf, { ...attrs, backgroundWarm })
     return <div data-testid="fake-chart">{attrs.params.symbol}</div>
   },
 }))
@@ -123,6 +123,8 @@ describe('adding things — every add is ONE editor transaction', () => {
     // ⛔ the chart is asked for bars UP TO that day: ChartEmbed's `to` is the as-of day
     await screen.findByTestId('fake-chart')
     expect(chartAttrs.get('AMD60')).toMatchObject({ mode: 'snapshot', params: { symbol: 'AMD', tf: '60', to: '2026-09-24' } })
+    // ⛔ walk run 1: no speculative all-timeframe warm per card (the fetch-herd class)
+    expect(chartAttrs.get('AMD60').backgroundWarm).toBe(false)
   })
   it('Chart: a live chart has no cut-off; a bad ticker and a future date are refused in words', async () => {
     const { board } = mount()

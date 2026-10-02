@@ -188,3 +188,19 @@ describe('link from a thesis — the offer writes nothing until Add', () => {
     expect(screen.queryByRole('region', { name: 'Link a trade plan' })).toBeNull()
   })
 })
+
+describe('link from a thesis — refusals say the true thing', () => {
+  it('a LOCKED thesis: Add link is refused with the locked sentence and nothing is linked', async () => {
+    flagOn()
+    NOTE = { ...canvasNote(), title: 'NVDA thesis', locked: true,
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'thesis' }] }] } }
+    const ed = await renderEditor('/journal/notebook?note=n1&linkCanvas=c9')
+    const offer = await screen.findByRole('region', { name: 'Link a trade plan' })
+    await act(async () => { fireEvent.click(within(offer).getByRole('button', { name: 'Add link' })) })
+    expect(await screen.findByText(/This note is locked/)).toBeTruthy()
+    const links = []
+    ed.state.doc.descendants((n) => { if (n.type.name === 'noteLink') links.push(n.attrs.noteId) })
+    expect(links).toEqual([])
+  })
+})
+
