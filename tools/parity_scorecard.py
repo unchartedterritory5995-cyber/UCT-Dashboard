@@ -78,7 +78,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gap_ledger_summary as GLS  # noqa: E402
 
-DATE = '2026-09-29'              # this re-score (wave 10, lane RS, after follow-up F3's 2026-09-28)
+DATE = '2026-10-02'              # this re-score (wave 12, lane 12C phase 2; before it, wave 10's RS/QR re-scores)
 FETCH_DATE = '2026-09-26'        # R12-R17's fetch day; since lane 12C (R18) a cell prints its own page's fetch date
 EVD = 'docs/notebook/evidence/wave9-9b-8a0098029'
 LEDGER = 'docs/notebook/competitive-gap-ledger.md'
@@ -790,6 +790,19 @@ QUOTES = {
  "O_datearith": [
   "obsidian__Bases_Bases_syntax_md",
   "returns true if the file was modified within the last week."
+ ],
+ # ── wave 12, lane 12C phase 2 (2026-10-02): the two controller rulings that needed a page quoted (G-015, G-135) ──
+ "O_sortlist1": [
+  "obsidian__Plugins_Search_md__w12c",
+  "The following options are available: - File name (A to Z) - File name (Z to A)"
+ ],
+ "O_sortlist2": [
+  "obsidian__Plugins_Search_md__w12c",
+  "Modified time (new to old) - Modified time (old to new) - Created time (new to old) - Created time (old to new)"
+ ],
+ "O_outlinedrag": [
+  "obsidian__Plugins_Outline_md__w12c",
+  "To rearrange sections in the note, click and drag the heading within the outline."
  ]
 }
 
@@ -1823,6 +1836,24 @@ SOURCES = {
   "fetched_utc": "2026-10-02T16:34:20Z",
   "rrow": "R18"
  },
+ "obsidian__Plugins_Search_md__w12c": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/help/plugins/search",
+  "read_from": "https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Plugins/Search.md",
+  "status": 200,
+  "sha256": "5a797fdbe551de35f662a64a02d0a275ebb9a65750b1a6f776860cf5c5e4b7f3",
+  "fetched_utc": "2026-10-02T18:39:40Z",
+  "rrow": "R18"
+ },
+ "obsidian__Plugins_Outline_md__w12c": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/help/plugins/outline",
+  "read_from": "https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Plugins/Outline.md",
+  "status": 200,
+  "sha256": "ac779b3ebc6ad8861a4fc2fb420daf1ca1232d9121b39e104b81454e235919bd",
+  "fetched_utc": "2026-10-02T18:39:40Z",
+  "rrow": "R18"
+ },
  "obsidian__Plugins_File_explorer_md": {
   "vendor": "obsidian",
   "public_url": "https://obsidian.md/help/plugins/file-explorer",
@@ -1959,7 +1990,7 @@ def _flags_now():
 # ── the offline verifier ──────────────────────────────────────────────────────────────────────
 _CITE = re.compile(r'(CODE|RULING|RECORD|MEASURE) `([^`]+)`:(\d+(?:-\d+)?) "(.*?)"'
                    r'(?=\s*(?:;|\(D\d+\)|\(ledger\)|—|$))')
-_WALK = re.compile(r'WALK `([^`]+)`:([\w-]+) (\w+) — report `([^`]+)`')
+_WALK = re.compile(r'WALK `([^`]+)`:([\w.-]+) (\w+) — report `([^`]+)`')   # a check id may carry a dot (12D)
 _TEST = re.compile(r'TEST `([^`]+)` — run by (?:9B|F3): `([^`]+)`, "([^"]+)"')
 _FLAG = re.compile(r'RECORD `docs/feature_flags\.json` at (\w+), key (\w+): status (\w+)')
 
@@ -1969,7 +2000,9 @@ def walk_verdicts(d):
     status}) or, for a step-by-step walk (the keyboard walks), its `steps` list."""
     c = d.get('checks')
     if c is None:
-        c = d.get('steps', [])
+        c = d.get('steps')
+    if c is None:
+        c = d.get('rows', [])   # wave 12 (12D): a walk whose report lists {id, verdict} rows
     if isinstance(c, dict):
         return {k: (v.get('verdict') if isinstance(v, dict) else v) for k, v in c.items()}
     return {(x.get('id') or x.get('check')): (x.get('verdict') or x.get('status')) for x in c}
@@ -2171,6 +2204,12 @@ L13_TIP_TAG = 'notebook-wave10-L13-tip-2026-09-30'
 # this is a new wave of the same shape as SC/SC2/SC3/L13a (tip and squash both None). The tag is cut at
 # the commit that registers it here, after every evidence file below is committed -- never before.
 QR_TAG = 'notebook-wave10-QR-2026-10-02'
+QR_TIP_TAG = 'notebook-wave10-QR-tip-2026-10-02'   # PR #264's head f09727453, tagged by the integrator
+# Wave 12, lane 12C phase 2 (2026-10-02): the re-score on the wave-12 landing branch. It cites evidence that has
+# not landed on master (12D's sandbox walk, 12B's template walk) and 4d's tie-break run A4, whose README section
+# landed on master in #265 after QR's squash. Same shape as SC/SC2/SC3/L13a/QR (tip and squash both None): the
+# tag is cut at the commit that registers it here, after every evidence file below is committed -- never before.
+W12C2_TAG = 'notebook-wave12-C2-2026-10-02'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -2196,7 +2235,10 @@ B0_WAVES = (
     ('wave 10 SC2', L12_TIP_TAG, '6cdfc41e6', '599cd44f1'),
     ('wave 10 SC3', L13_TIP_TAG, '5af134095', 'a680b0d40'),
     ('wave 10 L13a', L13_TIP_TAG, '5af134095', 'a680b0d40'),
-    ('wave 10 QR', QR_TAG, None, None),
+    # Lane 12C phase 2 (2026-10-02): QR tied to its REAL squash, as RS/SC/L13 were. QR_TAG (2ac47cae1) is an
+    # ancestor of PR #264's head, not the head it squashed; the integrator's tag below pins that head.
+    ('wave 10 QR', QR_TIP_TAG, 'f09727453', '88e68c94e'),
+    ('wave 12 C2', W12C2_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -2297,13 +2339,17 @@ B0_EVIDENCE = (
     ('docs/notebook/gate-runs/wave10-PC/curve-d22-q2.json', 'wave 10 QR'),
     ('docs/notebook/gate-runs/wave10-PC/curve-d22-q2-box.txt', 'wave 10 QR'),
     ('docs/notebook/gate-runs/wave10-PC/README-quiet.md', 'wave 10 QR'),
-    ('docs/notebook/perf-runs/ty8/README.md', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/README.md', 'wave 12 C2'),   # #265 appended the A4 reading after QR landed
     ('docs/notebook/perf-runs/ty8/ab/A1.json', 'wave 10 QR'),
     ('docs/notebook/perf-runs/ty8/ab/A2.json', 'wave 10 QR'),
     ('docs/notebook/perf-runs/ty8/ab/A3.json', 'wave 10 QR'),
     ('docs/notebook/perf-runs/ty8/ab/B1.json', 'wave 10 QR'),
     ('docs/notebook/perf-runs/ty8/ab/B2.json', 'wave 10 QR'),
     ('docs/notebook/perf-runs/ty8/ab/B3.json', 'wave 10 QR'),
+    # Wave 12, lane 12C phase 2: 4d's tie-break run A4 (#265), 12D's sandbox walk, 12B's template walk.
+    ('docs/notebook/perf-runs/ty8/ab/A4.json', 'wave 12 C2'),
+    ('docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json', 'wave 12 C2'),
+    ('docs/notebook/evidence/wave12-12b/walk-5.json', 'wave 12 C2'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2323,6 +2369,7 @@ B0_TIPS = (
     ('0555889ef', L1C_TAG),                            # F4's keyboard re-walk
     ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
     ('4d2a4edfa', L13_TIP_TAG),                        # lane G62's consensus walk, run 3
+    ('1ad04a0383', W12C2_TAG),                         # 12D's sandbox walk (G-003, G-045)
 )
 _PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
 
@@ -2495,7 +2542,7 @@ def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
     return rows, problems
 
 
-_B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
+_B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w.-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
 _B0_PATH = re.compile(r'`(docs/notebook/(?:evidence|gate-runs|proof)/[^`]+)`')
 
 
@@ -2823,6 +2870,12 @@ def build(pages_dir=None):
     def walk10(cid, want='PASS'):
         return walk_at(W10_WALK_TOOL, W10_WALK, '14310c206', cid, want)
 
+    # Wave 12, lane 12D: the sandbox walk (account deletion, scanned PDF then search), tree 1ad04a0383.
+    W12D_WALK = 'docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json'
+
+    def walk12d(cid, want='PASS'):
+        return walk_at('tools/notebook_w12d_walk.py', W12D_WALK, '1ad04a0383', cid, want)
+
     def kbd(cid, want):
         return walk_at(KBD_TOOL, KBD_F4, '0555889ef', cid, want)
 
@@ -2980,6 +3033,8 @@ def build(pages_dir=None):
     TY8A = [f'docs/notebook/perf-runs/ty8/ab/A{i}.json' for i in (1, 2, 3)]
     TY8_CMD = ('python tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60 '
                '(TY8 A/B, quiet box, 2026-10-02 05:08-05:32 CT)')
+    TY8_A4_CMD = ('python tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60 '
+                  '(tie-break run A4, build A, quiet box, 2026-10-02 09:07-09:10 CT, #265)')
     PROOF_CMD = 'python tools/notebook_proof_walk.py --boot (10E-1 instrument; F5 re-ran it)'
     AXE_AFTER = measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '15-18', '"findings": 0', PROOF_CMD)
     PR = f'{PROOF}/README.md'
@@ -3208,26 +3263,31 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 4063, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4120, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3417, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 18, 'Restore'), code(NS, 3474, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
-    R('G-003', 'NV', [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
+    R('G-003', ('P', 'P', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",'),
+                                 walk12d('G-003.D1_signup_through_the_form'), walk12d('G-003.D2_note_with_attachment'),
+                                 walk12d('G-003.D3_member_requests_deletion'),
+                                 walk12d('G-003.D4_owner_deletes_on_the_admin_page'),
+                                 walk12d('G-003.D5_data_gone_tombstone_kept')],
       {'N': ['N_delete_acct'], 'E': ['E_delete_acct'], 'O': NFO},
-      'A server-side purge; no UI behaviour to confirm. NOT-VERIFIED against every competitor: the UCT side stands on '
-      'a code reading alone, and no committed walk or quote shows an account deletion on UCT, so the competitors\' '
-      'quotes are cited but no comparative verdict is published. Evernote by review M-4 (F3 fix round 1); Notion by '
-      'controller ruling 1, F3 fix round 2 (consistency with M-4) -- it was wave 9\'s PARITY on the same code reading.',
-      'a committed walk of an account deletion on UCT (sign up, write a note, delete the account, confirm the notes are gone)')
+      'Wave 12 (12D) walked it on a sandbox (tree 1ad04a0383, integrity CLEAN at every checkpoint): a member signed up '
+      'through the form, wrote a note with an attachment and requested deletion; the owner deleted the account on the '
+      'admin page; sign-in then failed, the user row, every j2 row (9 before, 0 after across 72 j2 tables) and the '
+      'attachment directory were gone, and the tombstone was kept on and off site. The UCT side is now a walk, not a code '
+      'reading, so the Notion and Evernote quotes (both: deleting the account deletes its data) give PARITY. UCT\'s '
+      'deletion runs through the owner after a member request; PARITY is the purge as named.')
     R('G-004', ('P', 'P', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
       {'N': ['N_encrypt'], 'E': ['E_atrest'], 'O': ['O_e2e']},
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named. '
       'Evernote: its security page, re-fetched' + R18 + ', states infrastructure encryption at rest for the data it stores '
       '(wave 9 read it as in transit and for secrets only).')
-    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 195, 'const DRAFT_KEY')],
+    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 221, 'const DRAFT_KEY')],
       {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
     # Search / Retrieval
@@ -3248,14 +3308,15 @@ def build(pages_dir=None):
       'date-arithmetic example selects files modified within the last week' + R18 + '.')
     R('G-014', ('NV', 'P', 'P'), [code(NS, 1696, 'def _snippets_for('), walk9('B20_more_older_rows')],
       {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
-    R('G-015', ('P', 'NV', 'NV'), [code(NS, 1842, 'relevance ranking is opt-in')],
-      {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': NFO},
-      'Ranking is a server behaviour (the search box asks for sort=relevance); Obsidian\'s fetched page documents a '
-      'name sort by default, which says nothing about relevance, so no verdict. Evernote NOT-VERIFIED (F3 fix round 1, '
+    R('G-015', ('P', 'NV', 'A'), [code(NS, 1854, 'relevance ranking is opt-in')],
+      {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': ['O_sortlist1', 'O_sortlist2']},
+      'Ranking is a server behaviour (the search box asks for sort=relevance). Obsidian AHEAD by controller ruling (12C '
+      'phase 2): its search page lists every result sort order it offers -- file name, modified time, created time -- '
+      'and relevance is not among them (R18), the limit stated on its own page. Evernote NOT-VERIFIED (F3 fix round 1, '
       'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
       'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
       '(G-017, G-127).')
-    R('G-016', 'NA', [code(NS, 2989, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 3046, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
@@ -3267,18 +3328,18 @@ def build(pages_dir=None):
       {'N': ['N_subpage'], 'E': ['E_mention'], 'O': ['O_folder']},
       'B21: a folder and a subfolder made in the sidebar; the server nests one under the other. PARITY is nesting as named '
       '(Notion nests pages, Evernote has notebooks and stacks, Obsidian folders).')
-    R('G-021', ('P', 'NV', 'P'), [code('api/services/journal_two/note_properties.py', 499, 'SAVEABLE_VIEW_TYPES'),
+    R('G-021', ('P', 'NV', 'P'), [code('api/services/journal_two/note_properties.py', 565, 'SAVEABLE_VIEW_TYPES'),
                                  walk9('B09_list_views_bulk')],
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'P', 'P'), [code(NS, 2671, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'P', 'P'), [code(NS, 2728, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': ['E_backlinks'], 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions). PARITY is backlinks as '
       'Notion and Evernote name them; only Obsidian also documents a graph.')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 3130, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3187, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'P', 'P'), [code(NS, 4337, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'P', 'P'), [code(NS, 4394, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': ['E_recents'], 'O': ['O_recents']},
       'B20: the sidebar carries Recents. Evernote lists recent notes in its search view; Obsidian\'s Quick switcher lists '
       'them on an empty search' + R18 + '.')
@@ -3286,10 +3347,16 @@ def build(pages_dir=None):
                                  walk9('B25_saved_view')],
       {'N': ['N_savedview'], 'E': ['E_savedsearch'], 'O': ['O_views']},
       'B25: a table view saved by name; on a fresh page the saved view reopened as a table.')
-    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 231, "key: 'thesis',")] + TPL_EV,
-      {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, TPL_NOTE, TPL_LEVER)
+    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 548, "key: 'thesis',")] + TPL_EV +
+      [record('docs/notebook/evidence/wave12-12b/walk-5.json', 16, 'the gallery renders the catalog (keys read from the page)'),
+       record('docs/notebook/evidence/wave12-12b/walk-5.json', 31, 'every wave-12 new or deepened template is in the gallery')],
+      {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']},
+      TPL_NOTE + ' Wave 12 (12B) deepened the built-in library: its sandbox walk 5 read 32 templates in the gallery, '
+      'opened every new and deepened one in the editor at 1200 and 390 px with no schema refusal, and 220 of 222 rows '
+      'passed; the 2 FAILs are a finding probe (Enter on the trade-review walkthrough chevron moved the body instead of '
+      'opening the toggle), recorded as a finding, not a template defect.', TPL_LEVER)
     # Editor
-    R('G-030', 'P', [code(f'{LB}/tiptap.js', 125, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
+    R('G-030', 'P', [code(f'{LB}/tiptap.js', 129, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
     R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 35, "label: 'New Note'"), walk9('B08_quick_switcher')],
@@ -3298,7 +3365,7 @@ def build(pages_dir=None):
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
     R('G-033', 'P', [code(f'{NB}/NoteLinkMenu.jsx', 2, 'triggered internal-note-link autocomplete'), walk9('B17_older_rows')],
       {'N': ['N_wikilink'], 'E': ['E_mention'], 'O': ['O_links']}, 'B17: typing [[ offered the target note.')
-    R('G-034', 'NA', [code('app/src/widgets/registry.js', 267, 'journal: true'), walk9('B28_widget_insert')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-034', 'NA', [code('app/src/widgets/registry.js', 296, 'journal: true'), walk9('B28_widget_insert')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (live market widgets in a note). B28 inserted a chart widget from the palette; its saved body carries it.')
     R('G-035', 'NV', [L('G-035', 'OPEN, DELIBERATELY'),
                       measure(PB, '401-402', 'typing per char', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')],
@@ -3337,11 +3404,16 @@ def build(pages_dir=None):
       'gate: the API is armed and walked in production as bench@ (10D), but no Shortcut has run on an iPhone, so the '
       'member-facing iOS capture is unconfirmed.',
       'owner: run the iOS Shortcut on an iPhone (docs/notebook/ios-shortcuts.md)')
-    R('G-045', 'NV', [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'), flag('J2_OCR_ENABLED', 'armed'),
-                      walk7('W14_image_ocr_document')],
-      {'N': NFN, 'E': ['E_searchimg', 'E_scan'], 'O': NFO},
-      'OCR of an uploaded scanned PDF was not driven on the scored tip (the wave-7 walk did, on 8f232d21d). ' + UI_NOT,
-      'upload a scanned PDF and search its text in a browser pass')
+    R('G-045', ('A', 'P', 'NV'), [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'),
+                                 flag('J2_OCR_ENABLED', 'armed'), walk7('W14_image_ocr_document'),
+                                 walk12d('G-045.S1_fixture_is_a_scan'), walk12d('G-045.S2_ocr_read_the_page'),
+                                 walk12d('G-045.S3_search_finds_image_word')],
+      {'N': ['N_noocr'], 'E': ['E_searchimg', 'E_scan'], 'O': NFO},
+      'Wave 12 (12D) walked it on a sandbox (tree 1ad04a0383, Tesseract present): a one-page PDF with no extractable '
+      'text was attached in the editor, OCR read the page, and the sidebar search found a word that exists only in the '
+      'image ("1 DOCUMENT PAGE", scanned text, opening the scan\'s note); a nonsense control word found nothing. Notion '
+      'AHEAD: its import page states a scanned PDF is not reliably searchable until OCR is run, the limit on its own page. '
+      'Evernote PARITY: it searches text inside images and scanned documents.')
     # AI
     R('G-050', 'NV', [code('api/services/note_ask.py', 13, 'Every Ask scope now builds prompts'),
                       test_py('tests/test_note_ask_prompt_boundary.py'), walk9('B20_more_older_rows')],
@@ -3379,13 +3451,13 @@ def build(pages_dir=None):
       'UCT-unique (notes linked to trades).')
     R('G-071', 'NA', [ruling(LEDGER, ledger_line('G-071'), 'replaced by G-070', 'ledger')], {'N': NA, 'E': NA, 'O': NA},
       'A rejected design, replaced by G-070.')
-    R('G-072', 'NA', [code('api/services/journal_two/note_properties.py', 62, 'builtin:thesis_status')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-072', 'NA', [code('api/services/journal_two/note_properties.py', 79, 'builtin:thesis_status')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique built-in thesis fields; generic properties are compared under G-021.')
     R('G-073', 'NA', [code('api/services/journal_two/thesis_changelog.py', 251, 'def get_thesis_changelog(')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-073b', 'NA', [code('api/services/journal_two/thesis_changelog.py', 215, 'def _verdict_events(')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-074', 'NA', [code('api/services/awareness/rules.py', 127, 'def rule_thesis_stop_review(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: thesis-invalidation alerts).')
-    R('G-075', 'NA', [code(f'{NB}/TickerResearchWorkspace.jsx', 63, 'export default function TickerResearchWorkspace'),
+    R('G-075', 'NA', [code(f'{NB}/TickerResearchWorkspace.jsx', 64, 'export default function TickerResearchWorkspace'),
                       walk9('B17_older_rows'), walk9('B30_live_research_tab')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique; B17 opened /journal/notebook/research/NVDA and B30 the same workspace on /research/NVDA.')
     # Collaboration / offline / mobile / extensibility
@@ -3417,13 +3489,13 @@ def build(pages_dir=None):
     R('G-086', 'D4', [D(4, 'a plugin marketplace (G-086)')], {'N': NFN, 'E': EB, 'O': ['O_plugins']},
       'Recorded scope, not an oversight.')
     # Portability / export
-    R('G-090', 'P', [code(f'{JT}/notes_export.py', 2162, 'def build_export_zip('),
+    R('G-090', 'P', [code(f'{JT}/notes_export.py', 2201, 'def build_export_zip('),
                      test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js'), walk9('B09_list_views_bulk')],
       {'N': ['N_export'], 'E': ['E_emailin'], 'O': ['O_local']},
       'B09: the bulk export panel offers Markdown, web page, JSON and Word.')
-    R('G-091', 'P', [code(f'{JT}/notes_export.py', 2397, 'def build_single_note_export('), walk9('B13_share_publish_export')],
+    R('G-091', 'P', [code(f'{JT}/notes_export.py', 2436, 'def build_single_note_export('), walk9('B13_share_publish_export')],
       {'N': ['N_export'], 'E': ['E_pdfexport'], 'O': ['O_local']}, 'B13: the note\'s Export menu has four items.')
-    R('G-092', 'NA', [code(f'{JT}/notes_export.py', 1356, 'linked_trades')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
+    R('G-092', 'NA', [code(f'{JT}/notes_export.py', 1395, 'linked_trades')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-093', 'NA', [L('G-093', 'DONE (as scoped)')], {'N': NA, 'E': NA, 'O': NA},
       'Read-only connectors by design; the two-way-sync clause of standard #11 is scored in §B, not here.')
     R('G-094', 'NA', [code(f'{JT}/note_connectors/engine.py', 51, 'sync-conflict')], {'N': NA, 'E': NA, 'O': NA},
@@ -3431,7 +3503,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3519, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3698, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -3442,11 +3514,11 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-105', 'NA', [code(f'{NB}/AskPanel.jsx', 331, 'aria-label="Close Ask"'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT convention row; B20 found the close control is an svg icon.')
-    R('G-106', 'NA', [code('app/src/pages/journal-2-0/tabs/NotebookTab.jsx', 34, 'SkeletonLine')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-106', 'NA', [code('app/src/pages/journal-2-0/tabs/NotebookTab.jsx', 37, 'SkeletonLine')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 324, 'Continue working'), walk9('B17_older_rows')],
+    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 345, 'Continue working'), walk9('B17_older_rows')],
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
@@ -3470,19 +3542,20 @@ def build(pages_dir=None):
     R('G-119', 'NA', [code(f'{JT}/db.py', 1314, 'j2_note_excerpts_fts'), walk10('B4_best_matches')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique; the Evidence section is one of the four a "Best matches" group fuses above the sections (wave 10).')
     R('G-120', 'NA', [code(f'{JT}/thesis_evidence.py', 7, 'SUPPORTS/OPPOSES')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
-    R('G-121', 'NV', [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'), flag('J2_OCR_ENABLED', 'armed'),
-                      walk7('W14_image_ocr_document')], {'N': ['N_noocr'], 'E': ['E_searchimg'], 'O': NFO},
-      'As G-045. Notion\'s import page states a scanned PDF is not reliably searchable until OCR is run' + R18 + ', '
-      'so the UCT side, once driven, decides that cell. ' + UI_NOT,
-      'upload a scanned PDF and search its text in a browser pass (as G-045); O: a page that states it (next R-row)')
+    R('G-121', ('A', 'P', 'NV'), [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'),
+                                 flag('J2_OCR_ENABLED', 'armed'), walk7('W14_image_ocr_document'),
+                                 walk12d('G-045.S2_ocr_read_the_page'), walk12d('G-045.S3_search_finds_image_word')],
+      {'N': ['N_noocr'], 'E': ['E_searchimg'], 'O': NFO},
+      'As G-045: 12D\'s sandbox walk read a scanned page by OCR and found its image-only word in search. Notion\'s '
+      'import page states a scanned PDF is not reliably searchable until OCR is run' + R18 + ', so AHEAD.')
     # Ask (Wave K)
-    R('G-122', ('P', 'NV', 'NV'), [code(f'{JT}/ask_service.py', 54, '"This note"'), test_py('tests/test_ask_security.py'),
+    R('G-122', ('P', 'P', 'NV'), [code(f'{JT}/ask_service.py', 54, '"This note"'), test_py('tests/test_ask_security.py'),
                                   walk9('B31_ask_scope_label')],
       {'N': ['N_scope'], 'E': ['E_aiscope', 'E_aimention'], 'O': NFO},
       'B31: the Ask panel states its scope as text ("Asking: This note") before any question; Notion documents an explicit '
       'source chooser. Evernote\'s AI Assistant page' + R18 + ' states both an assistant that picks its own context and '
-      '@-mentions that name the notes to use, so no Evernote verdict either way.',
-      'O: a page that states it (next R-row); E: a ruling on whether @-mention scoping is an explicit, member-visible scope')
+      '@-mentions that name the notes to use; PARITY by controller ruling (12C phase 2): @-mention scoping is an '
+      'explicit, member-visible scope.')
     R('G-123', 'NV', [code(f'{LB}/askCitation.js', 35, "VALID_EXACT = 'valid_exact'"),
                       test_vt('app/src/pages/journal-2-0/lib/askCitation.parity.test.js')],
       {'N': ['N_cite'], 'E': ['E_aicite'], 'O': NFO},
@@ -3523,7 +3596,7 @@ def build(pages_dir=None):
       'B26: an uploaded image centred (data-align center) and captioned (a figcaption with the typed text). Evernote\'s '
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
     R('G-134', ('P', 'P', 'P'), [code(f'{NB}/TableToolbar.jsx', 103, "'addRowBefore', 'Row above'"),
-                                 code(f'{LB}/tiptap.js', 125, 'resizable: true'),
+                                 code(f'{LB}/tiptap.js', 129, 'resizable: true'),
                                  code(f'{NB}/TableToolbar.jsx', 301, 'Sort A→Z'), walk9('B03_table_toolbar'),
                                  walk10('B2_table_sort_resize_reload')],
       {'N': ['N_tables'], 'E': ['E_tables'], 'O': ['O_tables']},
@@ -3531,8 +3604,10 @@ def build(pages_dir=None):
       'sorted a column (header pinned, one undo step), dragged a column wider and read both back after a reload. '
       'PARITY is against Notion\'s simple table (which its page says has no sorts), Obsidian\'s row/column editing and '
       'Evernote\'s 11.36.4 release note (sort, header row, column widths; rolling out gradually)' + R18 + '.')
-    R('G-135', ('P', 'P', 'NV'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
-      {'N': ['N_drag'], 'E': ['E_drag'], 'O': NFO})
+    R('G-135', ('P', 'P', 'P'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
+      {'N': ['N_drag'], 'E': ['E_drag'], 'O': ['O_outlinedrag']},
+      'Obsidian PARITY by controller ruling (12C phase 2): its Outline reorders a note\'s sections by dragging their '
+      'headings (R18).')
     R('G-136', 'P', [code(f'{LB}/tableOfContentsNode.js', 94, "name: 'tableOfContents',"),
                      code(f'{NB}/NoteOutline.jsx', 43, "OUTLINE_LABEL = 'Outline'"), walk9('B04_drag_outline_stats')],
       {'N': ['N_toc'], 'E': ['E_toc'], 'O': ['O_outline']})
@@ -3551,11 +3626,11 @@ def build(pages_dir=None):
       'B06 is a dispatched paste event (an engine test of the paste path, not a real clipboard).')
     R('G-142', ('P', 'NV', 'NV'), [code(f'{LB}/columnsNode.js', 6, 'side-by-side columns'), walk9('B05_typing_features')],
       {'N': ['N_columns'], 'E': EB, 'O': NFO})
-    R('G-143', ('A', 'A', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
+    R('G-143', ('A', 'A', 'P'), [code(f'{NB}/SlashMenu.jsx', 56, "title: 'Heading 6',"), walk9('B01_slash_menu')],
       {'N': ['N_headings'], 'E': ['E_headings'], 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six. Evernote\'s own '
       'list of its text styles stops at H4' + R18 + ', the limit stated on its page, so AHEAD as for Notion.')
-    R('G-144', ('NV', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 217, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', ('NV', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 243, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
       {'N': NFN, 'E': ['E_undo'], 'O': NFO},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
@@ -3600,7 +3675,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4085, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4266, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3616,7 +3691,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1178, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1193, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -3627,7 +3702,7 @@ def build(pages_dir=None):
       'a browser pass with a model key')
     R('G-163', 'D6', [D(6, 'Cold-start offline is out of scope')], {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'Recorded scope: the rollback story relies on no service worker (D6).')
-    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1081, 'Automate and App Automate are NOT on this account')],
+    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1085, 'Automate and App Automate are NOT on this account')],
       {'N': NA, 'E': NA, 'O': NA}, 'A release process, not a product feature; no competitor claim is made.',
       'owner: a device run per release (BrowserStack Live by hand, or Automate bought)')
     R('G-165', 'NV', [code(f'{JT}/writing_help.py', 48, 'ACTIONS = (SUMMARIZE, REWRITE, CONTINUE, TRANSLATE)'),
@@ -3802,7 +3877,7 @@ def build(pages_dir=None):
          'CURRENT-NO-OP now. Sandbox CLEAN at all four checkpoints in both runs. The clause reads literally "no '
          'dead clicks"; the full 39/39 measured cell now reads exactly that', None),
         ('no known data-loss path', 'MET',
-         [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 732, 'NO door is a loss'),
+         [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 749, 'NO door is a loss'),
           code(f'{JT}/notes.py', 858, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
           record(f'{W10C}/f5-results-run3-tag-applied.md', 30, 'unsettled 409s: **0** · conflicted copies: **0**')],
          '10C\'s write-door census classifies every derived door loss / fork / none and fails on any loss: none '
@@ -3851,7 +3926,7 @@ def build(pages_dir=None):
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
          [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
           record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
-          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 376,
+          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 402,
                'export function toolbarStateReducer(prev, editor)'),
           code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
                'export function stepsIntroduceNodeType(tr, name)'),
@@ -3860,8 +3935,15 @@ def build(pages_dir=None):
           measure(TY8A[2], 565, '"p95_ms": 10.15', TY8_CMD),
           record(TY8R, 153, 'Lock FREE and load QUIET at both ends of every run'),
           record(TY8R, 180, '17.12 ms on the same harness): not established'),
-          record(PB, 995, '4d, typing: still NOT MET, because two quiet readings of the same code disagree')],
-         'quiet re-score QR (2026-10-02): the owed quiet-box busy reading now exists and does not settle the clause. '
+          record(PB, 995, '4d, typing: still NOT MET, because two quiet readings of the same code disagree'),
+          measure('docs/notebook/perf-runs/ty8/ab/A4.json', 565, '"p95_ms": 15.67', TY8_A4_CMD),
+          record(TY8R, 209, '7.7 / 14.42 / 15.67 ms'),
+          record(TY8R, 217, 'A4 does not cleanly break')],
+         'wave 12, 12C phase 2 (2026-10-02): the tie-break run A4 (#265, build A, lock FREE and load QUIET at both ends) '
+         'read 15.67 ms at 2,000 paragraphs -- under the line by 0.33 ms -- but every A4 row is 1.5-2x slower than A3 on '
+         'the same build while the lock tool marked the box QUIET, so it sits within run-to-run drift of the line and does '
+         'not break the tie with L15 q1 (17.12 ms). NOT MET stands; the 16 ms line is unchanged. '
+         'Quiet re-score QR (2026-10-02): the owed quiet-box busy reading now exists and does not settle the clause. '
          'Six interleaved runs of TY8\'s A/B (perf-runs/ty8/ab, 05:08-05:32 CT), each lock FREE and load QUIET at '
          'both ends; A is the editor code this tree ships (`git diff fefbc2bf6 HEAD -- app/src/pages/journal-2-0` is '
          'empty) and B adds TY8\'s `memoStringifyBody.js` change, which is not on this tree. All 18 busy p95 cells are '
@@ -3974,8 +4056,8 @@ def build(pages_dir=None):
          'by hand is not a PASS triggered BY the schedule, and the clause reads literally "on a schedule". The '
          'staged weekly task has not yet produced an unattended PASS. Owed: observe its next scheduled fire', BUILD),
         ('account deletion purges backups', 'MET',
-         [record('docs/account-deletion-manifest.md', 183, 'The deletion writes a TOMBSTONE, as its FIRST write'),
-          record('docs/account-deletion-manifest.md', 219, 'CLOSED, wave 10 lane AD'),
+         [record('docs/account-deletion-manifest.md', 188, 'The deletion writes a TOMBSTONE, as its FIRST write'),
+          record('docs/account-deletion-manifest.md', 224, 'CLOSED, wave 10 lane AD'),
           code('tools/authdb_restore_drill.py', 620, 'ap.add_argument("--archive"'),
           record('docs/notebook/gate-runs/wave10-L6/classification.md', 13, 'Landing: PASS'),
           test_f3('tests/test_account_tombstones.py'), test_l6('tests/test_authdb_archive_restore.py')],
@@ -4232,7 +4314,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8259, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8271, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
@@ -4266,8 +4348,8 @@ def build(pages_dir=None):
     w = out.append
     w('# Notebook parity scorecard — every ledger row, the 16 standards, the honest misses')
     w('')
-    w(f'**Date:** {DATE} (the wave-10 re-score, follow-up F3 on 2026-09-28, re-scored again by lane RS on the controller\'s '
-      f'quiet-slot and the accumulated evidence; the tool and method are wave 9 lane 9B\'s). **Product '
+    w(f'**Date:** {DATE} (re-scored by wave 12 lane 12C phase 2 on the wave-12 landing branch, after the wave-10 re-score, '
+      f'follow-up F3 on 2026-09-28 and lane RS on the controller\'s quiet-slot; the tool and method are wave 9 lane 9B\'s). **Product '
       f'scored:** this tree — app tree `{app_tree[:9]}`, api tree `{api_tree[:9]}` — which is the wave-10 L1c landing '
       f'tree `{L1C}` (master `4bba30b73` + #225 + 10E-1 + 10E-2 + the follow-up lanes F2, F4, F5, F6 and F7) plus this '
       f're-score\'s own documents and tool: `git diff --name-only {L1C} HEAD -- app api` lists '
@@ -4292,8 +4374,9 @@ def build(pages_dir=None):
       'and `docs/notebook/notebook-ux-ui-competitive-ledger.md`. Both are older comparisons; neither was edited.')
     w('- The plan\'s §1 "Now" numbers (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`) are **estimates**, shown beside the clause count in §B, '
       'never averaged (ruling D-9B1).')
-    w('- **Wave 12, lane 12C phase 1 (2026-10-02)** added competitor citations from a new fetch pass (research ledger R18) and '
-      'moved the cells those quotes decide; it re-scored nothing else. The full re-score is lane 12C phase 2.')
+    w('- **Wave 12, lane 12C (2026-10-02)**: phase 1 added competitor citations from a new fetch pass (research ledger R18) and '
+      'moved the cells those quotes decide; phase 2 re-scored on the wave-12 landing branch -- 12D\'s sandbox walk (G-003, G-045, '
+      'G-121), 12B\'s template walk (G-026), 4d\'s tie-break run A4, and three controller rulings (G-015 O, G-122 E, G-135 O).')
     w('- No competitor\'s speed is stated here (lane 9A\'s protocol, `docs/notebook/benchmark/protocol.md`, and the owner\'s run), and no '
       'user-study or soak result (9C\'s kits and the owner\'s runs).')
     w('')
