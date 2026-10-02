@@ -164,6 +164,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 63 | H1 the host translator's three largest first refusals (`pine:state`, `pine:reassign`, `pine:request`) on the 266, clustered by shape (§ H1). **Served:** **(1)** a pivot on a PLATEAU is TradingView's: a tie on the LEFT pivots, a tie on the RIGHT does not, so a flat top pivots on its LAST bar (`interpret.js::pivotCol` ⇄ `ast_interpret.py::_pivot_col`; witness RDDT bars 473/474 in `pivot-point-supertrend-rddt-1d-2026-09-27`); **(2)** a SWITCHED recurrence whose reset test reads its own state (the ratchet: `up := close[1] > up1 ? max(up, up1) : up`) is decided by a RANGE window, published only on a bar every earlier history agrees on (`forgetsOnReset::orderingTest`, `interpret.js::rangeSwitchedColumn` ⇄ `_Range` in Python); **(3)** a helper's own `x = init` / `x := f(x[1])` recurrence (`Resolver.finalLocalOf`); **(4)** from the listing a crossing over a warm-up `na` is Pine's `false` (`interpret.js::pineBoolAt`). Id rule: a script `param-ids.json` pins mints only its frozen ids in the pinned lane (`paramIdPinned.js`, derived); `paramIds.test.js` unedited. **Refused, named:** all 18 `pine:request` first walls (other symbol / dark lower timeframe / barstate offset / 12M / budget), loop running totals (ruling R7), coupled vars, block-local stops. No budget moved | `9808723a7e`, `ee1c6a7cc7`, `a8ff4b52fc`, `1cde2b4581` | 29 / 47 → 29 / 47 (pane off 16 → 16; base `5564cca92b`, objects pane on) | member door **68 → 75 / 266** on (45 → 52 off), base-vs-base 0 rows | the 47: 0 entries change. Committed harness dir: overall MATCH 50 → 52 of 138 (pane off 37 → 39) — `pivot-point-supertrend-rddt-1d-2026-09-27` and `qqe-signals-rddt-1d-2026-09-27` INCONCLUSIVE → MATCH, 0 regressions. Translation census 266: strict / member ok 64 → 71, screen 58 → 64; 0 previously served outputs changed. Notebook first-open 2,148,818 B both sides (+0, PASS); `pine` chunk 417,918 → 423,187 B (+5,269) |
 | 62 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
 | 64 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
+| 67 | O1 (lane brief, wave 15) the drawing-only scripts: why each of the 33 `pine:no-output` and 6 `pine:object-removal-lost` scripts draws nothing (section O1). Triage: the first wall per script, read off `o1DrawingOnly.measure.test.js`; ten causes, largest G1 collections / UDTs 11, G2 loop-computed values 6, G4 data 5; the runtime fallback draws plot rows only, so it serves none of them. New read-only diagnostics `createDropWhy` / `guardRefusalWhy` | triage commit | unchanged | unchanged | none (triage only) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5078,3 +5079,70 @@ Remaining runtime declines on the corpus (flag on): `runtime:repaint-unstated` 1
 `history-dynamic-offset` 9, `call-undeclared-builtin-state` 7, `library` 6, `na-test` 6 (cc-yata,
 fibonacci-dolphintradebot, pivot-point-supertrend, qqe-signals, supertrend-strategy,
 trend-targets-algoalpha), `function-global-state` 4, `statement` 4, `withheld-all` 3, others <= 3.
+
+## O1 - drawing-only scripts the member door refuses `pine:no-output`: why each draws nothing (2026-10-02, step 67)
+
+Branch `pine/o1-drawing-only`, base `integrate/wave15-2026-10-02` (`a09ae5dbed`). Lane brief: the
+33 corpus scripts the member door refuses `pine:no-output` (objects-only pane ON, as in
+production) and the 6 it refuses `pine:object-removal-lost`. A script reaches `pine:no-output`
+when it offers no plot AND its host object program kept no op (`pine.js`, the `resolved.length
+=== 0` return); `pine:objects-only` with a lost removal becomes `pine:object-removal-lost` at
+`paneGate`.
+
+### The instrument
+
+`__tests__/vendorHarness/o1DrawingOnly.measure.test.js` (opt-in, `O1_TRIAGE=1
+O1_TRIAGE_OUT=<json>`): every corpus script the door refuses with either guard, through
+`enterMemberDoor` (the census's own door), with the host translation's `objectDiagnostics` and the
+runtime lane's answer for the same script (runtime pane ON: `runtimeDeclined`). Two diagnostics are
+new, both read-only (nothing decides from them): `createDropWhy` - the refusal sentence behind a
+`create:<family>` drop, which used to be a bare count - and `guardRefusalWhy` - the sentence behind
+each `guardRefusals` entry. Census at base (`memberDoorCensus.measure.test.js`, runtime state on):
+off 52 / 266, **on 75 / 266**, on + runtime 78 / 266; `pine:no-output` 33, `pine:object-removal-lost` 6.
+
+### The runtime lane cannot draw any of the 39, structurally
+
+`memberPaneDefinition.js::runtimeLaneDefinition` builds rows from PLOT outputs only and takes its
+objects from the HOST program (`t.objects`); a script with no plot ends at `runtime:nothing-drawn`
+even when every earlier check passes (`visualizing-displacement-tfo` is the one that gets that far).
+`runtime/objectLane.js` is not on the member door's path. What the fallback says first, for the record:
+
+| runtime decline | n | scripts |
+|---|---|---|
+| `runtime:repaint-unstated` (RT2's area) | 26 | every script not listed below |
+| `runtime:call-undeclared-builtin-state` (RT3's) | 2 | ipda-standard-deviations, previous-day-high-and-low-separators |
+| `runtime:statement` (RT3's) | 2 | market-structure-inducements, session-tpo-profile |
+| `pine:builtin` | 2 | power-of-3-ict-01, scalping-strategy-with-williams-r |
+| `pine:function` / `pine:statement` (front end) | 2 | ict-killzone-index-version, trendline-pivots-quantvue |
+| `runtime:function-global-state` (RT3's) | 1 | auto-harmonic-patterns-open-source |
+| `runtime:history-dynamic-offset` (RT3's) | 1 | support-and-resistance |
+| `runtime:block-value` | 1 | fvg-detector-tradingfinder |
+| `runtime:object-op` | 1 | sonarlab-order-blocks |
+| `runtime:nothing-drawn` | 1 | visualizing-displacement-tfo |
+
+So this lane works on the HOST object program. A runtime-lane drawing door (objects from
+`runtime/objectLane.js`, no plot required) is a separate admission and is not built here.
+
+### Cause table: the first wall that empties each drawing (host object lane)
+
+"First wall" = the first entry of `guardRefusalWhy`, else of `createDropWhy`, else the dominant
+`dropReasons` key, read at base off `o1DrawingOnly.measure.test.js`. A script usually has more
+walls behind its first; the ones measured behind it are named.
+
+| cause | n | scripts (first wall; walls behind it) |
+|---|---|---|
+| **G1** a collection / UDT / method the host lane cannot follow (`pine:collection`, `pine:type`, `fn:receiver`, `coll:diverged`) | 11 | auto-harmonic-patterns-open-source (`zigzagratios` written in a function; getters `line.get_x2` as coordinates), order-blocks (`pvh1_price` block-valued; arrays written in blocks), zigzag-multi-time-frame-with-fibonacci (`zigzag` written in a block), mgi-levels-suite (arrays created with values; methods on UDT receivers x137), multi-timeframe-fvg-tfo (arrays read by a conditionally called helper), volumized-order-blocks-flux-charts (a UDT list never pushed in the reader's view; method receiver), footprint-iq-pro-tradingiq (`FD.tickLevels.size` on a UDT field; `timeframe.in_seconds`), ict-institutional-order-flow-fadi (UDT pivots; 7 helper calls under a condition reading history, `fn:conditional-history`), ipda-standard-deviations (UDT + `chart.point`; a method `unshift(line.new(...))` in an expression), higher-time-frame-fair-value-gap (UDT field `htfBar.consistentUpdates` reassigned; `polyline.new`), volume-delta-oi-delta-kioseff (`label.all` loop; block-valued counters; two requests) |
+| **G2** a value a loop computes (running total, arg-min, break-search; ruling R7) read by a drawing | 6 | trendlinesample (`lowest_x1` arg-min over `for j = shortPeriod + 1 to longPeriod`), support-and-resistance (`r` / `s` running totals in a `for`; unbounded `ta.barssince`), volume-profile-v054beta (`POC` / `VAH` / `VAL` from a `for`), session-tpo-profile (a running total with no window), sonarlab-order-blocks (`last_green` = first index in `for i = 4 to 15` with `break`; `box.get_top` in a delete guard), fibonacci-retracement-statistics-by-volprofex (`while`-built lists; `trendCount` undefined to the reader) |
+| **G3** a user function's own mutable state read by its drawing (`pine:state` "reassigned inside", block-valued `if`) | 4 | fvg-detector-tradingfinder (`DDFVG` in `FVGDetector`; hoisting the once-called body to the top level by hand moves it to the next wall, an `if` / `switch` used as a value - measured, not kept), market-structure-inducements (`BeChoCh_B` in `Structure`), fair-value-gap (`currenttop` in `f_gapCheck`, box getters in its loop; `input.timeframe` text), market-sessions-and-volume-profile (`vah` / `val` in `drawCurZone`; arrays; `ta.highest` with a non-literal length) |
+| **G4** another symbol, a watchlist or another timeframe the door does not serve | 5 | correlation-matrix (7 FX pairs, withheld since C49; its `label.new` sits in a comma line the reader marks unsupported, so the program is null with 0 drops), mtf-watchlist-charts-anan (4 symbols x `drawChart` state), strong-start-rvol-dashboard (a 40-symbol watchlist; `table.clear`), screener-mean-reversion-channel (40 `request.security`), tehthomas-aligned-timeframe-fair-value-gaps (`htfTime` request) |
+| **G5** the clock: `time(<tf>, <session>)` / `time(<tf>)` outside what C30 / C49 serve | 4 | asianrange-and-killzones (`"1900-0001"` wraps midnight: no capture holds a bar after 20:00), power-of-3-ict-01 (`"1900-0100"`, same; `str.tonumber`), ict-killzone-index-version (a session read on another timeframe), volume-profile-auto-line-v2 (`time(<tf>)` off the served list; then `line.get_y1` getters in loops) |
+| **G6** a builtin the grammar does not hold | 4 | previous-day-high-and-low-separators (`dayofweek(time[1])`, `weekofyear`), volume-open-interest-footprint (`chart.left_visible_bar_time`: the visible range), market-profile-with-tpo (`syminfo.type`; `for`-built counts), scalping-strategy-with-williams-r (`str.tostring(timeframe.period)`; its one label has `y = na`, which TradingView does not draw) |
+| **G7** a drawing helper called inside an expression: `cond ? f(...) : na` (`fn:in-expression`) | 1 | fib-retracement (4 calls; 130 ops otherwise converted, 0 other drops; the 4 lost bodies hold `line.delete` / `label.delete`, hence `object-removal-lost`) |
+| **G8** comma-joined reassignments `a := x, b := y` are not split (the splitter takes `=` bindings only) | 1 | trendline-pivots-quantvue (`utlX1 := utlX2, utlY1 := utlY2`; behind it: `for l in` body locals `src` / `first` unread in guards, `line.get_*` getters of the iterated handle) |
+| **G9** a user function returning a tuple | 1 | linear-regression-channel-breakout-strategy (`[slope, ...] = get_channel(...)`) |
+| **G10** nothing a pane can draw | 2 | one-indicator-multiple-max-40-checked-symbols (`alert()` only: TradingView draws nothing either - a correct end state), visualizing-displacement-tfo (its only output is `barcolor(..., offset = require_fvg ? -1 : na)`, withheld by B1's offset rule) |
+
+Every G2 / G3 wall is a known lane wall (R7, C34, the inliner's state rule), every G4 one is data
+(C26 / C49), every G5 one waits on a capture (C30 / C49), and the RT-owned runtime walls are left
+to RT2 / RT3. The two causes that are EXACT from Pine's own grammar and cost no new evidence are
+G7 and G8; they are taken first, one commit each (below).

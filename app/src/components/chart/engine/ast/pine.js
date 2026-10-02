@@ -19952,6 +19952,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.guardRefusals = diagnostics.guardRefusals || []
     const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` ${subject}` : ''}`
     if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
+    noteWhy('guardRefusalWhy', `${e} :: ${msg}`)
+  }
+  /** ⭐ O1 (step 67) — THE SENTENCE BEHIND A COUNT. `guardRefusals` names the
+   *  guard and its subject; a `create:<family>` drop named nothing at all. Both
+   *  keep the refusal's own words here (first 200 characters, at most 40
+   *  entries each), so a triage reads WHY a drawing is empty off the translation
+   *  instead of off a patched copy of this file. Diagnostics only: nothing reads
+   *  these to decide what is drawn. */
+  const noteWhy = (key, line) => {
+    const list = diagnostics[key] || (diagnostics[key] = [])
+    const s = String(line).slice(0, 260)
+    if (list.length < 40 && !list.includes(s)) list.push(s)
+  }
+  const noteCreateDrop = (op, slot, r) => {
+    noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
+      + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
   }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** ⭐ C25 — the first carried loop scalar a node reads, or null. */
@@ -20838,9 +20854,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           props[k] = r
           continue
         }
+        // ⛔ O1 — READ, NEVER RESET: `rtTextOf` consults `lastCanonRefusal`, so
+        // the sentence is taken only when THIS slot's read wrote a new one.
+        const refusalBefore = lastCanonRefusal
         const v = valueRef(node, k)
         if (!v) {
-          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) { bad = true; break }
+          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
+            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal : null)
+            bad = true
+            break
+          }
           dropProp(op.family, k, node)
           continue
         }
