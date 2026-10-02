@@ -1,0 +1,2233 @@
+{
+ "meta": {
+  "measured_at": "2026-10-01 21:14:16 Central Daylight Time",
+  "commit": "ee17bc1652",
+  "network": 112,
+  "cached": 0,
+  "seconds": 105.7,
+  "sec_user_agent": "UCTDashboard contact@unchartedterritory.com",
+  "sec_max_rps": 5.0,
+  "forms": [
+   "10-K"
+  ]
+ },
+ "summary": {
+  "10-K": {
+   "sections": {
+    "risk_factors": {
+     "n": 35,
+     "found": 33,
+     "not_found": 2,
+     "parse_error": 0,
+     "found_rate": 0.943,
+     "reference_only_pairs": 0
+    },
+    "mdna": {
+     "n": 35,
+     "found": 33,
+     "not_found": 2,
+     "parse_error": 0,
+     "found_rate": 0.943,
+     "reference_only_pairs": 0
+    }
+   },
+   "unread": [
+    "XOM",
+    "JPM",
+    "BAC",
+    "WFC",
+    "C",
+    "GS",
+    "EQR"
+   ]
+  }
+ },
+ "rows": [
+  {
+   "ticker": "AAPL",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000320193-25-000079",
+      "filing_date": "2025-10-31",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "bytes": 1520316
+     },
+     "older": {
+      "accession": "0000320193-24-000123",
+      "filing_date": "2024-11-01",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm",
+      "bytes": 1503888
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 106,
+         "chars": 67524
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 115,
+         "chars": 68230
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 135,
+         "chars": 17576
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 131,
+         "chars": 14909
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000320193",
+   "name": "Apple Inc."
+  },
+  {
+   "ticker": "MSFT",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001193125-26-323660",
+      "filing_date": "2026-07-29",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "bytes": 8585609
+     },
+     "older": {
+      "accession": "0000950170-25-100235",
+      "filing_date": "2025-07-30",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000095017025100235/msft-20250630.htm",
+      "bytes": 8158175
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 169,
+         "chars": 80960
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 149,
+         "chars": 68750
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 608,
+         "chars": 50506
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 508,
+         "chars": 47251
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000789019",
+   "name": "MICROSOFT CORP"
+  },
+  {
+   "ticker": "AMZN",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001018724-26-000004",
+      "filing_date": "2026-02-06",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "bytes": 1968450
+     },
+     "older": {
+      "accession": "0001018724-25-000004",
+      "filing_date": "2025-02-07",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872425000004/amzn-20241231.htm",
+      "bytes": 1922463
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 148,
+         "chars": 60289
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 149,
+         "chars": 59019
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 184,
+         "chars": 45829
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 211,
+         "chars": 48004
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001018724",
+   "name": "AMAZON COM INC"
+  },
+  {
+   "ticker": "GOOGL",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001652044-26-000018",
+      "filing_date": "2026-02-05",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "bytes": 2616607
+     },
+     "older": {
+      "accession": "0001652044-25-000014",
+      "filing_date": "2025-02-05",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204425000014/goog-20241231.htm",
+      "bytes": 2528452
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A.RISK FACTORS",
+         "paragraphs": 187,
+         "chars": 84722
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A.RISK FACTORS",
+         "paragraphs": 186,
+         "chars": 82857
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7.MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 359,
+         "chars": 51706
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7.MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 395,
+         "chars": 57169
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001652044",
+   "name": "Alphabet Inc."
+  },
+  {
+   "ticker": "META",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001628280-26-003942",
+      "filing_date": "2026-01-29",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/meta-20251231.htm",
+      "bytes": 2371858
+     },
+     "older": {
+      "accession": "0001326801-25-000017",
+      "filing_date": "2025-01-30",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000132680125000017/meta-20241231.htm",
+      "bytes": 2369877
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 354,
+         "chars": 194579
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 354,
+         "chars": 187672
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7.Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 272,
+         "chars": 59814
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7.Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 278,
+         "chars": 60559
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001326801",
+   "name": "Meta Platforms, Inc."
+  },
+  {
+   "ticker": "NVDA",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001045810-26-000021",
+      "filing_date": "2026-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm",
+      "bytes": 1967924
+     },
+     "older": {
+      "accession": "0001045810-25-000023",
+      "filing_date": "2025-02-26",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581025000023/nvda-20250126.htm",
+      "bytes": 2067628
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 235,
+         "chars": 114149
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 222,
+         "chars": 110113
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 194,
+         "chars": 33696
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 203,
+         "chars": 37302
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001045810",
+   "name": "NVIDIA CORP"
+  },
+  {
+   "ticker": "BRK-B",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001193125-26-083899",
+      "filing_date": "2026-03-02",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526083899/brka-20251231.htm",
+      "bytes": 10396928
+     },
+     "older": {
+      "accession": "0000950170-25-025210",
+      "filing_date": "2025-02-24",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000095017025025210/brka-20241231.htm",
+      "bytes": 10744197
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 46,
+         "chars": 21722
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 44,
+         "chars": 20915
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1554,
+         "chars": 117558
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1603,
+         "chars": 120685
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001067983",
+   "name": "BERKSHIRE HATHAWAY INC"
+  },
+  {
+   "ticker": "XOM",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "unread": "0 original 10-K in the recent block"
+    }
+   },
+   "cik": "0002115436",
+   "name": "ExxonMobil Holdings Corp"
+  },
+  {
+   "ticker": "JNJ",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000200406-26-000016",
+      "filing_date": "2026-02-11",
+      "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000016/jnj-20251228.htm",
+      "bytes": 3701695
+     },
+     "older": {
+      "accession": "0000200406-25-000038",
+      "filing_date": "2025-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040625000038/jnj-20241229.htm",
+      "bytes": 3662429
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk factors",
+         "paragraphs": 83,
+         "chars": 43202
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk factors",
+         "paragraphs": 77,
+         "chars": 41129
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's discussion and analysis of results of operations and financial condition",
+         "paragraphs": 421,
+         "chars": 65270
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's discussion and analysis of results of operations and financial condition",
+         "paragraphs": 426,
+         "chars": 66951
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000200406",
+   "name": "JOHNSON & JOHNSON"
+  },
+  {
+   "ticker": "WMT",
+   "cohort": "megacap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000104169-26-000055",
+      "filing_date": "2026-03-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm",
+      "bytes": 2324089
+     },
+     "older": {
+      "accession": "0000104169-25-000021",
+      "filing_date": "2025-03-14",
+      "url": "https://www.sec.gov/Archives/edgar/data/104169/000010416925000021/wmt-20250131.htm",
+      "bytes": 2335186
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 115,
+         "chars": 92997
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 121,
+         "chars": 97311
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 307,
+         "chars": 57584
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 314,
+         "chars": 58506
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000104169",
+   "name": "Walmart Inc."
+  },
+  {
+   "ticker": "JPM",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "unread": "1 original 10-K in the recent block"
+    }
+   },
+   "cik": "0000019617",
+   "name": "JPMORGAN CHASE & CO"
+  },
+  {
+   "ticker": "BAC",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "unread": "1 original 10-K in the recent block"
+    }
+   },
+   "cik": "0000070858",
+   "name": "BANK OF AMERICA CORP /DE/"
+  },
+  {
+   "ticker": "WFC",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "unread": "1 original 10-K in the recent block"
+    }
+   },
+   "cik": "0000072971",
+   "name": "WELLS FARGO & COMPANY/MN"
+  },
+  {
+   "ticker": "C",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "unread": "1 original 10-K in the recent block"
+    }
+   },
+   "cik": "0000831001",
+   "name": "CITIGROUP INC"
+  },
+  {
+   "ticker": "GS",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "unread": "1 original 10-K in the recent block"
+    }
+   },
+   "cik": "0000886982",
+   "name": "GOLDMAN SACHS GROUP INC"
+  },
+  {
+   "ticker": "USB",
+   "cohort": "bank",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000036104-26-000011",
+      "filing_date": "2026-02-23",
+      "url": "https://www.sec.gov/Archives/edgar/data/36104/000003610426000011/usb-20251231.htm",
+      "bytes": 972714
+     },
+     "older": {
+      "accession": "0000036104-25-000016",
+      "filing_date": "2025-02-21",
+      "url": "https://www.sec.gov/Archives/edgar/data/36104/000003610425000016/usb-20241231.htm",
+      "bytes": 939530
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 1,
+         "chars": 196
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 1,
+         "chars": 196
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1,
+         "chars": 217
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1,
+         "chars": 217
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000036104",
+   "name": "US BANCORP \\DE\\"
+  },
+  {
+   "ticker": "O",
+   "cohort": "reit",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000726728-26-000011",
+      "filing_date": "2026-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/726728/000072672826000011/o-20251231.htm",
+      "bytes": 4098068
+     },
+     "older": {
+      "accession": "0000726728-25-000055",
+      "filing_date": "2025-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/726728/000072672825000055/o-20241231.htm",
+      "bytes": 4000770
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A: Risk Factors",
+         "paragraphs": 174,
+         "chars": 83878
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A: Risk Factors",
+         "paragraphs": 181,
+         "chars": 80469
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7: Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 496,
+         "chars": 69967
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7: Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 461,
+         "chars": 68249
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000726728",
+   "name": "REALTY INCOME CORP"
+  },
+  {
+   "ticker": "PLD",
+   "cohort": "reit",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001193125-26-051453",
+      "filing_date": "2026-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045609/000119312526051453/pld-20251231.htm",
+      "bytes": 11507386
+     },
+     "older": {
+      "accession": "0000950170-25-021272",
+      "filing_date": "2025-02-14",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045609/000095017025021272/pld-20241231.htm",
+      "bytes": 11157138
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. Risk Factors",
+         "paragraphs": 176,
+         "chars": 52471
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. Risk Factors",
+         "paragraphs": 170,
+         "chars": 51734
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 964,
+         "chars": 60508
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1013,
+         "chars": 63454
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001045609",
+   "name": "Prologis, Inc."
+  },
+  {
+   "ticker": "AMT",
+   "cohort": "reit",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001053507-26-000035",
+      "filing_date": "2026-02-24",
+      "url": "https://www.sec.gov/Archives/edgar/data/1053507/000105350726000035/amt-20251231.htm",
+      "bytes": 4332532
+     },
+     "older": {
+      "accession": "0001053507-25-000025",
+      "filing_date": "2025-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1053507/000105350725000025/amt-20241231.htm",
+      "bytes": 4628951
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 145,
+         "chars": 73297
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 122,
+         "chars": 62355
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 573,
+         "chars": 112399
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 672,
+         "chars": 133081
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001053507",
+   "name": "AMERICAN TOWER CORP /MA/"
+  },
+  {
+   "ticker": "SPG",
+   "cohort": "reit",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001104659-26-019419",
+      "filing_date": "2026-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1063761/000110465926019419/spg-20251231x10k.htm",
+      "bytes": 11335682
+     },
+     "older": {
+      "accession": "0001558370-25-001271",
+      "filing_date": "2025-02-21",
+      "url": "https://www.sec.gov/Archives/edgar/data/1063761/000155837025001271/spg-20241231x10k.htm",
+      "bytes": 11196067
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 206,
+         "chars": 83108
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 202,
+         "chars": 82420
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1379,
+         "chars": 85330
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1394,
+         "chars": 81571
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001063761",
+   "name": "SIMON PROPERTY GROUP INC."
+  },
+  {
+   "ticker": "EQR",
+   "cohort": "reit",
+   "forms": {},
+   "unread": "no CIK for this ticker in SEC's company_tickers.json"
+  },
+  {
+   "ticker": "VRTX",
+   "cohort": "biotech",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000875320-26-000056",
+      "filing_date": "2026-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/875320/000087532026000056/vrtx-20251231.htm",
+      "bytes": 5031587
+     },
+     "older": {
+      "accession": "0000875320-25-000053",
+      "filing_date": "2025-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/875320/000087532025000053/vrtx-20241231.htm",
+      "bytes": 2725031
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 672,
+         "chars": 70855
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 395,
+         "chars": 159754
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7.MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF",
+         "paragraphs": 912,
+         "chars": 59076
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7.MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 341,
+         "chars": 74318
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000875320",
+   "name": "VERTEX PHARMACEUTICALS INC / MA"
+  },
+  {
+   "ticker": "REGN",
+   "cohort": "biotech",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000872589-26-000008",
+      "filing_date": "2026-02-04",
+      "url": "https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm",
+      "bytes": 3119244
+     },
+     "older": {
+      "accession": "0001804220-25-000011",
+      "filing_date": "2025-02-05",
+      "url": "https://www.sec.gov/Archives/edgar/data/872589/000180422025000011/regn-20241231.htm",
+      "bytes": 3189316
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 329,
+         "chars": 212051
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 321,
+         "chars": 196426
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 342,
+         "chars": 50417
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results and Results of Operations",
+         "paragraphs": 330,
+         "chars": 50303
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000872589",
+   "name": "REGENERON PHARMACEUTICALS, INC."
+  },
+  {
+   "ticker": "MRNA",
+   "cohort": "biotech",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001682852-26-000033",
+      "filing_date": "2026-02-20",
+      "url": "https://www.sec.gov/Archives/edgar/data/1682852/000168285226000033/mrna-20251231.htm",
+      "bytes": 2677520
+     },
+     "older": {
+      "accession": "0001682852-25-000022",
+      "filing_date": "2025-02-21",
+      "url": "https://www.sec.gov/Archives/edgar/data/1682852/000168285225000022/mrna-20241231.htm",
+      "bytes": 2713374
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 440,
+         "chars": 189446
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 446,
+         "chars": 185557
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 260,
+         "chars": 51716
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 262,
+         "chars": 52763
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001682852",
+   "name": "Moderna, Inc."
+  },
+  {
+   "ticker": "ALNY",
+   "cohort": "biotech",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001628280-26-007497",
+      "filing_date": "2026-02-12",
+      "url": "https://www.sec.gov/Archives/edgar/data/1178670/000162828026007497/alny-20251231.htm",
+      "bytes": 3077278
+     },
+     "older": {
+      "accession": "0001178670-25-000026",
+      "filing_date": "2025-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/1178670/000117867025000026/alny-20241231.htm",
+      "bytes": 2940065
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 452,
+         "chars": 223991
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 435,
+         "chars": 218576
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 211,
+         "chars": 33116
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 210,
+         "chars": 31130
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001178670",
+   "name": "ALNYLAM PHARMACEUTICALS, INC."
+  },
+  {
+   "ticker": "SRPT",
+   "cohort": "biotech",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001193125-26-084144",
+      "filing_date": "2026-03-02",
+      "url": "https://www.sec.gov/Archives/edgar/data/873303/000119312526084144/srpt-20251231.htm",
+      "bytes": 7250659
+     },
+     "older": {
+      "accession": "0000950170-25-029973",
+      "filing_date": "2025-02-28",
+      "url": "https://www.sec.gov/Archives/edgar/data/873303/000095017025029973/srpt-20241231.htm",
+      "bytes": 6003458
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 769,
+         "chars": 230174
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 733,
+         "chars": 199347
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 882,
+         "chars": 53629
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 811,
+         "chars": 45101
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000873303",
+   "name": "Sarepta Therapeutics, Inc."
+  },
+  {
+   "ticker": "PLUG",
+   "cohort": "small_cap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001104659-26-022286",
+      "filing_date": "2026-03-02",
+      "url": "https://www.sec.gov/Archives/edgar/data/1093691/000110465926022286/plug-20251231x10k.htm",
+      "bytes": 5126841
+     },
+     "older": {
+      "accession": "0001558370-25-002049",
+      "filing_date": "2025-03-03",
+      "url": "https://www.sec.gov/Archives/edgar/data/1093691/000155837025002049/plug-20241231x10k.htm",
+      "bytes": 4918753
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 402,
+         "chars": 162658
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 352,
+         "chars": 129831
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1715,
+         "chars": 117316
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1648,
+         "chars": 138215
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001093691",
+   "name": "PLUG POWER INC"
+  },
+  {
+   "ticker": "BOOT",
+   "cohort": "small_cap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001104659-26-061346",
+      "filing_date": "2026-05-14",
+      "url": "https://www.sec.gov/Archives/edgar/data/1610250/000110465926061346/boot-20260328x10k.htm",
+      "bytes": 2507825
+     },
+     "older": {
+      "accession": "0001558370-25-007889",
+      "filing_date": "2025-05-15",
+      "url": "https://www.sec.gov/Archives/edgar/data/1610250/000155837025007889/boot-20250329x10k.htm",
+      "bytes": 2464292
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 273,
+         "chars": 109805
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 257,
+         "chars": 99072
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 622,
+         "chars": 48586
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 611,
+         "chars": 49758
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001610250",
+   "name": "Boot Barn Holdings, Inc."
+  },
+  {
+   "ticker": "SHAK",
+   "cohort": "small_cap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001620533-26-000018",
+      "filing_date": "2026-02-26",
+      "url": "https://www.sec.gov/Archives/edgar/data/1620533/000162053326000018/shak-20251231.htm",
+      "bytes": 2795989
+     },
+     "older": {
+      "accession": "0001620533-25-000016",
+      "filing_date": "2025-02-21",
+      "url": "https://www.sec.gov/Archives/edgar/data/1620533/000162053325000016/shak-20241225.htm",
+      "bytes": 2871214
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 325,
+         "chars": 125984
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 349,
+         "chars": 136904
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 411,
+         "chars": 59151
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 396,
+         "chars": 57533
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001620533",
+   "name": "Shake Shack Inc."
+  },
+  {
+   "ticker": "AAON",
+   "cohort": "small_cap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000824142-26-000005",
+      "filing_date": "2026-03-02",
+      "url": "https://www.sec.gov/Archives/edgar/data/824142/000082414226000005/aaon-20251231.htm",
+      "bytes": 2170616
+     },
+     "older": {
+      "accession": "0000824142-25-000039",
+      "filing_date": "2025-02-27",
+      "url": "https://www.sec.gov/Archives/edgar/data/824142/000082414225000039/aaon-20241231.htm",
+      "bytes": 2018568
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 68,
+         "chars": 28849
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors.",
+         "paragraphs": 60,
+         "chars": 24779
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 261,
+         "chars": 50838
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations.",
+         "paragraphs": 248,
+         "chars": 44340
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000824142",
+   "name": "AAON, INC."
+  },
+  {
+   "ticker": "CALM",
+   "cohort": "small_cap",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001562762-26-000080",
+      "filing_date": "2026-07-22",
+      "url": "https://www.sec.gov/Archives/edgar/data/16160/000156276226000080/calm2026053010K.htm",
+      "bytes": 3759271
+     },
+     "older": {
+      "accession": "0001562762-25-000170",
+      "filing_date": "2025-07-22",
+      "url": "https://www.sec.gov/Archives/edgar/data/16160/000156276225000170/calm2025053110K.htm",
+      "bytes": 2531849
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "not_found",
+       "sides": {
+        "newer": {
+         "state": "not_found",
+         "reason": "'Item 1A. Risk Factors' heading found but no following item heading ends it",
+         "candidates": [
+          "Item",
+          "Part I",
+          "Risk Factors",
+          "Part II",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations",
+          "Part III",
+          "risk factors",
+          "ITEM 1.",
+          "Part II.",
+          "Item",
+          "Part I. Item 1A. Risk Factors",
+          "Part II. Item 7."
+         ]
+        },
+        "older": {
+         "state": "not_found",
+         "reason": "'Item 1A. Risk Factors' heading found but no following item heading ends it",
+         "candidates": [
+          "Item",
+          "Part I",
+          "Risk Factors",
+          "Part II",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations",
+          "Part III",
+          "the risk factors",
+          "Item 1A. Risk",
+          "ITEM 1.",
+          "Part II. Item 7. Management's Discussion and Analysis of",
+          "Part I. Item 1A. Risk Factors",
+          "Part II."
+         ]
+        }
+       }
+      },
+      "mdna": {
+       "state": "not_found",
+       "sides": {
+        "newer": {
+         "state": "not_found",
+         "reason": "no 'Item 7. Management's Discussion and Analysis' heading in the document",
+         "candidates": [
+          "Item",
+          "Part I",
+          "Risk Factors",
+          "Part II",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations",
+          "Part III",
+          "risk factors",
+          "ITEM 1.",
+          "Part II.",
+          "Item",
+          "Part I. Item 1A. Risk Factors",
+          "Part II. Item 7."
+         ]
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations - HPAI",
+         "paragraphs": 14849,
+         "chars": 231462
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000016160",
+   "name": "CAL-MAINE FOODS INC"
+  },
+  {
+   "ticker": "ACN",
+   "cohort": "foreign_10k_filer",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001467373-25-000217",
+      "filing_date": "2025-10-10",
+      "url": "https://www.sec.gov/Archives/edgar/data/1467373/000146737325000217/acn-20250831.htm",
+      "bytes": 2819357
+     },
+     "older": {
+      "accession": "0001467373-24-000278",
+      "filing_date": "2024-10-10",
+      "url": "https://www.sec.gov/Archives/edgar/data/1467373/000146737324000278/acn-20240831.htm",
+      "bytes": 2789756
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 160,
+         "chars": 93257
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 161,
+         "chars": 91057
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 297,
+         "chars": 45902
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 297,
+         "chars": 45899
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001467373",
+   "name": "Accenture plc"
+  },
+  {
+   "ticker": "MDT",
+   "cohort": "foreign_10k_filer",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001628280-26-044354",
+      "filing_date": "2026-06-18",
+      "url": "https://www.sec.gov/Archives/edgar/data/1613103/000162828026044354/mdt-20260424.htm",
+      "bytes": 3732843
+     },
+     "older": {
+      "accession": "0001613103-25-000091",
+      "filing_date": "2025-06-20",
+      "url": "https://www.sec.gov/Archives/edgar/data/1613103/000161310325000091/mdt-20250425.htm",
+      "bytes": 3752880
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 154,
+         "chars": 84100
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 157,
+         "chars": 72893
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 368,
+         "chars": 75100
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 388,
+         "chars": 71518
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001613103",
+   "name": "Medtronic plc"
+  },
+  {
+   "ticker": "LIN",
+   "cohort": "foreign_10k_filer",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001628280-26-011430",
+      "filing_date": "2026-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1707925/000162828026011430/lin-20251231.htm",
+      "bytes": 3356583
+     },
+     "older": {
+      "accession": "0001628280-25-007990",
+      "filing_date": "2025-02-26",
+      "url": "https://www.sec.gov/Archives/edgar/data/1707925/000162828025007990/lin-20241231.htm",
+      "bytes": 3427169
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 74,
+         "chars": 26443
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. RISK FACTORS",
+         "paragraphs": 71,
+         "chars": 26089
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 530,
+         "chars": 71256
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 525,
+         "chars": 71303
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001707925",
+   "name": "LINDE PLC"
+  },
+  {
+   "ticker": "CB",
+   "cohort": "foreign_10k_filer",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000896159-26-000005",
+      "filing_date": "2026-02-27",
+      "url": "https://www.sec.gov/Archives/edgar/data/896159/000089615926000005/cb-20251231.htm",
+      "bytes": 9698842
+     },
+     "older": {
+      "accession": "0000896159-25-000004",
+      "filing_date": "2025-02-27",
+      "url": "https://www.sec.gov/Archives/edgar/data/896159/000089615925000004/cb-20241231.htm",
+      "bytes": 9849213
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 1A. Risk Factors",
+         "paragraphs": 123,
+         "chars": 70441
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 1A. Risk Factors",
+         "paragraphs": 126,
+         "chars": 71572
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1078,
+         "chars": 175657
+        },
+        "older": {
+         "state": "found",
+         "heading": "ITEM 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 1133,
+         "chars": 185355
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000896159",
+   "name": "Chubb Ltd"
+  },
+  {
+   "ticker": "RCL",
+   "cohort": "foreign_10k_filer",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000884887-26-000007",
+      "filing_date": "2026-02-11",
+      "url": "https://www.sec.gov/Archives/edgar/data/884887/000088488726000007/rcl-20251231.htm",
+      "bytes": 2829028
+     },
+     "older": {
+      "accession": "0000884887-25-000050",
+      "filing_date": "2025-02-14",
+      "url": "https://www.sec.gov/Archives/edgar/data/884887/000088488725000050/rcl-20241231.htm",
+      "bytes": 2812382
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 116,
+         "chars": 61092
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 112,
+         "chars": 58705
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 335,
+         "chars": 65394
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 344,
+         "chars": 70657
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000884887",
+   "name": "ROYAL CARIBBEAN CRUISES LTD"
+  },
+  {
+   "ticker": "CAVA",
+   "cohort": "recent_ipo",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001628280-26-011296",
+      "filing_date": "2026-02-25",
+      "url": "https://www.sec.gov/Archives/edgar/data/1639438/000162828026011296/cava-20251228.htm",
+      "bytes": 1691922
+     },
+     "older": {
+      "accession": "0001628280-25-007882",
+      "filing_date": "2025-02-26",
+      "url": "https://www.sec.gov/Archives/edgar/data/1639438/000162828025007882/cava-20241229.htm",
+      "bytes": 1676422
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 285,
+         "chars": 145528
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 291,
+         "chars": 147682
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 263,
+         "chars": 40126
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 312,
+         "chars": 46469
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001639438",
+   "name": "CAVA GROUP, INC."
+  },
+  {
+   "ticker": "KVUE",
+   "cohort": "recent_ipo",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001944048-26-000030",
+      "filing_date": "2026-02-20",
+      "url": "https://www.sec.gov/Archives/edgar/data/1944048/000194404826000030/kvue-20251228.htm",
+      "bytes": 3433376
+     },
+     "older": {
+      "accession": "0001944048-25-000033",
+      "filing_date": "2025-02-24",
+      "url": "https://www.sec.gov/Archives/edgar/data/1944048/000194404825000033/kvue-20241229.htm",
+      "bytes": 3208402
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 378,
+         "chars": 193598
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. RISK FACTORS",
+         "paragraphs": 318,
+         "chars": 173478
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 321,
+         "chars": 88848
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS",
+         "paragraphs": 339,
+         "chars": 83111
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001944048",
+   "name": "Kenvue Inc."
+  },
+  {
+   "ticker": "CART",
+   "cohort": "recent_ipo",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001579091-26-000018",
+      "filing_date": "2026-02-26",
+      "url": "https://www.sec.gov/Archives/edgar/data/1579091/000157909126000018/cart-20251231.htm",
+      "bytes": 2909066
+     },
+     "older": {
+      "accession": "0001579091-25-000015",
+      "filing_date": "2025-02-28",
+      "url": "https://www.sec.gov/Archives/edgar/data/1579091/000157909125000015/cart-20241231.htm",
+      "bytes": 2776796
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 420,
+         "chars": 267865
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 428,
+         "chars": 273534
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 944,
+         "chars": 75448
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 534,
+         "chars": 79544
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001579091",
+   "name": "Maplebear Inc."
+  },
+  {
+   "ticker": "RDDT",
+   "cohort": "recent_ipo",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001713445-26-000022",
+      "filing_date": "2026-02-06",
+      "url": "https://www.sec.gov/Archives/edgar/data/1713445/000171344526000022/rddt-20251231.htm",
+      "bytes": 2003263
+     },
+     "older": {
+      "accession": "0001713445-25-000018",
+      "filing_date": "2025-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/1713445/000171344525000018/rddt-20241231.htm",
+      "bytes": 2149585
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 332,
+         "chars": 205183
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 333,
+         "chars": 201963
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 281,
+         "chars": 44038
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 299,
+         "chars": 49007
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001713445",
+   "name": "Reddit, Inc."
+  },
+  {
+   "ticker": "ALAB",
+   "cohort": "recent_ipo",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0001736297-26-000010",
+      "filing_date": "2026-02-20",
+      "url": "https://www.sec.gov/Archives/edgar/data/1736297/000173629726000010/alab-20251231.htm",
+      "bytes": 2244519
+     },
+     "older": {
+      "accession": "0001736297-25-000003",
+      "filing_date": "2025-02-14",
+      "url": "https://www.sec.gov/Archives/edgar/data/1736297/000173629725000003/alab-20241231.htm",
+      "bytes": 2419374
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 350,
+         "chars": 159233
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 1A. Risk Factors",
+         "paragraphs": 343,
+         "chars": 160059
+        }
+       }
+      },
+      "mdna": {
+       "state": "found",
+       "sides": {
+        "newer": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 236,
+         "chars": 40232
+        },
+        "older": {
+         "state": "found",
+         "heading": "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+         "paragraphs": 251,
+         "chars": 49150
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0001736297",
+   "name": "Astera Labs, Inc."
+  },
+  {
+   "ticker": "GE",
+   "cohort": "cross_reference_index",
+   "forms": {
+    "10-K": {
+     "newer": {
+      "accession": "0000040545-26-000008",
+      "filing_date": "2026-01-29",
+      "url": "https://www.sec.gov/Archives/edgar/data/40545/000004054526000008/ge-20251231.htm",
+      "bytes": 3254257
+     },
+     "older": {
+      "accession": "0000040545-25-000015",
+      "filing_date": "2025-02-03",
+      "url": "https://www.sec.gov/Archives/edgar/data/40545/000004054525000015/ge-20241231.htm",
+      "bytes": 3436302
+     },
+     "sections": {
+      "risk_factors": {
+       "state": "not_found",
+       "sides": {
+        "newer": {
+         "state": "not_found",
+         "reason": "'Item 1A. Risk Factors' located but has no text",
+         "candidates": [
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations (MD&A)",
+          "Risk Factors",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations - Summary of Operating Segments",
+          "Part I",
+          "Item 1. Business 4-7, 9-10, 71-73",
+          "Item 1A. Risk Factors 24-31",
+          "Item 1B. Unresolved Staff Comments Not applicable",
+          "Item 1C. Cybersecurity 23",
+          "Item 2. Properties 4",
+          "Item 3. Legal Proceedings 70-71",
+          "Item 4. Mine Safety Disclosures Not applicable",
+          "Part II"
+         ]
+        },
+        "older": {
+         "state": "not_found",
+         "reason": "'Item 1A. Risk Factors' located but has no text",
+         "candidates": [
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations (MD&A)",
+          "Risk Factors",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations - Summary of Operating Segments",
+          "Part I",
+          "Item 1. Business 4-7, 9-11, 74-75",
+          "Item 1A. Risk Factors 26-33",
+          "Item 1B. Unresolved Staff Comments Not applicable",
+          "Item 1C. Cybersecurity 25",
+          "Item 2. Properties 4",
+          "Item 3. Legal Proceedings 73-74",
+          "Item 4. Mine Safety Disclosures Not applicable",
+          "Part II"
+         ]
+        }
+       }
+      },
+      "mdna": {
+       "state": "not_found",
+       "sides": {
+        "newer": {
+         "state": "not_found",
+         "reason": "'Item 7. Management's Discussion and Analysis' located but has no text",
+         "candidates": [
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations (MD&A)",
+          "Risk Factors",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations - Summary of Operating Segments",
+          "Part I",
+          "Item 1. Business 4-7, 9-10, 71-73",
+          "Item 1A. Risk Factors 24-31",
+          "Item 1B. Unresolved Staff Comments Not applicable",
+          "Item 1C. Cybersecurity 23",
+          "Item 2. Properties 4",
+          "Item 3. Legal Proceedings 70-71",
+          "Item 4. Mine Safety Disclosures Not applicable",
+          "Part II"
+         ]
+        },
+        "older": {
+         "state": "not_found",
+         "reason": "'Item 7. Management's Discussion and Analysis' located but has no text",
+         "candidates": [
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations (MD&A)",
+          "Risk Factors",
+          "Management's Discussion and Analysis of Financial Condition and Results of Operations - Summary of Operating Segments",
+          "Part I",
+          "Item 1. Business 4-7, 9-11, 74-75",
+          "Item 1A. Risk Factors 26-33",
+          "Item 1B. Unresolved Staff Comments Not applicable",
+          "Item 1C. Cybersecurity 25",
+          "Item 2. Properties 4",
+          "Item 3. Legal Proceedings 73-74",
+          "Item 4. Mine Safety Disclosures Not applicable",
+          "Part II"
+         ]
+        }
+       }
+      }
+     }
+    }
+   },
+   "cik": "0000040545",
+   "name": "GENERAL ELECTRIC CO"
+  }
+ ]
+}
