@@ -28,6 +28,7 @@ from api.services import rollout_gate
 # TERM-021: the versioned workspace document. Its hooks in `upsert_preference` do no I/O
 # while WORKSPACE_DOC_STORE_ENABLED is unset.
 from api.services import workspace_doc_store
+from api.services import board_bound
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -2562,6 +2563,17 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_joystick_hub(value)
 
 
+def enforce_board_bound(user_id, key: str, value) -> None:
+    """TERM-001: refuse a board write that would GROW a board past the bound (400, with the
+    bound's own sentence). An over-bound board that keeps its size or shrinks still saves; the
+    stored value is read only when the new one is over the bound. ``api/services/board_bound.py``
+    owns the rule; both doors that write the board (this router and ``/api/workspace-doc/apply``)
+    call this one function."""
+    refusal = board_bound.check(key, value, lambda: get_user_preferences(user_id).get(key))
+    if refusal:
+        raise HTTPException(status_code=400, detail=refusal)
+
+
 @router.get("/preferences")
 def get_preferences(response: Response, user: dict = Depends(get_current_user)):
     # TERM-021 READ-NEW. Flag off, `read_prefs` hands back the SAME dict before any I/O and no
@@ -2578,6 +2590,7 @@ def get_preferences(response: Response, user: dict = Depends(get_current_user)):
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
     _validate_preference(req.key, req.value)
+    enforce_board_bound(user["id"], req.key, req.value)
     # TERM-021 WRITE-BOTH / READ-OLD. ⛔ Order is the whole point: the document is snapshotted
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any
