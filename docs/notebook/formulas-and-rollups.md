@@ -54,6 +54,36 @@ How a read stays bounded:
   value. Notes without one follow in the base order, read with LIMIT and OFFSET
   in SQL. Empty values sort last in both directions.
 
+## Scale (controller ruling 1)
+
+`tools/notebook_w11b_scale.py` seeds each tier with `notebook_scale_benchmark._seed`
+plus the 11B mix: three formulas over four number properties on about 20% of
+notes, two parents linking about 50 and 500 of those notes with Avg R and Win rate
+rollups, and closed trades on about 5% of notes with a Trade R rollup. Each op runs
+through its route function on a fresh connection, 20 reps after 2 warmups. Raw
+samples are in `docs/notebook/evidence/wave11-11b/scale/`.
+
+⚠️ **Neither run was on a quiet box.** Another worktree's six-shard gate held the
+box lock during run 1's 50k batch and all of run 2 (`box_before`/`box_after` in
+each batch). Re-read on a quiet machine before citing these as the product's numbers.
+
+Run 2 (`run-2-combined.json`, at `21d4b4782b`, with the formula-value memo), p50 / p95 ms:
+
+| op | 1k | 10k | 50k | log-log slope (p50) |
+|---|---|---|---|---|
+| GET /notes, no computed sort or filter (baseline) | 18.4 / 27.7 | 27.1 / 32.7 | 36.3 / 45.3 | 0.17 |
+| GET /notes sorted by a rollup | 21.0 / 22.0 | 45.9 / 64.1 | 66.4 / 76.3 | 0.29 |
+| GET /notes filtered by a formula | 16.3 / 17.6 | 27.4 / 31.1 | 59.7 / 79.2 | 0.33 |
+| GET one note's properties (500-child parent) | 11.6 / 18.8 | 22.3 / 24.8 | 21.7 / 27.8 | 0.16 |
+| property write, then the sorted read | 27.4 / 30.9 | 51.8 / 58.3 | 66.2 / 80.8 | 0.23 |
+
+Every op is under the 100 ms p95 list/search budget at 50k in run 2. Run 1
+(`run-1-combined.json`, before the memo) was over it: sorted by a rollup p95
+129.8 ms, filtered by a formula p95 166.5 ms, write then sorted read p95 147.4 ms.
+The profile at 50k put 63 ms of the filtered read in evaluating the formula over
+every note (covering scan 14, JSON parse 22, evaluation 29). The memo brought that
+to about 20 ms.
+
 ## Rollup rules (accepted by the controller, 2026-10-01)
 
 1. Win rate counts only the rows that have a value. An empty row is not a loss.
