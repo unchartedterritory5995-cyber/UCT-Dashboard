@@ -144,6 +144,7 @@ from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import entity_resolve as entity_resolve_router
 from api.routers import decision_record as decision_record_router
 from api.routers import analyst_revisions as analyst_revisions_router
+from api.routers import iv_history as iv_history_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -8995,6 +8996,7 @@ app.include_router(entity_master_admin_router.router)  # /api/admin/entity-maste
 app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM-023 member door, paid, DARK (ENTITY_MASTER_MEMBER_ENABLED)
 app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(analyst_revisions_router.router)  # /api/research/analyst-revisions/{t} — TERM-073 member door, paid, read-only, DARK (ANALYST_REVISIONS_ENABLED)
+app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
