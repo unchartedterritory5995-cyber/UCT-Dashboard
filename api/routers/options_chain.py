@@ -18,7 +18,8 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
@@ -27,6 +28,9 @@ ENABLED_ENV = "OPTIONS_CHAIN_ENABLED"
 # BRK-01 increment 3: the implied-vol surface under the chain. Its OWN switch, and it rides on top
 # of the chain's: the surface is served only while BOTH are "1".
 SURFACE_ENABLED_ENV = "OPTIONS_VOL_SURFACE_ENABLED"
+# BRK-01 increment 4: the options strategy backtester. Its OWN switch, riding on top of the
+# chain's exactly like the surface: served only while BOTH are "1".
+BACKTEST_ENABLED_ENV = "OPTIONS_BACKTEST_ENABLED"
 
 
 def is_enabled() -> bool:
@@ -35,6 +39,15 @@ def is_enabled() -> bool:
 
 def is_surface_enabled() -> bool:
     return is_enabled() and os.environ.get(SURFACE_ENABLED_ENV, "").strip() == "1"
+
+
+def is_backtest_enabled() -> bool:
+    return is_enabled() and os.environ.get(BACKTEST_ENABLED_ENV, "").strip() == "1"
+
+
+def _backtest_armed() -> None:
+    if not is_backtest_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
 
 
 def _armed() -> None:
@@ -93,3 +106,33 @@ def option_vol_surface(sym: str,
     out = vol_surface.get_surface(sym, selected=expiration)
     _unavailable(out)
     return out
+
+
+@router.post("/api/research/options/{sym}/backtest", status_code=202,
+             dependencies=[Depends(_backtest_armed)])
+def submit_option_backtest(sym: str, body: dict = Body(...), user: dict = Depends(require_paid)):
+    """BRK-01 increment 4: queue one historical SIMULATION and hand back its job. NEVER computes:
+    the run happens on api/services/options_backtest.py's bounded pool, off this request.
+    Nothing here places, stages or sends an order. Per member: at most
+    RUNS_PER_MEMBER_PER_HOUR new runs; a cached or in-flight identical run is free.
+    Plain `def`: the submit takes a lock and returns."""
+    from api.services import options_backtest as ob
+    try:
+        job = ob.submit(str(user["id"]), sym, body or {})
+    except ob.BadParams as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ob.Refused as exc:
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
+        raise HTTPException(status_code=exc.status, detail=str(exc), headers=headers) from exc
+    return JSONResponse(status_code=202, content=ob.job_status(job, str(user["id"])))
+
+
+@router.get("/api/research/options/{sym}/backtest/{job}", dependencies=[Depends(_backtest_armed)])
+def read_option_backtest(sym: str, job: str, user: dict = Depends(require_paid)):
+    """One job's state -- the caller's own, or 404 (not-there and not-yours read the same). A
+    failed run is still a 200 whose state says `failed`, so the client's poll stops."""
+    from api.services import options_backtest as ob
+    try:
+        return ob.job_status(job, str(user["id"]))
+    except ob.JobNotFound as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
