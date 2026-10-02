@@ -159,6 +159,8 @@
 >      `api/services/journal_two/notebook_schema.py`;
 >    - their rails: `notebookSchema.rail.test.js` and `tests/test_notebook_schema_guard.py`.
 >    The reverts of wave 6 and of wave 5 would change them. The procedure puts the tip's copies back.
+>    Since wave 13 (13H-1) the two files hold TWO tables each -- the type table and the attribute
+>    table `NOTEBOOK_ATTR_SCHEMA` (`widgetEmbed.ta`, level 4) -- and both are kept (*Level 4*).
 > 2. **The guard commits `8167f7aa0` and `fd87271fd`** (tags `notebook-wave5-guard-*`) are
 >    re-applied after wave 5's revert. **`82c56dd63` is NOT re-applied**: it does not apply to the
 >    fully rolled-back tree, and there it is not needed (see the keep-list). Above wave 5 all three
@@ -1375,6 +1377,10 @@ adds a type should use **level 2**.
   MEANS — needs its own mechanism (a versioned attr with a reader that treats
   absence as the old meaning, or a new node type), and this document does not
   provide one. Decide that when the first such attribute is proposed, not after.
+  ⭐ **Decided 2026-10-02 (wave 13, lane 13H-1): an attribute row in
+  `NOTEBOOK_ATTR_SCHEMA`**, the second table in the same two files, sharing the
+  type table's numbering and its rules. A new non-optional attribute gets the
+  next level there, in both files. See *Level 4* at the end of this document.
 
 ## The doors, and why each one is or is not guarded
 
@@ -1423,4 +1429,43 @@ attribute.
 - **The gate is not the schema.** `NOTEBOOK_TRADE_CANVAS_ENABLED` gates the doors that make a
   canvas and the board's editing controls; the node is registered unconditionally so a gate-off
   tab still declares 3.
+
+## Level 4 -- wave 13 lane 13H-1, the `ta` attribute on `widgetEmbed` (2026-10-02)
+
+⛔ **NEVER-REVERT, like levels 1 to 3. On the keep-list** (item 1: both schema tables and their
+two rails, byte-identical to the tip). Controller ruling P1 (`WAVE-13-PLAN.md` section 8) accepted
+it as the wave's one schema change.
+
+This is the first **attribute** with a level, and the mechanism *Rules that outlive this wave*
+asked for "when the first such attribute is proposed":
+
+- **Why an attribute needs one.** `widgetEmbed.ta` holds a chart's plan data -- the member's
+  setup tag, the technical fingerprint frozen at insert, and the plan block (planned shares and
+  which engine sized them). An editor that does not declare `ta` does NOT blank the note (the
+  type is known); TipTap drops the unknown attribute at parse time and the next save writes the
+  note without it. Silent data loss, and no type-table row can see it.
+- **The mechanism: a second table in the same two files.** `NOTEBOOK_ATTR_SCHEMA`
+  (`{"widgetEmbed.ta": 4}`) sits beside `NOTEBOOK_TYPE_SCHEMA` in `lib/notebookSchema.js` and
+  `notebook_schema.py`, shares its numbering (a client declares "every type AND every attribute at
+  or below N"), and follows its rules: one fact in two files pinned by
+  `tests/test_notebook_schema_guard.py` (Node-imported), never remove a row, never revert.
+  - The server (`required_schema`) counts a row only when the stored node **carries a value**:
+    `null`, `{}`, `[]` and `""` are nothing an older editor could lose. Every chart a 13H bundle
+    saves carries `ta: null` until the member gives it plan data, and those notes stay writable
+    by a level-3 tab.
+  - The client (`deriveDeclaredSchema`) declares below 4 when the live `widgetEmbed` node does
+    not register `ta` -- production before 13H, or a rollback of the attribute.
+- **What a rollback of 13H must keep:** both table rows (they are in the keep-list files). The
+  attribute line in `lib/widgetEmbedNode.jsx` may be reverted with the feature; the derived
+  declaration then drops to 3 and every note carrying a `ta` value becomes read-only (409 with
+  the refusal sentence), never stripped. Restoring the attribute restores editing.
+- **Plan roles are NOT in `ta`.** An entry/stop/target role rides the drawing itself inside the
+  existing `annotations` attribute (a level-0 JSON attribute every bundle round-trips), which
+  `plan_extract.py` reads. A rollback keeps them; only an older bundle's drawing editor could
+  rewrite a drawing without its `role` field, and that is a drawing edit, not a load.
+- **Public copies:** `public_note_payload.ATTR_POLICY` drops `ta` in share, publish and gallery
+  (it is private trading intent, like `tradeRef`), enforced by the embed allowlist.
+- **The gate is not the schema.** `NOTEBOOK_CHART_PLAN_ENABLED` gates 13H's doors (the plan
+  panel, alerts from drawn levels, sizing); the attribute is registered unconditionally so a
+  gate-off tab still declares 4.
 
