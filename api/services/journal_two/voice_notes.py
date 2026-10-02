@@ -273,9 +273,20 @@ def part_seconds(total_seconds: float, n_parts: int, chunk_seconds: int = CHUNK_
 
 # ── Vendor seams (each read at CALL time, so a test's stub reaches it) ───────
 
+# The sandbox walk's way to make ONE part fail once (so the retry can be driven in a
+# real browser): an upload whose name starts with this marks its job, and the stub
+# fails part 2 of that job the first time it is asked. Only ever read inside the stub.
+_STUB_FAIL_ONCE_PREFIX = "sandbox-fail-once"
+_STUB_FAIL_ONCE_MARK = "stub-fail-once"
+
+
 def transcribe_part(path: Path, index: int) -> str:
     """One part through the EXISTING Whisper path. The seam a test replaces."""
     if sandbox_stub_active():
+        mark = path.parent.parent / _STUB_FAIL_ONCE_MARK
+        if index == 1 and mark.exists():
+            mark.unlink()
+            raise RuntimeError("sandbox stub: part 2 fails once")
         return _STUB_TRANSCRIPT.format(n=index + 1)
     from api.services import voice_openai
     return voice_openai.transcribe_audio(path.read_bytes(), filename=path.name)
@@ -491,6 +502,8 @@ def create_job(user: dict, source: str, filename: str | None, fileobj) -> Job:
         check_cap(user, min(duration, MAX_AUDIO_SECONDS))
         parts = split_audio(src, jdir / "parts", duration=min(duration, MAX_AUDIO_SECONDS))
         src.unlink(missing_ok=True)          # the original is never kept past the split
+        if sandbox_stub_active() and os.path.basename(filename or "").startswith(_STUB_FAIL_ONCE_PREFIX):
+            (jdir / _STUB_FAIL_ONCE_MARK).write_text("1", encoding="utf-8")
     except BaseException:
         shutil.rmtree(jdir, ignore_errors=True)
         raise

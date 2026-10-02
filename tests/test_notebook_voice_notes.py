@@ -640,3 +640,21 @@ def test_the_stub_answers_are_fixed_and_carry_an_invented_ticker(monkeypatch):
     raw = asyncio.run(vn.complete({}))
     out = vn.validate_answer(raw, text)
     assert "TSLA" in raw and out["tickers"] == ["NVDA", "AMD"]
+
+
+def test_the_stub_fail_once_marker_fails_part_two_once_and_only_in_the_stub(db_path, monkeypatch):
+    """The sandbox walk drives Retry in a real browser through this; outside the stub
+    the marker is never written and never read."""
+    _fake_audio(monkeypatch, seconds=700, parts=3)
+    job = vn.create_job({"id": "w", "role": "admin"}, "upload", "sandbox-fail-once.m4a", _Bytes(b"x"))
+    assert not (job.dir / vn._STUB_FAIL_ONCE_MARK).exists(), "no stub, no marker"
+    monkeypatch.setenv(vn.SANDBOX_STUB_ENV, "1")
+    for k in ("RAILWAY_ENVIRONMENT", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    job2 = vn.create_job({"id": "w", "role": "admin"}, "upload", "sandbox-fail-once.m4a", _Bytes(b"x"))
+    assert (job2.dir / vn._STUB_FAIL_ONCE_MARK).exists()
+    real = vn.transcribe_part
+    assert real(job2.parts[0], 0).startswith("Part 1.")
+    with pytest.raises(RuntimeError):
+        real(job2.parts[1], 1)
+    assert real(job2.parts[1], 1).startswith("Part 2.")
