@@ -60,3 +60,35 @@ the declared default there is also `label.new`'s own. This probe uses defaults n
 lower-timeframe request). It turns the rule from "Pine's reference" into a measured one, which is
 what would let the PLOT lane take such a function (today it stays `pine:function-def` there, so no
 saved parameter id can move).
+
+## Q-C47-3 — an `na` element in an array reduction and an array search
+
+**Probe:** `tools/visual_conformance/probes/vw-array-na.pine` (new, v6).
+**Chart:** `AMEX:SPY` **1D**, >= 200 bars. No inputs.
+
+**Why.** The runtime lane stops a run by name the moment `array.min` / `array.max` / `array.sum` /
+`array.avg` meets an `na` element, or `array.indexof` / `array.includes` is asked for `na`
+(`runtime/collections.js`: `realNumbers`, `searchable`) — what Pine answers is not measured. That is
+what stops artemis-oscillator-pro's KNN vote on bar 7: its distances are `na` while its features warm
+up, and the vote is `mi = array.indexof(kDist, array.min(kDist))`, `array.get(knnOut, mi)`,
+`array.set(kDist, mi, 999.0)`. TradingView ran it on every bar and drew the panel, so an answer
+exists. With the three features' `na` filled the vote runs here at the product's own limits (4,944
+VM instructions on its worst bar against 200,000) and its last-bar confidence is TradingView's `80%`
+(`vendorHarness.c47SimpleSwitch`).
+
+**What we must read off it.**
+
+| row | candidates |
+|---|---|
+| N01–N04 `min` / `max` / `sum` / `avg` of `(3, na, 1, 2)` | `na` skipped (1, 3, 6, 2) or `na` poisons (all `na`); `avg` may also read 1.5 |
+| N05 `array.min(na, na)` | `na`, or a runtime error |
+| N06 / N07 `indexof(a, na)` / `includes(a, na)` | `1` / `1` (`na` matches `na`) or `-1` / `0` |
+| N08 / N09 `indexof(a, min(a))`, the same over an all-`na` array | `2`; `0` or `-1` |
+| N10 `array.get(a, -1)` | `2` (v6: the last element) or a runtime error |
+| N11 / N12 the vote over partly / wholly `na` distances | which elements it picks; whether it runs at all |
+
+**What it would move.** With the reductions and the search measured, the run no longer stops on
+artemis's bar 7, and its KNN cells (5 of the 21; 16 are served today) become computable in the runtime
+lane — behind that lane's two compile walls for the script as written, which are not this capture's to
+settle: `ta.percentile_linear_interpolation` over a series the lane computes
+(`runtime:call-windowed-state@281`) and a dynamic bar offset (`runtime:history-dynamic-offset@332`).

@@ -3094,7 +3094,7 @@ export function buildRuntimeIr(source, opts = {}) {
           const s = scope.lookup(n.name)
           if (s !== null && slots[s] && slots[s].owner === owner) {
             if (frameConsts && frameConsts.has(s)) {
-              return { type: 'number', value: frameConsts.get(s), tok: n.tok }
+              return frameConstNode(frameConsts.get(s), n.tok)
             }
             if (foreign === null) foreign = n.name
           }
@@ -6643,7 +6643,20 @@ export function buildRuntimeIr(source, opts = {}) {
           }
         }
         const lastWord = blockKeywordOf(lines[lines.length - 1])
-        if (lastWord === 'while' || lastWord === 'for') {
+        // ⭐⭐ C47 — A BODY THAT ENDS IN `switch <parameter>` OVER TEXT LABELS
+        // (`simpleSwitchShape`). In a copy compiled for ONE call site whose
+        // argument is a fixed text (`frameConsts`), the arm that text selects is
+        // the body's value and no other arm is lowered — Pine's own rule for a
+        // `simple string`: the value is fixed for the call site, so the arm is.
+        const sw = lastWord === 'switch' ? simpleSwitchShape(lines[lines.length - 1], fnScope, toks, arrow) : null
+        const swText = sw && frameConsts && typeof frameConsts.get(sw.slot) === 'string' ? frameConsts.get(sw.slot) : null
+        if (sw && swText !== null) {
+          body = lowerStmts(lines.slice(0, -1), fnScope)
+          const arm = sw.arms.find((a) => a.label === swText)
+          const armToks = arm ? arm.toks : sw.fallback
+          // no arm and no default: a `switch` that matches nothing is `na`
+          result = armToks ? lowerResult(parseWholeExpression(armToks), fnScope) : naValue()
+        } else if (lastWord === 'while' || lastWord === 'for') {
           // ⭐⭐ C18 — A BODY THAT ENDS IN A LOOP IS A HELPER CALLED FOR ITS
           // EFFECT (max-pain's `generate_strikes`: clear a global array, refill
           // it in a `while`). Pine's value for it is the loop's last evaluated
@@ -6687,7 +6700,19 @@ export function buildRuntimeIr(source, opts = {}) {
             }
             result = read(slot)
           } else {
-            result = lowerResult(parseWholeExpression(lt), fnScope)
+            try {
+              result = lowerResult(parseWholeExpression(lt), fnScope)
+            } catch (err) {
+              // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
+              // slot there), so the refusal it always gave is HELD for the call
+              // site, named after the parameter that would settle it
+              // (`simpleSpecialisation`). Same error object, same sentence.
+              if (sw && err && typeof err === 'object' && err.frameName === undefined) {
+                err.frameName = sw.name
+                err.simpleSwitch = true
+              }
+              throw err
+            }
           }
         }
       } else {
@@ -6742,7 +6767,12 @@ export function buildRuntimeIr(source, opts = {}) {
    *
    *  @returns the specialised function's index, or `null` = the held refusal stands */
   const simpleSpecialisation = (node, scope, held) => {
-    if (!held || held.guard !== 'runtime:history-dynamic-offset' || inRequestValue) return null
+    // ⭐ C47 — and a definition held on a `switch` over one of its parameters
+    // (`simpleSwitch`): the arm a FIXED TEXT argument selects is fixed per call
+    // site, exactly as the window a fixed number sizes is.
+    const heldSwitch = !!held && held.simpleSwitch === true
+    if (!held || inRequestValue) return null
+    if (!heldSwitch && held.guard !== 'runtime:history-dynamic-offset') return null
     const def = deferredFnDefs.get(node.name)
     const culprit = held.frameName
     if (!def || typeof culprit !== 'string') return null
@@ -6764,12 +6794,31 @@ export function buildRuntimeIr(source, opts = {}) {
       if (quals.get(p) === 'series') return
       const c = constantArgOf(args[i], scope)
       if (c.value !== null) consts.set(p, c.value)
+      // ⭐ C47 — a text argument fixed before bar 0 (a quoted string, an
+      // `input.string` at the value in force, a text this frame's own call site
+      // fixed) is a constant of the call site too.
+      else if (typeof c.text === 'string') consts.set(p, c.text)
       else if (c.frameName) blockedBy.set(p, c.frameName)
     })
     const unfixed = (err) => {
       const p = err && err.frameName
       if (typeof p !== 'string' || !params.includes(p) || consts.has(p)) return err
       const q = quals.get(p)
+      if (err.simpleSwitch === true) {
+        // ⭐ C47 — the same refusal for a `switch` arm: named after the parameter,
+        // and carried to the CALLER's call site when the argument is the
+        // caller's own parameter (`f(x, simple string m) => g(x, m)`).
+        note('runtime:block-value')
+        const sw = new RuntimeRefusal('runtime:block-value',
+          q === 'simple' || q === 'const'
+            ? `\`${p}\` is declared \`${q}\` in \`${node.name}\` and selects the arm of a \`switch\` there, `
+              + 'and this call passes a text that is only known while the bar is running (Pine does not compile that)'
+            : `\`${p}\` selects the arm of a \`switch\` in \`${node.name}\`, and this call passes a text that `
+              + 'is not fixed before bar 0, so the arm cannot be chosen for this call site', at)
+        sw.simpleSwitch = true
+        if (blockedBy.has(p)) sw.frameName = blockedBy.get(p)
+        return sw
+      }
       note('runtime:history-dynamic-offset')
       const refusal = new RuntimeRefusal('runtime:history-dynamic-offset',
         q === 'simple' || q === 'const'
@@ -6839,7 +6888,7 @@ export function buildRuntimeIr(source, opts = {}) {
         if (x.type === 'name' && typeof x.name === 'string') {
           const s = scope.lookup(x.name)
           if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return { type: 'number', value: frameConsts.get(s), tok: x.tok }
+            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
             if (foreign === null) foreign = x.name
           }
           return x
@@ -6851,9 +6900,86 @@ export function buildRuntimeIr(source, opts = {}) {
       n = sub(e, 0)
       if (foreign !== null) return { value: null, frameName: foreign }
     }
+    // ⭐ C47 — TEXT FIRST, and by the lane's own reader (`fixedTextOf`), never by
+    // the frozen resolver: that one folds an `input.string` from the AUTHOR'S
+    // default and cannot see the member's choice.
+    const text = fixedTextOf(n, scope)
+    if (text !== null) return { value: null, text }
     let canonical
     try { canonical = makeFrozenResolver().resolve(n) } catch { return { value: null } }
     return { value: canonical && canonical.type === 'num' && Number.isFinite(canonical.value) ? canonical.value : null }
+  }
+
+  /** ⭐ C35 / C47 — a call-site constant as the PARSE node that reads it. */
+  const frameConstNode = (v, tok) => (typeof v === 'string'
+    ? { type: 'string', value: v, tok }
+    : { type: 'number', value: v, tok })
+
+  /** ⭐⭐ C47 — THE TEXT AN ARGUMENT IS BEFORE BAR 0, or `null`.
+   *
+   *  A quoted string; a name the script binds to one; an `input.string` /
+   *  `input.text_area` at the value IN FORCE — the member's when they set one,
+   *  validated against the author's `options` exactly as every other read of that
+   *  input is (`admitTextInput`, whose refusal is this one's too). ⛔ Nothing
+   *  else: a slot (text built while the bar runs), a call, a concatenation. Those
+   *  are not fixed for the call site, and reading them would mean lowering an
+   *  expression for its side effects twice. */
+  const fixedTextOf = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'string') return typeof node.value === 'string' ? node.value : null
+    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) {
+      const lowered = admitTextInput(node, scope || root)
+      return lowered && lowered.kind === EXPR.STR ? lowered.value : null
+    }
+    if (node.type === 'name' && typeof node.name === 'string') {
+      // ⛔ `env` holds only what the script binds ONCE: a name it reassigns, a
+      // `var` and a frame's own names are slots and are not here, so none of them
+      // reads as fixed (`vendorHarness.c47SimpleSwitch`: the reassigned `pick`).
+      const bound = env.get(node.name)
+      return bound && bound.kind === 'expr' ? fixedTextOf(bound.node, scope, depth + 1) : null
+    }
+    return null
+  }
+
+  /** ⭐⭐ C47 — is this body's LAST statement `switch <name>` over a bare name this
+   *  FRAME holds, whose every arm is `"<text>" => <expression>` (plus at most one
+   *  `=> <expression>` default, last)? `{ name, slot, arms: [{ label, toks }],
+   *  fallback }`, or `null` = not that shape (the body keeps whatever it did).
+   *
+   *  ⛔ ONLY: one bare frame name as the subject, not declared `series`; arm
+   *  labels that are single quoted strings; arm values written on the arm's own
+   *  line. A block arm, a label that is an expression, a subject the frame does
+   *  not hold — none of them is this shape. ⛔ That the name is a PARAMETER is
+   *  asked where it matters and nowhere else: only a parameter can be fixed by a
+   *  call site (`simpleSpecialisation`: `params.includes(culprit)`), so a local
+   *  as the subject is held and never settled — the refusal it had. */
+  const simpleSwitchShape = (last, fnScope, toks, arrow) => {
+    const h = (last && last.header) || []
+    if (h.length !== 2 || !h[1] || h[1].kind !== 'ident') return null
+    const name = String(h[1].value)
+    const slot = fnScope.lookup(name)
+    if (slot === null) return null
+    if (paramQualifiers(toks, arrow).get(name) === 'series') return null
+    const arms = []
+    let fallback = null
+    const sub = last.sub || []
+    if (!sub.length) return null
+    for (const arm of sub) {
+      const ah = arm.header || []
+      const at = findTop(ah, (t) => isPunct(t, '=>'))
+      if (at < 0) return null
+      const rhs = ah.slice(at + 1)
+      if (!rhs.length) return null             // a block arm: its value is not on its own line
+      if (at === 0) {
+        if (fallback) return null
+        fallback = rhs
+        continue
+      }
+      if (fallback) return null                // an arm after the default
+      if (at !== 1 || ah[0].kind !== 'string') return null
+      arms.push({ label: String(ah[0].value), toks: rhs })
+    }
+    return { name, slot, arms, fallback }
   }
 
   let statements
