@@ -1346,7 +1346,7 @@ export default function Breadth() {
                         {fmtCell(col, val)}
                         {age?.mustLabel && (
                           <span className={styles.valueAge} data-value-age={col.key}>
-                            <FreshnessBadge age={{ cadence: age.cadence, asOfDate: age.asOfDate }} />
+                            <FreshnessBadge age={{ dataClass: age.dataClass, asOfDate: age.asOfDate }} />
                           </span>
                         )}
                       </td>
