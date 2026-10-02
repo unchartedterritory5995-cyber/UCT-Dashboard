@@ -336,7 +336,8 @@ def timeline(checked: list[Checked], days: list[date], edgar_complete: date | No
             if u is None or u > f:
                 entries.append((f, u, rank_key + (1,), c, why))
     entries.sort(key=lambda e: e[0])
-    ev = sorted(events)
+    # (date, reason) or (date, reason, threshold): with a threshold the event stops only counts dated BEFORE it
+    ev = sorted((e[0], e[1], e[2] if len(e) > 2 else None) for e in events)
     ev_days = [e[0] for e in ev]
     active: list = []
     expiry: list = []
@@ -366,11 +367,12 @@ def timeline(checked: list[Checked], days: list[date], edgar_complete: date | No
             out.append(DayState(None, best[4], c.obs))
             continue
         age = (d - c.obs.as_of).days
-        k = bisect.bisect_right(ev_days, d) - 1
+        k = bisect.bisect_right(ev_days, d)
+        hit = next((e for e in reversed(ev[:k]) if e[0] > c.obs.as_of and (e[2] is None or c.obs.as_of < e[2])), None)
         if age > bound_days:
             out.append(DayState(None, R.STALE, c.obs, age))
-        elif k >= 0 and ev_days[k] > c.obs.as_of:
-            out.append(DayState(None, ev[k][1], c.obs, age))
+        elif hit is not None:
+            out.append(DayState(None, hit[1], c.obs, age))
         else:
             out.append(DayState(c.normalized, None, c.obs, age))
     return out

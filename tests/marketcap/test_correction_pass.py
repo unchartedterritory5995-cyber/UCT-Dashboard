@@ -257,3 +257,16 @@ def test_unit_error_filed_in_thousands_in_both_channels_is_withheld_never_rescal
     assert tl[0].value == 28_300_000
     assert tl[1].value is None and tl[1].reason == R.SCALE_UNRESOLVED       # never 28,309, never 28.3M carried
     assert tl[2].value == 28_350_000
+
+
+def test_reverse_split_recount_only_when_issuance_was_registered_after_the_count():
+    """GE 2021 1-for-8 with a current count carries across; a count followed by an offering does not (PAVS / INLF)."""
+    led = Ledger([Split(date(2021, 8, 2), 1 / 8)])
+    ch = validate([ob(date(2021, 7, 20), date(2021, 7, 27), 8.78e9)], led)
+    days_ = [date(2021, 8, 2), date(2021, 9, 1)]
+    no_offer = timeline(ch, days_, events=[])                                                   # no offering filed
+    assert all(abs(t.value - 8.78e9 / 8) < 1 for t in no_offer)
+    offer_after_count = [(date(2021, 8, 2), R.REVERSE_SPLIT_RECOUNT, date(2021, 7, 25))]       # 424B5 on 07-25
+    assert [t.reason for t in timeline(ch, days_, events=offer_after_count)] == [R.REVERSE_SPLIT_RECOUNT] * 2
+    offer_before_count = [(date(2021, 8, 2), R.REVERSE_SPLIT_RECOUNT, date(2021, 7, 1))]       # count already reflects it
+    assert all(t.value for t in timeline(ch, days_, events=offer_before_count))

@@ -49,6 +49,9 @@ NOT_COMMON_EQUITY = re.compile(r"\bpreferred\s+stock\b|\bwarrants?\b|\brights?\b
                                r"|\bunits?,?\s+each\s+consisting\b|\bnotes?\s+due\b|\bsenior\s+(?:notes?|secured|unsecured|debentures?)\b"
                                r"|\bsubordinated\b|\bdebentures?\b|\bmortgage\s+bonds?\b|\bbonds?\s+due\b|\d%", re.I)
 FPI_FORMS = ("20-F", "40-F", "20-F/A", "40-F/A", "6-K")
+# equity issuance registered (424B2 / automatic shelves are overwhelmingly DEBT for large issuers and are not counted)
+OFFERING_FORMS = frozenset({"424B1", "424B3", "424B4", "424B5", "424B7", "S-1", "S-1/A", "F-1", "F-1/A", "S-3", "S-3/A",
+                            "F-3", "F-3/A", "S-4", "S-4/A", "F-4", "F-4/A", "S-1MEF", "F-1MEF"})
 
 SCHEMA = """
 CREATE TABLE manifest(key TEXT PRIMARY KEY, value TEXT);
@@ -131,6 +134,29 @@ def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dic
                     out.append({"date": ds, "k": k, "direction": "FORWARD" if r > 1 else "REVERSE", "cls": ck,
                                 "prev_asof": date.fromisoformat(p[4]), "next_asof": date.fromisoformat(n[4]),
                                 "prev_accn": p[3], "next_accn": n[3]})
+    # ⛔ a STOCK DIVIDEND IN A NEW CLASS (Google 2014-04-03: one class C share per A/B share) leaves the old class's
+    # count unchanged while its adjusted price halves -- the per-class rule cannot see it. Company level: where a class
+    # FIRST appears, the company cap jumping by a clean factor with the primary's price continuous is the same gap.
+    firsts = {ck: rs[0] for (_iss, ck), rs in runs_by_class.items() if rs and rs[0][2]}
+    if len(firsts) > 1:
+        earliest = min(r[0] for r in firsts.values())
+        for ck, r0 in firsts.items():
+            if r0[0] == earliest:
+                continue
+            ds = date.fromisoformat(r0[0])
+            i0 = bisect.bisect_left(pdays_sorted, ds)
+            if i0 <= 0 or i0 >= len(pdays_sorted):
+                continue
+            a_, b_ = pdays_sorted[i0 - 1], pdays_sorted[i0]
+            if not (a_ in caps and b_ in caps and pclose.get(a_) and pclose.get(b_)):
+                continue
+            cr, pr = caps[b_] / caps[a_], pclose[b_] / pclose[a_]
+            rr = cr if cr > 1 else 1 / cr
+            k = round(rr)
+            if abs(math.log(pr)) < math.log(1.5) and rr >= 1.9 and 2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.03:
+                prev_asof = max((date.fromisoformat(x[4]) for rs in runs_by_class.values() for x in rs if x[0] < r0[0]), default=ds)
+                out.append({"date": ds, "k": k, "direction": "FORWARD" if cr > 1 else "REVERSE", "cls": f"COMPANY:new class {ck}",
+                            "prev_asof": prev_asof, "next_asof": date.fromisoformat(r0[4]), "prev_accn": None, "next_accn": r0[3]})
     return out
 
 
@@ -723,7 +749,16 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     checked.append(Checked(o, R.REJ_PRE_LISTING, note=f"as-of before listing start {lst.start}"))
                 cdays = [d for d in rdays if d in ccloses]
                 # corporate actions across which a count dated BEFORE them is never carried
-                events = [(s_.ex_date, R.REVERSE_SPLIT_RECOUNT) for s_ in ledger.splits if s_.ratio < 1]
+                # a count dated before a reverse split is carried across it UNLESS share issuance was registered
+                # between the count and the split (an equity offering / registration: the hyper-diluter pattern of the
+                # 63 blockers -- PAVS, INLF, HKIT ... -- never GE's 2021 1-for-8 with a current count)
+                offer_days = sorted(date.fromisoformat(v["filing_date"]) for v in filings.values() if v["form"] in OFFERING_FORMS)
+                events = []
+                for s_ in ledger.splits:
+                    if s_.ratio < 1:
+                        last_off = next((x for x in reversed(offer_days) if x <= s_.ex_date), None)
+                        if last_off is not None:
+                            events.append((s_.ex_date, R.REVERSE_SPLIT_RECOUNT, last_off))
                 counts_ = sorted((ch.obs.as_of, ch.obs.value) for ch in checked if ch.usable and "REDUNDANT" not in ch.flags)
                 events += unlisted_split_events(cdays_all, ccloses, ref_c[1], counts_)
                 if st.kind == "ADR":
@@ -888,8 +923,10 @@ def main(argv=None) -> int:
                 gaps = r.get("gaps") or []
                 if not gaps or D.splitev is None:
                     break
-                ev = D.splitev.execute("SELECT ex_date, ratio, source, accn, snippet FROM split_evidence WHERE cik=? "
-                                       "ORDER BY source DESC, ex_date", (cik,)).fetchall()
+                ev_ciks = [cik] + ([p_ for (p_,) in D.lineage.execute(
+                    "SELECT pred_cik FROM lineage WHERE succ_cik=? AND pred_cik IS NOT NULL", (cik,))] if D.lineage is not None else [])
+                ev = D.splitev.execute(f"SELECT ex_date, ratio, source, accn, snippet FROM split_evidence WHERE cik IN "
+                                       f"({','.join('?' * len(ev_ciks))}) ORDER BY source DESC, ex_date", ev_ciks).fetchall()
                 new = {}
                 for g_ in gaps:
                     c_ = confirm(ev, g_["k"], g_["direction"], g_["prev_asof"], g_["next_asof"])
