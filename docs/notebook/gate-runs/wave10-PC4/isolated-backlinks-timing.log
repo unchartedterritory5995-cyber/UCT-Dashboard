@@ -1,0 +1,31 @@
+=== seeding tier n=25000 ===
+[notebook-migration] migrated=0 skipped=0 errored=0
+seeded in 13.4s, symbol=AMD, expected backlink notes=2450
+  round 0: n=30 median=19.088ms p95=26.880ms min=12.500ms max=27.508ms
+  round 1: n=30 median=15.983ms p95=20.479ms min=11.706ms max=20.946ms
+  round 2: n=30 median=15.929ms p95=18.938ms min=12.190ms max=19.653ms
+  round 3: n=30 median=15.272ms p95=17.622ms min=11.488ms max=20.498ms
+  round 4: n=30 median=14.315ms p95=19.565ms min=11.388ms max=20.523ms
+=== seeding tier n=50000 ===
+seeded in 37.1s, symbol=AMD, expected backlink notes=4897
+  round 0: n=30 median=27.133ms p95=30.955ms min=20.849ms max=35.007ms
+  round 1: n=30 median=25.669ms p95=36.133ms min=20.832ms max=37.757ms
+  round 2: n=30 median=28.382ms p95=32.910ms min=19.728ms max=35.296ms
+  round 3: n=30 median=29.708ms p95=34.627ms min=21.058ms max=35.028ms
+  round 4: n=30 median=28.328ms p95=33.560ms min=23.659ms max=43.195ms
+{
+  "tiers": {
+    "25000": {
+      "symbol": "AMD",
+      "expected_backlink_notes": 2450,
+      "db_bytes": 203350016,
+      "all_samples_ms": [
+        16.246400016825646,
+        18.22460000403225
+
+WROTE C:\Users\Patrick\AppData\Local\Temp\pc4_backlinks_owsw5odz\report.json
+
+=== SUMMARY ===
+25k median: 15.903 ms   50k median: 27.983 ms   ratio: 1.760   log2 slope: 0.815
+  n=25000: p50=15.903 p95=21.614 min=11.388 max=27.508 round-median spread=4.772ms
+  n=50000: p50=27.983 p95=34.261 min=19.728 max=43.195 round-median spread=4.039ms
