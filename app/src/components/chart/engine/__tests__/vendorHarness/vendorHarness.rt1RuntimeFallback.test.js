@@ -98,15 +98,18 @@ describe('RT1 — routing: flag off is the door it always was', () => {
     const cap = capture(ADX)
     vi.stubEnv(FLAG, '')
     const off = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
-    // The same script, made unroutable: it now reads another timeframe.
-    const src = `${cap.source.text}\nhtf = security(syminfo.tickerid, "W", close)\n`
+    // The same script, made unroutable: it now carries a `varip`, which the
+    // runtime lane refuses by name. (⚰️ RT2: this read another timeframe and
+    // expected `runtime:repaint-unstated`; that class is now STATED, and an
+    // unused weekly read no longer stops the script — `vendorHarness.rt2*`.)
+    const src = `${cap.source.text}\nvarip int rt2Ticks = 0\n`
     const offB = memberPaneDefinition({ source: src, id: DEF_ID })
     vi.stubEnv(FLAG, '1')
     const onB = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(onB.ok).toBe(false)
     expect(onB.reason).toBe(offB.reason)
     expect(onB.guard).toBe(offB.guard)
-    expect(onB.runtimeDeclined && onB.runtimeDeclined.code).toBe('runtime:repaint-unstated')
+    expect(onB.runtimeDeclined && onB.runtimeDeclined.code).toBe('runtime:varip')
     expect(off.reason).toBeTruthy()
   })
 })

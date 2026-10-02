@@ -79,8 +79,16 @@ export function probeRuntimeProgram(source) {
     return { ok: false, refusal: { guard: 'runtime:lower', message: String((err && err.message) || err) } }
   }
   // ⭐ RT1 — `naTests`: the program's conditions whose `na` reading is not settled
-  // (`naTestsOf`), read by the member door's runtime fallback.
-  return { ok: true, outputs: program.outputs.map((o) => ({ call: o.call })), naTests: naTestsOf(program) }
+  // (`naTestsOf`, RT3), read by the member door's runtime fallback.
+  // ⭐ RT2 — `requests`: the requests the lowering did NOT fold into this chart's
+  // own expression (another symbol or timeframe). The pane hands a run no other
+  // bars, so the member door declines a program that has any.
+  return {
+    ok: true,
+    outputs: program.outputs.map((o) => ({ call: o.call })),
+    naTests: naTestsOf(program),
+    requests: (built.ir.requests || []).length,
+  }
 }
 
 /** One build per (bars array, definition, timeframe, forming). A chart repaints
@@ -172,6 +180,14 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   if (!built.ok) {
     const r = built.refusal || {}
     throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
+  }
+  // ⛔ RT2 — a request of other bars computes nothing here, whatever door the
+  // document came through (the member door declines one; a stored document is
+  // re-checked at its run): this run is handed no other symbol's bars, and an
+  // `na` drawn where TradingView draws a value is a wrong drawing.
+  if ((built.ir.requests || []).length) {
+    throw refusal('runtime:request', 'this script requests another symbol or timeframe, and a script drawn '
+      + "bar by bar here is handed only the chart's own bars, so nothing is drawn rather than a blank line")
   }
   // ⭐⭐ RT3 — from the listing, a `NaN` is Pine's `na` and an `na` condition reads
   // as Pine reads it; off it the shared `{0,1,NaN}` rules stand (`lowerIrProgram`).

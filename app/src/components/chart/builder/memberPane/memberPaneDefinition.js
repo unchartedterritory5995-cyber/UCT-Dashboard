@@ -28,6 +28,7 @@ import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '..
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
+import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 import { runtimeKillOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
@@ -854,17 +855,15 @@ const RUNTIME_UNDRAWN_KINDS = Object.freeze({
   plotbar: 'bars',
 })
 
-/** A repaint verdict the runtime lane can state WITHOUT a linter: a script that
- *  reads no other timeframe, no realtime clock and no live bar state is computed
- *  from closed bars alone and does not repaint. Anything else is not routed — an
- *  unstated verdict would be a badge nobody measured. Conservative by
- *  construction: a mention in a comment also declines the route.
- *
- *  ⛔ RT1 — EXPORTED, AND MIRRORED ON THE SERVER. The save door stamps a runtime
- *  document's repaint verdict from this same test over the same source
- *  (`api/services/runtime_definitions.py::REPAINT_RISK`); the parity rail reads
- *  this literal off this file, so the two cannot drift. */
-export const RUNTIME_REPAINT_RISK = /\b(request\.|security\s*\(|barstate\.|timenow\b|varip\b|lookahead\b|calc_on_every_tick)/
+/* ⚰️ RT2 — `RUNTIME_REPAINT_RISK` (a regex over the raw source, comments
+ * included) stood here and DECLINED every script that mentioned `request.`,
+ * `barstate.`, `timenow`, `varip` or `lookahead` (127 of the corpus with the
+ * runtime flag on). It could not state a class, only refuse one. The class is
+ * now STATED by `engine/runtime/runtimeRepaint.js::runtimeRepaintOf` — the host
+ * linter's vocabulary and reach -> class step, over the reads the program makes
+ * (code, never prose) — and mirrored on the server
+ * (`api/services/runtime_repaint.py`), held to one answer per corpus script by
+ * `tests/fixtures/runtime_repaint/corpus.json`. */
 
 /** ⭐⭐ RT1 — THE COLOUR A RUNTIME ROW CAN CARRY, or why it cannot.
  *
@@ -944,14 +943,28 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // the store and comes back the moment it is unlisted.
   const killed = runtimeKillOf({ source, defId: id })
   if (killed) return decline('runtime:killed', killed)
-  if (RUNTIME_REPAINT_RISK.test(source)) {
-    return decline('runtime:repaint-unstated', 'the script reads another timeframe or the live bar, so its repaint '
-      + 'behaviour cannot be stated without the linter this lane does not have')
-  }
+  // ⭐⭐ RT2 — THE DOCUMENT'S REPAINT CLASS, STATED (`runtimeRepaintOf`): the
+  // host linter's three-word vocabulary, by the host's reach -> class rule, over
+  // the reads the program makes. Every row carries it as its `mode` and as its
+  // `forward` window, so the pane's repaint notice (`repaintVerdict.js`, through
+  // `lint.js::lintDefinition`) says it, and the server re-derives the same class
+  // at the save door. Only a source the classifier cannot READ is unstated.
+  const repaint = runtimeRepaintOf(source)
+  if (!repaint.ok) return decline('runtime:repaint-unstated', repaint.why)
   const probe = probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
+  }
+  // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
+  // into its own expression (another symbol, or a timeframe that is not the
+  // chart's) reads bars the pane never hands the run (`computeRuntimeColumns`
+  // passes no `requestBars`), so every value would be `na` where TradingView
+  // draws one. The regex gate this replaces declined every `request.` by
+  // accident; now that the class is stated, the decline has to be said.
+  if (probe.requests > 0) {
+    return decline('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
+      + "another symbol or timeframe, and this pane holds only the chart's own bars, so it is not drawn bar by bar")
   }
   // ⛔ RT1 — A `?:` WHOSE TEST CAN BE `na`, refused by name on the FALLBACK
   // (`lowerIr.js::naTestsOf` has the two vendor captures): this lane answers `na`
@@ -1022,7 +1035,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // compute block below replaces it wholesale.
       source: '0',
       ast: { type: 'num', value: 0 },
-      mode: 'non-repainting',
+      // ⭐ RT2 — the document's stated class (`runtimeRepaintOf`), never a default.
+      mode: repaint.mode,
       readback: '',
       style: typeof p.style === 'string' ? p.style : 'line',
       color: typeof p.color === 'string' ? p.color : undefined,
@@ -1043,7 +1057,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       name: String(name || t.title || 'Pine script').slice(0, 40),
       source: rows[0].source,
       ast: rows[0].ast,
-      mode: 'non-repainting',
+      mode: repaint.mode,
       readback: '',
       inputs: withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null),
       plots: rows,
@@ -1056,6 +1070,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   } catch (err) {
     return decline('runtime:document', `the document could not be built: ${String((err && err.message) || err)}`)
   }
+  // ⭐⭐ RT2 — EVERY DRAWN ROW DECLARES THE DOCUMENT'S FORWARD WINDOW
+  // (`plots[].forward`, the one field `defSchema` lets a non-tree plot state).
+  // `lint.js::lintDefinition` turns it into the badge through `modeFromReach` —
+  // the host's own step — so the pane's notice and `meta.repaint` (the worst
+  // row, `buildDefinition`) say the class this document was minted with.
+  definition.plots = (definition.plots || []).map((pl) => (
+    pl && Object.prototype.hasOwnProperty.call(outputs, pl.key) ? { ...pl, forward: repaint.forward } : pl))
   // ⭐ THE IMPLEMENTATION IS THE SCRIPT ITSELF, and nothing of the placeholder
   // survives: a `runtime` compute block may not carry the `ast` lane's keys.
   definition.compute = {
@@ -1075,6 +1096,18 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     notes.push({
       name: w.label,
       note: `\`${w.label}\` is not drawn: ${w.why}. Nothing is drawn for it rather than a guess.`,
+    })
+  }
+  // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
+  // member's terms. A non-repainting one says nothing (the badge is silent on
+  // the clean case by design, `repaintVerdict.js`).
+  if (repaint.mode !== 'non-repainting') {
+    notes.push({
+      name: repaint.mode === 'preview-repaints' ? 'Settles one bar later' : 'Repaints',
+      note: `${repaint.mode === 'preview-repaints'
+        ? 'A point on this pane can move until the next bar arrives'
+        : 'A point on this pane can move after its bar has closed'}: the script reads `
+        + `${repaint.reads.map((r) => `\`${r.name}\``).join(', ')} (${repaint.reads.map((r) => r.why).join('; ')}).`,
     })
   }
   const undrawn = [...new Set((t.outputs || [])
