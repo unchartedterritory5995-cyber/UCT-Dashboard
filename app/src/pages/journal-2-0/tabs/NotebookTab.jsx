@@ -20,6 +20,7 @@ import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
+import { createVoiceNote, voiceNotesEnabled } from '../lib/voiceNote'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
@@ -108,6 +109,9 @@ const ImportWizard = lazyDialog(() => import('../components/notebook/import/Impo
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 // Wave 9 (lane 9D, D2): the sidebar's Publish-folder confirmation, fetched on its first open.
 const PublishFolderSheet = lazyDialog(() => import('../components/notebook/PublishFolderSheet'), 'publish folder')
+// Wave 11 lane 11A: the voice-note dialog, fetched the first time a member starts one. It is
+// rendered only while a voice note is in progress, so each start mounts it afresh.
+const VoiceNoteDialog = lazyDialog(() => import('../components/notebook/VoiceNoteDialog'), 'voice note')
 
 // ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
 // FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
@@ -228,6 +232,11 @@ export default function NotebookTab() {
   // door requires: the server answers a free member 402, and a door whose only result is a
   // refusal is not offered. Selecting it opens a confirmation (ruling D-9D1), never a publish.
   const publishOn = notebookFlag('notebook_publish_enabled') === true && auth?.isPaid === true
+  // Wave 11 lane 11A: "Start from audio" in the New note sheet — only while the
+  // voice-notes gate is LATCHED on and for a paid member (the routes answer 404 / 402
+  // otherwise, and a door whose only result is a refusal is not offered).
+  const voiceOn = voiceNotesEnabled(auth?.isPaid)
+  const [voiceNote, setVoiceNote] = useState(null) // { source }
   const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
   const extraFolderActions = useMemo(() => (publishOn ? [{
     id: 'publish',
@@ -1457,6 +1466,23 @@ export default function NotebookTab() {
     }
   }
 
+  // Wave 11 lane 11A: a saved voice note goes through the voice-note create door
+  // (`createVoiceNote` -> createNoteViaApi + settleNoteWrite), then the same tree
+  // bookkeeping and open as any other new note.
+  const saveVoiceNote = async ({ title, result }) => {
+    const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
+      ? folderId : undefined
+    const created = await createVoiceNote({ title, result, folderId: safeFolderId })
+    addNoteToTree(created)
+    refreshAll()
+    openNote(created, null, { fresh: true })
+    return created
+  }
+  const startVoiceNote = (source) => {
+    setPickerOpen(false)
+    setVoiceNote({ source })
+  }
+
   // Data-aware create: assemble the context a template declares it needs
   // (regime / positions / today's game plan), then seed title + body from it.
   // Every context source is best-effort — no data still yields the scaffold.
@@ -2095,8 +2121,31 @@ export default function NotebookTab() {
           variant="auto"
           maxWidth={720}
         >
+          {voiceOn && (
+            <div className={styles.voiceStarts} role="group" aria-label="Start from audio">
+              <span className={styles.voiceStartsLabel}>Start from audio</span>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('record')}>
+                <UIcon name="mic" size={15} gold={false} /> Voice note
+              </button>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('upload')}>
+                <UIcon name="upload" size={15} gold={false} /> Upload recording
+              </button>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('desk')}>
+                <UIcon name="desk" size={15} gold={false} /> From a Desk session
+              </button>
+            </div>
+          )}
           <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
         </Sheet>
+
+        {voiceNote && voiceOn && (
+          <VoiceNoteDialog
+            open
+            initialSource={voiceNote.source}
+            onSave={saveVoiceNote}
+            onClose={() => setVoiceNote(null)}
+          />
+        )}
 
         <ImportWizard
           open={importOpen}

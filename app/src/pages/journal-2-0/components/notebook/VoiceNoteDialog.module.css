@@ -1,0 +1,245 @@
+/* Wave 11 lane 11A — the voice-note dialog. Tokens are the writing-help panel's;
+   the touch tier is <=1024 (a tablet is a touch device), where every control
+   meets --tap-min. Nothing here is wider than its sheet at 390 px. */
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.source:hover:not(:disabled) { border-color: var(--accent); color: var(--text-bright); }
+.source:disabled { opacity: 0.5; cursor: not-allowed; }
+.sourceOn { border-color: var(--accent); color: var(--accent); }
+
+.panel {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.recorder {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.live { color: var(--accent); }
+.limit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.recState { font-size: 13px; color: var(--text-muted); }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.file {
+  display: block;
+  max-width: 100%;
+  font-size: 13px;
+  color: var(--text);
+}
+.fileName {
+  font-size: 13px;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+
+.deskList {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.deskItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-bright);
+  text-align: left;
+  cursor: pointer;
+}
+.deskItem:hover, .deskItem:focus-visible { background: var(--bg); }
+.deskTitle { font-size: 13px; overflow-wrap: anywhere; }
+.deskDate { font-size: 11px; color: var(--text-muted); }
+
+.working {
+  padding: 12px 0;
+  color: var(--text-bright);
+  font-size: 14px;
+}
+.working p { margin: 0 0 8px; }
+.progress { width: 100%; }
+
+.failure { margin: 8px 0; }
+
+.error {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--danger-ink);
+}
+
+.fine {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.confirm {
+  flex: 1 1 100%;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+
+.preview {
+  color: var(--text-bright);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.titleLabel { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.title {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 15px;
+}
+.meta { margin: 6px 0 10px; font-size: 12px; color: var(--text-muted); font-style: italic; }
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.h { margin: 12px 0 6px; font-size: 13px; font-weight: 600; color: var(--text-bright); }
+.aiBlock {
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+}
+.aiBlock p { margin: 0 0 6px; }
+.aiBlock p:last-child { margin-bottom: 0; }
+.aiLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.chip {
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tasks { list-style: none; margin: 0; padding: 0; }
+.tasks li { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; font-size: 13px; }
+.box {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--text-muted);
+  border-radius: 2px;
+}
+.transcript summary { cursor: pointer; font-size: 13px; color: var(--text); }
+.transcript p { font-size: 13px; margin: 6px 0; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.primary,
+.secondary,
+.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.secondary {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-bright);
+}
+.danger {
+  border: 1px solid var(--danger-ink);
+  background: transparent;
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .source,
+  .primary,
+  .secondary,
+  .danger,
+  .deskItem,
+  .title,
+  .file {
+    min-height: var(--tap-min);
+  }
+  .source,
+  .primary,
+  .secondary,
+  .danger {
+    min-width: var(--tap-min);
+  }
+  .transcript summary { min-height: var(--tap-min); display: flex; align-items: center; }
+}

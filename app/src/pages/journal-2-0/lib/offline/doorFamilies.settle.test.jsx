@@ -436,3 +436,30 @@ describe('import_confirm — a re-import over a note with queued offline work', 
     expect(landed(), 'nothing was written, so nothing has a revision').toEqual([])
   })
 })
+
+// ⭐ Wave 11 lane 11A — the voice-note doors. A NEW note goes through the canonical
+// create (`createNoteViaApi`) and lands the revision it was answered with; the
+// APPEND to the open note is an editor transaction on that note's own autosave
+// (lib/voiceNote.js `appendVoiceNote`, railed in voiceNote.test.js and
+// NoteEditorPage.voiceNote.test.jsx) — no endpoint, so nothing here to land.
+describe('voice note — a new note from a recording, an upload or a Desk session', () => {
+  const RESULT = {
+    source: 'recording', date: '2026-10-01', transcript: 'NVDA.', words: 1,
+    summary: 'NVDA.', tickers: ['NVDA'], actionItems: [], ai: { ok: true, model: 'm', sentence: '' },
+  }
+
+  it('the create lands the revision it was answered with', async () => {
+    const { createVoiceNote } = await import('../voiceNote')
+    answering({ note: { id: 'nv1', title: 'Voice note', updatedAt: T2 } })
+    await createVoiceNote({ title: 'Voice note', result: RESULT })
+    expect(landed()).toEqual([T2])
+    expect(landedFor()).toEqual(['nv1'])
+  })
+
+  it('⛔ CONTROL — a create the server REFUSED lands nothing', async () => {
+    const { createVoiceNote } = await import('../voiceNote')
+    answering({}, { ok: false, status: 500 })
+    await expect(createVoiceNote({ title: 'Voice note', result: RESULT })).rejects.toThrow()
+    expect(landed()).toEqual([])
+  })
+})

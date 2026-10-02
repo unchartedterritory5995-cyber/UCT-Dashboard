@@ -20,6 +20,7 @@ import { inColumn, insertColumns } from '../../lib/columnsNode'
 import { insertTableOfContents } from '../../lib/tableOfContentsNode'
 import { DICTATE_EVENT } from '../../lib/dictationInsert'
 import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
+import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -204,6 +205,21 @@ export const ITEMS = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
       editor.view.dom.dispatchEvent(new CustomEvent(WRITING_HELP_EVENT, { bubbles: true }))
+    },
+  },
+  {
+    // Wave 11 lane 11A: /voice — record, upload or pick a Desk session, preview
+    // the transcript, summary, tickers and action items, then add them to THIS
+    // note (an editor transaction) or save them as a new one. Dark behind
+    // `notebook_voice_notes_enabled` and paid-only — `canVoiceNote` answers both —
+    // and dispatched on this editor's own DOM root (I5).
+    title: 'Voice note',
+    description: 'Record, upload or pick a Desk session — transcript, summary, tickers and tasks',
+    keywords: ['voice', 'record', 'recording', 'meeting', 'audio', 'transcript', 'transcribe', 'upload'],
+    available: ({ editor }) => editor?.storage?.uctJournalWidgets?.canVoiceNote?.() === true,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(VOICE_NOTE_EVENT, { bubbles: true }))
     },
   },
 ]

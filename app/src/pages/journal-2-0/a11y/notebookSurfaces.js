@@ -56,6 +56,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },
+  // Wave 11 lane 11A: the voice-note dialog (the editor's /voice, the New note sheet's
+  // "Start from audio", a Desk session's Save to Notebook); rail a11y/voiceNote.a11y.test.jsx.
+  'components/notebook/VoiceNoteDialog.jsx': { recipe: 'voice-note-dialog' },
   'components/notebook/NoteHistoryPanel.jsx': { coveredBy: 'editor-history' },
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },

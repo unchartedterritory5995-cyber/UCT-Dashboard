@@ -900,6 +900,16 @@ _WRITING_HELP_ACTION_LABELS = {
     "continue": "Continue", "translate": "Translate",
 }
 
+# Wave 11 lane 11A: AI-written blocks that are NOT writing help but carry the same
+# provenance shape (an askInsert with `action` + `model`) -- the editor's
+# AskInsertView.AI_SUMMARY_ACTION_LABELS, pinned equal by
+# tests/test_notebook_voice_notes_export.py. Its "question" is the SOURCE the
+# summary was written from (a recording, an upload, a Desk session), so it is
+# introduced as the source, never as something the member asked.
+_AI_SUMMARY_ACTION_LABELS = {
+    "voice_summary": "Voice note summary",
+}
+
 
 def _ask_insert_head_parts(attrs: dict[str, Any]) -> tuple[list[str], str, str, str]:
     """The provenance label of an inserted answer, as RAW parts: `(label parts, date,
@@ -908,7 +918,12 @@ def _ask_insert_head_parts(attrs: dict[str, Any]) -> tuple[list[str], str, str, 
     exactly this; Markdown adds its own escaping (`_prose`) and bold, Word its own runs."""
     date = str(attrs.get("insertedAt") or "")[:10]
     question = str(attrs.get("question") or "").strip()
-    action = _WRITING_HELP_ACTION_LABELS.get(str(attrs.get("action") or ""))
+    raw_action = str(attrs.get("action") or "")
+    summary_label = _AI_SUMMARY_ACTION_LABELS.get(raw_action)
+    if summary_label:
+        model = str(attrs.get("model") or "").strip()
+        return [p for p in ("Compass", summary_label, model) if p], date, "Source: ", question
+    action = _WRITING_HELP_ACTION_LABELS.get(raw_action)
     if action:
         # Wave 7 lane H (H2, ruling D-H1): an accepted WRITING-HELP result is the
         # same node with `action` (+ `model`) set. Same labelled quote, its own

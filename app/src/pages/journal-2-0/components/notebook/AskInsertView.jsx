@@ -29,6 +29,18 @@ export const WRITING_HELP_ACTION_LABELS = Object.freeze({
   translate: 'Translate',
 })
 
+/**
+ * Wave 11 lane 11A — AI-written blocks that are NOT writing help but carry the
+ * same provenance shape (`action` + `model` on this node). A voice note's summary
+ * reads "Compass · Voice note summary · claude-sonnet-5 · 09:41". Kept apart from
+ * WRITING_HELP_ACTION_LABELS on purpose: that map is pinned to writing help's own
+ * four actions (tests/test_notebook_writing_help.py), and this one to the export's
+ * `_AI_SUMMARY_ACTION_LABELS` (tests/test_notebook_voice_notes_export.py).
+ */
+export const AI_SUMMARY_ACTION_LABELS = Object.freeze({
+  voice_summary: 'Voice note summary',
+})
+
 /** '09:41' — the member's local clock, 24h (the label's own format). */
 export function insertedTimeLabel(iso) {
   if (!iso) return ''
@@ -40,7 +52,7 @@ export function insertedTimeLabel(iso) {
 /** "Compass · Rewrite · claude-sonnet-5 · 09:41" — only the parts that are known. */
 export function writingHelpLabel({ action, model, insertedAt }) {
   const parts = ['Compass']
-  const act = WRITING_HELP_ACTION_LABELS[action] || ''
+  const act = WRITING_HELP_ACTION_LABELS[action] || AI_SUMMARY_ACTION_LABELS[action] || ''
   if (act) parts.push(act)
   if (model) parts.push(String(model))
   const time = insertedTimeLabel(insertedAt)
@@ -52,6 +64,7 @@ export default function AskInsertView({ node }) {
   const { insertedAt, question, action, model } = node.attrs
   if (action) {
     const label = writingHelpLabel({ action, model, insertedAt })
+    const summary = Boolean(AI_SUMMARY_ACTION_LABELS[action])
     const when = insertedAt && !Number.isNaN(new Date(insertedAt).getTime())
       ? new Date(insertedAt).toLocaleString('en-US') : ''
     return (
@@ -59,12 +72,14 @@ export default function AskInsertView({ node }) {
         className={styles.block}
         data-type="ask-insert"
         role="group"
-        aria-label={`Written with Compass writing help: ${question || label}`}
+        aria-label={summary
+          ? `AI-written summary by Compass: ${question || label}`
+          : `Written with Compass writing help: ${question || label}`}
       >
         <div
           className={styles.header}
           contentEditable={false}
-          title={[question && `Asked: ${question}`, when].filter(Boolean).join(' · ') || undefined}
+          title={[question && `${summary ? 'Source' : 'Asked'}: ${question}`, when].filter(Boolean).join(' · ') || undefined}
         >
           <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           <span className={styles.label}>{label}</span>

@@ -63,6 +63,7 @@ import moreStyles from './NoteMoreMenu.module.css'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
+import { VOICE_NOTE_EVENT, VOICE_NOTE_LOCKED_SENTENCE, appendVoiceNote, voiceNotesEnabled } from '../../lib/voiceNote'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
@@ -128,6 +129,8 @@ const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
 const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
+// Wave 11 lane 11A: the voice-note dialog loads on first use, like writing help.
+const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -1742,6 +1745,36 @@ export default function NoteEditorPage({
     }
     setWritingHelp(req)
   }, [])
+  // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
+  // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
+  // "Add to this note" is ONE editor transaction at the end of the note (never a
+  // server append: that would fork an open or queued copy — G-064's rule); a
+  // locked or read-only note refuses it with the standard locked sentence and
+  // the dialog keeps the result, so the member can save it as a new note instead.
+  const voiceNoteOn = voiceNotesEnabled(isPaid)
+  const voiceNoteOnRef = useRef(voiceNoteOn)
+  voiceNoteOnRef.current = voiceNoteOn
+  const [voiceNoteOpen, setVoiceNoteOpen] = useState(false)
+  const openVoiceNote = useCallback(() => {
+    const ed = editorRef.current
+    if (!voiceNoteOnRef.current || !ed || ed.isDestroyed) return
+    if (lockedRef.current || !ed.isEditable) {
+      setUploadToast({ message: VOICE_NOTE_LOCKED_SENTENCE, tone: 'error' })
+      return
+    }
+    setVoiceNoteOpen(true)
+  }, [])
+  const appendVoiceResult = useCallback((result) => {
+    const res = appendVoiceNote(editorRef.current, result, { note: lockedRef.current ? { locked: true } : null })
+    if (res.ok) setUploadToast({ message: 'Voice note added to this note. Undo takes it back out.', tone: 'success' })
+    return res
+  }, [])
+  const onVoiceNoteSaved = useCallback((created) => {
+    if (!created?.id) return
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+    setUploadToast({ message: `Saved as a new note: “${created.title || 'Voice note'}”`, tone: 'success' })
+  }, [])
+
   // Accept — the ONE write: an askInsert block with `action` + `model`, as one
   // undo step. Said either way; a draft that could not land keeps the panel open.
   const acceptWritingHelpDraft = useCallback((draft) => {
@@ -2114,6 +2147,8 @@ export default function NoteEditorPage({
         canDictate: () => micRef.current?.available === true,
         // Wave 7 H2: read when the slash menu opens, like `canDictate`.
         canWritingHelp: () => writingHelpOnRef.current === true,
+        // Wave 11 11A: the same, for /voice.
+        canVoiceNote: () => voiceNoteOnRef.current === true,
       }
       // One reading per note: the timer's own stop() speaks once.
       if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
@@ -3030,12 +3065,15 @@ export default function NoteEditorPage({
     }
     // Wave 7 lane H2: the slash menu's "Writing help", same per-editor target.
     const onWritingHelp = () => openWritingHelp()
+    // Wave 11 lane 11A: the slash menu's "Voice note", same per-editor target.
+    const onVoiceNote = () => openVoiceNote()
     let dom = null
     const detach = () => {
       if (dom) {
         dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
         dom.removeEventListener(DICTATE_EVENT, onDictate)
         dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
+        dom.removeEventListener(VOICE_NOTE_EVENT, onVoiceNote)
       }
       dom = null
     }
@@ -3048,6 +3086,7 @@ export default function NoteEditorPage({
       dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
       dom.addEventListener(DICTATE_EVENT, onDictate)
       dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
+      dom.addEventListener(VOICE_NOTE_EVENT, onVoiceNote)
     }
     attach()
     editor.on('mount', attach)
@@ -4362,6 +4401,15 @@ export default function NoteEditorPage({
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {voiceNoteOpen && voiceNoteOn && (
+        <Suspense fallback={null}>
+          <VoiceNoteDialog
+            onAppend={appendVoiceResult}
+            onSaved={onVoiceNoteSaved}
+            onClose={() => setVoiceNoteOpen(false)}
+          />
+        </Suspense>
+      )}
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel
