@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AiSearchWidget, { AIS_HANDOFF_KEY, AnswerBody } from './charts/widgets/AiSearchWidget'
 import { WorkspaceContext, WORKSPACE_FALLBACK } from './charts/WorkspaceContext'
 import styles from './AiSearchPage.module.css'
+import useDoorParam from '../hooks/useDoorParam'
 
 /**
  * Deep Research rail — async multi-step reports (plan → desk data + house KB +
@@ -322,10 +323,15 @@ export default function AiSearchPage() {
   // Build D (2026-09-30): the `A:<id>` address door. `?thread=<id>` reopens that
   // conversation on arrival through the SAME openThread a click on a past
   // conversation uses (owner-scoped server-side; an unknown id changes nothing).
-  const threadParamRef = useRef((params.get('thread') || '').trim() || null)
-  useEffect(() => {
-    if (threadParamRef.current && !handoffRef.current) openThread({ thread_id: threadParamRef.current })
-  }, [openThread])
+  // TERM-038 in-page: through useDoorParam, so a pick made while this page is ALREADY open
+  // reopens the conversation too, and the param is stripped once applied. A frozen-embed
+  // handoff still wins over a door that was in the URL at mount (as before).
+  const handoffBeatsMountDoorRef = useRef(!!session.initialThread && !!(params.get('thread') || '').trim())
+  useDoorParam('thread', (raw) => {
+    if (handoffBeatsMountDoorRef.current) { handoffBeatsMountDoorRef.current = false; return }
+    const id = raw.trim()
+    if (id) openThread({ thread_id: id })
+  })
 
   const onTicker = useCallback((tk) => {
     try { localStorage.setItem('charts_mobile_sym', tk) } catch { /* noop */ }

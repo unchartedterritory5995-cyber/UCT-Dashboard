@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SHARED_SCREEN_PARAM, sharedScreenReadUrl } from '../screenShareLink'
+import useDoorParam from '../../../hooks/useDoorParam'
 import { SPEC_PARAM, DEFAULT_SORT, DEFAULT_VIEW, encodeSpec, decodeSpec } from './specUrl'
 
 export const PAGE_SIZE = 100
@@ -39,16 +40,20 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── saved-screen arrival (build D, 2026-09-30): the door the command
+  // ── saved-screen door (build D, 2026-09-30): the door the command
   // palette's `S:<id>` address resolves to. Loads the member's OWN saved screen
-  // by id and applies it, once, only when no working spec is in the URL. A
-  // missing or unreadable screen leaves the page as it is and says so in the
-  // console -- never a silent swallow.
-  useEffect(() => {
-    if (fromUrl) return undefined
-    const want = new URLSearchParams(window.location.search).get(SAVED_SCREEN_PARAM)
-    if (!want) return undefined
-    let alive = true
+  // by id and applies it. A missing or unreadable screen leaves the page as it
+  // is and says so in the console -- never a silent swallow.
+  // TERM-038 in-page: through useDoorParam, so a pick made while the screener is
+  // ALREADY open applies too (it used to run once, at mount). A working spec in
+  // the URL AT MOUNT still wins over a door that arrived with it, as before.
+  const specBeatsMountDoorRef = useRef(
+    !!fromUrl && new URLSearchParams(window.location.search).has(SAVED_SCREEN_PARAM),
+  )
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+  useDoorParam(SAVED_SCREEN_PARAM, (want) => {
+    if (specBeatsMountDoorRef.current) { specBeatsMountDoorRef.current = false; return }
     ;(async () => {
       try {
         const r = await fetch('/api/screener/saved-screens', { credentials: 'include' })
@@ -56,14 +61,12 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
         const body = await r.json()
         const rec = (body?.saved || []).find(x => String(x.id) === String(want))
         if (!rec) throw new Error(`saved screen ${want} not found`)
-        if (alive && rec.spec) applySpec(rec.spec)
+        if (aliveRef.current && rec.spec) applySpec(rec.spec)
       } catch (err) {
         console.warn('[screener] savedScreen door:', err?.message || err)
       }
     })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  })
 
   // ── URL write: debounced replaceState; local edits strip `screen=` ───────
   const writeTimer = useRef()
