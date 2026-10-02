@@ -112,9 +112,6 @@ const SCAN_CRITERIA = {
   'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
 }
 
-// scanKey → endpoint: `./scanEndpoints.js` (COV-10's tracking list resolves through the
-// same map, so a new preset reaches both from one line).
-
 import useLivePrices from '../../../hooks/useLivePrices'
 // ─── Wave R (R-1a): the Screener's send-to-Journal door ───────────────────────
 // The shared capture flow + the shared toast + the destination picker — the same
