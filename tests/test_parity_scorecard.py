@@ -767,7 +767,9 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # re-confirm's run-meta.json (+1) and both new cells cite the shared l12-READINGS.md (+1).
     # 51 - 1 + 3 + 1 + 1 = 55.
     # L13 (2026-09-30): the G-062 row now cites lane G62's walk report (run 3). 55 + 1 = 56.
-    assert len(paths) == 56, (len(paths), paths)
+    # Quiet re-score QR (2026-10-02): the 14d cell now cites the quiet per-call curve's log, its box
+    # record and its reading (curve-d22-q2.log, curve-d22-q2-box.txt, README-quiet.md). 56 + 3 = 59.
+    assert len(paths) == 59, (len(paths), paths)
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',
