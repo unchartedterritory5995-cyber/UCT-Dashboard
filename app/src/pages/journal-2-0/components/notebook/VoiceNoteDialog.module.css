@@ -241,5 +241,6 @@
   .danger {
     min-width: var(--tap-min);
   }
-  .transcript summary { min-height: var(--tap-min); display: flex; align-items: center; }
+  /* Not flex: a flex <summary> loses its disclosure marker (seen at 390 px in walk run 4). */
+  .transcript summary { min-height: var(--tap-min); padding: 12px 0; box-sizing: border-box; }
 }
