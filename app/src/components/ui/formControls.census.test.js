@@ -883,7 +883,7 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 //
 //   2026-10-01  140  (start of the lane/term-067-batch run)
 //   2026-10-01   74  (start of the lane/term-067-partner run: partner flow files)
-export const UNNAMED_BASELINE = 35
+export const UNNAMED_BASELINE = 33
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)
