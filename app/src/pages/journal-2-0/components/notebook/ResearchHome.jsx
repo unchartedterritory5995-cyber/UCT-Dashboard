@@ -14,6 +14,7 @@ import {
 import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
+import AiActionsBox from './AiActionsPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -300,6 +301,8 @@ export default function ResearchHome({
     return (
       <div className={styles.quietState}>
         {sampleNotice}
+        {/* Wave 11 lane 11C: a member with notes but a quiet home can still ask. */}
+        <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
         <p>Nothing needs your attention right now.</p>
         <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
       </div>
@@ -321,6 +324,9 @@ export default function ResearchHome({
           signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
         })} />
       </div>
+      {/* Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while
+          its flag is off. Inline, under Ask: a plan's review list scrolls with the page. */}
+      <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />
