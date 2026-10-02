@@ -108,6 +108,18 @@ def extract(text: str) -> ClassEcon:
             m = RATIO_INTO.search(s, ci)
             if m:
                 to, r = m.group(2).upper(), _ratio(m.group(1))
+                # ⛔ a conversion RATIO is a per-share term ("each Class B share is convertible into one Class A
+                # share"), never a transaction narrative: VTIX "transferred 1,000,000 shares of Class B ... converted
+                # into 1,000,000 shares of Class A" was read as x1,000,000 (cap 117,747x Massive), UFG as x6,000,000.
+                # A digit ratio needs a per-share frame and must be a plausible ratio; a compound consideration
+                # ("into one Class A Common Share AND one Conversion Share", JBS) is not a single ratio at all.
+                per_share = re.search(r"\beach\b|\bevery\b|\bper\s+share\b|share-for-share", s[:m.end()], re.I)
+                digit = bool(re.match(r"\d", m.group(1)))
+                compound = re.match(r"[^.;]{0,40}?\band\s+(?:one|a|an|\d[\d,]*)\s+(?:[\w-]+\s+){0,3}shares?\b",
+                                    s[m.end():], re.I)
+                if compound or (digit and (not per_share or "," in m.group(1) or (r or 0) > 100)):
+                    out.conflicts.append((frm, None, (to, r), s[:200]))
+                    continue
             else:
                 after = [c.upper() for c in CLASS_RX.findall(s[ci:])]
                 to = after[0] if after else None

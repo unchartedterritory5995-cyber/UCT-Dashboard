@@ -48,16 +48,24 @@ def test_issuance_and_buyback_accepted_and_flagged_when_large():
     obs = [ob(date(2020, 1, 1), date(2020, 1, 10), 100e6), ob(date(2020, 4, 1), date(2020, 4, 10), 400e6),   # 4x issuance
            ob(date(2020, 7, 1), date(2020, 7, 10), 410e6), ob(date(2020, 10, 1), date(2020, 10, 10), 380e6)]  # buyback
     ch = {c.obs.as_of: c for c in validate(obs, Ledger())}
+    # a 4x issuance is used once INDEPENDENT evidence agreeing with it is public (the next report, 410e6, 07-10)
     assert ch[date(2020, 4, 1)].usable and R.FLAG_LARGE_CHANGE in ch[date(2020, 4, 1)].flags
+    assert ch[date(2020, 4, 1)].effective_from == date(2020, 7, 10)
     assert ch[date(2020, 10, 1)].usable and not ch[date(2020, 10, 1)].flags
+    tl = timeline(list(ch.values()), [date(2020, 4, 9), date(2020, 4, 10), date(2020, 7, 10)])
+    assert tl[0].value == 100e6 and tl[1].reason == R.SCALE_UNRESOLVED and tl[2].value == 410e6
 
 
 def test_isolated_bad_value_quarantined_not_used():
     obs = [ob(date(2020, 1, 1), date(2020, 1, 10), 100e6), ob(date(2020, 4, 1), date(2020, 4, 10), 1000e6),
            ob(date(2020, 7, 1), date(2020, 7, 10), 101e6)]
     ch = validate(obs, Ledger())
-    tl = timeline(ch, [date(2020, 4, 13)])
-    assert tl[0].value == 100e6
+    # ⭐ PIT: on 2020-04-13 nobody knew the 1000e6 was wrong (the reverting 101e6 is only public 07-10). The old rule
+    # "rejected" it using that LATER filing and carried 100e6 -- lookahead. Now the uncorroborated 10x count BLOCKS
+    # the superseded 100e6 until a usable newer count exists, and is never itself used.
+    tl = timeline(ch, [date(2020, 4, 13), date(2020, 7, 10)])
+    assert tl[0].value is None and tl[0].reason == R.SCALE_UNRESOLVED
+    assert tl[1].value == 101e6
 
 
 def test_issued_not_outstanding_refused_by_text_parser():

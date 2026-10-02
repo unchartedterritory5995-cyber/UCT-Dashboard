@@ -22,8 +22,42 @@ from .classecon import ClassEcon
 from .engine import Component, Structure
 
 
+GENERIC_COMMON = re.compile(r"^(?:common\s*stock|ordinary\s*shares?|common\s*shares?)(?:\s*\[?member\]?)?$", re.I)
+# ⛔ not a share count of this issuer at all: a "$ / shares" COLUMN (par value / price per share rendered beside the
+# count -- LGCL, WXM, GVH, DCX took a per-share column as 'shares'), an ADR/ADS member (SONY's dei_AdrMember row is the
+# ADS line, a SUBSET of the ordinary shares, never a class), a depositary-share member.
+INVALID_MEMBER = re.compile(r"\$|/\s*shares?\b|AdrMember|AmericanDepositar|American\s+Depositar|DepositaryShare|"
+                            r"Depositary\s+Share|\bADSs?\b|\bADRs?\b", re.I)
+
+
+def member_name(member: str) -> str:
+    raw = member.split(":", 1)[-1]
+    nm = raw.split("=")[-1]
+    return re.sub(r"^[a-z][a-z0-9-]*_", "", nm)
+
+
+def invalid_member(member: str | None, label: str | None) -> bool:
+    return bool(member) and bool(INVALID_MEMBER.search(member.split(":", 1)[-1]) or INVALID_MEMBER.search(label or ""))
+
+
+def filing_keys(rows) -> dict:
+    """{(member, label): class key} for ONE filing's rows. ⛔ A DIMENSIONAL generic common member that sits beside other
+    class members is a CLASS of its own, never the total: GTN reports "Common Stock" (93.1M, GTN) and "Class A"
+    (9.9M, GTN.A) -- the old rule dropped COMMON as 'the total' and priced 9.9M class A shares at GTN. It becomes "CS".
+    The non-dimensional (member-less) count stays COMMON (the total)."""
+    keys = {(m, l): class_key(m, l) for m, l in rows}
+    others = any(k != "COMMON" for (m, _l), k in keys.items() if m)
+    if others:
+        for (m, l), k in list(keys.items()):
+            if m and k == "COMMON":
+                keys[(m, l)] = "CS"
+    return keys
+
+
 def class_key(member: str | None, label: str | None) -> str:
-    """Normalize an XBRL class member / column label to COMMON or a class letter (A, B, C ...)."""
+    """Normalize an XBRL class member / column label to COMMON or a class letter (A, B, C ...).
+    ⛔ Only a GENERIC common member is COMMON: "NonvotingCommonStockMember" (UHAL's listed Series N, UHAL.B) used to
+    match a suffix rule and be thrown away as 'the total'."""
     if not member:
         return "COMMON"
     raw = member.split(":", 1)[-1]
@@ -34,7 +68,7 @@ def class_key(member: str | None, label: str | None) -> str:
         m = re.search(r"\bclass\s+([a-z])\b", label, re.I)
         if m:
             return m.group(1).upper()
-    if re.search(r"CommonStockMember$|OrdinarySharesMember$|CommonSharesMember$", raw):
+    if GENERIC_COMMON.match(member_name(member)) or GENERIC_COMMON.match((label or "").strip()):
         return "COMMON"
     return "OTHER:" + raw
 
@@ -84,7 +118,7 @@ def resolve(classes: dict, listed: dict, econ: ClassEcon | None, econ_accn: str 
         if not t:
             return Resolution(Structure("UNRESOLVED", reason=R.NO_VALID_PRICE, note="no listed ticker for the class"))
         return Resolution(Structure("SINGLE", [Component(c, t)]), {c: "single class"})
-    if any(k.startswith("OTHER:") for k in live):
+    if any(k.startswith("OTHER:") and k not in listed for k in live):
         return Resolution(Structure("UNRESOLVED", reason=R.MULTI_CLASS, note=f"unrecognized class members {sorted(live)}"))
     if econ is not None and econ.complex:
         return Resolution(Structure("UNRESOLVED", reason=R.COMPLEX, note=f"complex markers {sorted(econ.complex)} ({econ_accn})"),
@@ -108,5 +142,13 @@ def resolve(classes: dict, listed: dict, econ: ClassEcon | None, econ_accn: str 
         ev[c] = f"{econ_accn}: {why}"
     if not comps:
         return Resolution(Structure("UNRESOLVED", reason=R.MULTI_CLASS, note="no economic listed component"), ev)
+    # ⛔ two DIFFERENT listed classes priced by ONE ticker (anomaly G): each listed class carries its own price
+    seen_px: dict = {}
+    for x in comps:
+        if x.evidence == "listed":
+            if x.price_ticker in seen_px:
+                return Resolution(Structure("UNRESOLVED", reason=R.MULTI_CLASS,
+                                            note=f"classes {seen_px[x.price_ticker]} and {x.class_key} both map to {x.price_ticker}"), ev)
+            seen_px[x.price_ticker] = x.class_key
     kind = "MULTI_LISTED" if sum(1 for x in comps if x.evidence == "listed") > 1 else "LISTED_PLUS_CONVERTIBLE"
     return Resolution(Structure(kind, comps), ev)

@@ -60,6 +60,14 @@ class Checked:
     basis: str = "AS_OF"             # AS_OF | PUBLIC (value was already restated past a split)
     flags: list = field(default_factory=list)
     note: str = ""
+    # ⭐ POINT-IN-TIME usability. effective_from: the first close the value may be USED -- its own known_from, or LATER
+    # when it needed corroboration that only became public later (never earlier). valid_until (exclusive): a later
+    # public contradiction revokes it from that close on. block: (from, until|None, reason) -- a refused count still
+    # tells us the state in force is SUPERSEDED (a newer count exists that we cannot use), so it BLOCKS every older
+    # state over that interval instead of letting a stale count carry on.
+    effective_from: date | None = None
+    valid_until: date | None = None
+    block: tuple | None = None
 
     @property
     def usable(self) -> bool:
@@ -70,26 +78,37 @@ def _logr(a: float, b: float) -> float:
     return abs(math.log10(a / b))
 
 
-def _is_scale_error(v: float, ref: float) -> bool:
-    lr = math.log10(v / ref)
-    return any(abs(lr - k) < 0.05 for k in (3, -3, 6, -6))
+DISCONTINUITY = math.log10(3)        # a >= 3x move against the state in force needs independent corroboration
+AGREE = math.log10(1.5)              # an observation corroborates another within 1.5x
+CORROBORATE_DAYS = 200               # ... when their as-of dates are within this many days
+TINY_RAW = 10_000                    # a REPORTED count below this is SUSPICIOUS (placeholder "1", "10", "100" ...)
 
 
-def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol: float = 0.02) -> list[Checked]:
-    """Classify every observation. Deterministic: input order does not matter.
+def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol: float = 0.02,
+             basis_evidence: dict | None = None) -> list[Checked]:
+    """Classify every observation, strictly POINT IN TIME: a decision about an observation uses only what was public
+    by its own known_from -- or, when it needs corroboration, it becomes usable only once that corroboration is public.
+    Deterministic: input order does not matter.
 
     1. non-positive -> rejected;
-    2. per (as_of, source) the EARLIEST public report is the primary; a later re-report that agrees is
-       redundant (kept for provenance, status ACCEPTED, not a new state); one that differs supersedes only
-       when it is an amendment (/A), otherwise it is a SOURCE_CONFLICT;
-    3. split basis: a value whose as-of precedes a split that was effective before it became public may
-       already be restated; both bases are tested against the neighbouring accepted states, the consistent
-       one wins, an undecidable one is refused (false negative over false positive);
-    4. scale: a 10^3/10^6 jump against the neighbouring accepted state -> rejected; a > 3x move that
-       reverts at the next observation -> isolated outlier, rejected; any other > 3x move is kept and flagged;
-    5. same as-of, different sources, > conflict_tol apart -> both refused.
+    2. one filing stating several different values for one as-of -> every one refused, BLOCKING (the filing does not
+       say which is this security's count);
+    3. per (as_of, source) the EARLIEST public report is the primary; a later re-report that agrees is redundant; one
+       that differs supersedes only when it is an amendment (/A), otherwise it is refused;
+    4. split basis: a value whose as-of precedes a split that was effective before it became public may already be
+       restated. Filing-text evidence decides it (`basis_evidence` {accession: AS_OF|PUBLIC}); otherwise the state IN
+       FORCE at its public time decides it when decisive; otherwise refused (SPLIT_BASIS_UNRESOLVED, blocking). Never a
+       later observation (that was lookahead);
+    5. SUSPICIOUS: a reported count below 10,000 shares is used only when an independent CHANNEL (another source type
+       or concept) corroborates it within 1.5x; otherwise refused, blocking (SUSPICIOUS_SHARE_COUNT);
+    6. DISCONTINUITY / SCALE: a >= 3x move against the state in force (or, with none, a >= 3x contradiction inside its
+       own filing) is used only once independent evidence agreeing within 1.5x is public -- until then the interval is
+       blocked (SHARE_COUNT_SCALE_UNRESOLVED). Nothing is ever multiplied or divided to fit;
+    7. same as-of, different sources, > conflict_tol apart -> the later-known one is refused and the earlier one is
+       revoked from that moment (both are fine before the contradiction exists).
     """
     out: list[Checked] = []
+    basis_evidence = basis_evidence or {}
     key = lambda o: (o.as_of, o.public_at, o.rank, o.accn, o.value)
     pool = sorted(obs, key=key)
     groups: dict[tuple, list[Obs]] = {}
@@ -104,6 +123,8 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
         b = o.value * ledger.factor_after(o.public_at.astimezone(ET).date())
         return {"AS_OF": a} if abs(a / b - 1) < 1e-9 else {"AS_OF": a, "PUBLIC": b}
 
+    cands = [(o, bases(o)) for grp in groups.values() for o in grp]
+
     # ⛔ ONE FILING, ONE AS-OF, SEVERAL DIFFERENT VALUES (a combined filing's entities, an unlabelled class split):
     # the filing itself does not say which is this security's count -> every one is refused. Never resolved by
     # sort order (it used to pick the SMALLEST: AEP 2011 took a subsidiary's 1,400,000 over the parent's 482M).
@@ -116,86 +137,122 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
         if bad:
             for o in grp:
                 if o.accn in bad:
-                    out.append(Checked(o, R.REJ_CONFLICT, note=f"one filing states {sorted(by_accn[o.accn])} for {o.as_of}"))
+                    out.append(Checked(o, R.REJ_CONFLICT, note=f"one filing states {sorted(by_accn[o.accn])} for {o.as_of}",
+                                       block=(o.known_from, None, R.SOURCE_CONFLICT)))
             groups[gk] = [o for o in grp if o.accn not in bad]
             if not groups[gk]:
                 del groups[gk]
 
-    # primaries (one chain entry per (as_of, source), amendments may replace the value later)
-    prim: list[tuple[Obs, list[Obs]]] = []
-    for (_d, _s), grp in sorted(groups.items(), key=lambda kv: (kv[0][0], R.RANK[kv[0][1]])):
-        prim.append((grp[0], grp[1:]))
+    prim: list[tuple[Obs, list[Obs]]] = [(grp[0], grp[1:]) for grp in groups.values()]
 
-    # sequential basis + scale validation over primaries in as-of order
-    accepted_vals: list[tuple[date, float]] = []
+    def independent(a: Obs, b: Obs, channel_only: bool = False) -> bool:
+        other_channel = a.source != b.source or a.tag.split("/")[0] != b.tag.split("/")[0]
+        if channel_only or a.accn == b.accn:
+            return other_channel and (a.accn != b.accn or a.source != b.source)
+        return other_channel or a.as_of != b.as_of
+
+    def corroborated_at(o: Obs, val: float, channel_only: bool = False) -> date | None:
+        """The earliest close at which an INDEPENDENT observation agreeing with `val` (1.5x) is public."""
+        best = None
+        for c, cb in cands:
+            if c is o or not independent(o, c, channel_only):
+                continue
+            if abs((c.as_of - o.as_of).days) > CORROBORATE_DAYS:
+                continue
+            if not any(_logr(v, val) < AGREE for v in cb.values()):
+                continue
+            t = max(o.known_from, c.known_from)
+            if best is None or t < best:
+                best = t
+        return best
+
     decided: dict[int, Checked] = {}
-    order = list(range(len(prim)))
+    accepted: list[int] = []
 
-    def ref_near(i: int) -> float | None:
-        if accepted_vals:
-            return accepted_vals[-1][1]
-        # no earlier accepted state: use the next primary with an unambiguous basis
-        for j in range(i + 1, len(prim)):
-            bj = bases(prim[j][0])
-            if len(bj) == 1:
-                return bj["AS_OF"]
-        return None
+    def in_force(t: date) -> Checked | None:
+        best = None
+        for j in accepted:
+            c = decided[j]
+            if not c.usable or c.effective_from > t or (c.valid_until is not None and c.valid_until <= t):
+                continue
+            if best is None or (c.obs.as_of, -c.obs.rank, c.obs.public_at) > (best.obs.as_of, -best.obs.rank, best.obs.public_at):
+                best = c
+        return best
 
-    def next_val(i: int) -> float | None:
-        for j in range(i + 1, len(prim)):
-            bj = bases(prim[j][0])
-            if len(bj) == 1:
-                return bj["AS_OF"]
-        return None
-
+    order = sorted(range(len(prim)), key=lambda i: (prim[i][0].known_from, prim[i][0].as_of, prim[i][0].rank, prim[i][0].accn))
     for i in order:
         o = prim[i][0]
+        t0 = o.known_from
         b = bases(o)
-        ref = ref_near(i)
+        cur = in_force(t0)
+        ref = cur.normalized if cur else None
         if len(b) == 2:
-            if ref is None:
-                decided[i] = Checked(o, R.REJ_BASIS_AMBIGUOUS, note="no neighbouring state to decide split basis")
+            ev = basis_evidence.get(o.accn)
+            if ev in b:
+                pick = ev
+            elif ref is None:
+                decided[i] = Checked(o, R.REJ_BASIS_AMBIGUOUS, note="split between as-of and publication; no state in force",
+                                     block=(t0, None, R.SPLIT_BASIS_UNRESOLVED))
                 continue
-            da, dp = _logr(b["AS_OF"], ref), _logr(b["PUBLIC"], ref)
-            pick = "AS_OF" if da < dp else "PUBLIC"
-            best, other = min(da, dp), max(da, dp)
-            if not (best < math.log10(1.5) and other - best > math.log10(1.5)):
-                decided[i] = Checked(o, R.REJ_BASIS_AMBIGUOUS,
-                                     note=f"as_of basis {b['AS_OF']:.0f} vs public basis {b['PUBLIC']:.0f} vs ref {ref:.0f}")
-                continue
+            else:
+                da, dp = _logr(b["AS_OF"], ref), _logr(b["PUBLIC"], ref)
+                best_, other = min(da, dp), max(da, dp)
+                if not (best_ < math.log10(1.5) and other - best_ > math.log10(1.5)):
+                    decided[i] = Checked(o, R.REJ_BASIS_AMBIGUOUS, block=(t0, None, R.SPLIT_BASIS_UNRESOLVED),
+                                         note=f"as_of basis {b['AS_OF']:.0f} vs public basis {b['PUBLIC']:.0f} vs state {ref:.0f}")
+                    continue
+                pick = "AS_OF" if da < dp else "PUBLIC"
             val = b[pick]
             st = R.ACCEPTED if pick == "AS_OF" else R.ACCEPTED_RESTATED_BASIS
         else:
             val, pick, st = b["AS_OF"], "AS_OF", R.ACCEPTED
-        c = Checked(o, st, val, pick)
-        if ref is not None:
-            if _is_scale_error(val, ref):
-                decided[i] = Checked(o, R.REJ_BAD_SCALE, note=f"{val:.0f} vs neighbour {ref:.0f}")
+        c = Checked(o, st, val, pick, effective_from=t0)
+        if o.value < TINY_RAW:
+            t = corroborated_at(o, val, channel_only=True)
+            if t is None:
+                decided[i] = Checked(o, R.REJ_SUSPICIOUS, val, pick, note=f"reported {o.value:g} shares, uncorroborated",
+                                     block=(t0, None, R.SUSPICIOUS_SHARE_COUNT))
                 continue
-            if _logr(val, ref) > math.log10(3):
-                nv = next_val(i)
-                if accepted_vals and nv is not None and _logr(nv, ref) < math.log10(1.5):
-                    decided[i] = Checked(o, R.REJ_OUTLIER, note=f"{val:.0f} vs {ref:.0f}, next {nv:.0f} reverts")
-                    continue
-                c.flags.append(R.FLAG_LARGE_CHANGE)
+            c.effective_from = max(c.effective_from, t)
+            c.flags.append("CORROBORATED_SMALL_COUNT")
+        contra = None
+        if ref is not None and _logr(val, ref) >= DISCONTINUITY:
+            contra = f"{val:.0f} vs state in force {ref:.0f}"
+        elif ref is None and any(c2.accn == o.accn and c2.source != o.source and min(_logr(v, val) for v in cb.values()) >= DISCONTINUITY
+                                 for c2, cb in cands):
+            contra = "contradicted >= 3x inside its own filing"
+        if contra:
+            t = corroborated_at(o, val)
+            if t is None:
+                decided[i] = Checked(o, R.REJ_SCALE_UNRESOLVED, val, pick, note=contra + "; no independent corroboration",
+                                     block=(t0, None, R.SCALE_UNRESOLVED))
+                continue
+            c.flags.append(R.FLAG_LARGE_CHANGE)
+            c.note = contra + f"; corroborated from {t}"
+            c.effective_from = max(c.effective_from, t)
+        if c.effective_from > t0:
+            c.block = (t0, c.effective_from, R.SCALE_UNRESOLVED if contra else R.SUSPICIOUS_SHARE_COUNT)
+        # same as-of, another source, materially different: contradiction from the moment both are public
+        for j in list(accepted):
+            e = decided[j]
+            if not e.usable or e.obs.as_of != o.as_of or e.obs.source == o.source:
+                continue
+            q = max(e.normalized, val) / min(e.normalized, val) - 1
+            if q > conflict_tol:
+                when = max(t0, e.effective_from)
+                if e.effective_from >= when:
+                    decided[j] = replace(e, status=R.REJ_CONFLICT, note=f"same as-of {o.as_of}: {e.normalized:.0f} vs {val:.0f}",
+                                         block=(e.obs.known_from, None, R.SOURCE_CONFLICT))
+                else:
+                    e.valid_until = when if e.valid_until is None else min(e.valid_until, when)
+                    e.flags.append("REVOKED_BY_CONTRADICTION")
+                c = Checked(o, R.REJ_CONFLICT, val, pick, note=f"same as-of {o.as_of}: {e.normalized:.0f} vs {val:.0f}",
+                            block=(t0, None, R.SOURCE_CONFLICT))
+            elif q > dup_tol:
+                c.flags.append(R.SOURCE_CONFLICT)
         decided[i] = c
-        accepted_vals.append((o.as_of, val))
-
-    # same-as-of cross-source conflicts
-    by_asof: dict[date, list[int]] = {}
-    for i, (o, _r) in enumerate(prim):
-        if decided[i].usable:
-            by_asof.setdefault(o.as_of, []).append(i)
-    for d, idx in by_asof.items():
-        if len(idx) > 1:
-            vals = [decided[i].normalized for i in idx]
-            if max(vals) / min(vals) - 1 > conflict_tol:
-                for i in idx:
-                    decided[i] = replace(decided[i], status=R.REJ_CONFLICT,
-                                         note=f"same as-of {d}: {sorted(round(v) for v in vals)}")
-            elif max(vals) / min(vals) - 1 > dup_tol:
-                for i in idx:
-                    decided[i].flags.append(R.SOURCE_CONFLICT)
+        if c.usable:
+            accepted.append(i)
 
     for i, (o, rest) in enumerate(prim):
         c = decided[i]
@@ -207,14 +264,14 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
                 continue
             match = [k for k, v in rb.items() if abs(v / c.normalized - 1) <= dup_tol]
             if match:
-                out.append(Checked(r, R.ACCEPTED, rb[match[0]], match[0],
-                                   ["REDUNDANT"]))
+                out.append(Checked(r, R.ACCEPTED, rb[match[0]], match[0], ["REDUNDANT"], effective_from=r.known_from))
             elif r.is_amendment:
                 k = min(rb, key=lambda k: _logr(rb[k], c.normalized))
-                if _is_scale_error(rb[k], c.normalized):
-                    out.append(Checked(r, R.REJ_BAD_SCALE, note="amendment scale"))
+                if _logr(rb[k], c.normalized) >= DISCONTINUITY:
+                    out.append(Checked(r, R.REJ_SCALE_UNRESOLVED, note="amendment moves the count >= 3x",
+                                       block=(r.known_from, None, R.SCALE_UNRESOLVED)))
                 else:
-                    out.append(Checked(r, R.ACCEPTED, rb[k], k, ["AMENDS"]))
+                    out.append(Checked(r, R.ACCEPTED, rb[k], k, ["AMENDS"], effective_from=r.known_from))
             else:
                 out.append(Checked(r, R.REJ_CONFLICT, note=f"re-report {r.value:.0f} differs from primary"))
     return sorted(out, key=lambda c: key(c.obs))
@@ -229,40 +286,65 @@ class DayState:
 
 
 def timeline(checked: list[Checked], days: list[date], edgar_complete: date | None = None,
-             bound_days: int = R.SAFETY_BOUND_DAYS) -> list[DayState]:
+             bound_days: int = R.SAFETY_BOUND_DAYS, events: list | tuple = ()) -> list[DayState]:
     """Authoritative state per trading day (days ascending).
 
-    Selection at day D among usable observations known by D's close: the LATEST as-of; ties by source rank,
-    then the latest public (an amendment supersedes its original from its own publication onward).
-    Days before any evidence are PRE_EDGAR while EDGAR did not yet cover the issuer (1996-05-06 domestic,
-    2002-05-06 foreign private issuers), PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE after that.
+    At day D, among every usable count EFFECTIVE by D's close (and not revoked) and every BLOCK active at D: the LATEST
+    as-of wins (ties: source rank, then the latest public; a block wins an exact tie). A winning block withholds the
+    day with its reason. `events` [(date, reason)] are corporate actions (a reverse split, a suspected unlisted split)
+    across which a count dated BEFORE the event is never carried: from the event on, that count withholds with the
+    event's reason until a count dated on/after it is effective. Days before any evidence are PRE_EDGAR while EDGAR
+    did not yet cover the issuer (1996-05-06 domestic, 2002-05-06 foreign private issuers), PRE_FIRST after that.
     """
+    import bisect
+    import heapq
     edgar = edgar_complete or date.fromisoformat(R.EDGAR_COMPLETE)
-    usable = sorted((c for c in checked if c.usable and "REDUNDANT" not in c.flags),
-                    key=lambda c: c.obs.known_from)
-    best: Checked | None = None
+    entries = []
+    for c in checked:
+        rank_key = (c.obs.as_of, -c.obs.rank, c.obs.public_at)
+        if c.usable and "REDUNDANT" not in c.flags and c.effective_from is not None:
+            if c.valid_until is None or c.valid_until > c.effective_from:
+                entries.append((c.effective_from, c.valid_until, rank_key + (0,), c, None))
+        if c.block:
+            f, u, why = c.block
+            if u is None or u > f:
+                entries.append((f, u, rank_key + (1,), c, why))
+    entries.sort(key=lambda e: e[0])
+    ev = sorted(events)
+    ev_days = [e[0] for e in ev]
+    active: list = []
+    expiry: list = []
+    best = None
     p = 0
     out: list[DayState] = []
-
-    def better(a: Checked, b: Checked | None) -> bool:
-        if b is None:
-            return True
-        ka = (a.obs.as_of, -a.obs.rank, a.obs.public_at)
-        kb = (b.obs.as_of, -b.obs.rank, b.obs.public_at)
-        return ka > kb
-
     for d in days:
-        while p < len(usable) and usable[p].obs.known_from <= d:
-            if better(usable[p], best):
-                best = usable[p]
+        changed = False
+        while p < len(entries) and entries[p][0] <= d:
+            active.append(entries[p])
+            if entries[p][1] is not None:
+                heapq.heappush(expiry, entries[p][1])
             p += 1
+            changed = True
+        if expiry and expiry[0] <= d:
+            while expiry and expiry[0] <= d:
+                heapq.heappop(expiry)
+            active = [e for e in active if e[1] is None or e[1] > d]
+            changed = True
+        if changed:
+            best = max(active, key=lambda e: e[2]) if active else None
         if best is None:
-            pre = d < edgar
-            out.append(DayState(None, R.PRE_EDGAR if pre else R.PRE_FIRST))
+            out.append(DayState(None, R.PRE_EDGAR if d < edgar else R.PRE_FIRST))
             continue
-        age = (d - best.obs.as_of).days
+        c = best[3]
+        if best[4]:
+            out.append(DayState(None, best[4], c.obs))
+            continue
+        age = (d - c.obs.as_of).days
+        k = bisect.bisect_right(ev_days, d) - 1
         if age > bound_days:
-            out.append(DayState(None, R.STALE, best.obs, age))
+            out.append(DayState(None, R.STALE, c.obs, age))
+        elif k >= 0 and ev_days[k] > c.obs.as_of:
+            out.append(DayState(None, ev[k][1], c.obs, age))
         else:
-            out.append(DayState(best.normalized, None, best.obs, age))
+            out.append(DayState(c.normalized, None, c.obs, age))
     return out

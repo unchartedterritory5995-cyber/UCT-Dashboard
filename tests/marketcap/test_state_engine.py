@@ -69,15 +69,23 @@ def test_scale_error_rejected_and_outlier_rejected():
     obs = [ob(date(2020, 1, 1), date(2020, 1, 5), 500e6), ob(date(2020, 4, 1), date(2020, 4, 5), 500e3),
            ob(date(2020, 7, 1), date(2020, 7, 5), 505e6), ob(date(2020, 10, 1), date(2020, 10, 5), 2.1e9),
            ob(date(2021, 1, 1), date(2021, 1, 5), 510e6)]
-    st = {c.obs.as_of: c.status for c in validate(obs, Ledger())}
-    assert st[date(2020, 4, 1)] == R.REJ_BAD_SCALE
-    assert st[date(2020, 10, 1)] == R.REJ_OUTLIER
+    ch = validate(obs, Ledger())
+    st = {c.obs.as_of: c.status for c in ch}
+    assert st[date(2020, 4, 1)] == R.REJ_SCALE_UNRESOLVED          # 1000x down, nothing independent agrees
+    assert st[date(2020, 10, 1)] == R.REJ_SCALE_UNRESOLVED         # 4x up, decided WITHOUT the reverting next report
     assert st[date(2021, 1, 1)] == R.ACCEPTED
+    tl = timeline(ch, [date(2020, 4, 6), date(2020, 7, 6), date(2020, 10, 6), date(2021, 1, 5)])
+    assert [t.reason for t in tl] == [R.SCALE_UNRESOLVED, None, R.SCALE_UNRESOLVED, None]
+    assert tl[1].value == 505e6 and tl[3].value == 510e6
 
 
 def test_same_as_of_conflict_refuses_both():
     obs = [ob(date(2020, 1, 1), date(2020, 1, 5), 100e6), ob(date(2020, 1, 1), date(2020, 1, 6), 150e6, R.BALANCE_SHEET_XBRL)]
-    assert {c.status for c in validate(obs, Ledger())} == {R.REJ_CONFLICT}
+    ch = validate(obs, Ledger())
+    # PIT: the cover count is fine until the contradicting balance sheet is public; from then on, withheld
+    assert {c.status for c in ch if c.obs.source == R.BALANCE_SHEET_XBRL} == {R.REJ_CONFLICT}
+    tl = timeline(ch, [date(2020, 1, 5), date(2020, 1, 6)])
+    assert tl[0].value == 100e6 and tl[1].reason == R.SOURCE_CONFLICT
 
 
 def test_amendment_supersedes_from_its_publication():

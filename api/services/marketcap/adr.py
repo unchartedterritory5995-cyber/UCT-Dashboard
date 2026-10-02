@@ -41,6 +41,12 @@ RX = [
 ]
 
 
+# ⛔ INVERSE statements: "ADSs, each twenty (20) ADSs representing one (1) Common Share" (DDI) is 1/20 ordinary per
+# ADS. The forward rule read "ADSs representing one (1) Common Share" as 1:1 and DDI's cap came out 20x low.
+INVERSE = re.compile(rf"each\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+{ADS}\s*(?:representing|represents|represent|evidencing)\s+"
+                     rf"(?:one|an?|1)(?:\s*\(1\))?\s+{SH}", re.I)
+
+
 @dataclass(frozen=True)
 class RatioStatement:
     as_of: date                 # the date the statement speaks for (filing date / cover date)
@@ -65,8 +71,16 @@ def parse_ratio(text: str) -> tuple[float | None, str, str]:
     """-> (ordinary shares per ADS, status, snippet). status OK | NOT_FOUND | CONFLICT."""
     t = for_matching(text)
     vals = {}
+    inverse_spans = []
+    for m in INVERSE.finditer(t):
+        v = _val(m.group(1))
+        if v and v > 1:
+            inverse_spans.append((m.start(), m.end()))
+            vals.setdefault(round(1 / v, 9), t[max(0, m.start() - 20):m.end() + 20][:300])
     for rx in RX:
         for m in rx.finditer(t):
+            if any(a <= m.start() < b or a < m.end() <= b for a, b in inverse_spans):
+                continue
             tok = m.group(1)
             v = _val(tok)
             if v is None or v <= 0:
@@ -84,13 +98,91 @@ def parse_ratio(text: str) -> tuple[float | None, str, str]:
     return v, "OK", s
 
 
-def ratio_at(a: date, statements: list[RatioStatement], ads_ledger: Ledger) -> RatioStatement | None:
-    """The statement valid at `a`: the nearest one with no ADS ledger event strictly between it and `a`."""
-    best = None
-    for st in statements:
+BACKWARD_DAYS = 400       # a LATER statement speaks for an earlier as-of only this far back (the next annual report)
+ORD_JUMP = 3.0            # an ordinary-share count moving >= 3x between statement and as-of breaks the ratio's basis
+
+
+def ads_title(text: str) -> bool:
+    # an ADS of the ORDINARY / COMMON shares -- never a depositary share of a PREFERRED stock (Alphabet's GOOGN title,
+    # "Depositary Shares representing a 1/20th Interest in a Share of Series B ... Preferred Stock", made Alphabet an
+    # 'ADS issuer' and its whole history FOREIGN_MULTI_CLASS)
+    t = text or ""
+    return bool(re.search(r"american\s+deposit[ao]ry|global\s+deposit[ao]ry|\bADSs?\b|\bADRs?\b", t, re.I)) and not re.search(r"preferred", t, re.I)
+
+
+def ads_listed_fn(titled: list[tuple[date, bool]], fallback: bool):
+    """-> f(d): is the listed security an ADS at date d? From the 12(b) titles of each filing (dei:Security12bTitle):
+    the latest titled filing on/before d decides; before the first one, `fallback` (issuer-level evidence).
+    ⛔ RCEL (2019 ADS of 20 ordinary shares -> 2020 US common stock) and CD (ADS 1:360 -> ordinary shares) kept the old
+    ADS ratio for counts of a security that was no longer an ADS: caps 20x and 360x low."""
+    rows = sorted(titled)
+
+    def f(d: date) -> bool:
+        cur = None
+        for t, v in rows:
+            if t <= d:
+                cur = v
+            else:
+                break
+        return fallback if cur is None else cur
+    return f
+
+
+def ads_transitions(titled: list[tuple[date, bool]]) -> list[date]:
+    out, prev = [], None
+    for t, v in sorted(titled):
+        if prev is not None and v != prev:
+            out.append(t)
+        prev = v
+    return out
+
+
+def valid_statements(statements: list[RatioStatement], ads_ledger: Ledger, ord_points: list[tuple[date, float]]) -> list[RatioStatement]:
+    """Drop a statement whose ratio is UNCHANGED from the previous one across an ADS ledger event although the
+    ordinary-share count did not move by that event's factor: the event was a RATIO CHANGE and the statement is a
+    STALE title (SQNS 2025/2026 20-F covers still say 'each representing four ordinary shares' after the ADS went
+    4 -> 10 -> 100 ordinary shares; Massive's ADS name says 100). Unconfirmable -> dropped (fail closed)."""
+    import math
+    out, prev = [], None
+    pts = sorted(ord_points)
+    for st in sorted(statements, key=lambda x: x.as_of):
+        if prev is not None:
+            evs = [e for e in ads_ledger.splits if prev.as_of < e.ex_date <= st.as_of]
+            if evs and abs(st.ords_per_ads / prev.ords_per_ads - 1) < 0.01:
+                q = 1.0
+                for e in evs:
+                    q *= e.ratio
+                before = [v for d, v in pts if d <= evs[0].ex_date]
+                after = [v for d, v in pts if d >= evs[-1].ex_date]
+                if not (before and after) or abs(math.log(after[0] / before[-1]) - math.log(q)) > math.log(1.25):
+                    continue
+        out.append(st)
+        prev = st
+    return out
+
+
+def ratio_at(a: date, statements: list[RatioStatement], ads_ledger: Ledger, value: float | None = None,
+             ord_points: list | tuple = ()) -> RatioStatement | None:
+    """The statement valid at `a`: the latest one ON/BEFORE `a`, else the nearest LATER one within BACKWARD_DAYS -- in
+    both cases with no ADS ledger event between it and `a`, and with the ordinary-share basis continuous between them
+    (no >= 3x move in the ordinary count: DXF's ordinary shares were subdivided 100:1 in 2025 while its last ratio
+    statement, 2024, still said 480 per ADS -> 60x too many ADS-equivalents)."""
+    def ok(st):
         lo, hi = sorted((a, st.as_of))
         if any(lo < s.ex_date <= hi for s in ads_ledger.splits):
-            continue
-        if best is None or abs((st.as_of - a).days) < abs((best.as_of - a).days):
-            best = st
-    return best
+            return False
+        if st.as_of > a and (st.as_of - a).days > BACKWARD_DAYS:
+            return False
+        vals = [v for d, v in ord_points if lo <= d <= hi]
+        near = min(ord_points, key=lambda x: abs((x[0] - st.as_of).days), default=None)
+        if near is not None and abs((near[0] - st.as_of).days) <= BACKWARD_DAYS:
+            vals.append(near[1])
+        if value:
+            vals.append(value)
+        vals = [v for v in vals if v and v > 0]
+        return not (vals and max(vals) / min(vals) >= ORD_JUMP)
+    before = [st for st in statements if st.as_of <= a and ok(st)]
+    if before:
+        return max(before, key=lambda st: st.as_of)
+    after = [st for st in statements if st.as_of > a and ok(st)]
+    return min(after, key=lambda st: st.as_of) if after else None

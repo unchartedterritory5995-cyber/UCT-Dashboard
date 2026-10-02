@@ -24,7 +24,7 @@ from datetime import date, timedelta
 
 from api.services.fundamentals_pit import sec_client as SEC
 
-from . import adr, classecon, ipo, textcover
+from . import adr, classecon, ipo, prospectus, textcover
 from .fetch import filing_base, get_head
 
 TEXT_FORMS = ("10-K", "10-Q", "10-K405", "10-KSB", "10-QSB", "10-KT", "20-F", "40-F", "10-KSB40")
@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS text_obs(cik INTEGER, accn TEXT, form TEXT, filing_da
 CREATE TABLE IF NOT EXISTS ipo_obs(cik INTEGER, accn TEXT, form TEXT, filing_date TEXT, listing_start TEXT, status TEXT,
   class TEXT, count REAL, snippet TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS econ(cik INTEGER, accn TEXT, form TEXT, filing_date TEXT, result TEXT);
+CREATE TABLE IF NOT EXISTS prosp_obs(cik INTEGER, accn TEXT, form TEXT, filing_date TEXT, status TEXT, class TEXT,
+  count REAL, as_of TEXT, rule TEXT, snippet TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS adr_ratio(cik INTEGER, accn TEXT, form TEXT, filing_date TEXT, status TEXT, ratio REAL, snippet TEXT);
 """
 
@@ -128,6 +130,26 @@ def adr_one(cik, accn, form, fd, doc):
     return [(cik, accn, form, fd, st, v, snip[:400])]
 
 
+PROSP_FORMS = ("424B1", "424B4", "424B5", "424B7", "S-1", "F-1", "S-3", "F-3")
+
+
+def select_prosp(inp) -> list[tuple]:
+    q = ",".join("?" * len(PROSP_FORMS))
+    return inp.execute(f"SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE form IN ({q}) AND primary_doc IS NOT NULL "
+                       "ORDER BY filing_date DESC", PROSP_FORMS).fetchall()
+
+
+def prosp_one(cik, accn, form, fd, doc):
+    b = get_head(filing_base(cik, accn) + "/" + doc, 350_000) if doc else None
+    if b is None:
+        return [(cik, accn, form, fd, "NO_FILE", None, None, None, None, None, None)]
+    r = prospectus.parse(textcover.normalize(b), date.fromisoformat(fd))
+    if not r.hits:
+        return [(cik, accn, form, fd, r.status, None, None, None, None, None, r.note[:300])]
+    return [(cik, accn, form, fd, r.status, h.class_label, h.count, h.as_of.isoformat(), h.rule, h.snippet[:400], r.note[:300])
+            for h in r.hits]
+
+
 def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | None) -> dict:
     inp = sqlite3.connect(inputs_path)
     db = sqlite3.connect(out, check_same_thread=False)
@@ -144,6 +166,8 @@ def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | Non
         # F-6 / F-6EF / F-6/A: the DEPOSITARY's registration of the ADSs states the ratio by definition (TSM's 20-Fs
         # never state it; its 2005 F-6: "each American Depositary Share representing five (5) Common Shares")
         todo, fn, table, n = select_docs(inp, arg, ("20-F", "40-F", "20-F/A", "F-6", "F-6EF", "F-6/A")), adr_one, "adr_ratio", 7
+    elif mode == "prosp":
+        todo, fn, table, n = select_prosp(inp), prosp_one, "prosp_obs", 11
     else:
         raise SystemExit(f"unknown mode {mode}")
     todo = [x for x in todo if x[1] not in done]
@@ -173,7 +197,7 @@ def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | Non
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", required=True, choices=("text", "ipo", "econ", "adr"))
+    ap.add_argument("--mode", required=True, choices=("text", "ipo", "econ", "adr", "prosp"))
     ap.add_argument("--inputs", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=24)
