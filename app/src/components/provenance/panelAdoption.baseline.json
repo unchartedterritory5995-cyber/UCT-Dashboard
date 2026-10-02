@@ -24,6 +24,7 @@
     "app/src/pages/breadth/views/TheReadStrip.jsx",
     "app/src/pages/charts/widgets/AiSearchWidget.jsx",
     "app/src/pages/cot/PositioningRail.jsx",
+    "app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",
     "app/src/pages/research/tabs/AnalystRatingsTab.jsx",

@@ -1911,6 +1911,15 @@ _PHASE_2_ALTERS = [
     # name. NULL for every existing note (additive, no fabricated values) --
     # only ever written by a member explicitly setting a property.
     "ALTER TABLE j2_notes ADD COLUMN properties_json TEXT",
+    # Wave 11 (lane 11B) — formula and rollup properties. A computed property's
+    # settings (the formula's expression, stored with property IDS; a rollup's
+    # source/property/aggregate) live on its definition row. NULL for every other
+    # type and for every existing row: ADD COLUMN on SQLite is a schema edit, never
+    # a table rebuild, so this is safe on a live auth.db of any size.
+    "ALTER TABLE j2_note_properties ADD COLUMN config_json TEXT",
+    # ⛔ The VALUES are never stored: note_computed.py computes them in memory at
+    # read time (controller ruling 2026-10-01 -- a read never writes), so this
+    # column is the feature's ONLY schema change.
     # Wave E checkpoint §26: user-set property values ARE versioned, on the
     # same coalescing gate as title/subtitle/body_plain (see
     # _versioned_content_of/_maybe_capture_version) -- a deliberate choice,
@@ -2059,6 +2068,22 @@ _PERF_INDEXES = [
     # user-only read the old index serves.
     "CREATE INDEX IF NOT EXISTS idx_j2_note_document_pages_user_doc"
     " ON j2_note_document_pages(user_id, document_id)",
+    # Wave 11 (lane 11B): formula and rollup values are computed at READ time from
+    # each note's properties_json (a read never writes, controller ruling 2026-10-01).
+    # A sort or filter by a formula reads every live note's properties; through the
+    # table that walked each row past body_json's overflow pages (~170 ms at 50k).
+    # This partial index holds ONLY live notes that have properties, keyed by
+    # (user_id, id) and carrying the JSON, so that scan and a rollup's member
+    # lookups never touch a row. ⛔ Readers must spell the predicate as the index
+    # does -- `deleted_at IS NULL AND properties_json IS NOT NULL` -- and name it
+    # with INDEXED BY (note_computed.PROPS_INDEX): with no ANALYZE statistics the
+    # planner prefers the broader live indexes. ⛔ `deleted_at` is a COLUMN here
+    # although it is always NULL in this index: SQLite does not count a term the
+    # partial WHERE implies as covered, so without it every scan went back to the
+    # table for it (measured: "USING INDEX", not "USING COVERING INDEX").
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_props_live"
+    " ON j2_notes(user_id, deleted_at, id, properties_json)"
+    " WHERE properties_json IS NOT NULL AND deleted_at IS NULL",
 ]
 
 

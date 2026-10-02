@@ -1,0 +1,6 @@
+== q2 start 19:30:11 HEAD 471add8f36
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-01T19:30:11
+== end 19:32:07 exit 1
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 5 marked process(es) (gate 0, vitest 5, pytest 0); largest pid 33604 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment

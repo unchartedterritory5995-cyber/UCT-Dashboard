@@ -15,11 +15,12 @@ export default function useJ2PropertyDefs() {
   })
   const propertyDefs = data?.propertyDefs ?? []
 
-  const create = async (name, type, options) => {
+  // Wave 11 (lane 11B): `config` carries a formula's or a rollup's settings.
+  const create = async (name, type, options, config) => {
     const res = await fetch(url, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, type, ...(options ? { options } : {}) }),
+      body: JSON.stringify({ name, type, ...(options ? { options } : {}), ...(config ? { config } : {}) }),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
@@ -53,6 +54,20 @@ export default function useJ2PropertyDefs() {
     }
     await mutate()
   }
+  /** Wave 11: change a computed property's settings (and/or name). The server
+   *  re-validates, including the circular-reference check, and says why in `detail`. */
+  const updateConfig = async (id, config, name) => {
+    const res = await fetch(`${url}/${id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config, ...(name ? { name } : {}) }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail || `${res.status}`)
+    }
+    await mutate()
+  }
   const remove = async (id) => {
     const res = await fetch(`${url}/${id}`, { method: 'DELETE', credentials: 'include' })
     if (!res.ok) {
@@ -64,6 +79,6 @@ export default function useJ2PropertyDefs() {
 
   return {
     propertyDefs, isLoading, error, refresh: () => mutate(),
-    create, rename, updateOptions, remove,
+    create, rename, updateOptions, updateConfig, remove,
   }
 }

@@ -1,0 +1,8 @@
+{
+  "label": "s-L15",
+  "what": "through L15: revert b529c8a78 (wave 10 L15 #262)",
+  "assets_scanned": 357,
+  "needle": "too long for one PNG image",
+  "present": false,
+  "found_in": []
+}

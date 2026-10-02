@@ -1,0 +1,2 @@
+healthy True post-boot True
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: C:\Users\Patrick\uct-worktrees\notebook-w10-cx\docs\plans\joystick\sandbox-runs\2026-10-01T21-21-53.md

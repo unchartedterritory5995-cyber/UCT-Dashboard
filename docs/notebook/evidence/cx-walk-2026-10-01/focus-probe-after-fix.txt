@@ -1,0 +1,10 @@
+100 ['TEXTAREA', 'Your note on this (optional)', ''] 1
+300 ['TEXTAREA', 'Your note on this (optional)', ''] 1
+800 ['TEXTAREA', 'Your note on this (optional)', ''] 1
+1500 ['TEXTAREA', 'Your note on this (optional)', ''] 1
+menu vis visible
+after esc menus 0
+mouse open active ['TEXTAREA', 'Your note on this (optional)']
+focus log [['in', 'BUTTON', 'Save MU 2025 to Notebook'], ['in', 'TEXTAREA', 'Your note on this (optional)']]
+menu html <div class="_menu_sxjch_3" role="menu" tabindex="-1" style="left: 1014.31px; top: 97.0938px; width: 280px; visibility: visible;"><div class="_menuTitle_sxjch_57">Save to Notebook</div><div class="_box_w59sq_36"><textarea class="_note_w59sq_42" placeholder="Your note on this (optional)" rows="3" aria-label="Your note on this (optional)"></textarea><div class="_actions_w59sq_53"><button type="button
+try focus [True, 'visible', 'block']

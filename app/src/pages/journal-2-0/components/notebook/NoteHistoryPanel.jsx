@@ -6,6 +6,7 @@ import { timeAgo, formatET } from '../../../../utils/timeAgo'
 import { useJ2NoteVersions, useJ2NoteVersion, restoreNoteVersion } from '../../hooks/useJ2NoteVersions'
 import { diffNoteBodies, diffHasChanges } from '../../lib/noteVersionDiff'
 import NoteVersionPreview from './NoteVersionPreview'
+import AiChangeSetHistory from './AiChangeSetHistory'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteHistoryPanel.module.css'
 
@@ -21,6 +22,16 @@ import styles from './NoteHistoryPanel.module.css'
  * every row here is a content CHECKPOINT the note passed through, not a
  * deleted note.
  */
+/** After an AI change set's undo: the editor adopts the server's copy, the same
+ *  hand-off a version restore makes (`onRestored` is the editor's adoptServerCopy). */
+async function adoptAfterUndo(noteId, onRestored) {
+  if (!onRestored) return
+  try {
+    const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
+    if (res.ok) onRestored((await res.json()).note)
+  } catch { /* the note reloads on its next open */ }
+}
+
 export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, onRestored }) {
   const { versions, isLoading, error } = useJ2NoteVersions(noteId, { enabled: open })
   const [selectedId, setSelectedId] = useState(null)
@@ -78,6 +89,10 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
       ariaLabel="Version history"
     >
       <div className={styles.wrap}>
+        {/* Wave 11 lane 11C: the AI change sets that changed this note, each
+            labelled and undoable (renders nothing while the flag is off). An undo
+            hands the editor the server's copy, exactly as a version restore does. */}
+        <AiChangeSetHistory noteId={noteId} open={open} onUndone={() => adoptAfterUndo(noteId, onRestored)} />
         {/* G-106 (Wave B lower-frequency sweep): same skeleton-line idiom as
             NoteEditorPage/ResearchHome, instead of bare text. */}
         {isLoading && (

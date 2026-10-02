@@ -56,6 +56,20 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },
+  // Wave 11 lane 11A: the voice-note dialog (the editor's /voice, the New note sheet's
+  // "Start from audio", a Desk session's Save to Notebook); rail a11y/voiceNote.a11y.test.jsx.
+  'components/notebook/VoiceNoteDialog.jsx': { recipe: 'voice-note-dialog' },
+  // Wave 11 lane 11B: formula and rollup properties (dark behind notebook_formulas_enabled,
+  // so the tab/editor recipes never render them); rail a11y/formulas.a11y.test.jsx.
+  'components/notebook/FormulaEditor.jsx': { recipe: 'formula-editor' },
+  'components/notebook/RollupEditor.jsx': { recipe: 'rollup-editor' },
+  'components/notebook/ComputedValue.jsx': { coveredBy: 'table-computed-columns' },
+  'components/notebook/ComputedFilterControl.jsx': { recipe: 'computed-filter-dialog' },
+  // Wave 11 lane 11D: the trade-plan canvas (a canvas note's board, its cards and its
+  // dialogs); rail a11y/tradeCanvas.a11y.test.jsx.
+  'components/notebook/TradeCanvasBoard.jsx': { recipe: 'trade-canvas' },
+  'components/notebook/TradeCanvasItem.jsx': { coveredBy: 'trade-canvas' },
+  'components/notebook/TradeCanvasDialogs.jsx': { recipe: 'trade-canvas-dialogs' },
   'components/notebook/NoteHistoryPanel.jsx': { coveredBy: 'editor-history' },
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },
@@ -65,6 +79,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteStats.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteTagsField.jsx': { coveredBy: 'editor' },
   'components/notebook/UnsentTrashDialog.jsx': { recipe: 'unsent-trash' },
+  // Wave 11 lane 11C: "Ask Notebook to do something" on Research Home, and the AI change
+  // sets a note's History lists; rail a11y/aiActions.a11y.test.jsx (request, review, applied).
+  'components/notebook/AiActionsPanel.jsx': { recipe: 'ai-actions-review' },
+  'components/notebook/AiChangeSetHistory.jsx': { recipe: 'ai-change-set-history' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },
@@ -103,6 +121,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/ThemesEmbed.jsx': { recipe: 'embed-themes' },
   'components/notebook/WatchlistEmbed.jsx': { recipe: 'embed-watchlist' },
   'components/notebook/FrozenList.jsx': { recipe: 'frozen-list' },
+  // G-040 (wave 10, lane CX): the three capture-only kinds.
+  'components/notebook/ScreenerEmbed.jsx': { recipe: 'embed-screener' },
+  'components/notebook/CotEmbed.jsx': { recipe: 'embed-cot' },
+  'components/notebook/ModelBookEmbed.jsx': { recipe: 'embed-model-book' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

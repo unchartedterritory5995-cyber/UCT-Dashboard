@@ -259,7 +259,8 @@ def append_markdown(user_id: str, note_id: str, markdown: Any) -> dict[str, Any]
     return append_nodes(user_id, note_id, nodes)
 
 
-def append_nodes(user_id: str, note_id: str, nodes: list[dict[str, Any]]) -> dict[str, Any]:
+def append_nodes(user_id: str, note_id: str, nodes: list[dict[str, Any]], *,
+                 expected_updated_at: str | None = None) -> dict[str, Any]:
     """Append TipTap `nodes` to the END of one of this member's notes, as ONE
     read-and-write inside `BEGIN IMMEDIATE`: the body is read under the write
     lock and the update is a compare-and-set against exactly that read, so a
@@ -268,7 +269,13 @@ def append_nodes(user_id: str, note_id: str, nodes: list[dict[str, Any]]) -> dic
 
     ⛔ Tenant-scoped in the read (`user_id` in the WHERE): another member's
     note, a trashed note and a missing one are the same 404; a locked note is
-    423."""
+    423.
+
+    `expected_updated_at` (wave 11 lane 11C, keyword-only; None = every existing
+    caller unchanged) is the revision the caller REVIEWED: an AI change set
+    appends a block the member approved against the note as they saw it, so a
+    note that moved since is a 409 under the same lock, before anything is
+    written."""
     from api.services.journal_two import notes as notes_service
 
     if not isinstance(note_id, str) or not note_id:
@@ -288,6 +295,9 @@ def append_nodes(user_id: str, note_id: str, nodes: list[dict[str, Any]]) -> dic
         if row["locked"]:
             conn.rollback()
             raise PersonalApiError(423, LOCKED_SENTENCE)
+        if expected_updated_at is not None and row["updated_at"] != expected_updated_at:
+            conn.rollback()
+            raise PersonalApiError(409, CHANGED_SENTENCE)
         try:
             doc = json.loads(row["body_json"] or "{}")
         except (TypeError, ValueError):

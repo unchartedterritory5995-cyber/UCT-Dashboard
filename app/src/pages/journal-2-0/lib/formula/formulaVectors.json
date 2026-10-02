@@ -1,0 +1,1306 @@
+{
+ "_readme": [
+  "Wave 11 (lane 11B) -- THE shared test vectors for the formula language.",
+  "Read by BOTH tests/test_formula_engine.py (the server engine) and",
+  "app/src/pages/journal-2-0/lib/formula/formulaEngine.vectors.test.js (the client engine).",
+  "Every expected value was written by hand from the grammar's rules, never recorded",
+  "from either engine. `values` are keyed by property id: a number is a value, null is",
+  "an empty property, anything else is not a number, and an absent key is a property",
+  "that does not exist. `names` (lowercased name -> id, null = shared by two) means the",
+  "expression is in the member's {Name} form and is converted to ids first. `gen` builds",
+  "the expression as each [text, count] repeated count times, joined."
+ ],
+ "limits": {
+  "maxLength": 2000,
+  "maxTokens": 500,
+  "maxDepth": 32,
+  "maxNumberChars": 32,
+  "maxRoundPlaces": 10
+ },
+ "cases": [
+  {
+   "name": "multiplication before addition",
+   "expr": "1 + 2 * 3",
+   "expect": {
+    "value": 7
+   }
+  },
+  {
+   "name": "parentheses first",
+   "expr": "(1 + 2) * 3",
+   "expect": {
+    "value": 9
+   }
+  },
+  {
+   "name": "subtraction is left-associative",
+   "expr": "10 - 4 - 3",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "division is left-associative",
+   "expr": "100 / 10 / 5",
+   "expect": {
+    "value": 2
+   }
+  },
+  {
+   "name": "two products summed",
+   "expr": "2 * 3 + 4 * 5",
+   "expect": {
+    "value": 26
+   }
+  },
+  {
+   "name": "comparison binds loosest",
+   "expr": "1 + 2 < 4",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "equality true",
+   "expr": "2 * 3 = 6",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "equality false",
+   "expr": "1 = 2",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "not-equal",
+   "expr": "1 != 2",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "greater-or-equal on a tie",
+   "expr": "3 >= 3",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "greater on a tie",
+   "expr": "3 > 3",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "less-or-equal false",
+   "expr": "2 <= 1",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "less",
+   "expr": "2 < 3",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "comparisons do not chain",
+   "expr": "1 < 2 < 3",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "double equals is not a comparison",
+   "expr": "1 == 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "unary minus",
+   "expr": "-3",
+   "expect": {
+    "value": -3
+   }
+  },
+  {
+   "name": "double negation",
+   "expr": "--3",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "mixed signs",
+   "expr": "-+-3",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "negatives multiplied",
+   "expr": "-3 * -2",
+   "expect": {
+    "value": 6
+   }
+  },
+  {
+   "name": "negated group",
+   "expr": "-(2 + 3)",
+   "expect": {
+    "value": -5
+   }
+  },
+  {
+   "name": "minus a negative",
+   "expr": "2 - -3",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "unary binds tighter than multiplication",
+   "expr": "-2 * 3 + 1",
+   "expect": {
+    "value": -5
+   }
+  },
+  {
+   "name": "unary plus",
+   "expr": "+5",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "negated property",
+   "expr": "- {@a}",
+   "expect": {
+    "value": -4
+   },
+   "values": {
+    "a": 4
+   }
+  },
+  {
+   "name": "minus zero shows as zero",
+   "expr": "-0",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "leading-dot decimals",
+   "expr": ".5 + .5",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "exponent",
+   "expr": "1e3",
+   "expect": {
+    "value": 1000
+   }
+  },
+  {
+   "name": "negative exponent",
+   "expr": "2.5E-1",
+   "expect": {
+    "value": 0.25
+   }
+  },
+  {
+   "name": "trailing dot",
+   "expr": "5.",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "binary float stays honest",
+   "expr": "0.1 + 0.2",
+   "expect": {
+    "value": 0.30000000000000004
+   }
+  },
+  {
+   "name": "big literals multiply",
+   "expr": "99999999999999999999 * 99999999999999999999",
+   "expect": {
+    "value": 1e+40
+   }
+  },
+  {
+   "name": "underflow is zero",
+   "expr": "1e-300 * 1e-300",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "a literal past the double range",
+   "expr": "1e309",
+   "expect": {
+    "error": "number_too_large"
+   }
+  },
+  {
+   "name": "a literal longer than 32 characters",
+   "expr": "123456789012345678901234567890123",
+   "expect": {
+    "error": "number_too_large"
+   }
+  },
+  {
+   "name": "two decimal points",
+   "expr": "1.2.3",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a dangling exponent",
+   "expr": "1e",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "round to cents",
+   "expr": "round(2.345, 2)",
+   "expect": {
+    "value": 2.35
+   }
+  },
+  {
+   "name": "round half up on the decimal form",
+   "expr": "round(1.005, 2)",
+   "expect": {
+    "value": 1.01
+   }
+  },
+  {
+   "name": "round half away from zero",
+   "expr": "round(2.5)",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "round half away from zero, negative",
+   "expr": "round(-2.5)",
+   "expect": {
+    "value": -3
+   }
+  },
+  {
+   "name": "round negative cents",
+   "expr": "round(-1.005, 2)",
+   "expect": {
+    "value": -1.01
+   }
+  },
+  {
+   "name": "round to a whole number",
+   "expr": "round(1234.5678, 0)",
+   "expect": {
+    "value": 1235
+   }
+  },
+  {
+   "name": "round below half a cent is zero",
+   "expr": "round(0.0004, 2)",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "round half a cent up",
+   "expr": "round(0.005, 2)",
+   "expect": {
+    "value": 0.01
+   }
+  },
+  {
+   "name": "round a huge number is unchanged",
+   "expr": "round(1e20, 2)",
+   "expect": {
+    "value": 1e+20
+   }
+  },
+  {
+   "name": "round to ten places",
+   "expr": "round(1.23456789, 10)",
+   "expect": {
+    "value": 1.23456789
+   }
+  },
+  {
+   "name": "round carries into a new digit",
+   "expr": "round(9.995, 2)",
+   "expect": {
+    "value": 10
+   }
+  },
+  {
+   "name": "round a computed value",
+   "expr": "round(10 / 3, 2)",
+   "expect": {
+    "value": 3.33
+   }
+  },
+  {
+   "name": "round places above ten",
+   "expr": "round(1, 11)",
+   "expect": {
+    "error": "bad_round"
+   }
+  },
+  {
+   "name": "round negative places",
+   "expr": "round(1, -1)",
+   "expect": {
+    "error": "bad_round"
+   }
+  },
+  {
+   "name": "round fractional places",
+   "expr": "round(1, 1.5)",
+   "expect": {
+    "error": "bad_round"
+   }
+  },
+  {
+   "name": "round with nothing",
+   "expr": "round()",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "round with three values",
+   "expr": "round(1, 2, 3)",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "abs of a negative",
+   "expr": "abs(-4.5)",
+   "expect": {
+    "value": 4.5
+   }
+  },
+  {
+   "name": "abs of a positive",
+   "expr": "abs(3)",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "abs of minus zero",
+   "expr": "abs(-0)",
+   "expect": {
+    "value": 0
+   }
+  },
+  {
+   "name": "abs with nothing",
+   "expr": "abs()",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "abs with two values",
+   "expr": "abs(1, 2)",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "min",
+   "expr": "min(3, 1, 2)",
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "max",
+   "expr": "max(3, 1, 2)",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "min of one",
+   "expr": "min(5)",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "function names ignore case",
+   "expr": "MIN(2, 3) + Max(2, 3)",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "max with nothing",
+   "expr": "max()",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "max of properties",
+   "expr": "max({@a}, {@b})",
+   "expect": {
+    "value": 4
+   },
+   "values": {
+    "a": 4,
+    "b": -1
+   }
+  },
+  {
+   "name": "if true branch",
+   "expr": "if(1 > 0, 10, 20)",
+   "expect": {
+    "value": 10
+   }
+  },
+  {
+   "name": "if false branch",
+   "expr": "if(0, 10, 20)",
+   "expect": {
+    "value": 20
+   }
+  },
+  {
+   "name": "if picks the larger property",
+   "expr": "if({@a} > {@b}, {@a}, {@b})",
+   "expect": {
+    "value": 7
+   },
+   "values": {
+    "a": 7,
+    "b": 3
+   }
+  },
+  {
+   "name": "if never evaluates the branch it skips (division)",
+   "expr": "if(1, 5, 1 / 0)",
+   "expect": {
+    "value": 5
+   }
+  },
+  {
+   "name": "if never evaluates the branch it skips (other side)",
+   "expr": "if(0, 1 / 0, 7)",
+   "expect": {
+    "value": 7
+   }
+  },
+  {
+   "name": "if never reads a property it skips",
+   "expr": "if(1, 2, {@a})",
+   "expect": {
+    "value": 2
+   },
+   "values": {
+    "a": null
+   }
+  },
+  {
+   "name": "if guards a zero-risk trade",
+   "expr": "if({@e} = {@s}, 0, ({@x} - {@e}) / ({@e} - {@s}))",
+   "expect": {
+    "value": 0
+   },
+   "values": {
+    "e": 10,
+    "s": 10,
+    "x": 12
+   }
+  },
+  {
+   "name": "if condition divides by zero",
+   "expr": "if(1 / 0, 1, 2)",
+   "expect": {
+    "error": "div_zero"
+   }
+  },
+  {
+   "name": "if with two values",
+   "expr": "if(1, 2)",
+   "expect": {
+    "error": "arity"
+   }
+  },
+  {
+   "name": "max evaluates every value",
+   "expr": "max(1, 1 / 0)",
+   "expect": {
+    "error": "div_zero"
+   }
+  },
+  {
+   "name": "division by zero",
+   "expr": "1 / 0",
+   "expect": {
+    "error": "div_zero"
+   }
+  },
+  {
+   "name": "zero over zero",
+   "expr": "0 / 0",
+   "expect": {
+    "error": "div_zero"
+   }
+  },
+  {
+   "name": "division by minus zero",
+   "expr": "1 / -0",
+   "expect": {
+    "error": "div_zero"
+   }
+  },
+  {
+   "name": "division by a difference that is zero",
+   "expr": "{@a} / ({@b} - {@b})",
+   "expect": {
+    "error": "div_zero"
+   },
+   "values": {
+    "a": 1,
+    "b": 5
+   }
+  },
+  {
+   "name": "two properties",
+   "expr": "{@a} + {@b}",
+   "expect": {
+    "value": 5
+   },
+   "values": {
+    "a": 2,
+    "b": 3
+   }
+  },
+  {
+   "name": "an id ref with spaces inside the braces",
+   "expr": "{ @a } * 2",
+   "expect": {
+    "value": 8
+   },
+   "values": {
+    "a": 4
+   }
+  },
+  {
+   "name": "an empty property",
+   "expr": "{@a} * 2",
+   "expect": {
+    "error": "missing"
+   },
+   "values": {
+    "a": null
+   }
+  },
+  {
+   "name": "a property that does not exist",
+   "expr": "{@a} + 1",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "values": {}
+  },
+  {
+   "name": "a property holding text",
+   "expr": "{@a} + 1",
+   "expect": {
+    "error": "not_number"
+   },
+   "values": {
+    "a": "12"
+   }
+  },
+  {
+   "name": "a property holding true",
+   "expr": "{@a} + 1",
+   "expect": {
+    "error": "not_number"
+   },
+   "values": {
+    "a": true
+   }
+  },
+  {
+   "name": "a product past the double range",
+   "expr": "{@a} * {@a}",
+   "expect": {
+    "error": "overflow"
+   },
+   "values": {
+    "a": 1e+200
+   }
+  },
+  {
+   "name": "a literal product past the double range",
+   "expr": "1e300 * 1e10",
+   "expect": {
+    "error": "overflow"
+   }
+  },
+  {
+   "name": "a negative product past the double range",
+   "expr": "-1e300 * 1e10",
+   "expect": {
+    "error": "overflow"
+   }
+  },
+  {
+   "name": "a sum past the double range",
+   "expr": "1.7e308 + 1.7e308",
+   "expect": {
+    "error": "overflow"
+   }
+  },
+  {
+   "name": "the trader's R-multiple, long",
+   "expr": "({@x} - {@e}) / ({@e} - {@s})",
+   "expect": {
+    "value": 2
+   },
+   "values": {
+    "e": 100,
+    "s": 95,
+    "x": 110
+   }
+  },
+  {
+   "name": "the trader's R-multiple, short",
+   "expr": "({@x} - {@e}) / ({@e} - {@s})",
+   "expect": {
+    "value": 2
+   },
+   "values": {
+    "e": 100,
+    "s": 105,
+    "x": 90
+   }
+  },
+  {
+   "name": "position size",
+   "expr": "round({@r} / abs({@e} - {@s}), 0)",
+   "expect": {
+    "value": 100
+   },
+   "values": {
+    "r": 500,
+    "e": 50,
+    "s": 45
+   }
+  },
+  {
+   "name": "percent gain",
+   "expr": "({@x} - {@e}) / {@e} * 100",
+   "expect": {
+    "value": 12.5
+   },
+   "values": {
+    "e": 80,
+    "x": 90
+   }
+  },
+  {
+   "name": "names are converted to ids",
+   "expr": "{Entry} - {Stop}",
+   "expect": {
+    "value": 5
+   },
+   "names": {
+    "entry": "e",
+    "stop": "s"
+   },
+   "values": {
+    "e": 100,
+    "s": 95
+   }
+  },
+  {
+   "name": "names ignore case",
+   "expr": "{ENTRY} - {stop}",
+   "expect": {
+    "value": 5
+   },
+   "names": {
+    "entry": "e",
+    "stop": "s"
+   },
+   "values": {
+    "e": 100,
+    "s": 95
+   }
+  },
+  {
+   "name": "an unknown name",
+   "expr": "{Exit} - 1",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "names": {
+    "entry": "e"
+   }
+  },
+  {
+   "name": "a name two properties share",
+   "expr": "{Entry} - 1",
+   "expect": {
+    "error": "ambiguous_ref"
+   },
+   "names": {
+    "entry": null
+   }
+  },
+  {
+   "name": "constructor names nothing",
+   "expr": "constructor",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "__proto__ names nothing",
+   "expr": "__proto__",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "prototype names nothing",
+   "expr": "prototype",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "this names nothing",
+   "expr": "this",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "eval is not a function here",
+   "expr": "eval(1)",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "Function is not a function here",
+   "expr": "Function(1)",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "toString is not a function here",
+   "expr": "toString(1)",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "alert is not a function here",
+   "expr": "alert(1)",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "process.exit names nothing",
+   "expr": "process.exit(1)",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "import names nothing",
+   "expr": "import(1)",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "property access after a reference",
+   "expr": "{@a}.constructor",
+   "expect": {
+    "error": "syntax"
+   },
+   "values": {
+    "a": 1
+   }
+  },
+  {
+   "name": "indexing",
+   "expr": "a[0]",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a semicolon",
+   "expr": "1; 2",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a template literal",
+   "expr": "`x`",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a quoted string",
+   "expr": "'1' + 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a double-quoted string",
+   "expr": "\"1\" + 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "an id ref named __proto__",
+   "expr": "{@__proto__} + 1",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "values": {}
+  },
+  {
+   "name": "an id ref named constructor",
+   "expr": "{@constructor}",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "values": {}
+  },
+  {
+   "name": "a name ref named __proto__",
+   "expr": "{__proto__}",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "names": {}
+  },
+  {
+   "name": "a name ref named constructor",
+   "expr": "{constructor}",
+   "expect": {
+    "error": "unknown_ref"
+   },
+   "names": {}
+  },
+  {
+   "name": "an id with a dot",
+   "expr": "{@a.b}",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "an unclosed reference",
+   "expr": "1 + {@a",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a lone closing brace",
+   "expr": "}",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "empty braces",
+   "expr": "{}",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "braces inside braces",
+   "expr": "{ {x} }",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "empty formula",
+   "expr": "",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "only spaces",
+   "expr": "   ",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "two numbers side by side",
+   "expr": "1 2",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "unclosed parenthesis",
+   "expr": "(1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "extra closing parenthesis",
+   "expr": "1)",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "empty parentheses",
+   "expr": "()",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a function without parentheses",
+   "expr": "round 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a trailing comma",
+   "expr": "min(1,)",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a leading comma",
+   "expr": "min(,1)",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a fullwidth digit",
+   "expr": "\uff11 + 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "an Arabic-Indic digit",
+   "expr": "\u0663",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "pi is not a number here",
+   "expr": "\u03c0",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a non-breaking space is not whitespace",
+   "expr": "1\u00a0+ 1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a zero-width space",
+   "expr": "1\u200b+1",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a bare word on a second line",
+   "expr": "1\nfoo",
+   "expect": {
+    "error": "syntax"
+   }
+  },
+  {
+   "name": "a bare word where a value belongs",
+   "expr": "1 + foo",
+   "expect": {
+    "error": "unknown_name"
+   }
+  },
+  {
+   "name": "tabs and newlines are whitespace",
+   "expr": "1\t+\n2\r\n",
+   "expect": {
+    "value": 3
+   }
+  },
+  {
+   "name": "nesting at the limit (32 parentheses)",
+   "gen": [
+    [
+     "(",
+     32
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     32
+    ]
+   ],
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "nesting past the limit (33 parentheses)",
+   "gen": [
+    [
+     "(",
+     33
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     33
+    ]
+   ],
+   "expect": {
+    "error": "too_deep"
+   }
+  },
+  {
+   "name": "function nesting at the limit",
+   "gen": [
+    [
+     "abs(",
+     32
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     32
+    ]
+   ],
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "function nesting past the limit",
+   "gen": [
+    [
+     "abs(",
+     33
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     33
+    ]
+   ],
+   "expect": {
+    "error": "too_deep"
+   }
+  },
+  {
+   "name": "unary chain at the limit",
+   "gen": [
+    [
+     "-",
+     32
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "unary chain past the limit",
+   "gen": [
+    [
+     "-",
+     33
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "expect": {
+    "error": "too_deep"
+   }
+  },
+  {
+   "name": "mixed nesting past the limit",
+   "gen": [
+    [
+     "(-",
+     17
+    ],
+    [
+     "1",
+     1
+    ],
+    [
+     ")",
+     17
+    ]
+   ],
+   "expect": {
+    "error": "too_deep"
+   }
+  },
+  {
+   "name": "a 499-token sum",
+   "gen": [
+    [
+     "1+",
+     249
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "expect": {
+    "value": 250
+   }
+  },
+  {
+   "name": "a 501-token sum",
+   "gen": [
+    [
+     "1+",
+     250
+    ],
+    [
+     "1",
+     1
+    ]
+   ],
+   "expect": {
+    "error": "too_many_tokens"
+   }
+  },
+  {
+   "name": "2000 characters",
+   "gen": [
+    [
+     "1",
+     1
+    ],
+    [
+     " ",
+     1999
+    ]
+   ],
+   "expect": {
+    "value": 1
+   }
+  },
+  {
+   "name": "2001 characters",
+   "gen": [
+    [
+     "1",
+     1
+    ],
+    [
+     " ",
+     2000
+    ]
+   ],
+   "expect": {
+    "error": "too_long"
+   }
+  },
+  {
+   "name": "a long formula of properties",
+   "gen": [
+    [
+     "{@a}+",
+     120
+    ],
+    [
+     "0",
+     1
+    ]
+   ],
+   "expect": {
+    "value": 120
+   },
+   "values": {
+    "a": 1
+   }
+  },
+  {
+   "name": "a huge run of opening parentheses",
+   "gen": [
+    [
+     "(",
+     5000
+    ]
+   ],
+   "expect": {
+    "error": "too_long"
+   }
+  }
+ ]
+}

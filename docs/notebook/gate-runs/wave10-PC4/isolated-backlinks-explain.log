@@ -1,0 +1,34 @@
+
+--- get_symbol_backlinks main query ---
+SELECT n.id, n.title, n.updated_at, COUNT(*) OVER () AS total FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol IN (?) UNION SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol IN (?)) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = ? AND n.deleted_at IS NULL ORDER BY n.updated_at DESC, n.id LIMIT ?
+  {'id': 3, 'parent': 0, 'notused': 0, 'detail': 'CO-ROUTINE (subquery-4)'}
+  {'id': 5, 'parent': 3, 'notused': 0, 'detail': 'CO-ROUTINE x'}
+  {'id': 6, 'parent': 5, 'notused': 0, 'detail': 'COMPOUND QUERY'}
+  {'id': 7, 'parent': 6, 'notused': 0, 'detail': 'LEFT-MOST SUBQUERY'}
+  {'id': 11, 'parent': 7, 'notused': 61, 'detail': 'SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)'}
+  {'id': 24, 'parent': 6, 'notused': 0, 'detail': 'UNION USING TEMP B-TREE'}
+  {'id': 27, 'parent': 24, 'notused': 62, 'detail': 'SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)'}
+  {'id': 47, 'parent': 3, 'notused': 57, 'detail': 'SCAN x'}
+  {'id': 50, 'parent': 3, 'notused': 54, 'detail': 'SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)'}
+  {'id': 73, 'parent': 0, 'notused': 86, 'detail': 'SCAN (subquery-4)'}
+  {'id': 125, 'parent': 0, 'notused': 0, 'detail': 'USE TEMP B-TREE FOR ORDER BY'}
+
+--- get_symbol_backlinks detail query ---
+SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets FROM j2_note_embeds WHERE user_id = ? AND symbol = ? AND note_id IN (?,?,?,?,?) GROUP BY note_id
+  {'id': 7, 'parent': 0, 'notused': 61, 'detail': 'SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)'}
+  {'id': 39, 'parent': 0, 'notused': 0, 'detail': 'USE TEMP B-TREE FOR GROUP BY'}
+  {'id': 79, 'parent': 0, 'notused': 0, 'detail': 'USE TEMP B-TREE FOR group_concat(DISTINCT)'}
+
+--- count_notes ---
+SELECT count(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL
+  {'id': 3, 'parent': 0, 'notused': 54, 'detail': 'SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)'}
+
+--- folder_note_counts ---
+SELECT folder_id, count(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id
+  {'id': 6, 'parent': 0, 'notused': 54, 'detail': 'SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)'}
+
+--- list_tasks (body scan) ---
+SELECT id FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL AND instr(body_json, 'taskItem') > 0 ORDER BY updated_at DESC
+  {'id': 4, 'parent': 0, 'notused': 62, 'detail': 'SEARCH j2_notes USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)'}
+
+k (symbol hit rows, pre-dedupe union) = 5000, n (library size) = 50000, k/n = 0.1000

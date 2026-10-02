@@ -54,6 +54,11 @@ function ChartEmbed({
   // Settings modal (via the imperative ref below) and every edit lands here, so
   // it persists to the note's OWN params.settings — never the global blob.
   onStoreSettings = null,
+  // Wave 11 lane 11D: a trade-plan canvas can hold many chart cards at once, so it
+  // passes `false` -- StockChart's speculative all-timeframe warm chain is the
+  // fetch-herd class the multi-chart grid already turns off. Default TRUE: every
+  // other caller is byte-identical to before.
+  backgroundWarm = true,
 }, ref) {
   const params = attrs?.params || {}
   const paneRef = useRef(null)
@@ -124,8 +129,9 @@ function ChartEmbed({
     annotationsTextVisible: true,
     annotationsEditable: !!annotate,
     ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
+    ...(backgroundWarm ? {} : { backgroundWarm: false }),
   }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
-    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair])
+    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm])
 
   return (
     // Wave 8 (8A): a figure named by the embed's own caption (the same words

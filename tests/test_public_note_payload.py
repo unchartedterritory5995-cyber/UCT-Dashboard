@@ -234,6 +234,12 @@ FIXTURES: dict[str, Callable[[], dict]] = {
     "widgetEmbed": lambda: doc(_widget("chart")),
     "financialFact": lambda: doc({"type": "financialFact", "attrs": {"factId": "fact-massive"}}),
     "documentExcerpt": lambda: doc({"type": "documentExcerpt", "attrs": {"excerptId": "ex-1"}}),
+    # Wave 11 lane 11D: a trade-plan canvas holding a member card, a Massive chart and a level.
+    "tradeCanvas": lambda: doc({"type": "tradeCanvas", "attrs": {"searchText": "Trade-plan canvas $NVDA", "board": {
+        "v": 1, "items": [{"id": "i1", "kind": "text", "x": 0, "y": 0, "w": 200, "h": 100, "text": "my plan"},
+                          {"id": "i2", "kind": "chart", "x": 0, "y": 0, "w": 400, "h": 260, "symbol": "NVDA",
+                           "tf": "D", "mode": "live", "asOf": None}],
+        "edges": [], "levels": [{"id": "l1", "role": "entry", "label": "Entry", "price": 182.5, "chartId": "i2"}]}}}),
     # marks
     "bold": lambda: doc(p(t("b", {"type": "bold"}))),
     "code": lambda: doc(p(t("c", {"type": "code"}))),
@@ -274,6 +280,7 @@ EXPECTED.update({
     "widgetEmbed": ("neutral", "neutral"),  # the fixture is a CHART (Massive)
     "financialFact": ("neutral", "neutral"),  # the fixture is a Massive price fact
     "documentExcerpt": ("neutral", "neutral"),
+    "tradeCanvas": ("neutral", "neutral"),  # wave 11 11D: a plan mixes member text with Massive charts
 })
 
 
@@ -306,7 +313,7 @@ def _outcome(type_: str, body: dict, out: dict) -> str:
     if type_ == "askCitation" and present:
         chips = find(out, "askCitation")
         return "number" if all(c.get("attrs") == {"n": 1} for c in chips) else "kept"
-    if type_ in ("widgetEmbed", "financialFact", "documentExcerpt") and not present:
+    if type_ in ("widgetEmbed", "financialFact", "documentExcerpt", "tradeCanvas") and not present:
         return "neutral" if NEUTRAL in texts_in(out) else "gone"
     return "kept" if present else "gone"
 

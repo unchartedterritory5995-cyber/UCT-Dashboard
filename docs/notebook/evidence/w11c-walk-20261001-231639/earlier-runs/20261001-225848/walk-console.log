@@ -1,0 +1,5 @@
+  W1_box_by_keyboard: PASS -- 50 Tab presses reached the toggle; Enter opened it; the request box has focus=True
+  W2_planned_by_keyboard: FAIL -- Ctrl+Enter planned it; review heading shown=False, focus on None
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\w11c-walk-20261001-225848\integrity.md
+  W10_driver_never_imported_api: PASS -- no api.* module in the driver's sys.modules
+VERDICT: FAIL -- W2_planned_by_keyboard

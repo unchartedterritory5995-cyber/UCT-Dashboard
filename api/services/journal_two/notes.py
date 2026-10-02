@@ -1806,6 +1806,18 @@ def _tuples(conn: sqlite3.Connection, sql: str, params: list[Any]) -> sqlite3.Cu
     return cur.execute(sql, params)
 
 
+def _computed_memo(shared: "_RowidSets | None") -> dict:
+    """Wave 11: one per-request memo of computed values, shared by the page and
+    its total, so a formula is evaluated over the library ONCE per request."""
+    if shared is None:
+        return {}
+    memo = getattr(shared, "computed_memo", None)
+    if memo is None:
+        memo = {}
+        shared.computed_memo = memo
+    return memo
+
+
 def list_notes(
     user_id: str,
     *,
@@ -1898,6 +1910,22 @@ def list_notes(
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             shared=_shared, tag_index=tag_index, fts_map=fts_map,
         )
+        # Wave 11 (lane 11B): a formula/rollup value is not stored, so its condition
+        # cannot be a column test. It is computed IN MEMORY (note_computed, reads
+        # only) and joins the WHERE as a rowid SET, so the page, its ORDER BY/LIMIT
+        # and its true total stay one SQL statement each and cannot disagree.
+        computed_sort = None
+        if property_filter or property_sort:
+            from api.services.journal_two.note_properties import split_computed
+            property_filter, computed_filters, computed_sort = split_computed(
+                user_id, property_filter, property_sort, conn, strict=property_filter_strict,
+            )
+            if computed_filters:
+                from api.services.journal_two import note_computed
+                c_where, c_params = note_computed.filter_clauses(
+                    conn, user_id, computed_filters, _computed_memo(_shared))
+                where_sql += c_where
+                params += c_params
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
             prop_where, prop_params = property_filter_sql(
@@ -1928,7 +1956,7 @@ def list_notes(
         else:
             sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
             prop_sort_result = None
-            if property_sort:
+            if property_sort and computed_sort is None:
                 from api.services.journal_two.note_properties import property_sort_sql
                 prop_sort_result = property_sort_sql(
                     user_id, property_sort, conn, strict=property_filter_strict,
@@ -1961,9 +1989,26 @@ def list_notes(
                     "deleted": "deleted_at DESC, id ASC",
                 }.get(sort, "deleted_at DESC, id ASC" if deleted else "updated_at DESC")
                 sql += f" ORDER BY {order_col}"
-            sql += " LIMIT ? OFFSET ?"
-            params = params + [page_limit, page_offset]
-            rows = conn.execute(sql, params).fetchall()
+            if computed_sort is not None:
+                # Wave 11: a sort by a computed value. Only the notes that HAVE a value
+                # are ordered in memory; the empties follow in the base order, read
+                # with LIMIT/OFFSET in SQL -- then ONLY the page's rows are read.
+                from api.services.journal_two import note_computed
+                order_sql = sql[len(f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql):]
+                order = note_computed.sorted_page(
+                    conn, user_id, where_sql, params, order_sql, computed_sort,
+                    page_offset, page_limit, _computed_memo(_shared))
+                by_rowid = {}
+                if order:
+                    marks = ",".join("?" * len(order))
+                    by_rowid = {r["rid"]: r for r in conn.execute(
+                        f"SELECT j2_notes.rowid AS rid, {_NOTE_SUMMARY_COLS} FROM j2_notes"
+                        f" WHERE j2_notes.rowid IN ({marks})", order).fetchall()}
+                rows = [by_rowid[rid] for rid in order if rid in by_rowid]
+            else:
+                sql += " LIMIT ? OFFSET ?"
+                params = params + [page_limit, page_offset]
+                rows = conn.execute(sql, params).fetchall()
         results = [_row_to_note_summary(r) for r in rows]
         # Slice 2: query-aware snippets, scoped to just this page's rows.
         # `relevance_expr` above is gated on sort="relevance"; snippets are
@@ -2029,6 +2074,18 @@ def count_notes(
             fts_map=bool(q and _fts_map_ready(conn)),
         )
         if property_filter:
+            # Wave 11: the SAME computed clauses `list_notes` adds, from the same memo.
+            from api.services.journal_two.note_properties import split_computed
+            property_filter, computed_filters, _ = split_computed(
+                user_id, property_filter, None, conn, strict=property_filter_strict,
+            )
+            if computed_filters:
+                from api.services.journal_two import note_computed
+                c_where, c_params = note_computed.filter_clauses(
+                    conn, user_id, computed_filters, _computed_memo(_shared))
+                where_sql += c_where
+                params += c_params
+        if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
             prop_where, prop_params = property_filter_sql(
                 user_id, property_filter, conn, strict=property_filter_strict,
@@ -2038,7 +2095,7 @@ def count_notes(
         if _shared is not None:
             known = _shared.known_count(where_sql, params)
             if known is not None:
-                return known       # the relevance pass read exactly this WHERE's rows
+                return known       # the page's own pass read exactly this filtered set
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row["c"] or 0) if row else 0
@@ -5029,6 +5086,8 @@ def patch_note_tags(
     add: list[str],
     remove: list[str],
     conn: sqlite3.Connection | None = None,
+    *,
+    expected_updated_at: str | None = None,
 ) -> tuple[dict[str, Any] | None, bool]:
     """Wave 6 (controller-added, lane D's M14) — `PATCH /notes/{id}/tags`:
     applies a tag DELTA to the note's STORED list, read and written inside
@@ -5050,7 +5109,13 @@ def patch_note_tags(
     wrote the row. A client cannot derive it from the answer's revision --
     when another writer satisfied the same delta between the client's read
     and this call, nothing is written and the answer carries THAT writer's
-    revision, which a timestamp compare would record as the client's own."""
+    revision, which a timestamp compare would record as the client's own.
+
+    `expected_updated_at` (wave 11 lane 11C, keyword-only, default None = every
+    existing caller unchanged) makes the delta a compare-and-set against the
+    revision a caller REVIEWED: an AI change set applies a tag the member
+    approved on the note as they saw it, so a note that moved since raises
+    `NoteConflictError` under the same lock, before anything is written."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -5062,6 +5127,8 @@ def patch_note_tags(
         if row is None:
             conn.rollback()
             return None, False
+        if expected_updated_at is not None and row["updated_at"] != expected_updated_at:
+            raise NoteConflictError("note changed since the caller's baseline")
         existing_tags = json.loads(row["tags"] or "[]")
         patched = patched_tag_list(existing_tags, add, remove)
         if patched is None:

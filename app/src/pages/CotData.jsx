@@ -142,8 +142,17 @@ class ChartErrorBoundary extends Component {
 
 const CHART_SIZE_KEY = 'cot.chart.size'
 
+// G-040: a Notebook COT capture links back with `?cot=<symbol>` ("Current COT
+// for …"). Read once, as the initial pick; an absent or malformed value is ES.
+function initialCotSymbol() {
+  try {
+    const s = new URLSearchParams(window.location.search).get('cot')
+    return s && /^[A-Za-z0-9]{1,6}$/.test(s) ? s.toUpperCase() : 'ES'
+  } catch { return 'ES' }
+}
+
 export default function CotData() {
-  const [symbol,       setSymbol]       = useState('ES')
+  const [symbol,       setSymbol]       = useState(initialCotSymbol)
   const [weeks,        setWeeks]        = useState(52)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [search,       setSearch]       = useState('')

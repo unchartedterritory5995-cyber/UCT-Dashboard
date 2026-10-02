@@ -1,0 +1,43 @@
+.value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+.stale {
+  font-style: italic;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.mark {
+  margin-left: 1px;
+  color: var(--text-muted);
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.chip {
+  font-size: 11px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

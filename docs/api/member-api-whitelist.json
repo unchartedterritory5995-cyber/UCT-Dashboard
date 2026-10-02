@@ -1358,6 +1358,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/ai-actions",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/ai-actions/{set_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/analytics",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1895,6 +1907,18 @@
       "path": "/api/j2/unified-coach",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/voice-notes/desk-sessions",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/voice-notes/status",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",

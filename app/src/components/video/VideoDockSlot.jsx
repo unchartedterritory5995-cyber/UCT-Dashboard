@@ -9,7 +9,7 @@
 // When MINIMIZED (the user parked the player in the corner but is still on the
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
-import { useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback, lazy, Suspense } from 'react'
+import { useContext, useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, play, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
@@ -22,11 +22,15 @@ import RsBadge from '../RsBadge'
 import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
+import { AuthContext } from '../../context/AuthContext'
+import { voiceNotesEnabled } from '../../pages/journal-2-0/lib/voiceNote'
 import styles from './VideoDockSlot.module.css'
 import Textarea from '../ui/Textarea'
 
 // Heavy lazy chunk — must not load for viewers who never open the follow pane.
 const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
+// Wave 11 lane 11A: "Save to Notebook" opens the voice-note dialog on this session.
+const VoiceNoteDialog = lazy(() => import('../../pages/journal-2-0/components/notebook/VoiceNoteDialog'))
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
@@ -69,6 +73,14 @@ export default function VideoDockSlot() {
   const { enabled: communityEnabled, threadId } = useVideoThread(active ? list[index]?.id : null)
   const navigate = useNavigate()
   const [draft, setDraft] = useState(null) // { t, text } while composing, else null
+  // Wave 11 lane 11A: "Save to Notebook" — the session's existing transcript, an
+  // AI summary (labelled), its tickers and action items, previewed before anything
+  // is saved. Dark behind `notebook_voice_notes_enabled`; paid-only, like the Desk.
+  // Read OPTIONALLY: the dock also renders in tests without an auth provider.
+  const auth = useContext(AuthContext)
+  const voiceOn = voiceNotesEnabled(auth?.isPaid)
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const [voiceSaved, setVoiceSaved] = useState(null) // { videoId, noteId }
   const [savingNb, setSavingNb] = useState('')
   const [savingWl, setSavingWl] = useState('') // save-tickers-to-watchlist status
   const [savingJournal, setSavingJournal] = useState('') // '', 'saving', 'saved', 'error'
@@ -671,6 +683,38 @@ export default function VideoDockSlot() {
                 </button>
               )}
             </div>
+          )}
+          {voiceOn && hasTranscript && list[index]?.id != null && (
+            <div className={styles.journalWrap}>
+              {voiceSaved && voiceSaved.videoId === list[index].id ? (
+                <button
+                  type="button"
+                  className={styles.journalBtn}
+                  onClick={() => navigate(`/journal?j2tab=notebook&note=${voiceSaved.noteId}`)}
+                >
+                  ✓ Saved to Notebook — open it →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.journalBtn}
+                  onClick={() => setVoiceOpen(true)}
+                  aria-haspopup="dialog"
+                  title="Save this session's transcript, an AI summary, its tickers and action items as a Notebook note"
+                >
+                  Save to Notebook
+                </button>
+              )}
+            </div>
+          )}
+          {voiceOpen && voiceOn && list[index] && (
+            <Suspense fallback={null}>
+              <VoiceNoteDialog
+                deskVideo={{ id: list[index].id, title: list[index].title }}
+                onSaved={(n) => setVoiceSaved(n?.id ? { videoId: list[index].id, noteId: n.id } : null)}
+                onClose={() => setVoiceOpen(false)}
+              />
+            </Suspense>
           )}
           {/* My notes — jot a thought at the current timestamp; click to jump back. */}
           <div className={styles.notesWrap}>

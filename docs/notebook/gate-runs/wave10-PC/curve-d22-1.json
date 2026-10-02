@@ -1,0 +1,1917 @@
+{
+  "meta": {
+    "tool": "tools/notebook_scale_benchmark.py",
+    "argv": [
+      "--curve",
+      "--thresholds",
+      "docs/notebook/perf-budgets.json",
+      "--json",
+      "docs/notebook/gate-runs/wave10-PC/curve-d22-1.json"
+    ],
+    "git_head": "07c64750a84a53454b433b19d91df075b7495015",
+    "git_dirty_paths": [],
+    "python": "3.14.0",
+    "sqlite": "3.50.4",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "reps": 20,
+    "warmup": 2,
+    "paragraphs": 5,
+    "started_at": "2026-10-01T13:19:12-0500",
+    "remeasure_budgets": [],
+    "timed_ops": [
+      "list_notes (page 1, default sort)",
+      "count_notes (whole library)",
+      "GET /notes default (list+count)",
+      "list_notes (FTS, common term ~30%)",
+      "count_notes (FTS, common term ~30%)",
+      "GET /notes q=common (list+count)",
+      "list_notes (FTS, rare term, 1 note)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "tag_counts (whole library)",
+      "tag_tree (whole library)",
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)",
+      "list_tasks (open, ?view=tasks)",
+      "switcher_search (body fallback, common term)",
+      "switcher_search (body fallback, rare term)"
+    ],
+    "attachments": 0,
+    "curve": true,
+    "ratio_budget": null,
+    "connection": "per-call",
+    "connection_explicit": false,
+    "connection_diagnostic": "shared",
+    "members": 1,
+    "slow_ops": {},
+    "shared_root_writes": []
+  },
+  "tiers": [
+    {
+      "n": 1000,
+      "members": 1,
+      "connection": "per-call",
+      "notes_all_members": 1000,
+      "active": 954,
+      "trashed": 22,
+      "archived": 24,
+      "seed_ms": 268.5,
+      "task_digest_backfill_ms": 6.4,
+      "attachments": 0,
+      "attachment_pages": 0,
+      "attachment_seed_ms": 0.0,
+      "db_bytes": 9273344,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 2.315,
+          "p95_ms": 2.527,
+          "max_ms": 2.86,
+          "min_ms": 2.203,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 1.424,
+          "p95_ms": 1.687,
+          "max_ms": 2.276,
+          "min_ms": 1.374,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 2.476,
+          "p95_ms": 2.709,
+          "max_ms": 2.795,
+          "min_ms": 2.256,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 12.364,
+          "p95_ms": 14.25,
+          "max_ms": 17.052,
+          "min_ms": 11.147,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 2.064,
+          "p95_ms": 2.635,
+          "max_ms": 3.057,
+          "min_ms": 1.944,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 12.945,
+          "p95_ms": 14.759,
+          "max_ms": 16.877,
+          "min_ms": 11.854,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 7.819,
+          "p95_ms": 8.006,
+          "max_ms": 8.14,
+          "min_ms": 7.175,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 7.301,
+          "p95_ms": 7.997,
+          "max_ms": 8.592,
+          "min_ms": 6.894,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 14.32,
+          "p95_ms": 15.499,
+          "max_ms": 16.583,
+          "min_ms": 12.954,
+          "reps": 20
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 8.114,
+          "p95_ms": 8.71,
+          "max_ms": 9.668,
+          "min_ms": 7.233,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 3.311,
+          "p95_ms": 4.583,
+          "max_ms": 4.791,
+          "min_ms": 2.935,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 6.153,
+          "p95_ms": 7.211,
+          "max_ms": 8.752,
+          "min_ms": 5.823,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 2.401,
+          "p95_ms": 3.402,
+          "max_ms": 3.642,
+          "min_ms": 2.293,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 2.633,
+          "p95_ms": 3.596,
+          "max_ms": 3.644,
+          "min_ms": 2.327,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 3.103,
+          "p95_ms": 4.052,
+          "max_ms": 4.386,
+          "min_ms": 2.45,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 2.311,
+          "p95_ms": 2.484,
+          "max_ms": 2.52,
+          "min_ms": 1.447,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 5.227,
+          "p95_ms": 6.671,
+          "max_ms": 7.489,
+          "min_ms": 4.084,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 1.931,
+          "p95_ms": 3.52,
+          "max_ms": 3.796,
+          "min_ms": 1.711,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 3.253,
+          "p95_ms": 4.843,
+          "max_ms": 5.097,
+          "min_ms": 2.541,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 8.182,
+          "p95_ms": 10.915,
+          "max_ms": 11.727,
+          "min_ms": 6.067,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 3.396,
+          "p95_ms": 4.587,
+          "max_ms": 4.648,
+          "min_ms": 2.195,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 9.989,
+          "p95_ms": 11.917,
+          "max_ms": 12.158,
+          "min_ms": 7.177,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 5.975,
+          "p95_ms": 7.855,
+          "max_ms": 7.964,
+          "min_ms": 5.36,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 557243,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true
+      },
+      "db_path": null
+    },
+    {
+      "n": 5000,
+      "members": 1,
+      "connection": "per-call",
+      "notes_all_members": 5000,
+      "active": 4775,
+      "trashed": 93,
+      "archived": 132,
+      "seed_ms": 2067.9,
+      "task_digest_backfill_ms": 13.8,
+      "attachments": 0,
+      "attachment_pages": 0,
+      "attachment_seed_ms": 0.0,
+      "db_bytes": 41615360,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 3.396,
+          "p95_ms": 4.277,
+          "max_ms": 4.499,
+          "min_ms": 2.371,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 3.092,
+          "p95_ms": 3.305,
+          "max_ms": 3.365,
+          "min_ms": 1.953,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 4.654,
+          "p95_ms": 5.031,
+          "max_ms": 5.279,
+          "min_ms": 2.887,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 20.091,
+          "p95_ms": 28.119,
+          "max_ms": 29.103,
+          "min_ms": 13.802,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 4.198,
+          "p95_ms": 6.563,
+          "max_ms": 6.639,
+          "min_ms": 3.612,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 23.501,
+          "p95_ms": 27.76,
+          "max_ms": 28.412,
+          "min_ms": 18.294,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 11.685,
+          "p95_ms": 13.974,
+          "max_ms": 14.778,
+          "min_ms": 9.842,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 13.524,
+          "p95_ms": 15.853,
+          "max_ms": 17.081,
+          "min_ms": 9.656,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 21.324,
+          "p95_ms": 28.817,
+          "max_ms": 29.191,
+          "min_ms": 19.606,
+          "reps": 20
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 10.149,
+          "p95_ms": 14.382,
+          "max_ms": 15.739,
+          "min_ms": 9.238,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 7.784,
+          "p95_ms": 8.834,
+          "max_ms": 9.039,
+          "min_ms": 4.618,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 10.856,
+          "p95_ms": 13.488,
+          "max_ms": 13.549,
+          "min_ms": 8.556,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 7.219,
+          "p95_ms": 10.379,
+          "max_ms": 10.393,
+          "min_ms": 6.364,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 8.124,
+          "p95_ms": 11.497,
+          "max_ms": 11.775,
+          "min_ms": 6.559,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 7.75,
+          "p95_ms": 10.817,
+          "max_ms": 11.252,
+          "min_ms": 6.733,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 3.337,
+          "p95_ms": 4.179,
+          "max_ms": 5.072,
+          "min_ms": 2.105,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 9.432,
+          "p95_ms": 12.767,
+          "max_ms": 14.925,
+          "min_ms": 7.585,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 3.154,
+          "p95_ms": 4.591,
+          "max_ms": 4.645,
+          "min_ms": 2.869,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 7.993,
+          "p95_ms": 9.502,
+          "max_ms": 9.686,
+          "min_ms": 5.18,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 32.02,
+          "p95_ms": 43.396,
+          "max_ms": 45.764,
+          "min_ms": 22.86,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 7.214,
+          "p95_ms": 11.533,
+          "max_ms": 13.873,
+          "min_ms": 6.065,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 40.821,
+          "p95_ms": 46.541,
+          "max_ms": 47.954,
+          "min_ms": 28.386,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 24.995,
+          "p95_ms": 31.395,
+          "max_ms": 34.109,
+          "min_ms": 18.288,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 2696805,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true
+      },
+      "db_path": null
+    },
+    {
+      "n": 10000,
+      "members": 1,
+      "connection": "per-call",
+      "notes_all_members": 10000,
+      "active": 9542,
+      "trashed": 191,
+      "archived": 267,
+      "seed_ms": 3472.1,
+      "task_digest_backfill_ms": 28.7,
+      "attachments": 0,
+      "attachment_pages": 0,
+      "attachment_seed_ms": 0.0,
+      "db_bytes": 82157568,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 2.096,
+          "p95_ms": 3.534,
+          "max_ms": 3.569,
+          "min_ms": 1.978,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 2.126,
+          "p95_ms": 3.097,
+          "max_ms": 3.455,
+          "min_ms": 1.972,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 3.01,
+          "p95_ms": 4.751,
+          "max_ms": 4.771,
+          "min_ms": 2.848,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 13.166,
+          "p95_ms": 15.233,
+          "max_ms": 18.039,
+          "min_ms": 11.925,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 4.726,
+          "p95_ms": 6.93,
+          "max_ms": 7.434,
+          "min_ms": 4.311,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 16.955,
+          "p95_ms": 22.402,
+          "max_ms": 22.61,
+          "min_ms": 15.456,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 9.252,
+          "p95_ms": 12.057,
+          "max_ms": 14.271,
+          "min_ms": 7.751,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 11.924,
+          "p95_ms": 15.404,
+          "max_ms": 16.275,
+          "min_ms": 9.637,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 24.165,
+          "p95_ms": 30.88,
+          "max_ms": 32.67,
+          "min_ms": 21.441,
+          "reps": 20
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 11.791,
+          "p95_ms": 16.576,
+          "max_ms": 18.823,
+          "min_ms": 9.394,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 6.552,
+          "p95_ms": 9.798,
+          "max_ms": 10.255,
+          "min_ms": 5.635,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 12.523,
+          "p95_ms": 17.389,
+          "max_ms": 17.479,
+          "min_ms": 10.664,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 11.499,
+          "p95_ms": 14.633,
+          "max_ms": 17.918,
+          "min_ms": 10.196,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 12.466,
+          "p95_ms": 16.899,
+          "max_ms": 20.603,
+          "min_ms": 10.987,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 14.722,
+          "p95_ms": 19.579,
+          "max_ms": 21.9,
+          "min_ms": 11.074,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 2.811,
+          "p95_ms": 3.818,
+          "max_ms": 4.286,
+          "min_ms": 2.48,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 7.003,
+          "p95_ms": 10.565,
+          "max_ms": 11.113,
+          "min_ms": 6.308,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 4.746,
+          "p95_ms": 6.331,
+          "max_ms": 6.37,
+          "min_ms": 3.839,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 11.893,
+          "p95_ms": 14.614,
+          "max_ms": 19.622,
+          "min_ms": 7.777,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 27.568,
+          "p95_ms": 37.395,
+          "max_ms": 39.513,
+          "min_ms": 23.621,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 12.809,
+          "p95_ms": 17.283,
+          "max_ms": 17.357,
+          "min_ms": 9.785,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 35.743,
+          "p95_ms": 48.882,
+          "max_ms": 54.046,
+          "min_ms": 31.889,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 22.077,
+          "p95_ms": 28.23,
+          "max_ms": 33.135,
+          "min_ms": 19.992,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 3352139,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true
+      },
+      "db_path": null
+    },
+    {
+      "n": 25000,
+      "members": 1,
+      "connection": "per-call",
+      "notes_all_members": 25000,
+      "active": 23784,
+      "trashed": 498,
+      "archived": 718,
+      "seed_ms": 8384.5,
+      "task_digest_backfill_ms": 73.8,
+      "attachments": 0,
+      "attachment_pages": 0,
+      "attachment_seed_ms": 0.0,
+      "db_bytes": 203698176,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 2.167,
+          "p95_ms": 3.458,
+          "max_ms": 4.029,
+          "min_ms": 1.963,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 3.63,
+          "p95_ms": 4.346,
+          "max_ms": 4.407,
+          "min_ms": 3.29,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 4.409,
+          "p95_ms": 6.33,
+          "max_ms": 6.891,
+          "min_ms": 4.095,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 15.418,
+          "p95_ms": 19.769,
+          "max_ms": 22.505,
+          "min_ms": 14.624,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 8.763,
+          "p95_ms": 9.263,
+          "max_ms": 9.553,
+          "min_ms": 8.363,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 24.233,
+          "p95_ms": 28.717,
+          "max_ms": 28.728,
+          "min_ms": 23.183,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 11.228,
+          "p95_ms": 13.359,
+          "max_ms": 13.687,
+          "min_ms": 10.299,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 14.411,
+          "p95_ms": 16.63,
+          "max_ms": 18.733,
+          "min_ms": 13.416,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 41.599,
+          "p95_ms": 45.284,
+          "max_ms": 48.162,
+          "min_ms": 38.426,
+          "reps": 20
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 15.176,
+          "p95_ms": 20.197,
+          "max_ms": 27.145,
+          "min_ms": 13.959,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 11.577,
+          "p95_ms": 13.456,
+          "max_ms": 14.944,
+          "min_ms": 10.867,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 22.306,
+          "p95_ms": 34.407,
+          "max_ms": 39.747,
+          "min_ms": 20.297,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 27.286,
+          "p95_ms": 32.547,
+          "max_ms": 33.578,
+          "min_ms": 25.775,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 28.933,
+          "p95_ms": 41.551,
+          "max_ms": 41.578,
+          "min_ms": 27.944,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 30.239,
+          "p95_ms": 34.471,
+          "max_ms": 34.691,
+          "min_ms": 28.208,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 4.68,
+          "p95_ms": 6.535,
+          "max_ms": 7.443,
+          "min_ms": 4.291,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 7.276,
+          "p95_ms": 10.64,
+          "max_ms": 10.978,
+          "min_ms": 6.831,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 8.825,
+          "p95_ms": 10.14,
+          "max_ms": 10.592,
+          "min_ms": 8.382,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 18.242,
+          "p95_ms": 24.329,
+          "max_ms": 25.696,
+          "min_ms": 16.934,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 35.23,
+          "p95_ms": 40.42,
+          "max_ms": 42.008,
+          "min_ms": 32.312,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 28.277,
+          "p95_ms": 38.772,
+          "max_ms": 41.58,
+          "min_ms": 24.336,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 68.121,
+          "p95_ms": 84.499,
+          "max_ms": 95.037,
+          "min_ms": 61.488,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 43.921,
+          "p95_ms": 55.623,
+          "max_ms": 58.412,
+          "min_ms": 34.987,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 7659655,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true
+      },
+      "db_path": null
+    },
+    {
+      "n": 50000,
+      "members": 1,
+      "connection": "per-call",
+      "notes_all_members": 50000,
+      "active": 47590,
+      "trashed": 979,
+      "archived": 1431,
+      "seed_ms": 20021.1,
+      "task_digest_backfill_ms": 141.1,
+      "attachments": 0,
+      "attachment_pages": 0,
+      "attachment_seed_ms": 0.0,
+      "db_bytes": 406802432,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 2.305,
+          "p95_ms": 3.601,
+          "max_ms": 3.681,
+          "min_ms": 2.105,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 5.9,
+          "p95_ms": 8.711,
+          "max_ms": 8.846,
+          "min_ms": 5.652,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 8.895,
+          "p95_ms": 10.115,
+          "max_ms": 11.788,
+          "min_ms": 6.205,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 21.125,
+          "p95_ms": 24.867,
+          "max_ms": 29.16,
+          "min_ms": 20.115,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 16.753,
+          "p95_ms": 20.351,
+          "max_ms": 22.022,
+          "min_ms": 15.696,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 38.658,
+          "p95_ms": 41.262,
+          "max_ms": 41.722,
+          "min_ms": 37.564,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 16.193,
+          "p95_ms": 17.056,
+          "max_ms": 19.854,
+          "min_ms": 15.126,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 22.611,
+          "p95_ms": 33.295,
+          "max_ms": 46.685,
+          "min_ms": 20.945,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 77.031,
+          "p95_ms": 87.015,
+          "max_ms": 91.439,
+          "min_ms": 68.945,
+          "reps": 20
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 25.51,
+          "p95_ms": 32.819,
+          "max_ms": 35.918,
+          "min_ms": 23.319,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 22.615,
+          "p95_ms": 26.679,
+          "max_ms": 30.213,
+          "min_ms": 20.906,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 45.562,
+          "p95_ms": 53.866,
+          "max_ms": 55.374,
+          "min_ms": 39.122,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 61.489,
+          "p95_ms": 74.337,
+          "max_ms": 85.049,
+          "min_ms": 52.867,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 62.959,
+          "p95_ms": 70.305,
+          "max_ms": 82.937,
+          "min_ms": 55.567,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 62.211,
+          "p95_ms": 70.944,
+          "max_ms": 73.225,
+          "min_ms": 56.905,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 7.543,
+          "p95_ms": 11.028,
+          "max_ms": 11.308,
+          "min_ms": 6.867,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 7.006,
+          "p95_ms": 10.585,
+          "max_ms": 10.81,
+          "min_ms": 6.071,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 18.829,
+          "p95_ms": 24.605,
+          "max_ms": 25.552,
+          "min_ms": 13.986,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 38.371,
+          "p95_ms": 50.857,
+          "max_ms": 50.913,
+          "min_ms": 30.38,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 52.512,
+          "p95_ms": 65.179,
+          "max_ms": 66.561,
+          "min_ms": 41.321,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 52.327,
+          "p95_ms": 60.668,
+          "max_ms": 72.017,
+          "min_ms": 46.273,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 112.862,
+          "p95_ms": 142.163,
+          "max_ms": 148.963,
+          "min_ms": 95.668,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 59.278,
+          "p95_ms": 65.8,
+          "max_ms": 66.779,
+          "min_ms": 48.911,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 12073583,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true
+      },
+      "db_path": null
+    }
+  ],
+  "curve": {
+    "spec": {
+      "tiers": [
+        1000,
+        5000,
+        10000,
+        25000,
+        50000
+      ],
+      "stat": "p50_ms",
+      "max_slope": 1.1,
+      "max_last_segment_slope": 1.3,
+      "why": "Clause 14d, no super-linear curve (wave 10, lane 10A). The least-squares log-log slope of every timed op's p50 over the five tiers is held at 1.1: linear, plus a stated allowance for timing noise over a 50x range (doubling the library may cost at most 2^1.1 = 2.14x). The last segment, 25k -> 50k, is held on its own at 1.3, because a curve that bends up at the top is the symptom the clause names and a five-point fit dilutes it; a two-point slope over a 2x range carries about twice the fit's noise, so its allowance is wider. Both set BEFORE the curve was measured; never raised to fit a reading. An op missing at any tier, or a tier not run, is a breach."
+    },
+    "ops": {
+      "list_notes (page 1, default sort)": {
+        "slope": -0.0341,
+        "last_segment": 0.0891,
+        "p50_ms": [
+          2.315,
+          3.396,
+          2.096,
+          2.167,
+          2.305
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "count_notes (whole library)": {
+        "slope": 0.3207,
+        "last_segment": 0.7007,
+        "p50_ms": [
+          1.424,
+          3.092,
+          2.126,
+          3.63,
+          5.9
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes default (list+count)": {
+        "slope": 0.262,
+        "last_segment": 1.0125,
+        "p50_ms": [
+          2.476,
+          4.654,
+          3.01,
+          4.409,
+          8.895
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_notes (FTS, common term ~30%)": {
+        "slope": 0.0928,
+        "last_segment": 0.4543,
+        "p50_ms": [
+          12.364,
+          20.091,
+          13.166,
+          15.418,
+          21.125
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "count_notes (FTS, common term ~30%)": {
+        "slope": 0.5105,
+        "last_segment": 0.9349,
+        "p50_ms": [
+          2.064,
+          4.198,
+          4.726,
+          8.763,
+          16.753
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=common (list+count)": {
+        "slope": 0.2362,
+        "last_segment": 0.6738,
+        "p50_ms": [
+          12.945,
+          23.501,
+          16.955,
+          24.233,
+          38.658
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_notes (FTS, rare term, 1 note)": {
+        "slope": 0.1506,
+        "last_segment": 0.5283,
+        "p50_ms": [
+          7.819,
+          11.685,
+          9.252,
+          11.228,
+          16.193
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=rare (list+count)": {
+        "slope": 0.2497,
+        "last_segment": 0.6499,
+        "p50_ms": [
+          7.301,
+          13.524,
+          11.924,
+          14.411,
+          22.611
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=common, relevance (search box)": {
+        "slope": 0.4095,
+        "last_segment": 0.8889,
+        "p50_ms": [
+          14.32,
+          21.324,
+          24.165,
+          41.599,
+          77.031
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=rare, relevance (search box)": {
+        "slope": 0.271,
+        "last_segment": 0.7493,
+        "p50_ms": [
+          8.114,
+          10.149,
+          11.791,
+          15.176,
+          25.51
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes tag=setups (list+count)": {
+        "slope": 0.4461,
+        "last_segment": 0.966,
+        "p50_ms": [
+          3.311,
+          7.784,
+          6.552,
+          11.577,
+          22.615
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes embed_symbol (list+count)": {
+        "slope": 0.4841,
+        "last_segment": 1.0304,
+        "p50_ms": [
+          6.153,
+          10.856,
+          12.523,
+          22.306,
+          45.562
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "tag_counts (whole library)": {
+        "slope": 0.8145,
+        "last_segment": 1.1722,
+        "p50_ms": [
+          2.401,
+          7.219,
+          11.499,
+          27.286,
+          61.489
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "tag_tree (whole library)": {
+        "slope": 0.7962,
+        "last_segment": 1.1217,
+        "p50_ms": [
+          2.633,
+          8.124,
+          12.466,
+          28.933,
+          62.959
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes/tags (tags+tree)": {
+        "slope": 0.7641,
+        "last_segment": 1.0408,
+        "p50_ms": [
+          3.103,
+          7.75,
+          14.722,
+          30.239,
+          62.211
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "folder_note_counts (whole library)": {
+        "slope": 0.2755,
+        "last_segment": 0.6886,
+        "p50_ms": [
+          2.311,
+          3.337,
+          2.811,
+          4.68,
+          7.543
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "notes_for_folders (heavy + 2 others)": {
+        "slope": 0.0553,
+        "last_segment": -0.0546,
+        "p50_ms": [
+          5.227,
+          9.432,
+          7.003,
+          7.276,
+          7.006
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "get_symbol_backlinks": {
+        "slope": 0.5677,
+        "last_segment": 1.0933,
+        "p50_ms": [
+          1.931,
+          3.154,
+          4.746,
+          8.825,
+          18.829
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (word start)": {
+        "slope": 0.603,
+        "last_segment": 1.0728,
+        "p50_ms": [
+          3.253,
+          7.993,
+          11.893,
+          18.242,
+          38.371
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (fuzzy, in order)": {
+        "slope": 0.4296,
+        "last_segment": 0.5758,
+        "p50_ms": [
+          8.182,
+          32.02,
+          27.568,
+          35.23,
+          52.512
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_tasks (open, ?view=tasks)": {
+        "slope": 0.7061,
+        "last_segment": 0.8879,
+        "p50_ms": [
+          3.396,
+          7.214,
+          12.809,
+          28.277,
+          52.327
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (body fallback, common term)": {
+        "slope": 0.5831,
+        "last_segment": 0.7284,
+        "p50_ms": [
+          9.989,
+          40.821,
+          35.743,
+          68.121,
+          112.862
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (body fallback, rare term)": {
+        "slope": 0.566,
+        "last_segment": 0.4326,
+        "p50_ms": [
+          5.975,
+          24.995,
+          22.077,
+          43.921,
+          59.278
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      }
+    },
+    "breaches": []
+  },
+  "curve_diagnostic": {
+    "connection": "shared",
+    "spec": {
+      "tiers": [
+        1000,
+        5000,
+        10000,
+        25000,
+        50000
+      ],
+      "stat": "p50_ms",
+      "max_slope": 1.1,
+      "max_last_segment_slope": 1.3,
+      "why": "Clause 14d, no super-linear curve (wave 10, lane 10A). The least-squares log-log slope of every timed op's p50 over the five tiers is held at 1.1: linear, plus a stated allowance for timing noise over a 50x range (doubling the library may cost at most 2^1.1 = 2.14x). The last segment, 25k -> 50k, is held on its own at 1.3, because a curve that bends up at the top is the symptom the clause names and a five-point fit dilutes it; a two-point slope over a 2x range carries about twice the fit's noise, so its allowance is wider. Both set BEFORE the curve was measured; never raised to fit a reading. An op missing at any tier, or a tier not run, is a breach."
+    },
+    "ops": {
+      "list_notes (page 1, default sort)": {
+        "slope": 0.0005,
+        "last_segment": 0.0514,
+        "p50_ms": [
+          0.607,
+          0.583,
+          1.008,
+          0.579,
+          0.6
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "count_notes (whole library)": {
+        "slope": 1.1527,
+        "last_segment": 2.8784,
+        "p50_ms": [
+          0.041,
+          0.156,
+          0.295,
+          0.722,
+          5.309
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes default (list+count)": {
+        "slope": 0.5958,
+        "last_segment": 1.0723,
+        "p50_ms": [
+          0.661,
+          0.748,
+          0.913,
+          3.153,
+          6.63
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_notes (FTS, common term ~30%)": {
+        "slope": 0.1538,
+        "last_segment": 0.5774,
+        "p50_ms": [
+          12.594,
+          9.999,
+          10.851,
+          15.734,
+          23.478
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "count_notes (FTS, common term ~30%)": {
+        "slope": 0.9367,
+        "last_segment": 1.0109,
+        "p50_ms": [
+          0.647,
+          1.116,
+          2.245,
+          10.662,
+          21.486
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=common (list+count)": {
+        "slope": 0.3501,
+        "last_segment": 0.8152,
+        "p50_ms": [
+          13.954,
+          11.005,
+          17.38,
+          30.081,
+          52.927
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_notes (FTS, rare term, 1 note)": {
+        "slope": 0.2227,
+        "last_segment": 0.8348,
+        "p50_ms": [
+          7.84,
+          5.748,
+          6.929,
+          10.849,
+          19.351
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=rare (list+count)": {
+        "slope": 0.3493,
+        "last_segment": 0.9387,
+        "p50_ms": [
+          7.379,
+          6.226,
+          9.683,
+          15.23,
+          29.193
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=common, relevance (search box)": {
+        "slope": 0.5248,
+        "last_segment": 0.9959,
+        "p50_ms": [
+          13.057,
+          15.982,
+          31.388,
+          50.569,
+          100.848
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes q=rare, relevance (search box)": {
+        "slope": 0.3924,
+        "last_segment": 1.1063,
+        "p50_ms": [
+          6.784,
+          6.402,
+          10.265,
+          15.359,
+          33.067
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes tag=setups (list+count)": {
+        "slope": 0.8332,
+        "last_segment": 0.7288,
+        "p50_ms": [
+          1.091,
+          2.119,
+          4.378,
+          14.634,
+          24.252
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes embed_symbol (list+count)": {
+        "slope": 0.605,
+        "last_segment": 1.0745,
+        "p50_ms": [
+          4.833,
+          6.186,
+          10.506,
+          24.032,
+          50.611
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "tag_counts (whole library)": {
+        "slope": 1.022,
+        "last_segment": 1.0462,
+        "p50_ms": [
+          1.275,
+          3.93,
+          10.079,
+          30.486,
+          62.958
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "tag_tree (whole library)": {
+        "slope": 1.1224,
+        "last_segment": 0.9677,
+        "p50_ms": [
+          0.889,
+          4.165,
+          8.692,
+          33.624,
+          65.76
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "GET /notes/tags (tags+tree)": {
+        "slope": 1.1043,
+        "last_segment": 0.9031,
+        "p50_ms": [
+          0.922,
+          4.254,
+          11.677,
+          33.327,
+          62.322
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "folder_note_counts (whole library)": {
+        "slope": 1.1129,
+        "last_segment": 1.9222,
+        "p50_ms": [
+          0.07,
+          0.341,
+          0.599,
+          1.715,
+          6.5
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "notes_for_folders (heavy + 2 others)": {
+        "slope": 0.3554,
+        "last_segment": 0.4493,
+        "p50_ms": [
+          1.723,
+          5.51,
+          5.227,
+          5.857,
+          7.997
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "get_symbol_backlinks": {
+        "slope": 1.1858,
+        "last_segment": 0.6941,
+        "p50_ms": [
+          0.203,
+          0.862,
+          1.774,
+          10.524,
+          17.026
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (word start)": {
+        "slope": 1.0838,
+        "last_segment": 0.7041,
+        "p50_ms": [
+          0.628,
+          2.703,
+          6.818,
+          22.865,
+          37.25
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (fuzzy, in order)": {
+        "slope": 0.692,
+        "last_segment": 0.1273,
+        "p50_ms": [
+          4.023,
+          19.176,
+          27.556,
+          52.078,
+          56.882
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "list_tasks (open, ?view=tasks)": {
+        "slope": 1.2052,
+        "last_segment": 0.6548,
+        "p50_ms": [
+          0.588,
+          3.317,
+          11.919,
+          34.237,
+          53.904
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (body fallback, common term)": {
+        "slope": 0.8268,
+        "last_segment": 0.5805,
+        "p50_ms": [
+          5.448,
+          24.255,
+          41.417,
+          89.593,
+          133.971
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      },
+      "switcher_search (body fallback, rare term)": {
+        "slope": 0.7457,
+        "last_segment": 0.8829,
+        "p50_ms": [
+          3.392,
+          16.378,
+          26.68,
+          37.81,
+          69.725
+        ],
+        "tiers": [
+          1000,
+          5000,
+          10000,
+          25000,
+          50000
+        ]
+      }
+    },
+    "breaches": [
+      "'count_notes (whole library)': log-log slope 1.153 > 1.1 (super-linear); p50_ms [0.04, 0.16, 0.29, 0.72, 5.31] over [1000, 5000, 10000, 25000, 50000]",
+      "'count_notes (whole library)': last segment 25,000->50,000 slope 2.878 > 1.3 (0.72 -> 5.31 ms)",
+      "'tag_tree (whole library)': log-log slope 1.122 > 1.1 (super-linear); p50_ms [0.89, 4.17, 8.69, 33.62, 65.76] over [1000, 5000, 10000, 25000, 50000]",
+      "'GET /notes/tags (tags+tree)': log-log slope 1.104 > 1.1 (super-linear); p50_ms [0.92, 4.25, 11.68, 33.33, 62.32] over [1000, 5000, 10000, 25000, 50000]",
+      "'folder_note_counts (whole library)': log-log slope 1.113 > 1.1 (super-linear); p50_ms [0.07, 0.34, 0.6, 1.72, 6.5] over [1000, 5000, 10000, 25000, 50000]",
+      "'folder_note_counts (whole library)': last segment 25,000->50,000 slope 1.922 > 1.3 (1.72 -> 6.50 ms)",
+      "'get_symbol_backlinks': log-log slope 1.186 > 1.1 (super-linear); p50_ms [0.2, 0.86, 1.77, 10.52, 17.03] over [1000, 5000, 10000, 25000, 50000]",
+      "'list_tasks (open, ?view=tasks)': log-log slope 1.205 > 1.1 (super-linear); p50_ms [0.59, 3.32, 11.92, 34.24, 53.9] over [1000, 5000, 10000, 25000, 50000]"
+    ]
+  }
+}
