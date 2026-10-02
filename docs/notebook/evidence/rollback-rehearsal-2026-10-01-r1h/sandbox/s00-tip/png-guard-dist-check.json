@@ -1,0 +1,10 @@
+{
+  "label": "s00-tip",
+  "what": "tip b529c8a78 (control, L15 live)",
+  "assets_scanned": 357,
+  "needle": "too long for one PNG image",
+  "present": true,
+  "found_in": [
+    "NotebookFlagGate-CssHds9m.js"
+  ]
+}

@@ -1,0 +1,6 @@
+== q1 start 19:28:18 HEAD 471add8f36 dist dist rebuilt at 471add8f36 (L15b final: typing fixes TY2+TY5+TY7, a11y fixes, master 22f07e1bd)
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-01T19:28:18
+== end 19:30:01 exit 1
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-01T19:30:01

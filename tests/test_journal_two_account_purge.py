@@ -143,6 +143,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # without this line, and both manifest rails went red on the landing tree.
     from api.services.journal_two import note_publish as npub
     npub.ensure_publish_schema(conn)
+    # j2_ai_change_sets / j2_ai_change_items, likewise: ai_actions.py self-ensures
+    # them on the first plan or read (wave 11 lane 11C).
+    from api.services.journal_two import ai_actions as aia
+    aia.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

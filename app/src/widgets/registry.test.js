@@ -35,16 +35,24 @@ import {
   isReconstructable,
 } from './registry'
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
+import { GROUPS as COT_RAIL_GROUPS } from '../pages/cot/cotRead'
+import { SCREENER_CAPTURE_ROW_CAP, COT_CAPTURE_GROUPS, registerPanel } from './registry'
 
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'indexes', 'marketcontext',
   'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow',
   'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
+  // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
+  // a capture can store `widgetId` + `params`; bound by the journal host alone.
+  'screener', 'cot', 'modelbook',
 ]
+// The ids a /charts board can hold — everything except the capture-only kinds.
+const CAPTURE_ONLY = ['screener', 'cot', 'modelbook']
+const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 20 workspace widget types, in menu order', () => {
+  it('registers exactly the 20 workspace widget types + the G-040 capture-only kinds, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -57,6 +65,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
     })
   })
 
@@ -69,6 +78,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
     })
   })
 
@@ -81,6 +91,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
+      screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
     })
   })
 
@@ -107,6 +118,9 @@ describe('widget registry — metadata pins', () => {
       nhnlPulse:    { w: 6,  h: 8,  minW: 3, minH: 4 },
       volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
       scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
+      screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
+      cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
+      modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
     })
   })
 
@@ -187,13 +201,30 @@ describe('widget registry — metadata pins', () => {
 })
 
 describe('widget registry — workspace host bindings', () => {
-  it('every registry id has a component binding in WidgetHost', () => {
-    for (const id of WIDGET_IDS) {
+  it('every registry id a board can hold has a component binding in WidgetHost', () => {
+    // ⛔ The capture-only kinds are excluded BY THEIR DECLARATION, never by a list
+    // typed here — and the next case proves the declaration is honest.
+    const boardIds = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].captureOnly !== true)
+    expect(boardIds).toEqual(BOARD_IDS)
+    for (const id of boardIds) {
       const b = WORKSPACE_WIDGETS[id]
       expect(b, `missing WORKSPACE_WIDGETS binding for '${id}'`).toBeTruthy()
       const kind = typeof b.component
       expect(kind === 'function' || kind === 'object', `component for '${id}'`).toBe(true)
       expect(typeof b.props, `props builder for '${id}'`).toBe('function')
+    }
+  })
+
+  it('⛔ G-040: a capture-only kind is bound NOWHERE on /charts and offered by NO menu', () => {
+    // An unbound panel a member could add would render nothing; a bound one would be
+    // a workspace widget wearing a capture's name. Both directions, by name.
+    const captureOnly = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].captureOnly === true)
+    expect(captureOnly).toEqual(CAPTURE_ONLY)
+    for (const id of captureOnly) {
+      expect(WORKSPACE_WIDGETS[id], `${id} is capture-only and must not be bound in WidgetHost`).toBeUndefined()
+      for (const [menu, on] of Object.entries(WIDGET_REGISTRY[id].menus)) {
+        expect(on, `${id} is capture-only and must not be offered by menus.${menu}`).toBe(false)
+      }
     }
   })
 
@@ -216,7 +247,7 @@ describe('widget registry — workspace host bindings', () => {
     }
     const DEFAULT_SHAPE = ['color', 'onOptsChange', 'opts']
     const fn = () => {}
-    for (const id of WIDGET_IDS) {
+    for (const id of BOARD_IDS) {
       const props = WORKSPACE_WIDGETS[id].props({ colorKey: 'A', opts: { x: 1 }, onOptsChange: fn, groupId: 'w-1' })
       expect(Object.keys(props).sort(), `prop shape for '${id}'`).toEqual(SPECIAL[id] || DEFAULT_SHAPE)
     }
@@ -272,6 +303,32 @@ const CAPTURE_FIXTURES = {
   nhnl: { minPrice: 5, minCount: 3, settings: { bg: '#101010' } },
   nhnlPulse: { settings: { bg: '#101010' } },
   volumescan: { minRvol: 3, minMove: 0.5, minDollarK: 50, settings: { bg: '#101010' } },
+  // G-040 — the capture-only kinds, each with its FROZEN payload (screener, cot)
+  // or its REFERENCE (modelbook), shaped as the surface builders produce them.
+  screener: {
+    name: 'Screener — UCT Universe', criteria: ['UCT Universe', 'Price: ≥ $10'],
+    spec: { filters: { price: { op: 'gte', min: 10 } } },
+    asOf: '2026-09-30 03:00 ET (nightly build)',
+    columns: [{ key: 'ticker', label: 'Ticker' }, { key: 'price', label: 'Price' }],
+    rows: [{ ticker: 'NVDA', cells: ['NVDA', '$181.20'] }, { ticker: 'AMD', cells: ['AMD', '$160.05'] }],
+    total: 57, coverage: null, _stray: true,
+  },
+  cot: {
+    market: 'ES', marketName: 'E-mini S&P 500', reportDate: '2026-09-22',
+    groups: {
+      commercials: { net: -120000, wow: 5000, index: 12 },
+      largeSpecs: { net: 150000, wow: -2000, index: 88 },
+      smallSpecs: { net: -30000, wow: -3000, index: 40 },
+    },
+    openInterest: { value: 2100000, wow: 12000, index: 55 },
+    bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
+    crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
+  },
+  modelbook: {
+    year: 2023, symbol: 'nvda', setupId: 7, setupType: 'High Tight Flag (Powerplay)',
+    setupDate: '2023-05-25', title: 'NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25',
+    annotation: 'the gap that started it',
+  },
 }
 
 describe('widget registry — params layer', () => {
@@ -337,6 +394,14 @@ describe('widget registry — params layer', () => {
     // Empty captures degrade to a labeled line rather than a bare bracket.
     expect(paramsPlainText('indexes', { rows: [] })).toBe('[indexes: no readings]')
     expect(paramsPlainText('marketcontext', {})).toBe('[market context: no readings]')
+    // G-040: the capture-only kinds carry what search must find — a screen's
+    // TICKERS, a COT market + its report week, a Model Book stock + the member's words.
+    expect(paramsPlainText('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener)))
+      .toBe('[screener: Screener — UCT Universe — 57 matches · NVDA AMD — as of 2026-09-30 03:00 ET (nightly build)]')
+    expect(paramsPlainText('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot)))
+      .toBe('[cot: ES E-mini S&P 500 — report week 2026-09-22 · Contrarian Bearish · Crowded long]')
+    expect(paramsPlainText('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook)))
+      .toBe('[model book: NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25 — the gap that started it]')
     // Unknown id degrades to a generic label, never throws (render chain rule).
     expect(paramsPlainText('nope', {})).toBe('[widget]')
   })
@@ -403,8 +468,13 @@ describe('widget registry — params layer', () => {
     expect(isReconstructable('marketcontext', {})).toBe(false)
     // An array is an object to `typeof` — the predicate must not accept one.
     expect(isReconstructable('marketcontext', { readings: [] })).toBe(false)
+    // G-040: the Screener and COT captures are payload freezes, the Model Book
+    // capture a reference — each renders from data (their own cases above pin how).
+    expect(isReconstructable('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener))).toBe(true)
+    expect(isReconstructable('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot))).toBe(true)
+    expect(isReconstructable('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook))).toBe(true)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.
@@ -503,5 +573,64 @@ describe('widget registry — journal embed bindings', () => {
     // derivation can't quietly drop them.
     expect(bound.has('indexes')).toBe(true)
     expect(bound.has('marketcontext')).toBe(true)
+    // …and the three G-040 capture-only kinds, whose ONLY host is this one.
+    for (const id of CAPTURE_ONLY) expect(bound.has(id), `${id} has no journal renderer`).toBe(true)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// G-040 (wave 10, lane CX) — the three capture-only definitions' own contracts.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('G-040 capture-only definitions', () => {
+  it('registerPanel REFUSES a capture-only entry that a menu offers (the rail can fail)', () => {
+    const base = { ...WIDGET_REGISTRY.screener, menus: { ...WIDGET_REGISTRY.screener.menus } }
+    expect(() => registerPanel('screenerX', base)).not.toThrow()
+    expect(() => registerPanel('screenerX', { ...base, menus: { ...base.menus, workspace: true } }))
+      .toThrow(/captureOnly entry cannot be offered by menus.workspace/)
+    expect(() => registerPanel('screenerX', { ...base, menus: { ...base.menus, terminal: true } }))
+      .toThrow(/menus.terminal/)
+    expect(() => registerPanel('screenerX', { ...base, captureOnly: 'yes' })).toThrow(/captureOnly must be a boolean/)
+  })
+
+  it('the COT capture freezes exactly the rail’s three trader groups', () => {
+    expect([...COT_CAPTURE_GROUPS]).toEqual(COT_RAIL_GROUPS.map(g => g.key))
+  })
+
+  it('screener: required params are enforced, and the row cap is the reconstruct gate', () => {
+    const ok = normalizeParams('screener', CAPTURE_FIXTURES.screener)
+    expect(ok._stray).toBeUndefined()
+    expect(validateParams('screener', ok).ok).toBe(true)
+    const noTotal = validateParams('screener', { ...ok, total: undefined })
+    expect(noTotal.ok).toBe(false)
+    expect(noTotal.errors.join(' ')).toMatch(/total/)
+    expect(validateParams('screener', { ...ok, total: '57' }).ok).toBe(false)
+    expect(isReconstructable('screener', ok)).toBe(true)
+    // ⭐ ZERO ROWS IS A FACT, NOT A FAILURE (ruling 1): it still renders frozen.
+    expect(isReconstructable('screener', { ...ok, rows: [], total: 0 })).toBe(true)
+    const tooMany = Array.from({ length: SCREENER_CAPTURE_ROW_CAP + 1 }, (_, i) => ({ ticker: `T${i}`, cells: [`T${i}`] }))
+    expect(isReconstructable('screener', { ...ok, rows: tooMany })).toBe(false)
+    expect(isReconstructable('screener', { ...ok, columns: [] })).toBe(false)
+  })
+
+  it('cot: the report week and every trader group are required to re-render', () => {
+    const ok = normalizeParams('cot', CAPTURE_FIXTURES.cot)
+    expect(validateParams('cot', ok).ok).toBe(true)
+    expect(ok.symbol, 'a CFTC code must never ride `symbol` (the ticker sidecar)').toBeUndefined()
+    expect(validateParams('cot', { ...ok, reportDate: undefined }).ok).toBe(false)
+    expect(isReconstructable('cot', ok)).toBe(true)
+    expect(isReconstructable('cot', { ...ok, reportDate: '9/22/2026' })).toBe(false)
+    const { smallSpecs: _gone, ...two } = ok.groups
+    expect(isReconstructable('cot', { ...ok, groups: two })).toBe(false)
+  })
+
+  it('modelbook: a reference needs year + symbol; the setup is optional', () => {
+    const ok = normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook)
+    expect(ok.symbol).toBe('NVDA')
+    expect(validateParams('modelbook', ok).ok).toBe(true)
+    const bare = normalizeParams('modelbook', { year: 2023, symbol: 'NVDA' })
+    expect(validateParams('modelbook', bare).ok).toBe(true)
+    expect(isReconstructable('modelbook', bare)).toBe(true)
+    expect(validateParams('modelbook', { symbol: 'NVDA' }).ok).toBe(false)
+    expect(validateParams('modelbook', { ...ok, year: '2023' }).ok).toBe(false)
   })
 })

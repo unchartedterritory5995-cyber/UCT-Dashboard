@@ -19,6 +19,8 @@ import styles from './ModelBook.module.css'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
+import SaveToNotebookButton from './journal-2-0/components/SaveToNotebookButton'
+import { buildModelBookCapture } from './modelbook/notebookCapture'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
@@ -1342,6 +1344,15 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
               <button className={styles.annotateSave} onClick={saveAnnotations}>Save</button>
               <button className={styles.annotateCancel} onClick={cancelAnnotate}>Cancel</button>
             </>
+          )}
+          {/* G-040 ruling 3: a REFERENCE to this stock (and the selected setup, on the
+              Setups tab), plus the member's optional words — every user. */}
+          {!annotateMode && (
+            <SaveToNotebookButton widgetId="modelbook" withAnnotation
+              label={`${stock.symbol} ${stock.year} (Model Book)`}
+              ariaLabel={`Save ${stock.symbol} ${stock.year} to Notebook`}
+              buildCapture={() => buildModelBookCapture(stock,
+                onSetupsTab ? (setups.find(s => s.id === selectedSetupId) || null) : null)} />
           )}
           {/* Save the on-screen chart as a PNG — available to every user. */}
           {!annotateMode && (

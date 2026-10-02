@@ -286,3 +286,46 @@
     max-width: 100%;
   }
 }
+
+/* Wave 11 (lane 11B): formula + rollup properties. */
+.pickerWide {
+  min-width: min(360px, 92vw);
+  max-width: min(440px, 92vw);
+}
+.rowEditing {
+  flex-wrap: wrap;
+}
+.editComputed {
+  margin-left: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 6px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.editComputed:hover,
+.editComputed:focus-visible {
+  color: var(--ut-gold);
+}
+.computedEditor {
+  flex: 0 0 100%;
+  margin: 6px 0 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+  max-width: 460px;
+}
+.editActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+@media (max-width: 1024px) {
+  .editComputed {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

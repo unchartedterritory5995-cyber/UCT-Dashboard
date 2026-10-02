@@ -141,6 +141,11 @@ export function citationLeafText(node) {
     // inlineMath) -- the absolute day, never the relative word it shows.
     case 'dateMention':
       return typeof attrs.date === 'string' ? attrs.date : ''
+    // Wave 11 lane 11D: a trade-plan canvas reads as the search line the board
+    // derives at every commit (lib/tradeCanvas.js `boardSearchText`) -- the
+    // widgetEmbed precedent. A block leaf: its own line, one position.
+    case 'tradeCanvas':
+      return typeof attrs.searchText === 'string' && attrs.searchText ? attrs.searchText : '[trade-plan canvas]'
     default: return ''
   }
 }

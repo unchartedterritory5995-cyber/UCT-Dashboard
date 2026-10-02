@@ -99,6 +99,23 @@ conflict on that one file, resolved "ours" (keep the hotfix's newer, non-Noteboo
 same shape as wave 7's daily_counters.py rule) -- RULES["0e7d0561a"], one new pin. All seven pins
 recorded at a680b0d40 for steps below L14 came back byte-identical. New mutation record:
 docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1g/mutations-r1g.log.
+
+Lane R1h, 2026-10-01: MEASURED_AT moved a seventh time, from c75bf6ea0 to b529c8a786 -- one
+landing: L15 #262 (keyboard access fixes, long-note typing work, PNG export of long notes, and
+the rollback chain through L14 -- i.e. lane R1g's own work, landed as part of this squash). L15
+ships real app/ and api/ Notebook code and its squash subject kept the literal word "wave"
+("Notebook 10/10 wave 10 L15: ..."), so like L13/L14 it is selected by SUBJECT AND PATH both --
+no new CHAIN_BY_PATH_ONLY exception needed. One more path-only commit landed in the window
+(c75bf6ea0..b529c8a786), older than L15: 726586201 (feat(charts): Technical library Tier 1 -- 33
+studies, 9 MA types, real fixed scales), touching app/src/pages/Settings.jsx only to widen the
+Moving Average overlay's type <select> for an adopted engine-instance slot (shared file); every
+other file it ships sits outside the derived Notebook set -- added to REVIEWED_NOT_LANDINGS. L15
+is the newest commit the census selects in the window and is itself the tip, so MEASURED_AT moves
+to L15's own sha, b529c8a786 (unlike L14's window, nothing REVIEWED lands after it here). L15
+reverts with 0 conflicts (not even against the hotfix's own test-rail file): all eight pins
+recorded at c75bf6ea0 came back byte-identical (`--record-pins --through wave5` from the new
+MEASURED_AT). New mutation record:
+docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1h/mutations-r1h.log.
 """
 from __future__ import annotations
 
@@ -112,22 +129,24 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT 0e7d0561a (L14 #260) by lane R1g, 2026-10-01. The R1f record
-# (rollback-rehearsal-2026-09-30-r1f/chain/chain-through-wave5.jsonl) is the same chain one
-# landing shorter, from a680b0d40; it stays as the evidence of that rehearsal. The R1e record
-# (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl) is shorter still, from
-# 599cd44f1; the R1d record (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl)
-# shorter still, from 6f563c158; the R1c record
-# (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) shorter still, from
-# 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
-# shorter still, from f4cec49be; the R1 2026-09-28 record
-# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-01-r1g" / "chain" / "chain-through-wave5.jsonl"
+# Re-recorded at MEASURED_AT b529c8a786 (L15 #262) by lane R1h, 2026-10-01. The R1g record
+# (rollback-rehearsal-2026-10-01-r1g/chain/chain-through-wave5.jsonl) is the same chain one
+# landing shorter, from c75bf6ea0; it stays as the evidence of that rehearsal. The R1f record
+# (rollback-rehearsal-2026-09-30-r1f/chain/chain-through-wave5.jsonl) is shorter still, from
+# a680b0d40; the R1e record (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl)
+# shorter still, from 599cd44f1; the R1d record
+# (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl) shorter still, from
+# 6f563c158; the R1c record (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl)
+# shorter still, from 0812b5ec3; the R1b record
+# (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) shorter still, from f4cec49be;
+# the R1 2026-09-28 record (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter
+# still, from 38bb9a421.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-01-r1h" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1g moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1h moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "a680b0d40"
+PREVIOUS_MEASURED_AT = "c75bf6ea0"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.

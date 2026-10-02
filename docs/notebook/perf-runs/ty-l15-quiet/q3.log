@@ -1,0 +1,16 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\quiet-busy\q3.sandbox.log; log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\quiet-busy\q3.integrity.md
+typing busy at 1 paragraphs: 59 windows, p50 5.91 ms/key, p95 8.63 ms/key (renderer main-thread busy time, trace-only pass)
+typing busy at 1,000 paragraphs: 59 windows, p50 11.52 ms/key, p95 18.72 ms/key (renderer main-thread busy time, trace-only pass)
+typing busy at 2,000 paragraphs: 59 windows, p50 15.21 ms/key, p95 20.44 ms/key (renderer main-thread busy time, trace-only pass)
+| measure | paragraphs | samples | p50 | p95 | budget | tree |
+|---|---:|---:|---:|---:|---:|---|
+| note_open | 1 | 20 | 53.5 ms | 84.7 ms | < 300 ms | `471add8f3` |
+| note_open | 1,000 | 20 | 133.7 ms | 155.8 ms | < 300 ms | `471add8f3` |
+| note_open | 2,000 | 20 | 184.3 ms | 207.7 ms | n/a | `471add8f3` |
+| typing_per_char | 1 | 60 | 4.7 ms | 16.9 ms | n/a | `471add8f3` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_per_char | 1,000 | 60 | 11.1 ms | 17.8 ms | n/a | `471add8f3` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_per_char | 2,000 | 60 | 13.4 ms | 18.6 ms | n/a | `471add8f3` (wall-clock; not the budget's reading (ruling D24) -- see typing_busy_per_char) |
+| typing_busy_per_char | 1 | 59 | 5.91 ms | 8.63 ms | < 16 ms | `471add8f3` |
+| typing_busy_per_char | 1,000 | 59 | 11.52 ms | 18.72 ms | < 16 ms | `471add8f3` |
+| typing_busy_per_char | 2,000 | 59 | 15.21 ms | 20.44 ms | < 16 ms | `471add8f3` |
+VERDICT: BUDGET BREACH -- typing (busy) p95 18.72 ms/char >= 16 ms at 1,000 paragraphs; typing (busy) p95 20.44 ms/char >= 16 ms at 2,000 paragraphs

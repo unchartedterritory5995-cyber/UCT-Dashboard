@@ -1,0 +1,511 @@
+{
+ "wave": 11,
+ "lane": "11D",
+ "checks": {
+  "C0_gate_on": {
+   "verdict": "PASS",
+   "flags": {
+    "notebook_trade_canvas_enabled": true,
+    "paid_equiv": true
+   }
+  },
+  "C1_create_from_new_note_sheet": {
+   "verdict": "PASS",
+   "note_id": "d6ab3e8f946d45c19aef0fac0557ba6f",
+   "hint_steps": [
+    "Add a chart",
+    "Add entry, stop and target",
+    "Link it from your thesis"
+   ],
+   "ms_click_to_board": 2703,
+   "tags": [
+    "trade-plan"
+   ],
+   "title": "Trade plan — Oct 2"
+  },
+  "C2_add_by_mouse": {
+   "verdict": "PASS",
+   "items": [
+    [
+     "chart",
+     "NVDA",
+     "live",
+     null
+    ],
+    [
+     "chart",
+     "AMD",
+     "frozen",
+     "2026-09-24"
+    ],
+    [
+     "text",
+     null,
+     null,
+     null
+    ]
+   ],
+   "levels": [
+    [
+     "entry",
+     182.5,
+     true
+    ],
+    [
+     "stop",
+     171,
+     true
+    ],
+    [
+     "target",
+     205,
+     true
+    ]
+   ],
+   "edges": [
+    {
+     "id": "e_13zzpt215t",
+     "from": "i_de9l2212d7",
+     "to": "i_vp5z9ygnn1",
+     "label": "if it holds"
+    }
+   ],
+   "frozen_bars_requests": [
+    "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24"
+   ],
+   "live_bars_requests": [
+    "/api/bars/NVDA?tf=D&bars=600"
+   ],
+   "frozen_card_bytes": 149,
+   "board_bytes": 863
+  },
+  "C3_move_resize_delete_undo_by_mouse": {
+   "verdict": "PASS",
+   "before": {
+    "x": -1152,
+    "y": -472,
+    "w": 240,
+    "h": 140
+   },
+   "after_move": {
+    "x": -824,
+    "y": -312
+   },
+   "after_resize": {
+    "w": 368,
+    "h": 200
+   },
+   "deleted": true,
+   "edges_after_delete": 0,
+   "undone": true,
+   "handle_hit": "i_de9l2212d7"
+  },
+  "C4_keyboard_only": {
+   "verdict": "PASS",
+   "lost_focus": [],
+   "on_board": "application",
+   "first_card": "i_de9l2212d7",
+   "moved": {
+    "dx": 16,
+    "dy": 64
+   },
+   "focus_after_delete": "i_vp5z9ygnn1",
+   "focus_after_levels_dialog": "i_vp5z9ygnn1",
+   "resized": true,
+   "typed": true,
+   "edited": true,
+   "deleted": true,
+   "undone": true,
+   "levelled": true,
+   "arrowed": true,
+   "zoom": [
+    "64%",
+    "77%",
+    "65%"
+   ],
+   "keys_dialog": true
+  },
+  "C5_touch_390": {
+   "verdict": "PASS",
+   "sideways_overflow_px": 0,
+   "controls_under_44px": [],
+   "pan_transform": [
+    "translate3d(190.8px, 245.7px, 0px) scale(0.2)",
+    "translate3d(130.8px, 205.7px, 0px) scale(0.2)"
+   ],
+   "pinch_zoom": [
+    "20%",
+    "73%"
+   ],
+   "pinch_events_head": [
+    [
+     "pointerdown",
+     3,
+     true,
+     165,
+     422,
+     "i_vp5z9ygnn1"
+    ],
+    [
+     "touchstart",
+     null,
+     null,
+     0,
+     0,
+     "i_vp5z9ygnn1"
+    ],
+    [
+     "pointerdown",
+     4,
+     false,
+     225,
+     422,
+     "chrome"
+    ],
+    [
+     "touchstart",
+     null,
+     null,
+     0,
+     0,
+     "chrome"
+    ],
+    [
+     "pointermove",
+     4,
+     false,
+     233,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     3,
+     true,
+     157,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     4,
+     false,
+     241,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     3,
+     true,
+     149,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     4,
+     false,
+     249,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     3,
+     true,
+     141,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     4,
+     false,
+     257,
+     422,
+     "DIV"
+    ],
+    [
+     "pointermove",
+     3,
+     true,
+     133,
+     422,
+     "DIV"
+    ]
+   ],
+   "pinch_at": [
+    195.0,
+    422.0234375
+   ],
+   "level_added": true,
+   "level_error": null
+  },
+  "C6_link_from_a_thesis": {
+   "verdict": "PASS",
+   "thesis": "09dbda8aedee41ee8e5b0a3a5aa97d76",
+   "linked": true,
+   "status_lines_on_canvas": [],
+   "linked_from_text": "Linked from\nNVDA thesis r004038",
+   "backlinks_api": {
+    "count": 1,
+    "notes": [
+     {
+      "id": "09dbda8aedee41ee8e5b0a3a5aa97d76",
+      "title": "NVDA thesis r004038",
+      "updatedAt": "2026-10-02T05:41:25.760485+00:00",
+      "refs": 1,
+      "context": "Trade plan:"
+     }
+    ]
+   },
+   "graph_edge": true,
+   "slash_second_canvas": [
+    "5806dd94d25b4991a551fc8da125b6bd"
+   ],
+   "second_is_canvas": true,
+   "ms_create_to_linked_scripted": 44269
+  },
+  "C7_reload_persisted": {
+   "verdict": "PASS",
+   "updatedAt_unchanged_by_open": true,
+   "stored": {
+    "items": 4,
+    "edges": 2,
+    "levels": 5
+   },
+   "dom": {
+    "cards": 4,
+    "edges": 2,
+    "level_rows": 5
+   }
+  },
+  "C8_offline_then_reconnect": {
+   "verdict": "PASS",
+   "server_had_it_while_offline": false,
+   "landed": true,
+   "forks": [],
+   "notes_before": 3,
+   "notes_after": 3
+  },
+  "C9_export_markdown": {
+   "verdict": "PASS",
+   "status": 200,
+   "bytes": 777,
+   "missing": [],
+   "content_type": "text/markdown; charset=utf-8"
+  },
+  "C10_200_cards": {
+   "verdict": "PASS",
+   "open_ms_navigation_to_first_card": 942,
+   "cards_in_dom_at_fit": 200,
+   "zoom_at_fit": "20%",
+   "cards_in_dom_zoomed": 77,
+   "zoom_zoomed": "60%",
+   "pan_frames": {
+    "frames": 83,
+    "p50": 16.699999999999818,
+    "p95": 16.700000000000728,
+    "max": 16.800000000000182,
+    "mounted": 0,
+    "unmounted": 40
+   },
+   "pan_longtasks": [],
+   "pan_cards_touched": [],
+   "drag_frames": {
+    "frames": 94,
+    "p50": 16.699999999999818,
+    "p95": 16.800000000000182,
+    "max": 16.800000000000182,
+    "mounted": 0,
+    "unmounted": 0
+   },
+   "drag_longtasks": [],
+   "drag_cards_touched": [
+    "w49"
+   ],
+   "drag_target": "w49",
+   "drag_committed": true,
+   "raw": "C10-frames.json"
+  },
+  "C11_gate_off": {
+   "verdict": "PASS",
+   "method": "the auth payload answered with notebook_trade_canvas_enabled=false by a Playwright route (the env var's only effect is that key; tests/test_notebook_trade_canvas.py)",
+   "new_note_sheet_door": 0,
+   "research_door": 0,
+   "slash_door": 0,
+   "read_only_sentence": 1,
+   "edit_buttons": 0,
+   "cards_still_shown": 5
+  },
+  "C12_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "bars_requests": [
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/SPY?tf=D&bars=600"
+ ],
+ "puts": [
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/09dbda8aedee41ee8e5b0a3a5aa97d76",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/09dbda8aedee41ee8e5b0a3a5aa97d76",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/d6ab3e8f946d45c19aef0fac0557ba6f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/cd3eb20a6b2148d8bb2c60c1aa7073bc",
+   "schema": "3"
+  }
+ ],
+ "tip": "96a5e7df71",
+ "base": "http://127.0.0.1:8571",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11d-data",
+ "instrument": "tools\\notebook_w11d_canvas_walk.py",
+ "gate_source": "the sandbox's auth payload (row C0 server_flags)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8571 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w11d\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T00-39-51.md (identity 583db241b182..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11d-data)"
+ },
+ "run": "r004038",
+ "member": "w11d-r004038@local.dev",
+ "server_flags": {
+  "notebook_trade_canvas_enabled": true,
+  "paid_equiv": true
+ },
+ "schema_headers_on_canvas_puts": [
+  "3"
+ ],
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\w11d\\walk-96a5e7df71\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\w11d\\walk-96a5e7df71\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 00:39:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 00:40:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 00:42:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 00:42:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

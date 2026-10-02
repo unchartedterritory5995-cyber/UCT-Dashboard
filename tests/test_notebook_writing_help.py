@@ -513,7 +513,9 @@ def test_the_action_labels_are_the_same_four_words_in_the_editor_and_the_export(
     block = block[:block.index("})")]
     js = dict(re.findall(r"(\w+): '([^']+)'", block))
     assert js == notes_export._WRITING_HELP_ACTION_LABELS
-    assert set(js) == set(wh.ACTIONS)
+    # Writing help's four actions, plus wave 11 lane 11C's AI change set (same node, own word).
+    from api.services.journal_two import ai_actions
+    assert set(js) == set(wh.ACTIONS) | {ai_actions.ACTION_ATTR}
 
 
 # ── the export renders the label; an Ask insert is unchanged ─────────────────

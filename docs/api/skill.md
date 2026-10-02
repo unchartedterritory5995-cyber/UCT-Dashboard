@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (529)
+## Endpoints (533)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -241,6 +241,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/j2/accounts/{account_id}/settings` | member | member-workspace |
 | GET | `/api/j2/accounts/{account_id}/setup-stats` | member | member-workspace |
 | GET | `/api/j2/accounts/{account_id}/verdict-scorecard` | member | member-workspace |
+| GET | `/api/j2/ai-actions` | member | member-workspace |
+| GET | `/api/j2/ai-actions/{set_id}` | member | member-workspace |
 | GET | `/api/j2/analytics` | member | member-workspace |
 | GET | `/api/j2/attachments/{user_id}/{date}/{filename}` | member | member-workspace |
 | GET | `/api/j2/broker/dup-flags` | member | member-workspace |
@@ -331,6 +333,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/j2/trades/{trade_id}/tag-suggestions` | member | member-workspace |
 | GET | `/api/j2/trust/orphans` | member | member-workspace |
 | GET | `/api/j2/unified-coach` | member | member-workspace |
+| GET | `/api/j2/voice-notes/desk-sessions` | paid | member-workspace |
+| GET | `/api/j2/voice-notes/status` | paid | member-workspace |
 | GET | `/api/leader-persistence/{symbol}` | paid | market-analytics |
 | GET | `/api/leadership` | paid | market-analytics |
 | GET | `/api/live-prices` | member | market-data |

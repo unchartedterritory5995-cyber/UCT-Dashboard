@@ -1,0 +1,6 @@
+== q3 start 19:32:09 HEAD 471add8f36
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 5 marked process(es) (gate 0, vitest 5, pytest 0); largest pid 33604 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment
+== end 19:34:08 exit 1
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 4 marked process(es) (gate 0, vitest 4, pytest 0); largest pid 36664 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment

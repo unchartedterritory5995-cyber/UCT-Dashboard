@@ -1,0 +1,334 @@
+{
+ "wave": 11,
+ "lane": "11A",
+ "checks": {
+  "V0_gate_and_stub": {
+   "verdict": "PASS",
+   "flags": {
+    "notebook_voice_notes_enabled": true,
+    "paid_equiv": true
+   },
+   "status": {
+    "limits": {
+     "maxSeconds": 3600,
+     "maxBytes": 94371840,
+     "chunkSeconds": 300,
+     "extensions": [
+      ".m4a",
+      ".mp3",
+      ".wav",
+      ".webm",
+      ".ogg",
+      ".mp4",
+      ".aac"
+     ],
+     "jobTtlSeconds": 7200
+    },
+    "cap": {
+     "usedSeconds": 0,
+     "capSeconds": 3600,
+     "remainingSeconds": 3600,
+     "unlimited": false
+    },
+    "summariesLeft": 20
+   }
+  },
+  "V1_record_at_1280": {
+   "verdict": "PASS",
+   "start_from_audio_buttons": [
+    "Voice note",
+    "Upload recording",
+    "From a Desk session"
+   ],
+   "idle_timer": "0:00 / 1:00:00",
+   "timer_recording": "0:03 / 1:00:00",
+   "timer_paused": [
+    "0:03 / 1:00:00",
+    "0:03 / 1:00:00"
+   ],
+   "timer_resumed": "0:05 / 1:00:00",
+   "progress_seen": [
+    "Uploading the recording…",
+    "Writing the summary…"
+   ],
+   "ended_on": "preview",
+   "ai_label": true,
+   "chips": [
+    "$NVDA",
+    "$AMD",
+    "Set a stop on AMD below the 50-day",
+    "Review position size before the open"
+   ],
+   "tsla_shown": false,
+   "stub_transcript_in_body": true,
+   "note_id": "06c76ba502ca46c58b470cbfc5c91f31",
+   "note_title": "W11A walk recording r223304",
+   "note_tags": [
+    "voice-note"
+   ],
+   "body_has": {
+    "voice_summary": true,
+    "taskList": true,
+    "toggle": true,
+    "/journal/notebook/research/NVDA": true,
+    "Full transcript": true
+   },
+   "used_seconds": [
+    0,
+    6
+   ]
+  },
+  "V2_upload_three_parts": {
+   "verdict": "PASS",
+   "progress_seen": [
+    "Uploading the recording…",
+    "Transcribing part 2 of 3…"
+   ],
+   "requests": [
+    "GET /status",
+    "POST /jobs",
+    "POST /jobs/jGrFGie-MO7884mu/transcribe",
+    "POST /jobs/jGrFGie-MO7884mu/transcribe",
+    "POST /jobs/jGrFGie-MO7884mu/transcribe",
+    "POST /jobs/jGrFGie-MO7884mu/summarize"
+   ],
+   "used_seconds": [
+    6,
+    726
+   ],
+   "note_id": "300e553dbde84d4fbc38eaae14cf8fee",
+   "part_positions_in_body": [
+    1901,
+    2121,
+    2341
+   ],
+   "parts_in_order": true
+  },
+  "V3_retry_keeps_the_recording": {
+   "verdict": "PASS",
+   "alert": "Transcription failed for part 2 of 2. Your recording is kept — choose Retry to continue from where it stopped.",
+   "kept_line": true,
+   "progress_before": [
+    "Uploading the recording…"
+   ],
+   "progress_after_retry": [
+    "Transcribing…"
+   ],
+   "requests": [
+    "GET /status",
+    "POST /jobs",
+    "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+    "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+    "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+    "POST /jobs/HyZcKUB8R_lh6Fe7/summarize",
+    "DELETE /jobs/HyZcKUB8R_lh6Fe7"
+   ]
+  },
+  "V4_cap_refused_up_front": {
+   "verdict": "PASS",
+   "cap_before": {
+    "usedSeconds": 1126,
+    "capSeconds": 3600,
+    "remainingSeconds": 2474,
+    "unlimited": false
+   },
+   "alert": "This recording is 55 minutes long, and you have 41 minutes of voice transcription left this month. Trim it, or wait until the 1st.",
+   "requests": [
+    "GET /status",
+    "POST /jobs"
+   ]
+  },
+  "V5_desk_session": {
+   "verdict": "PASS",
+   "requests": [
+    "GET /status",
+    "GET /desk-sessions",
+    "POST /desk-sessions/238/summarize"
+   ],
+   "note_id": "bc7071f8d3ab4d4db9434bba65320fc2",
+   "preview_names_the_desk": true,
+   "ai_label_in_preview": true,
+   "body_has": {
+    "Desk session: ": true,
+    "voice_summary": true,
+    "NVDA is holding the gap": true,
+    "taskList": true,
+    "toggle": true
+   }
+  },
+  "V6_slash_voice_append_by_keyboard": {
+   "verdict": "PASS",
+   "keyboard_steps": [
+    "Desk session",
+    "W11A Live Trading — Oct 1, 2026\nLive Trading Sessions",
+    "Add to this note"
+   ],
+   "member_words_first": "My plan for today.",
+   "autosaved": true,
+   "note_id": "bac34c06d12d4bc89cd5d7b5cf6fe316"
+  },
+  "V7_locked_note_refuses": {
+   "verdict": "PASS",
+   "lock_status": 200,
+   "contenteditable": "false",
+   "sentence_shown": true,
+   "dialog_opened": false
+  },
+  "V8_phone_390_touch": {
+   "verdict": "PASS",
+   "doc_scroll": 390,
+   "vw": 390,
+   "under_44": [],
+   "off_screen": [],
+   "sheet_buttons": [
+    {
+     "x": 17,
+     "y": 377.06549072265625,
+     "width": 115.78125,
+     "height": 44
+    },
+    {
+     "x": 140.78125,
+     "y": 231.42034912109375,
+     "width": 158.625,
+     "height": 44
+    },
+    {
+     "x": 17,
+     "y": 253.43992614746094,
+     "width": 181.0625,
+     "height": 44.00001525878906
+    }
+   ],
+   "controls": 5
+  },
+  "V9_desk_player_save_to_notebook": {
+   "verdict": "PASS",
+   "ended_on": "preview"
+  },
+  "V10_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "voice_requests": [
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/J7O1TxNKWTR4lJrA/transcribe",
+  "POST /jobs/J7O1TxNKWTR4lJrA/summarize",
+  "DELETE /jobs/J7O1TxNKWTR4lJrA",
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/jGrFGie-MO7884mu/transcribe",
+  "POST /jobs/jGrFGie-MO7884mu/transcribe",
+  "POST /jobs/jGrFGie-MO7884mu/transcribe",
+  "POST /jobs/jGrFGie-MO7884mu/summarize",
+  "DELETE /jobs/jGrFGie-MO7884mu",
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+  "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+  "POST /jobs/HyZcKUB8R_lh6Fe7/transcribe",
+  "POST /jobs/HyZcKUB8R_lh6Fe7/summarize",
+  "DELETE /jobs/HyZcKUB8R_lh6Fe7",
+  "GET /status",
+  "POST /jobs",
+  "GET /status",
+  "GET /desk-sessions",
+  "POST /desk-sessions/238/summarize",
+  "GET /status",
+  "GET /desk-sessions",
+  "POST /desk-sessions/238/summarize",
+  "GET /status",
+  "POST /desk-sessions/238/summarize"
+ ],
+ "tip": "8775dd8fbf",
+ "base": "http://127.0.0.1:8567",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11a-data5",
+ "instrument": "tools\\notebook_w11a_voice_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_VOICE_SANDBOX_STUB": "1"
+ },
+ "model_keys_set": {
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "ffmpeg": "C:\\Users\\Patrick\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.2-full_build\\bin\\ffmpeg.EXE",
+ "ffprobe": "C:\\Users\\Patrick\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.2-full_build\\bin\\ffprobe.EXE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8567 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w11a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T22-32-12.md (identity 3270f503ec20..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11a-data5)"
+ },
+ "run": "r223304",
+ "audio_files": {
+  "upload": {
+   "name": "morning-call.mp3",
+   "bytes": 1440369
+  },
+  "fail": {
+   "name": "sandbox-fail-once-call.mp3",
+   "bytes": 800433
+  },
+  "long": {
+   "name": "long-review.mp3",
+   "bytes": 6600393
+  }
+ },
+ "member": "w11a-r223304@local.dev",
+ "server_flags": {
+  "notebook_voice_notes_enabled": true,
+  "paid_equiv": true
+ },
+ "desk_video": {
+  "id": 238,
+  "insights_store": 200
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\w11a\\walk-8775dd8fbf\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\w11a\\walk-8775dd8fbf\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 22:32:19",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 22:33:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-01 22:34:57",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-01 22:35:08",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

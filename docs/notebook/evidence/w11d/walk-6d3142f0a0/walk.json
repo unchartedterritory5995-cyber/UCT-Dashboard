@@ -1,0 +1,408 @@
+{
+ "wave": 11,
+ "lane": "11D",
+ "checks": {
+  "C0_gate_on": {
+   "verdict": "PASS",
+   "flags": {
+    "notebook_trade_canvas_enabled": true,
+    "paid_equiv": true
+   }
+  },
+  "C1_create_from_new_note_sheet": {
+   "verdict": "PASS",
+   "note_id": "546eb112afdc473fa839922660a75d6d",
+   "hint_steps": [
+    "Add a chart",
+    "Add entry, stop and target",
+    "Link it from your thesis"
+   ],
+   "ms_click_to_board": 1648,
+   "tags": [
+    "trade-plan"
+   ],
+   "title": "Trade plan — Oct 2"
+  },
+  "C2_add_by_mouse": {
+   "verdict": "PASS",
+   "items": [
+    [
+     "chart",
+     "NVDA",
+     "live",
+     null
+    ],
+    [
+     "chart",
+     "AMD",
+     "frozen",
+     "2026-09-24"
+    ],
+    [
+     "text",
+     null,
+     null,
+     null
+    ]
+   ],
+   "levels": [
+    [
+     "entry",
+     182.5,
+     true
+    ],
+    [
+     "stop",
+     171,
+     true
+    ],
+    [
+     "target",
+     205,
+     true
+    ]
+   ],
+   "edges": [
+    {
+     "id": "e_1ryq2ehw9g",
+     "from": "i_14zch3g11z",
+     "to": "i_1n3k8nf1ls",
+     "label": "if it holds"
+    }
+   ],
+   "frozen_bars_requests": [
+    "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24"
+   ],
+   "live_bars_requests": [
+    "/api/bars/NVDA?tf=D&bars=600"
+   ],
+   "frozen_card_bytes": 149,
+   "board_bytes": 863
+  },
+  "C3_move_resize_delete_undo_by_mouse": {
+   "verdict": "PASS",
+   "before": {
+    "x": -1152,
+    "y": -472,
+    "w": 240,
+    "h": 140
+   },
+   "after_move": {
+    "x": -824,
+    "y": -312
+   },
+   "after_resize": {
+    "w": 368,
+    "h": 200
+   },
+   "deleted": true,
+   "edges_after_delete": 0,
+   "undone": true,
+   "handle_hit": "i_14zch3g11z"
+  },
+  "C4_keyboard_only": {
+   "verdict": "FAIL",
+   "lost_focus": [],
+   "on_board": "application",
+   "first_card": "i_14zch3g11z",
+   "moved": {
+    "dx": 16,
+    "dy": 64
+   },
+   "focus_after_delete": "i_ck31ih1dgq",
+   "focus_after_levels_dialog": "i_ck31ih1dgq",
+   "resized": true,
+   "typed": false,
+   "edited": false,
+   "deleted": true,
+   "undone": true,
+   "levelled": true,
+   "arrowed": true,
+   "zoom": [
+    "64%",
+    "77%",
+    "65%"
+   ],
+   "keys_dialog": true
+  },
+  "C5_touch_390": {
+   "verdict": "FAIL",
+   "sideways_overflow_px": 0,
+   "controls_under_44px": [],
+   "pan_transform": [
+    "translate3d(190.8px, 245.7px, 0px) scale(0.2)",
+    "translate3d(190.8px, 245.7px, 0px) scale(0.2)"
+   ],
+   "pinch_zoom": [
+    "20%",
+    "20%"
+   ],
+   "level_added": false,
+   "level_error": "TimeoutError: Locator.tap: Timeout 10000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"toolbar\", name=\"Canvas tools\").get_by_role(\"button\", name=re.compile(r\"^Levels$\"))\n    - locator resolved to <button type=\"button\" aria-keyshortcuts=\"L\" class=\"_tool_d2aqs_21\" title=\"Add entry, stop and target (L)\">…</button>\n  - attempting tap action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button type=\"button\" aria-expanded=\"false\" class=\"_addLink_1yu3z_135\">…</button> from <div class=\"_em"
+  },
+  "C6_link_from_a_thesis": {
+   "verdict": "FAIL",
+   "thesis": "ade6ad9c3194483cbffcffd3349ded1f",
+   "linked": true,
+   "status_lines_on_canvas": [],
+   "linked_from_text": "",
+   "backlinks_api": {
+    "count": 1,
+    "notes": [
+     {
+      "id": "ade6ad9c3194483cbffcffd3349ded1f",
+      "title": "NVDA thesis r235845",
+      "updatedAt": "2026-10-02T05:00:30.745465+00:00",
+      "refs": 1,
+      "context": "Trade plan:"
+     }
+    ]
+   },
+   "graph_edge": true,
+   "slash_second_canvas": [
+    "88803390b7514fc9b77631d1364d1487"
+   ],
+   "second_is_canvas": true,
+   "ms_create_to_linked_scripted": 87337
+  },
+  "C7_reload_persisted": {
+   "verdict": "PASS",
+   "updatedAt_unchanged_by_open": true,
+   "stored": {
+    "items": 4,
+    "edges": 2,
+    "levels": 4
+   },
+   "dom": {
+    "cards": 4,
+    "edges": 2,
+    "level_rows": 4
+   }
+  },
+  "C8_offline_then_reconnect": {
+   "verdict": "PASS",
+   "server_had_it_while_offline": false,
+   "landed": true,
+   "forks": [],
+   "notes_before": 3,
+   "notes_after": 3
+  },
+  "C9_export_markdown": {
+   "verdict": "PASS",
+   "status": 200,
+   "bytes": 721,
+   "missing": [],
+   "content_type": "text/markdown; charset=utf-8"
+  },
+  "C10_200_cards": {
+   "verdict": "PASS",
+   "open_ms_navigation_to_first_card": 1010,
+   "cards_in_dom_at_fit": 200,
+   "zoom_at_fit": "20%",
+   "cards_in_dom_zoomed": 77,
+   "zoom_zoomed": "60%",
+   "pan_frames": {
+    "frames": 80,
+    "p50": 16.699999999999818,
+    "p95": 16.700000000000728,
+    "max": 16.800000000000182,
+    "mounted": 0,
+    "unmounted": 40
+   },
+   "pan_longtasks": [],
+   "pan_cards_touched": [],
+   "drag_frames": {
+    "frames": 91,
+    "p50": 16.699999999999818,
+    "p95": 16.699999999999818,
+    "max": 16.799999999999272,
+    "mounted": 0,
+    "unmounted": 0
+   },
+   "drag_longtasks": [],
+   "drag_cards_touched": [
+    "w49"
+   ],
+   "drag_target": "w49",
+   "drag_committed": true,
+   "raw": "C10-frames.json"
+  },
+  "C11_gate_off": {
+   "verdict": "PASS",
+   "method": "the auth payload answered with notebook_trade_canvas_enabled=false by a Playwright route (the env var's only effect is that key; tests/test_notebook_trade_canvas.py)",
+   "new_note_sheet_door": 0,
+   "research_door": 0,
+   "slash_door": 0,
+   "read_only_sentence": 1,
+   "edit_buttons": 0,
+   "cards_still_shown": 5
+  },
+  "C12_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "bars_requests": [
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/NVDA?tf=D&bars=600",
+  "/api/bars/AMD?tf=D&bars=12500&to=2026-09-24",
+  "/api/bars/SPY?tf=D&bars=600"
+ ],
+ "puts": [
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/ade6ad9c3194483cbffcffd3349ded1f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/ade6ad9c3194483cbffcffd3349ded1f",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/546eb112afdc473fa839922660a75d6d",
+   "schema": "3"
+  },
+  {
+   "path": "/api/j2/notes/2414275f992646bf8ff17417ee5d351b",
+   "schema": "3"
+  }
+ ],
+ "tip": "6d3142f0a0",
+ "base": "http://127.0.0.1:8571",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11d-data",
+ "instrument": "tools\\notebook_w11d_canvas_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1"
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8571 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w11d\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T23-57-59.md (identity dba7e2b6fe2c..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11d-data)"
+ },
+ "run": "r235845",
+ "member": "w11d-r235845@local.dev",
+ "server_flags": {
+  "notebook_trade_canvas_enabled": true,
+  "paid_equiv": true
+ },
+ "schema_headers_on_canvas_puts": [
+  "3"
+ ],
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\w11d\\walk-6d3142f0a0\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\w11d\\walk-6d3142f0a0\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 23:58:07",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 23:58:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 00:00:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 00:01:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

@@ -259,7 +259,11 @@ describe('TERM-037 — the binding pin, extended to the whole panel set', () => 
   }
 
   it('PANEL_SET is the native ids followed by the surface ids, with no duplicate', () => {
-    expect(PANEL_SET).toEqual([...WIDGET_IDS, ...SURFACE_PANEL_IDS])
+    // G-040: the capture-only kinds are Notebook captures, not board tools.
+    const boardIds = WIDGET_IDS.filter((id) => WIDGET_REGISTRY[id].captureOnly !== true)
+    expect(boardIds.length, 'the capture-only filter must not empty the native set').toBeGreaterThan(15)
+    expect(WIDGET_IDS.length - boardIds.length, 'the G-040 capture-only kinds are filtered out').toBeGreaterThan(0)
+    expect(PANEL_SET).toEqual([...boardIds, ...SURFACE_PANEL_IDS])
     expect(new Set(PANEL_SET).size).toBe(PANEL_SET.length)
     for (const id of WIDGET_IDS) expect(id.startsWith(SURFACE_PANEL_PREFIX), id).toBe(false)
   })

@@ -1,0 +1,29 @@
+target api\services\journal_two\voice_notes.py  captured sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9  committed blob sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9
+CONTROL (unmutated) rc=0: 17 passed, 31 deselected in 5.89s
+M1 ticker gate: an unsupported ticker is kept: rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_an_invented_ticker_is_dropped_and_a_said_one_is_kept
+    FAILED tests/test_notebook_voice_notes.py::test_the_route_answers_the_validated_result_with_the_transcript
+    FAILED tests/test_notebook_voice_notes.py::test_the_stub_answers_are_fixed_and_carry_an_invented_ticker
+    3 failed, 45 deselected in 1.61s
+M2 summary gate: a summary naming an unsaid ticker/number is kept: rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_a_summary_naming_an_unsaid_ticker_or_number_is_dropped_whole
+    FAILED tests/test_notebook_voice_notes.py::test_an_answer_with_nothing_usable_is_labelled_unusable
+    2 failed, 46 deselected in 2.50s
+M3 action-item grounding dropped: rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_action_items_are_plain_text_and_grounded
+    1 failed, 47 deselected in 1.14s
+M4 cap: a recording longer than the minutes left is admitted: rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_a_recording_longer_than_the_minutes_left_is_refused_before_any_transcription
+    FAILED tests/test_notebook_voice_notes.py::test_another_open_job_holds_its_minutes
+    2 failed, 46 deselected in 2.40s
+M5 cap: a spent month is admitted: rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_a_spent_month_reads_the_used_up_sentence
+    1 failed, 1 passed, 46 deselected in 2.33s
+M6 cap check skipped entirely (check_cap returns at once): rc=1 KILLED; restored sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9 == captured: True
+    FAILED tests/test_notebook_voice_notes.py::test_a_recording_longer_than_the_minutes_left_is_refused_before_any_transcription
+    FAILED tests/test_notebook_voice_notes.py::test_a_spent_month_reads_the_used_up_sentence
+    FAILED tests/test_notebook_voice_notes.py::test_another_open_job_holds_its_minutes
+    3 failed, 45 deselected in 2.31s
+FINAL working sha 543ef83e1ad746048610da6434a965f89d23a53a20466057083a7caaf2a383d9; equals committed blob (LF-normalised): True
+CONTROL after restore rc=0: 17 passed, 31 deselected in 8.33s
+VERDICT: PASS - every mutation killed, every restore verified

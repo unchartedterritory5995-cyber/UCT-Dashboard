@@ -143,6 +143,12 @@ export const FIXTURES = {
   linkPreview: { doc: doc({ type: 'linkPreview', attrs: { url: 'https://example.com/p', title: 'previewtitleword', description: 'previewdescword' } }), probe: 'previewtitleword' },
   tableOfContents: { doc: doc({ type: 'heading', attrs: { level: 1 }, content: [t('tocheadword')] }, { type: 'tableOfContents' }), probe: null },
   webEmbed: { doc: doc({ type: 'webEmbed', attrs: { url: 'https://www.youtube.com/watch?v=abc', provider: 'youtube' } }), probe: 'YouTube video' },
+  // Wave 11 lane 11D: a trade-plan canvas -- one block atom whose board (cards, charts,
+  // levels, arrows) lives in its `board` attribute. Probe: a card's own words.
+  tradeCanvas: { doc: doc({ type: 'tradeCanvas', attrs: {
+    board: { v: 1, items: [{ id: 'c1', kind: 'text', x: 0, y: 0, w: 240, h: 120, text: 'canvascardword' }],
+      edges: [], levels: [{ id: 'l1', role: 'entry', label: 'Entry', price: 101.5, chartId: null }] },
+    searchText: 'canvascardword' } }), probe: 'canvascardword' },
 }
 
 // ── measuring what came back ─────────────────────────────────────────────────

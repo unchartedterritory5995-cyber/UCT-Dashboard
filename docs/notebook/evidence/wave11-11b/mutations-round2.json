@@ -1,0 +1,83 @@
+[
+ {
+  "mutation": "read writes (one note's properties / a page): a write inside values_for_notes",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "8 failed, 3 passed in 21.53s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "read writes (list sort/filter): a write inside values_for_all",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "8 failed, 3 passed in 16.16s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "tenant isolation (links): member note not joined on user_id",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 3 passed, 27 deselected in 6.68s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "tenant isolation (trades): trade row not joined on user_id",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 3 passed, 27 deselected in 8.45s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "cycle check (server): find_cycle disabled",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 1 passed, 30 deselected in 3.79s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "no-eval (server, compiled path): a literal evaluated through eval()",
+  "file": "api/services/journal_two/formula_engine.py",
+  "exit": 1,
+  "totals": "1 failed, 317 passed in 2.91s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "fc7b1c1bf579c418"
+ },
+ {
+  "mutation": "INDEXED BY asked for even when the index is missing",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 31 deselected in 3.59s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "sorted page: empties paged from the wrong offset",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 31 deselected in 3.80s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ },
+ {
+  "mutation": "filter clause: notes without a value never take the condition's answer",
+  "file": "api/services/journal_two/note_computed.py",
+  "exit": 1,
+  "totals": "1 failed, 4 passed, 27 deselected in 8.04s",
+  "killed": true,
+  "restored_matches_HEAD": true,
+  "sha_after": "953c12167ebf308c"
+ }
+]

@@ -66,6 +66,7 @@ from urllib.parse import quote
 import anyio
 
 from api.services.journal_two.attachment_root import read_candidates_with_roots
+from api.services.journal_two import trade_canvas as _trade_canvas
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -898,6 +899,19 @@ def _ask_citation_n(attrs: Any) -> int | str | None:
 _WRITING_HELP_ACTION_LABELS = {
     "summarize": "Summarize", "rewrite": "Rewrite",
     "continue": "Continue", "translate": "Translate",
+    # Wave 11 lane 11C: a block an approved AI change set added (ai_actions.ACTION_ATTR).
+    # ⛔ Without this row such a block exported as "From Ask Notebook", a provenance it does not have.
+    "ai_change": "AI change",
+}
+
+# Wave 11 lane 11A: AI-written blocks that are NOT writing help but carry the same
+# provenance shape (an askInsert with `action` + `model`) -- the editor's
+# AskInsertView.AI_SUMMARY_ACTION_LABELS, pinned equal by
+# tests/test_notebook_voice_notes_export.py. Its "question" is the SOURCE the
+# summary was written from (a recording, an upload, a Desk session), so it is
+# introduced as the source, never as something the member asked.
+_AI_SUMMARY_ACTION_LABELS = {
+    "voice_summary": "Voice note summary",
 }
 
 
@@ -908,7 +922,12 @@ def _ask_insert_head_parts(attrs: dict[str, Any]) -> tuple[list[str], str, str, 
     exactly this; Markdown adds its own escaping (`_prose`) and bold, Word its own runs."""
     date = str(attrs.get("insertedAt") or "")[:10]
     question = str(attrs.get("question") or "").strip()
-    action = _WRITING_HELP_ACTION_LABELS.get(str(attrs.get("action") or ""))
+    raw_action = str(attrs.get("action") or "")
+    summary_label = _AI_SUMMARY_ACTION_LABELS.get(raw_action)
+    if summary_label:
+        model = str(attrs.get("model") or "").strip()
+        return [p for p in ("Compass", summary_label, model) if p], date, "Source: ", question
+    action = _WRITING_HELP_ACTION_LABELS.get(raw_action)
     if action:
         # Wave 7 lane H (H2, ruling D-H1): an accepted WRITING-HELP result is the
         # same node with `action` (+ `model`) set. Same labelled quote, its own
@@ -1124,6 +1143,13 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype == "askCitation":
         n = _ask_citation_n(node.get("attrs"))  # never raises; see _ask_citation_n
         return f"[{n}]" if n is not None else ""
+    if ntype == "tradeCanvas":
+        # Wave 11 lane 11D: a board cannot exist in Markdown either, so the canvas
+        # exports as its readable summary -- the levels, the charts (symbol,
+        # timeframe, live or the date it is frozen at), the cards' text and the
+        # arrows -- from trade_canvas.summary_sections, the one reading every
+        # exporter formats. Member text goes through `_prose` like any other.
+        return _trade_canvas_markdown(attrs)
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -1188,6 +1214,19 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if kids:
         return "\n".join(_block(c, resolver) for c in kids)
     return ""
+
+
+def _trade_canvas_markdown(attrs: Any) -> str:
+    """A `tradeCanvas` node as Markdown: a bold title line, then a bold heading and a
+    bullet list per non-empty section (trade_canvas.summary_sections). Never raises --
+    `board_of` reads any shape as "less"."""
+    lines = [f"**{_prose(_trade_canvas.summary_title(attrs))}**"]
+    for heading, rows in _trade_canvas.summary_sections(attrs):
+        lines.append("")
+        lines.append(f"**{_prose(heading)}**")
+        lines.append("")
+        lines.extend(f"- {_prose(r)}" for r in rows)
+    return "\n".join(lines)
 
 
 def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) -> str:

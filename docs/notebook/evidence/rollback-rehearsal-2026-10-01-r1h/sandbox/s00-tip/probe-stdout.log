@@ -1,0 +1,252 @@
+{
+  "label": "s00-tip",
+  "mode": "seed",
+  "identity": "http://127.0.0.1:8500 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1h-sandbox\\t\\s00-tip\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T20-14-59.md (identity 13eb71f66009..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1h-sandbox\\data)",
+  "proven": true,
+  "seed_n0_status": 200,
+  "seed_n1_status": 200,
+  "seed_n2_status": 200,
+  "fixtures": {
+    "n0": "b88ecd71c6074b9a8e03f1e94879919f",
+    "n1": "cbf3ecc1317f4c1a8de60a9eaa216072",
+    "n2": "cf24556f5abe4e9f8f4ece0f0bf5acff"
+  },
+  "landings": {
+    "L1c_switcher_body_recall": {
+      "status": 200,
+      "text_matches": 1,
+      "rows": 1
+    },
+    "L1b_admin_notebook_slo": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "L1a_unbuildable_body_at_create": {
+      "status": 400
+    },
+    "h203_depth_cap_at_create": {
+      "status": 400
+    },
+    "w9_batch_export_bogus_format": {
+      "status": 422
+    },
+    "w8_share_links": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w8_publish": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "9C_admin_notebook_soak": {
+      "status": 422,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w7_personal_tokens": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w6_note_templates": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w5_switcher_door": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json",
+      "has_notes_key": true
+    }
+  },
+  "L7_find_input_floor": {
+    "editor_mounted": true,
+    "find_button_count": 1,
+    "find_input_count": 1,
+    "find_input_height_px": 44,
+    "page_errors": []
+  },
+  "L12_sort_updated_asc": {
+    "create_a_status": 200,
+    "create_b_status": 200,
+    "status": 200,
+    "first_five_ids_newest_created_last_expected": [
+      "b88ecd71c6074b9a8e03f1e94879919f",
+      "cbf3ecc1317f4c1a8de60a9eaa216072",
+      "cf24556f5abe4e9f8f4ece0f0bf5acff",
+      "a5b33203d2d4458cacffd1393d3ba718",
+      "2c8e6c3b61bc4870ba8ae47a71e7cd38"
+    ],
+    "idx_a_older": 3,
+    "idx_b_newer": 4,
+    "older_comes_first": true
+  },
+  "L10_template_gallery": {
+    "templates_button_count_direct": 0,
+    "all_notes_link_count": 1,
+    "templates_button_count": 1,
+    "template_card_count": 27,
+    "page_errors": []
+  },
+  "L13_analyst_consensus_capture": {
+    "create_note_status": 200,
+    "note_id": "f656827fe53e4f84959c9ef8135ca00c",
+    "status": 200,
+    "fact": {
+      "id": "d799c8dd160b47d2aef0d8901ea1e92d",
+      "noteId": "f656827fe53e4f84959c9ef8135ca00c",
+      "entityId": null,
+      "ticker": "NVDA",
+      "factType": "analyst_price_target_consensus",
+      "factLabel": "Analyst Price Target (Consensus)",
+      "period": null,
+      "value": 195.0,
+      "unit": "usd_per_share",
+      "currency": "USD",
+      "temporalMode": "snapshot",
+      "observedAt": "2026-10-02T01:16:32.716614+00:00",
+      "sourceAsOf": null,
+      "source": "fmp",
+      "sourceRef": null,
+      "rightsClass": "conditional",
+      "caption": null,
+      "createdAt": "2026-10-02T01:16:32.716614+00:00"
+    },
+    "active_at_this_step": true,
+    "rights_class_ok": true,
+    "temporal_mode_ok": true,
+    "source_ok": true
+  },
+  "L14_locked_append_doors": {
+    "create_note_status": 200,
+    "note_id": "ce9274cb2515497a9a60a7cc7c4f562c",
+    "create_fact_status": 200,
+    "upload_attachment_status": 200,
+    "document_id_resolved": true,
+    "lock_status": 200,
+    "locked_true": true,
+    "embeds_status": 423,
+    "embeds_refused": true,
+    "facts_insert_status": 423,
+    "facts_insert_refused": true,
+    "excerpts_status": 423,
+    "excerpts_refused": true,
+    "all_three_refused": true,
+    "any_refused": true
+  },
+  "L14_intro_skip_public_routes": {
+    "share_note": {
+      "url": "http://127.0.0.1:8500/share/n/r1g-intro-skip-token",
+      "intro_shown": false,
+      "page_errors": []
+    },
+    "published_note": {
+      "url": "http://127.0.0.1:8500/p/r1g-intro-skip-slug",
+      "intro_shown": false,
+      "page_errors": []
+    },
+    "control_dashboard_signed_out": {
+      "url": "http://127.0.0.1:8500/dashboard",
+      "intro_shown": true,
+      "page_errors": []
+    },
+    "skip_working": true,
+    "control_saw_intro": true
+  },
+  "A2R03_view_graph_not_home": {
+    "graph_canvas_count": 1,
+    "research_home_heading_count": 0,
+    "graph_view_active": true,
+    "research_home_shown": false,
+    "page_errors": []
+  },
+  "A2R04_shift_slash_opens_shortcuts": {
+    "dialog_opened": true,
+    "page_errors": []
+  },
+  "A2R05_tickerpopup_trigger_keyboard": {
+    "sym_label_count": 2,
+    "trigger_count": 1,
+    "tabindex": "0",
+    "tabindex_is_0": true,
+    "dialog_opened": true,
+    "page_errors": []
+  },
+  "dom": {
+    "skip_link": {
+      "present": true,
+      "pointerEvents": "none",
+      "opacity": "0"
+    },
+    "pane_heading": {
+      "present": true,
+      "focused": true,
+      "position": "absolute",
+      "pointerEvents": "none"
+    },
+    "page_errors": []
+  },
+  "editor": {
+    "n2": {
+      "note_id": "cf24556f5abe4e9f8f4ece0f0bf5acff",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n1": {
+      "note_id": "cbf3ecc1317f4c1a8de60a9eaa216072",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n0": {
+      "note_id": "b88ecd71c6074b9a8e03f1e94879919f",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    }
+  }
+}

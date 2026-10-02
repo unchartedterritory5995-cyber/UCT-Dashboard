@@ -1,0 +1,12 @@
+[FAIL] 1_screener: {"note_id": "1a570431b38e4233bf17619b205b2ee8", "tabs_to_button": 337, "toast": "Screener results sent to “CX walk Screener 213300”", "rows_frozen": 50, "total_line": "72 matches", "asof_line": "As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:33 PM ET", "cut_line": "Showing the first 50 of 72 matches, as captured.", "run_href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ", "identical_after_reload": true, "fresh_run_filter_chip": 0, "fresh_run_url": "http://127.0.0.1:8547/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ"}
+[PASS] 2_cot: {"note_id": "ea6c50dec60843bea25a5786aa730920", "latest_week_label": "Save CL COT positioning for the week of 9/22/2026 to Notebook", "scrubbed_week_label": "Save CL COT positioning for the week of 1/13/2026 to Notebook", "tabs_to_button": 35, "toast": "CL COT positioning sent to “CX walk COT 213300”", "week_saved": "1/13/2026", "week_saved_iso": "2026-01-13", "embed_week_line": "Report week Jan 13, 2026, captured Oct 1, 2026", "current_href": "/breadth?tab=cot&cot=CL", "current_link_landed_on": "Save CL COT positioning for the week of 9/22/2026 to Notebook", "rail_head": "POSITIONING\nWEEK OF
+[INCONCLUSIVE] 3_modelbook: {"error": "Locator.wait_for: Timeout 8000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"status\").filter(has_text=re.compile(r\"sent to|captured|locked|failed\")).first to be visible\n", "tb": "  return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_
+[PASS] 4_locked: {"note_id": "9b00cba042b54727891c013c9c5fa5af", "lock_status": 200, "toast": "“CX walk Locked 213300” is locked — Screener results captured to your inbox until you unlock it", "expected": "“CX walk Locked 213300” is locked — Screener results captured to your inbox until you unlock it", "inbox_before": 0, "inbox_after": 1, "inbox_widget_ids": ["screener"], "embeds_in_locked_note": 0}
+[PASS] 5_page_errors: {"pageerror_count": 0, "pageerrors": [], "console_error_count": 16}
+{
+ "1_screener": "FAIL",
+ "2_cot": "PASS",
+ "3_modelbook": "INCONCLUSIVE",
+ "4_locked": "PASS",
+ "5_page_errors": "PASS"
+}

@@ -1849,6 +1849,23 @@ def list_notes_endpoint(
                             or deleted or date_from or date_to or symbol_in is not None
                             or savedViewId or property_filter),
         )
+    # Wave 11 (lane 11B), DARK behind NOTEBOOK_FORMULAS_ENABLED: each live row of
+    # THIS page carries its formula/rollup values (`computed`), so every view can
+    # show them. Off -- or a member with no computed property -- the payload is
+    # untouched and no extra SQL runs beyond one flag read.
+    if not deleted and rows:
+        from api.services.journal_two import note_computed
+        if note_computed.formulas_enabled():
+            conn = notes_service.get_connection()
+            try:
+                vals = note_computed.values_for_notes(
+                    conn, user["id"], [r["id"] for r in rows],
+                    {r["id"]: r.get("propertiesJson") or {} for r in rows})
+            finally:
+                conn.close()
+            if vals:
+                for r in rows:
+                    r["computed"] = vals.get(r["id"], {})
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -2711,6 +2728,7 @@ def create_property_def_endpoint(body: dict[str, Any], user: dict = Depends(get_
     try:
         d = note_properties.create_property_def(
             user["id"], body.get("name"), body.get("type"), options=body.get("options"),
+            config=body.get("config"),
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -2724,6 +2742,7 @@ def update_property_def_endpoint(
     try:
         d = note_properties.update_property_def(
             user["id"], property_id, name=body.get("name"), options=body.get("options"),
+            config=body.get("config"),
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,5 +1,6 @@
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
+import { ComputedChips } from './ComputedValue'
 import styles from './NoteCard.module.css'
 
 function relativeDate(iso) {
@@ -136,6 +137,9 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
           <LockedGlyph note={note} />
           {blocked && <BlockedBadge />}
         </div>
+        {/* Wave 11 (lane 11B): formula + rollup values. `computed` is on a row only
+            while NOTEBOOK_FORMULAS_ENABLED is on, so off this renders nothing. */}
+        <ComputedChips computed={note.computed} className={styles.computed} />
       </div>
       {thumb && (
         <div className={styles.thumb} aria-hidden="true">

@@ -47,6 +47,7 @@ from api.routers import auth as auth_router
 from api.services import feature_flag_index as ffi
 from api.services import notebook_flags
 from api.services.journal_two import note_shares
+from api.services.journal_two import ai_actions
 from api.services.journal_two import writing_help
 
 REPO = Path(__file__).resolve().parents[1]
@@ -115,6 +116,8 @@ def _server_gates() -> dict:
         "NOTEBOOK_WRITING_HELP_ENABLED": writing_help.writing_help_enabled,
         "NOTEBOOK_PUBLISH_ENABLED": lambda: notebook_flags.flag_on("NOTEBOOK_PUBLISH_ENABLED", False),
         "NOTEBOOK_ONBOARDING_ENABLED": lambda: notebook_flags.flag_on("NOTEBOOK_ONBOARDING_ENABLED", False),
+        # Wave 11 lane 11C: the AI-actions router's own gate function.
+        "NOTEBOOK_AI_ACTIONS_ENABLED": ai_actions.enabled,
     }
 
 
