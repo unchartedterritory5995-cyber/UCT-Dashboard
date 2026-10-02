@@ -1300,6 +1300,12 @@
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     },
+    "FILING_BLACKLINE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-01",
+      "where": [],
+      "note": "COV-04 (roadmap RM-L12) slice 1: the Research > Filing changes tab and GET /api/research/blackline/{sym}. The two most recent ORIGINAL 10-Ks of a symbol from SEC EDGAR (class A), Item 1A Risk Factors and Item 7 MD&A located in each and diffed paragraph by paragraph: added / removed / changed (word-level marks) / moved. Every side cites its accession number and filing date; a section not located is state not_found with the reason and no counts (never 'no changes'); a change of only years, dates or figures is marked boilerplate and counted, still listed. The request path reads the cache only: a miss answers state=pending and queues ONE refresh on api/services/filing_blackline.py's own single worker thread, which reaches SEC only through fundamentals_pit/sec_client.py (3 requests per ticker: submissions + two documents; cached 12h ok / 5min partial or failed / 1h not_found). ENABLEMENT GATE, default OFF, read per call (filing_blackline.is_enabled); the auth payload carries filing_blackline_enabled ONLY when on. Unset: the route 404s before identity, the auth payload is byte-identical, no worker thread is created and SEC is never called (tests/test_filing_blackline.py). Not decided yet: whether to arm, and whether 10-Q pairs come next. Arm: railway variables --service web --set FILING_BLACKLINE_ENABLED=1 (owner). Rollback = unset it; nothing is written anywhere but the in-memory cache."
+    },
     "SEASONALITY_ENABLED": {
       "status": "dark",
       "since": "2026-10-01",

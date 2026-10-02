@@ -9017,6 +9017,8 @@ from api.routers import options_chain as options_chain_router  # noqa: E402  (BR
 app.include_router(options_chain_router.router)
 from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01, dark)
 app.include_router(seasonality_router.router)
+from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
+app.include_router(filing_blackline_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
