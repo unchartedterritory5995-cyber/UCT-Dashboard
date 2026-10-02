@@ -376,6 +376,8 @@ def _assert_live_resamplable(code, base=_NO_BASE):
                 % (code, "of no stated timeframe" if base is None else repr(str(base))))
 
 
+_ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
 def _resample_quarterly_iso(daily_bars):
     """C47 — ISO-dated daily bars → calendar-quarter bars, in order.
 
@@ -389,14 +391,19 @@ def _resample_quarterly_iso(daily_bars):
     from api.services import bars_fetch                              # noqa: PLC0415
     quarters = {}
     for bar in daily_bars:
-        try:
-            dt = datetime.datetime.strptime(bar["t"], "%Y-%m-%d")
-        except (ValueError, TypeError):
+        # NO try/except in this module (test_ast_budget): a key that is not a
+        # `YYYY-MM-DD` string is skipped by a FORMAT check, exactly as the parse
+        # failure was skipped - only the year and the month are read.
+        stamp = bar.get("t") if isinstance(bar, dict) else None
+        if not (isinstance(stamp, str) and _ISO_DAY.fullmatch(stamp)):
             continue
-        key = (dt.year, (dt.month - 1) // 3 + 1)
+        year, month = int(stamp[0:4]), int(stamp[5:7])
+        if not 1 <= month <= 12:
+            continue
+        key = (year, (month - 1) // 3 + 1)
         if key not in quarters:
             quarters[key] = {
-                "t": "%04d-%02d-01" % (dt.year, (key[1] - 1) * 3 + 1),
+                "t": "%04d-%02d-01" % (year, (key[1] - 1) * 3 + 1),
                 "o": bar["o"], "h": bar["h"], "l": bar["l"], "c": bar["c"],
                 "v": bars_fetch._bar_volume(bar),
             }
