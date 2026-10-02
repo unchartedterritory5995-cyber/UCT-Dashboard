@@ -15,6 +15,7 @@ import { useCallback, useRef, useState } from 'react'
 
 import styles from './hub.module.css'
 import { NOTE_MAX, buildReport, sendReport } from './hubReport'
+import Input from '../components/ui/Input'
 
 const HUB_ROOT_SELECTOR = '[data-testid="hub-root"]'
 
@@ -90,7 +91,7 @@ export default function HubReportButton({ mode = null, flags = {}, onFiled = nul
           <div className={styles.reportSheetHead}>
             What went wrong? <span className={styles.reportOptional}>(optional)</span>
           </div>
-          <input
+          <Input aria-label="What went wrong"
             className={styles.reportInput}
             data-testid="hub-report-note"
             type="text"
