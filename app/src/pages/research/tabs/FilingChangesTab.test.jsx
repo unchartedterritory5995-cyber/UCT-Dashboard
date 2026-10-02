@@ -1,6 +1,6 @@
 // COV-04 — the Filing changes tab, asserted on rendered text.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import FilingChangesTab from './FilingChangesTab'
 
@@ -90,6 +90,66 @@ describe('FilingChangesTab', () => {
     renderTab()
     expect((await screen.findByTestId('blackline-unread')).textContent)
       .toBe('No comparison for AAPL: 1 original 10-K on file; two are needed to compare. That is a gap in what we could read, not a finding that nothing changed.')
+  })
+
+  it('asks for the 10-K pair by default and the 10-Q pair when picked, citing each side', async () => {
+    renderTab()
+    await screen.findByTestId('blackline')
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/research/blackline/AAPL?form=10-K')
+    expect(screen.getByTestId('form-10-K').getAttribute('aria-pressed')).toBe('true')
+    body = {
+      ticker: 'AAPL', state: 'ok', form: '10-Q',
+      newer: { form: '10-Q', accession: '0000320193-26-000010', filing_date: '2026-08-01', url: 'q1' },
+      older: { form: '10-Q', accession: '0000320193-26-000005', filing_date: '2026-05-02', url: 'q2' },
+      sections: [],
+    }
+    fireEvent.click(screen.getByTestId('form-10-Q'))
+    expect((await screen.findByTestId('cite-newer')).textContent)
+      .toBe('10-Q filed 2026-08-01 (accession 0000320193-26-000010)')
+    expect(global.fetch.mock.calls.at(-1)[0]).toBe('/api/research/blackline/AAPL?form=10-Q')
+    expect(screen.getByTestId('form-10-Q').getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('10-Q pending names the 10-Qs', async () => {
+    body = { ticker: 'AAPL', state: 'pending', queued: true, form: '10-Q' }
+    renderTab()
+    await screen.findByTestId('blackline-pending')
+    fireEvent.click(screen.getByTestId('form-10-Q'))
+    await waitFor(() => expect(screen.getByTestId('blackline-pending').textContent)
+      .toMatch(/two most recent 10-Qs from SEC EDGAR/))
+  })
+
+  it('a section that only refers back is said so, with no counts and never "no changes"', async () => {
+    body = { ...OK, sections: [{
+      key: 'risk_factors', label: 'Part II, Item 1A. Risk Factors', state: 'reference_only',
+      reason: 'both filings only refer back', counts: null, paragraphs: null,
+      excerpt: { older: 'No material changes.', newer: 'There have been no material changes from the Form 10-K.' },
+    }] }
+    renderTab()
+    const ro = await screen.findByTestId('refonly-risk_factors')
+    expect(ro.textContent).toMatch(/only refer back to another filing/)
+    expect(ro.textContent).toMatch(/not a finding that nothing changed/)
+    expect(screen.queryByTestId('counts-risk_factors')).toBeNull()
+    expect(screen.queryByText(/every paragraph is identical/)).toBeNull()
+  })
+
+  it('a section neither 10-Q includes is said so, with no counts', async () => {
+    body = { ...OK, form: '10-Q', sections: [{
+      key: 'risk_factors', label: 'Part II, Item 1A. Risk Factors', state: 'omitted',
+      reason: "neither filing includes it: the filing has no 'Part II, Item 1A. Risk Factors' text",
+      counts: null, paragraphs: null,
+    }] }
+    renderTab()
+    const om = await screen.findByTestId('omitted-risk_factors')
+    expect(om.textContent).toMatch(/^Not in either filing: neither filing includes it/)
+    expect(om.textContent).toMatch(/not a finding that nothing changed/)
+    expect(screen.queryByTestId('counts-risk_factors')).toBeNull()
+  })
+
+  it('says when paragraphs were rebuilt from a line-split layout', async () => {
+    body = { ...OK, sections: [{ ...OK.sections[0], reflowed: { older: true, newer: false } }] }
+    renderTab()
+    expect((await screen.findByTestId('reflowed-risk_factors')).textContent).toMatch(/paragraphs were rebuilt/)
   })
 
   it('a failed request is unavailable', async () => {

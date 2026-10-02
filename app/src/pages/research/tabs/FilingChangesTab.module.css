@@ -18,3 +18,7 @@
 .text { font-size: 13px; line-height: 1.55; color: var(--text); margin: 2px 0 0; overflow-wrap: anywhere; }
 .ins { background: color-mix(in srgb, var(--gain) 22%, transparent); text-decoration: none; }
 .del { background: color-mix(in srgb, var(--loss) 22%, transparent); text-decoration: line-through; }
+.forms { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+.formBtn { min-height: 32px; padding: 4px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }
+.formBtn[aria-pressed='true'] { color: var(--text); border-color: var(--text-muted); font-weight: 600; }
+@media (max-width: 1024px) { .formBtn { min-height: var(--tap-min, 44px); } }
