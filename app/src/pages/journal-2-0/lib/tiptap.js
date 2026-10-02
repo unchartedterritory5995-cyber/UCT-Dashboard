@@ -14,6 +14,9 @@ import { LinkPasteOffer } from './linkPasteOffer'
 import { LinkClickOpen } from './linkClickOpen'
 import { DateMention } from './dateMentionNode'
 import { TableOfContents } from './tableOfContentsNode'
+// Wave 11 lane 11D: the trade-plan canvas node (schema level 3, never-revert;
+// registered UNCONDITIONALLY -- the flag gates the doors, never the schema).
+import { TradeCanvas } from './tradeCanvasNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -98,6 +101,7 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // Wave 6: /toc -- the note's headings, live, each a jump (tableOfContentsNode.js).
     // A block leaf with no text (_LEAF_TYPES only); schema 2.
     TableOfContents,
+    TradeCanvas,
     Link.configure({
       openOnClick: false,
       autolink: true,

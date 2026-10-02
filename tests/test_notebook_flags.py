@@ -37,6 +37,8 @@ NOTEBOOK_KEYS = [
     "notebook_ai_actions_enabled",
     # Wave 11 lane 11B: formula and rollup properties — an enablement gate.
     "notebook_formulas_enabled",
+    # Wave 11 lane 11D: the trade-plan canvas — an enablement gate.
+    "notebook_trade_canvas_enabled",
 ]
 
 

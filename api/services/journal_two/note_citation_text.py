@@ -120,6 +120,12 @@ _ATOM_TEXT = {
     "blockMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
     # Wave 6: a date mention reads as its ISO date (inline: no separator).
     "dateMention": lambda a: a.get("date") if isinstance(a.get("date"), str) else "",
+    # Wave 11 lane 11D: a trade-plan canvas reads as its own search line, which
+    # the CLIENT derives from the board at every commit (lib/tradeCanvas.js
+    # boardSearchText) -- the widgetEmbed precedent, so this side never re-owns
+    # the board's format. A block leaf: its own line, one position.
+    "tradeCanvas": lambda a: (a.get("searchText") if isinstance(a.get("searchText"), str)
+                              and a.get("searchText") else "[trade-plan canvas]"),
 }
 
 
@@ -182,6 +188,9 @@ _LEAF_TYPES = frozenset({
     "dateMention",
     # Wave 6: /toc (tableOfContentsNode.js) -- a block leaf with no text.
     "tableOfContents",
+    # Wave 11 lane 11D: the trade-plan canvas (tradeCanvasNode.js) -- a block
+    # atom that reads as its searchText (`_ATOM_TEXT`).
+    "tradeCanvas",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator

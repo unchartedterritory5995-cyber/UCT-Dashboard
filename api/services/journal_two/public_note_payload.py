@@ -177,6 +177,10 @@ MARKET_DATA_VENDORS: dict[tuple[str, str | None], str] = {
     # documentExcerpt -- D-B4 unchanged (the planner listed it as vendor data: an excerpt of
     # an uploaded filing or report). Not loosened here.
     ("documentExcerpt", None): "document",
+    # tradeCanvas (wave 11 lane 11D) -- a trade plan: the member's own levels and
+    # cards beside charts drawn from Massive bars. Mixed by construction, so it is
+    # the neutral line until somebody decides what a stranger may see of a plan.
+    ("tradeCanvas", None): "mixed",
 }
 
 #: vendor -> verdict. ⭐ Loosening Massive is this one line: "massive": SHOWN.
@@ -251,6 +255,7 @@ NODE_POLICY: dict[str, dict[str, str]] = {
     "widgetEmbed": {"share": "market-data", "publish": "market-data"},
     "financialFact": {"share": "market-data", "publish": "market-data"},
     "documentExcerpt": {"share": "market-data", "publish": "market-data"},
+    "tradeCanvas": {"share": "market-data", "publish": "market-data"},  # wave 11 11D: a trade plan
     # ── marks ──
     "bold": {"share": "mark", "publish": "mark"},
     "code": {"share": "mark", "publish": "mark"},

@@ -50,6 +50,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_voice_notes_enabled: false, // wave 11 lane 11A: voice and meeting notes — absent ⇒ OFF
   notebook_ai_actions_enabled: false,  // wave 11 lane 11C "Ask Notebook to do something" — absent ⇒ OFF
   notebook_formulas_enabled: false,    // wave 11 (lane 11B): formula + rollup properties — absent ⇒ OFF
+  notebook_trade_canvas_enabled: false, // wave 11 lane 11D: the trade-plan canvas — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

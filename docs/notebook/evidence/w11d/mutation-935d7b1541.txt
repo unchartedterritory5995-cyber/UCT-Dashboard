@@ -1,0 +1,103 @@
+lane 11D mutation proof at HEAD 935d7b15418af5695e49fc8d9b63470982b6f44b
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  5 passed (5)
+vitest: Tests  99 passed (99)
+pytest: 25 passed in 5.52s
+W1 write path: the board's commit never reaches the editor (no transaction dispatched): KILLED (rc=1, failed tests=2); restored sha 5ded3be02f5ab82e == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  2 failed | 38 passed (40)
+      × writes the board AND the search line, fires one update, and undo restores the previous board 16ms
+      × add a card → ONE body save carrying the board and its search line 508ms
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > ⛔ commitBoard — the board’s ONE write is one transaction on the canvas node > writes the board AND the search line, fires one update, and undo restores the previous board
+      FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.tradeCanvas.test.jsx > ⛔ a board change reaches the server through the note’s own autosave > add a card → ONE body save carrying the board and its search line
+W2 door ledger: the create door stops landing its revision (no settleNoteWrite): KILLED (rc=1, failed tests=1); restored sha 30ef7cc5a1034abf == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 27 passed (28)
+      × the create lands the revision it was answered with 35ms
+      FAIL  src/pages/journal-2-0/lib/offline/doorFamilies.settle.test.jsx > trade-plan canvas — a new canvas note > the create lands the revision it was answered with
+W3 server compare-and-set dropped (a stale board write would land): KILLED (rc=1, failed tests=1); restored sha 57e07d4ba9442925 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 24 passed in 6.41s
+      FAILED tests/test_notebook_trade_canvas.py::test_a_board_edit_rides_the_compare_and_set_PUT_at_level_3
+W4 schema guard: the canvas node registered at level 2 (an older bundle may write it blank): KILLED (rc=1, failed tests=2); restored sha 02edf56d5552c85c == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 23 passed in 6.86s
+      FAILED tests/test_notebook_trade_canvas.py::test_the_canvas_node_is_schema_level_3_on_the_server
+      FAILED tests/test_notebook_trade_canvas.py::test_an_OLDER_bundle_is_refused_the_write_that_would_blank_a_canvas[2]
+G1 gate: the server default flipped ON: KILLED (rc=1, failed tests=1); restored sha 0653d36454fdaab1 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 24 passed in 7.32s
+      FAILED tests/test_notebook_trade_canvas.py::test_the_gate_is_DARK_unless_set_and_rides_the_auth_payload
+G2 gate: the client doors ignore the flag: KILLED (rc=1, failed tests=5); restored sha 30ef7cc5a1034abf == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  5 failed | 10 passed (15)
+      × absent while no flag has latched 1291ms
+      × absent while the gate is latched OFF (every other flag on) 464ms
+      × absent with the gate off (control: New thesis is there) 89ms
+      × ⛔ gate OFF: the canvas still opens, READ-ONLY, with a sentence — nothing hidden, nothing writable 6278ms
+      × is offered only while the gate is on, and never inside a canvas 112ms
+      FAIL  src/pages/journal-2-0/tabs/NotebookTab.tradeCanvas.test.jsx > the New note sheet — Trade-plan canvas > absent while no flag has latched
+F1 frozen chart: the as-of day never reaches the chart (no ?to= cut-off): KILLED (rc=1, failed tests=1); restored sha 2a597b4d4d31010f == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × Chart: a FROZEN chart stores its symbol, timeframe and as-of day (no bars) 481ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > adding things — every add is ONE editor transaction > Chart: a FROZEN chart stores its symbol, timeframe and as-of day (no bars)
+F2 frozen chart: the stored as-of day is dropped on read (every frozen card turns live): KILLED (rc=1, failed tests=3); restored sha 5ded3be02f5ab82e == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  3 failed | 53 passed (56)
+      × keeps valid items, drops duplicate ids, unknown kinds, and clamps sizes 6ms
+      × names the charts as cashtags, the frozen date, the levels and the cards 13ms
+      × Chart: a FROZEN chart stores its symbol, timeframe and as-of day (no bars) 162ms
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > the board model — normalisation never throws and reads anything as less > keeps valid items, drops duplicate ids, unknown kinds, and clamps sizes
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > words: the search line is the one authority for search, Ask and mentions > names the charts as cashtags, the frozen date, the levels and the cards
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > adding things — every add is ONE editor transaction > Chart: a FROZEN chart stores its symbol, timeframe and as-of day (no bars)
+L1 levels: a level's chart is not kept (lines never drawn on the chart): KILLED (rc=1, failed tests=2); restored sha 5ded3be02f5ab82e == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  2 failed | 54 passed (56)
+      × levels: blank and bad prices are skipped; updates keep a valid chart only 8ms
+      × Levels: entry, stop and target at once, drawn on the chart and listed 113ms
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > operations share structure — an untouched card keeps its identity > levels: blank and bad prices are skipped; updates keep a valid chart only
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > adding things — every add is ONE editor transaction > Levels: entry, stop and target at once, drawn on the chart and listed
+L2 levels: normalisation drops every stored level: KILLED (rc=1, failed tests=2); restored sha 5ded3be02f5ab82e == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  2 failed | 54 passed (56)
+      × edges must join two real, different items; levels need a positive finite price 6ms
+      × levels and arrows already on the board render on load 35ms
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > the board model — normalisation never throws and reads anything as less > edges must join two real, different items; levels need a positive finite price
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > the editor is the store > levels and arrows already on the board render on load
+K1 keyboard: arrow keys no longer move the card: KILLED (rc=1, failed tests=1); restored sha 3743a0a9b9354b2d == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × arrow keys move the focused card (8 px; Shift 64 px); Alt+arrow resizes 42ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > ⛔ keyboard — every action has a key, and focus is never lost > arrow keys move the focused card (8 px; Shift 64 px); Alt+arrow resizes
+P1 performance: culling off (every card rendered whatever the camera): KILLED (rc=1, failed tests=2); restored sha 5ded3be02f5ab82e == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  2 failed (2)
+    vitest: Tests  2 failed | 54 passed (56)
+      × ⛔ only cards on screen are rendered (culling) 3ms
+      × 200 cards: zoomed in, a fraction are in the DOM; every card is still reachable by Tab 81ms
+      FAIL  src/pages/journal-2-0/lib/tradeCanvas.test.js > the camera > ⛔ only cards on screen are rendered (culling)
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > ⛔ performance — only what is on screen is rendered > 200 cards: zoomed in, a fraction are in the DOM; every card is still reachable by Tab
+P2 performance: a fresh card api every render (every card re-renders on every board render): KILLED (rc=1, failed tests=1); restored sha 3743a0a9b9354b2d == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × drag one of 40 cards: one transaction, the 39 others render zero more times 57ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > ⛔ pointer — a drag commits ONCE and never re-renders the other cards > drag one of 40 cards: one transaction, the 39 others render zero more times
+T1 touch: a finger whose pointerup was lost blocks every later pinch: KILLED (rc=1, failed tests=1); restored sha 3743a0a9b9354b2d == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × a pointer whose pointerup never arrived does not turn the next pinch into a pan 81ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > walk run 3 — a lost finger never blocks the next pinch > a pointer whose pointerup never arrived does not turn the next pinch into a pan
+T2 touch: a pinch's second finger on a panel over the board is ignored: KILLED (rc=1, failed tests=1); restored sha 3743a0a9b9354b2d == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × a pinch whose second finger starts on the levels list still zooms 62ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > walk run 5 — the second finger of a pinch may land on a panel > a pinch whose second finger starts on the levels list still zooms
+K2 keyboard: letters typed before a new card's text box mounts reach the shortcuts: KILLED (rc=1, failed tests=1); restored sha 3743a0a9b9354b2d == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 25 passed (26)
+      × ⛔ letters typed straight after T go to the new card, never to the shortcuts 67ms
+      FAIL  src/pages/journal-2-0/components/notebook/TradeCanvasBoard.test.jsx > walk run 2 — what the board must do > ⛔ letters typed straight after T go to the new card, never to the shortcuts
+      ×
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  5 passed (5)
+vitest: Tests  99 passed (99)
+pytest: 25 passed in 6.77s
+git status over api/ and app/src after the run: clean
+VERDICT: PASS - every mutation killed, every restore verified against the committed blob

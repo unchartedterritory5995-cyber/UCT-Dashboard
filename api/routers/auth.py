@@ -167,6 +167,11 @@ NOTEBOOK_FLAGS = {
     # Wave 11 lane 11B: formula and rollup properties. The route side reads the same
     # variable through `note_computed.formulas_enabled()` -> `flag_on`, per request.
     "NOTEBOOK_FORMULAS_ENABLED": False,      # enablement  — unset means OFF (formulas + rollups, lane 11B)
+    # Wave 11 lane 11D: the trade-plan canvas. Client-only (no route of its own:
+    # a canvas is a note, written through the note's own door); the payload key is
+    # `notebook_trade_canvas_enabled` and every create door + the board's editing
+    # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

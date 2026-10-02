@@ -66,6 +66,7 @@ from urllib.parse import quote
 import anyio
 
 from api.services.journal_two.attachment_root import read_candidates_with_roots
+from api.services.journal_two import trade_canvas as _trade_canvas
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -1142,6 +1143,13 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype == "askCitation":
         n = _ask_citation_n(node.get("attrs"))  # never raises; see _ask_citation_n
         return f"[{n}]" if n is not None else ""
+    if ntype == "tradeCanvas":
+        # Wave 11 lane 11D: a board cannot exist in Markdown either, so the canvas
+        # exports as its readable summary -- the levels, the charts (symbol,
+        # timeframe, live or the date it is frozen at), the cards' text and the
+        # arrows -- from trade_canvas.summary_sections, the one reading every
+        # exporter formats. Member text goes through `_prose` like any other.
+        return _trade_canvas_markdown(attrs)
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -1206,6 +1214,19 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if kids:
         return "\n".join(_block(c, resolver) for c in kids)
     return ""
+
+
+def _trade_canvas_markdown(attrs: Any) -> str:
+    """A `tradeCanvas` node as Markdown: a bold title line, then a bold heading and a
+    bullet list per non-empty section (trade_canvas.summary_sections). Never raises --
+    `board_of` reads any shape as "less"."""
+    lines = [f"**{_prose(_trade_canvas.summary_title(attrs))}**"]
+    for heading, rows in _trade_canvas.summary_sections(attrs):
+        lines.append("")
+        lines.append(f"**{_prose(heading)}**")
+        lines.append("")
+        lines.extend(f"- {_prose(r)}" for r in rows)
+    return "\n".join(lines)
 
 
 def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) -> str:

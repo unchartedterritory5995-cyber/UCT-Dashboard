@@ -717,3 +717,19 @@
 @media (max-width: 1024px) {
   .voiceStarts .templatesBtn { min-height: var(--tap-min); }
 }
+/* Wave 11 lane 11D: the New note sheet's "Trade-plan canvas" start. */
+.canvasStart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.canvasStart .templatesBtn { display: inline-flex; align-items: center; gap: 6px; }
+.canvasStartHint { color: var(--text-muted); font-size: 12px; flex: 1 1 220px; }
+@media (max-width: 1024px) {
+  .canvasStart .templatesBtn { min-height: var(--tap-min); }
+}
