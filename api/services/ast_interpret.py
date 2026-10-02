@@ -227,6 +227,22 @@ TF_RESAMPLABLE = ("W", "M")
 #: (`lesson_rail_the_mirror_not_just_the_lane`).
 TF_BASE_BARS = {"W": 5, "M": 21}
 
+#: ⭐⭐ C47 — THE PERIODS A *FORMING* READ (`tf_live`) MAY NAME: everything `tf`
+#: resamples, plus the calendar QUARTER (`"3M"`). The mirror of
+#: `interpret.js::TF_LIVE_RESAMPLABLE`, where the ruling and its two witnesses
+#: live (`vw-time-tf-spy-1d-2026-09-28` for the boundaries,
+#: `high-low-open-mid-ranges-rddt-1d-2026-09-28` for the values).
+#:
+#: ⛔ `tf` DOES NOT GAIN IT — `TF_RESAMPLABLE`, the ladder, and every gate that
+#: asks them (`assert_scannable`, the sweep) are exactly what they were. A
+#: separate tuple, not a third entry. ⛔ AND ONLY FROM DAILY BARS: a base that is
+#: not stated, or is not `"D"`, refuses by name (`_assert_live_resamplable`).
+TF_LIVE_RESAMPLABLE = TF_RESAMPLABLE + ("3M",)
+
+#: Base bars per forming period, for the lookback sum — `TF_BASE_BARS` plus the
+#: quarter (three 21-bar months; rounded UP, the safe direction).
+TF_LIVE_BASE_BARS = dict(TF_BASE_BARS, **{"3M": 63})
+
 
 def _assert_sym_placement(root: Any) -> None:
     """Refuse a `sym` that sits UNDER a `tf` — THE ONE PLACE THAT DECIDES.
@@ -335,6 +351,71 @@ def _assert_resamplable(code):
                 % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
 
 
+_NO_BASE = object()
+
+
+def _assert_live_resamplable(code, base=_NO_BASE):
+    """C47 — the same decision for a FORMING read (`tf_live`): the ONE place that
+    says which periods it may name (``TF_LIVE_RESAMPLABLE``). ``base`` is passed by
+    the evaluator only; the lookback sum has no base and asks the tuple alone.
+
+    ⛔ The quarter is read from DAILY bars and from nothing else — a base the
+    caller did not state is not assumed to be daily. Mirrors
+    ``interpret.js::assertLiveResamplable``.
+    """
+    if code not in TF_LIVE_RESAMPLABLE:
+        _refuse("interpret:timeframe",
+                "%r — a forming higher-timeframe read resamples %s from the bars it "
+                "is given. The declared ladder is %s; a code outside it is not a "
+                "timeframe this table knows."
+                % (code, ", ".join(TF_LIVE_RESAMPLABLE), ", ".join(TF_LADDER)))
+    if base is not _NO_BASE and code not in TF_RESAMPLABLE and base != "D":
+        _refuse("interpret:timeframe",
+                "%r is read from DAILY bars only — its boundaries and values were "
+                "measured against TradingView on daily charts — and these bars are %s."
+                % (code, "of no stated timeframe" if base is None else repr(str(base))))
+
+
+_ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+def _resample_quarterly_iso(daily_bars):
+    """C47 — ISO-dated daily bars → calendar-quarter bars, in order.
+
+    The quarter's twin of ``bars_fetch._resample_monthly_iso`` (same fields, same
+    first-open / max-high / min-low / last-close / summed-volume aggregation, the
+    period's first calendar day as ``t``), kept HERE because a quarter exists for
+    the forming read only and `bars_fetch` owns what the chart's own bars are.
+    Held equal to ``interpret.js::resampleTo`` by ``tests/test_ast_tf_live_quarter.py``,
+    which grades both lanes against the same TradingView capture.
+    """
+    from api.services import bars_fetch                              # noqa: PLC0415
+    quarters = {}
+    for bar in daily_bars:
+        # NO try/except in this module (test_ast_budget): a key that is not a
+        # `YYYY-MM-DD` string is skipped by a FORMAT check, exactly as the parse
+        # failure was skipped - only the year and the month are read.
+        stamp = bar.get("t") if isinstance(bar, dict) else None
+        if not (isinstance(stamp, str) and _ISO_DAY.fullmatch(stamp)):
+            continue
+        year, month = int(stamp[0:4]), int(stamp[5:7])
+        if not 1 <= month <= 12:
+            continue
+        key = (year, (month - 1) // 3 + 1)
+        if key not in quarters:
+            quarters[key] = {
+                "t": "%04d-%02d-01" % (year, (key[1] - 1) * 3 + 1),
+                "o": bar["o"], "h": bar["h"], "l": bar["l"], "c": bar["c"],
+                "v": bars_fetch._bar_volume(bar),
+            }
+        else:
+            q = quarters[key]
+            q["h"] = max(q["h"], bar["h"])
+            q["l"] = min(q["l"], bar["l"])
+            q["c"] = bar["c"]
+            q["v"] += bars_fetch._bar_volume(bar)
+    return [quarters[k] for k in sorted(quarters)]
+
+
 
 def _tf_rank(code: Any) -> Optional[int]:
     """Position on the ladder, or ``None`` for a code it does not declare."""
@@ -394,6 +475,8 @@ def _tf_bucket(iso: str, code: str) -> Any:
     two by one period at every year boundary.
     """
     d = datetime.datetime.strptime(iso, "%Y-%m-%d")
+    if code == "3M":                      # C47 — the calendar quarter (`tf_live` only)
+        return (d.year, (d.month - 1) // 3 + 1)
     return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
 
 
@@ -3102,8 +3185,8 @@ def max_lookback(ast: Any) -> int:
             # multiplied by the span, rounded UP because a lookback that is too
             # small answers off a warmup it never had.
             code = str(node.get("value"))
-            _assert_resamplable(code)
-            seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_BASE_BARS[code])
+            _assert_live_resamplable(code)
+            seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_LIVE_BASE_BARS[code])
             continue
         if kind == "sym":
             # ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar —
@@ -3829,6 +3912,12 @@ def interpret(ast: Any, bars: List[dict],
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
             column = [math.nan if held[i] else v for i, v in enumerate(column)]
+        # C45 -- ...and its ``bar_index`` half (``interpret.js::barIndexMask``): off the
+        # listing, in a document that means Pine's ``bar_index``, a value that
+        # depends on where the series starts is withheld.
+        indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
+        if indexed is not None:
+            column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -3921,6 +4010,136 @@ def _reads_recurrence_binding(tree: Any) -> bool:
         if isinstance(args, list):
             stack.extend(args)
     return False
+# C45 -- the bar-index shift analysis lives in its own module (it catches its own
+# "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
+from api.services.ast_bar_index_shift import (  # noqa: E402,F401
+    BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+)
+
+
+
+def bar_index_mask(tree: Any, bars: List[dict],
+                   inputs: Optional[Mapping[str, Any]] = None,
+                   budget: Optional[Mapping[str, Any]] = None,
+                   scalars: Optional[Mapping[str, Any]] = None,
+                   opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::barIndexMask`` -- the bars of a tree whose answer depends on
+    where the series starts (1 = withheld), or ``None`` when no bar is.
+
+    Asked only of a document that declares Pine's meaning
+    (``opts["barIndexAbsolute"] is True``) and only off the listing
+    (``opts["historyFromListing"] is not True``). This lane holds no drawings, so
+    an index (``'pos'``) is withheld like any other dependence unless the caller
+    says the value is a position (``opts["barIndexUse"] == "position"``)."""
+    o = opts or {}
+    if o.get("barIndexAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    verdict = bar_index_verdict(tree)
+    n = len(bars)
+
+    def whole() -> List[int]:
+        _name_chart_clock(opts, ["bar-index:window"])
+        return [1] * n
+    if verdict["cls"] == "dep" or (verdict["cls"] == "pos" and o.get("barIndexUse") != "position"):
+        return whole()
+    if not verdict["thresholds"]:
+        return None
+    wanted = {id(node): (node, sign) for node, sign in verdict["thresholds"]}
+    found: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if id(node) in wanted:
+            found.append((wanted[id(node)], nested, unbounded))
+        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        name = node.get("name")
+        spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
+        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if len(found) != len(wanted):
+        return whole()
+    mask = [0] * n
+    held = False
+    root_reach = max_lookback(tree)
+    inner = dict(o, chartClockSink=None)
+    for (node, sign), nested, unbounded in found:
+        if nested or _reads_recurrence_binding(node):
+            return whole()
+        gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
+                                bars, inputs, budget, scalars, inner)
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if threshold_unknown(node["name"], sign, gap[i]):
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, ["bar-index:early-bars"])
+    return mask
+
+
+#: What a document declares when its trees are Pine translations
+#: (``nativeRegistry.js::PINE_RECURRENCE_ORIGIN``; the member door stamps it).
+PINE_RECURRENCE_ORIGIN = "pine"
+
+
+def bar_index_absolute_for(definition: Any) -> bool:
+    """``nativeRegistry.js::barIndexAbsoluteFor`` -- does this DOCUMENT's
+    ``barindex`` mean Pine's ``bar_index``? Read off the same declaration
+    (``meta.recurrenceOrigin``); a document that says nothing is left as it was.
+    No server lane can state where its bars start, so there is no second fact."""
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    return isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == PINE_RECURRENCE_ORIGIN
+
+
+def lane_opts_for(definition: Any) -> dict:
+    """The ``interpret`` opts a SERVER lane adds for this document -- one function,
+    so the door that admits a tree and the lane that evaluates it cannot be handed
+    different ones. Empty for every document that is not a Pine translation."""
+    return {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
+
+
+#: Daily bars keyed by their session DATE (``YYYYMMDD``, no time of day): the
+#: shape the scan sweep evaluates on (``scan_evaluator``; the C36 parity
+#: fixture's "date ints . D (the scan sweep)" cases). A door that must decide
+#: "is this tree withheld on every bar there" before a real bar exists asks on
+#: these. Five consecutive NYSE sessions; the prices are never read.
+DATE_KEYED_PROBE_BARS = tuple(
+    {"t": ymd, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}
+    for ymd in (20240102, 20240103, 20240104, 20240105, 20240108))
+
+
+def whole_series_withheld(tree: Any, bars: Sequence[dict],
+                          inputs: Optional[Mapping[str, Any]] = None,
+                          budget: Optional[Mapping[str, Any]] = None,
+                          scalars: Optional[Mapping[str, Any]] = None,
+                          opts: Optional[Mapping[str, Any]] = None) -> tuple:
+    """C45 (C36's decision 6) -- the codes by which ``tree`` is withheld on EVERY
+    bar of ``bars`` under ``opts``, in ``CHART_CLOCK_WHOLE``'s order; ``()`` when
+    it is not.
+
+    The SAME two decisions ``interpret`` makes (``_chart_clock_whole`` and
+    ``bar_index_mask``), asked without evaluating the tree -- so a door can refuse
+    by name a formula its lane would answer "no number" for on every bar, forever,
+    instead of admitting it to go quiet. A tree withheld on SOME bars is not this.
+    """
+    sink: dict = {}
+    asked = dict(opts or {}, chartClockSink=sink)
+    rows = list(bars)
+    _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
+    bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
 # --------------------------------------------------------------------------- #
@@ -3981,9 +4200,12 @@ CHART_CLOCK_WHOLE = (
     "time-anchor:other-bars", "time-clock:unreadable", "time-anchor:not-daily",
     "time-anchor:weekend-bars", "time-own:chart-unwitnessed", "time-close:not-daily",
     "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
+    # C45 -- a value that depends on where the series starts (``bar_index_mask``)
+    "bar-index:window",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
+    "bar-index:early-bars",
 )
 
 
@@ -4885,7 +5107,11 @@ def _interpret_column(ast: Any, bars: List[dict],
             return out
         if kind in ("tf", "tf_live"):
             code = str(n.get("value"))
-            _assert_resamplable(code)
+            # ⭐ C47 — a forming read may also name the quarter, from daily bars.
+            if kind == "tf_live":
+                _assert_live_resamplable(code, (opts or {}).get("tf"))
+            else:
+                _assert_resamplable(code)
             # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
             # base is. `opts["tf"]` is what the caller knows and the bars do not;
             # absent, this check cannot run and does not pretend to \u2014 the same
@@ -4916,6 +5142,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # it, which `screener/candles.py` already says in as many words.
             from api.services import bars_fetch                      # noqa: PLC0415
             resample = (bars_fetch._resample_weekly_iso if code == "W"
+                        else _resample_quarterly_iso if code == "3M"
                         else bars_fetch._resample_monthly_iso)
             htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
 

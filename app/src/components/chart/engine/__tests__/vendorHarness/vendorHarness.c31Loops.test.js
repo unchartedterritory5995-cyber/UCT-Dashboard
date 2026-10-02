@@ -279,7 +279,16 @@ describe('C31 — poor-man\'s volume profile: its row texts stay withheld', () =
     expect(live.filter((o) => o.family === 'label')).toHaveLength(0)
     // the colours below each text loop are bound now (they were `pine:undefined`)
     expect(d.translation.objectDiagnostics.unboundLocalNames || []).toEqual([])
-    // CONTROL — its two range lines are drawn, so the run is not empty
-    expect(live.filter((o) => o.family === 'line')).toHaveLength(2)
+    // ⭐ C45 RE-PIN (was: "its two range lines are drawn, so the run is not
+    // empty"). Those two lines are made at `bar_index, high` on the first bar and
+    // moved every bar by `line.set_xloc`, a setter this chart does not carry — so
+    // they were drawn at bar 0, zero length. An object one of whose moves was lost
+    // is withheld (`vendorHarness.c45LostUpdates`).
+    expect(live.filter((o) => o.family === 'line')).toHaveLength(0)
+    expect(d.translation.objectDiagnostics.dropReasons).toEqual({ 'geometry:lost': 2 })
+    // CONTROL — the run is not empty for want of a program: the 40 row labels'
+    // steps are all in it (244 carried of 246 attempted)
+    expect(d.translation.objectDiagnostics.attemptedOps).toBe(246)
+    expect(d.definition.objects.ops.length).toBeGreaterThan(200)
   })
 })

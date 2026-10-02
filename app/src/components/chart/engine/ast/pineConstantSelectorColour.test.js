@@ -127,11 +127,13 @@ describe('ruling 1 — a selector that reads a KNOB is never folded', () => {
 
   it('⛔⛔ a rule carried for the first time MINTS NOTHING — no parameter id moves', () => {
     // `useAdapt` is read ONLY by the colour. Minting it mid-output would make it
-    // `__uct_param_1` and push `len` to `_2` — every saved definition's ids shift.
+    // a member control for an input only a colour reads. (C46: it could no longer
+    // move `len` — an id is the call's place in the source, and `len` is the third
+    // input call here whatever else mints — but it would still be a control nobody asked for.)
     const src = `${theme('Aurora')}useAdapt = input.bool(true, "Adaptive")\nlen = input.int(7, "Len")\n`
       + 'plot(close, "a", useAdapt ? thA : color.new(thA, 60))\nplot(ta.sma(close, len), "b")\n'
     const t = translate(src, { paramManifest: true })
     expect(t.outputs[0].presentation.colorPalette).toEqual(['#00e5ff', 'rgba(0, 229, 255, 0.4)'])
-    expect(t.inputParams.map((p) => [p.id, p.sourceName])).toEqual([['__uct_param_1', 'len']])
+    expect(t.inputParams.map((p) => [p.id, p.sourceName])).toEqual([['__uct_param_1003', 'len']])
   })
 })

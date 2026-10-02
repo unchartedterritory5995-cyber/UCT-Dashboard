@@ -1,0 +1,45 @@
+//@version=6
+indicator("UCTPROBE_VW_BAR_ORIGIN", overlay = false, max_bars_back = 5000)
+
+// --- 2026-10-01 C45 - WHERE IS TRADINGVIEW'S BAR 0? ---
+//
+// `bar_index` counts from the first bar of the history TradingView loaded. On a
+// DAILY chart scrolled to the listing that is the listing day, and the engine
+// serves `bar_index` there (`historyFromListing`). Everywhere else the engine's
+// window starts at an unknown later bar and a value that depends on the count is
+// withheld by name (`bar-index:window`).
+//
+// What is NOT measured, and what this probe asks:
+//   - a WEEKLY / MONTHLY chart holding every bar from the listing: is bar 0 the
+//     listing week / month? (the committed 1W captures print 0 on their first bar
+//     but assert nothing about a listing)
+//   - an INTRADAY chart: bar 0 is the first bar the PLAN loads - is it? Then the
+//     number depends on the account and is not one number at all.
+//   - `barstate.isfirst`: true on bar 0 only. A chart window that starts
+//     mid-history never sees it; the engine answers it on the window's first bar.
+//
+// CAPTURE (each with `history.startsAtBar0` asserted by the tool ONLY when the
+// first loaded bar is the symbol's first bar on that timeframe):
+//   AMEX:SPY 1W and 1M   scrolled until requestMoreData stops growing
+//   NYSE:RDDT 60 and 5   scrolled until it stops growing; note the plan
+//   AMEX:SPY 1D          the last 300 bars only, NOT scrolled
+// NEVER COMPILED ON TRADINGVIEW.
+
+var int first_time = time
+var int bars_seen = 0
+bars_seen += 1
+var int first_seen_at = na
+if barstate.isfirst
+    first_seen_at := bar_index
+
+plot(bar_index, "O00_bar_index_CONTROL")
+plot(last_bar_index, "O01_last_bar_index")
+plot(barstate.isfirst ? 1 : 0, "O02_isfirst")
+plot(bars_seen, "O03_bars_seen_by_a_var_counter")
+plot(bar_index - bars_seen, "O04_bar_index_minus_counter_MUST_BE_MINUS_1")
+plot(first_seen_at, "O05_bar_index_where_isfirst_was_true")
+plot(ta.barssince(barstate.isfirst), "O06_barssince_isfirst")
+plot(first_time / 86400000, "O07_first_bar_time_in_days")
+plot(bar_index % 3, "O08_bar_index_mod_3")
+plot(bar_index > 100 ? 1 : 0, "O09_bar_index_gt_100")
+plot(bar_index - bar_index[5], "O10_distance_MUST_BE_5")

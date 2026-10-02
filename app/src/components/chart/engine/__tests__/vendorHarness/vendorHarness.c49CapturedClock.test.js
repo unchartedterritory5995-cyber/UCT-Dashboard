@@ -409,7 +409,9 @@ describe('C49 · 4 — AMEX:SPY 15, 5 and 60 minutes: the period opens at 09:30 
       for (const code of ['W', 'M', '3M']) {
         expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ matching: n - 1, valueMismatches: 0, naMismatches: 1 })
       }
-      expect(noteCodes(T.ours)).toEqual([])
+      // wave 12 (C45): the probe's `bar_index` control row is withheld by name on these windows
+      // (they do not start at the listing); every clock row above is still MATCH on every bar.
+      expect(noteCodes(T.ours)).toEqual(['bar-index:window'])
     })
   }
 
@@ -697,7 +699,8 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
       }
       expect(byTitle.get('R6_chart_close').verdict).toBe('MATCH')
       const ours = runOurSide(cap)
-      expect(noteCodes(ours)).toEqual(['request:other-timeframe'])
+      // wave 12 (C45): plus the probe's `bar_index` control row, withheld by name off the listing
+      expect(noteCodes(ours)).toEqual(['bar-index:window', 'request:other-timeframe'])
       expect(ours.notes.join('\n')).toMatch(/This chart's timeframe is `5`/)
       expect(ours.notes.join('\n')).toMatch(/request-realtime-alignment-spy-5-2026-10-01/)
     })

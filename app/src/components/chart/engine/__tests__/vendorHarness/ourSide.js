@@ -334,6 +334,7 @@ function drawnColours(def, bars, ctx) {
     symbol: ctx.symbol,
     newestBarIsForming: ctx.newestBarIsForming,
     historyFromListing: ctx.historyFromListing === true,
+    barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
     lowerTf: ctx.lowerTf || null,
@@ -385,6 +386,24 @@ function drawnColours(def, bars, ctx) {
   return { ok: true, reason: null, byKey: out, sync: res }
 }
 
+/** ⭐ C45 — does the capture's OWN `bar_index` control row print 0, 1, 2 … on
+ *  its bars? The vendor's statement that this series starts at its bar 0. Every
+ *  bar is checked, not the first: a row that starts at 0 and skips is not it. */
+export function barIndexStartsAtZero(capture) {
+  const plots = (capture && capture.study && capture.study.plots) || []
+  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const pv = capture && capture.plotValues
+  if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length) return false
+  const at = pv.fields.indexOf(control.id)
+  if (at < 0) return false
+  const bars = (capture.bars && capture.bars.rows) || []
+  if (bars.length !== pv.rows.length) return false
+  for (let i = 0; i < pv.rows.length; i += 1) {
+    if (pv.rows[i][0] !== bars[i][0] || pv.rows[i][at] !== i) return false
+  }
+  return true
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function objectsOf(def, bars, ctx) {
   if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
@@ -392,6 +411,7 @@ function objectsOf(def, bars, ctx) {
     const reader = objectReaderFor(def, bars, {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
+      barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
       secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
       lowerTf: ctx.lowerTf || null,
     })
@@ -515,6 +535,14 @@ export function runOurSide(capture) {
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
       historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
+      // the bar TradingView counted as 0. A capture PROVES that about itself when
+      // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an
+      // intraday or weekly capture whose `startsAtBar0` asserts nothing about a
+      // listing still can); one with no control row, or one that reads 8175 on its
+      // first bar, does not — and what depends on the count is withheld by name,
+      // exactly as the member's chart withholds it.
+      barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
     // ⭐ C26 — another symbol's bars, from committed captures only.
     const supply = otherSymbolSupply(def, capture)
@@ -536,9 +564,21 @@ export function runOurSide(capture) {
       for (const r of otherReport.refused) notes.push(`other symbol ${r.ticker}: refused (${r.code}) — ${r.reason}`)
     }
     // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart, by name.
+    // ⭐⭐ C45 — and one whose value depends on `bar_index` off the listing
+    // (`bar-index:window`). A plot the door withholds on EVERY bar, by name, has
+    // NO served value: it is graded "not compared — withheld by name", never as a
+    // value that differs. ⚰️ Graded as a column of `na` it read DIVERGE, the
+    // verdict a WRONG value gets, which is the one thing a withholding is not.
+    // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
+    // (changing another lane's verdict is not this one's to do).
     const clockReport = registry.chartClockReport(cols)
+    const withheldWhole = new Map()
     if (clockReport) {
-      for (const r of clockReport.withheld) notes.push(`time(<timeframe>) withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+      for (const r of clockReport.withheld) {
+        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+      }
     }
 
     let colours
@@ -561,9 +601,12 @@ export function runOurSide(capture) {
       const row = built.lane === 'runtime'
         ? (rowByOutput.get(index) || null)
         : (o && o.ast ? rowByAst.get(o.ast) : null)
-      const col = row ? cols[row.key] : undefined
+      const heldBy = row ? withheldWhole.get(row.key) : undefined
+      const col = row && !heldBy ? cols[row.key] : undefined
       let missingReason = null
-      if (!row) {
+      if (heldBy) {
+        missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
+      } else if (!row) {
         missingReason = o && o.refusal
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
@@ -593,7 +636,8 @@ export function runOurSide(capture) {
     }
     const objects = objectsOf(def, bars, ctx)
     for (const r of (objects && objects.chartClock) || []) {
-      notes.push(`time(<timeframe>) withheld (${r.code}) in the object lane — ${r.reason}`)
+      const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+      notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
     }
     if (objects && objects.ok && objects.drawn) {
       for (const f of ['lines', 'labels', 'boxes']) {

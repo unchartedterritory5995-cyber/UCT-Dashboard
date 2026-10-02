@@ -1242,14 +1242,24 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # (`tests/test_scan_live_window_early_close.py`). ⛔ The instant still stands:
     # a window is a property of the SWEEP and the tri-state is a property of the
     # BAR, and the nightly run is `mode != LIVE` over bars that are equally closed.
+    # ⭐ `barIndexAbsolute` JOINED THEM IN C45, REVIEWED HERE. It is the DOCUMENT's
+    # declaration that its `barindex` is Pine's `bar_index` (`meta.recurrenceOrigin`),
+    # read by `ast_interpret.bar_index_absolute_for` — the same call
+    # `assert_scannable` makes at the door. False for every document that is not a
+    # Pine translation, and `interpret` asks `is True`.
     keys = {k.value for k in opts.keys}
-    assert keys == {"tf", "symbols", "now"}, keys
+    assert keys == {"tf", "symbols", "now", "barIndexAbsolute"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
     assert isinstance(handed["symbols"], pyast.Name) and handed["symbols"].id == "symbol_series", (
         "the benchmark series handed to `sym` is not the one loaded before the "
         "loop — a per-symbol load would re-read every benchmark once per row")
+    declared = handed["barIndexAbsolute"]
+    assert (isinstance(declared, pyast.Call) and getattr(declared.func, "attr", None) == "bar_index_absolute_for"
+            and [getattr(a, "id", None) for a in declared.args] == ["definition"]), (
+        "the sweep's `barIndexAbsolute` is not the document's own declaration, read "
+        "by the function the door reads it with")
 
 # ═══ 11. the live cycle's rails: the window, the budget, the flag ════════════
 #

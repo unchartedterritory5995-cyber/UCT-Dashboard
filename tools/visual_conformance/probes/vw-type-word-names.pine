@@ -1,0 +1,53 @@
+//@version=6
+indicator("UCTPROBE_VW_TYPE_WORD_NAMES", overlay = false)
+
+// --- 2026-10-01 C45 - A TYPE WORD USED AS A VARIABLE NAME ---
+//
+// Witnessed: `color = <expression>` at the top level of a published script that
+// compiles and draws (heat-map-seasons, capture heat-map-seasons-rddt-1d-2026-09-28:
+// its gauge cell's `bgcolor = color` reads that variable). The engine binds a
+// variable named `color` and nothing else: `TYPE_WORDS_BINDABLE` in pine.js.
+//
+// Every other type word standing alone before `=` is still refused by name
+// (`pine:statement`), because no capture shows TradingView compiling it. This
+// probe asks, one row per word. EACH ROW IS EXPECTED TO BE A COMPILE ERROR OR A
+// VALUE: record which. Rows are independent - comment out the ones that do not
+// compile and capture the rest; the list of rows that did NOT compile is the
+// answer for those words and must be written into the capture's notes.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. NEVER COMPILED ON TRADINGVIEW.
+
+plot(bar_index, "W00_bar_index_CONTROL")
+
+// W01 - the witnessed word, as a control: must compile and read the colour's red
+color = close > open ? color.green : color.red
+plot(color.r(color), "W01_color_as_a_name_CONTROL")
+
+// W02..W09 - the unwitnessed words
+float = close * 2
+plot(float, "W02_float_as_a_name")
+
+int = 3
+plot(int, "W03_int_as_a_name")
+
+bool = close > open
+plot(bool ? 1 : 0, "W04_bool_as_a_name")
+
+string = "x"
+plot(str.length(string), "W05_string_as_a_name")
+
+line = high - low
+plot(line, "W06_line_as_a_name")
+
+label = close - open
+plot(label, "W07_label_as_a_name")
+
+box = hl2
+plot(box, "W08_box_as_a_name")
+
+table = ohlc4
+plot(table, "W09_table_as_a_name")
+
+// W10 - the witnessed word REASSIGNED, and read after a type-word call in the same line
+color := color.new(color, 50)
+plot(color.t(color), "W10_color_reassigned")

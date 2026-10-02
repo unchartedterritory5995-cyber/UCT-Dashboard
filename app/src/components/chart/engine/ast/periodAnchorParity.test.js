@@ -285,7 +285,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     const codes = new Set(PARITY.cases.flatMap((c) => c.codes))
     // `time-anchor:other-bars` needs a tree the translator refuses to write; it is
     // railed on a hand-built tree in both lanes' own tests.
-    expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD).filter((k) => k !== 'time-anchor:other-bars').sort())
+    // ⭐ C45 — the two `bar-index:` codes are not a `time(<timeframe>)` reading
+    // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
+    expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
+      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

@@ -26,7 +26,11 @@ const BARS = Array.from({ length: N }, (_, i) => ({
 const run = (...lines) => {
   const door = memberPaneDefinition({ source: src(...lines), id: 'u_member-pane-c37nodes', name: 'c' })
   expect(door.ok, door.reason).toBe(true)
-  const reader = objectReaderFor(door.definition, BARS, { tf: 'D', newestBarIsForming: false })
+  // ⭐ C45 — these scripts use `bar_index` as a ramp (`t = bar_index * 10`), a VALUE
+  // that depends on where the series starts. The twelve synthetic bars are the
+  // whole series, so the caller says so; off the listing such a colour is
+  // withheld (`vendorHarness.c45BarIndex`).
+  const reader = objectReaderFor(door.definition, BARS, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
   const out = evaluateObjects(reader.program, { barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t, readUnknown: reader.readUnknown })
   return { door, live: [...out.live].sort((a, b) => a.id - b.id), stats: out.stats }
 }

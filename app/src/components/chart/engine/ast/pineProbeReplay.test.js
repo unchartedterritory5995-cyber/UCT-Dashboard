@@ -81,7 +81,7 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
   it('⛔ a probe that minted a parameter is not replayed — ids stay where they were', () => {
     const { result } = measure(() => translatePine(chain(12), MANIFEST))
     expect(result.inputParams.map((p) => [p.id, p.sourceName, p.min, p.max]))
-      .toEqual([['__uct_param_1', 'len', 1, 50]])
+      .toEqual([['__uct_param_1001', 'len', 1, 50]])
   })
 
   it('⛔ the first-time mark sees a mint even when no Map of the resolver grows', () => {
@@ -162,8 +162,16 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // them is still refused by its own text, the latches nothing reads are
       // pruned, and the object program is wave 8's - the same 71 ops over the same
       // 41 trees, interned in another order (program dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
+      // ⭐ C47 moved htf-liquidity: its three helpers whose body is `result = switch x`
+      // (`get_size`, `get_line_style`, `get_table_position`) are readable by the
+      // object pass's Resolver now (`pine.js`: `objectLane`), so a call to one
+      // resolves into the switch before it refuses where it always did (an enum
+      // word is not a number) — 20 more steps, the same 856 Resolvers. The object
+      // program and every output are byte-identical (translation census: the
+      // script is not among the changed rows). Pre-C47: [856, 7174,
+      // 'ff55463c3a36e466'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [856, 7174, 'ff55463c3a36e466'], manifest: [856, 7174, 'ff55463c3a36e466'] },
+        plain: [856, 7194, 'c264e378ba65bd90'], manifest: [856, 7194, 'c264e378ba65bd90'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {

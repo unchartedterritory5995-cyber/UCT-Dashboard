@@ -391,13 +391,26 @@ describe('C33 — `last_bar_time` is the chart\'s last bar, as each capture stat
     }
   }, 120000)
 
-  it('volume-profile: its next wall is the viewport, by name; its three value lines stay withheld', () => {
+  // ⭐ C47 MOVED THIS WALL, AND ONLY THE WALL. It read `chart.left_visible_bar_time`
+  // (line 146): the arm of `vp_use_visible_range ? … : vp_lookback_depth` the
+  // default never takes. The runtime lane no longer lowers an arm a constant test
+  // does not take (`pineRuntimeFrontend.js::fixedTestOf`), so the script now
+  // stops one statement on — `ta.highest(lookback_bars)`, line 154, the
+  // one-argument form — still before any run starts, and what is drawn is exactly
+  // what it was (the two assertions below are untouched). With the member's knob
+  // ON the viewport is the wall again (`vendorHarness.c47ConstTernary`).
+  it('volume-profile: its next wall is `ta.highest(lookback_bars)`, by name; its three value lines stay withheld', () => {
     const cap = capOf(VP)
     const probe = probeObjectRuntime(cap.source.text, [])
     expect(probe.ok).toBe(false)
-    expect(probe.refusal.token).toBe('chart.left_visible_bar_time')
+    expect(probe.refusal.token).toBe('ta.highest')
+    expect(probe.refusal.line).toBe(154)
     const { run } = runObjects(cap)
-    expect(run.live.filter((o) => o.family === 'line').length).toBe(200)
+    // ⭐ C45 RE-PIN (was 200). The 200 profile lines are made at bar 0 / the first
+    // close and moved by `draw()`'s setters, which this chart loses
+    // (`update:target`, `bars.get(i)` in a loop) — TradingView holds 203 lines and
+    // none where ours sat. Withheld now (`vendorHarness.c45LostUpdates`).
+    expect(run.live.filter((o) => o.family === 'line').length).toBe(0)
     expect(run.withheld).toEqual({ line: 3 })
   })
 })

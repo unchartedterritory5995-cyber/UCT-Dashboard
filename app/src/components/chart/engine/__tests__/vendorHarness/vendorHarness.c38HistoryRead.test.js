@@ -35,19 +35,26 @@ const plotOf = (v, title) => v.plots.find((p) => p.title === title)
 const formulaOf = (ours, title) => ours.plots.find((p) => p.title === title).formula
 
 describe('C38 — the two probes, as captured (300 bars)', () => {
-  it('vw-offset-na: no longer refused; every row but the `bar_index` control MATCHES', () => {
+  it('vw-offset-na: no longer refused; every row keyed on `bar_index` is WITHHELD by name (C45)', () => {
     const { verdict, ours } = gradeCapture(parent(OFFSET_NA))
     expect(ours.ok, ours.refusal).toBe(true)
-    // the ONE row that does not match prints `bar_index` itself: the vendor's 8175
-    // against this 300-bar window's 0. Not a history read — the window's own index.
-    expect(notMatch(verdict)).toEqual(['E00_bar_index_CONTROL: DIVERGE'])
-    expect(plotOf(verdict, 'E00_bar_index_CONTROL').stats.firstDivergence)
-      .toMatchObject({ bar: 0, kind: 'value', vendor: vendorColumn(parent(OFFSET_NA), 'E00_bar_index_CONTROL')[0], ours: 0 })
-    for (const t of ['E02_close_at_e', 'E03_close_at_e_is_na', 'E05_close_at_e_eq_close']) {
-      const p = plotOf(verdict, t)
-      expect(p.stats.valueMismatches + p.stats.naMismatches, t).toBe(0)
-      expect(p.stats.steady.compared, t).toBeGreaterThanOrEqual(298)
+    // ⭐⭐ C45 RE-PIN. This read `['E00_bar_index_CONTROL: DIVERGE']`: the control
+    // row printed this 300-bar window's own index (0 against the vendor's 8175 —
+    // a wrong VALUE, drawn), and the four rows keyed on `bar_index % 3` matched.
+    // ⚰️ They matched by a coincidence of the capture: 8175 is a multiple of 3, so
+    // the window's pattern and the vendor's happen to line up. Off the listing a
+    // value that depends on the absolute index is withheld now, by name; the rule
+    // itself is graded on TradingView's whole history below (MATCH, 6 of 6).
+    expect(vendorColumn(parent(OFFSET_NA), 'E00_bar_index_CONTROL')[0] % 3).toBe(0)
+    expect(notMatch(verdict)).toEqual([
+      'E00_bar_index_CONTROL: INCONCLUSIVE', 'E01_e_is_na: INCONCLUSIVE', 'E02_close_at_e: INCONCLUSIVE',
+      'E03_close_at_e_is_na: INCONCLUSIVE', 'E05_close_at_e_eq_close: INCONCLUSIVE',
+    ])
+    for (const t of ['E00_bar_index_CONTROL', 'E01_e_is_na', 'E02_close_at_e', 'E03_close_at_e_is_na', 'E05_close_at_e_eq_close']) {
+      expect(plotOf(verdict, t).reason, t).toMatch(/withheld on this chart on every bar, by name \(bar-index:window\)/)
     }
+    // the one row that reads no index — `close[1]` — is served and MATCHES
+    expect(plotOf(verdict, 'E04_close_1_CONTROL').verdict).toBe('MATCH')
   })
 
   it('…and the read asks for the two bars its index can take, not the script\'s 500', () => {
@@ -67,13 +74,18 @@ describe('C38 — the two probes, as captured (300 bars)', () => {
     expect(ours.ok, ours.refusal).toBe(true)
     // ⛔ DERIVED FROM THE ONE CONSTANT, never a typed 400
     expect(formulaOf(ours, 'M02_close_at_k')).toBe(`barsAgo(close, mod(barindex, ${AUTO_MAX_BARS_BACK}), ${AUTO_MAX_BARS_BACK})`)
-    // on 300 bars every bar is inside the 400-bar reach, so the comparator cannot
-    // judge the two history rows; the two index rows diverge on `bar_index`
+    // ⭐ C45 RE-PIN (was: the two index rows DIVERGE — `bar_index` and
+    // `bar_index % 400` printed for this window's own count — and the two history
+    // rows INCONCLUSIVE inside a 400-bar reach). All four depend on the absolute
+    // index and are withheld by name off the listing; on TradingView's whole
+    // history they MATCH (below).
     expect(notMatch(verdict)).toEqual([
-      'M00_bar_index_CONTROL: DIVERGE', 'M01_k: DIVERGE',
+      'M00_bar_index_CONTROL: INCONCLUSIVE', 'M01_k: INCONCLUSIVE',
       'M02_close_at_k: INCONCLUSIVE', 'M03_close_at_k_is_na: INCONCLUSIVE',
     ])
-    expect(plotOf(verdict, 'M02_close_at_k').warmupBars).toBe(AUTO_MAX_BARS_BACK)
+    for (const p of verdict.plots) {
+      expect(p.reason, p.title).toMatch(/withheld on this chart on every bar, by name \(bar-index:window\)/)
+    }
   })
 })
 

@@ -80,7 +80,14 @@ describe('1 · the gate — `forgetsOnReset`', () => {
 
   it('⭐ the counter translates, and its seed carries the switched mark with the REAL seed', () => {
     expect(acc).not.toBeNull()
-    expect(switchedSeedOf(acc.args[0])).toEqual({ type: 'num', value: 0 })
+    // ⭐ C47 — the real seed says which bar-0 reading the spelling means: a `var`
+    // whose update reads its own value only bare runs that update on bar 0
+    // (C29's `update` mark, written since C47 for every switched bare-only `var`,
+    // not only bar counters). ⚰️ Until C47 the mark's real seed was the bare `0`.
+    expect(switchedSeedOf(acc.args[0])).toEqual({
+      type: 'op', name: '*', args: [{ type: 'num', value: 1 },
+        { type: 'op', name: '*', args: [{ type: 'num', value: 1 }, { type: 'num', value: 0 }] }],
+    })
     expect(readsSwitchedState(tree)).toBe(true)
   })
 

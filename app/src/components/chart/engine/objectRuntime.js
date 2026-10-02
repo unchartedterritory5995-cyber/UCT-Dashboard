@@ -202,6 +202,8 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
+  let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
   let propsUnmeasured = 0
   /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
@@ -306,7 +308,8 @@ export function beginObjects(program, ctx) {
   // ⭐⭐ C33 — A PROGRAM THAT CARRIES AN UNREAD CONJUNCT (`{v:'unknown'}`) OR A
   // GETTER'S HISTORY (`{v:'get', back}`) holds something unknown before any mark
   // forms, so the fast path is off for it from the first bar.
-  if (/"v":"unknown"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
+  // ⭐ C45 — and one that carries a HELD colour (`{c:'held'}`), unknown on every bar.
+  if (/"v":"unknown"|"c":"held"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
   /** ⭐⭐ C33 — a getter's history: per reference, the number it answered on each
    *  bar its op ran (`value` records it; `[back]` reads it back). */
   const getHistory = new WeakMap()
@@ -933,6 +936,7 @@ export function beginObjects(program, ctx) {
     /** ⭐ C20 — did a colour the program asked the RUNTIME for come back unserved?
      *  (A `lit`/`if` colour never answers `null`; only `rt`/`new`/`grad` can.) */
     const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new' || c.c === 'grad'
+      || c.c === 'held'
       || (c.c === 'if' && (runtimeColourNode(c.then, depth + 1) || runtimeColourNode(c.else, depth + 1))))
     const unservedColour = (props, resolved) => Object.entries(props || {})
       .filter(([k, v]) => isObj(v) && v.v === 'color' && runtimeColourNode(v.node)
@@ -1107,7 +1111,12 @@ export function beginObjects(program, ctx) {
         }
         const k = bar - back
         const src = at.args[0]
-        if (k >= 0 && src.v === 'graph' && readUnknown && readUnknown(src.node, k)) return 'unknown'
+        // ⭐⭐ C45 — a read BEFORE the first bar held is asked too (`k < 0`, and
+        // `bar_index[e]` as well as a column): the reader answers by the plot
+        // lane's rule (`objectColumns.js::makeReadUnknown`) — unknown unless the
+        // series starts at the listing, where it is Pine's `na` and the read
+        // below answers `NaN`. ⚰️ It was `na` on every chart.
+        if (readUnknown && (k < 0 || src.v === 'graph') && readUnknown(src.v === 'graph' ? src.node : -1, k)) return 'unknown'
       }
       return 'ok'
     }
@@ -1240,6 +1249,8 @@ export function beginObjects(program, ctx) {
     }
     const colorTainted = (c, depth) => {
       if (!isObj(c) || depth > 48) return false
+      // ⭐ C45 — a colour the translator HELD (`{c:'held'}`) has no value on any bar.
+      if (c.c === 'held') return true
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
@@ -1407,7 +1418,8 @@ export function beginObjects(program, ctx) {
       // unknowable condition (the warm-up curtain) is remembered as unknown, and
       // every op reading it is withheld and counted below, never run off a guess.
       if (op.k === 'latch') {
-        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) ? LATCH_UNKNOWN : truthy(value(op.cond))
+        // ⭐ C45 — a condition that reads a bar index as a VALUE is unknown (`indexHeld`).
+        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) || op.indexHeld ? LATCH_UNKNOWN : truthy(value(op.cond))
         if (latched === LATCH_UNKNOWN) taintSeen = true
         latches.set(op.id, latched)
         continue
@@ -1435,10 +1447,15 @@ export function beginObjects(program, ctx) {
         || (op.requiresEmpty && regTaint.has(op.requiresEmpty))
       if (!handleUnknown && op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (!handleUnknown && op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) {
+      // ⭐⭐ C45 — AN OP A BAR INDEX REACHES AS A VALUE (`op.indexHeld`, marked by
+      // the reader off the listing — `objectProgram.js::withBarIndexHeld`): this
+      // chart's count is not TradingView's, so the op is withheld on every bar.
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when) || op.indexHeld) {
         // ⭐ C17 — a guard that is itself KNOWN and false is a certain skip:
         // Pine did not run the op either, so nothing it would write is unknown.
-        if (op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
+        // (⛔ not when the GUARD is what reads the index: its falseness is unknown.)
+        if (op.indexHeld !== 'guard' && op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
+        if (op.indexHeld) withheldBarIndex += 1
         withheldUnknown += 1
         noteUnknownCreate(op)
         taintOutputs(op)
@@ -2087,6 +2104,7 @@ export function beginObjects(program, ctx) {
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(withheldBarIndex ? { withheldBarIndex } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and

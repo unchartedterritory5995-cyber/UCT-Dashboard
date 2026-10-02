@@ -79,9 +79,9 @@ describe('C37 — a gradient between two static colours is carried on a plot', (
     expect(ids('plot(close)')).toEqual([])
     // 🔴 CONTROL — the same input read by a plot's VALUE does mint, so the
     // equality above is not two empty lists by accident of the options
-    expect(ids('plot(r)')).toEqual(['__uct_param_1=Len'])
+    expect(ids('plot(r)')).toEqual(['__uct_param_1001=Len'])
     // and a later output's id is not pushed along by the colour before it
-    expect(ids(COLOURED, 'plot(r)')).toEqual(['__uct_param_1=Len'])
+    expect(ids(COLOURED, 'plot(r)')).toEqual(['__uct_param_1001=Len'])
   })
 })
 

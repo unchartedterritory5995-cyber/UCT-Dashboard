@@ -91,8 +91,11 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
   })
 
   it('⛔ a condition that is `na` on a bar is FALSE there (as Pine\'s `if` reads it), not a reset of the window', () => {
+    // ⭐ C45 RE-PIN: the `na` bars were chosen by `bar_index % 5 == 0`, a value
+    // that depends on where the series starts and is withheld off the listing.
+    // They are chosen by the bars themselves now (a higher high than the bar before).
     const { labels } = run([
-      'b = bar_index % 5 == 0 ? na : close > 0',
+      'b = high > high[1] ? na : close > 0',
       'var w = array.new_float()',
       'if b and close > open',
       '    w.unshift(high)',
@@ -103,8 +106,10 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
     ].join('\n') + '\n')
     const arr = []
     const pine = []
+    const naBar = (i) => i > 0 && BARS[i].h > BARS[i - 1].h
+    expect(BARS.filter((_, i) => naBar(i)).length).toBeGreaterThan(20)
     BARS.forEach((b, i) => {
-      if (i % 5 !== 0 && b.c > b.o) arr.unshift(b.h)
+      if (!naBar(i) && b.c > b.o) arr.unshift(b.h)
       if (arr.length > 2) arr.pop()
       if (arr.length > 1) pine.push([i, arr[1]])
     })

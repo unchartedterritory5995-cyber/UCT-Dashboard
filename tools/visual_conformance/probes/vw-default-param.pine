@@ -1,0 +1,60 @@
+//@version=5
+indicator("UCTPROBE_VW_DEFAULT_PARAM_V5", overlay = false)
+
+// ─── 2026-10-01 — WHAT AN OMITTED ARGUMENT IS IN A USER FUNCTION (Q-C47-2) ───
+//
+// `pine.js::functionParamDefaults` (C47) serves, in the drawing lane, a trailing
+// parameter that declares ONE LITERAL default, and a call that leaves it off the
+// end: the body runs with the literal. The rule is Pine's reference. The one
+// committed capture that exercises it (pro-trading-art: `drawLL(…, style =
+// label.style_label_down)` called without the style) does not SEPARATE it — the
+// declared default there is also `label.new`'s own. Every row below pairs an
+// omitted argument with the same call written out, on a default no built-in
+// shares, so a difference of any kind is visible on every bar.
+//
+//   row   shipped rule                       what would falsify it
+//   D01   close * 7      == D02              any other multiplier, or `na`
+//   D03   close - 3      == D04              the sign of a negative default lost
+//   D05   -close         == D06              `false` read as `na` / as `true`
+//   D07   close * 2      == D08              a string default not equal to its own text
+//   D09   close          == D10              `na` default not `na` in the body
+//   D11   close * 2 + 3  == D12              the SECOND default bound to the first's value
+//   D13   close * 9 + 3  == D14              a given argument not winning over its default
+//   D15   0 on every bar                     any row above differing from its pair
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, ≥ 200 bars. Inputs at defaults (there are none). A
+// compile failure is itself a reading — record the message.
+
+plot(bar_index, "D00_bar_index_CONTROL")
+
+f_num(x, k = 7) => x * k
+plot(f_num(close), "D01_number_omitted")
+plot(f_num(close, 7), "D02_number_written")
+
+f_neg(x, k = -3) => x + k
+plot(f_neg(close), "D03_negative_omitted")
+plot(f_neg(close, -3), "D04_negative_written")
+
+f_bool(x, up = false) => up ? x : -x
+plot(f_bool(close), "D05_bool_omitted")
+plot(f_bool(close, false), "D06_bool_written")
+
+f_str(x, m = "two") => m == "two" ? x * 2 : m == "" ? x * 5 : x * 11
+plot(f_str(close), "D07_string_omitted")
+plot(f_str(close, "two"), "D08_string_written")
+
+f_na(x, float k = na) => na(k) ? x : x * k
+plot(f_na(close), "D09_na_omitted")
+plot(f_na(close, na), "D10_na_written")
+
+f_two(x, a = 2, b = 3) => x * a + b
+plot(f_two(close), "D11_two_defaults_none_given")
+plot(f_two(close, 2, 3), "D12_two_defaults_written")
+plot(f_two(close, 9), "D13_two_defaults_first_given")
+plot(f_two(close, 9, 3), "D14_two_defaults_first_given_written")
+
+differs(a, b) => (na(a) != na(b)) or (not na(a) and a != b) ? 1 : 0
+plot(differs(f_num(close), f_num(close, 7)) + differs(f_neg(close), f_neg(close, -3))
+     + differs(f_bool(close), f_bool(close, false)) + differs(f_str(close), f_str(close, "two"))
+     + differs(f_na(close), f_na(close, na)) + differs(f_two(close), f_two(close, 2, 3))
+     + differs(f_two(close, 9), f_two(close, 9, 3)), "D15_pairs_that_differ_MUST_BE_0")

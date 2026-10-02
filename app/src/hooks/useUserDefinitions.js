@@ -76,6 +76,14 @@ async function fetcher(url) {
     : row))
 }
 
+/** ⛔ ONE empty list, the SAME object on every render until data arrives. A fresh `[]`
+ *  per render changed identity every time, so every `useMemo` / `useEffect` keyed on
+ *  `rows` re-ran every render - `useInstalledUserDefinitions` re-installed and handed
+ *  back fresh `errors`, and `ChartSettingsModal`'s feed could re-render without end
+ *  ("Maximum update depth exceeded", seen in the inspector suite under load,
+ *  2026-10-01). Frozen: no consumer may push into a list it does not own. */
+const NO_ROWS = Object.freeze([])
+
 /**
  * Every live user definition, newest version of each.
  *
@@ -99,7 +107,7 @@ export function useUserDefinitions() {
     dedupingInterval: 10000,
   })
   return {
-    rows: Array.isArray(data) ? data : [],
+    rows: Array.isArray(data) ? data : NO_ROWS,
     // A signed-out user is LOADING, not an error: SWR is handed a null key then
     // and reports neither, and "offer nothing" is the safe reading of that.
     isLoading: !user || (isLoading && !data && !error),
