@@ -795,6 +795,7 @@ export const NAMED_SURFACES = [
   'app/src/pages/charts/widgets/AlertsWidget.jsx',
   'app/src/pages/charts/widgets/VolumeScanLists.jsx',
   'app/src/pages/community/ChatView.jsx',
+  'app/src/pages/desk/ArticlesSection.jsx',
   'app/src/pages/desk/TeamSection.jsx',
   'app/src/pages/modelbook/SetupsView.jsx',
   'app/src/pages/modelbook/shared/ChartExampleKit.jsx',
@@ -842,7 +843,7 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 // in the commit that earned it. Never raise it — name the control instead.
 //
 //   2026-10-01  140  (start of the lane/term-067-batch run)
-export const UNNAMED_BASELINE = 112
+export const UNNAMED_BASELINE = 110
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)
