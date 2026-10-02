@@ -27,7 +27,10 @@ const PAYLOADS = {
     not_ranked: [{ underlying: 'AAA', session: S, volume: 1450, call_volume: 1150, put_volume: 300, n_sessions: 1,
       note: '1 session, needs 10' }],
     coverage: { evaluated: 1, answered: 0, dropped: 0, not_computable: 1, dropped_symbols: [] },
-    missing_sessions: ['2026-10-01'], note: '1 prior session logged; the ratio needs 10.', method: 'm.', source: 's',
+    missing_sessions: ['2026-10-01'], note: '1 prior session held; the ratio needs 10.', method: 'm.', source: 's',
+    volume_source: 'flow_tape',
+    volume_rule: 'Flow-tape volume: the contracts in the prints our options-flow tape keeps (aggregated prints of 50+ contracts and $10K+ premium), not every option trade.',
+    fallback_note: 'The options log carries no option volume (its 2026-10-02 volume column is empty), so this ranks the flow tape.',
   },
   'iv-percentile': {
     status: 'ok', session: S, sessions_logged: 2, rankable_sessions: 1, ranked: [], available_on: '2026-10-29',
@@ -98,6 +101,10 @@ describe('OptionsScreener', () => {
     const cell = await screen.findByTestId('opts-vol-ratio')
     expect(cell.textContent).toBe('1 session, needs 10')
     expect(screen.getByTestId('opts-vol-state').textContent).toContain('available on 2026-10-15')
+    // which volume it is, in words: the tape's large prints, not every trade
+    const src = screen.getByTestId('opts-vol-source').textContent
+    expect(src).toContain('not every option trade')
+    expect(src).toContain('so this ranks the flow tape')
   })
 
   it('IV percentile below 20 sessions states the count and the date, and draws no table', async () => {

@@ -133,9 +133,13 @@ function Volume() {
         {data.ranked.length === 0 && data.available_on ? ` · the ratio becomes available on ${data.available_on} if every session from here is logged` : ''}
       </p>
       {data.note && <p className={styles.note} data-testid="opts-vol-note">{data.note}</p>}
+      {/* ⛔ WHICH VOLUME, IN WORDS: the log's own, or the flow tape's large prints only. */}
+      <p className={styles.facts} data-testid="opts-vol-source">
+        {data.volume_rule}{data.fallback_note ? ` ${data.fallback_note}` : ''}
+      </p>
       <div className={styles.scroll}>
         <table className={styles.grid}>
-          <thead><tr><th>Session</th><th>Underlying</th><th>Option volume</th><th>Calls</th><th>Puts</th><th>Own average</th><th>Ratio</th></tr></thead>
+          <thead><tr><th>Session</th><th>Underlying</th><th>Volume</th><th>Calls</th><th>Puts</th><th>Own average</th><th>Ratio</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.underlying}>

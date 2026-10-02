@@ -12,10 +12,12 @@ WHERE THE DATA COMES FROM
 THE BATCHED STEP (never on web, never per request)
   `build_session(contracts_gz, session, out_dir)` reads one day's contracts file ONCE
   and writes two derived files beside it in R2:
-    * `<date>.volume.csv.gz`   -- per underlying: total / call / put option volume.
-                                  This is the history the unusual-volume ratio reads
-                                  (the log's own `day.volume`, so the flow tape is not
-                                  needed for it).
+    * `<date>.volume.csv.gz`   -- per underlying: total / call / put option volume
+                                  from the log's own `day.volume` -- written as ABSENT
+                                  when the log carries none (measured: the 2026-09-30
+                                  file carries none), never as zero. In that case the
+                                  unusual-volume history comes from the flow tape
+                                  (`catch_up_tape`, below), and the answer says so.
     * `<date>.screen.sqlite.gz` -- the screenable contracts, one row each, with DTE,
                                   OTM %, |delta| and spread % precomputed and indexed.
   The terminal-next-monitor job `options-screen` (weekdays 16:30 ET, queued right
@@ -48,6 +50,8 @@ from __future__ import annotations
 import csv
 import datetime as _dt
 import gzip
+import io
+import json
 import os
 import re
 import shutil
@@ -81,6 +85,7 @@ IV_METHOD = ("IV percentile = the share of the symbol's own prior logged session
 _VOL_KEY_RE = re.compile(
     r"options_log/\d{4}/(\d{4}-\d{2}-\d{2})\."
     r"(manifest\.json|underlyings\.csv\.gz|volume\.csv\.gz|screen\.sqlite\.gz)$")
+_TAPE_KEY_RE = re.compile(r"options_log/tape_volume/\d{4}/\d{4}-\d{2}-\d{2}\.csv\.gz$")
 
 VOLUME_FIELDS = ("underlying", "volume", "call_volume", "put_volume", "contracts",
                  "contracts_traded")
@@ -107,17 +112,29 @@ def _f(v):
         return None
 
 
+#: ⭐ SCALED INTEGERS, MEASURED. The first cut stored REALs with five indexes and,
+#: built from the real 2026-09-30 log (2,018,713 contracts), came out at 384 MB of
+#: SQLite / 131 MB gzipped -- larger than the contracts file it was derived from, and
+#: too big to mirror onto web each session. SQLite stores small integers in 1-4 bytes
+#: and a REAL in 8, so each number is kept at the precision the screen reads it at:
+#: strike x1000, OTM % x10, IV in basis points, delta x1000, bid/ask in cents,
+#: spread % x10. One index (underlying); every other filter scans, which on the real
+#: file measured ~1 s for a whole-universe preset.
 _SCHEMA = """
 CREATE TABLE contracts (
-  contract TEXT NOT NULL, underlying TEXT NOT NULL, expiration TEXT NOT NULL,
-  dte INTEGER NOT NULL, type TEXT NOT NULL, strike REAL NOT NULL,
-  underlying_price REAL, otm_pct REAL, iv REAL, delta REAL, abs_delta REAL,
-  bid REAL, ask REAL, mid REAL, spread_pct REAL, last REAL,
-  open_interest INTEGER, volume INTEGER
+  contract TEXT NOT NULL, underlying TEXT NOT NULL, exp INTEGER NOT NULL,
+  dte INTEGER NOT NULL, cp TEXT NOT NULL, strike_m INTEGER NOT NULL,
+  otm_d INTEGER, iv_bp INTEGER, delta_m INTEGER, bid_c INTEGER, ask_c INTEGER,
+  spread_d INTEGER, oi INTEGER, vol INTEGER
 );
+CREATE TABLE underlyings (underlying TEXT PRIMARY KEY, price REAL);
 CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
 """
-_INDEXES = ("underlying", "dte", "iv", "open_interest", "volume")
+_N_COLS = 14
+
+
+def _i(v, scale):
+    return None if v is None else int(round(v * scale))
 
 
 def contract_values(r: dict, session: _dt.date) -> Optional[tuple]:
@@ -128,9 +145,10 @@ def contract_values(r: dict, session: _dt.date) -> Optional[tuple]:
     if typ not in ("call", "put") or strike is None or not r.get("expiration") or not r.get("underlying"):
         return None
     try:
-        dte = (_dt.date.fromisoformat(r["expiration"]) - session).days
+        exp = _dt.date.fromisoformat(r["expiration"])
     except ValueError:
         return None
+    dte = (exp - session).days
     if dte < 0:
         return None
     oi, vol = _f(r.get("open_interest")), _f(r.get("volume"))
@@ -141,37 +159,37 @@ def contract_values(r: dict, session: _dt.date) -> Optional[tuple]:
     otm = None
     if px:
         otm = (strike - px) / px * 100 if typ == "call" else (px - strike) / px * 100
-        otm = round(otm, 3)
-    mid = spread = None
+    spread = None
     if bid is not None and ask is not None and bid > 0 and ask >= bid:
-        mid = (bid + ask) / 2
-        spread = round((ask - bid) / mid * 100, 3)
-    delta = _f(r.get("delta"))
-    return (r["contract"], r["underlying"], r["expiration"], dte, typ, strike, px, otm,
-            _f(r.get("iv")), delta, abs(delta) if delta is not None else None,
-            bid, ask, round(mid, 4) if mid is not None else None, spread, _f(r.get("last")),
-            int(oi) if oi is not None else None, int(vol) if vol is not None else None)
+        spread = (ask - bid) / ((bid + ask) / 2) * 100
+    return (r["contract"], r["underlying"], exp.year * 10000 + exp.month * 100 + exp.day, dte,
+            "C" if typ == "call" else "P", _i(strike, 1000), _i(otm, 10), _i(_f(r.get("iv")), 10000),
+            _i(_f(r.get("delta")), 1000), _i(bid, 100), _i(ask, 100), _i(spread, 10),
+            _i(oi, 1), _i(vol, 1))
 
 
 def build_session(contracts_gz_path: str, session: _dt.date, out_dir: str) -> dict:
     """Read ONE day's contracts file once; write `volume.csv.gz` and `screen.sqlite.gz`
     into `out_dir`. Returns the receipt (paths + counts)."""
     vol: dict = {}
+    prices: dict = {}
     db_path = os.path.join(out_dir, "screen.sqlite")
     if os.path.exists(db_path):
         os.remove(db_path)
     con = sqlite3.connect(db_path)
     con.executescript(_SCHEMA)
-    rows_in = kept = 0
+    rows_in = kept = with_volume = 0
     batch: list = []
-    ins = f"INSERT INTO contracts VALUES ({','.join('?' * 18)})"
+    ins = f"INSERT INTO contracts VALUES ({','.join('?' * _N_COLS)})"
     with gzip.open(contracts_gz_path, "rt", newline="", encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
             rows_in += 1
             und = r.get("underlying")
             if und:
                 s = vol.setdefault(und, [0, 0, 0, 0, 0])
-                v = _f(r.get("volume")) or 0
+                raw = _f(r.get("volume"))
+                with_volume += raw is not None
+                v = raw or 0
                 s[0] += v
                 if r.get("type") == "call":
                     s[1] += v
@@ -179,6 +197,9 @@ def build_session(contracts_gz_path: str, session: _dt.date, out_dir: str) -> di
                     s[2] += v
                 s[3] += 1
                 s[4] += v > 0
+                px = _f(r.get("underlying_price"))
+                if px is not None:
+                    prices[und] = px
             t = contract_values(r, session)
             if t is None:
                 continue
@@ -189,12 +210,19 @@ def build_session(contracts_gz_path: str, session: _dt.date, out_dir: str) -> di
                 batch.clear()
     if batch:
         con.executemany(ins, batch)
-    for col in _INDEXES:
-        con.execute(f"CREATE INDEX ix_{col} ON contracts({col})")
+    con.executemany("INSERT INTO underlyings VALUES (?, ?)", sorted(prices.items()))
+    con.execute("CREATE INDEX ix_underlying ON contracts(underlying)")
+    # ⛔ A LOG WITHOUT VOLUME SAYS SO. Measured on the real 2026-09-30 file: the
+    # `volume` column is EMPTY on all 2,018,713 contracts. Writing that as 0 would
+    # read as "nothing traded"; it is written as absent, and the ranking falls
+    # back to the flow tape and says which source it used.
+    volume_present = with_volume > 0
     meta = {"session": session.isoformat(), "rows_in": rows_in, "rows_kept": kept,
+            "volume_present": int(volume_present),
             "built_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")}
     con.executemany("INSERT INTO meta VALUES (?, ?)", [(k, str(v)) for k, v in meta.items()])
     con.commit()
+    con.execute("VACUUM")
     con.close()
     screen_gz = db_path + ".gz"
     with open(db_path, "rb") as src, gzip.open(screen_gz, "wb", compresslevel=6) as dst:
@@ -206,8 +234,12 @@ def build_session(contracts_gz_path: str, session: _dt.date, out_dir: str) -> di
         w.writerow(VOLUME_FIELDS)
         for und in sorted(vol):
             s = vol[und]
-            w.writerow([und, int(s[0]), int(s[1]), int(s[2]), s[3], s[4]])
-    return {**meta, "underlyings": len(vol), "volume_path": vol_path, "screen_path": screen_gz}
+            if volume_present:
+                w.writerow([und, int(s[0]), int(s[1]), int(s[2]), s[3], s[4]])
+            else:
+                w.writerow([und, "", "", "", s[3], ""])
+    return {**meta, "volume_present": volume_present, "underlyings": len(vol),
+            "volume_path": vol_path, "screen_path": screen_gz}
 
 
 def catch_up(*, list_keys: Callable[[], list], download: Callable[[str, str], None],
@@ -242,8 +274,130 @@ def catch_up(*, list_keys: Callable[[], list], download: Callable[[str, str], No
                                    or derived_keys(d)["screen"] not in keys]) - len(todo))}
 
 
+# ── the flow-tape fallback for volume history ──────────────────────────────────
+#
+# ⛔ WHY THIS EXISTS, MEASURED: the options log's `volume` column is EMPTY on all
+# 2,018,713 contracts of its first session (2026-09-30, read from R2 2026-10-02), so
+# the log cannot supply an option-volume history. The flow tape (flow.db on
+# flow-worker, read over the flow family with the PUSH_SECRET bearer) can -- but it is
+# NOT total option volume: the worker keeps an aggregated print only at 50+ contracts
+# and $10K+ premium (`api/build_gap_fill_csv.py` MIN_VOLUME / MIN_PREMIUM, "match
+# worker defaults exactly"). The ranking says which source it used and this rule.
+
+TAPE_PREFIX = "options_log/tape_volume"
+TAPE_FIELDS = ("underlying", "volume", "call_volume", "put_volume", "prints")
+TAPE_RULE = ("Flow-tape volume: the contracts in the prints our options-flow tape keeps "
+             "(aggregated prints of 50+ contracts and $10K+ premium), not every option trade.")
+LOG_RULE = "Option volume from the options log's per-contract day volume."
+TAPE_BUILD_LIMIT = 30
+
+
+def tape_key(session: str) -> str:
+    return f"{TAPE_PREFIX}/{session[:4]}/{session}.csv.gz"
+
+
+def _mdy_iso(s: str) -> Optional[str]:
+    try:
+        m, d, y = (s or "").strip().split("/")
+        return _dt.date(int(y), int(m), int(d)).isoformat()
+    except (ValueError, TypeError):
+        return None
+
+
+def tape_day_totals(csv_texts: list, session: str) -> dict:
+    """Per-underlying totals for ONE session from the tape's CSV bodies. A row dated
+    any other day is refused: a body that ignored the date range must not be summed
+    into this session."""
+    out: dict = {}
+    for text in csv_texts:
+        reader = csv.DictReader(io.StringIO(text))
+        need = {"CreatedDate", "Symbol", "Volume", "CallPut"}
+        if reader.fieldnames is None:
+            continue
+        if not need.issubset(reader.fieldnames):
+            raise RuntimeError(f"flow tape answered columns {reader.fieldnames!r}")
+        for r in reader:
+            if _mdy_iso(r["CreatedDate"]) != session:
+                raise RuntimeError(f"flow tape answered a {r['CreatedDate']} row for {session}")
+            sym = (r["Symbol"] or "").strip().upper()
+            v = _f(r["Volume"])
+            if not sym or v is None:
+                continue
+            s = out.setdefault(sym, [0, 0, 0, 0])
+            s[0] += v
+            cp = (r["CallPut"] or "").strip().upper()[:1]
+            if cp == "C":
+                s[1] += v
+            elif cp == "P":
+                s[2] += v
+            s[3] += 1
+    return out
+
+
+def catch_up_tape(*, list_keys: Callable[[], list], upload: Callable[[str, str, str], None],
+                  get: Callable[[str, dict], tuple], limit: int = TAPE_BUILD_LIMIT,
+                  workdir: Optional[str] = None) -> dict:
+    """Write one per-underlying file per tape session lacking one (newest first, at
+    most `limit` a run, only the last VOLUME_WINDOW + 1 sessions). `get(path, params)`
+    returns (status, text). A failed day is named, never skipped silently."""
+    dates = set()
+    for source in ("stocks", "indexes"):
+        status, body = get("/api/flow/dates", {"source": source})
+        if status != 200:
+            raise RuntimeError(f"flow tape dates ({source}) answered HTTP {status}")
+        dates |= {d for d in (_mdy_iso(x) for x in (json.loads(body) or {}).get("dates") or []) if d}
+    held = sorted(dates)[-(VOLUME_WINDOW + 1):]
+    keys = set(list_keys())
+    todo = [d for d in reversed(held) if tape_key(d) not in keys][:limit]
+    built, failed = [], []
+    for d in todo:
+        tmp = tempfile.mkdtemp(prefix="options_tape_", dir=workdir)
+        try:
+            bodies = []
+            for path in ("/api/flow/data", "/api/flow/indexes-data"):
+                status, body = get(path, {"date_from": d, "date_to": d})
+                if status != 200:
+                    raise RuntimeError(f"{path} answered HTTP {status}")
+                bodies.append(body)
+            totals = tape_day_totals(bodies, d)
+            p = os.path.join(tmp, "tape.csv.gz")
+            with gzip.open(p, "wt", newline="", encoding="utf-8") as fh:
+                w = csv.writer(fh)
+                w.writerow(TAPE_FIELDS)
+                for sym in sorted(totals):
+                    t = totals[sym]
+                    w.writerow([sym, int(t[0]), int(t[1]), int(t[2]), t[3]])
+            upload(p, tape_key(d), "application/gzip")
+            built.append({"session": d, "underlyings": len(totals)})
+        except Exception as e:  # noqa: BLE001 -- named in the receipt
+            failed.append({"session": d, "error": f"{type(e).__name__}: {e}"})
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return {"held": len(held), "built": built, "failed": failed,
+            "pending": max(0, len([d for d in held if tape_key(d) not in keys]) - len(todo))}
+
+
+def _tape_get():
+    """The flow family, read as a SERVICE: `OPTIONS_SCREENER_TAPE_URL` (or the web
+    pod's own `WORKER_INTERNAL_URL`) with the PUSH_SECRET bearer."""
+    import httpx
+    from api import flow_proxy
+    base = (os.environ.get("OPTIONS_SCREENER_TAPE_URL") or flow_proxy.WORKER_INTERNAL_URL or "").rstrip("/")
+    headers = flow_proxy.internal_read_headers()
+    if not base:
+        raise RuntimeError("no flow tape URL on this service (OPTIONS_SCREENER_TAPE_URL / WORKER_INTERNAL_URL)")
+    if not headers:
+        raise RuntimeError("PUSH_SECRET is not set on this service; the flow tape refuses the read")
+    client = httpx.Client(timeout=180)
+
+    def get(path, params):
+        r = client.get(base + path, params=params, headers=headers)
+        return r.status_code, r.text
+    return get
+
+
 def run_catch_up() -> dict:
-    """Production wiring for the monitor: R2 list/download/upload."""
+    """Production wiring for the monitor: R2 list/download/upload, then the tape."""
     from api import flow_backup
     client, bucket = flow_backup._r2_client(), flow_backup._bucket()
     if client is None or not bucket:
@@ -255,10 +409,16 @@ def run_catch_up() -> dict:
             out.extend(o["Key"] for o in page.get("Contents") or [])
         return out
 
-    return catch_up(list_keys=list_keys,
-                    download=lambda key, path: client.download_file(bucket, key, path),
-                    upload=lambda path, key, ct: client.upload_file(
-                        path, bucket, key, ExtraArgs={"ContentType": ct}))
+    def upload(path, key, ct):
+        client.upload_file(path, bucket, key, ExtraArgs={"ContentType": ct})
+
+    rec = catch_up(list_keys=list_keys,
+                   download=lambda key, path: client.download_file(bucket, key, path), upload=upload)
+    try:
+        rec["tape"] = catch_up_tape(list_keys=list_keys, upload=upload, get=_tape_get())
+    except Exception as e:  # noqa: BLE001 -- the log half still stands; the tape half is named
+        rec["tape"] = {"error": f"{type(e).__name__}: {e}"}
+    return rec
 
 
 def receipt_text(rec: dict) -> tuple:
@@ -266,8 +426,17 @@ def receipt_text(rec: dict) -> tuple:
     built = ", ".join(f"{b['session']} ({b['rows_kept']:,} of {b['rows_in']:,} contracts)"
                       for b in rec["built"]) or "nothing new"
     body = f"Built: {built}. {rec['logged']} logged sessions; {rec['pending']} still pending."
-    if rec["failed"]:
-        body += " FAILED: " + "; ".join(f"{f['session']}: {f['error']}" for f in rec["failed"])
+    failed = [f"{f['session']}: {f['error']}" for f in rec["failed"]]
+    tape = rec.get("tape")
+    if tape is not None:
+        if "error" in tape:
+            failed.append(f"flow tape: {tape['error']}")
+        else:
+            body += (f" Tape volume: {len(tape['built'])} session(s) built, {tape['held']} held, "
+                     f"{tape['pending']} pending.")
+            failed += [f"tape {f['session']}: {f['error']}" for f in tape["failed"]]
+    if failed:
+        body += " FAILED: " + "; ".join(failed)
         return ("Options screen: FAILED", body, True)
     return ("Options screen: built", body, False)
 
@@ -315,10 +484,25 @@ class LocalStore(iv_history.LocalStore):
             os.replace(tmp, db)
         return db if os.path.exists(db) else None
 
+    def tape_path(self, session: str) -> Optional[str]:
+        p = os.path.join(self.root, *tape_key(session).split("/"))
+        return p if os.path.exists(p) else None
+
+    def tape_sessions(self) -> list:
+        base = os.path.join(self.root, *TAPE_PREFIX.split("/"))
+        out = []
+        if os.path.isdir(base):
+            for year in os.listdir(base):
+                ydir = os.path.join(base, year)
+                if os.path.isdir(ydir):
+                    out += [m.group(1) for n in os.listdir(ydir)
+                            for m in [re.match(r"^(\d{4}-\d{2}-\d{2})\.csv\.gz$", n)] if m]
+        return sorted(out)
+
     def signature(self) -> tuple:
         """Changes when a session or a derived file lands (the cache key)."""
         return (tuple(sorted(self.sessions())), tuple(self.volume_sessions()),
-                tuple(self.screen_sessions()))
+                tuple(self.screen_sessions()), tuple(self.tape_sessions()))
 
 
 class R2Store(LocalStore):
@@ -360,6 +544,9 @@ class R2Store(LocalStore):
             for page in client.get_paginator("list_objects_v2").paginate(
                     Bucket=bucket, Prefix="options_log/"):
                 for o in page.get("Contents") or []:
+                    if _TAPE_KEY_RE.search(o["Key"]):
+                        self._fetch(client, bucket, o["Key"], o.get("ETag", ""))
+                        continue
                     m = _VOL_KEY_RE.search(o["Key"])
                     if not m:
                         continue
@@ -386,7 +573,23 @@ class R2Store(LocalStore):
         with self._lock:
             client, bucket = self._client()
             self._fetch(client, bucket, hit[0], hit[1])
-        return super().screen_db(session)
+            path = super().screen_db(session)
+            # ⛔ ONE SESSION ON DISK. A screen file is ~50 MB gzipped / ~160 MB opened
+            # (measured on the real 2026-09-30 log); only the latest is ever queried,
+            # so an older one is deleted the moment a newer one is in place.
+            for name in self.screen_sessions_on_disk():
+                if name != session:
+                    for suffix in (".screen.sqlite", ".screen.sqlite.gz"):
+                        p = os.path.join(self.root, "options_log", name[:4], name + suffix)
+                        try:
+                            os.remove(p)
+                        except OSError:
+                            pass
+                    self._etags.pop(f"options_log/{name[:4]}/{name}.screen.sqlite.gz", None)
+        return path
+
+    def screen_sessions_on_disk(self) -> list:
+        return LocalStore.screen_sessions(self)
 
 
 _store_override: Optional[LocalStore] = None
@@ -405,28 +608,31 @@ def get_store() -> LocalStore:
 
 # ── COV-02: the option screener ────────────────────────────────────────────────
 
-#: param -> (column, op). abs_delta is |delta|; iv is percent in the API.
+#: param -> (stored column, op, scale from the API's unit to the stored integer).
+#: The API's delta is |delta|; IV is a PERCENT in the API (60 = 60%), basis points stored.
 _RANGE = {
-    "dte_min": ("dte", ">="), "dte_max": ("dte", "<="),
-    "otm_min": ("otm_pct", ">="), "otm_max": ("otm_pct", "<="),
-    "delta_min": ("abs_delta", ">="), "delta_max": ("abs_delta", "<="),
-    "spread_max": ("spread_pct", "<="),
-    "oi_min": ("open_interest", ">="), "volume_min": ("volume", ">="),
-    "iv_min": ("iv", ">="), "iv_max": ("iv", "<="),
-    "bid_min": ("bid", ">="), "ask_max": ("ask", "<="),
+    "dte_min": ("dte", ">=", 1), "dte_max": ("dte", "<=", 1),
+    "otm_min": ("otm_d", ">=", 10), "otm_max": ("otm_d", "<=", 10),
+    "delta_min": ("delta_m", ">=", 1000), "delta_max": ("delta_m", "<=", 1000),
+    "spread_max": ("spread_d", "<=", 10),
+    "oi_min": ("oi", ">=", 1), "volume_min": ("vol", ">=", 1),
+    "iv_min": ("iv_bp", ">=", 100), "iv_max": ("iv_bp", "<=", 100),
+    "bid_min": ("bid_c", ">=", 100), "ask_max": ("ask_c", "<=", 100),
 }
-#: The column a filter reads -> the sentence for a contract that lacks it.
+#: The stored column a filter reads -> the sentence for a contract that lacks it.
 _CAUSE = {
-    "otm_pct": "no underlying price in the snapshot",
-    "abs_delta": "no vendor delta",
-    "spread_pct": "no two-sided quote",
-    "iv": "no vendor IV",
-    "bid": "no bid", "ask": "no ask",
-    "open_interest": "no open interest reported",
-    "volume": "no volume reported",
+    "otm_d": "no underlying price in the snapshot",
+    "delta_m": "no vendor delta",
+    "spread_d": "no two-sided quote",
+    "iv_bp": "no vendor IV",
+    "bid_c": "no bid", "ask_c": "no ask",
+    "oi": "no open interest reported",
+    "vol": "no volume in the log",
 }
-_SORTS = {"iv", "volume", "open_interest", "spread_pct", "abs_delta", "dte", "otm_pct",
-          "ask", "underlying"}
+#: API sort name -> SQL expression over the stored columns.
+_SORTS = {"iv": "iv_bp", "volume": "vol", "open_interest": "oi", "spread_pct": "spread_d",
+          "abs_delta": "ABS(delta_m)", "dte": "dte", "otm_pct": "otm_d", "ask": "ask_c",
+          "underlying": "underlying"}
 _SYM = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 PRESETS = {
@@ -442,16 +648,18 @@ PRESETS = {
     "cheap_far_otm_calls": {
         "label": "Cheap far-OTM calls",
         "description": ("Calls 15-50% out of the money, 14-90 days out, asking $0.50 or "
-                        "less, with open interest of 100+. Sorted by today's volume."),
+                        "less, with open interest of 100+. Sorted by open interest."),
         "params": {"type": "call", "otm_min": 15, "otm_max": 50, "dte_min": 14, "dte_max": 90,
-                   "ask_max": 0.50, "oi_min": 100, "sort": "volume", "order": "desc"},
+                   "ask_max": 0.50, "oi_min": 100, "sort": "open_interest", "order": "desc"},
     },
     "tight_spread_liquid": {
         "label": "Tight-spread liquid contracts",
-        "description": ("Spread of 2% of the mid or less, open interest of 5,000+ and "
-                        "1,000+ contracts traded today. Sorted by volume."),
-        "params": {"spread_max": 2, "oi_min": 5000, "volume_min": 1000,
-                   "sort": "volume", "order": "desc"},
+        # ⛔ OPEN INTEREST, NOT VOLUME: the log's volume column was measured EMPTY on
+        # the real 2026-09-30 file, so a volume floor here would make every contract
+        # not-computable and this preset would answer nothing, every day.
+        "description": ("Spread of 2% of the mid or less and open interest of 5,000+. "
+                        "Sorted by open interest."),
+        "params": {"spread_max": 2, "oi_min": 5000, "sort": "open_interest", "order": "desc"},
     },
 }
 
@@ -517,22 +725,39 @@ def _where(q: dict) -> tuple:
         scope_args += q["underlyings"]
     preds, args, read_cols = [], [], []
     if q.get("type"):
-        preds.append("type = ?")
-        args.append(q["type"])
-    for k, (col, op) in _RANGE.items():
+        preds.append("cp = ?")
+        args.append("C" if q["type"] == "call" else "P")
+    for k, (col, op, scale) in _RANGE.items():
         if k not in q:
             continue
-        v = q[k] / 100.0 if col == "iv" else q[k]
-        preds.append(f"{col} {op} ?")
-        args.append(v)
+        expr = f"ABS({col})" if col == "delta_m" else col
+        preds.append(f"{expr} {op} ?")
+        args.append(int(round(q[k] * scale)))
         if col not in read_cols and col in _CAUSE:
             read_cols.append(col)
     return scope, scope_args, preds, args, read_cols
 
 
-_ROW_COLS = ("contract", "underlying", "expiration", "dte", "type", "strike",
-             "underlying_price", "otm_pct", "iv", "delta", "bid", "ask", "mid",
-             "spread_pct", "last", "open_interest", "volume")
+_ROW_COLS = ("contract", "underlying", "exp", "dte", "cp", "strike_m", "otm_d", "iv_bp",
+             "delta_m", "bid_c", "ask_c", "spread_d", "oi", "vol")
+
+
+def _sc(v, k):
+    return None if v is None else v / k
+
+
+def _out_row(rec: tuple, session: str, prices: dict) -> dict:
+    r = dict(zip(_ROW_COLS, rec))
+    bid, ask, exp = _sc(r["bid_c"], 100), _sc(r["ask_c"], 100), r["exp"]
+    return {"contract": r["contract"], "underlying": r["underlying"],
+            "expiration": f"{exp // 10000:04d}-{exp // 100 % 100:02d}-{exp % 100:02d}",
+            "dte": r["dte"], "type": "call" if r["cp"] == "C" else "put",
+            "strike": r["strike_m"] / 1000, "underlying_price": prices.get(r["underlying"]),
+            "otm_pct": _sc(r["otm_d"], 10), "iv": _sc(r["iv_bp"], 10000),
+            "delta": _sc(r["delta_m"], 1000), "bid": bid, "ask": ask,
+            "mid": None if r["spread_d"] is None else round((bid + ask) / 2, 4),
+            "spread_pct": _sc(r["spread_d"], 10), "open_interest": r["oi"], "volume": r["vol"],
+            "session": session, "data_basis": DATA_BASIS}
 
 _SCREEN_CACHE: dict = {}
 _SCREEN_CACHE_MAX = 256
@@ -578,28 +803,32 @@ def screen(raw: dict, *, store: Optional[LocalStore] = None) -> dict:
                 listed.append({"ticker": rec[0], "reason": "not-computable", "detail": _CAUSE[first]})
         pw = " AND ".join(scope + preds) or "1=1"
         matched = con.execute(f"SELECT COUNT(*) FROM contracts WHERE {pw}", sargs + pargs).fetchone()[0]
-        sort = q.get("sort", "volume")
+        sort = _SORTS[q.get("sort", "open_interest")]
         order = q.get("order", "desc").upper()
         limit = q.get("limit", MAX_ROWS)
-        rows = []
-        for rec in con.execute(
-                f"SELECT {', '.join(_ROW_COLS)} FROM contracts WHERE {pw} "
-                f"ORDER BY {sort} IS NULL, {sort} {order}, contract LIMIT {int(limit)}",
-                sargs + pargs):
-            d = dict(zip(_ROW_COLS, rec))
-            d["session"] = session
-            d["data_basis"] = DATA_BASIS
-            rows.append(d)
+        recs = con.execute(
+            f"SELECT {', '.join(_ROW_COLS)} FROM contracts WHERE {pw} "
+            f"ORDER BY {sort} IS NULL, {sort} {order}, contract LIMIT {int(limit)}",
+            sargs + pargs).fetchall()
+        unds = sorted({r[1] for r in recs})
+        prices = dict(con.execute(
+            f"SELECT underlying, price FROM underlyings WHERE underlying IN ({','.join('?' * len(unds))})",
+            unds).fetchall()) if unds else {}
+        rows = [_out_row(r, session, prices) for r in recs]
         meta = dict(con.execute("SELECT k, v FROM meta").fetchall())
     finally:
         con.close()
     out = {**base, "status": "ok", "session": session, "matched": matched, "rows": rows,
            "shown": len(rows), "file_rows": int(meta.get("rows_kept", 0) or 0),
            "logged_rows": int(meta.get("rows_in", 0) or 0),
+           "volume_present": meta.get("volume_present") == "1",
            "coverage": {"evaluated": evaluated, "answered": evaluated - not_comp, "dropped": 0,
                         "not_computable": not_comp, "dropped_symbols": listed},
            "note": (f"End-of-day snapshot of {session}: these are the close-of-session "
-                    "quotes and greeks, not a live chain.")}
+                    "quotes and greeks, not a live chain."
+                    + ("" if meta.get("volume_present") == "1" else
+                       " The log carries no option volume for this session, so a volume "
+                       "filter cannot be answered."))}
     with _cache_lock:
         if len(_SCREEN_CACHE) >= _SCREEN_CACHE_MAX:
             _SCREEN_CACHE.clear()
@@ -642,27 +871,48 @@ def _missing(first: str, have: list, now) -> list:
     return [d for d in iv_history.expected_sessions(first, now) if d not in set(have)]
 
 
+def _log_has_volume(store: LocalStore, session: str) -> bool:
+    return any((r.get("volume") or "") != "" for r in _read_csv(store.volume_path(session)))
+
+
 def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int = MAX_ROWS) -> dict:
+    """Today's option volume / the underlying's own trailing average. The volume comes
+    from the options log when the log carries it, otherwise from the flow tape -- and
+    the answer names which (`volume_source`, `volume_rule`)."""
     store = store or get_store()
-    sessions = store.volume_sessions()
-    base = {"source": SOURCE, "data_basis": DATA_BASIS, "method": VOLUME_METHOD,
+    log_sessions = store.volume_sessions()
+    if log_sessions and _log_has_volume(store, log_sessions[-1]):
+        kind, sessions, path_of, rule, fallback = (
+            "options_log", log_sessions, store.volume_path, LOG_RULE, None)
+    else:
+        kind, sessions, path_of, rule = "flow_tape", store.tape_sessions(), store.tape_path, TAPE_RULE
+        fallback = ("The options log carries no option volume"
+                    + (f" (its {log_sessions[-1]} volume column is empty)" if log_sessions else "")
+                    + ", so this ranks the flow tape.")
+    base = {"source": SOURCE if kind == "options_log" else "UCT options-flow tape (flow.db)",
+            "data_basis": DATA_BASIS, "method": VOLUME_METHOD, "volume_source": kind,
+            "volume_rule": rule, "fallback_note": fallback,
             "min_sessions": VOLUME_MIN_SESSIONS, "window": VOLUME_WINDOW}
     if not sessions:
         return {**base, "status": "no_log", "session": None, "sessions_logged": 0,
                 "ranked": [], "not_ranked": [], "coverage": None, "missing_sessions": [],
                 "available_on": None,
-                "note": "No session's option volume has been derived from the log yet."}
+                "note": "No session's option volume has been derived yet."}
     latest = sessions[-1]
     prior = sessions[:-1][-VOLUME_WINDOW:]
-    today = {r["underlying"]: r for r in _read_csv(store.volume_path(latest))}
+    today = {r["underlying"]: r for r in _read_csv(path_of(latest))}
     hist: dict = {}
-    for d in prior:
-        for r in _read_csv(store.volume_path(d)):
-            hist.setdefault(r["underlying"], []).append(float(r["volume"] or 0))
+    for i, d in enumerate(prior):
+        for r in _read_csv(path_of(d)):
+            hist.setdefault(r["underlying"], {})[i] = float(r["volume"] or 0)
     ranked, not_ranked, listed = [], [], []
     for und, r in today.items():
         v = float(r["volume"] or 0)
-        h = hist.get(und, [])
+        seen = hist.get(und, {})
+        # The tape keeps every qualifying print of a session it holds, so a symbol
+        # absent from a held tape day had none: a ZERO. The log lists every
+        # underlying it walked, so absence there is NOT a zero -- it is not counted.
+        h = [seen.get(i, 0.0) for i in range(len(prior))] if kind == "flow_tape" else list(seen.values())
         n = len(h)
         row = {"underlying": und, "session": latest, "data_basis": DATA_BASIS,
                "volume": int(v), "call_volume": int(float(r["call_volume"] or 0)),
@@ -693,7 +943,7 @@ def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int =
             "coverage": {"evaluated": len(today), "answered": len(ranked), "dropped": 0,
                          "not_computable": len(not_ranked), "dropped_symbols": listed[:NOT_COMPUTABLE_LISTED]},
             "note": None if ranked else (
-                f"{len(prior)} prior session{'s' if len(prior) != 1 else ''} logged; the ratio needs "
+                f"{len(prior)} prior session{'s' if len(prior) != 1 else ''} held; the ratio needs "
                 f"{VOLUME_MIN_SESSIONS}.")}
 
 

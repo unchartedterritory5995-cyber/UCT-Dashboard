@@ -10,11 +10,17 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import gzip
+import io
 import json
 import os
 import shutil
 import sys
+import tempfile
 from zoneinfo import ZoneInfo
+
+# flow_router builds a FlowDB at IMPORT, at FLOW_DB_PATH (default /data/flow.db, which exists
+# on the dev box and is live). Pin it before anything can import the router.
+os.environ.setdefault("FLOW_DB_PATH", os.path.join(tempfile.mkdtemp(prefix="osc-flow-"), "flow.db"))
 
 import pytest
 from fastapi.testclient import TestClient
@@ -269,6 +275,152 @@ def test_a_missed_session_is_a_gap_never_filled(seed):
     _vol_day(seed, "2026-10-02", 100)                    # 10-01 not logged
     out = svc.unusual_volume(now=NOW)
     assert out["missing_sessions"] == ["2026-10-01"] and out["prior_sessions"] == 1
+
+
+def _tape_day(seed, session, rows):
+    p = os.path.join(seed.root, *svc.tape_key(session).split("/"))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with gzip.open(p, "wt", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(svc.TAPE_FIELDS)
+        for sym, vol in rows:
+            w.writerow([sym, vol, vol, 0, 1])
+
+
+def test_a_log_without_volume_ranks_the_flow_tape_and_says_so(seed):
+    # the measured 2026-09-30 shape: every contract's volume column empty
+    seed.day("2026-10-02", [c("AAA", "call", 100, "2027-06-18", vol=None)])
+    days = trading_days("2026-09-14", 11)
+    for d in days[:-1]:
+        _tape_day(seed, d, [("AAA", 1000)] + ([("ZZZ", 50)] if d == days[0] else []))
+    _tape_day(seed, days[-1], [("AAA", 3000), ("ZZZ", 500)])
+    out = svc.unusual_volume(now=NOW)
+    assert out["volume_source"] == "flow_tape" and "50+ contracts and $10K+ premium" in out["volume_rule"]
+    assert "2026-10-02 volume column is empty" in out["fallback_note"]
+    aaa = next(r for r in out["ranked"] if r["underlying"] == "AAA")
+    assert aaa["ratio"] == 3.0 and aaa["n_sessions"] == 10
+    # ZZZ traded on the tape once in ten prior sessions: the other nine are ZEROS, not gaps
+    zzz = next(r for r in out["ranked"] if r["underlying"] == "ZZZ")
+    assert zzz["n_sessions"] == 10 and zzz["average"] == 5.0 and zzz["ratio"] == 100.0
+
+
+def test_the_build_writes_absent_volume_as_absent_never_zero(seed):
+    rec = seed.day(S, [c("AAA", "call", 100, EXP_MID, vol=None)])
+    assert rec["volume_present"] is False
+    with gzip.open(seed.store.volume_path(S), "rt") as fh:
+        assert next(csv.DictReader(fh))["volume"] == ""
+    out = svc.screen({"volume_min": "1"})
+    assert out["volume_present"] is False and "carries no option volume" in out["note"]
+    assert out["coverage"]["not_computable"] == 1
+    assert out["coverage"]["dropped_symbols"][0]["detail"] == "no volume in the log"
+
+
+def test_tape_catch_up_builds_missing_days_and_refuses_a_wrong_day(tmp_path):
+    hdr = "CreatedDate,Symbol,Volume,CallPut\n"
+    bodies = {"2026-10-01": hdr + "10/1/2026,AAA,100,CALL\n10/1/2026,AAA,50,PUT\n",
+              "2026-10-02": hdr + "10/1/2026,AAA,999,CALL\n"}         # wrong day: refused
+
+    def get(path, params):
+        if path == "/api/flow/dates":
+            return 200, json.dumps({"dates": ["9/30/2026", "10/1/2026", "10/2/2026"]})
+        if path == "/api/flow/indexes-data":
+            return 200, hdr
+        return 200, bodies[params["date_from"]]
+
+    up = {}
+    keys = [svc.tape_key("2026-09-30")]                                   # already built
+    rec = svc.catch_up_tape(list_keys=lambda: keys, get=get,
+                            upload=lambda p, k, ct: up.setdefault(k, gzip.open(p, "rt").read()))
+    assert [b["session"] for b in rec["built"]] == ["2026-10-01"]
+    assert rec["failed"][0]["session"] == "2026-10-02" and "10/1/2026 row" in rec["failed"][0]["error"]
+    assert "AAA,150,100,50,2" in up[svc.tape_key("2026-10-01")]
+
+
+def test_tape_catch_up_reads_the_REAL_flow_router_with_the_service_bearer(tmp_path, monkeypatch):
+    """The production `get` shape against the real `/api/flow/{dates,data,indexes-data}`
+    over a seeded FlowDB, with the PUSH_SECRET bearer `flow_proxy.internal_read_headers`
+    sends -- so a renamed column or a changed date parameter goes red here."""
+    from fastapi import FastAPI
+    from api import flow_proxy, flow_router
+    from api.flow_db import COLUMNS, FlowDB
+
+    today = dt.datetime.now(ET).date()
+    d1, d2 = (today - dt.timedelta(days=3)).isoformat(), (today - dt.timedelta(days=2)).isoformat()
+    mdy = lambda iso: f"{int(iso[5:7])}/{int(iso[8:])}/{iso[:4]}"  # noqa: E731
+
+    def tape(rows):
+        buf = io.StringIO()
+        w = csv.DictWriter(buf, fieldnames=COLUMNS)
+        w.writeheader()
+        for i, (sym, iso, vol, cp) in enumerate(rows):
+            w.writerow({"CreatedDate": mdy(iso), "CreatedTime": f"10:{i:02d}:00", "Symbol": sym,
+                        "Type": "SWEEP", "Volume": str(vol), "Price": "1.50", "Side": "A",
+                        "CallPut": cp, "Strike": "150", "Spot": "148", "Premium": "987654",
+                        "ExpirationDate": "12/18/2026", "Color": "MAGENTA"})
+        return buf.getvalue()
+
+    fdb = FlowDB(str(tmp_path / "flow.db"))
+    fdb.insert_csv(tape([("AAA", d1, 100, "CALL"), ("AAA", d1, 60, "PUT"), ("AAA", d2, 70, "CALL"),
+                         ("BBB", d2, 55, "PUT")]), source="stocks")
+    fdb.insert_csv(tape([("SPY", d2, 500, "CALL")]), source="indexes")
+    monkeypatch.setattr(flow_router, "db", fdb)
+    monkeypatch.setenv("PUSH_SECRET", "test-push-secret")
+    fapp = FastAPI()
+    fapp.include_router(flow_router.flow_router)
+    fclient = TestClient(fapp)
+
+    def get(path, params):
+        r = fclient.get(path, params=params, headers=flow_proxy.internal_read_headers())
+        return r.status_code, r.text
+
+    up = {}
+    rec = svc.catch_up_tape(list_keys=lambda: [], get=get,
+                            upload=lambda p, k, ct: up.setdefault(k, gzip.open(p, "rt").read()))
+    assert rec["failed"] == [] and sorted(b["session"] for b in rec["built"]) == [d1, d2]
+    assert "AAA,160,100,60,2" in up[svc.tape_key(d1)]
+    day2 = up[svc.tape_key(d2)]
+    assert "AAA,70,70,0,1" in day2 and "BBB,55,0,55,1" in day2 and "SPY,500,500,0,1" in day2
+    # and without the bearer the tape refuses -- named, never an empty day
+    monkeypatch.delenv("PUSH_SECRET")
+    with pytest.raises(RuntimeError, match="dates"):
+        svc.catch_up_tape(list_keys=lambda: [], get=lambda p, q: (fclient.get(p, params=q).status_code, ""),
+                          upload=lambda *a: None)
+
+
+def test_the_r2_mirror_fetches_small_files_and_keeps_ONE_screen_file(tmp_path, monkeypatch):
+    src = Seed(tmp_path / "r2")
+    src.day("2026-10-01", universe())
+    src.day("2026-10-02", universe())
+    src.summary("2026-10-02", [srow("AAA", 0.3)])
+    _tape_day(src, "2026-10-02", [("AAA", 10)])
+    objects = {}
+    for dirpath, _, files in os.walk(src.root):
+        for f in files:
+            p = os.path.join(dirpath, f)
+            objects[os.path.relpath(p, src.root).replace(os.sep, "/")] = p
+    downloads = []
+
+    class Client:
+        def get_paginator(self, _):
+            class P:
+                def paginate(self, **kw):
+                    return [{"Contents": [{"Key": k, "ETag": "e"} for k in objects
+                                          if k.startswith(kw["Prefix"])]}]
+            return P()
+
+        def download_file(self, bucket, key, path):
+            downloads.append(key)
+            shutil.copy(objects[key], path)
+
+    store = svc.R2Store(str(tmp_path / "cache"))
+    monkeypatch.setattr(store, "_client", lambda: (Client(), "b"))
+    assert store.screen_sessions() == ["2026-10-01", "2026-10-02"]
+    assert not any(k.endswith("screen.sqlite.gz") for k in downloads)        # not until asked
+    assert store.tape_sessions() == ["2026-10-02"] and store.volume_sessions() == ["2026-10-01", "2026-10-02"]
+    store.screen_db("2026-10-01")
+    assert store.screen_db("2026-10-02") is not None
+    on_disk = sorted(os.listdir(tmp_path / "cache" / "options_log" / "2026"))
+    assert not any(n.startswith("2026-10-01.screen") for n in on_disk), on_disk
 
 
 # ── COV-03b: IV percentile ──────────────────────────────────────────────────────
