@@ -433,16 +433,22 @@ def test_MIRROR_thirty_broker_trades_in_thirty_out_and_none_altered(conn, pg):
 
 
 def test_STABLE_KEYS_a_broker_purge_and_reinsert_keeps_the_frozen_plan(conn, pg):
-    nid = add_note(conn, body=plan_body(entry=100))
+    """The member's Re-link (to B) must survive the purge. A matcher that re-ran on the fresh id
+    would find TWO window plans (A and B) and answer needs_pick, so this cannot pass by
+    re-deriving the same answer."""
+    add_note(conn, body=plan_body(entry=100), title="A")
     tid = add_trade(conn, source="broker", external_id="fp-123")
-    pg.grade_payload(conn, U, trade_row(conn, tid))
-    edit_note(conn, nid, plan_body(entry=500, stop=480), "2026-09-21T12:00:00+00:00")
+    first = pg.grade_payload(conn, U, trade_row(conn, tid))
+    b = add_note(conn, body=plan_body(entry=104, stop=99), title="B", created="2026-09-06T12:00:00+00:00")
+    pg.relink(conn, U, trade_row(conn, tid), note_id=b)
     conn.execute("DELETE FROM j2_trades WHERE user_id = ? AND source = 'broker'", (U,))   # _purge_imported
     conn.commit()
     new_id = add_trade(conn, source="broker", external_id="fp-123")
     assert new_id != tid
     p = pg.grade_payload(conn, U, trade_row(conn, new_id))
-    assert p["tradeRef"] == "ext:fp-123" and p["plan"]["entry"] == 100.0
+    assert p["tradeRef"] == "ext:fp-123" and p["status"] == "planned"
+    assert p["plan"]["entry"] == 104.0 and p["plan"]["noteId"] == b and p["plan"]["relinkCount"] == 1
+    assert first["plan"]["entry"] == 100.0
 
 
 def test_another_members_trade_is_not_visible(conn, pg, client, monkeypatch):
