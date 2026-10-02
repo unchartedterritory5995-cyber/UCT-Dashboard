@@ -9015,6 +9015,8 @@ from api.routers import address_space as address_space_router  # noqa: E402  (TE
 app.include_router(address_space_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
+from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01, dark)
+app.include_router(seasonality_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)

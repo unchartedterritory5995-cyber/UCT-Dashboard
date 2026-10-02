@@ -203,6 +203,16 @@ def _options_chain_enabled() -> bool:
         return False
 
 
+def _seasonality_enabled() -> bool:
+    """COV-01: the Research Seasonality tab's switch -- the SAME reader the route's dark gate
+    uses. Never raises."""
+    try:
+        from api.routers import seasonality
+        return bool(seasonality.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _address_space_enabled() -> bool:
     """TERM-038: the command palette's Saved rows -- the SAME reader the address
     routes' dark gate uses. Never raises."""
@@ -476,6 +486,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         "ticker_history_enabled": _ticker_history_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
+        "seasonality_enabled": _seasonality_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten

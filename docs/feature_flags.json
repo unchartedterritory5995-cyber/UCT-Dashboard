@@ -1300,6 +1300,12 @@
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     },
+    "SEASONALITY_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-01",
+      "where": [],
+      "note": "COV-01 (roadmap RM-L11): the Research > Seasonality tab and GET /api/research/seasonality/{sym}: monthly and weekday return distributions from the UCT daily bar store, each bucket with its n, months seen fewer than 5 times marked thin, partial first/last months excluded, the covered window stated. No vendor or licence question (the roadmap's own note). ENABLEMENT GATE, default OFF, read per request on the auth payload (seasonality_enabled); unset = the route 404s before identity and the tab is absent. Arm: railway variables --service web --set SEASONALITY_ENABLED=1 (owner). Rollback = set it to 0."
+    },
     "OPTIONS_CHAIN_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",

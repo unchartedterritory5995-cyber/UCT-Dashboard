@@ -8,6 +8,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/address/resolve",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/address/search",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/adjustment-basis/{ticker}",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/ai-search/briefings",
       "rate_limit_family": "ai",
       "tier": "paid"
@@ -2228,6 +2246,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/analyst-revisions/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/company-news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2301,6 +2325,12 @@
     {
       "method": "GET",
       "path": "/api/research/ratings/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/seasonality/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -3139,9 +3169,5 @@
       "tier": "member"
     }
   ],
-  "excluded_no_rate_family": [
-    "/api/address/resolve",
-    "/api/address/search",
-    "/api/adjustment-basis/{ticker}"
-  ]
+  "excluded_no_rate_family": []
 }
