@@ -778,6 +778,7 @@ export const NAMED_SURFACES = [
   'app/src/components/mobile/TickerHubSheet.jsx',
   'app/src/components/tiles/CatalystTable.jsx',
   'app/src/components/video/VideoDockSlot.jsx',
+  'app/src/components/voice/VisionAttachButton.jsx',
   'app/src/components/voice/VoiceDocumentsPanel.jsx',
   'app/src/components/voice/VoiceMemoryPanel.jsx',
   'app/src/floor2/ChartAttach.jsx',
@@ -852,7 +853,7 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 // in the commit that earned it. Never raise it — name the control instead.
 //
 //   2026-10-01  140  (start of the lane/term-067-batch run)
-export const UNNAMED_BASELINE = 100
+export const UNNAMED_BASELINE = 99
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)
