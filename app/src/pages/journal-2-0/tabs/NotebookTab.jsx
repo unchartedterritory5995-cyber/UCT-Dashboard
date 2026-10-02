@@ -20,6 +20,7 @@ import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
+import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
 import { createVoiceNote, voiceNotesEnabled } from '../lib/voiceNote'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../lib/tradeCanvasCreate'
 import useAppFocus from '../../../hooks/useAppFocus'
@@ -1452,7 +1453,7 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1465,6 +1466,9 @@ export default function NotebookTab() {
       const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
         ? folderId : undefined
       const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
+      // Wave 12 (12B-2): a template's definitions start empty, and the Properties
+      // section hides an empty property -- so the new note shows them (this tab only).
+      if (revealPropertyIds?.length) rememberTemplateReveal(created?.id, revealPropertyIds)
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
@@ -1507,12 +1511,28 @@ export default function NotebookTab() {
     } catch {
       ctx = { ticker: ticker || null }
     }
+    // Wave 12 (lane 12B-2): a template that declares property DEFINITIONS (the
+    // Position Tracker) has them created or reused first, then the note is made.
+    // Best-effort by design: with formulas off the formulas are left out before any
+    // request, a definition that fails is skipped, and nothing here can stop the
+    // note -- which is ONE create carrying no property values, so it is never
+    // half-applied (lib/templatePropertyDefs.js).
+    let revealPropertyIds
+    if (Array.isArray(tpl.propertyDefinitions) && tpl.propertyDefinitions.length) {
+      try {
+        revealPropertyIds = (await ensureTemplatePropertyDefs(tpl)).revealIds
+      } catch (e) {
+        console.warn('[notebook] template properties were not set up; the note is still made', e)
+      }
+      refreshPropertyDefs()
+    }
     await createNote({
       title: tpl.defaultTitle(ctx),
       bodyJson: tpl.build(ctx),
       tags: tpl.tags,
       ticker: ctx.ticker,
       properties: tpl.properties,
+      revealPropertyIds,
     })
   }
 

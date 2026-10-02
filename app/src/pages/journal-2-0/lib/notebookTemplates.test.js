@@ -39,6 +39,7 @@ const KEYS = [
   'undercut-rally-plan',
   'parabolic-short-plan',
   'position-sizing-worksheet',
+  'position-tracker',
   'setup-playbook-entry',
   'options-trade-plan',
   'risk-checklist',

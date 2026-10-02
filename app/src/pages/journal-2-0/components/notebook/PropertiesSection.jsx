@@ -10,6 +10,7 @@ import RollupEditor, { rollupReady } from './RollupEditor'
 import useSWR from 'swr'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { checkFormula, displayExpression, formulaInputIds } from '../../lib/formula/computed'
+import { templateRevealFor } from '../../lib/templatePropertyDefs'
 import {
   AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
   autofillCandidates, requestAutofill,
@@ -92,7 +93,9 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   // The computed property being edited in place: { id, type, text | config, error }.
   const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [manuallyShown, setManuallyShown] = useState(() => new Set())
+  // Wave 12 (12B-2): a note just made from a template that declares property
+  // definitions (the Position Tracker) shows them while still empty -- this tab only.
+  const [manuallyShown, setManuallyShown] = useState(() => new Set(templateRevealFor(noteId)))
   const [newPropOpen, setNewPropOpen] = useState(false)
   const [newPropName, setNewPropName] = useState('')
   const [newPropType, setNewPropType] = useState('text')
