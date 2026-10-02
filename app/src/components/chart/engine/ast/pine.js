@@ -13422,6 +13422,16 @@ function engineClockKeyFor(name) {
   return typeof key === 'string' && !key.startsWith('_') && own(clock, key) ? key : null
 }
 
+/** ⭐ RT2 — the closed table's clock leaf a Pine spelling reaches, or `null`:
+ *  a `barstate.*` column (`BUILTIN_BARSTATE_SERIES`) or a bound clock name
+ *  (`engineClockKeyFor`). Exported for the runtime document's repaint table
+ *  (`engine/runtime/runtimeRepaint.json`), whose rail binds every Pine spelling
+ *  it lists to THIS answer, so the two cannot name different leaves. */
+export function pineClockKeyOf(name) {
+  if (own(BUILTIN_BARSTATE_SERIES, name)) return BUILTIN_BARSTATE_SERIES[name]
+  return engineClockKeyFor(name)
+}
+
 /** ⭐ A CLOCK NAME IS A `series` LEAF, exactly as a bar field is —
  *  `parseFormula('dayofweek > 3')` produces `{type:'series', name:'dayofweek'}`,
  *  and `interpret` seeds the clock columns into the same scope as `close`. So

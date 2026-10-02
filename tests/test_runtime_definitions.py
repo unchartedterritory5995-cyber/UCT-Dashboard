@@ -8,12 +8,13 @@ Rails for `api/services/runtime_definitions.py` and its wiring:
   touches a STORED one (memory rule: a kill switch is never a delete);
 * nothing downstream that needs a tree — the nightly sweep, the relint pass,
   the alert lane — ever admits a runtime row;
-* the server's repaint test is the client door's, byte for byte (read off the JS).
+* RT2: the server STATES the repaint class (``runtime_repaint``, held to the
+  client door's answer per corpus script by ``tests/test_runtime_repaint.py``) and
+  refuses a document whose declared class or forward window disagrees with it.
 """
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -107,8 +108,15 @@ def test_ON_a_runtime_document_is_stored_under_a_runtime_handle(store, monkeypat
     (lambda d: d["compute"].update(outputs={"value": -1}), r"integer >= 0"),
     (lambda d: d["compute"].update(ast={"type": "num", "value": 0}), r"compute\.ast: only an \"ast\""),
     (lambda d: d["compute"].update(outputs={"nope": 0}), r"names no plot"),
-    (lambda d: d["compute"].update(source=SOURCE + 'x = request.security("SPY", "W", close)\n'),
-     r"reads another timeframe or the live bar"),
+    (lambda d: d["compute"].update(source=SOURCE + 'x = "never closed\n'),
+     r"could not be read to state its repaint behaviour"),
+    # ⭐ RT2 — a declared class the source does not measure, in BOTH directions
+    (lambda d: d["meta"].update(repaint="repaints"),
+     r"meta\.repaint — declared 'repaints' but this script measures 'non-repainting'"),
+    (lambda d: d["compute"].update(source=SOURCE + "plot(barstate.islast ? close : na)\n"),
+     r"meta\.repaint — declared 'non-repainting' but this script measures 'preview-repaints' "
+     r"\(it reads barstate\.islast\)"),
+    (lambda d: d["plots"][0].update(forward=1), r"plots\.value\.forward — declared 1 but this script reads 0"),
 ])
 def test_a_malformed_or_forged_runtime_document_is_refused_by_name(store, monkeypatch, mutate, message):
     monkeypatch.setenv(rt.SAVE_ENV, "1")
@@ -205,10 +213,27 @@ def test_an_alert_cannot_bind_a_runtime_row(store, monkeypatch):
         alert_user_series._gate_lane(row)
 
 
-# ─── one repaint test, two languages ─────────────────────────────────────────
+# ─── one repaint class, two languages (RT2) ──────────────────────────────────
 
-def test_the_server_repaint_test_is_the_client_doors_byte_for_byte():
+def test_a_repainting_script_is_STORED_with_its_class_not_refused(store, monkeypatch):
+    """RT1 refused every source mentioning the live bar; RT2 states its class.
+    A script reading `barstate.islast` is stored as `preview-repaints`, one reading
+    `last_bar_index` as `repaints` — re-derived from the source, never read off it."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(SOURCE + "plot(barstate.islast ? close : na)\n")
+    d["meta"]["repaint"] = "preview-repaints"
+    d["plots"][0]["forward"] = 1
+    assert svc.save(USER, DEF_ID, d)["repaint"] == {"value": "preview-repaints"}
+    d2 = runtime_defn(SOURCE + "plot(last_bar_index > 0 ? close : na)\n", def_id="u_0000000000a2")
+    d2["meta"]["repaint"] = "repaints"
+    d2["plots"][0]["forward"] = "unbounded"
+    assert svc.save(USER, "u_0000000000a2", d2)["repaint"] == {"value": "repaints"}
+
+
+def test_the_old_regex_gate_is_gone_on_both_sides():
+    """The client door no longer carries `RUNTIME_REPAINT_RISK` and the server no
+    longer carries `REPAINT_RISK`: one classifier per language, over one table."""
     js = MEMBER_PANE_JS.read_text(encoding="utf-8")
-    m = re.search(r"export const RUNTIME_REPAINT_RISK = /(.+)/\n", js)
-    assert m, "RUNTIME_REPAINT_RISK not found in memberPaneDefinition.js"
-    assert m.group(1) == rt.REPAINT_RISK.pattern
+    assert "export const RUNTIME_REPAINT_RISK" not in js
+    assert "runtimeRepaintOf(source)" in js
+    assert not hasattr(rt, "REPAINT_RISK")

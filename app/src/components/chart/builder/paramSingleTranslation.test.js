@@ -43,13 +43,20 @@ const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
 // asserts the refusal by guard, so the day it translates again this file says so
 // instead of quietly covering less than it reads as covering — which is exactly what
 // the first describe would have done (0 outputs === 0 outputs passes byte-identity).
+//
+// ⭐ AND IT CAME BACK ON 2026-10-02 (wave 15, H1): the ratchet is admitted and decided by
+// the RANGE window, so the script translates again and returns here, as the test below
+// asked it to the day it went red. Graded: the same shape is TradingView's on
+// `pivot-point-supertrend` (`vendorHarness.h1Ratchet`), and the host and runtime lanes
+// agree on all six of this script's rows on RDDT's 631 listing bars.
 const COMPLEX = [
   'mid_engagement__22-rsi-levels-regime-map',
   'high_engagement__12-cm-ultimate-rsi-mtf-chrismoody',
   'mid_engagement__14-master-line-lite',
+  'high_engagement__03-supertrend-kivancozbilgic',
 ]
 
-const REFUSED_BY_RF = 'high_engagement__03-supertrend-kivancozbilgic'
+const BACK_FROM_RF = 'high_engagement__03-supertrend-kivancozbilgic'
 
 const read = (n) => fs.readFileSync(path.join(OOS, `${n}.pine`), 'utf8')
 const kept = (t) => (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden)
@@ -135,34 +142,23 @@ describe('C2D.1 — every locator resolves against the tree that is SAVED', () =
   }
 })
 
-describe('⚰ the specimen R-F removed, asserted rather than forgotten', () => {
-  it(`${REFUSED_BY_RF} refuses at pine:state and therefore places nothing`, () => {
-    // ⛔ THE POINT OF THIS TEST IS THE DAY IT GOES RED. If the fold is ever restored
-    // — or narrowed to a contracting coefficient, which R-F's own note says is the one
-    // line it would take — this script translates again and belongs back in `COMPLEX`,
-    // where its ten-plot Multiplier is the best locator-spread case the set holds.
-    const src = read(REFUSED_BY_RF)
-    const guards = [...new Set((translatePine(src).refusals || []).map((r) => r.guard))]
-    // ⚰ `pine:hidden-only` JOINED THIS LIST ON 2026-09-12 (ruling 1.2). R-F left the
-    // script one surviving column — the author's untitled `ohlc4` fill edge — and the
-    // door was OFFERING it under the script's title. It refuses now and says why, so
-    // the specimen carries both sentences: what failed, and why what survived is not
-    // a column.
-    expect(guards.sort()).toEqual(['pine:hidden-only', 'pine:state'])
+describe('⭐ the specimen R-F removed is back (wave 15, H1)', () => {
+  it(`${BACK_FROM_RF} translates again: no pine:state, and its Multiplier reaches several plots`, () => {
+    // ⚰ This was `refuses at pine:state and therefore places nothing` (R-F,
+    // 2026-09-12). Its own note said the day it went red the script belonged back in
+    // COMPLEX; it is there now, and this pins WHY it is.
+    const src = read(BACK_FROM_RF)
+    const guards = new Set((translatePine(src).refusals || []).map((r) => r.guard))
+    expect(guards.has('pine:state')).toBe(false)
     const t = memberInputTranslation(translatePine, src, { paramManifest: true })
-    const outs = kept(t)
-    expect(outs.length).toBeLessThan(2)
-    // ⚠ THE PARAMETERS ARE STILL MINTED — three of them — because minting reads the
-    // script's `input.*` calls, which a refusal does not erase. What has gone is every
-    // PLACE to put them: with no saved tree there are no locators, so the manifest the
-    // door would carry is empty. Asserted on the manifest rather than on `inputParams`,
-    // because that is the artifact the save door sends.
-    expect((t.inputParams || []).length).toBeGreaterThan(0)
+    const outs = kept(t).slice(0, 12)
+    expect(outs.length).toBeGreaterThan(2)
     const manifest = manifestFromPlacements(t.inputParams || [], outs.map((o, i) => ({
       treeIndex: i === 0 ? 'value' : `out${i + 1}`,
       locators: paramLocatorsIn(t.inputParams || [], o.ast),
     })))
-    expect(Object.keys(manifest)).toEqual([])
+    const spread = Object.values(manifest).map((e) => new Set(e.locators.map((l) => l.treeIndex)).size)
+    expect(Math.max(...spread), 'one Pine input spans several plots').toBeGreaterThan(2)
   })
 })
 

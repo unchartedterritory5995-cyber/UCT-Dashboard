@@ -24,10 +24,10 @@ change either):
   read (memory rule ``feedback_kill_switch_never_a_delete``).
 
 ⛔ THE SERVER NEVER TRUSTS THE CLIENT'S IDENTITY OR VERDICT. The source hash is
-recomputed here from ``compute.source``; the repaint stamp is re-derived here
-from the same test the client door applies (`REPAINT_RISK`, mirrored from
-`memberPaneDefinition.js::RUNTIME_REPAINT_RISK` — the parity rail reads that
-literal off the JS file).
+recomputed here from ``compute.source``; the repaint class is re-derived here
+by ``runtime_repaint.runtime_repaint_of`` — the mirror of the client door's
+``engine/runtime/runtimeRepaint.js``, over the same rule table, held to one
+answer per corpus script by ``tests/test_runtime_repaint.py`` (RT2).
 """
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ import json
 import os
 import re
 from typing import Any, Optional
+
+from api.services import runtime_repaint
 
 #: The compute kind this module owns.
 RUNTIME_KIND = "runtime"
@@ -49,11 +51,10 @@ KILL_ENV = "PINE_RUNTIME_KILL_LIST"
 #: glance that this is not a tree.
 HASH_PREFIX = "runtime:sha256:"
 
-#: ⛔ MIRRORED FROM `memberPaneDefinition.js::RUNTIME_REPAINT_RISK`, byte for byte
-#: in the pattern; `tests/test_runtime_definitions.py` reads the JS literal and
-#: fails if the two differ.
-REPAINT_RISK = re.compile(
-    r"\b(request\.|security\s*\(|barstate\.|timenow\b|varip\b|lookahead\b|calc_on_every_tick)")
+#: ⚰️ RT2 — `REPAINT_RISK` (a regex mirrored from the client door) stood here
+#: and REFUSED every source that mentioned another timeframe or the live bar.
+#: The class is now STATED by `runtime_repaint.runtime_repaint_of` and checked
+#: against what the document declares (`validate`).
 
 #: Keys only an `ast` definition's compute block may carry.
 _AST_ONLY_KEYS = ("ast", "trees", "treesHash", "scanPlot", "sources", "graph",
@@ -120,12 +121,12 @@ def validate(definition: dict) -> None:
     if not isinstance(source, str) or not source.strip():
         raise ValueError('compute.source: a "runtime" definition carries the script it runs — '
                          "required non-empty string")
-    if REPAINT_RISK.search(source):
+    repaint = runtime_repaint.runtime_repaint_of(source)
+    if not repaint["ok"]:
         # ⛔ The client door never mints one of these (it declines the route), so
         # a document that arrives with one was not minted by it.
-        raise ValueError("compute.source: this script reads another timeframe or the live bar, "
-                         "so a runtime document cannot state its repaint behaviour and is not "
-                         "accepted")
+        raise ValueError(f"compute.source: {repaint['why']}, so a runtime document cannot state "
+                         "its repaint behaviour and is not accepted")
     outputs = compute.get("outputs")
     if not isinstance(outputs, dict) or not outputs:
         raise ValueError('compute.outputs: a "runtime" definition maps each plot key to a '
@@ -147,6 +148,20 @@ def validate(definition: dict) -> None:
     missing = [k for k in outputs if k not in plot_keys]
     if missing:
         raise ValueError(f"compute.outputs: {missing!r} names no plot of this document")
+    # ⭐ RT2 — WHAT THE DOCUMENT CLAIMS IS WHAT THE SERVER MEASURES, in both
+    # directions (the `ast` lane's rule: under-claiming is as false as over-
+    # claiming). The badge (`meta.repaint`) and every drawn row's `forward`
+    # window must equal the class re-derived from the source.
+    meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    declared = meta.get("repaint")
+    if declared is not None and declared != repaint["mode"]:
+        raise ValueError(f"meta.repaint — declared {declared!r} but this script measures "
+                         f"{repaint['mode']!r} (it reads "
+                         f"{', '.join(r['name'] for r in repaint['reads']) or 'nothing past its own bar'})")
+    for p in plots:
+        if isinstance(p, dict) and p.get("key") in outputs and "forward" in p                 and p["forward"] != repaint["forward"]:
+            raise ValueError(f"plots.{p['key']}.forward — declared {p['forward']!r} but this script "
+                             f"reads {repaint['forward']!r} bars ahead")
 
 
 def handle(definition: dict) -> str:
@@ -157,10 +172,10 @@ def handle(definition: dict) -> str:
 def repaint_stamp(definition: dict) -> dict:
     """`{plotKey: mode}` — the same shape `lint_verdict` stores for a tree.
 
-    `validate` has already refused a source `REPAINT_RISK` matches, so what is
-    left is computed from closed bars alone: `non-repainting`, the verdict the
-    client door states — re-derived here, never read off the document."""
-    return {k: "non-repainting" for k in definition["compute"]["outputs"]}
+    RT2: the class re-derived here from the source (`runtime_repaint`), the one
+    the client door states — never read off the document."""
+    mode = runtime_repaint.runtime_repaint_of(definition["compute"]["source"])["mode"]
+    return {k: mode for k in definition["compute"]["outputs"]}
 
 
 def stamp_served(row: dict) -> dict:

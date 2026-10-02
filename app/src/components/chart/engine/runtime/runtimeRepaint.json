@@ -1,0 +1,58 @@
+{
+  "_": "RT2 (2026-10-02) - THE RUNTIME DOCUMENT'S REPAINT CLASS, ONE TABLE FOR BOTH LANGUAGES. The per-bar runtime lane runs a member's Pine bar by bar over CLOSED-OR-FORMING bars it is handed, so a value it writes at bar i depends on bars after i only through what the run is HANDED about those bars: a clock leaf computed from the fetch's right edge, the wall clock, another symbol's or timeframe's bars, per-tick state, or the viewer. This table names those reads; every other read is the run's own per-bar computation and reaches no bar after its own. Read by `runtimeRepaint.js` (the member door) and `api/services/runtime_repaint.py` (the store's save door); a corpus parity rail holds the two to one answer per script. The vocabulary and the reach -> class step are the HOST linter's (`ast/lint.js::modeFromReach`, `ast_lint.mode_from_reach`); nothing here names a class.",
+  "_reach": "A reach is how many bars AFTER its own a value at bar i depends on: a whole number >= 0, or \"unbounded\" (no bar after which the value is final). `ast/closedTable.json` declares the same thing per function and per clock leaf; this file never restates one of those declarations.",
+  "clockReads": {
+    "_": "Pine spellings that reach a clock leaf of `closedTable.json::clock`, and the leaf. The reach of each is the HOST LINTER's answer for that leaf (`astReach({type:'series', name: <leaf>})`), joined with `clockEdge` below. Bound to `pine.js` (`BUILTIN_BARSTATE_SERIES`, `pineClockKeyOf`) by `runtimeRepaint.test.js`, so a spelling the host lane resolves differently is red.",
+    "barstate.isfirst": "isfirst",
+    "barstate.islast": "islast",
+    "barstate.isrealtime": "isrealtime",
+    "barstate.isconfirmed": "isconfirmed",
+    "barstate.ishistory": "ishistory",
+    "barstate.islastconfirmedhistory": "islastconfirmedhistory",
+    "bar_index": "barindex",
+    "last_bar_index": "lastbarindex",
+    "last_bar_time": "lastbartime",
+    "timenow": "lastbartime",
+    "time": "time",
+    "time_close": "timeclose",
+    "year": "year",
+    "month": "month",
+    "dayofmonth": "dayofmonth",
+    "dayofweek": "dayofweek",
+    "hour": "hour",
+    "minute": "minute"
+  },
+  "clockEdge": {
+    "_": "FINDING, NOT A RESTATEMENT: the clock leaves whose value on a CLOSED bar moves when a LATER bar arrives or closes - the fetch's right edge, broadcast to every bar. `closedTable.json::clock` declares each with `lookback: 0` and no `forward`, so the host linter answers reach 0 for them; by the linter's own one-sentence rule (a value repaints iff it depends on a bar after its own) that is not true of these, and `runtimeRepaintEdge.test.js` proves it by MOVING the fetch (`indicators.js::computeClock` over N bars against N+1 and N+2, and the newest bar forming against closed): exactly these leaves move on a closed bar. Kept here, for the runtime document only, because changing the shared table moves every host badge and the alert lane's repaint gate - that decision is the integrator's (RT2 section of the triage doc). The day the shared table declares a `forward` for one of these, the host answer joins it and this entry becomes redundant, never contradictory.",
+    "islast": 1,
+    "islastconfirmedhistory": 1,
+    "lastbarindex": "unbounded",
+    "lastbartime": "unbounded",
+    "lastbaryear": "unbounded",
+    "lastbarmonth": "unbounded",
+    "lastbardayofmonth": "unbounded",
+    "lastbarhour": "unbounded",
+    "lastbarminute": "unbounded"
+  },
+  "reads": {
+    "_": "Reads the host linter does not classify (it refuses them or has no node for them), each with its reach and the reason. Conservative: a read whose dependence on later bars cannot be bounded is \"unbounded\".",
+    "varip": ["unbounded", "`varip` keeps state across the ticks of a forming bar, so a bar's value depends on how many times it was run"],
+    "barstate.isnew": ["unbounded", "`barstate.isnew` is a fact about how many times the script ran on a bar, not about the bar"],
+    "chart.left_visible_bar_time": ["unbounded", "the chart's visible range is the viewer's, and moves with every scroll"],
+    "chart.right_visible_bar_time": ["unbounded", "the chart's visible range is the viewer's, and moves with every scroll"],
+    "barmerge.lookahead_on": ["unbounded", "a request with look-ahead on reads the period a bar sits inside, which has not finished when the bar is drawn"],
+    "lookahead_on": ["unbounded", "a request with look-ahead on reads the period a bar sits inside, which has not finished when the bar is drawn"]
+  },
+  "namedFlags": {
+    "_": "A named argument whose value decides whether a script reads ahead or per tick. Any value other than the listed safe one is \"unbounded\".",
+    "lookahead": ["barmerge.lookahead_off"],
+    "calc_on_every_tick": ["false"]
+  },
+  "requests": {
+    "_": "A data request. The request of THIS chart at THIS chart's period is the expression itself (`pineRuntimeFrontend.js` folds it; `pine.js::Resolver.requestTargetOf` decides it) and reads no other bars; its canonical spelling is matched here. Every other request reads bars this pane does not hold and whose alignment on a forming period is not measured, so it is \"unbounded\" - and the member door also declines it by name (`runtime:request`, from the lowered program).",
+    "calls": ["request.security", "security"],
+    "prefix": "request.",
+    "identitySymbol": ["syminfo.tickerid"],
+    "identityTimeframe": ["timeframe.period", ""]
+  }
+}
