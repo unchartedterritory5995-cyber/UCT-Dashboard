@@ -158,6 +158,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 54 | C44 a measured sweep on the wave-10 tree and ONE verdict change (§ C44). **Sweep:** the 47 and the committed harness dir re-graded at `e4e24524ef` and at wave 9 (`46f54d80b5`), every entry that moved named; each of the 22 non-MATCH captures traced to its first wall with code@line and classed (buildable / capture-pending / budget / dark flag / correct end state / data / grammar); buildable walls ranked; the owed captures in one table; the member-door and translation censuses re-run. **Verdict:** object COLOUR joins the harness verdict (integrator ruling on C37's question) — `compare.mjs::objectColourRows`, theme-relative slots agree, an object NEITHER side draws (an `na` coordinate on both) is counted and not graded, fail-closed on an unknown state; every verdict also carries `verdictWithoutColour`, so both numbers come from one run. Found on the way: the pairing never paired an object at an `na` price (`NaN` here, `null` in the capture), so 504 + 51 + 48 objects had no colour read; fixed (`objectColours.js::isNa`). No engine semantics | `122521b211` | 30 / 47 without colour, as every row above was taken → **29 / 47 with colour** | 234 / 266 (count and text, unchanged); colour families 72 / 73 | wave 9 → wave 10 moved no graded verdict on the 47 (trend-duration line 0 → 1, labels 26 → 27; ema-ribbon cells 36 → 37). Colour moves ONE: `heat-map-seasons` (one cell fill, a variable named `color`). `multi-timeframe-supply-demand-zones` holds 8 boxes in the wrong colour that neither platform draws: counted (16 undrawn slots differ), not a verdict. Overall 27 → 26; harness dir 66 → 65 objects, 48 → 47 overall. 29 mutations, each red alone |
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
+| 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4152,3 +4153,421 @@ the tree now (`d72ced8037`); a tree that throws keeps its own reason.
 6. Many-run serving (above) is expressible with `ta.valuewhen` and was left out.
 7. The non-`var` drawing list (above) is live and wrong for any pasted script that caps such a list; refuse
    it by name (`coll:not-var`) until S03 / S04 are captured, or model it as cleared at its declaration.
+
+## C46 — a parameter id is the input call's place in the source, not its turn in the walk (2026-10-01, step 56)
+
+Branch `pine/c46-param-id-stability`, base `e4e24524ef` (wave 10). A member's saved indicator addresses its
+adjustable inputs by `__uct_param_N`. `N` was a counter, and what it counted depended on what the translator
+could fold, so seven lanes stopped at "that would move a saved id" (C9, C10, C24, C31, C33, C38, C41).
+`N` is now read off the script's token stream before a statement is walked.
+
+### 1. How an id was assigned at base (it was not written down in one place)
+
+| | at base `e4e24524ef` |
+|---|---|
+| mint site | ONE: `pine.js::Resolver.resolveInput` → `mintEntry`, reached from any resolve that meets an `input(…)` / `input.*(…)` call node. Two call points inside it: the folded-literal path, and the declared path for a name listed in `mintDeclared` |
+| mintable when | the translation asked for a manifest (`paramManifest: true`); the call is the WHOLE right-hand side of a binding (`stampInputName` → `boundName`); its kind is `input` / `int` / `float` / `bool`; its default folds to a finite number |
+| the number | `paramMint.counter`: one counter per `translatePine` call, shared by every output's Resolver. `+1` the FIRST time an input is resolved; later resolves reuse the entry by the call node's object identity |
+| ordering rule | so an id is the order of FIRST RESOLUTION: outputs in source order (an output that ends refused still mints everything it reached before refusing), and inside an output the resolver's own order — operands left to right, a comparison's operands through the C24 probe first |
+| it also depends on the DOOR | both member doors translate through `builderInputs.memberInputTranslation`, which DECLARES every input a formula can carry as an identifier; a declared input does not mint (unless `mintDeclared` names it). Only what must stay a literal (a window length, a plot offset) mints. Same script, different set, different numbers |
+| "withheld mint" | a pass that resolves with `paramMint = null` (or a colour rule carrying `withholdMint`), so reaching an input creates no id. Two different reasons used one mechanism: **(i)** the input must not become a member control — the closing pass over unread bindings (R13), presentation folds (R36), `runtime.error` conditions (C43), the object pass; **(ii)** only so the counter would not advance — C33's `tf` parameter kept off the plot lane, C37's "a rule carried for the first time mints nothing", C10's dead-arm rescue confined to the object pass, C9's pre-check reverted, C24 keeping the first probe un-skipped |
+
+**The pinned lane is not a lane a member saves from.** `docs/pine/param-ids.json` (`paramIds.test.js`) pins
+`translatePine(src, {strict, paramManifest})`. PineBox and the member pane both go through
+`memberInputTranslation`. Measured at base over 328 scripts (266 corpus, 4 member fixtures, 58 `pine_oos`; the
+29 licence-held `pine_oos` sources are not in the checkout and were read from copies on this machine verified
+against `MANIFEST.json` — 14 by `sha256_source`, 13 by `sha256_normalized`, 2 re-fetched from the public script
+page and verified the same way; nothing licence-held is committed), each minted input keyed by its call's
+position:
+
+| lane | scripts that mint | scripts where an input holds a DIFFERENT id than in the pinned lane | ids |
+|---|---|---|---|
+| plain strict (`param-ids.json`) | 183 | — | — |
+| plain screen (`{paramManifest}`) | 180 | 6 | 32 of 794 |
+| member pane (`memberPaneDefinition`) = PineBox strict (identical on all 328) | 174 | 37 | 133 of 634 |
+| PineBox screen | 173 | 40 | 132 of 631 |
+
+The member-pane door builds 56 of the 328; 41 carry a manifest, 98 ids. **35 of those 98 saved ids (14
+documents) address an input that holds a different id (21) or no id (14) in `param-ids.json`.** And three
+licence-held scripts had already drifted in the pinned lane itself, unseen because their sources are absent on
+this rig (`paramIds.test.js` skips them by name): `long_tail__19-session-fibs`,
+`mid_engagement__07-3way-bollinger-trend` (4 of 7 ids), `mid_engagement__09-relative-volume-breakout-context`.
+
+### 2. Why the three ids moved — re-measured on this tree under the counter, then under the source rule
+
+Each change applied alone to base `pine.js`, `paramIds.test.js` read; then the same change applied to the tip.
+
+| case | the change | under the counter (base + the change) | under C46 (tip + the change) |
+|---|---|---|---|
+| C31 — the loop step-over in the main walk (its mutation M4) | `if (!(ctx && ctx.loopStepOver))` → `if (false)` | 13 rows in 8 scripts. **One real move**: `long_tail__09-signal-follow-through-ledger` — `__uct_param_2` was "Mark where each sample…", becomes "Reference MA length"; "ATR length" takes `_3`; "Mark where each sample…" goes to `_4`. A chain that now folds lets an output ABOVE resolve past its old `pine:reassign` and reach two inputs before the walk reaches the output that minted "Mark where…", so they take its number (3 rows). The other 10 rows, in 7 scripts, are inputs first reached AFTER every existing one, appended at the end of the counter: anchored-vwap-pinch `_13` `_14`, delta-imbalance-map `_1` `_2`, kalman-price-filter `_2`, smt-divergence-ict-killzones `_1`, volatility-coil-edge `_3`, reversal-probability-profile `_3`, structure-participation-matrix `_1` `_2` | 12 rows, all gains, none moved: each new id is `1000 +` the input call's ordinal (`_1066` `_1074`, `_1002` `_1003`, `_1004`, `_1003`, `_1002`, `_1022`, `_1005` `_1012`, `_1001` `_1003`) |
+| C38 — `x[barstate.isrealtime ? 1 : 0]` served | the `reads.onlyBarState` arm of `historyReadOf` removed | `high_engagement__20-ehlers-fisher-transform` resolves one wall further (to `pine:state`) and reaches `Length` for the first time: gains `__uct_param_2`. No existing id moves | gains `__uct_param_1005`. No existing id moves |
+| C41 — a dead `ltf` arm collapsed in the plot pass | not re-measured: C41's branch is not in this base | its statement (§ C41, item 9): outputs that refused start to translate and reach inputs earlier in the walk — the C31 shape | by construction the same as the two above: gains only |
+
+(C31 at wave 8 reported anchored-vwap-pinch, delta-imbalance-map and kalman gaining and volume v2 LOSING one.
+The three gains reproduce; the loss does not on this tree.)
+
+So one of the three was a renumbering and two were appends. The rail could not tell them apart — it compares
+whole maps — and under the counter nobody could promise the next append would not be a renumbering.
+
+### 3. The rule as implemented
+
+| what | rule (where it lives) |
+|---|---|
+| the ordinal | the 1-based position of the call among the script's `input(…)` / `input.*(…)` calls of EVERY kind, in token order (`paramIdSource.js::inputCallSites`). Counted over the token stream: no parse, no binding, no resolved value |
+| a source id | `__uct_param_<1000 + ordinal>` (`SOURCE_ID_BASE`, `paramIdFor`). The largest legacy id is 28, so a source id can never be the number of a legacy id |
+| a legacy id | `paramIdLegacy.js`, FROZEN: for the 183 scripts that held an id at base, which ordinal held ids 1, 2, 3 … — per lane. The script is found by a hash of its token stream (`scriptKey`), so line endings, blank lines and comments do not make a paste a different script; one changed token does, and an edited script takes source ids throughout. An input call the entry names keeps that id; any other call in that script takes its source id |
+| the lane | read off the caller's OPTIONS, never off the walk (`legacyLaneOf`): `declareInputs` present → member, `strict` → strict. Four lanes: `plainStrict` (= `param-ids.json`), `plainScreen`, `memberStrict` (the member pane), `memberScreen` (PineBox). A source id does not depend on the lane |
+| where the pinned artifact and the base translator disagreed | the artifact wins, in the pinned lane only (the three licence-held scripts above are restored to their pinned ids) |
+| the table | `paramMint` holds ONE entry table keyed by the ordinal (`newParamMint`, `paramOrdinalOf`), built before the walk. `inputParams` is published in id order; the walk's mint order is not published at all |
+
+**How many scripts need the legacy map: all 183 that hold an id.** A counter id is a small dense number and a
+source id is not: only 5 of the 183 have every input call minted in source order (legacy = plain ordinal); 92
+have their ids in source order but with gaps. No source-only numbering reproduces the other 91.
+
+**What the frozen map does not cover: a script that is not one of the 328.** Its ids were whatever the counter
+gave at the door it was saved from, on the translator of that day; no source-only rule can reproduce them. On
+its next translation its ids are source ids. A saved document does not carry its Pine and is never
+re-translated (`memberPaneDefinition.js`: "a saved definition does NOT carry the member's Pine"); it carries its
+own manifest and keeps working. The ONE place a saved document meets a fresh translation is a member pasting
+Pine into a definition they are editing: `BuilderSheet` replaces the manifest, and the server
+(`param_manifest._canonicalize_manifest`) keeps the prior record for an id it already holds and REFUSES an id
+it does not (owner condition 15). So for such a document a re-paste is now refused with that sentence, where
+before it was accepted when the translator had not changed since the save and silently re-pointed when it had.
+Disjoint ranges are what make it a refusal and never an alias. Decision 1 below.
+
+### 4. Rails
+
+| rail | what it proves |
+|---|---|
+| `paramIds.test.js` — UNEDITED | the pinned lane: 4 passed, 1 skipped (the licence-held half) |
+| `paramIdSource.test.js` (11) | the rule: ordinals, the key, the two ranges, lane decode; the third input call is `1003` whether or not the first two mint; the order the walk reaches them in does not number them |
+| `paramIdLegacy.test.js` (7) | the frozen map's sha256 and entry count; every pinned script has an entry of the pinned length; the three lanes `param-ids.json` does not pin, against `tests/fixtures/pine_param_ids/legacy-lanes.json` (measured at base): every frozen id still addresses the same input, and a new id must be a source id |
+| `paramIdSourceStability.test.js` (3) | the property. `translatePine({testRefuseBlock})` — a test-only hook that sends a top-level `if` chain or `for` down the walk's own refusal — refuses all blocks, then two seeded random subsets, for every corpus script: 299 scripts, 120 with a parameter and a refusable block, 29 whose minted set a refusal changes, 14 where a dense counter would have renumbered a survivor; 0 conflicts. And the same through the member door on five named scripts |
+| `builder/memberPane/savedDocumentRoundTrip.test.js` (5) | 38 documents the member-pane door saved at base (`saved-documents-pre-c46.json`: 93 ids, every parameter moved off its default) — today's door builds the same manifest (ids, inputs, locators) and the same computation, and the saved values replayed BY ID rebuild the same edited document. Volume v2's whole saved document is loaded and rebuilt (`saved-document-volume-v2-pre-c46.json`) |
+
+Before any rail existed the change was measured directly: the four-lane generator run at base and again at the
+tip over all 328 — ids, input names, declared lists and the pane's manifest ids identical except the three
+restored scripts.
+
+**Mutations** — 16, each alone, bytes and sha256 captured, restored by bytes, sha verified; every one RED.
+
+| # | mutation | red |
+|---|---|---|
+| M1 | the id comes from the walk-order counter again | `paramIdSource`, `paramIdSourceStability`, `pine.paramManifest`, `pineProbeReplay` — ⚠️ `paramIds` stays GREEN: the counter reproduces the pinned lane, which is why that rail could never have proved this property |
+| M2 | the frozen map is not consulted | `paramIds`, `paramIdLegacy`, `savedDocumentRoundTrip` |
+| M3 | the lane is ignored (every lane reads the pinned one) | `paramIdLegacy`, `savedDocumentRoundTrip` |
+| M4 | no reuse: every resolve of an input mints an entry | `paramIdSource`, `pine.paramManifest`, `pineProbeReplay`, `savedDocumentRoundTrip` (one worker stopped terminating on the corpus rails and was stopped at 22 min) |
+| M5 | `inputParams` published in walk order | `paramIdSource` |
+| M6 | source ids start at 0 (the ranges meet) | `paramIdLegacy`, `paramIdSource`, `paramIdSourceStability`, `pine.paramManifest`, `pineProbeReplay` |
+| M7 | a bare `input(…)` is not counted | `paramIds`, `paramIdLegacy`, `paramIdSource`, `paramIdSourceStability`, `pineProbeReplay`, `savedDocumentRoundTrip` |
+| M8 | the ordinal lookup is off by one | seven rails |
+| M9 | the script key ignores token values | `paramIds`, `paramIdLegacy`, `paramIdSource`, `savedDocumentRoundTrip` |
+| M10 | a member-door translation reads the plain lane | `paramIdLegacy`, `paramIdSource`, `savedDocumentRoundTrip` |
+| M11 | one frozen entry edited (two ordinals swapped) | `paramIdLegacy`, `paramIds` |
+| M12 | the test hook refuses nothing | `paramIdSourceStability` (its non-vacuity floors) |
+| M13 | `=N` lane repeats not decoded | `paramIdLegacy`, `paramIdSource`, `savedDocumentRoundTrip` |
+| M14 | the source ordinal is an enumerable key | `paramIdSource`, `pine.paramManifest` |
+| M15 | the main walk steps over a loop (C31's M4) | `paramIds` (gains), `pine.c31LoopScope`, `pineProbeReplay` |
+| M16 | the strict / screen split is ignored | `paramIdLegacy`, `paramIdSource` |
+
+Nine test files pinned the counter on INLINE scripts (`__uct_param_1` for a one-input snippet); their literals
+now state the source id. No corpus-script expectation changed.
+
+### 5. The first beneficiary — C31's main-walk loop step-over: built, measured, NOT kept
+
+Built on branch `pine/c46-stepover-trial` (`3ecdd1d29e`), narrower than C31's M4: a top-level `if` chain
+whose fold stops AT a loop (`PineRefusal.loopWall`) is folded a second time stepping over it, into a copy of
+`env` with its own `consumed` set and record map, adopted only when the whole chain folds; the block harvest
+still runs against the scope before the chain.
+
+| measured against the lane tip | result |
+|---|---|
+| parameter ids | none moves; 8 source ids gained in 6 scripts (delta-imbalance-map +2, smt-divergence-ict-killzones +1, volatility-coil-edge +1, `pine_oos` reversal-probability-profile +1, signal-follow-through-ledger +2, structure-participation-matrix +1) |
+| the 266 × host + screen | 1,606 served outputs unchanged, **0 changed, 0 newly served, 0 newly refused**; 108 refused outputs name a deeper wall (`pine:tuple`, `pine:type`, `pine:collection` instead of "the fold stopped … at `for`") |
+| object programs | change in 4 scripts: dual-view, poor-man, renderingnature (ops 34 → 37), volume-footprint (25 → 32) |
+| the 47, and the committed harness dir (117), objects pane on and off | **0 entries changed** |
+| member-door census 266 × 2 | 41 / 64 → 41 / 64; 6 refused rows per flag state name a deeper wall; no attached row changes |
+| poor-man | its 40 `rowN_price` label positions resolve on the host lane (values asked of the runtime lane 160 → 120); labels 0 / 40 before and after — their text is behind ruling R7 (`row0_value`, a running total) and the runtime lane's `INSTRUCTIONS_PER_BAR` (§ C35, not raised) |
+
+The mission's keep-condition holds (no served plot value changes). It is not kept for a different reason, the
+brief's: **no committed capture exercises it** — nothing in 164 graded entries moves — so there is no
+vendor-grounded rail to put under it, and on a script outside the corpus it WOULD serve a new plot
+(`float m = 0.0` / `if close > open` / a loop / `m := high - low` / `plot(m)` becomes `close > open ? high - low
+: 0`). It stays refused by name where it was (`pine:reassign … the fold stopped … at \`for\``;
+`pine.c31LoopScope.test.js` now asserts the sentence names the variable and the loop), the reason written at
+that refusal is corrected (it was parameter ids; it is now the missing capture), and the capture is queued:
+probe `tools/visual_conformance/probes/vw-loop-in-block.pine`, `docs/pine/capture-queue-2026-10-01-loop-in-block.md`
+(Q-C46a). Decision 2 below.
+
+### 6. What this unblocks, and what each still needs
+
+Every restriction below named "it would move a saved id" as its reason. That reason is gone: each would now
+ADD source ids. What is left is listed.
+
+| lane | the restriction | still needs |
+|---|---|---|
+| C31 | the main walk refuses an `if` chain at its loop | the capture Q-C46a; then merge `pine/c46-stepover-trial` and append 8 ids |
+| C38 | an index that moves only with `barstate.*` stays refused | its own capture (a forming bar); the `Length` id is an append (`__uct_param_1005`) |
+| C41 | the plot pass keeps a dead `ltf` arm | nothing id-related: collapsing it adds ids, moves none |
+| C33 | `request.security(…, tf, …)` with `tf` a parameter, plot lane | nothing id-related |
+| C10 | the dead-arm rescue is the object pass's only | nothing id-related |
+| C9 | the `constIntOf` pre-check was reverted | nothing id-related (C24's replay already took the speed) |
+| R36 / C37 | presentation folds and first-carried colour rules do not mint | a ruling, not a mechanism: whether such an input should be a member control. Minting it no longer moves anything |
+
+`paramIds.test.js` still goes red on a GAIN (it compares whole maps), so a lane that adds a parameter still
+re-pins `param-ids.json`. The re-pin is append-only by construction now. Decision 3 below.
+
+### 7. Measured (base `e4e24524ef` → tip)
+
+| | base | tip |
+|---|---|---|
+| 1. the 47, objects pane on | objects MATCH 30 / 46, overall 27, families 234 / 266, plots 161 / 172 | identical, 0 entries changed |
+| 1. the 47, pane off | 18 / 25, overall 15, families 108 / 119, plots 140 / 151 | identical, 0 entries changed |
+| 2. committed harness dir (117), pane on | objects 66 / 85, overall 48, families 323 / 357, plots 351 / 450 | identical, 0 entries changed |
+| 2. committed harness dir, pane off | 54 / 64, overall 36, families 197 / 210, plots 330 / 429 | identical, 0 entries changed |
+| 3. member-door census 266 × 2 | attach 41 / 64 | 41 / 64, 0 rows changed (base-vs-base 0 rows, tip-vs-tip 0 rows) |
+| 4. translation census 266 × host, manifest, screen | 58 ok / 404 served (host), 58 / 738 (screen) | 0 scripts changed in any lane — every top-level key of every translation, parameter ids with their input names included (control 0) |
+| 5. notebook first-open | 1,901,893 B | 1,901,893 B (+0, `notebook_perf_budgets` PASS) |
+| 5. `pine` chunk | 387,103 B | 395,717 B (+8,614: the frozen map is 6.8 KB of it) |
+| 5. total JS | 12,757,155 B | 12,765,769 B (+8,614) |
+| 6. `paramIds.test.js` | 4 passed, 1 skipped | 4 passed, 1 skipped — no edit to the test, no edit to `param-ids.json` |
+
+Full `src/components/chart` suite at the tip, once: `Test Files  5 failed | 886 passed | 9 skipped (900)`,
+`Tests  6 failed | 15033 passed | 70 skipped (15109)`. All six are `Test timed out in 15000ms` in files the
+brief lists as timing out at base (`objectFnInline.vendor` sector-rotation, `guardProbe.measure`,
+`objectLaneCallSites` / `objectLaneCensus` (2) / `objectLaneDrawerCensus.measure`). Run alone, one worker: base
+`pine.js` 3 timed out of 13, tip 2 timed out of 13 (6 in a first run taken while the box was still busy from
+the suite); per-test times sit on both sides of the 15 s line at base and at the tip.
+
+### 8. For the integrator
+
+1. **A script outside the 328, saved before this lane, re-pasted into the same definition** is refused by the
+   server (condition 15) instead of accepted. Fresh saves and existing documents are unaffected. If that
+   re-paste must keep working, the fix is at that one door, not in the id rule: when `BuilderSheet` applies a
+   paste to a definition it is editing, carry the prior id for an input whose `sourceName` matches a prior
+   entry's (both unique). That is the "migration" H.11 named. Not built here.
+2. **The step-over** is on `pine/c46-stepover-trial`, one commit, not gated. Taking it needs Q-C46a, an
+   append of 8 ids to `param-ids.json`, and re-pins of `pineProbeReplay` (step totals),
+   `vendorHarness.c21DualView` (one sentence) and `tools/corpus_metric.json`. Whether C31's object-lane
+   captures already witness the rule for a top-level name is yours to rule; this lane read the brief as no.
+3. **A gain is now an append.** `paramIds.test.js` cannot say so (it must stay unedited): a row whose `was` is
+   `(absent)` and whose id is above 1000 is a new parameter, not a move. The brief's "may only GAIN ids for a
+   script that had none" was the counter's rule; under source ids a script that already holds ids can gain one
+   without moving any. This lane gained none.
+4. **`param-ids.json` was already wrong for three licence-held scripts at base** (above). The tip restores the
+   pinned ids; a rig that holds those sources would have been red at base and is green at the tip.
+5. `paramIds.test.js`'s header still calls ids positional and names H.11 as owed. Its text is not this lane's
+   to edit; the rule it describes is § 3.
+6. No Python mirror moves: ids exist only in the JS translator, and the server treats an id as an opaque key.
+
+### 9. The re-paste door (follow-up, same day) — supersedes § 8 items 1 and 5
+
+Members paste their own Pine; the 328 are ours. § 8 item 1 named the regression and left it: a formula saved
+before this lane from a script outside the frozen table holds counter ids (`_1`, `_2`, …), a fresh translation
+of the same script now produces source ids (`_1001`, …), and the server refuses an edit that introduces an id
+the stored document does not hold (condition 15). C46 does not ship with that, so the migration is built, at
+the one door where a saved roster and a fresh translation meet.
+
+**The rule** (`app/src/components/chart/builder/paramCarry.js`, one pure function, called from the Pine pick in
+`BuilderSheet.jsx` only when a saved formula is being edited):
+
+- an incoming input matches a saved one when its `sourceName` (the Pine variable it is declared as) **and** its
+  kind (`type`) are both equal; a match takes the **saved** id;
+- two inputs declared under one name are matched in order — incoming in source order, saved in id order;
+- a renamed input matches nothing, and neither does one whose kind changed: it is a new input and keeps its
+  source id;
+- a new input never sits on an id the saved document holds for a different input (it would be handed that
+  input's record); it moves to the first free id above every id in play. This only arises for a document saved
+  after C46 whose script gained an input above the others;
+- a saved input the script no longer declares is dropped, as before;
+- a fresh formula has no saved roster, so nothing is carried.
+
+When the paste leaves an input unmatched the builder says so before the member presses Save
+(`data-testid="param-carry-note"`): the named input is not among the settings the formula was saved with, the
+save over it will be refused, save it as a new formula to keep it adjustable.
+
+**Proved through the real door.** `BuilderSheet.pineRepaste.test.jsx` drives the shipped `BuilderSheet`
+(Import tab → Use → Save) over a stateful store that applies condition 15, and pins the `compute` each paste
+sends in `tests/fixtures/pine_param_ids/repaste-requests.json`; `tests/test_param_repaste_c46.py` feeds those
+same bodies to the real `user_definitions.save()`. The prior document
+(`repaste-prior-pre-c46.json`) is what that same builder POSTed with `pine.js` at base `e4e24524ef` for an
+out-of-corpus script: `slow = _1`, `fast = _2` (walk order, not source order).
+
+| case | what the door sends | server |
+|---|---|---|
+| (a) same Pine over the pre-C46 document | `_1` slow, `_2` fast — the saved ids, values 21 / 9 | accepted; roster, values and locators unchanged |
+| control: (a) without the carry | `_1001` fast, `_1002` slow | refused (`__uct_param_1001`) — the regression |
+| (b) one input added above the others | `_1` slow, `_2` fast, `_1001` sig + the notice | **refused** (`__uct_param_1001`), nothing stored |
+| (c) `fast` renamed `quick` | `_1` slow, `_1001` quick + the notice | **refused** (`__uct_param_1001`), nothing stored |
+| (d) fresh paste into a new formula | `_1001` fast, `_1002` slow, no notice | accepted |
+| (e) corpus scripts | — | unchanged: `paramIds`, `paramIdLegacy`, `paramIdSourceStability`, `savedDocumentRoundTrip` green |
+
+**(b) and (c) do not save, and no file under `api/` was changed.** Condition 15 did not need to learn anything
+for (a): a carried id is one the stored document already holds, so the server takes it and keeps its prior
+record. What stops (b) and (c) is the other half of the same condition — an edit may not introduce a parameter
+identity — and that is an owner condition with its own pinned test (`tests/test_param_manifest.py`, test 15).
+Letting an added or renamed input through means reversing it, which is not a minimal change and not this
+lane's to make. What base did with the same two pastes, reconstructed from the same bodies in
+`test_param_repaste_c46.py`:
+
+- (b) **was refused at base too** (the added input minted counter id `_3`). No change.
+- (c) **was accepted at base** — the counter gave `quick` the number `fast` had held, and the server, keeping
+  the prior record for a known id, went on calling it `fast` / "Fast". A match by position presented as the
+  same input. Under the ruled tie-break a renamed input is a new one, so this paste is now refused, with the
+  notice. This is the one member-visible difference from base at this door.
+
+Two things the carry does not change, both true at base: a re-paste resets the values to the script's
+defaults (the controls are rebuilt from the paste), and for a carried id the server keeps the saved record's
+locators verbatim.
+
+**Mutations** (each applied alone, both rails run in one vitest, restored by bytes, sha verified; control run
+green first):
+
+| | mutation | red |
+|---|---|---|
+| K1 | the saved roster is never consulted at the door | door (a), (b), (c) |
+| K2 | match by position instead of by name | door (a), (b), (c) + 6 unit cases |
+| K3 | kind left out of the match | unit: changed kind |
+| K4 | a new input may sit on a saved id of a different input | unit: both collision cases |
+| K5 | same-name saved inputs taken in insertion order, not id order | unit: two inputs under one name |
+| K6 | the notice is never set | door (b), (c) |
+| K7 | a fresh paste carries from the first formula in the list | door (d) |
+
+**Rulings recorded.** The main-walk loop step-over stays out until Q-C46a is captured (§ 5; the trial branch is
+unchanged). A gain above 1000 is an append (§ 8 item 3). `paramIds.test.js`'s assertions are untouched; its
+header comment, which still called ids positional and named H.11 as owed, now describes § 3 (comment lines
+only — § 8 item 5 is closed).
+
+**Licence-held sources — disclosure.** `tests/fixtures/pine_oos` holds 29 sources this rig does not have. To
+measure every lane on all 328, 27 were recovered from copies already on this machine and checked against
+`MANIFEST` (14 byte-exact, 13 after whitespace normalisation). The remaining two —
+`long_tail__19-session-fibs-falcon-ai` and `long_tail__20-cot-pulse-cloud-trend` — were fetched from
+TradingView's public script endpoint and hash-checked the same way. All 29 live in the session scratchpad only.
+None was written into the repository, and no commit of this lane contains one.
+
+### 10. On wave 11 (merge of `integrate/wave11-2026-10-01` @ `da7142cce3`, 2026-10-01)
+
+Merge commit `0ae347e676`. Two conflicts, both unions: the `parse.js` import line in `pine.js` (wave 11's
+`SERIES_LOOKBACK` beside this lane's `paramIdSource` / `paramIdLegacy` imports) and this file (fix-order rows 54
+then 56; sections C41, C44, then C46). Nothing in wave 11's `pine.js` change touches the mint, and wave 11 did
+not change `param-ids.json`.
+
+Base = the merged tree with wave 11's own `pine.js` and `BuilderSheet.jsx` swapped in (the only production
+files this lane changes that wave 11 also ships; restored by bytes, sha verified, tree clean after). Tip = the
+merged tree. Same commands, same box, one after the other.
+
+| | wave 11 | merged tip |
+|---|---|---|
+| 1. the 47, objects pane on | objects MATCH 29 / 46, overall 26, families 234 / 266, plots 161 / 172 | identical, 0 entries changed |
+| 1. the 47, pane off | 17 / 25, overall 14, families 108 / 119, plots 140 / 151 | identical, 0 entries changed |
+| 2. committed harness dir (117), pane on | objects 65 / 85, overall 47, families 323 / 357, plots 351 / 450 | identical, 0 entries changed |
+| 2. committed harness dir, pane off | 53 / 64, overall 35, families 197 / 210, plots 330 / 429 | identical, 0 entries changed |
+| 3. member-door census 266 × 2 | attach 41 / 64 | 41 / 64, 0 rows changed |
+| 4. translation census 266 × host, manifest, screen | 58 ok / 404 served (host), 58 / 738 (screen) | 0 scripts changed in any lane |
+| 5. notebook first-open | 1,901,893 B | 1,901,893 B (+0, `notebook_perf_budgets` PASS) |
+| 5. `pine` chunk | 387,818 B | 396,432 B (+8,614) |
+| 5. `BuilderSheet` chunk | 363,945 B | 365,945 B (+2,000: the carry and its notice) |
+| 5. total JS | 12,774,385 B | 12,784,999 B (+10,614) |
+| 6. `paramIds.test.js` | — | 4 passed, 1 skipped; no assertion edited, `param-ids.json` untouched |
+
+(The wave-11 object and overall counts are one lower than § 7's wave-10 numbers on both sides: C44's colour
+column joined the verdict.)
+
+Rails on the merged tree, one vitest: the eleven C46 files (`paramIds`, `paramIdSource`, `paramIdLegacy`,
+`paramIdSourceStability`, `savedDocumentRoundTrip`, `pine.c31LoopScope`, `pineProbeReplay`,
+`pine.paramManifest`, `paramCarry`, `BuilderSheet.pineRepaste`, `manifestFormatting`) —
+`Test Files  11 passed (11)`, `Tests  83 passed | 1 skipped (84)`. Scoped pytest
+(`tests/test_param_repaste_c46.py tests/test_param_manifest.py`): `33 passed`.
+
+Full `src/components/chart` suite on the merged tree, once: `Test Files  5 failed | 892 passed | 9 skipped
+(906)`, `Tests  6 failed | 15138 passed | 73 skipped (15217)`. All six are `Test timed out in 15000ms`. Five
+are in files the brief lists as timing out at base (`objectFnInline.vendor` sector-rotation,
+`objectLaneCallSites`, `objectLaneCensus` (2), `objectLaneDrawerCensus.measure`). The sixth,
+`flipCGeometry.test.jsx` "production never calls the test override" (a walk over every source file), passes
+alone in 1.2 s (`Tests  31 passed (31)`).
+
+**Still open for the integrator.** Re-pastes (b) and (c) of § 9 end in a condition-15 refusal with a notice.
+(b) is what base did. (c) saved at base, by position, under the old input's record. Making either save means
+letting an edit introduce a parameter identity — reversing condition 15 and its pinned test — or having the
+door leave the unmatched input out of the roster so the save goes through without it. Neither was done here.
+
+### 11. A rename keeps its saved id (integrator ruling, same day) — supersedes the (c) row of § 9 and the last paragraph of § 10
+
+Ruling: condition 15 stays exactly as it is; (b) stays refused; **(c), a pure rename, saved at base and must
+keep saving — in the carry, not the server.**
+
+**The rule.** After the name-and-kind match, an input still unmatched takes a saved input's id only when that
+saved input is also unmatched, is the same kind, and stood in the **same place**. A saved id *is* the place it
+was minted at:
+
+- a counter id (`_1`, `_2`, …, below 1000) is the input's **turn in the walk**. The pasted input must be
+  reached at that same turn;
+- a source id (`_1001`, …) is the input's **place in the source**. The pasted input must be that same input
+  call.
+
+One candidate is a rename. None, or two, is not: the input is new, keeps its source id, the notice names it,
+and condition 15 refuses the save as before.
+
+**Why the walk and not the source order for a pre-C46 document.** The ruling describes the saved roster as
+being in source order. For a document saved before C46 it is not, and nothing in it records source order: its
+ids are the counter, i.e. walk order (the committed fixture declares `fast` then `slow` and holds `slow = _1`,
+`fast = _2`). So the comparison is made in the numbering the saved id was minted in. The translator now puts
+each input's turn in the walk on its `inputParams` entry (`walkIndex`, non-enumerable, beside `ordinal`: no
+manifest, hash or saved document gains a key — the translation census is byte-identical to § 10's, 266 scripts
+× 3 lanes). For a counter-id document this is exactly the question base answered by accident: "would the old
+counter have given this input that number?"
+
+**Counts.** The ruling also says "if the counts of unmatched differ … it is not a rename", and asks for (c2) —
+a rename plus an added input, two unmatched pasted inputs against one unmatched saved one — to carry. Both
+cannot hold; (c2) was taken as the intent. The place decides, per input: the added input stands at no saved
+place, so it never takes a saved id, and the renamed one beside it still does.
+
+**The notice.** `The input "Fast" is now "Quick". It is the same saved setting under its new name.` — followed,
+when there is one, by the § 9 sentence for an input the formula does not hold.
+
+**Two things the notice does not say, because they are not true:**
+
+- *The value is not carried.* A re-paste rebuilds the settings from the pasted script, for a name match and a
+  rename alike (§ 9); the saved value survives only when the script's default equals it, as in these fixtures.
+  The ruling's "keeps the saved value (same as a name match)" holds in the second half only.
+- *The stored record keeps the old name.* For a known id the server keeps the prior record verbatim, so after a
+  renamed paste is saved the stored entry still reads `fast` / "Fast" (`test_c_…`). That is what base stored
+  too.
+
+**Through the real door** (same two files as § 9; requests re-pinned by cause — `renamed` changed, four keys
+added):
+
+| case | what the door sends | server |
+|---|---|---|
+| (a) same Pine | `_1` slow, `_2` fast | accepted |
+| (b) one input added | `_1`, `_2`, `_1001` sig + notice | refused (`__uct_param_1001`) — as base |
+| (c) `fast` renamed `quick` | `_1` slow, `_2` quick, values 21 / 9, rename notice | **accepted** — as base |
+| (c2) rename + added input | `_1` slow, `_2` quick, `_1001` sig, both notices | refused for `__uct_param_1001` only |
+| (c3) the two inputs swapped in the source | `_1` slow, `_2` fast, no notice | accepted (name match; the rename rule is not reached) |
+| (c4) rename + `int` → `float` | `_1` slow, `_1001` quick, "not among" notice | refused (`__uct_param_1001`) |
+| (c5) both renamed | `_1` lag, `_2` quick, two rename notices | accepted |
+| (d) fresh paste | `_1001` fast, `_1002` slow | accepted |
+
+**Mutations** (fourteen, each alone, both rails in one vitest, restored by bytes with sha verified, control
+green first — K1–K7 are § 9's, re-run on this code):
+
+| | mutation | red |
+|---|---|---|
+| R1 | the rename fallback is off | door (c), (c2), (c5) + 4 unit |
+| R2 | the fallback ignores the kind | door (c4) + 1 unit |
+| R3 | the fallback ignores the place (pairs whatever is left over) | door (c2), (c5) + 7 unit |
+| R4 | the door does not pass the pasted inputs' places | door (c), (c2), (c5) |
+| R5 | the translator reports the source place as the walk place | door (c), (c5) |
+| R6 | two candidates is still a rename | unit: two saved inputs it could be |
+| R7 | the name match is skipped | door (a), (c), (c3) + 11 unit |
+| K1–K7 | as § 9 | all red (K1 now reds every door case but (d)) |
+
+R3 does not red (b): with nothing saved left unmatched there is nothing for a leftover pairing to take, so (b)
+is refused under that mutation too.
+
+**Measured.** Rails: `paramCarry.test.js` + `BuilderSheet.pineRepaste.test.jsx` `Tests  28 passed (28)`;
+builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (2074)`, both failures
+`EvidenceTab.doors.test.js` 15 s timeouts that pass alone (`Tests  10 passed (10)`). Scoped pytest
+`37 passed`. Translation census byte-identical to § 10's merged tip. Bytes: `pine` chunk 396,432 → 396,522
+(+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
+1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.

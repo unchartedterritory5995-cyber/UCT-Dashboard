@@ -186,7 +186,7 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     // TRACK_F_V1_IMPLEMENTATION_COMPLETION_REPORT.md §6; asserted again here
     // only as the starting condition the rest of this test depends on.
     expect(screen.getByText('Adjustable parameters')).toBeTruthy()
-    expect(screen.getByTestId('param-input-__uct_param_1')).toHaveValue(14)
+    expect(screen.getByTestId('param-input-__uct_param_1001')).toHaveValue(14)
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'RSI Reopen Test' } })
     await settleFormula()
@@ -198,8 +198,8 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     expect(H.store.size).toBe(1)
     const [defId, firstRow] = [...H.store.entries()][0]
     expect(firstRow.definition.compute.source).toBe('rsi(close, 14)')
-    expect(firstRow.definition.compute.paramManifest.__uct_param_1).toMatchObject({ default: 14, sourceName: 'length' })
-    expect(firstRow.definition.compute.paramState.__uct_param_1).toEqual({ state: 'attached', value: 14, reason: null })
+    expect(firstRow.definition.compute.paramManifest.__uct_param_1001).toMatchObject({ default: 14, sourceName: 'length' })
+    expect(firstRow.definition.compute.paramState.__uct_param_1001).toEqual({ state: 'attached', value: 14, reason: null })
 
     // ── 2. Leave the builder -- a genuine unmount, not a hidden dialog ──
     cleanup()
@@ -222,7 +222,7 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     // happens; no Pine text was ever persisted).
     expect(formulaField().value).toBe('rsi(close, 14)')
     expect(screen.getByText('Adjustable parameters')).toBeTruthy()
-    expect(screen.getByTestId('param-input-__uct_param_1')).toHaveValue(14)
+    expect(screen.getByTestId('param-input-__uct_param_1001')).toHaveValue(14)
     // ⛔ NO RAW BINDING ID IS SHOWN TO THE MEMBER (owner requirement #9) --
     // the control is titled by the manifest's own `title`, never by its
     // `__uct_param_<n>` key.
@@ -230,8 +230,8 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     expect(screen.getByText('Length')).toBeTruthy()
 
     // ── 4. Change the parameter again, through ParamControls, then Save.
-    fireEvent.change(screen.getByTestId('param-input-__uct_param_1'), { target: { value: '30' } })
-    fireEvent.blur(screen.getByTestId('param-input-__uct_param_1'))
+    fireEvent.change(screen.getByTestId('param-input-__uct_param_1001'), { target: { value: '30' } })
+    fireEvent.blur(screen.getByTestId('param-input-__uct_param_1001'))
     await settleFormula()
     expect(formulaField().value).toBe('rsi(close, 30)')
 
@@ -243,8 +243,8 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     expect(putReq.url).toBe(`/api/user-definitions/${defId}`)
     const putBody = JSON.parse(putReq.body).definition
     expect(putBody.compute.source).toBe('rsi(close, 30)')
-    expect(putBody.compute.paramManifest.__uct_param_1.default).toBe(14) // immutable, unchanged
-    expect(H.store.get(defId).definition.compute.paramState.__uct_param_1.value).toBe(30)
+    expect(putBody.compute.paramManifest.__uct_param_1001.default).toBe(14) // immutable, unchanged
+    expect(H.store.get(defId).definition.compute.paramState.__uct_param_1001.value).toBe(30)
 
     // ── 5. Reload again -- a second fresh mount -- and confirm the SECOND
     //        edit persisted, not just the first. ───────────────────────
@@ -255,6 +255,6 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     fireEvent.click(within(savedRow2.closest('li')).getByRole('button', { name: /^Edit RSI Reopen Test$/i }))
     await settleFormula()
     expect(formulaField().value).toBe('rsi(close, 30)')
-    expect(screen.getByTestId('param-input-__uct_param_1')).toHaveValue(30)
+    expect(screen.getByTestId('param-input-__uct_param_1001')).toHaveValue(30)
   })
 })

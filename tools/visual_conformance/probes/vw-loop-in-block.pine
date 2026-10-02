@@ -1,0 +1,70 @@
+//@version=6
+indicator("UCTPROBE_VW_LOOP_IN_BLOCK", overlay = false, max_labels_count = 60)
+
+// ─── 2026-10-01 C46 — A TOP-LEVEL VALUE WRITTEN BELOW A LOOP, INSIDE A BLOCK ──────
+//
+// C31 steps over a loop inside a block on the OBJECT lane: a loop's only effect on
+// the names around it is what its body WRITES, so a block LOCAL bound below the loop
+// reads what Pine reads (witnessed: artemis `fTxt`, htf-candle-footprint `indxBar`).
+//
+// What no capture shows is the same rule for a TOP-LEVEL name: declared above an
+// `if`, written BELOW a loop inside it, and read after the block — by a plot, or by
+// a drawing in another block (poor-man's `row0_price`). The main walk therefore
+// still refuses the whole block at its loop (`pine:reassign`, "the fold stopped … at
+// `for`"). The fold that would serve it is built and measured on branch
+// `pine/c46-stepover-trial`; this probe is what would let it be served.
+//
+//   L00/L01  controls.
+//   L02  `m`  — written below a loop that does not touch it, under a VARYING guard.
+//        Expected by the rule: `close > open ? high - low : 0`.
+//   L03  `m2` — the same chain with NO loop. Must equal L02 on every bar.
+//   L04  `acc` — the name the loop DOES write (a running total over 10 bars). We
+//        refuse it (ruling R7); recorded so the capture says what it is.
+//   L05  `d`  — derived below the loop from the loop's total. Refused with L04.
+//   L06  `e`  — written ABOVE the loop in the same block. Expected `close > open ?
+//        open : na`.
+//   L07  `w`  — written below a `while` instead of a `for`.
+//   L08  `k`  — in the `else` arm of a chain whose `if` arm holds the loop.
+//   Labels (every 50th bar): the y of the label is `m` read in ANOTHER block — the
+//        object-lane shape (poor-man). Record x, y and text.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, as much history as loads. One capture settles it.
+
+plot(bar_index, "L00_bar_index_CONTROL")
+plot(close,     "L01_close_CONTROL")
+
+float m   = 0.0
+float acc = 0.0
+float d   = 0.0
+float e   = na
+float k   = 0.0
+if close > open
+    e := open
+    for i = 0 to 9
+        acc := acc + close[i]
+    m := high - low
+    d := acc / 10
+else
+    k := low
+
+float m2 = 0.0
+if close > open
+    m2 := high - low
+
+float w = 0.0
+if close < open
+    int j = 0
+    while j < 3
+        j := j + 1
+    w := open - close
+
+plot(m,   "L02_m_below_loop")
+plot(m2,  "L03_m_no_loop")
+plot(acc, "L04_acc_loop_written")
+plot(d,   "L05_d_from_loop_total")
+plot(e,   "L06_e_above_loop")
+plot(w,   "L07_w_below_while")
+plot(k,   "L08_k_else_arm")
+
+if bar_index % 50 == 0
+    label.new(bar_index, m, str.tostring(m, "#.##"))

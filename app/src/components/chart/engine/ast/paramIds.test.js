@@ -2,12 +2,12 @@
 //
 // ─── ⭐⭐ EVERY SCRIPT'S `__uct_param_N` → TITLE MAP, PINNED ─────────────────
 //
-// ⛔⛔ A PARAMETER ID IS AN ADDRESS INTO A SAVED MEMBER DEFINITION. `__uct_param_N`
-// is POSITIONAL, so anything that adds, removes or reorders a minted parameter
-// RENUMBERS every parameter after it and silently re-points whatever was saved
-// against those ids.
+// ⛔⛔ A PARAMETER ID IS AN ADDRESS INTO A SAVED MEMBER DEFINITION. A saved
+// document carries its own roster and no Pine, so the id its roster was written
+// under is the only thing that still finds the knob. An id that moves re-points
+// whatever was saved against it, silently.
 //
-// ⚰️ THIS RAIL EXISTS BECAUSE A SHIFT WAS FOUND BY ACCIDENT. R35c made an input
+// ⚠️ THIS RAIL EXISTS BECAUSE A SHIFT WAS FOUND BY ACCIDENT. R35c made an input
 // foldable, foldability was treated as use, and `uncharted-volume-v2` went from 3
 // parameters to 4 with `HVE lookback (bars)` moving from `__uct_param_3` to
 // `__uct_param_4`. Nothing was watching for that. It surfaced only because a
@@ -15,12 +15,26 @@
 // different knob — the guard fired, on the adjacent thing. R36 restored the map;
 // this file is what makes the next shift a named failure instead of a discovery.
 //
+// ═ HOW AN ID IS ASSIGNED (C46). Until C46 an id was POSITIONAL in the WALK: a
+// counter bumped the first time the translator resolved an input, so anything
+// that changed what the translator managed to fold renumbered every parameter
+// after it. That is what moved ids in C31, C38 and C41. Since C46:
+//   · a script this artifact pins reads its ids from the FROZEN table
+//     `paramIdLegacy.js` (keyed by the script's token stream, one row per
+//     translation door). The table is data; it is never regenerated;
+//   · every other script, and every input a pinned script GAINS, takes
+//     `__uct_param_<1000 + n>`, n being the input call's place in the SOURCE
+//     (`paramIdSource.js`). What the translator folds no longer enters into it.
+// So an id below 1000 here is a frozen one and an id from 1001 up is a source
+// one, and a pinned script that starts answering for one more input shows that
+// input at its source id — an append, which the artifact may gain.
+//
 // ⛔ REGENERATION IS AN OWNER-RULED ACT, NOT A FIX FOR A RED. If this rail goes
-// red, the question is "which ruling moved an id, and what happens to definitions
-// saved against the old one?" — never "regenerate the artifact". H.11 (stable ids
-// keyed by declared NAME rather than position, plus a migration) is the standing
-// item that would retire the hazard; until it lands, a red here is a migration
-// question.
+// red, the question is "which change moved an id, and what happens to definitions
+// saved against the old one?" — never "regenerate the artifact". The artifact may
+// only GAIN ids; an existing id that changes, disappears or changes its title is
+// a migration question. (Pasting Pine into a formula that is already saved is its
+// own door: `builder/paramCarry.js` keeps the saved roster's ids by input name.)
 //
 //   OWNER-RULED REGENERATION:
 //   PARAM_IDS_WRITE=1 npx vitest run src/components/chart/engine/ast/paramIds.test.js

@@ -81,7 +81,7 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
   it('⛔ a probe that minted a parameter is not replayed — ids stay where they were', () => {
     const { result } = measure(() => translatePine(chain(12), MANIFEST))
     expect(result.inputParams.map((p) => [p.id, p.sourceName, p.min, p.max]))
-      .toEqual([['__uct_param_1', 'len', 1, 50]])
+      .toEqual([['__uct_param_1001', 'len', 1, 50]])
   })
 
   it('⛔ the first-time mark sees a mint even when no Map of the resolver grows', () => {

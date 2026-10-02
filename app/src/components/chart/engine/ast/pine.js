@@ -162,6 +162,13 @@ import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
 import { isBindFoldableLength, SERIES_LOOKBACK } from './parse.js'
+// ⭐⭐ C46 — A PARAMETER ID IS READ OFF THE SCRIPT'S SOURCE, never off the order
+// the walk reached its inputs in (`paramIdSource.js`); the ids the old counter
+// gave the corpus are frozen in `paramIdLegacy.js`. Objects triage § C46.
+import {
+  inputCallSites, sourceOrdinalOf, scriptKey, legacyLaneOf, decodeLegacyLane, paramIdFor, paramIdNumber,
+} from './paramIdSource.js'
+import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -6073,8 +6080,8 @@ export class Resolver {
      *  input lands in a displacement, not a window. */
     this.displacementBoundInputs = new Set()
     /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
-     *  per-Resolver) parameter-identity table: `{ counter, byNode: Map<node,
-     *  entry>, metadata: entry[] }`, or `null` for every existing caller —
+     *  per-Resolver) parameter-identity table (`newParamMint`: `{ counter,
+     *  byOrdinal, metadata, sites, ordinalAt, legacy }`), or `null` for every existing caller —
      *  the same "opt-in, off by default, byte-identical otherwise" contract
      *  `declareInputs`/`inputValues` above already keep.
      *
@@ -6086,7 +6093,7 @@ export class Resolver {
      *  every time a second plot referenced it, exactly the "two independent
      *  bindings for one member decision" mistake `TRACK_F_PARAMETER_ADR_V2_2
      *  .md` §1 corrects. See `resolveInput`'s own comment for why it is keyed
-     *  on the ORIGINAL CALL NODE'S IDENTITY rather than on `boundName`. */
+     *  on the CALL (since C46: its source ordinal) rather than on `boundName`. */
     this.paramMint = opts.paramMint || null
     /** ⭐ C48 — above 0 while an every-bar read runs only to mint what it always
      *  minted (`mintOnlyRead`); the conditional-call rules stand aside in it. */
@@ -7167,7 +7174,7 @@ export class Resolver {
    *  without changing a repeat's cost only costs a replay, never a wrong count. */
   firstTimeMark() {
     let n = this.firstTimeWork
-    if (this.paramMint) n += this.paramMint.counter + this.paramMint.byNode.size
+    if (this.paramMint) n += this.paramMint.counter
     for (const k in this) {
       const v = this[k]
       if (v instanceof Map || v instanceof Set) n += v.size
@@ -12777,23 +12784,36 @@ export class Resolver {
       column: node.tok.column,
     })
     // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID (the entry
-    // only; the tagging of the literal is below). ⛔⛔ KEYED ON THE ORIGINAL CALL
-    // NODE'S IDENTITY, NEVER ON `boundName`. See `this.paramMint`'s own comment
-    // on the Resolver field for why — the short version: `translatePine` builds
-    // one fresh `Resolver` per output, so only object identity (shared via
-    // `env`, never recreated per output) survives across "the same input feeds
-    // two plots."
+    // only; the tagging of the literal is below). ⛔⛔ KEYED ON THE ORIGINAL
+    // CALL, NEVER ON `boundName`. See `this.paramMint`'s own comment on the
+    // Resolver field for why — the short version: `translatePine` builds one
+    // fresh `Resolver` per output, so only something every Resolver agrees on
+    // survives across "the same input feeds two plots." Until C46 that was the
+    // call node's object identity; it is now the call's ordinal in the source.
     const mintable = !!(this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
       && resolved && resolved.type === 'num' && Number.isFinite(resolved.value))
     const mintEntry = () => {
-      let entry = this.paramMint.byNode.get(node)
+      // ⭐⭐ C46 — THE ID IS THE CALL'S PLACE IN THE SOURCE, NOT ITS TURN IN THE
+      // WALK. This was a counter: the N-th input the walk resolved first. What
+      // the walk reaches, and in what order, is a property of what the translator
+      // FOLDS, so folding one more block renumbered every id after it (objects
+      // triage § C46 has the measured cases). The ordinal is counted over the
+      // TOKEN STREAM; `paramIdFor` gives a frozen legacy id where the corpus map
+      // pins this call, and `SOURCE_ID_BASE + ordinal` otherwise.
+      // ⛔ ONE TABLE, KEYED BY THAT ORDINAL. It used to be keyed by the call
+      // NODE's identity; a second node object for the same source call (a
+      // re-parse) is the same input and takes the same entry.
+      const ordinal = paramOrdinalOf(this.paramMint, node.tok)
+      let entry = this.paramMint.byOrdinal.get(ordinal)
       if (!entry) {
-        this.paramMint.counter += 1
         const type = kind === 'input'
           ? (Number.isInteger(resolved.value) ? 'int' : 'float')
           : kind
+        // `counter` is how many entries exist — `firstTimeMark` reads it. It is no
+        // longer where an id comes from.
+        this.paramMint.counter += 1
         entry = {
-          id: `__uct_param_${this.paramMint.counter}`,
+          id: paramIdFor(this.paramMint.legacy, ordinal),
           sourceName: boundName,
           title: title && title.type === 'string' ? title.value : boundName,
           type,
@@ -12811,7 +12831,16 @@ export class Resolver {
           options: null,
           step: bound('step'),
         }
-        this.paramMint.byNode.set(node, entry)
+        // ⛔ NON-ENUMERABLE: the source ordinal is what the id was read from, kept
+        // for the rails; no manifest, hash or saved document may see a new key.
+        Object.defineProperty(entry, 'ordinal', { value: ordinal, enumerable: false })
+        // ⭐ C46 — ITS TURN IN THE WALK, kept beside the id it no longer decides. This
+        // is the number the old counter gave the input, so a formula saved under
+        // counter ids can still be asked "is this the input that held `_N`?" when
+        // its Pine is pasted again with an input renamed (`builder/paramCarry.js`).
+        // Non-enumerable for the same reason as `ordinal`.
+        Object.defineProperty(entry, 'walkIndex', { value: this.paramMint.counter, enumerable: false })
+        this.paramMint.byOrdinal.set(ordinal, entry)
         this.paramMint.metadata.push(entry)
       }
       return entry
@@ -15833,9 +15862,16 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         continue
       }
       // ⛔ THE STEP-OVER IS THE OBJECT LANE'S (`ctx.loopStepOver`, set by the block
-      // harvest alone). The main walk keeps refusing the block at its loop: a
-      // chain it folds reaches inputs a refused one never did, and the parameter
-      // ids a saved script already holds are an address (`paramIds.test.js`).
+      // harvest alone). The main walk keeps refusing the block at its loop.
+      // ⚰️ The reason written here until C46 was parameter ids: a chain the main
+      // walk folds reaches inputs a refused one never did, and under the walk-order
+      // counter that renumbered saved ids. It no longer can — an id is the input
+      // call's place in the source (`paramIdSource.js`; measured, objects triage
+      // § C46: ids are gained, none moves). What keeps it refused NOW is that no
+      // committed capture shows a top-level value written below a loop in a block
+      // (the 47 and the harness dir: 0 entries move when it is folded), so it waits
+      // on `docs/pine/capture-queue-2026-10-01-loop-in-block.md`. The fold itself
+      // is built and measured on branch `pine/c46-stepover-trial`.
       if (!(ctx && ctx.loopStepOver)) {
         throw new PineRefusal('pine:block',
           `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
@@ -21686,6 +21722,39 @@ export function translatePine(source, opts = {}) {
   return t
 }
 
+/** ⭐⭐ C46 — the per-translation parameter-identity table (`Resolver.paramMint`).
+ *
+ *  `sites` and `legacy` are fixed HERE, from the token stream and the caller's
+ *  options, before a single statement is walked — so nothing the walk does can
+ *  change which id an input call gets. `byOrdinal` is the one entry table (a
+ *  source call has one ordinal, one id and one entry, however many node objects
+ *  or outputs reach it); `counter` only counts entries, for `firstTimeMark`. */
+function newParamMint(tokens, opts) {
+  const sites = inputCallSites(tokens)
+  const ordinalAt = new Map()
+  sites.forEach((site, i) => ordinalAt.set(`${site.line}:${site.column}`, i + 1))
+  return {
+    counter: 0,
+    byOrdinal: new Map(),
+    metadata: [],
+    sites,
+    ordinalAt,
+    legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(tokens)], legacyLaneOf(opts)),
+  }
+}
+
+/** The source ordinal of the input call at `tok` — a lookup; the scan is only for
+ *  a token that is not one of the script's recorded calls (`sourceOrdinalOf`). */
+function paramOrdinalOf(mint, tok) {
+  return mint.ordinalAt.get(`${tok.line}:${tok.column}`) || sourceOrdinalOf(mint.sites, tok)
+}
+
+/** `inputParams` in ID order — legacy ids first (their old mint order), then
+ *  source ids in source order. The walk's own mint order is not published: it
+ *  is the one thing about a parameter that still depends on what folds. */
+const orderedParams = (metadata) => metadata.slice()
+  .sort((a, b) => paramIdNumber(a.id) - paramIdNumber(b.id))
+
 /** The translation itself. ⛔ Call `translatePine`, never this: a result that
  *  leaves here has no `mode`, and `paneGate` reads `mode` before anything else. */
 function translatePineResult(source, opts = {}) {
@@ -21744,9 +21813,13 @@ function translatePineResult(source, opts = {}) {
   // output/per-Resolver, see `Resolver.paramMint`'s own comment for why),
   // `null` unless `opts.paramManifest` asked for it — the same opt-in, off-
   // by-default contract `declareInputs`/`inputValues` already keep.
-  const paramMint = opts.paramManifest
-    ? { counter: 0, byNode: new Map(), metadata: [] }
-    : null
+  const paramMint = opts.paramManifest ? newParamMint(tokens, opts) : null
+  /** ⛔ TEST-ONLY (C46). `opts.testRefuseBlock(line)` → true makes the walk treat
+   *  the top-level `if` chain or loop that starts on that line as one it cannot
+   *  fold — the refusal a real unfoldable block takes, through the same catch.
+   *  `paramIdSourceStability.test.js` uses it to prove a parameter id does not
+   *  depend on how much of the script folds. No product door passes it. */
+  const refuseBlock = typeof opts.testRefuseBlock === 'function' ? opts.testRefuseBlock : null
 
   // ⭐ EVERY REASSIGNMENT FIRST, over raw tokens, before a single statement is
   // read. See `reassignedNames` — the walk folds what it can and this map is what
@@ -22275,6 +22348,9 @@ function translatePineResult(source, opts = {}) {
       const chain = ifBranches(stmts, si - 1)
       const last = chain ? chain.next : si
       try {
+        if (refuseBlock && refuseBlock(first.line)) {
+          throw new PineRefusal('pine:block', `${REFUSALS['pine:block']} — \`if\``, locate(first))
+        }
         const folded = foldIfChain(stmts, si - 1, ctx, env)
         for (let k = si - 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
         si = folded.next
@@ -22334,7 +22410,7 @@ function translatePineResult(source, opts = {}) {
       // note and the opaque forcing exactly as before — including every `while`
       // and `switch`, which are not unrolled at all (F4: 15 of 116 `while`
       // guards are admissible, below the pre-committed ~20, so `while` is out).
-      const pending = word === 'for' ? pendingUnrollFrom(stmt, env) : null
+      const pending = word === 'for' && !(refuseBlock && refuseBlock(first.line)) ? pendingUnrollFrom(stmt, env) : null
       if (pending) {
         let attached = 0
         for (const name of pending.targets) {
@@ -24119,7 +24195,7 @@ function translatePineResult(source, opts = {}) {
     // `resolveInput` left behind. Same layering `usedInputs`/`inputsFolded`
     // already use: this module records raw facts, the builder layer turns
     // them into a shape a save can submit.
-    inputParams: paramMint ? paramMint.metadata : [],
+    inputParams: paramMint ? orderedParams(paramMint.metadata) : [],
   }
   // ⭐⭐ C43 — the `runtime.error` calls: each one this lane can place, with the
   // conditions it stands under as trees the bind evaluates per bar
