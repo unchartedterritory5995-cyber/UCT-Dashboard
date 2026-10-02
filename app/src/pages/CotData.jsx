@@ -19,6 +19,7 @@ import { fmtDate, fmtNum, fmtCompact } from './cot/cotFormat'
 import { tooltipRows } from './cot/cotTooltip'
 import { proxyFor } from './cot/cotProxies'
 import { alignPrice } from './cot/cotAnalogs'
+import Input from '../components/ui/Input'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -727,7 +728,7 @@ export default function CotData() {
           {/* Desktop: anchored popover. Touch: bottom-sheet (below). */}
           {dropdownOpen && !isTouch && (
             <div className={styles.dropdownMenu}>
-              <input
+              <Input aria-label="Search markets"
                 className={styles.dropdownSearch}
                 placeholder="Search markets..."
                 value={search}
@@ -768,7 +769,7 @@ export default function CotData() {
             variant="bottom-sheet"
             title="Select market"
           >
-            <input
+            <Input aria-label="Search markets"
               className={styles.sheetSearch}
               placeholder="Search markets..."
               value={search}
