@@ -71,9 +71,22 @@ breaks an OHLC invariant (H ≥ max(O, C), L ≤ min(O, C), H ≥ L).
 * Scalar semantics (Line reads the close), the default style at creation (Area for non-technical
   series), Breadth methodology and authority, and every stored layout. There is no migration.
 
+## Today's developing bar (2026-10-02)
+
+The live accumulator (`breadth_daily_ohlc.update_intraday`) holds today's observed OHLC. Its open
+is the first anchored, non-degraded sample; high and low are the extremes so far; close is the
+latest sample. On 09-29, 09-30 and 10-01 this was proven equal to the first, max, min and last of
+roughly 390 per-minute samples in production.
+
+The serve-time developing bar reads that row through `live_row` (one primary-key read). It keeps
+the live value as its close, widens high/low to include that close, and is marked observed. This
+applies only when the series' sealed history is already attested, so a body-only series never
+flips capability during the afternoon. With no row, the bar is the unmarked body, as before.
+
 ## Known limits
 
-* In Candles/Bars mode, a breadth series' **developing** session is whitespace. So is a sealed
-  session V2 has not yet validated (the provisional tail). Their O/H/L were not observed. Line
-  shows them.
+* The newest **sealed** session not yet validated by V2 (the provisional tail) stays blank in
+  Candles/Bars. Its V2 OHLC appears automatically once the producer validates it.
+* A developing week or month is marked only if every day in it is. Because the provisional day
+  usually precedes today, the current week is usually unmarked, except on a Monday.
 * V1 history highs and lows are **sampled** (13 buckets) extremes, not tick extremes.
