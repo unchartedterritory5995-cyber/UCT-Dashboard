@@ -67,3 +67,33 @@ def test_behaviour_tokens_report_their_real_sources():
     assert "skip_if_stable=on[force_default]" in line
     assert "confirmed_only=on[api_default]" in line
     assert "model=claude-opus-4-8[code]" in line
+
+
+# ── 2026-10-02: the contract line must never be why boot hangs ──────────────
+def test_contract_line_never_blocks_boot_on_a_slow_active_set(monkeypatch):
+    """Three deploys froze in the lifespan on this line's active-set count (a
+    full daily-bar scan on a cold, contended volume); Railway's healthcheck
+    killed each one. The count gets PV_CONTRACT_COUNT_TIMEOUT_S, no more."""
+    import threading
+    import time
+    import api.main as m
+    release = threading.Event()
+    monkeypatch.setattr(m, "PV_CONTRACT_COUNT_TIMEOUT_S", 0.3)
+    monkeypatch.setattr(m, "_resolve_active_set_for_patterns",
+                        lambda **k: release.wait(30) or ["AAPL"])
+    t0 = time.time()
+    line = m._pattern_vision_contract_line()
+    release.set()
+    assert time.time() - t0 < 5
+    assert "active_set_only=on:unresolved(timeout)[resolved]" in line
+
+
+def test_contract_line_count_and_error_paths(monkeypatch):
+    import api.main as m
+    monkeypatch.setattr(m, "_resolve_active_set_for_patterns", lambda **k: ["A", "B", "C"])
+    assert "active_set_only=on:3[resolved]" in m._pattern_vision_contract_line()
+
+    def boom(**k):
+        raise RuntimeError("no store")
+    monkeypatch.setattr(m, "_resolve_active_set_for_patterns", boom)
+    assert "active_set_only=on:unresolved(RuntimeError)[resolved]" in m._pattern_vision_contract_line()
