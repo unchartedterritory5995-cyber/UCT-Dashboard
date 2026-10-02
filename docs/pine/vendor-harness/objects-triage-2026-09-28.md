@@ -160,6 +160,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
 | R1 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
+| RT1 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4646,3 +4647,89 @@ Mutations (bytes + sha256, restored by bytes): 18 run, 18 red after one fix - M5
 first SURVIVED because the probe's own `color.r(k1)` rows are folded by the columnar lane; the rail was
 rebuilt on `bgcolor` of a `var` and then went red. M16 (ownership re-checked in the drawing-end
 predicate) survived and the check was deleted as dead (`lowerStmts` is the authority).
+
+## RT1 - the runtime lane as the member door's general fallback (2026-10-02)
+
+Branch `pine/rt1-runtime-fallback`, base origin/master `5564cca92b` + R1 (`44aa7cc9b0`, merge
+`867beab706`), master `c31023ef1d` merged (`c03f08295a`). Integrator ruling: the member door has
+two engines; a script the HOST lane refuses goes to the RUNTIME lane, and if that lane builds it
+within its budgets and everything it would draw is exact, the pane draws it from there. Behind the
+existing `VITE_PINE_RUNTIME_PANE_ENABLED`, still OFF; the store's door behind its own
+`PINE_RUNTIME_SAVE_ENABLED`, OFF.
+
+### The routing, and which sentence a member reads
+
+- `paneGate.runtimeFallbackOf(t)`: the host translation refused (any refusal) -> the runtime lane is
+  asked. `runtimeRouteOf` (every refusal names the lane) keeps its C23 wording and behaviour.
+- **Decision: when the runtime lane declines, the member reads the HOST refusal verbatim, guard
+  included.** It names the construct the member wrote in TradingView's terms with its `TO UNBLOCK`;
+  the runtime lane's reasons are about its own internals. The runtime reason rides beside it
+  (`runtimeDeclined: {code, why}`) for the census, never instead of it.
+- `pine.js` `refusedPresentation` (asked for only with the flag on): a refused row keeps its title,
+  presentation and whether its call was written with an `offset`. Off, nothing changes.
+
+### What the runtime document will not draw, by name (each railed in `vendorHarness.rt1RuntimeFallback.test.js`)
+
+| construct | rule | why |
+|---|---|---|
+| a `?:` whose test can be `na` (`lowerIr.js::naTestsOf`, a `SELECT` not provably 0/1) | the fallback refuses the script, `runtime:na-test` | the shared `TERNARY` answers `na`; TradingView takes the other branch: `qqe-signals` RDDT 1D bar 73 (vendor na, ours 20.72), `pivot-point-supertrend` RDDT 1D `Buy` bar 517 (118.94 vs 117.31). Capture queued: `capture-queue-2026-10-02-rt1-na-test.md`, probe `rt1-na-test.pine` |
+| a series not proven to start at the listing | the document computes nothing, `runtime:history-start` | R-W applied to this lane: a per-bar run seeds `var` state at its first bar, TradingView's bar 0 only from the listing; the host lane admits only state that forgets its seed in 250 bars, this lane cannot prove that of a script |
+| a row drawn with `offset` | withheld, named in the disclosures | the runtime document draws each value on the bar that computed it |
+| a row whose colour changes per bar, or is unknown (refused row, no presentation) | withheld, named | the document carries one static colour; the harness grades a wrong colour DIVERGE (R-G keeps a host line because it draws today; nothing draws a runtime row today) |
+| `fill` / `hline` / `bgcolor` / `barcolor` / candles | not drawn, named in one disclosure | no row on this document |
+| a source the server would not accept (`RUNTIME_REPAINT_RISK`) | declined, `runtime:repaint-unstated` | unchanged; 127 of the census declines are this |
+
+### Performance, the budget, and no freeze
+
+`runtimeFallbackPerf.measure.test.js` (newest 5,000 bars of the committed AAPL 1D capture, cold,
+median of 5, this box): adx-and-di-for-v4 118 ms, inside-bar 144 ms, wyckoff 94 ms (it then refuses
+by name on AAPL, `array.max of an empty array`). Every one is several frames, so the run goes OFF the
+main thread: `runtime/runtimeWorker.js` runs `computeRuntimeColumns` (the one computation; the
+synchronous door runs the same function), `runtimeAsync.js` posts plain rows and lands the columns,
+and the chart repaints through `serverCompute.notifyColumnsLanded` (the generation `StockChart`
+already listens to). Measured in headless Chromium against a local flag-on build: first run 354 ms
+(includes loading the 914,591 B worker), second 39 ms, the page kept painting. **Budget: 1,000 ms
+per indicator run** (`RUNTIME_PANE_TIME_BUDGET_MS`, ~7x the slowest reading), enforced through the
+VM's own per-bar hook; past it the run stops by name (`runtime:time-budget`, naming the bar it
+reached) and nothing partial is drawn. No VM limit moved.
+
+### The kill switch (never a delete)
+
+`PINE_RUNTIME_KILL_LIST` on `web` (comma/space separated; a definition id `u_` + 12 hex, or the
+sha256 of the Pine source, a prefix of >= 12 hex accepted). A listed script: its save is refused; a
+stored copy is SERVED with `meta.runtimeKilled` (list, get, history) and every client's install
+door refuses it; the member door's preview reads the list from `GET /api/user-definitions/runtime-kill`
+and falls back to the host refusal. The stored row is never touched; unlisting brings it back on the
+next read (`test_runtime_definitions.py`).
+
+### The server's door
+
+`api/services/runtime_definitions.py` + `user_definitions._save_runtime`: same table, versions,
+tombstones, count cap, 64 KiB cap; `ast_hash` = `runtime:sha256:<source>`; repaint stamp re-derived
+server side; `REPAINT_RISK` mirrored byte for byte (railed against the JS literal). The sweep, the
+alert lane and the relint pass never admit a runtime row (railed). Route count 16 -> 17 in the three
+files that assert it.
+
+### Measured (base `867beab706` / after, merged tree `dcb7da5dad`)
+
+| | base | after |
+|---|---|---|
+| member door attach, objects off / on | 45 / 68 | 45 / 68, **0 rows changed** in either state |
+| member door, objects on + runtime on | (69: C23's routed inside-bar) | **71**: + adx-and-di-for-v4, wyckoff-accumulation-distribution |
+| the 47, pane on / off | 29 MATCH (objects 30) / 16 (objects 17) | identical, 0 entries changed |
+| the 47, pane on + runtime on | - | 30 MATCH, 0 DIVERGE added (inside-bar INCONCLUSIVE -> MATCH) |
+| harness dir, pane on / off | 50 / 37 MATCH (objects 71 / 58) | identical, 0 entries changed |
+| harness dir, pane on + runtime on | - | 52 MATCH, DIVERGE 26 -> 26: adx-and-di and inside-bar -> MATCH, three deadband probes compare more items, all agreeing |
+| translation census | 64 / 58 | unchanged (`corpus_metric.json` untouched) |
+| notebook first-open | 2,148,818 B | 2,148,818 B (+0, PASS) |
+| pine chunk / total JS | 417,950 / 13,255,794 B | 418,281 / 14,179,578 B (the runtime worker is 914,591 B, fetched only when a runtime pane computes) |
+| `paramIds.test.js` | green | green, no edit |
+
+Ungraded by capture: wyckoff-accumulation-distribution (`var` x12, 17 `if`, `ta.valuewhen`,
+`ta.pivothigh`/`pivotlow`, `ta.barssince`, `ta.rsi`, `array.new_float`/`push`/`min`/`max`, a `for`,
+`box.new`; three of its eight `plotshape` rows withheld for per-bar colour).
+
+Remaining runtime declines on the corpus (flag on): `runtime:repaint-unstated` 127,
+`history-dynamic-offset` 9, `call-undeclared-builtin-state` 7, `library` 6, `na-test` 6 (cc-yata,
+fibonacci-dolphintradebot, pivot-point-supertrend, qqe-signals, supertrend-strategy,
+trend-targets-algoalpha), `function-global-state` 4, `statement` 4, `withheld-all` 3, others <= 3.
