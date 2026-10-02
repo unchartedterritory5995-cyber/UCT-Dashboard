@@ -216,13 +216,24 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
             return seen, "timeout"
 
         def note_id_from(pg, timeout=20):
+            """The open note's id, read from the PAGE. ⚰️ Run 1 polled `pg.url` inside a
+            `time.sleep` loop: the sync API only learns of a pushState when it next talks
+            to the browser, so the property never moved and every saved note read None."""
             end = time.time() + timeout
             while time.time() < end:
-                m = re.search(r"[?&]note=([^&]+)", pg.url)
-                if m:
-                    return m.group(1)
-                time.sleep(0.1)
+                nid = pg.evaluate("() => new URLSearchParams(location.search).get('note')")
+                if nid:
+                    return nid
+                pg.wait_for_timeout(100)
             return None
+
+        def first_text(doc):
+            """The first non-empty text in a stored body (a body may open with an empty paragraph)."""
+            for n in doc.get("content") or []:
+                for c in n.get("content") or []:
+                    if c.get("type") == "text" and c.get("text", "").strip():
+                        return c["text"]
+            return ""
 
         @guarded("V0_gate_and_stub")
         def v0():
@@ -274,7 +285,7 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
                 "timer_recording": t_rec, "timer_paused": [t_p1, t_p2], "timer_resumed": t_res,
                 "progress_seen": seen, "ended_on": how,
                 "ai_label": "AI-written · Compass · Voice note summary" in text,
-                "chips": chips, "tsla_shown": "$TSLA" in text, "stub_transcript": "Part 1." in text,
+                "chips": chips, "tsla_shown": "$TSLA" in text, "stub_transcript_in_body": "Part 1." in body,
                 "note_id": nid, "note_title": note.get("title"), "note_tags": note.get("tags"),
                 "body_has": {k: (k in body) for k in ("voice_summary", "taskList", "toggle",
                                                      "/journal/notebook/research/NVDA", "Full transcript")},
@@ -300,17 +311,18 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
             dlg.get_by_role("button", name="Transcribe").click()
             seen, how = watch_progress(pg, timeout=240)
             shot(pg, "V2-preview")
-            prev_text = dlg.get_by_role("region", name="Voice note preview").inner_text() if how == "preview" else ""
             reqs = res["voice_requests"][n0:]
             dlg.get_by_role("button", name="Save as a new note").click()
             nid = note_id_from(pg)
+            body = body_of(nid) if nid else ""
             after = status()["cap"]["usedSeconds"]
             transcribes = [r for r in reqs if r.endswith("/transcribe")]
+            at = [body.find(f"Part {i}.") for i in (1, 2, 3)]
+            in_order = all(a >= 0 for a in at) and at == sorted(at)
             ok = (how == "preview" and len(transcribes) == 3 and reqs.count("POST /jobs") == 1
-                  and "Part 3." in prev_text and after - before >= 720 and bool(nid))
+                  and in_order and after - before >= 720 and bool(nid))
             record("V2_upload_three_parts", "PASS" if ok else "FAIL", progress_seen=seen, requests=reqs,
-                   used_seconds=[before, after], note_id=nid,
-                   parts_in_order=["Part 1." in prev_text, "Part 2." in prev_text, "Part 3." in prev_text])
+                   used_seconds=[before, after], note_id=nid, part_positions_in_body=at, parts_in_order=in_order)
             pg.close()
 
         @guarded("V3_retry_keeps_the_recording")
@@ -434,7 +446,7 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
                     break
                 time.sleep(0.5)
             doc = get_note(nid)["bodyJson"]
-            first = doc["content"][0]["content"][0]["text"] if doc.get("content") else ""
+            first = first_text(doc)
             ok = how == "preview" and "voice_summary" in body and first == "My plan for today." and "toggle" in body
             record("V6_slash_voice_append_by_keyboard", "PASS" if ok else "FAIL", keyboard_steps=steps,
                    member_words_first=first, autosaved="voice_summary" in body, note_id=nid)
@@ -486,9 +498,9 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
               return { vw, docScroll: document.documentElement.scrollWidth, ctrls };
             }""")
             shot(pg, "V8-preview-390")
-            short = [c for c in measure["ctrls"] if c["h"] < 44]
+            short = [c for c in measure["ctrls"] if c["h"] < 43.5]
             off = [c for c in measure["ctrls"] if c["left"] < 0 or c["right"] > measure["vw"] + 1]
-            sheet_short = [b for b in sizes if b and b["height"] < 44]
+            sheet_short = [b for b in sizes if b and b["height"] < 43.5]   # 43.99998 is 44 px
             ok = measure["docScroll"] <= measure["vw"] + 1 and not short and not off and not sheet_short and len(sizes) == 3
             record("V8_phone_390_touch", "PASS" if ok else "FAIL", doc_scroll=measure["docScroll"], vw=measure["vw"],
                    under_44=short, off_screen=off, sheet_buttons=sizes, controls=len(measure["ctrls"]))
@@ -500,11 +512,20 @@ def run_walk(base: str, art: Path, audio_dir: Path) -> None:
             pg = new_page()
             pg.goto(base + "/desk?section=videos")
             H._dismiss_intro(pg)
-            card = pg.get_by_text(DESK_TITLE).first
-            card.wait_for(timeout=20000)
+            card = pg.get_by_role("button", name=re.compile(re.escape(DESK_TITLE))).first
+            try:
+                card.wait_for(timeout=20000)
+            except Exception:  # noqa: BLE001 -- the title may be plain text inside a card
+                card = pg.get_by_text(DESK_TITLE).first
+                card.wait_for(timeout=10000)
+            shot(pg, "V9-desk")
             card.click()
             btn = pg.get_by_role("button", name="Save to Notebook")
-            btn.wait_for(timeout=30000)
+            try:
+                btn.wait_for(timeout=30000)
+            except Exception:
+                shot(pg, "V9-no-button")
+                raise
             shot(pg, "V9-dock")
             btn.click()
             dlg = dialog(pg)

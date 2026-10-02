@@ -148,13 +148,21 @@ export function tickerHref(symbol) {
   return `${NOTEBOOK_PATH}/research/${encodeURIComponent(symbol)}`
 }
 
-/** "Oct 1, 2026" from an ISO day, in UTC parts (no timezone drift). */
-export function dayLabel(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''))
-  if (!m) return ''
-  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+/**
+ * "Oct 1, 2026" — the MEMBER'S OWN day, from this browser's clock.
+ *
+ * ⚰️ The first walk dated an evening recording by the server's UTC day: a member
+ * in New York saving at 21:52 on Oct 1 read "Oct 2, 2026" on their note. The
+ * server does not know the member's time zone; this browser does.
+ */
+export function dayLabel(now = new Date()) {
+  const d = now instanceof Date ? now : new Date(now)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+/** What the note says when the AI answered but its summary did not survive checking. */
+export const NO_SUMMARY_SENTENCE = 'No summary — the one written did not hold up to checking against the transcript.'
 
 export function durationLabel(seconds) {
   const s = Math.max(0, Math.round(Number(seconds) || 0))
@@ -197,17 +205,22 @@ export const hasAiSections = (result) => Boolean(result?.ai?.ok)
  * "Action items" (a real task list) and "Transcript" (a closed toggle). Without
  * one: the source line and the transcript alone.
  */
-export function buildVoiceNoteNodes(result, { insertedAt = new Date().toISOString() } = {}) {
-  const meta = [sourceLabel(result), dayLabel(result?.date), durationLabel(result?.durationSeconds)]
+export function buildVoiceNoteNodes(result, { insertedAt = new Date().toISOString(), now = new Date() } = {}) {
+  const meta = [sourceLabel(result), dayLabel(now), durationLabel(result?.durationSeconds)]
     .filter(Boolean).join(' · ')
   const nodes = [{ type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'italic' }], text: meta || 'Voice note' }] }]
   if (hasAiSections(result)) {
     nodes.push(heading('Summary'))
-    nodes.push({
-      type: ASK_INSERT_TYPE,
-      attrs: { insertedAt, scope: null, question: sourceLabel(result), action: VOICE_SUMMARY_ACTION, model: result.ai.model || null },
-      content: [para(result.summary || 'No summary was written for this recording.')],
-    })
+    // ⛔ Only words the AI wrote sit inside the AI-labelled block. A summary that was
+    // dropped by validation leaves a plain sentence saying so — never an empty, or a
+    // made-up, "AI-written" block.
+    nodes.push(result.summary
+      ? {
+        type: ASK_INSERT_TYPE,
+        attrs: { insertedAt, scope: null, question: sourceLabel(result), action: VOICE_SUMMARY_ACTION, model: result.ai.model || null },
+        content: [para(result.summary)],
+      }
+      : para(NO_SUMMARY_SENTENCE))
     nodes.push(heading('Tickers'))
     const tickers = (result.tickers || []).filter((t) => typeof t === 'string' && t)
     if (tickers.length) {
@@ -246,9 +259,9 @@ export function buildVoiceNoteDoc(result, opts) {
   return { type: 'doc', content: [...buildVoiceNoteNodes(result, opts), { type: 'paragraph' }] }
 }
 
-export function defaultVoiceNoteTitle(result) {
+export function defaultVoiceNoteTitle(result, now = new Date()) {
   if (!result) return 'Voice note'
-  const day = dayLabel(result.date)
+  const day = dayLabel(now)
   if (result.source === 'desk') return result.title || 'Desk session'
   return day ? `${result.title || 'Voice note'} — ${day}` : (result.title || 'Voice note')
 }

@@ -11,7 +11,7 @@ import { Editor, getSchema } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
 import { __resetNotebookFlags, latchNotebookFlags } from './offline/notebookFlags'
 import {
-  VOICE_NOTE_LOCKED_SENTENCE, VOICE_SUMMARY_ACTION, appendVoiceNote, buildVoiceNoteDoc,
+  NO_SUMMARY_SENTENCE, VOICE_NOTE_LOCKED_SENTENCE, VOICE_SUMMARY_ACTION, appendVoiceNote, buildVoiceNoteDoc,
   createVoiceNote, defaultVoiceNoteTitle, tickerHref, transcribeRecording, transcriptParagraphs,
   voiceNotesEnabled,
 } from './voiceNote'
@@ -29,6 +29,8 @@ const RESULT = {
 }
 const NO_AI = { ...RESULT, summary: '', tickers: [], actionItems: [], ai: { ok: false, model: 'claude-sonnet-5', sentence: 'The summary couldn’t be written this time.' } }
 
+// 21:52 LOCAL on Oct 1 — already Oct 2 in UTC for any member west of Greenwich.
+const EVENING = new Date(2026, 9, 1, 21, 52)
 const headings = (doc) => doc.content.filter((n) => n.type === 'heading').map((n) => n.content[0].text)
 const find = (doc, type) => doc.content.find((n) => n.type === type)
 
@@ -41,7 +43,7 @@ afterEach(() => { vi.unstubAllGlobals(); __resetNotebookFlags() })
 
 describe('the note a result becomes', () => {
   it('holds the four sections, the AI label on the summary, linked tickers, a real task list and a closed transcript', () => {
-    const doc = buildVoiceNoteDoc(RESULT, { insertedAt: '2026-10-01T13:00:00.000Z' })
+    const doc = buildVoiceNoteDoc(RESULT, { insertedAt: '2026-10-01T13:00:00.000Z', now: EVENING })
     expect(headings(doc)).toEqual(['Summary', 'Tickers', 'Action items', 'Transcript'])
     const ai = find(doc, 'askInsert')
     expect(ai.attrs).toMatchObject({ action: VOICE_SUMMARY_ACTION, model: 'claude-sonnet-5', question: 'Recording' })
@@ -78,9 +80,23 @@ describe('the note a result becomes', () => {
 
   it('a Desk session is named as the source and titled by the session', () => {
     const desk = { ...RESULT, source: 'desk', title: 'Live Trading — Oct 1, 2026', desk: { id: 7, title: 'Live Trading — Oct 1, 2026' } }
-    expect(buildVoiceNoteDoc(desk).content[0].content[0].text).toMatch(/^Desk session: Live Trading — Oct 1, 2026/)
-    expect(defaultVoiceNoteTitle(desk)).toBe('Live Trading — Oct 1, 2026')
-    expect(defaultVoiceNoteTitle(RESULT)).toBe('Voice note — Oct 1, 2026')
+    expect(buildVoiceNoteDoc(desk, { now: EVENING }).content[0].content[0].text).toMatch(/^Desk session: Live Trading — Oct 1, 2026 · Oct 1, 2026/)
+    expect(defaultVoiceNoteTitle(desk, EVENING)).toBe('Live Trading — Oct 1, 2026')
+    expect(defaultVoiceNoteTitle(RESULT, EVENING)).toBe('Voice note — Oct 1, 2026')
+  })
+
+  it("is dated by the MEMBER's own day, never the server's UTC day", () => {
+    // the server's own date says Oct 2 (UTC); the member saved at 21:52 on Oct 1
+    const doc = buildVoiceNoteDoc({ ...RESULT, date: '2026-10-02' }, { now: EVENING })
+    expect(doc.content[0].content[0].text).toBe('Recording · Oct 1, 2026 · 13 min')
+  })
+
+  it('a summary dropped by validation leaves a plain sentence — never an empty AI-labelled block', () => {
+    const doc = buildVoiceNoteDoc({ ...RESULT, summary: '' }, { now: EVENING })
+    expect(headings(doc)).toEqual(['Summary', 'Tickers', 'Action items', 'Transcript'])
+    expect(find(doc, 'askInsert')).toBeUndefined()
+    const after = doc.content[doc.content.findIndex((n) => n.type === 'heading' && n.content[0].text === 'Summary') + 1]
+    expect(after).toEqual({ type: 'paragraph', content: [{ type: 'text', text: NO_SUMMARY_SENTENCE }] })
   })
 
   it('long transcript runs are cut at a sentence, never mid-word', () => {

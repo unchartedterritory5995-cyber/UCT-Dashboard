@@ -12,6 +12,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import VoiceNoteDialog from './VoiceNoteDialog'
+import { dayLabel } from '../../lib/voiceNote'
 
 const RESULT = {
   source: 'recording', title: 'Voice note', name: '', date: '2026-10-01', durationSeconds: 65,
@@ -142,7 +143,7 @@ describe('the recorder states, as the member sees them', () => {
     expect(within(preview).getByText('Set a stop on AMD below the 50-day')).toBeInTheDocument()
     expect(within(preview).getByRole('heading', { name: 'Transcript' })).toBeInTheDocument()
     expect(within(preview).getByText('Full transcript · 15 words')).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Voice note — Oct 1, 2026')
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue(`Voice note — ${dayLabel()}`)
     expect(calls.filter((c) => c === 'POST /jobs')).toHaveLength(1)
     const form = fetch.mock.calls.find(([u]) => String(u).endsWith('/jobs'))[1].body
     expect(form.get('source')).toBe('recording')
@@ -172,6 +173,9 @@ describe('the recorder states, as the member sees them', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Transcription failed for part 2 of 2. Your recording is kept')
     expect(screen.getByText('Your recording is kept. Retry continues from where it stopped.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    // a resume uploads nothing, and the progress line must not claim it does
+    expect(await screen.findByText(/^Transcribing/)).toBeInTheDocument()
+    expect(screen.queryByText('Uploading the recording…')).toBeNull()
     await release()
     expect(await screen.findByRole('region', { name: 'Voice note preview' })).toBeInTheDocument()
     expect(calls.filter((c) => c === 'POST /jobs')).toHaveLength(1)           // never uploaded twice

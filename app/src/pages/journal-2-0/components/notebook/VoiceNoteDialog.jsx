@@ -3,7 +3,7 @@ import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import useVoiceRecorder, { canRecord, clockLabel } from '../../lib/useVoiceRecorder'
 import {
-  ACCEPTED_AUDIO, MAX_RECORD_SECONDS, MAX_UPLOAD_BYTES,
+  ACCEPTED_AUDIO, MAX_RECORD_SECONDS, MAX_UPLOAD_BYTES, NO_SUMMARY_SENTENCE,
   createVoiceNote, dayLabel, defaultVoiceNoteTitle, discardVoiceJob, fetchVoiceStatus,
   hasAiSections, listDeskSessions, sourceLabel, summarizeDeskSession, summarizeVoiceJob,
   transcribeRecording, transcriptParagraphs,
@@ -94,7 +94,9 @@ export default function VoiceNoteDialog({
 
   const transcribe = useCallback(async (blob, filename, src) => {
     setError(''); setRetry(null)
-    setWork({ phase: 'uploading', done: 0, total: 0 })
+    // A Retry with a live job resumes on the server: nothing is uploaded again, and
+    // the label must not say it is (the first walk caught "Uploading…" on a resume).
+    setWork(jobRef.current ? { phase: 'transcribing', done: 0, total: 0 } : { phase: 'uploading', done: 0, total: 0 })
     const res = await transcribeRecording({
       blob, filename, source: src, jobId: jobRef.current,
       onProgress: (p) => setWork(p),
@@ -363,7 +365,7 @@ function Preview({ result, title, setTitle, titleId }) {
     <div className={styles.preview} aria-label="Voice note preview" role="region">
       <label className={styles.titleLabel} htmlFor={titleId}>Title</label>
       <input id={titleId} className={styles.title} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} />
-      <p className={styles.meta}>{[sourceLabel(result), dayLabel(result.date)].filter(Boolean).join(' · ')}</p>
+      <p className={styles.meta}>{[sourceLabel(result), dayLabel()].filter(Boolean).join(' · ')}</p>
       {!ai && (
         <p className={styles.notice} role="note">
           {result.ai?.sentence || 'There is no summary for this recording.'} The note will hold the transcript.
@@ -373,13 +375,15 @@ function Preview({ result, title, setTitle, titleId }) {
         <>
           <section aria-labelledby={`${titleId}-sum`}>
             <h3 id={`${titleId}-sum`} className={styles.h}>Summary</h3>
-            <div className={styles.aiBlock}>
-              <p className={styles.aiLabel}>
-                <UIcon name="sparkle" size={12} gold={false} /> AI-written · Compass · {AI_SUMMARY_ACTION_LABELS.voice_summary}
-                {result.ai?.model ? ` · ${result.ai.model}` : ''}
-              </p>
-              <p>{result.summary || 'No summary was written for this recording.'}</p>
-            </div>
+            {result.summary ? (
+              <div className={styles.aiBlock}>
+                <p className={styles.aiLabel}>
+                  <UIcon name="sparkle" size={12} gold={false} /> AI-written · Compass · {AI_SUMMARY_ACTION_LABELS.voice_summary}
+                  {result.ai?.model ? ` · ${result.ai.model}` : ''}
+                </p>
+                <p>{result.summary}</p>
+              </div>
+            ) : <p className={styles.fine}>{NO_SUMMARY_SENTENCE}</p>}
           </section>
           <section aria-labelledby={`${titleId}-tk`}>
             <h3 id={`${titleId}-tk`} className={styles.h}>Tickers</h3>
