@@ -915,14 +915,12 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:cycle",
         "pine:function-def",
-        "pine:state"
+        "pine:timeout"
       ],
       "screenerGuards": [
-        "pine:cycle",
         "pine:function-def",
-        "pine:state"
+        "pine:timeout"
       ]
     },
     {
