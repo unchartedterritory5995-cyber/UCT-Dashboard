@@ -39,6 +39,8 @@ const SAVED = {
     { address: 'L:12', kind: 'layout', kind_label: 'Chart layout', name: 'Swing Board', to: '/charts?openLayout=12' },
     { address: 'W:w-abc', kind: 'watchlist', kind_label: 'Watchlist', name: 'Swing Names', to: '/charts?openWatchlist=user:w-abc' },
     { address: 'N:n1', kind: 'note', kind_label: 'Note', name: 'Swing plan', to: '/journal/notebook?note=n1' },
+    { address: 'T:ts_abc', kind: 'theme_set', kind_label: 'Theme set', name: 'Swing themes', to: '/charts?openThemeSet=ts_abc' },
+    { address: 'F:41', kind: 'floor', kind_label: 'Floor post', name: 'Swing setups this week', to: '/community?thread=41' },
   ],
   unavailable: [],
 }
@@ -78,6 +80,24 @@ describe('CommandPalette — saved things as names (TERM-038)', () => {
     openAndType('swing')
     fireEvent.click(await screen.findByRole('option', { name: 'Watchlist: Swing Names. Enter to open.' }))
     await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/charts?openWatchlist=user:w-abc'))
+  })
+
+  it('slice 2: a theme set opens through the openThemeSet door on /charts', async () => {
+    renderPalette({ addressSpaceEnabled: true })
+    openAndType('swing')
+    const row = await screen.findByRole('option', { name: 'Theme set: Swing themes. Enter to open.' })
+    expect(row.textContent).toContain('Theme set')
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/charts?openThemeSet=ts_abc'))
+  })
+
+  it('slice 2: a Floor post (public, viewer-scoped) opens through the thread door on /community', async () => {
+    renderPalette({ addressSpaceEnabled: true })
+    openAndType('swing')
+    const row = await screen.findByRole('option', { name: 'Floor post: Swing setups this week. Enter to open.' })
+    expect(row.textContent).toContain('Swing setups this week')
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/community?thread=41'))
   })
 
   it('notes are left to the quick switcher, never listed twice', async () => {

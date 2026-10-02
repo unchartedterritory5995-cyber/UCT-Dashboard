@@ -69,6 +69,40 @@ the axe rails and the screen-reader pass judge the words.
   (opening a note drops the `view` parameter; closing does not restore it). Focus goes to
   the pane heading, which is correct for what is shown; whether the pane should return to
   All notes is a product question, not an accessibility one.
+- **Opening an EXISTING note focuses a heading, not the title field** -- deliberate
+  ("Final-review fix I-1", `NoteEditorPage.jsx:906-916`), and confirmed as such by the
+  a11y second review (A2R-02, 2026-10-01) rather than changed: a visible-caret title
+  input taking focus on every open meant a screen-reader user's Space keypress (meant
+  as a navigation key) got typed into the title and autosaved, and a phone raised its
+  virtual keyboard over the note on every view. The target is `[data-note-landmark]`, an
+  `<h2 tabIndex={-1} className="sr-only">` named by the note's own title, so the
+  announcement is the note's name, not silence. **It is not exempt from 2.4.7 by
+  accident** -- the heading itself has nothing to draw an outline on (zero size,
+  clipped), so the PANE wears the indicator instead:
+  `.notePane:has([data-note-landmark]:focus-visible)` in `NotebookTab.module.css:107`
+  (a gold inset ring). Only a note the member just CREATED (`openFocus === 'title'`)
+  focuses the real title `<input aria-label="Note title">` -- a fresh, empty title is
+  exactly the case a live caret is for.
+  ⚰️ `docs/notebook/screen-reader-pass.md` step 10 said the opposite ("focus lands IN
+  the title field") and cited `NoteEditorPage.jsx:3565`, a line that has drifted onto
+  unrelated code -- corrected in that file so the owner's eventual NVDA/VoiceOver run
+  tests the behavior the code actually has, not a stale expectation.
+- **The cinematic intro's own "Skip intro" button is the first Tab stop on a fresh
+  load, ahead of the Notebook's "Skip to notes list"** (A2R-01, a11y second review,
+  2026-10-01) -- RULED CORRECT, not a defect: an interstitial that covers the whole
+  screen (`IntroAnimation.jsx`, `position:fixed`, z-index 99999) owning the first Tab
+  stop is the same pattern as a cookie-consent banner or any other page-blocking
+  overlay, and the reviewer's own framing agreed ("an intro overlay's own skip being
+  first is reasonable"). What WAS a defect, found by reading the component rather than
+  by the walk itself: the overlay had no focus trap, so a SECOND Tab (not Enter/Space,
+  both of which already dismissed the intro from anywhere via a capture-phase
+  listener) walked straight past Skip into the real app's chrome -- including that
+  same "Skip to notes list" link -- while the overlay still visually covered it for up
+  to 9.3s (1.6s reduced-motion). Focus landing on a target a sighted keyboard user
+  cannot see is the "lands BEHIND the overlay" case this review asked to rule on.
+  Fixed by wiring the shared `useFocusTrap` (`components/mobile/useFocusTrap.js`, the
+  same hook `ConfirmModal`/`ShortcutCheatSheet` use) to the overlay for as long as it
+  plays; no change to which control is first.
 - **The Support page's stylesheet** removes the outline on four inputs (`.searchInput`,
   `.formSelect` / `.formInput`, `.attachDrop`, `.replyInput`) and shows focus only by a
   border change to `--ut-gold-glow`, a translucent gold that measures 1.33-1.58:1 against

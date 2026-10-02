@@ -1,0 +1,492 @@
+{
+ "keys": 200,
+ "total_self_ms": 9594.623,
+ "idle_self_ms": 8776.075,
+ "busy_self_ms": 818.548,
+ "busy_self_ms_per_key": 4.0927,
+ "sample_count": 16920,
+ "rows": [
+  {
+   "functionName": "get commands",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12143,
+   "column": 18,
+   "self_ms": 61.129,
+   "self_ms_per_key": 0.30565
+  },
+  {
+   "functionName": "createCan",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12114,
+   "column": 11,
+   "self_ms": 39.087,
+   "self_ms_per_key": 0.19544
+  },
+  {
+   "functionName": "NoteEditorPage",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7008,
+   "column": 23,
+   "self_ms": 27.969,
+   "self_ms_per_key": 0.13984
+  },
+  {
+   "functionName": "createChainableState",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12020,
+   "column": 29,
+   "self_ms": 20.818,
+   "self_ms_per_key": 0.10409
+  },
+  {
+   "functionName": "someProp",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11644,
+   "column": 10,
+   "self_ms": 20.036,
+   "self_ms_per_key": 0.10018
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 19.643,
+   "self_ms_per_key": 0.09821
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 9371,
+   "column": 29,
+   "self_ms": 16.138,
+   "self_ms_per_key": 0.08069
+  },
+  {
+   "functionName": "renderWithHooks",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3532,
+   "column": 26,
+   "self_ms": 14.107,
+   "self_ms_per_key": 0.07054
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1164,
+   "column": 6,
+   "self_ms": 11.311,
+   "self_ms_per_key": 0.05656
+  },
+  {
+   "functionName": "clientRect",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6893,
+   "column": 19,
+   "self_ms": 10.601,
+   "self_ms_per_key": 0.05301
+  },
+  {
+   "functionName": "checkIfContextChanged",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2609,
+   "column": 32,
+   "self_ms": 10.522,
+   "self_ms_per_key": 0.05261
+  },
+  {
+   "functionName": "useSWRArgs",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1047,
+   "column": 28,
+   "self_ms": 10.121,
+   "self_ms_per_key": 0.05061
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "column": 32,
+   "self_ms": 9.86,
+   "self_ms_per_key": 0.0493
+  },
+  {
+   "functionName": "updateWorkInProgressHook",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3627,
+   "column": 35,
+   "self_ms": 9.463,
+   "self_ms_per_key": 0.04731
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12145,
+   "column": 42,
+   "self_ms": 9.237,
+   "self_ms_per_key": 0.04619
+  },
+  {
+   "functionName": "useSWRHandler",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1101,
+   "column": 22,
+   "self_ms": 8.514,
+   "self_ms_per_key": 0.04257
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 7.872,
+   "self_ms_per_key": 0.03936
+  },
+  {
+   "functionName": "setTimeout",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 7.316,
+   "self_ms_per_key": 0.03658
+  },
+  {
+   "functionName": "isMacPlatform",
+   "url": "http://127.0.0.1:8391/assets/platform-DeI51cbD.js",
+   "line": 0,
+   "column": 22,
+   "self_ms": 7.098,
+   "self_ms_per_key": 0.03549
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7309,
+   "column": 27,
+   "self_ms": 7.047,
+   "self_ms_per_key": 0.03523
+  },
+  {
+   "functionName": "matchMedia",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 6.619,
+   "self_ms_per_key": 0.03309
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "column": 33,
+   "self_ms": 6.473,
+   "self_ms_per_key": 0.03236
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11995,
+   "column": 17,
+   "self_ms": 6.342,
+   "self_ms_per_key": 0.03171
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6904,
+   "column": 27,
+   "self_ms": 6.162,
+   "self_ms_per_key": 0.03081
+  },
+  {
+   "functionName": "readDOMChange",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11189,
+   "column": 22,
+   "self_ms": 6.097,
+   "self_ms_per_key": 0.03049
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12121,
+   "column": 22,
+   "self_ms": 6.056,
+   "self_ms_per_key": 0.03028
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 13650,
+   "column": 22,
+   "self_ms": 5.824,
+   "self_ms_per_key": 0.02912
+  },
+  {
+   "functionName": "getListener",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1596,
+   "column": 22,
+   "self_ms": 5.469,
+   "self_ms_per_key": 0.02735
+  },
+  {
+   "functionName": "runCustomHandler",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 9502,
+   "column": 25,
+   "self_ms": 5.316,
+   "self_ms_per_key": 0.02658
+  },
+  {
+   "functionName": "deriveDeclaredSchema",
+   "url": "http://127.0.0.1:8391/assets/index-Do28zfAD.js",
+   "line": 8362,
+   "column": 29,
+   "self_ms": 5.201,
+   "self_ms_per_key": 0.026
+  },
+  {
+   "functionName": "getBoundingClientRect",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.056,
+   "self_ms_per_key": 0.02528
+  },
+  {
+   "functionName": "inputRuleMatcherHandler",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 14655,
+   "column": 30,
+   "self_ms": 4.927,
+   "self_ms_per_key": 0.02463
+  },
+  {
+   "functionName": "dispatchTransaction",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 16621,
+   "column": 21,
+   "self_ms": 4.871,
+   "self_ms_per_key": 0.02436
+  },
+  {
+   "functionName": "findSuggestionMatch",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 19284,
+   "column": 28,
+   "self_ms": 4.757,
+   "self_ms_per_key": 0.02378
+  },
+  {
+   "functionName": "parseBetween",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11128,
+   "column": 21,
+   "self_ms": 4.439,
+   "self_ms_per_key": 0.02219
+  },
+  {
+   "functionName": "addAll",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 2864,
+   "column": 8,
+   "self_ms": 4.431,
+   "self_ms_per_key": 0.02216
+  },
+  {
+   "functionName": "append",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 231,
+   "column": 8,
+   "self_ms": 4.407,
+   "self_ms_per_key": 0.02203
+  },
+  {
+   "functionName": "getClientRects",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 4.312,
+   "self_ms_per_key": 0.02156
+  },
+  {
+   "functionName": "remove",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 4.197,
+   "self_ms_per_key": 0.02099
+  },
+  {
+   "functionName": "batchedUpdates$1",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1583,
+   "column": 27,
+   "self_ms": 4.061,
+   "self_ms_per_key": 0.02031
+  },
+  {
+   "functionName": "buildProps",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12129,
+   "column": 12,
+   "self_ms": 4.052,
+   "self_ms_per_key": 0.02026
+  },
+  {
+   "functionName": "applyTransaction",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 5903,
+   "column": 18,
+   "self_ms": 4.009,
+   "self_ms_per_key": 0.02005
+  },
+  {
+   "functionName": "bubbleProperties",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 6079,
+   "column": 27,
+   "self_ms": 3.807,
+   "self_ms_per_key": 0.01903
+  },
+  {
+   "functionName": "K",
+   "url": "http://127.0.0.1:8391/assets/index-BuBn8uQ5.js",
+   "line": 20,
+   "column": 10,
+   "self_ms": 3.766,
+   "self_ms_per_key": 0.01883
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12120,
+   "column": 38,
+   "self_ms": 3.674,
+   "self_ms_per_key": 0.01837
+  },
+  {
+   "functionName": "applyInner",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 5936,
+   "column": 12,
+   "self_ms": 3.672,
+   "self_ms_per_key": 0.01836
+  },
+  {
+   "functionName": "createWorkInProgress",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2203,
+   "column": 31,
+   "self_ms": 3.493,
+   "self_ms_per_key": 0.01746
+  },
+  {
+   "functionName": "bailoutOnAlreadyFinishedWork",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 5606,
+   "column": 39,
+   "self_ms": 3.459,
+   "self_ms_per_key": 0.0173
+  },
+  {
+   "functionName": "performUnitOfWork",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8545,
+   "column": 28,
+   "self_ms": 3.437,
+   "self_ms_per_key": 0.01718
+  },
+  {
+   "functionName": "windowRect",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6874,
+   "column": 19,
+   "self_ms": 3.348,
+   "self_ms_per_key": 0.01674
+  },
+  {
+   "functionName": "getComputedStyle",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 3.292,
+   "self_ms_per_key": 0.01646
+  },
+  {
+   "functionName": "updateState",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11525,
+   "column": 13,
+   "self_ms": 3.208,
+   "self_ms_per_key": 0.01604
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 10908,
+   "column": 23,
+   "self_ms": 3.179,
+   "self_ms_per_key": 0.01589
+  },
+  {
+   "functionName": "clearTimeout",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 3.069,
+   "self_ms_per_key": 0.01534
+  },
+  {
+   "functionName": "stringifyDraftPayload",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 970,
+   "column": 30,
+   "self_ms": 2.97,
+   "self_ms_per_key": 0.01485
+  },
+  {
+   "functionName": "scrollToSelection",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11592,
+   "column": 19,
+   "self_ms": 2.945,
+   "self_ms_per_key": 0.01472
+  },
+  {
+   "functionName": "stringifyNode",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 952,
+   "column": 24,
+   "self_ms": 2.942,
+   "self_ms_per_key": 0.01471
+  },
+  {
+   "functionName": "getChangedRanges",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 13664,
+   "column": 25,
+   "self_ms": 2.931,
+   "self_ms_per_key": 0.01465
+  },
+  {
+   "functionName": "resolveUpdatePriority",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1082,
+   "column": 32,
+   "self_ms": 2.922,
+   "self_ms_per_key": 0.01461
+  },
+  {
+   "functionName": "commitMutationEffectsOnFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 7157,
+   "column": 39,
+   "self_ms": 2.895,
+   "self_ms_per_key": 0.01448
+  }
+ ],
+ "paragraphs": 1,
+ "raw_profile": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty7-profile-raw\\profile-1p-r142125.cpuprofile.json"
+}

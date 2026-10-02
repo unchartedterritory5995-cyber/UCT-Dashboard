@@ -1,0 +1,492 @@
+{
+ "keys": 200,
+ "total_self_ms": 10339.348,
+ "idle_self_ms": 8423.226,
+ "busy_self_ms": 1916.122,
+ "busy_self_ms_per_key": 9.5806,
+ "sample_count": 18641,
+ "rows": [
+  {
+   "functionName": "stringifyNode",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 952,
+   "column": 24,
+   "self_ms": 283.994,
+   "self_ms_per_key": 1.41997
+  },
+  {
+   "functionName": "commitBeforeMutationEffects",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 6689,
+   "column": 38,
+   "self_ms": 170.204,
+   "self_ms_per_key": 0.85102
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 109.161,
+   "self_ms_per_key": 0.5458
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 77.089,
+   "self_ms_per_key": 0.38544
+  },
+  {
+   "functionName": "get commands",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12143,
+   "column": 18,
+   "self_ms": 59.87,
+   "self_ms_per_key": 0.29935
+  },
+  {
+   "functionName": "createCan",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12114,
+   "column": 11,
+   "self_ms": 53.864,
+   "self_ms_per_key": 0.26932
+  },
+  {
+   "functionName": "get isLeaf",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 2082,
+   "column": 12,
+   "self_ms": 49.324,
+   "self_ms_per_key": 0.24662
+  },
+  {
+   "functionName": "nodesBetween",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 191,
+   "column": 14,
+   "self_ms": 37.762,
+   "self_ms_per_key": 0.18881
+  },
+  {
+   "functionName": "NoteEditorPage",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7008,
+   "column": 23,
+   "self_ms": 33.551,
+   "self_ms_per_key": 0.16776
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1174,
+   "column": 14,
+   "self_ms": 31.516,
+   "self_ms_per_key": 0.15758
+  },
+  {
+   "functionName": "forEach",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 355,
+   "column": 9,
+   "self_ms": 26.693,
+   "self_ms_per_key": 0.13347
+  },
+  {
+   "functionName": "createChainableState",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12020,
+   "column": 29,
+   "self_ms": 24.358,
+   "self_ms_per_key": 0.12179
+  },
+  {
+   "functionName": "child",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 339,
+   "column": 7,
+   "self_ms": 20.994,
+   "self_ms_per_key": 0.10497
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 9371,
+   "column": 29,
+   "self_ms": 19.072,
+   "self_ms_per_key": 0.09536
+  },
+  {
+   "functionName": "toJSON",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 931,
+   "column": 17,
+   "self_ms": 18.405,
+   "self_ms_per_key": 0.09203
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "column": 32,
+   "self_ms": 17.711,
+   "self_ms_per_key": 0.08855
+  },
+  {
+   "functionName": "someProp",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11644,
+   "column": 10,
+   "self_ms": 17.205,
+   "self_ms_per_key": 0.08602
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/tiptap-BuSDS1ve.js",
+   "line": 6473,
+   "column": 17,
+   "self_ms": 16.554,
+   "self_ms_per_key": 0.08277
+  },
+  {
+   "functionName": "matchType",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1632,
+   "column": 11,
+   "self_ms": 16.446,
+   "self_ms_per_key": 0.08223
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7309,
+   "column": 27,
+   "self_ms": 16.343,
+   "self_ms_per_key": 0.08171
+  },
+  {
+   "functionName": "batchedUpdates$1",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1583,
+   "column": 27,
+   "self_ms": 14.768,
+   "self_ms_per_key": 0.07384
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12121,
+   "column": 22,
+   "self_ms": 14.744,
+   "self_ms_per_key": 0.07372
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1164,
+   "column": 6,
+   "self_ms": 14.574,
+   "self_ms_per_key": 0.07287
+  },
+  {
+   "functionName": "renderWithHooks",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3532,
+   "column": 26,
+   "self_ms": 13.506,
+   "self_ms_per_key": 0.06753
+  },
+  {
+   "functionName": "clientRect",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6893,
+   "column": 19,
+   "self_ms": 13.298,
+   "self_ms_per_key": 0.06649
+  },
+  {
+   "functionName": "useSWRHandler",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1101,
+   "column": 22,
+   "self_ms": 13.157,
+   "self_ms_per_key": 0.06578
+  },
+  {
+   "functionName": "matchFragment",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1642,
+   "column": 15,
+   "self_ms": 12.618,
+   "self_ms_per_key": 0.06309
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6904,
+   "column": 27,
+   "self_ms": 12.53,
+   "self_ms_per_key": 0.06265
+  },
+  {
+   "functionName": "get size",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7931,
+   "column": 10,
+   "self_ms": 12.46,
+   "self_ms_per_key": 0.0623
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 10908,
+   "column": 23,
+   "self_ms": 12.43,
+   "self_ms_per_key": 0.06215
+  },
+  {
+   "functionName": "posBeforeChild",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7398,
+   "column": 16,
+   "self_ms": 12.313,
+   "self_ms_per_key": 0.06157
+  },
+  {
+   "functionName": "walk",
+   "url": "http://127.0.0.1:8391/assets/tiptap-BuSDS1ve.js",
+   "line": 6472,
+   "column": 15,
+   "self_ms": 11.521,
+   "self_ms_per_key": 0.05761
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "column": 33,
+   "self_ms": 11.521,
+   "self_ms_per_key": 0.05761
+  },
+  {
+   "functionName": "stageNoteWithIntent",
+   "url": "http://127.0.0.1:8391/assets/offlineFlag-BGIGI264.js",
+   "line": 94,
+   "column": 28,
+   "self_ms": 11.016,
+   "self_ms_per_key": 0.05508
+  },
+  {
+   "functionName": "useSWRArgs",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1047,
+   "column": 28,
+   "self_ms": 9.795,
+   "self_ms_per_key": 0.04897
+  },
+  {
+   "functionName": "updateWorkInProgressHook",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3627,
+   "column": 35,
+   "self_ms": 9.502,
+   "self_ms_per_key": 0.04751
+  },
+  {
+   "functionName": "propagateParentContextChanges",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2579,
+   "column": 40,
+   "self_ms": 9.385,
+   "self_ms_per_key": 0.04693
+  },
+  {
+   "functionName": "getListener",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1596,
+   "column": 22,
+   "self_ms": 8.96,
+   "self_ms_per_key": 0.0448
+  },
+  {
+   "functionName": "findNodeMatch",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 8372,
+   "column": 15,
+   "self_ms": 8.817,
+   "self_ms_per_key": 0.04408
+  },
+  {
+   "functionName": "eq",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 309,
+   "column": 4,
+   "self_ms": 8.363,
+   "self_ms_per_key": 0.04181
+  },
+  {
+   "functionName": "get isLeaf",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1424,
+   "column": 12,
+   "self_ms": 8.222,
+   "self_ms_per_key": 0.04111
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12145,
+   "column": 42,
+   "self_ms": 8.015,
+   "self_ms_per_key": 0.04007
+  },
+  {
+   "functionName": "createWorkInProgress",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2203,
+   "column": 31,
+   "self_ms": 7.893,
+   "self_ms_per_key": 0.03947
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1575,
+   "column": 14,
+   "self_ms": 7.864,
+   "self_ms_per_key": 0.03932
+  },
+  {
+   "functionName": "findSuggestionMatch",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 19284,
+   "column": 28,
+   "self_ms": 7.843,
+   "self_ms_per_key": 0.03921
+  },
+  {
+   "functionName": "commitRoot",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8672,
+   "column": 21,
+   "self_ms": 7.757,
+   "self_ms_per_key": 0.03879
+  },
+  {
+   "functionName": "SyntheticBaseEvent",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1663,
+   "column": 31,
+   "self_ms": 7.508,
+   "self_ms_per_key": 0.03754
+  },
+  {
+   "functionName": "matchMedia",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 7.381,
+   "self_ms_per_key": 0.03691
+  },
+  {
+   "functionName": "checkIfContextChanged",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2609,
+   "column": 32,
+   "self_ms": 6.954,
+   "self_ms_per_key": 0.03477
+  },
+  {
+   "functionName": "getActiveElementDeep",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2047,
+   "column": 31,
+   "self_ms": 6.786,
+   "self_ms_per_key": 0.03393
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12120,
+   "column": 38,
+   "self_ms": 6.623,
+   "self_ms_per_key": 0.03311
+  },
+  {
+   "functionName": "getRootForUpdatedFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2174,
+   "column": 33,
+   "self_ms": 6.297,
+   "self_ms_per_key": 0.03148
+  },
+  {
+   "functionName": "inputRuleMatcherHandler",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 14655,
+   "column": 30,
+   "self_ms": 6.199,
+   "self_ms_per_key": 0.03099
+  },
+  {
+   "functionName": "applyInner",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 5936,
+   "column": 12,
+   "self_ms": 6.146,
+   "self_ms_per_key": 0.03073
+  },
+  {
+   "functionName": "req.onsuccess",
+   "url": "http://127.0.0.1:8391/assets/offlineFlag-BGIGI264.js",
+   "line": 150,
+   "column": 20,
+   "self_ms": 5.927,
+   "self_ms_per_key": 0.02963
+  },
+  {
+   "functionName": "readDOMChange",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11189,
+   "column": 22,
+   "self_ms": 5.814,
+   "self_ms_per_key": 0.02907
+  },
+  {
+   "functionName": "remove",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.635,
+   "self_ms_per_key": 0.02817
+  },
+  {
+   "functionName": "performUnitOfWork",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8545,
+   "column": 28,
+   "self_ms": 5.63,
+   "self_ms_per_key": 0.02815
+  },
+  {
+   "functionName": "updateStateInner",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11528,
+   "column": 18,
+   "self_ms": 5.613,
+   "self_ms_per_key": 0.02807
+  },
+  {
+   "functionName": "setSelection",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7617,
+   "column": 14,
+   "self_ms": 5.222,
+   "self_ms_per_key": 0.02611
+  }
+ ],
+ "paragraphs": 2000,
+ "raw_profile": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty7-profile-raw\\profile-2000p-r142125.cpuprofile.json"
+}

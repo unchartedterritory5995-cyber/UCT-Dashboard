@@ -14,10 +14,10 @@ Who: anyone who keeps trading notes today, in Notion, Evernote, Obsidian, OneNot
 When: [dates]. Pick a slot here: [link]
 Thank-you: one free month of UCT Intelligence membership
 
-Reply here or DM me with the five screener answers below.
+Reply here or DM me with the six screener answers below.
 ```
 
-## 2. The screener (five questions)
+## 2. The screener (six questions)
 
 1. **What do you keep trading notes in today?** Notion · Evernote · Obsidian · OneNote · a doc ·
    paper · something else (which?)
@@ -25,6 +25,11 @@ Reply here or DM me with the five screener answers below.
 3. **About how many notes do you write in a week?** 0–2 · 3–10 · more than 10
 4. **Which devices would you use for notes?** Computer only · computer and phone · phone only
 5. **Your phone:** iPhone (which iOS version, if you know) · Android · none
+6. **In a normal week, what do you actually do in your notes tool?** List everything that
+   comes to mind, in your own words (for example: "tag trades", "paste a chart", "search old
+   notes"). Do not show the participant a list: an unprompted answer is the point. Write the
+   answers down word for word; they are read against the product's own feature list after the
+   study (`../user-study-kit.md` §9).
 
 **Aim for:** at least two current Notion users, one Obsidian user, one Evernote user and one
 paper/doc person; at least three with a phone (T9 needs one; iOS 16 or newer is the product's

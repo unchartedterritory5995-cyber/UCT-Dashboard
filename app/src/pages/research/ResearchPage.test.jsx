@@ -468,3 +468,27 @@ describe('Decision Record tab (TERM-088, dark)', () => {
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 })
+
+// COV-04 -- the Filing changes tab ships DARK behind FILING_BLACKLINE_ENABLED
+// (filing_blackline_enabled rides the auth payload only when on).
+describe('Filing changes tab (COV-04, dark)', () => {
+  beforeEach(() => { auth.isPaid = true; auth.filingBlacklineEnabled = false })
+  afterEach(() => { auth.filingBlacklineEnabled = false })
+
+  it('is ABSENT from the strip when the flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: 'Filing changes' })).not.toBeInTheDocument()
+  })
+
+  it('?section=filing-changes falls through to Overview when the flag is off', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=filing-changes' })
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and opens when the flag is on', () => {
+    auth.filingBlacklineEnabled = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filing changes' }))
+    expect(screen.getByText(/Loading filing changes/)).toBeInTheDocument()
+  })
+})

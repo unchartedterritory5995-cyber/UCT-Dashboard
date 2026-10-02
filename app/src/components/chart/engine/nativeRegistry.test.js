@@ -120,9 +120,54 @@ const TOO_SHORT = {
   // to accumulate. The first bar is already computable, so the only length that
   // can be too short is none at all.
   dollarVolume: 0,
+  // ── 2026-10-01: THE TECHNICAL LIBRARY, TIER 1 ──
+  // Each number is the FIRST VALID INDEX at default inputs, derived by hand from
+  // the study's own definition in `technicalStudies.js` (a seed of n values ends
+  // at index n−1; a one-bar change starts at index 1). The boundary case adds one
+  // bar and demands a value, so a number that is too large fails as well.
+  superTrend: 10,        // Wilder ATR(10): first at index 10 (TR starts at bar 1)
+  aroon: 14,             // a window of period+1 = 15 bars
+  vortex: 14,            // 14 one-bar movements, starting at bar 1
+  choppiness: 14,        // Σ of 14 true ranges, starting at bar 1
+  stochRsi: 29,          // RSI(14)@14 → 14-bar range @27 → %K SMA(3) @29 (%D @31)
+  ppo: 25,               // EMA(26) seeded @25 (signal @33)
+  roc: 12,               // x[i] vs x[i−12]
+  momentum: 10,          // x[i] − x[i−10]
+  tsi: 37,               // Δ@1 → EMA(25)@25 → EMA(13)@37 (signal @49)
+  cmo: 14,               // 14 one-bar changes, starting at bar 1
+  trix: 43,              // EMA×3 of 15 → @42; its one-bar change @43
+  awesome: 33,           // SMA(hl2, 34)
+  ultimate: 28,          // Σ of 28 buying-pressure terms, starting at bar 1
+  balanceOfPower: 13,    // SMA(14) of a per-bar ratio
+  bullBearPower: 12,     // EMA(13) seeded @12
+  keltner: 19,           // EMA(20) seeded @19 (ATR(10) is ready @10)
+  envelope: 19,          // SMA(20) of the source
+  bbPercentB: 19,        // the Bollinger basis, period 20
+  bbWidth: 19,
+  atrPercent: 14,        // ATR(14) @14
+  adrPercent: 19,        // SMA(20) of high/low
+  historicalVolatility: 20, // sample σ of 20 log returns, starting at bar 1
+  squeeze: 20,           // the squeeze state needs ATR(20) @20 (momentum @38)
+  relativeVolume: 50,    // volume ÷ the average of the PREVIOUS 50 bars
+  accumDist: 0,          // a running total from bar 0, like OBV
+  chaikinMoneyFlow: 19,  // Σ of 20 bars
+  chaikinOscillator: 9,  // EMA(10) of the A/D line from bar 0
+  forceIndex: 13,        // EMA(13) of a one-bar force starting at bar 1
+  pvt: 0,                // a running total seeded 0 at bar 0
+  upDownVolume: 50,      // Σ of 50 one-bar classifications, starting at bar 1
+  percentFromMa: 49,     // SMA(50) of the source
+  fiftyTwoWeek: 364,     // daily bars: the first bar 52 weeks (364 days) after bar 0
+  standardDeviation: 19, // σ over 20 values of the source
 }
 
-const BARS = makeBars(300)
+// ⭐ 400, NOT 300 (2026-10-01): `fiftyTwoWeek` is a CALENDAR window and needs 52
+// weeks of daily bars before it answers; every other case is indifferent to the
+// extra hundred bars.
+const BARS = makeBars(400)
+
+/** Plots that draw only when an option is on — opened for the "every column"
+ *  case. One entry; see `everyIndicatorParameterSweep.test.js` for the same rule. */
+const GATES_OPEN = { vwap: { bands: '3' } }
 
 /**
  * The compute ctx a definition needs to produce anything.
@@ -142,9 +187,18 @@ const BARS = makeBars(300)
  */
 const ctxFor = (def, n) => {
   const takesSource = (def.inputs || []).some(i => i && i.type === 'source')
-  if (!takesSource) return undefined
+  // ⭐ 2026-10-01 — A DECLARED TIMEFRAME LIST SUPPLIES THE FRAME, the same way a
+  // declared source supplies the series: Historical Volatility annualises by the
+  // chart's timeframe, and production never computes it without one. Daily is
+  // used when the definition runs on daily bars (these fixtures are daily).
+  const tfs = def.meta && Array.isArray(def.meta.timeframes) ? def.meta.timeframes : null
+  const tf = tfs ? (tfs.includes('D') ? 'D' : tfs[0]) : undefined
+  if (!takesSource && tf === undefined) return undefined
   const len = Number.isFinite(n) ? n : BARS.length
-  return { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) }
+  return {
+    ...(takesSource ? { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) } : {}),
+    ...(tf !== undefined ? { tf } : {}),
+  }
 }
 
 /** The repo root, found by walking up. Under this environment's vite transform
@@ -174,7 +228,7 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 19 natives and 1 server definition — TWENTY, across two lanes', () => {
+  it('lists 52 natives and 1 server definition — FIFTY-THREE, across two lanes', () => {
     // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
     // rather than the bars: `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are one
     // definition pointed at different sources.
@@ -184,15 +238,29 @@ describe('native registry — membership', () => {
     // definition instead of a security lane, a breadth lane and whatever came
     // next. Spelled by name here as well as in `SHIPPED_DEF_IDS` on purpose:
     // this case is the one that reads as prose.
+    // ⭐ 2026-10-01 — FIFTY-TWO natives: the nineteen below plus the Technical
+    // library's thirty-three Tier 1 studies (`registrySizes.SHIPPED_DEF_IDS`).
     expect(NATIVE_DEFS.map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
-      'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsi', 'sar',
-      'stoch', 'vwap', 'williamsR',
+      'accumDist', 'adrPercent', 'adx', 'aroon', 'atr', 'atrBands',
+      'atrPercent', 'avwap', 'awesome', 'balanceOfPower', 'bb', 'bbPercentB',
+      'bbWidth', 'bullBearPower', 'cci', 'chaikinMoneyFlow', 'chaikinOscillator', 'choppiness',
+      'cmo', 'dataSeries', 'dollarVolume', 'donchian', 'envelope', 'fiftyTwoWeek',
+      'forceIndex', 'historicalVolatility', 'ichimoku', 'keltner', 'macd', 'mfi',
+      'momentum', 'movingAverage', 'obv', 'percentFromMa', 'ppo', 'pvt',
+      'relativeVolume', 'roc', 'rsi', 'sar', 'squeeze', 'standardDeviation',
+      'stoch', 'stochRsi', 'superTrend', 'trix', 'tsi', 'ultimate',
+      'upDownVolume', 'vortex', 'vwap', 'williamsR',
     ])
     expect(listDefinitions().map(d => d.id).sort()).toEqual([
-      'adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
-      'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi',
-      'sar', 'stoch', 'vwap', 'williamsR',
+      'accumDist', 'adrPercent', 'adx', 'aroon', 'atr', 'atrBands',
+      'atrPercent', 'avwap', 'awesome', 'balanceOfPower', 'bb', 'bbPercentB',
+      'bbWidth', 'bullBearPower', 'cci', 'chaikinMoneyFlow', 'chaikinOscillator', 'choppiness',
+      'cmo', 'dataSeries', 'dollarVolume', 'donchian', 'envelope', 'fiftyTwoWeek',
+      'forceIndex', 'historicalVolatility', 'ichimoku', 'keltner', 'macd', 'mfi',
+      'momentum', 'movingAverage', 'obv', 'percentFromMa', 'ppo', 'pvt',
+      'relativeVolume', 'roc', 'rsLine', 'rsi', 'sar', 'squeeze',
+      'standardDeviation', 'stoch', 'stochRsi', 'superTrend', 'trix', 'tsi',
+      'ultimate', 'upDownVolume', 'vortex', 'vwap', 'williamsR',
     ])
   })
 
@@ -315,7 +383,11 @@ const JULY_LEGACY_DEFAULTS = {
 // from. There is no stored key, so there is no default of anybody's to move; what
 // changes is that it is now something a member ADDS rather than something the
 // chart hands them. See its definition for the owner's §16.
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume']
+// ⭐ THE TECHNICAL LIBRARY'S TIER 1 (2026-10-01) JOINS THEM — thirty-three studies
+// that never existed as a `cs.indicators` section, so there is no July value for
+// any of them to be a no-op against.
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume',
+  'superTrend', 'aroon', 'vortex', 'choppiness', 'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate', 'balanceOfPower', 'bullBearPower', 'keltner', 'envelope', 'bbPercentB', 'bbWidth', 'atrPercent', 'adrPercent', 'historicalVolatility', 'squeeze', 'relativeVolume', 'accumDist', 'chaikinMoneyFlow', 'chaikinOscillator', 'forceIndex', 'pvt', 'upDownVolume', 'percentFromMa', 'fiftyTwoWeek', 'standardDeviation']
 
 describe('the July defaults table', () => {
   it('covers every MIGRATED definition and nothing else — a missing row is a silent no-op', () => {
@@ -403,7 +475,9 @@ describe.each(NATIVE_DEFS.map(d => [d.id, d]))('native "%s"', (id, def) => {
   })
 
   it('a computable series has a finite value in every column', () => {
-    const cols = computeFor(def, BARS, {}, ctxFor(def))
+    // ⭐ 2026-10-01 — an option-gated plot is checked with its gate OPEN (Session
+    // VWAP's σ bands are off by default so saved charts keep one line).
+    const cols = computeFor(def, BARS, GATES_OPEN[id] || {}, ctxFor(def))
     for (const [key, col] of Object.entries(cols)) {
       expect(hasAnyFinite(col), `${id}.${key}`).toBe(true)
     }

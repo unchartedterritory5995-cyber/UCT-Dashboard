@@ -314,10 +314,17 @@ export default function NotebookTab() {
   // `propertySort` are the AD-HOC equivalents, used only while no saved
   // view is active (a table-column-header click or a quick-filter chip).
   const [activeView, setActiveView] = useState(null)
-  // `?view=tasks` opens the Tasks mode on first paint (the reminder's link —
-  // TASKS_VIEW_URL in api/services/journal_two/note_tasks.py); the effect
-  // below handles it arriving on an already-mounted tab.
-  const [viewMode, setViewMode] = useState(() => (searchParams.get('view') === 'tasks' ? 'tasks' : 'list'))
+  // `?view=<mode>` opens that VIEW_MODES mode on first paint — `tasks` was the
+  // only id this ever recognised (the reminder's link — TASKS_VIEW_URL in
+  // api/services/journal_two/note_tasks.py), which is also the deep-link door
+  // A2R-03 found broken: a graph/board/calendar/table URL seeded `viewMode`
+  // with 'list' here, same as a bare root, and nothing downstream ever
+  // corrected it until a click. The effect below handles the same set
+  // arriving on an already-mounted tab.
+  const [viewMode, setViewMode] = useState(() => {
+    const vp = searchParams.get('view')
+    return VIEW_MODES.some((m) => m.id === vp) ? vp : 'list'
+  })
   // What the board is grouping by / the calendar is laying out, reported up by
   // those views so a saved view can capture it. The views keep their own
   // "open on a property the notes actually use" default-picking; this only
@@ -562,8 +569,19 @@ export default function NotebookTab() {
   // Wave 6: `?view=tasks` is the Tasks mode's door (the 07:00/09:00 ET task
   // reminder links there). It is never Home — for the render before the effect
   // below turns it into `?view=all`, too.
+  // ⛔⛔ A2R-03 (a11y second review, 2026-10-01): this read `viewParam === 'all'
+  // || viewParam === 'tasks'` — every OTHER VIEW_MODES id (table/board/
+  // calendar/graph/timeline) fell through to `isHome`, so
+  // `/journal/notebook?view=graph` rendered Research Home, not the Notebook's
+  // toolbar/view-switcher/graph at all. A keyboard walk that opened that URL
+  // and tabbed 70 times never found the graph canvas (role="application",
+  // NoteGraphView.jsx:670-672) because the canvas never existed on the page —
+  // nothing was wrong with the canvas itself. Recognising every VIEW_MODES id
+  // here (not just the two that happened to have a reason to be added) is the
+  // fix: a deep link into ANY real view mode is "I asked for a view", same as
+  // `all`/`tasks` already were.
   const viewParam = searchParams.get('view')
-  const viewAll = viewParam === 'all' || viewParam === 'tasks'
+  const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
@@ -574,13 +592,19 @@ export default function NotebookTab() {
             : folderId ? 'Notes in this folder'
               : 'All notes'
   // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
-  // pattern as `?folder=`/`?ticker=` above): it selects the Tasks mode and
-  // becomes the explicit All-notes state, so the switcher, a reload and Back
-  // behave exactly as they do for every other mode. A saved view pins its own
-  // mode, so this door clears it.
+  // pattern as `?folder=`/`?ticker=` above): it selects the mode the URL named
+  // and becomes the explicit All-notes state, so the switcher, a reload and
+  // Back behave exactly as they do for every other mode. A saved view pins
+  // its own mode, so this door clears it.
+  // ⛔ A2R-03: used to check ONLY `viewParam === 'tasks'`. Any other VIEW_MODES
+  // id (table/board/calendar/graph/timeline) was silently ignored here too —
+  // the `viewAll` fix above keeps `isHome` from firing on the FIRST render,
+  // but without this the mode itself would never actually switch. `'list'` is
+  // excluded: it is already the state's own default, and rewriting
+  // `?view=list` to `?view=all` on every load would be a pointless URL churn.
   useEffect(() => {
-    if (viewParam !== 'tasks') return
-    setViewMode('tasks')
+    if (!VIEW_MODES.some((m) => m.id === viewParam) || viewParam === 'list') return
+    setViewMode(viewParam)
     setActiveView(null)
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)

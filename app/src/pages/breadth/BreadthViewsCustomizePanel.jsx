@@ -140,7 +140,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'saveAs' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Save current {viewLabel} as:</div>
-          <input ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. Tight"
+          <input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. Tight"
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitSaveAs() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}
@@ -153,7 +153,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'rename' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Rename "{activePreset}" to:</div>
-          <input ref={inputRef} className={styles.inlineInput} value={draftName}
+          <input aria-label="New name" ref={inputRef} className={styles.inlineInput} value={draftName}
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitRename() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}
@@ -175,7 +175,7 @@ export default function BreadthViewsCustomizePanel({
       {mode === 'savePromptFromDefault' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Default cannot be edited. Save changes as a new preset:</div>
-          <input ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. My View"
+          <input aria-label="New preset name" ref={inputRef} className={styles.inlineInput} value={draftName} placeholder="e.g. My View"
                  onChange={(e) => { setDraftName(e.target.value); setError(null) }}
                  onKeyDown={(e) => { if (e.key === 'Enter') submitSaveFromDefault() }} maxLength={60} />
           {error && <div className={styles.errorMsg}>{error}</div>}

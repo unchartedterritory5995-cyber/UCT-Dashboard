@@ -109,7 +109,9 @@ describe('⭐ GATE ON — the numeric plots get their own pane', () => {
     expect(got.scaleId).toBe('right')      // its own ladder
     // the definition's fixed range rides through, which is what makes the
     // ladder readable rather than autoscaled against its neighbours
-    expect(got.scaleOptions.autoScale).toBe(false)
+    // ⭐ 2026-10-01 — the range is pinned by the provider, the scale autoscales.
+    expect(got.scaleOptions.autoScale).toBe(true)
+    expect(got.autoscaleRange).toEqual({ min: 0, max: 100 })
     expect(got.scaleOptions.minimum).toBe(0)
     expect(got.scaleOptions.maximum).toBe(100)
   })

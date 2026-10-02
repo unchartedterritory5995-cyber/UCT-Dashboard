@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from './binder'
 import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
-import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
+import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, fixedRangeProvider } from './pool'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLayout'
 import * as registry from './nativeRegistry'
 import { macdV2Doc } from './__tests__/macdV2'
 import { interpret } from './ast/interpret'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── The contract under test ─────────────────────────────────────────────────
 //
@@ -35,7 +40,7 @@ const inst = (defId, extra = {}) => ({
 const RSI_SCALE = Object.freeze({
   borderVisible: false,
   scaleMargins: { top: 0.82, bottom: 0 },
-  autoScale: false,
+  autoScale: true,
   minimum: 0,
   maximum: 100,
 })
@@ -861,8 +866,11 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
       // …and the RIGHT function: calling it must return the base implementation's
       // answer, which `() => null` never does.
       const S = { priceRange: { minValue: 0, maxValue: 100 } }
-      expect(opts.autoscaleInfoProvider(() => S)).toBe(S)
-      expect(opts.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+      // ⭐ 2026-10-01: RSI DECLARES 0-100, so its provider is the memoised
+      // fixed-range one — it answers the declared range (here equal to S) rather
+      // than the identity, and it is still a function, never `undefined`.
+      expect(opts.autoscaleInfoProvider(() => S)).toEqual(S)
+      expect(opts.autoscaleInfoProvider).toBe(fixedRangeProvider(0, 100))
 
       // ── AND THE OMISSION VARIANT DOES NOT RESTORE ──
       // Same merge, same previous tenant, this key dropped. That is what "reset
@@ -878,8 +886,8 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
 
       // The explicit provider, merged the same way, actually restores.
       const viaIdentity = lwcMerge({ ...tenant }, opts)
-      expect(viaIdentity.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
-      expect(viaIdentity.autoscaleInfoProvider(() => S)).toBe(S)
+      expect(viaIdentity.autoscaleInfoProvider).toBe(fixedRangeProvider(0, 100))
+      expect(viaIdentity.autoscaleInfoProvider(() => S)).toEqual(S)
     }
   })
 
@@ -914,7 +922,8 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
     expect(elsewhere, 'RSI landed on the candles\' axis too — vacuous').toHaveLength(1)
 
     for (const p of onCandles) expect(p, 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
-    for (const p of elsewhere) expect(p, 'RSI owns its own axis and must size it').toBe(AUTOSCALE_DEFAULT)
+    // ⭐ 2026-10-01: RSI owns its axis AND declares 0-100, so it sizes it to that.
+    for (const p of elsewhere) expect(p, 'RSI owns its own axis and must size it').toBe(fixedRangeProvider(0, 100))
   })
 })
 

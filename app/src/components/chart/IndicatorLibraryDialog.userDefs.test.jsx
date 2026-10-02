@@ -258,7 +258,7 @@ describe('⭐ it is visually a DIFFERENT KIND OF THING, not a sixteenth indicato
     // ⛔ CONTROL: the search still finds shipped rows, and still excludes the
     // member's formula when it does not match.
     type('bollinger')
-    expect(optionIds()).toEqual(['bb'])
+    expect(optionIds()).toEqual(['bb', 'bbPercentB', 'bbWidth', 'squeeze']) // ⭐ 2026-10-01: %B, BandWidth (id) and Squeeze (tag `bb kc`) match `bb` too
   })
 })
 

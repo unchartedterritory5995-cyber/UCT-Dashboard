@@ -246,6 +246,35 @@
   100% { opacity: 0; }
 }
 
+/* ── Capture status (RW-NEW-02, a11y second review 2026-10-01) ──
+   The outer element is the live region and is ALWAYS mounted (see the JSX
+   comment) -- empty, it has no padding/border/background, so it has no box
+   for a mouse user to notice. The badge appears only once there is a
+   message, and (unlike .flagToast's flagFade) never fades itself back out --
+   its full life is owned by the JS timer (CAPTURE_TOAST_SUCCESS_MS /
+   CAPTURE_TOAST_HOLD_MS) so a sighted reader never loses the text to a CSS
+   animation ending before that timer does. */
+.captureStatus {
+  display: inline-block;
+}
+.captureStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  animation: captureToastIn 0.2s ease-out forwards;
+}
+@keyframes captureToastIn {
+  0%   { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* Chart modal tabs */
 .modalTabs {
   display: flex;

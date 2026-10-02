@@ -203,6 +203,27 @@ def _options_chain_enabled() -> bool:
         return False
 
 
+def _seasonality_enabled() -> bool:
+    """COV-01: the Research Seasonality tab's switch -- the SAME reader the route's dark gate
+    uses. Never raises."""
+    try:
+        from api.routers import seasonality
+        return bool(seasonality.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
+def _filing_blackline_flag() -> dict:
+    """COV-04: the Research "Filing changes" tab -- the SAME reader the route's dark gate
+    uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
+    payload is byte-identical to before the lane. The client reads `=== true`. Never raises."""
+    try:
+        from api.services import filing_blackline
+        return {"filing_blackline_enabled": True} if filing_blackline.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
 def _address_space_enabled() -> bool:
     """TERM-038: the command palette's Saved rows -- the SAME reader the address
     routes' dark gate uses. Never raises."""
@@ -476,6 +497,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         "ticker_history_enabled": _ticker_history_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
+        "seasonality_enabled": _seasonality_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten
@@ -516,6 +538,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # payload; the client reads `=== true`, so absent and false mean the
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
+        **_filing_blackline_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are

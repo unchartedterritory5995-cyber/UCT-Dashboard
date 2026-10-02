@@ -1,0 +1,1417 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "surface": "RWLOCK-open",
+      "keys": "(navigate)",
+      "note": "*open the note to lock (query-param URL, the real shape)",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/rwlock-0001-RWLOCK-open-nav.png"
+    },
+    {
+      "n": 2,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content"
+      }
+    },
+    {
+      "n": 3,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page"
+      }
+    },
+    {
+      "n": 4,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K"
+      }
+    },
+    {
+      "n": 5,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal"
+      }
+    },
+    {
+      "n": 6,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts"
+      }
+    },
+    {
+      "n": 7,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire"
+      }
+    },
+    {
+      "n": 8,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard"
+      }
+    },
+    {
+      "n": 9,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search"
+      }
+    },
+    {
+      "n": 10,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20"
+      }
+    },
+    {
+      "n": 11,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth"
+      }
+    },
+    {
+      "n": 12,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener"
+      }
+    },
+    {
+      "n": 13,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow"
+      }
+    },
+    {
+      "n": 14,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record"
+      }
+    },
+    {
+      "n": 15,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow"
+      }
+    },
+    {
+      "n": 16,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History"
+      }
+    },
+    {
+      "n": 17,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book"
+      }
+    },
+    {
+      "n": 18,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference"
+      }
+    },
+    {
+      "n": 19,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk"
+      }
+    },
+    {
+      "n": 20,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal"
+      }
+    },
+    {
+      "n": 21,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk"
+      }
+    },
+    {
+      "n": 22,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: RW Lock, Pro"
+      }
+    },
+    {
+      "n": 23,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings"
+      }
+    },
+    {
+      "n": 24,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support"
+      }
+    },
+    {
+      "n": 25,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website"
+      }
+    },
+    {
+      "n": 26,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 25",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Got it"
+      }
+    },
+    {
+      "n": 27,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 26",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Today"
+      }
+    },
+    {
+      "n": 28,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 27",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Trades"
+      }
+    },
+    {
+      "n": 29,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 28",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Calendar"
+      }
+    },
+    {
+      "n": 30,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 29",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Notebook"
+      }
+    },
+    {
+      "n": 31,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 30",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Insights"
+      }
+    },
+    {
+      "n": 32,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 31",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Compass"
+      }
+    },
+    {
+      "n": 33,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 32",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Log Trade"
+      }
+    },
+    {
+      "n": 34,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 33",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Show keyboard shortcuts"
+      }
+    },
+    {
+      "n": 35,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 34",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Default$100,000.00\u25be"
+      }
+    },
+    {
+      "n": 36,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 35",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Generate report"
+      }
+    },
+    {
+      "n": 37,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 36",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open Portfolio Settings"
+      }
+    },
+    {
+      "n": 38,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 37",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "More"
+      }
+    },
+    {
+      "n": 39,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 38",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Hide folders panel"
+      }
+    },
+    {
+      "n": 40,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 39",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Show folders"
+      }
+    },
+    {
+      "n": 41,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 40",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Search notes"
+      }
+    },
+    {
+      "n": 42,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 41",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Add thesis starter views"
+      }
+    },
+    {
+      "n": 43,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 42",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "All notes1"
+      }
+    },
+    {
+      "n": 44,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 43",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Unfiled1"
+      }
+    },
+    {
+      "n": 45,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 44",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Archived0"
+      }
+    },
+    {
+      "n": 46,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 45",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Trash0"
+      }
+    },
+    {
+      "n": 47,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 46",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "+ New folder"
+      }
+    },
+    {
+      "n": 48,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 47",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Add to Favorites"
+      }
+    },
+    {
+      "n": 49,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 48",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask a question about this note"
+      }
+    },
+    {
+      "n": 50,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 49",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Find in note"
+      }
+    },
+    {
+      "n": 51,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 50",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Share"
+      }
+    },
+    {
+      "n": 52,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 51",
+      "focus": {
+        "present": true,
+        "tag": "select",
+        "role": "combobox",
+        "name": "Folder"
+      }
+    },
+    {
+      "n": 53,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 52",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Ticker"
+      }
+    },
+    {
+      "n": 54,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 53",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Writing help"
+      }
+    },
+    {
+      "n": 55,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 54",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Outline"
+      }
+    },
+    {
+      "n": 56,
+      "surface": "RWLOCK-more",
+      "keys": "Tab",
+      "note": "seek More note actions 55",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "More note actions"
+      }
+    },
+    {
+      "n": 57,
+      "surface": "RWLOCK-more",
+      "keys": "Enter",
+      "note": "*open More note actions",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Version history"
+      },
+      "screenshot": "screenshots/rwlock-0057-RWLOCK-more.png"
+    },
+    {
+      "n": 58,
+      "surface": "RWLOCK-item",
+      "keys": "Tab",
+      "note": "seek Lock 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Duplicate note"
+      }
+    },
+    {
+      "n": 59,
+      "surface": "RWLOCK-item",
+      "keys": "Tab",
+      "note": "seek Lock 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Lock"
+      }
+    },
+    {
+      "n": 60,
+      "surface": "RWLOCK-item",
+      "keys": "Enter",
+      "note": "*Enter on Lock -- locks by keyboard",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Unlock"
+      },
+      "screenshot": "screenshots/rwlock-0060-RWLOCK-item.png"
+    },
+    {
+      "n": 61,
+      "surface": "RWLOCK-status",
+      "keys": "(note)",
+      "note": "opened_more=True locked=True",
+      "focus": {}
+    },
+    {
+      "n": 62,
+      "surface": "RWLOCK-confirm",
+      "keys": "(evaluate)",
+      "note": "after Lock: {'lockedGlyph': False}",
+      "focus": {},
+      "screenshot": "screenshots/rwlock-0062-locked.png"
+    },
+    {
+      "n": 63,
+      "surface": "RWLOCK-capture",
+      "keys": "(navigate)",
+      "note": "*dashboard, for the capture trigger",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/rwlock-0063-RWLOCK-capture-nav.png"
+    },
+    {
+      "n": 64,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content"
+      }
+    },
+    {
+      "n": 65,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page"
+      }
+    },
+    {
+      "n": 66,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K"
+      }
+    },
+    {
+      "n": 67,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal"
+      }
+    },
+    {
+      "n": 68,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts"
+      }
+    },
+    {
+      "n": 69,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire"
+      }
+    },
+    {
+      "n": 70,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard"
+      }
+    },
+    {
+      "n": 71,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search"
+      }
+    },
+    {
+      "n": 72,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20"
+      }
+    },
+    {
+      "n": 73,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth"
+      }
+    },
+    {
+      "n": 74,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener"
+      }
+    },
+    {
+      "n": 75,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow"
+      }
+    },
+    {
+      "n": 76,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record"
+      }
+    },
+    {
+      "n": 77,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow"
+      }
+    },
+    {
+      "n": 78,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History"
+      }
+    },
+    {
+      "n": 79,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book"
+      }
+    },
+    {
+      "n": 80,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference"
+      }
+    },
+    {
+      "n": 81,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk"
+      }
+    },
+    {
+      "n": 82,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal"
+      }
+    },
+    {
+      "n": 83,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk"
+      }
+    },
+    {
+      "n": 84,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: RW Lock, Pro"
+      }
+    },
+    {
+      "n": 85,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings"
+      }
+    },
+    {
+      "n": 86,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support"
+      }
+    },
+    {
+      "n": 87,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website"
+      }
+    },
+    {
+      "n": 88,
+      "surface": "RWLOCK-capture-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 25",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ"
+      }
+    },
+    {
+      "n": 89,
+      "surface": "RWLOCK-capture",
+      "keys": "Enter",
+      "note": "*Enter opens the chart modal",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ"
+      },
+      "screenshot": "screenshots/rwlock-0089-RWLOCK-capture.png"
+    },
+    {
+      "n": 90,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 1",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for SPY"
+      }
+    },
+    {
+      "n": 91,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 2",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for IWM"
+      }
+    },
+    {
+      "n": 92,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 3",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for DIA"
+      }
+    },
+    {
+      "n": 93,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 4",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for BTC"
+      }
+    },
+    {
+      "n": 94,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 5",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for VIX"
+      }
+    },
+    {
+      "n": 95,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "history \u2192"
+      }
+    },
+    {
+      "n": 96,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 7",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Why isn't X on the list?"
+      }
+    },
+    {
+      "n": 97,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Browse recent days \u2192"
+      }
+    },
+    {
+      "n": 98,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Connect your brokerage"
+      }
+    },
+    {
+      "n": 99,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "or log trades manually"
+      }
+    },
+    {
+      "n": 100,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 11",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Movers at the Open\u25be"
+      }
+    },
+    {
+      "n": 101,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 12",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "div",
+        "name": "\u25b2 RIPPING\u25bc DRILLINGON THE TAPENothing on the tape yet"
+      }
+    },
+    {
+      "n": 102,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth72"
+      }
+    },
+    {
+      "n": 103,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow0"
+      }
+    },
+    {
+      "n": 104,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20"
+      }
+    },
+    {
+      "n": 105,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal2"
+      }
+    },
+    {
+      "n": 106,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener"
+      }
+    },
+    {
+      "n": 107,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk0"
+      }
+    },
+    {
+      "n": 108,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal0"
+      }
+    },
+    {
+      "n": 109,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 20",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "?"
+      }
+    },
+    {
+      "n": 110,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 21",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Tap to start a conversation"
+      }
+    },
+    {
+      "n": 111,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 22",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Train Me \u2014 teach the assistant a preference"
+      }
+    },
+    {
+      "n": 112,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 23",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Attach a chart screenshot for vision analysis (or paste from clipboard)"
+      }
+    },
+    {
+      "n": 113,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 24",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Choose a specialist agent"
+      }
+    },
+    {
+      "n": 114,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 25",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Switch ticker \u2014 type a symbol to open its chart"
+      }
+    },
+    {
+      "n": 115,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 26",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open full research for QQQ"
+      }
+    },
+    {
+      "n": 116,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 27",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask AI about QQQ"
+      }
+    },
+    {
+      "n": 117,
+      "surface": "RWLOCK-capture-inside",
+      "keys": "Tab",
+      "note": "seek 'Save price to Notebook' 28",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's current price to Notebook"
+      }
+    },
+    {
+      "n": 118,
+      "surface": "RWLOCK-capture",
+      "keys": "Enter",
+      "note": "*Enter on 'Save price to Notebook' (targets the LOCKED note)",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/rwlock-0118-RWLOCK-capture.png"
+    },
+    {
+      "n": 119,
+      "surface": "RWLOCK-message",
+      "keys": "(evaluate)",
+      "note": "capture-toast probe: {'liveRegions': [{'role': 'status', 'ariaLive': None, 'text': ''}, {'role': 'status', 'ariaLive': 'polite', 'text': ''}], 'toastText': None, 'toastRole': None, 'toastAriaLive': None, 'mutationSeen': '<span class=\"_flagToast_19f8c_445\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"url(#uig239)\" stroke-width=\"1.85\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\" style=\"color: rgb(230, 205, 138); filter: drop-shadow(rgba(201, 168, 76, 0.32) 0px 0px 1.6px); vertical-align: -1px; margin-right: 3px;\"><defs><linearGradient id=\"uig239\" x1=\"0\" y'}",
+      "focus": {},
+      "screenshot": "screenshots/rwlock-0119-message.png"
+    }
+  ],
+  "findings": []
+}

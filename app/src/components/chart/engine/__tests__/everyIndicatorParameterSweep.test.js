@@ -56,6 +56,23 @@ function bars(n = 1500) {
 
 const BARS = bars(1500)
 
+/** The same walk on DAILY spacing (2026-10-01) — for a definition that declares it
+ *  runs only on D/W/M (Historical Volatility annualises by trading days; the
+ *  52-week study is a calendar window), which can draw nothing on 5-minute bars. */
+function dailyBars(n = 1500) {
+  const START = Date.UTC(2019, 0, 2) / 1000
+  return bars(n).map((b, i) => ({ ...b, t: START + i * 86400 }))
+}
+const DAILY_BARS = dailyBars(1500)
+
+/** ⛔ DERIVED FROM THE DECLARATION: a `meta.timeframes` list without an intraday
+ *  frame means the definition is swept on daily bars, in a daily frame. */
+const dailyOnly = (def) => {
+  const tfs = def && def.meta && Array.isArray(def.meta.timeframes) ? def.meta.timeframes : null
+  return !!tfs && !tfs.includes('5') && tfs.includes('D')
+}
+const barsFor = (def) => (dailyOnly(def) ? DAILY_BARS : BARS)
+
 /**
  * The compute ctx a definition needs to produce anything.
  *
@@ -72,10 +89,27 @@ const BARS = bars(1500)
  */
 const ctxFor = (def, n) => {
   const takesSource = (def.inputs || []).some((i) => i && i.type === 'source')
-  if (!takesSource) return undefined
+  const tf = dailyOnly(def) ? 'D' : undefined
+  if (!takesSource && !tf) return undefined
   const len = Number.isFinite(n) ? n : BARS.length
-  return { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) }
+  return {
+    ...(takesSource ? { source: Array.from({ length: len }, (_, i) => 100 + Math.sin(i / 6) * 5) } : {}),
+    ...(tf ? { tf } : {}),
+  }
 }
+
+/**
+ * ⭐ AN OPTION-GATED PLOT IS SWEPT WITH ITS GATE OPEN (2026-10-01). Session VWAP's
+ * six σ-band plots draw only when its `bands` option is on — off by default, so
+ * every saved chart keeps its single line. Swept at the default they would report
+ * "drew NOTHING" about plots the member never asked for; swept with the gate
+ * open, every band is held to the same rule as every other plot, at every value.
+ * Narrow on purpose: one entry, naming the enum value that opens the gate.
+ */
+const GATES_OPEN = {
+  vwap: { bands: '3' },
+}
+const baseInputs = (def) => ({ ...defaultsOf(def), ...(GATES_OPEN[def.id] || {}) })
 
 const NUMERIC = new Set(['int', 'float'])
 
@@ -154,7 +188,7 @@ describe('every declared plot draws something, at every value the form accepts',
           continue
         }
         it(label, () => {
-          const cols = computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v }, ctxFor(def))
+          const cols = computeFor(def, barsFor(def), { ...baseInputs(def), [input.key]: v }, ctxFor(def, barsFor(def).length))
           for (const k of keys) {
             expect(cols[k], `${def.id}.${k} missing from computeFor output`).toBeTruthy()
             expect(hasAnyFinite(cols[k]),
@@ -170,12 +204,12 @@ describe('every declared plot draws something, at every value the form accepts',
     for (const corner of ['min', 'max']) {
       if (!inputs.length || why) continue
       it(`${def.id}: every numeric input at its ${corner}`, () => {
-        const combo = { ...defaultsOf(def) }
+        const combo = { ...baseInputs(def) }
         for (const i of inputs) {
           const b = corner === 'min' ? i.min : i.max
           if (Number.isFinite(b)) combo[i.key] = b
         }
-        const cols = computeFor(def, BARS, combo, ctxFor(def))
+        const cols = computeFor(def, barsFor(def), combo, ctxFor(def, barsFor(def).length))
         for (const k of keys) {
           expect(hasAnyFinite(cols[k]),
             `${def.id}.${k} drew NOTHING with every input at its ${corner}: `
@@ -193,7 +227,7 @@ describe('no accepted value makes a compute throw', () => {
     it(`${def.id} survives its whole declared range`, () => {
       for (const input of inputs) {
         for (const v of valuesFor(input)) {
-          expect(() => computeFor(def, BARS, { ...defaultsOf(def), [input.key]: v }, ctxFor(def)),
+          expect(() => computeFor(def, barsFor(def), { ...baseInputs(def), [input.key]: v }, ctxFor(def, barsFor(def).length)),
             `${def.id} threw on ${input.key}=${v}`).not.toThrow()
         }
       }

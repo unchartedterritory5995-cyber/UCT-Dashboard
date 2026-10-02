@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -269,7 +270,10 @@ describe('Flip B — the set itself', () => {
       // The set grew again with no flip and nothing to migrate.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
-        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+        // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1 — registry-
+        // native, no block, no section, no toggle; the set grew with no flip.
+        ...TIER1_IDS].sort())
     // ⭐ B5 TASK 13: this line used to read `ENGINE_MIGRATED_DEF_IDS` on the left
     // and `ENGINE_FLIPPED_DEF_IDS` on the right — the subset relation. With both
     // literals deleted the honest form is the one that can still FAIL: everything

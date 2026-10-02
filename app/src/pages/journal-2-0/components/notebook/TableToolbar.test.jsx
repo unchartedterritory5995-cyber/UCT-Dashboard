@@ -8,7 +8,7 @@ import { Editor } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import { buildExtensions } from '../../lib/tiptap'
 import { ITEMS } from './SlashMenu'
-import TableToolbar, { hasHeaderRow, tableAtSelection } from './TableToolbar'
+import TableToolbar, { hasHeaderRow, tableAtSelection, tableBumpReducer } from './TableToolbar'
 
 let editor
 afterEach(() => { cleanup(); editor?.destroy(); editor = null; document.body.innerHTML = '' })
@@ -364,5 +364,92 @@ describe('<TableToolbar> — sort and column width (wave 10, G-134)', () => {
     caretIn(ed, 'a')
     expect(screen.getByRole('button', { name: 'Make this column narrower' }).disabled).toBe(true)
     expect(screen.getByRole('button', { name: 'Make this column wider' }).disabled).toBe(false)
+  })
+})
+
+// Wave 10 (lane TY7, "whose caller" perf pass). `tableBumpReducer` replaced a
+// bare counter (`(x) => x + 1`) that bumped -- unconditionally -- on EVERY
+// transaction in EVERY note, table or not. React's own
+// `commitBeforeMutationEffects` pays an O(note-size) selection-offset DOM walk
+// on every commit while the editor has focus (confirmed by reading the
+// compiled React source, `docs/notebook/perf-runs/ty7/`), so a bar that is
+// `null` on every note without a table was forcing that cost on every
+// keystroke of every note anyway. This is a pure, isolated rail on the
+// reducer itself -- same convention as `NoteEditorPage.toolbarRerender.test.js`
+// for `toolbarStateReducer` and `LinkPasteMenu.bumpReducer.test.js` for
+// `linkOfferBumpReducer` -- the reducer is the entire mechanism; the two
+// behavioural tests above ("owns its own freshness") already prove the
+// re-render still happens when it must.
+describe('tableBumpReducer: the bailout that stops a keystroke re-rendering TableToolbar in a note with no table', () => {
+  it('plain typing outside any table keeps returning the SAME (null) reference across many transactions', () => {
+    const ed = mount([P('hello')])
+    let s = tableBumpReducer(null, ed)
+    const first = s
+    expect(first).toBeNull()
+    for (let i = 0; i < 50; i += 1) {
+      act(() => { ed.view.dispatch(ed.state.tr.insertText('x')) })
+      s = tableBumpReducer(s, ed)
+    }
+    expect(s).toBe(first)
+  })
+
+  it('entering a table produces a NEW reference', () => {
+    const ed = mount([P('before'), TABLE])
+    const s1 = tableBumpReducer(null, ed)
+    caretIn(ed, 'NVDA')
+    const s2 = tableBumpReducer(s1, ed)
+    expect(s2).not.toBe(s1)
+  })
+
+  it('staying inside a table across a table EDIT always produces a fresh reference -- never bails, so a button\'s disabled state can never go stale behind this reducer', () => {
+    const ed = mount([TABLE])
+    caretIn(ed, 'NVDA')
+    const s1 = tableBumpReducer(null, ed)
+    act(() => { ed.chain().focus().addRowAfter().run() })
+    const s2 = tableBumpReducer(s1, ed)
+    expect(s2).not.toBe(s1)
+    // and a SECOND edit in a row also produces a fresh reference, not just the transition
+    act(() => { ed.chain().focus().addRowAfter().run() })
+    const s3 = tableBumpReducer(s2, ed)
+    expect(s3).not.toBe(s2)
+  })
+
+  it('leaving a table produces a NEW reference back to null, and further typing then bails to THAT null', () => {
+    const ed = mount([P('before'), TABLE])
+    caretIn(ed, 'NVDA')
+    const s1 = tableBumpReducer(null, ed)
+    caretIn(ed, 'before')
+    const s2 = tableBumpReducer(s1, ed)
+    expect(s2).not.toBe(s1)
+    expect(s2).toBeNull()
+    act(() => { ed.view.dispatch(ed.state.tr.insertText('y')) })
+    const s3 = tableBumpReducer(s2, ed)
+    expect(s3).toBe(s2)
+  })
+
+  it('a destroyed editor is a no-op: the reducer returns prev unchanged', () => {
+    const ed = mount([P('hello')])
+    const s1 = tableBumpReducer(null, ed)
+    const destroyed = { ...ed, isDestroyed: true }
+    expect(tableBumpReducer(s1, destroyed)).toBe(s1)
+  })
+
+  it('a null/undefined editor is a no-op: the reducer returns prev unchanged', () => {
+    const ed = mount([P('hello')])
+    const s1 = tableBumpReducer(null, ed)
+    expect(tableBumpReducer(s1, null)).toBe(s1)
+    expect(tableBumpReducer(s1, undefined)).toBe(s1)
+  })
+
+  it('a non-editable editor reads as "no table", consistently (same reference across calls)', () => {
+    const ed = mount([TABLE])
+    caretIn(ed, 'NVDA')
+    ed.setEditable(false)
+    let s = tableBumpReducer(null, ed)
+    const first = s
+    expect(first).toBeNull() // not editable -> inTable reads false regardless of the caret
+    act(() => { ed.view.dispatch(ed.state.tr.setMeta('addToHistory', false)) })
+    s = tableBumpReducer(s, ed)
+    expect(s).toBe(first)
   })
 })

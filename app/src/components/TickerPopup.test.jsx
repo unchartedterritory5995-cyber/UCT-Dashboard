@@ -1,4 +1,4 @@
-import { renderWithProviders, screen, fireEvent } from '../test-utils'
+import { renderWithProviders, screen, fireEvent, waitFor } from '../test-utils'
 import { useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, beforeEach, afterEach } from 'vitest'
@@ -98,7 +98,11 @@ test('modal shows tab buttons for all timeframes', async () => {
   // fallback can still be up when a findByRole for a button times out. Once the
   // stub is present the pane has mounted, so its timeframe bar is present too
   // and the rest can be synchronous.
-  await screen.findByTestId('stock-chart-NVDA-D')
+  // ⚠️ This is the FIRST test in the file to import the lazy ChartPane chunk, so on a cold
+  // transform cache the import alone can outlast Testing Library's default 1000 ms wait:
+  // measured 2026-10-01, it failed 1 run in 4 on unchanged code, always the first run. The
+  // wait is on the chunk, not on the product, so it gets a longer ceiling.
+  await screen.findByTestId('stock-chart-NVDA-D', {}, { timeout: 10000 })
   for (const label of ['1m', '5m', '30m', '1h', '1D', '1W']) {
     expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
   }
@@ -297,5 +301,89 @@ describe('S7 filing-watch action (Stage 4, owner authorization)', () => {
     await user.click(screen.getByTestId('ticker-NVDA'))
     expect(screen.queryByRole('button', { name: /SEC filings/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /filing watch/i })).toBeNull()
+  })
+})
+
+// A2R-05 (a11y second review, 2026-10-01): the trigger rendered as `<Tag
+// role="button">` with no tabIndex and no key handler on every call site that
+// did not pass `as="button"` — reachable by mouse only. Fixed by making
+// `focusable` (default true) add tabIndex + Enter/Space handling to the
+// trigger regardless of `as`, plus restoring focus to the trigger whenever the
+// modal closes (Escape, the X, a navigation away).
+describe('Keyboard-operable trigger (A2R-05)', () => {
+  test('the trigger is a real tab stop by default', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    expect(screen.getByTestId('ticker-NVDA')).toHaveAttribute('tabindex', '0')
+  })
+
+  test('Enter on the trigger opens the modal', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+  })
+
+  test('Space on the trigger opens the modal', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: ' ' })
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+  })
+
+  test('a key other than Enter/Space does nothing', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'a' })
+    expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+  })
+
+  test('Escape closes the modal and returns focus to the trigger', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
+
+  test('the X close button also returns focus to the trigger', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    await user.click(trigger)
+    await user.click(screen.getByRole('button', { name: 'Close chart' }))
+    await waitFor(() => expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument())
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
+
+  test('once open, the capture buttons are reachable in the normal tab order', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.getByRole('button', { name: "Save NVDA's current price to Notebook" })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Save NVDA's analyst consensus to Notebook" })).toBeInTheDocument()
+  })
+
+  test('focusable={false} opts a call site out — no tabIndex, no key handler, mouse click still works', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" focusable={false} />)
+    const trigger = screen.getByTestId('ticker-NVDA')
+    expect(trigger).not.toHaveAttribute('tabindex')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+  })
+
+  test('controlled mode (open/onClose) renders no trigger and is unaffected', () => {
+    renderWithProviders(<TickerPopup sym="NVDA" open onClose={vi.fn()} />)
+    expect(screen.queryByTestId('ticker-NVDA')).not.toBeInTheDocument()
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
   })
 })

@@ -592,8 +592,25 @@ export function resolvePlacement(instance, def, ctx) {
   }
 
   const scale = def.placement && def.placement.scale
-  const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
-    ? { autoScale: false, minimum: scale.min, maximum: scale.max }
+  // ⭐⭐ A DECLARED RANGE IS NOW A REAL PIN (2026-10-01), AND IT IS PINNED WHERE
+  // THE LIBRARY READS IT. `minimum`/`maximum` are not lightweight-charts 5.2
+  // price-scale options (RSI used to frame at its column's own extent, ~30..70),
+  // so the range now travels as `autoscaleRange` and `pool` turns it into the
+  // series' `autoscaleInfoProvider` — the one input the autoscale walk does read.
+  //
+  // ⛔⛔ AND THE SCALE AUTOSCALES (`autoScale: true`), NOT `false`. `false` froze
+  // the FIRST range the scale computed, and panes are positional and pooled: when
+  // a pane was inserted above, a re-tenanted pane kept its previous occupant's
+  // frozen range — MEASURED in the pane harness, a Stochastic RSI pane framed
+  // −100..103 after a CMO was added beside it. Autoscaling through the provider
+  // recomputes the declared range on every bind, the same live behaviour every
+  // auto-ranged pane (MACD's) already has. `minimum`/`maximum` stay in the bag as
+  // inert metadata. The provider widens rather than clips.
+  const fixed = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max) && scale.max > scale.min)
+    ? { min: scale.min, max: scale.max }
+    : null
+  const range = fixed
+    ? { autoScale: true, minimum: scale.min, maximum: scale.max }
     : { autoScale: true }
 
   // ── FLIP C: its own REAL PANE ───────────────────────────────────────────────
@@ -645,6 +662,7 @@ export function resolvePlacement(instance, def, ctx) {
       // every later resolve.
       scaleOptions: { borderVisible: false, scaleMargins: { ...PANE_BAND }, ...range },
       autoscale: 'default',
+      ...(fixed ? { autoscaleRange: fixed } : {}),
       // ⭐ THE PANE'S OWN AXIS CARRIES THE INDICATOR'S LAST VALUE, in a tag, in the
       // plot's colour — the thing the volume pane has always had and every
       // oscillator pane went without. Sub-choice 2.2 already bought the axis and
@@ -669,6 +687,7 @@ export function resolvePlacement(instance, def, ctx) {
     paneIndex: priceIndexOf(c),
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
+    ...(fixed ? { autoscaleRange: fixed } : {}),
     // Its own band, its own scale: it is the only thing on that axis, so it has
     // to be what sizes it.
     //

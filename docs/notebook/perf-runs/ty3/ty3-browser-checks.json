@@ -1,0 +1,82 @@
+[
+ {
+  "check": "mixed-content note build",
+  "status": "PASS",
+  "detail": "14967 doc positions, 14683 chars of text"
+ },
+ {
+  "check": "find-in-note (#1)",
+  "status": "PASS",
+  "detail": "active match rect top=514 bottom=534 (viewport 0-800) -- in view"
+ },
+ {
+  "check": "TOC jump (#2)",
+  "status": "PASS",
+  "detail": "'Bravo Heading TOC-B' rect top=204 after jump -- in view"
+ },
+ {
+  "check": "select-all (#3)",
+  "status": "PASS",
+  "detail": "selection length=198810; first paragraph present=True; end marker 'ty3chk-2000-END-2000' present=True"
+ },
+ {
+  "check": "caret after fast scroll (#4)",
+  "status": "PASS",
+  "detail": "clicked the on-screen paragraph 'ty3chk-2000 paragraph 1001: price reclai'...; after typing, landed in that exact paragraph"
+ },
+ {
+  "check": "no scroll jump while typing at the end (#5a)",
+  "status": "PASS",
+  "detail": "scrollTop before=81718 after=81718; scrollHeight before=82278 after=82278; stayed pinned to the tail"
+ },
+ {
+  "check": "no scrollbar jitter scrolling top-to-bottom (#5b)",
+  "status": "PASS",
+  "detail": "scrollHeight samples while paging down: [82278, 82278, 82278, 82278, 82278]; spread=0.000 (want < 0.15 of total)"
+ },
+ {
+  "check": "window.find() off-screen (#6)",
+  "status": "PASS",
+  "detail": "window.find('paragraph 1500: price reclaimed') returned True; selection now reads: 'paragraph 1500: price reclaimed'"
+ },
+ {
+  "check": "mixed block: table (#7)",
+  "status": "PASS",
+  "detail": "3 rows, 9 cells (want 3 rows, 9 cells)"
+ },
+ {
+  "check": "mixed block: code block (#7)",
+  "status": "PASS",
+  "detail": "text: 'function mixedCheck() { return 42 }'"
+ },
+ {
+  "check": "mixed block: image (#7)",
+  "status": "PASS",
+  "detail": "naturalWidth=1 (want 1, the fixture's 1x1 pixel)"
+ },
+ {
+  "check": "mixed block: task list (#7)",
+  "status": "PASS",
+  "detail": "checkbox present"
+ },
+ {
+  "check": "print CSS forces visible (#8a)",
+  "status": "PASS",
+  "detail": "content-visibility before: 'auto'; with body.uct-print-note under emulated print media: 'visible'"
+ },
+ {
+  "check": "export CSS forces visible (#8b)",
+  "status": "PASS",
+  "detail": "content-visibility with body.uct-exporting-note: 'visible'"
+ },
+ {
+  "check": "PNG export, real door (#8c)",
+  "status": "SKIP",
+  "detail": "downloaded perf ty3chk 2000.png, 54 bytes -- the PRE-EXISTING canvas-size limit for a note this tall (confirmed on the base build too), not a defect in this lever; see #8a/#8b for the lever's own correctness proof"
+ },
+ {
+  "check": "page errors",
+  "status": "PASS",
+  "detail": "none"
+ }
+]

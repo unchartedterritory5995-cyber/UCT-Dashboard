@@ -41,6 +41,8 @@ const DRAWABLE_STYLES = new Set(['line', 'stepline', 'histogram', 'area', 'basel
  * @returns {{ok: true, inherits?: string} | {ok: false, reason: string}}
  *   `inherits` names the upstream instance whose frame this one takes.
  */
+const PERIODIC_TFS = new Set(['D', 'W', 'M'])
+
 export function calcTimeframeCapability(def, inst) {
   if (!def || typeof def !== 'object') return { ok: false, reason: 'unknown' }
   const meta = def.meta || {}
@@ -48,7 +50,13 @@ export function calcTimeframeCapability(def, inst) {
   const kind = def.compute && def.compute.kind
   if (kind === 'server') return { ok: false, reason: 'server' }
   if (def.passthrough === true) return { ok: false, reason: 'passthrough' }
-  if (Array.isArray(meta.timeframes) && meta.timeframes.length) return { ok: false, reason: 'session' }
+  // ⭐ A SESSION study (its timeframe list names an INTRADAY frame — VWAP, Anchored
+  // VWAP) resets per session and has no higher-frame meaning. A study limited to
+  // D/W/M (2026-10-01: Historical Volatility, 52-Week High/Low) is not session-
+  // based: on a daily chart it computes on weekly or monthly bars like any other.
+  if (Array.isArray(meta.timeframes) && meta.timeframes.some((t) => !PERIODIC_TFS.has(String(t)))) {
+    return { ok: false, reason: 'session' }
+  }
   if (def.objects) return { ok: false, reason: 'objects' }
   const plots = Array.isArray(def.plots) ? def.plots : []
   if (!plots.length) return { ok: false, reason: 'unknown' }

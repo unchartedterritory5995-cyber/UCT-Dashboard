@@ -262,7 +262,9 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     // a live Source picker and Display control rather than two read-only facts.
     select(/^EMA 9$/)
     expect(measureOf('period'), 'a number is not compact').toBe('compact')
-    expect(measureOf('maType'), 'a two-word enum did not become a segment').toBe('segment')
+    // ⭐ 2026-10-01 — NINE MA TYPES NOW (`movingAverages.MA_TYPES`), so Type is a
+    // dropdown, and its labels (≤ 4 letters: `SMMA`, `LSMA`) make it a COMPACT one.
+    expect(measureOf('maType'), 'nine short MA types are a compact dropdown').toBe('compact')
     expect(measureOf('lineWidth'), '`1px`/`2px` is not compact').toBe('compact')
     expect(measureOf('lineStyle'), '`Dashed` needs real room').toBe('medium')
     expect(measureOf('offset')).toBe('compact')
@@ -277,7 +279,7 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     select(ENGINE_MA)
     expect(measureOf('source'), 'a real source picker was made narrow').toBe('wide')
     expect(measureOf('__display__')).toBe('wide')
-    expect(measureOf('maType')).toBe('segment')
+    expect(measureOf('maType')).toBe('compact')
     expect(inspector().querySelector('[data-field^="__style__"]').getAttribute('data-measure'))
       .toBe('medium')
   })
@@ -310,54 +312,48 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     }
   })
 
-  it('⭐⭐ THE TYPE SEGMENT WRITES THE IDENTICAL CANONICAL VALUE — both implementations', () => {
-    // ⛔ A CONTROL SWAP AND NOTHING ELSE. `MA_TYPES`, `applyRowPatch`, the overlay
-    // slot and the instance input are all untouched; the only difference is that
-    // the member sees both answers at rest instead of opening a native menu.
+  // ⭐ 2026-10-01 — THE TYPE IS A DROPDOWN OVER NINE MA TYPES, not a two-way
+  // segment. `isSegment` is declared by the data (a TWO-option enum), so nine
+  // options correctly fall to the native `<select>` — which is ONE tab stop and
+  // answers arrow keys by itself. The writer it reaches is unchanged.
+  const typeSelect = () => fieldOf('maType')?.querySelector('select')
+
+  it('⭐⭐ THE TYPE DROPDOWN WRITES THE IDENTICAL CANONICAL VALUE — both implementations', () => {
     const seen = { cs: null }
     const { cs, id } = withMA(base(), 'close')
     show(cs, seen); openTab()
 
     // ⭐ 2026-09-28 — THE DEFAULT EMA 9 IS THE ADOPTED INSTANCE `ovl:0`
-    // (`maAdoption.js`), so the SAME segment writes the SAME canonical input.
+    // (`maAdoption.js`), so the SAME control writes the SAME canonical input.
     select(/^EMA 9$/)
-    expect(checked('maType').textContent.trim()).toBe('EMA')
-    fireEvent.click(radios('maType').find((r) => r.textContent.trim() === 'SMA'))
+    expect(segOf('maType'), 'nine types must not render as a segment').toBeFalsy()
+    expect(typeSelect().value).toBe('ema')
+    fireEvent.change(typeSelect(), { target: { value: 'sma' } })
     const ema9 = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0')
-    expect(ema9.inputs.maType, 'the segment did not reach the adopted instance').toBe('sma')
-    expect(ema9.inputs.period, 'the segment disturbed the period').toBe(9)
+    expect(ema9.inputs.maType, 'the dropdown did not reach the adopted instance').toBe('sma')
+    expect(ema9.inputs.period, 'the dropdown disturbed the period').toBe(9)
     expect(seen.cs.overlays[0], 'editing the average rewrote its (kept) legacy slot')
       .toEqual(cs.overlays[0])
     expect((seen.cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage'),
       'editing an average minted or dropped an instance')
       .toHaveLength((cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage').length)
 
-    // ENGINE — the instance's own `maType` input
+    // ENGINE — the instance's own `maType` input, including a NEW kit type
     select(ENGINE_MA)
-    fireEvent.click(radios('maType').find((r) => r.textContent.trim() === 'EMA'))
+    fireEvent.change(typeSelect(), { target: { value: 'hma' } })
     const inst = seen.cs.indicatorInstances.find((i) => i.instanceId === id)
-    expect(inst.inputs.maType, 'the segment did not reach the instance input').toBe('ema')
+    expect(inst.inputs.maType, 'the dropdown did not reach the instance input').toBe('hma')
   })
 
-  it('⭐ THE SEGMENT IS ONE TAB STOP, and arrow keys move the choice', () => {
-    const seen = { cs: null }
-    show(base(), seen); openTab()
+  it('⭐ THE TYPE DROPDOWN OFFERS ALL NINE TYPES, in kit order, labelled', () => {
+    show(base()); openTab()
     select(/^EMA 9$/)
-    // (The adopted instance's `maType` — see the case above.)
-    const grp = segOf('maType')
-    expect(grp.getAttribute('role')).toBe('radiogroup')
-    expect(grp.getAttribute('aria-label')).toBe('Type')
-    // ⛔ ROVING TABINDEX — landing on every option in turn is how a two-choice
-    // control becomes two controls for a keyboard member.
-    expect(radios('maType').map((r) => r.tabIndex)).toEqual([-1, 0])
-    expect(checked('maType').tabIndex, 'the chosen option is not the tab stop').toBe(0)
-
-    const typeOf = () => seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0').inputs.maType
-    fireEvent.keyDown(grp, { key: 'ArrowLeft' })
-    expect(typeOf(), 'ArrowLeft did not move the choice').toBe('sma')
-    expect(checked('maType').textContent.trim()).toBe('SMA')
-    fireEvent.keyDown(grp, { key: 'ArrowRight' })
-    expect(typeOf()).toBe('ema')
+    const sel = typeSelect()
+    expect(sel, 'Type is not a dropdown').toBeTruthy()
+    expect([...sel.options].map((o) => o.value))
+      .toEqual(['sma', 'ema', 'wma', 'vwma', 'hma', 'smma', 'dema', 'tema', 'lsma'])
+    expect([...sel.options].map((o) => o.textContent))
+      .toEqual(['SMA', 'EMA', 'WMA', 'VWMA', 'HMA', 'SMMA', 'DEMA', 'TEMA', 'LSMA'])
   })
 
   // ═════════════════════════════════════════════════════════════════════
@@ -969,21 +965,19 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     // are already what the ROW is called, on the chart and in the legend.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    // ⚰️ IT READ A `<select>`'s OPTIONS. Type is a SEGMENT now — two radios, both
-    // visible at rest — so the same two facts are read off the group instead: the
-    // checked radio's word, and every radio's word.
+    // ⭐ 2026-10-01 — Type is a `<select>` again (nine MA types), so the same
+    // facts are read off its options: the selected word, and every word.
     for (const [row, want] of [[/^EMA 9$/, 'EMA'], [/^SMA 50$/, 'SMA'], [ENGINE_MA, 'SMA']]) {
       select(row)
-      const grp = inspector().querySelector('[data-field="type"] [role="radiogroup"], [data-field="maType"] [role="radiogroup"]')
-      expect(grp, `${row} has no Type segment`).toBeTruthy()
-      const opts = [...grp.querySelectorAll('[role="radio"]')]
-      expect(opts.find((o) => o.getAttribute('aria-checked') === 'true').textContent.trim(),
+      const sel = inspector().querySelector('[data-field="type"] select, [data-field="maType"] select')
+      expect(sel, `${row} has no Type control`).toBeTruthy()
+      const opts = [...sel.options]
+      expect(opts.find((o) => o.selected).textContent.trim(),
         `${row} speaks a different vocabulary`).toBe(want)
       // ⛔ AND NO CHOICE ANYWHERE SAYS THE OLD WORDS.
       expect(opts.map((o) => o.textContent).join('|')).not.toMatch(/Simple|Exponential/)
-      // ⛔ EXACTLY ONE IS CHOSEN. A radio group with none checked — or two — is a
-      // control whose state a screen reader cannot report.
-      expect(opts.filter((o) => o.getAttribute('aria-checked') === 'true')).toHaveLength(1)
+      // ⛔ EXACTLY ONE IS CHOSEN.
+      expect(opts.filter((o) => o.selected)).toHaveLength(1)
     }
   })
 

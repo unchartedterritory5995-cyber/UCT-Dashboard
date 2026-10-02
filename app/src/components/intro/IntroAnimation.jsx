@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { prefersReducedMotion, hasSeenIntroThisSession, markIntroSeenThisSession } from './introStorage'
+import useFocusTrap from '../mobile/useFocusTrap'
 import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
 import styles from './IntroAnimation.module.css'
@@ -79,11 +80,29 @@ export default function IntroAnimation() {
     return () => window.removeEventListener('keydown', handleKey, true)
   }, [phase, finish])
 
+  // A2R-01 (a11y second review, 2026-10-01): this overlay is `position: fixed`
+  // at z-index 99999, fully opaque, over the whole app — and had NO trap. The
+  // overlay's own "Skip" button being the first Tab stop on a fresh load is
+  // correct and expected (an interstitial's own door goes first); what was
+  // missing is what happens on the SECOND Tab. Escape/Enter/Space are already
+  // caught in capture above and dismiss the intro from anywhere, but a bare
+  // Tab was never intercepted, so it walked straight past Skip into the real
+  // app's chrome (the Notebook's own skip link, among everything else) while
+  // the overlay still covered the screen for up to 9.3s (1.6s reduced-motion)
+  // — focus landing on an element a sighted keyboard user cannot see, which is
+  // the "lands BEHIND the overlay" case, not the "skip comes first" one. The
+  // shared trap (`components/mobile/useFocusTrap.js`, the same one dialogs in
+  // this app already use) confines Tab/Shift+Tab to the overlay's one
+  // focusable control until a skip key or the timer finishes it; the
+  // reduced-motion branch has none, so the trap's own "nothing focusable —
+  // keep focus on the container" path applies there instead.
+  useFocusTrap(phase === 'playing', stageRef)
+
   if (phase !== 'playing') return null
 
   if (reducedMotion) {
     return (
-      <div className={`${styles.overlay} ${styles.reducedMotion}`} onClick={finish} role="dialog" aria-label="Welcome">
+      <div className={`${styles.overlay} ${styles.reducedMotion}`} onClick={finish} ref={stageRef} tabIndex={-1} role="dialog" aria-label="Welcome">
         <div className={styles.brandStack}>
           <img className={styles.compassMark} src={compassMark} alt="" aria-hidden="true" />
           <span className={styles.wordmarkProduct}>UCT Intelligence</span>

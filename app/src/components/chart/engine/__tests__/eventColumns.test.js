@@ -27,6 +27,7 @@
  * check is at registration and why `defSchema.test.js` still (correctly) accepts
  * a definition whose event names nothing.
  */
+import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -180,7 +181,8 @@ const SHIPPED_COLUMNS = Object.freeze({
   rsi: ['rsi'],
   macd: ['macd', 'signal', 'histogram'],
   bb: ['upper', 'middle', 'lower'],
-  vwap: ['vwap'],
+  // ⭐ 2026-10-01 — plus the six σ-band columns, EMPTY unless the member turns bands on.
+  vwap: ['vwap', 'upper1', 'lower1', 'upper2', 'lower2', 'upper3', 'lower3'],
   stoch: ['k', 'd'],
   atr: ['atr'],
   sar: ['sar', 'priceCrossedSar', 'trendFlipped'],
@@ -211,6 +213,8 @@ const SHIPPED_COLUMNS = Object.freeze({
   movingAverage: ['ma'],
   // ⭐ ONE COLUMN. `volume × close` is one number per bar and declares no events.
   dollarVolume: ['dv'],
+  // ⭐ 2026-10-01 — the Technical library's Tier 1, each written down in the fixture.
+  ...TIER1_COLUMNS,
 })
 
 describe('columnKeys — plots ∪ events', () => {

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { TIER1_IDS } from './tier1Library.fixture'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import { useState, Profiler } from 'react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
@@ -368,10 +369,24 @@ const tfFor = (defId) => {
   const tfs = registry.getDefinition(defId)?.meta?.timeframes
   return (Array.isArray(tfs) && tfs.length) ? (tfs.includes('5') ? '5' : tfs[0]) : 'D'
 }
-const barsFor = (tf) => (tf === 'D' ? BARS : INTRADAY_BARS)
+const barsFor = (tf, defId) => (tf === 'D' ? (periodicOnly(defId) ? YEAR_BARS : BARS) : INTRADAY_BARS)
 
-const draw = (settingsOverride, tf = 'D') => render(
-  <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={legendAlways(settingsOverride)} />,
+/** ⭐ 2026-10-01 — A DAILY-ONLY DEFINITION GETS A YEAR OF DAILY BARS. The 52-Week
+ *  High/Low study is a CALENDAR window: it answers only once 52 weeks of history
+ *  are loaded, and the 200-bar ramp spans nine months. Derived from the
+ *  declaration (a `meta.timeframes` list with no intraday frame), like `tfFor`. */
+const periodicOnly = (defId) => {
+  const tfs = defId ? registry.getDefinition(defId)?.meta?.timeframes : null
+  return Array.isArray(tfs) && tfs.length > 0 && !tfs.some((t) => !['D', 'W', 'M'].includes(t))
+}
+const YEAR_BARS = Array.from({ length: 420 }, (_, i) => {
+  const d = new Date(Date.UTC(2024, 0, 2) + i * 86400000).toISOString().slice(0, 10)
+  const c = 100 + i * 0.05 + Math.sin(i / 9) * 3
+  return { t: d, o: c - 0.3, h: c + 1, l: c - 1, c, v: 2_000_000 + (i % 11) * 50_000 }
+})
+
+const draw = (settingsOverride, tf = 'D', defId) => render(
+  <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf, defId)} settingsOverride={legendAlways(settingsOverride)} />,
 )
 
 /**
@@ -1036,12 +1051,12 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
       // "0 === 0" there would be green and vacuous.
       const tf = tfFor(defId)
       const legacyOn = { indicators: { [defId]: { enabled: true } } }
-      draw(legacyOn, tf)
+      draw(legacyOn, tf, defId)
       const legacyOnly = H.addSeriesCalls.length
       expect(legacyOnly, `${defId} drew nothing with the engine off`).toBeGreaterThan(0)
       cleanup(); H.reset()
 
-      draw({ ...legacyOn, indicatorInstances: [instanceOf(defId)] }, tf)
+      draw({ ...legacyOn, indicatorInstances: [instanceOf(defId)] }, tf, defId)
       expect(H.binderApis[0].bindings().length, `the engine bound nothing for ${defId}`).toBeGreaterThan(0)
       expect(H.addSeriesCalls.length, `${defId} is drawn twice — its legacy block has no guard`)
         .toBe(legacyOnly)
@@ -1737,7 +1752,9 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
       // same pipeline, hideable by the same eye and removable by the same ✕.
       .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries',
         'dollarVolume', 'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage',
-        'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+        // ⭐ 2026-10-01 — every Technical library Tier 1 study bears a chip.
+        ...TIER1_IDS].sort())
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3961,7 +3978,10 @@ describe('an engine-drawn VWAP prints ONE chip, and the flip does not change it'
     // case is inverted with it, and asserted WHOLE so a return to `{ hide: true }`
     // or a precision change both fail.
     const def = registry.getDefinition('vwap')
-    expect(def.plots).toHaveLength(1)
+    // ⭐ 2026-10-01 — STILL ONE CHIP. VWAP gained six optional σ-band plots, each
+    // `legend: { hide: true }`, so the line remains the only plot that names itself.
+    expect(def.plots).toHaveLength(7)
+    expect(def.plots.filter((p) => !(p.legend && p.legend.hide)).map((p) => p.key)).toEqual(['vwap'])
     expect(def.plots[0].legend, 'VWAP\'s chip declaration moved').toEqual({ decimals: 2 })
     // No brackets: VWAP's four inputs are colour, opacity, line style and line
     // width, and not one of them changes WHAT IS MEASURED.
@@ -4206,7 +4226,9 @@ describe('the Flip-B machinery, live (Task 10)', () => {
       // The set grew again with no flip and nothing to migrate.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
-        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+        // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1.
+        ...TIER1_IDS].sort())
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4263,7 +4285,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     let seen = 0
     for (const defId of [...ENGINE_OWNED].filter(id => !serverLane.includes(id))) {
       cleanup(); H.reset()
-      draw({ indicators: { [defId]: { enabled: true } } }, tfFor(defId))
+      draw({ indicators: { [defId]: { enabled: true } } }, tfFor(defId), defId)
       const bound = H.binderApis[0].bindings().filter(b => b.defId === defId)
       expect(bound.length, `${defId} drew nothing from a legacy toggle — with no legacy `
         + 'block left, that is the indicator deleted for every existing user').toBeGreaterThan(0)
@@ -4402,6 +4424,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // here exactly as it is from the library list, and `offered()` reads the same
     // constant the menu reads so this expectation cannot drift from it.
     const offered = () => catalogRows().filter(r => !LIBRARY_HIDDEN_IDS.includes(r.id))
+      .filter(r => registry.getDefinition(r.id)?.meta?.quickMenu !== false)
     // ⭐ NINETEEN AT P2.1's SIBLING. `movingAverage` DOES reach this menu, and the
     // contrast with `dataSeries` is the point: a per-DEFINITION toggle means
     // something for an average (turn on a moving average) and nothing for a
@@ -4412,6 +4435,10 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // and unlike `dataSeries`: a per-DEFINITION toggle means something for it —
     // "show the cash traded per bar" — because it computes one fixed thing rather
     // than whatever it was pointed at.
+    // ⭐ STILL TWENTY AT 2026-10-01, AND THAT IS THE CLAIM. The Technical library's
+    // thirty-three Tier 1 studies declare `meta.quickMenu: false`: this right-click
+    // menu is a QUICK toggle list, and a Tier 1 study appears in it only while it is
+    // on (see the next case). The library is where they are browsed and added.
     expect(items).toHaveLength(20)
     expect(items).toHaveLength(offered().length)
     expect(items.map(i => i.id)).toEqual(offered().map(r => 'ind-' + r.id))

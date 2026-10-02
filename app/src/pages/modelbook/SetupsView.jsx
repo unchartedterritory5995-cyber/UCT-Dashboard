@@ -386,7 +386,7 @@ export function TickerSearchInput({ value, onChange, onPick }) {
   const showDrop = open && results.length > 0
   return (
     <div className={styles.tickerSearch}>
-      <input
+      <input aria-label="Ticker"
         className={styles.exInput}
         value={value}
         placeholder="Ticker"
@@ -492,9 +492,9 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
           onChange={v => set('symbol', v)}
           onPick={r => setForm(f => ({ ...f, symbol: r.ticker, company: f.company || r.name || '' }))}
         />
-        <input className={styles.exInput} placeholder="Company (optional)" value={form.company}
+        <input aria-label="Company" className={styles.exInput} placeholder="Company (optional)" value={form.company}
           onChange={e => set('company', e.target.value)} />
-        <input className={styles.exInput} type="number" placeholder="Year" value={form.year} required
+        <input aria-label="Year" className={styles.exInput} type="number" placeholder="Year" value={form.year} required
           onChange={e => set('year', e.target.value)} />
         <select className={styles.exInput} value={form.timeframe} onChange={e => set('timeframe', e.target.value)}
           title="Chart timeframe for this example">
@@ -507,7 +507,7 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
           <option value="arith">Arithmetic</option>
           <option value="log">Logarithmic</option>
         </select>
-        <select className={styles.exInput} value={form.grade} onChange={e => set('grade', e.target.value)}>
+        <select aria-label="Grade" className={styles.exInput} value={form.grade} onChange={e => set('grade', e.target.value)}>
           <option value="">Grade…</option>
           {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
@@ -540,14 +540,14 @@ function ExampleForm({ setupName, initial, onSaved, onCancel }) {
         </label>
       </div>
       <div className={styles.exFormRow}>
-        <input className={styles.exInput} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
+        <input aria-label="Entry price" className={styles.exInput} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
           onChange={e => set('entry_price', e.target.value)} />
-        <input className={styles.exInput} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
+        <input aria-label="Stop price" className={styles.exInput} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
           onChange={e => set('stop_price', e.target.value)} />
-        <input className={styles.exInput} type="number" step="0.01" placeholder="Target" value={form.target_price}
+        <input aria-label="Target price" className={styles.exInput} type="number" step="0.01" placeholder="Target" value={form.target_price}
           onChange={e => set('target_price', e.target.value)} />
       </div>
-      <textarea className={styles.exTextarea} placeholder="Notes — why this is a textbook example"
+      <textarea aria-label="Notes" className={styles.exTextarea} placeholder="Notes — why this is a textbook example"
         value={form.notes} onChange={e => set('notes', e.target.value)} />
       <div className={styles.exFormActions}>
         <button className={styles.exSaveBtn} type="submit" disabled={saving}>
@@ -727,7 +727,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
         <span className={styles.exYear}>{ex.year}</span>
         {ex.grade && <span className={styles.exGrade}>{ex.grade}</span>}
         {isAdmin ? (
-          <input
+          <input aria-label="Advance"
             className={styles.exAdvance}
             value={advance}
             placeholder="+ advance (e.g. 160% in 26 days)"
@@ -772,7 +772,7 @@ function ExampleBlock({ ex, isAdmin, onChanged }) {
           {isAdmin && !annotating && ex.has_custom_bars && (
             <button className={styles.exTool} onClick={clearBars} title="Remove uploaded data">Clear Data</button>
           )}
-          <input ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
+          <input aria-label="Upload price data (CSV)" ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
           {isAdmin && !annotating && (
             <button className={styles.exToolDanger} onClick={del} title="Delete this example"><UIcon name="trash" size={14} /></button>
           )}
