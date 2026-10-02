@@ -1,0 +1,516 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+............................................x........................... [ 21%]
+...............FF..F.F.................................................. [ 24%]
+..FFF.F.F............................................................... [ 27%]
+.....................F.................................................. [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+...........................................................F............ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+.....................................F.................................. [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+......................................                                   [100%]
+=================================== FAILURES ===================================
+________________ test_fmp_profile_row_parses_list_of_one_shape _________________
+
+    def test_fmp_profile_row_parses_list_of_one_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+
+tests/test_ticker_logos.py:113: AssertionError
+_________________ test_fmp_profile_row_parses_bare_dict_shape __________________
+
+    def test_fmp_profile_row_parses_bare_dict_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value={"companyName": "Apple Inc."}):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc."}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.'}
+
+tests/test_ticker_logos.py:120: AssertionError
+____ test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub _____
+
+    def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+        """Defensive path: if FMP's schema ever adds an `image` field, it's used
+        as the PRIMARY source and Finnhub is never called at all."""
+        fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+    
+        def _fake_get(url, **kw):
+            class _R:
+                ok = True
+                content = fmp_png
+                status_code = 200
+            return _R()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.",
+                                       "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get") as fh, \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+>       assert out == fmp_png
+E       AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+
+tests/test_ticker_logos.py:173: AssertionError
+___ test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried ___
+
+    def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+        """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+        and the code still proceeds to try Finnhub afterwards."""
+        tl._reset_transient()
+        finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+    
+        def _fake_get(url, **kw):
+            if "fmp-cdn" in url:
+                class _Bad:
+                    ok = False
+                    content = b""
+                    status_code = 503
+                return _Bad()
+            class _Good:
+                ok = True
+                content = finnhub_png
+                status_code = 200
+            return _Good()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get",
+                        return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out == finnhub_png
+>       assert tl._was_transient() is True
+E       assert False is True
+E        +  where False = <function _was_transient at 0x7f873bd02b60>()
+E        +    where <function _was_transient at 0x7f873bd02b60> = tl._was_transient
+
+tests/test_ticker_logos.py:226: AssertionError
+_______ test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit ________
+
+    def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
+        """FMP is the new PRIMARY leg: when yfinance fails and FMP fully resolves
+        the name, Finnhub must never even be called."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put"), \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row()]) as FMP, \
+             patch.object(ticker_meta, "fh_get") as FH:
+            out = ticker_meta.get_ticker_meta("AAPL")
+>       assert out == {"name": "Apple Inc.", "sector": "Technology",
+                       "industry": "Consumer Electronics", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'name': None} != {'name': 'Apple Inc.'}
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'industry': None} != {'industry': 'Consumer Electronics'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Consumer Electronics',
+E         -     'name': 'Apple Inc.',
+E         -     'sector': 'Technology',
+E         +     'industry': None,
+E         +     'name': None,
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:236: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-10-02 16:51:49,682 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+______________________ test_fmp_field_mapping_happy_path _______________________
+
+    def test_fmp_field_mapping_happy_path():
+        """Direct unit test of the field-shape mapping table: companyName->name,
+        sector/industry split correctly (Finnhub profile2 had no sector at all)."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName="Apple Inc.", sector="Technology",
+                                           industry="Consumer Electronics")]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["name"] == "Apple Inc."
+E       AssertionError: assert None == 'Apple Inc.'
+
+tests/test_ticker_meta.py:251: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-10-02 16:51:49,692 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+____________ test_fmp_market_cap_unit_conversion_asserts_magnitude _____________
+
+    def test_fmp_market_cap_unit_conversion_asserts_magnitude():
+        """THE known bug class (lesson_market_cap_cache_poison_and_finnhub_currency):
+        FMP's marketCap is raw USD UNITS (4567767716000), NOT the millions Finnhub's
+        marketCapitalization used. Assert the CONVERTED magnitude, not just presence —
+        a bug that skips the /1e6 conversion (or divides by the wrong power) must
+        fail this on the number, not silently pass on "field exists"."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(marketCap=4567767716000)]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["market_cap_musd"] == pytest.approx(4567767.716, rel=1e-9)
+E       assert None == 4567767.716 ± 4.6e-03
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 4567767.716 ± 4.6e-03
+
+tests/test_ticker_meta.py:265: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-10-02 16:51:49,700 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+_____________ test_fmp_missing_marketcap_key_entirely_yields_none ______________
+
+    def test_fmp_missing_marketcap_key_entirely_yields_none():
+        """A row that simply omits the marketCap key (not just null) must also
+        yield None, not raise a KeyError or coerce to 0."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[{"companyName": "No Cap Co"}]):
+            out = ticker_meta._from_fmp("NOCAP")
+>       assert out["name"] == "No Cap Co"
+E       AssertionError: assert None == 'No Cap Co'
+
+tests/test_ticker_meta.py:292: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-10-02 16:51:49,711 WARNING api.services.ticker_meta: FMP profile failed for NOCAP: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for NOCAP: FMP_API_KEY not set
+________________ test_fmp_partial_then_finnhub_fills_remainder _________________
+
+    def test_fmp_partial_then_finnhub_fills_remainder():
+        """Full 3-leg interaction: yfinance fails entirely, FMP supplies industry
+        but no name (a partial FMP response), Finnhub then fills the name. Proves
+        the merge chain composes correctly end-to-end, matching the yfinance/
+        Finnhub partial-merge behavior already covered above."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put") as DP, \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName=None, sector="Technology",
+                                           industry="Semiconductors")]), \
+             patch.object(ticker_meta, "fh_get",
+                          return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
+            out = ticker_meta.get_ticker_meta("MU")
+>       assert out == {"name": "Micron Technology Inc", "sector": "Technology",
+                       "industry": "Semiconductors", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Differing items:
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Semiconductors',
+E         +     'industry': 'Technology',
+E               'name': 'Micron Technology Inc',
+E         -     'sector': 'Technology',
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:324: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-10-02 16:51:49,722 WARNING api.services.ticker_meta: FMP profile failed for MU: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for MU: FMP_API_KEY not set
+_____________________ test_no_token_value_is_ever_written ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_no_token_value_is_ever_wr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f873869d7f0>
+
+    def test_no_token_value_is_ever_written(tmp_path, monkeypatch):
+        """⛔ C-13. The chart-renderer logged the render token in plaintext for two weeks."""
+        secret = "s3cr3t-live-render-token-value"
+        monkeypatch.setenv("CHART_RENDER_TOKEN", secret)
+        token_slots.note_match(token_slots.SLOT_CURRENT, commit="abcdef123456")
+        text = (tmp_path / "token-slots.json").read_text(encoding="utf-8")
+        assert secret not in text, "the token VALUE reached the counter file"
+>       assert str(len(secret)) not in json.dumps(json.loads(text).get("slots", {})), \
+            "the token LENGTH leaked into the slot record"
+E       AssertionError: the token LENGTH leaked into the slot record
+E       assert '30' not in '{"current":...een": null}}'
+E         
+E         '30' is contained here:
+E           -02T16:52:30Z", "last_seen": "2026-10-02T16:52:30Z"}, "previous": {"count": 0, "first_seen": null, "last_seen": null}}
+E         ?           ++
+
+tests/test_token_slots.py:72: AssertionError
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+________________ test_the_real_tree_matches_the_ratchet_exactly ________________
+
+    def test_the_real_tree_matches_the_ratchet_exactly():
+        counts = cen.counts(cen.census(BASE))
+        baseline = cen.load_baseline(BASE)
+        grew, new, slack = cen.compare(counts, baseline)
+>       assert new == [], (
+            "a NEW file reaches a vendor outside its adapter -- route it through the "
+            f"adapter (api/services/massive_adapter.py for Massive): {new}")
+E       AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/options_universe_log.py', 0, 2)]
+E       assert [('massive', ...og.py', 0, 2)] == []
+E         
+E         Left contains 2 more items, first extra item: ('massive', 'api/services/breadth_v2_producer.py', 0, 3)
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'massive',
+E         +         'api/services/breadth_v2_producer.py',
+E         +         0,
+E         +         3,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/options_universe_log.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         + ]
+
+tests/test_vendor_callsite_census.py:58: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:7
+<unknown>:7
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:1340: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_ticker_explain.py::TestRoute::test_route_shape_when_authenticated
+tests/test_ticker_explain.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_tools_pin_the_root.py::test_every_tools_api_importer_pins_the_census_or_is_named_exempt
+tests/test_tools_pin_the_root.py::test_every_exempt_name_is_real_and_every_reason_is_stated
+tests/test_tools_pin_the_root.py::test_the_walk_sees_the_known_pinned_and_known_exempt_members
+  notebook_wave5_walk.py:7: SyntaxWarning: invalid escape sequence '\d'
+    (scripts/hub_sandbox_boot.py --data-dir C:\data-<name> --port 8093);
+
+tests/test_track_d_risk003_probe.py::TestClassify::test_max_as_of_matches_last_trading_day_is_healthy
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/track_d_risk003_probe.py:99: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = now_utc or datetime.datetime.utcnow()
+
+tests/test_voice_router.py: 39 warnings
+tests/test_voice_usage.py: 222 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_voice_usage.py::test_first_record_creates_row
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_voice_usage.py:24: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert usage["year_month"] == datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/test_ticker_explain_refusal_names_the_gap.py::test_PART3_a_MODEL_authored_refusal_sentence_never_reaches_the_member - VIOLATION (I1-SPEC Part 3): 'the name is derived, never model-authored' — explain_recent_activity passes the MODEL's own refusal_reason to _result, whose `refusal_reason or derive_refusal_reason(...)` serves it verbatim as insufficient_evidence_reason. Known partial compliance, recorded in docs/terminal-research/verification/2026-09-14/F-I1-2-refusal-before-after.md ('Full compliance would need the caller to distinguish a server reason from a model reason at _result'). Mitigated, not closed: the sentence is inside _full_answer_text, so a number or verdict in it is still caught. ⚠ Fixing it also changes tests/test_ticker_explain.py::test_model_declaring_refuse_is_passed_through_honestly, which pins the current behaviour. strict=True: the day it is fixed this goes red and the marker must be removed.
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_list_of_one_shape - AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_bare_dict_shape - AssertionError: assert None == {'companyName': 'Apple Inc.'}
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub - AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried - assert False is True
+ +  where False = <function _was_transient at 0x7f873bd02b60>()
+ +    where <function _was_transient at 0x7f873bd02b60> = tl._was_transient
+FAILED tests/test_ticker_meta.py::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 2 identical items, use -vv to show
+  Differing items:
+  {'name': None} != {'name': 'Apple Inc.'}
+  {'sector': None} != {'sector': 'Technology'}
+  {'industry': None} != {'industry': 'Consumer Electronics'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Consumer Electronics',
+  -     'name': 'Apple Inc.',
+  -     'sector': 'Technology',
+  +     'industry': None,
+  +     'name': None,
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_ticker_meta.py::test_fmp_field_mapping_happy_path - AssertionError: assert None == 'Apple Inc.'
+FAILED tests/test_ticker_meta.py::test_fmp_market_cap_unit_conversion_asserts_magnitude - assert None == 4567767.716 ± 4.6e-03
+  
+  comparison failed
+  Obtained: None
+  Expected: 4567767.716 ± 4.6e-03
+FAILED tests/test_ticker_meta.py::test_fmp_missing_marketcap_key_entirely_yields_none - AssertionError: assert None == 'No Cap Co'
+FAILED tests/test_ticker_meta.py::test_fmp_partial_then_finnhub_fills_remainder - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 3 identical items, use -vv to show
+  Differing items:
+  {'sector': None} != {'sector': 'Technology'}
+  {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Semiconductors',
+  +     'industry': 'Technology',
+        'name': 'Micron Technology Inc',
+  -     'sector': 'Technology',
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_token_slots.py::test_no_token_value_is_ever_written - AssertionError: the token LENGTH leaked into the slot record
+assert '30' not in '{"current":...een": null}}'
+  
+  '30' is contained here:
+    -02T16:52:30Z", "last_seen": "2026-10-02T16:52:30Z"}, "previous": {"count": 0, "first_seen": null, "last_seen": null}}
+  ?           ++
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+FAILED tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly - AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/options_universe_log.py', 0, 2)]
+assert [('massive', ...og.py', 0, 2)] == []
+  
+  Left contains 2 more items, first extra item: ('massive', 'api/services/breadth_v2_producer.py', 0, 3)
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'massive',
+  +         'api/services/breadth_v2_producer.py',
+  +         0,
+  +         3,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/options_universe_log.py',
+  +         0,
+  +         2,
+  +     ),
+  + ]
+12 failed, 2329 passed, 1 xfailed, 315 warnings in 576.60s (0:09:36)
