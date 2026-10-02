@@ -112,13 +112,24 @@ export const Toggle = Node.create({
       // Keep the editor from stealing selection/focus on press (same guard
       // VideoTimestamp uses for its own chip button).
       chevron.addEventListener('mousedown', (e) => e.preventDefault())
-      chevron.addEventListener('click', () => {
+      const flip = () => {
         if (typeof getPos !== 'function') return
         const pos = getPos()
         if (typeof pos !== 'number') return
         const current = editor.state.doc.nodeAt(pos)
         const isOpen = current ? !!current.attrs.open : !!node.attrs.open
         editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, 'open', !isOpen))
+      }
+      chevron.addEventListener('click', flip)
+      // Enter toggles here rather than through the button's native
+      // activation: the button sits inside the editor's contenteditable, and
+      // whether a browser activates it on Enter from there is not ours to
+      // rely on. preventDefault stops that native click so it cannot toggle
+      // a second time. Space stays native (its click fires on keyup).
+      chevron.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey) return
+        e.preventDefault()
+        flip()
       })
 
       const details = document.createElement('details')
@@ -152,6 +163,12 @@ export const Toggle = Node.create({
           sync(node)
           return true
         },
+        // The chevron is chrome, not document content: ProseMirror never
+        // handles an event on it. Without this a key pressed with focus on
+        // the chevron ran the editor's own command at the document selection
+        // (Enter split the line the caret was last on, adding an empty
+        // paragraph; lane 12B's walk, run 5).
+        stopEvent: (event) => chevron.contains(event.target),
       }
     }
   },
