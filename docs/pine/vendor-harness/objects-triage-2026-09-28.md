@@ -159,6 +159,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
+| L1 | L1 `import Author/Library/Version` is LINKED (§ L1): a server-side library store (data dir, never git; licence + attribution per version; `GET /api/pine/libraries`), a fetch tool for the owner, a client registry the doors fill, and a token-level linker both lanes call after `lexPine` - an imported export compiles to exactly what the same function pasted into the script compiles to (proved bar for bar in both lanes on fixtures written for the test). Unknown library, other Pine version, ambiguous block shadowing, kept `var` / top-level-reassigned library values, cycles: refused by name on the import line. No budget moved | `a30aa584c0`, `9066030225`, `43b02c38a4`, `f34c0c4cd5`, `38dca3d9c1` (merge `e5d0198b34`) | unchanged: no capture imports a library (0 / 139 harness files) | unchanged | with the libraries in a scratch store: importers past the import wall 29 / 34 both lanes; runtime `runtime:library` 30 -> 5, compiled 15 -> 15; member door on 68 -> **70** (`all-chart-patterns-theeccentrictrader`, `black-scholes-...-loxx`); with an empty registry (production today) 0 served outputs, 0 params, 0 object programs changed over 266 x 3 lanes, door 45 / 68, only the 34 importers' refusal sentence names the missing library. Notebook first-open 2,148,818 B (+0, PASS), `pine` chunk +13,766 B, total JS +14,810 B. `paramIds.test.js` green, no edit. 8 mutations, 7 red, 1 equivalent survivor named. Q-L1 queued |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4571,3 +4572,80 @@ builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (20
 `37 passed`. Translation census byte-identical to § 10's merged tip. Bytes: `pine` chunk 396,432 → 396,522
 (+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
 1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.
+
+## L1 - `import Author/Library/Version`: a library registry, and an imported function is the script's own (2026-10-02, step L1)
+
+Branch `pine/l1-libraries`, base `origin/master` @ `cf5e38d5d2` (waves 7-13 + C50), merged with
+`origin/master` @ `5564cca92b` (docs only). 34 of the 266 committed scripts import a library; both
+lanes refused every one of them at the import line (`pine:module`, `runtime:library`, 30 each as the
+first wall).
+
+**The registry (sources never in git).** `api/services/pine_library_store.py`: one JSON per library
+VERSION under `$PINE_LIBRARY_DIR` or `$DATA_DIR/pine_libraries` (`<Author>/<Library>/<N>.json`) -
+source, sha256, licence, licence basis (`header`, or TradingView's MPL-2.0 default recorded as
+such), attribution. An entry without a licence, with a bad hash, or whose source declares no
+`library()` is never served; a version never stands in for another. Read door:
+`GET /api/pine/libraries[/<A>/<L>/<N>]` (`api/routers/pine_libraries.py`, signed-in members). Filled
+by `tools/pine_library/fetch_library.py` (owner/integrator runs it; public endpoints only - the
+library search with `type=3` nominates, the candidate's own `library("<name>")` at the requested
+version decides, because a publication's display name and author can differ from its import path:
+`Simple Trendlines` / `SimpleTrendlines`, `TradingFinder` / `TFlab`). Client side:
+`pineLibraryStore.js` (empty in every process) + `usePineLibraries` in PineBox and MemberPane (no
+request for a source without an import; one per library; PineBox shows path, licence, attribution).
+
+**The rule, as implemented (`pineLibraries.js`).** Both lanes call `linkLibraries` right after
+`lexPine`. A resolved import line is replaced, at the TOKEN level, by the library's reached
+definitions: the functions, methods, types and enums the script reaches from the `alias.X` it writes
+(transitively), and the plain top-level values those read; `library()`, demo plots, inputs and
+top-level blocks are dropped (an importing script never runs them). Library top-level names become
+`__lib<k>_<name>` - functions at call position only, values and types by head, never a type field
+name, a named argument, or a reference to the definition's own parameter / local at or after its
+declaration (Pine scoping read positionally) - and the script's `alias.X` is rewritten to the same
+name; methods keep theirs. A library importing a library is linked first; one version is one unit.
+The script's tokens keep every line, column and index (refusals, excerpts and parameter ids do not
+move; `scriptKey` and the input sites read `tokens.unlinked`); library tokens get lines past the
+script's last line (indent and line tables extended) and FRACTIONAL indices inside the removed
+import line's gap, so token order - which the walk's binary-searched statement log depends on - is
+run order. A refusal inside library code is moved to the member's import line, names the library and
+its line, and spliced names read `alias.name` again. Refused by name on the import line (guards
+unchanged, the sentence gains the reason): a library not in the registry (which one), a library in
+another Pine version than the script, a block local named like a top-level value it also reads after
+the block, a kept top-level value the library keeps across bars (`var`) or reassigns at its top
+level, a cycle.
+
+**Proof.** `pineLibraries.test.js` (20): linked equals the function pasted in, bar for bar over 60
+bars, in BOTH lanes (host trees through `interpret`, runtime IR lowered and executed); a control
+without the library refuses; the script's own `mid`/`FACTOR` never captured; a parameter named like a
+top-level value; a type field named like one; a library type and its method; a library importing a
+library; `/2` runs v2 and not v1; every refusal above. `usePineLibraries.test.jsx` (2),
+`tests/test_pine_library_store.py` (8). No committed capture imports a library (0 of 139 harness
+files): the equivalence reduces L1 to the user-function semantics the captures already grade, and
+Q-L1 (`vw-library-import.pine`, `docs/pine/capture-queue-2026-10-02-l1-libraries.md`) would ratify it
+on the vendor's side.
+
+**Measured with the real libraries in a scratch store** (49 versions fetched, all MPL-2.0, one by a
+TradingView default; never committed; `algotraderdev/contrast/1` could not be resolved):
+
+| | no libraries (prod today) | with the scratch store |
+|---|---|---|
+| importers past the import wall, host / runtime | 4 / 34 (strategies, refused earlier) | **29 / 34** both |
+| runtime census compiled (bare / owned) | 15 / 27 (base 15 / 27) | 15 / 27 |
+| runtime census `runtime:library` first wall | 30 (base 30) | **5** |
+| member door attach off / on | 45 / 68 (base 45 / 68) | 45 / **70** |
+
+Still at the import wall: 4 v6 scripts importing v5 libraries (`TFlab/AlertSenderLibrary_TradingFinder/1`,
+`boitoki/AwesomeColor/9`, `jdehorty/MLExtensions/2`, `ClassicScott/MyMovingAveragesLibrary/4`) and
+`algotraderdev/contrast/1` (not fetched). The other 29 now stop at the engine's own walls, most
+inside library code and named there: default parameter values (`ao()`, ZenLibrary `getPipSize`),
+`switch` (PineCoders/lower_tf), `chart.left_visible_bar_time` (VisibleChart), array methods named
+like built-ins (arraymethods `delete`), `runtime.error` in a helper (TradingView/ta), tuples,
+`pine:state`, `pine:arity`. Door: `all-chart-patterns-theeccentrictrader` and
+`black-scholes-option-pricing-model-w-greeks-loxx` attach (objects pane on).
+
+**Mutations** (pineLibraries.js bytes captured + sha256, restored by bytes, sha verified each time):
+no rename -> red; keep the library's top-level code -> 7 red; a version stands in for another -> 2 red;
+type field names read as references -> red; library refusal keeps its library line -> red; no
+version check -> red; block-local shadow not refused -> red. SURVIVES: parameters not treated as
+locals - renaming a parameter's declaration and its uses together is consistent, and the two cases
+where it is observable (a default value, a named argument at the call) are refused by both lanes on
+their own walls today.
