@@ -85,6 +85,10 @@ const G040_DOORS = [
     name: 'Screener — All Market', asOf: '2026-09-30 03:00 ET (nightly build)',
     columns: [{ key: 'ticker', label: 'Ticker' }], rows: [{ ticker: 'NVDA', cells: ['NVDA'] }], total: 1,
   }],
+  ['cot', 'ES COT positioning', {
+    market: 'ES', reportDate: '2026-09-22',
+    groups: { commercials: { net: 1 }, largeSpecs: { net: 2 }, smallSpecs: { net: 3 } },
+  }],
 ]
 
 describe('append_widget_embed — the G-040 doors (Screener · COT · Model Book)', () => {

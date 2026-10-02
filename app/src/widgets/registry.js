@@ -103,6 +103,13 @@ const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
 // it and the registry's own reconstructable predicate refuses anything longer.
 export const SCREENER_CAPTURE_ROW_CAP = 50
 
+// G-040 ruling 2: the three trader groups a COT capture freezes, by the rail's
+// own keys (pages/cot/cotRead.js GROUPS). Mirrored here, not imported, because
+// this module is metadata-only; registry.test.js pins the two lists equal.
+export const COT_CAPTURE_GROUPS = Object.freeze(['commercials', 'largeSpecs', 'smallSpecs'])
+
+const _isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const _isIsoDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
 
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
 // this is what lands in body_plain for search, not a UI label (the UI keeps
@@ -766,6 +773,37 @@ const PANEL_MANIFESTS = {
     reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length <= SCREENER_CAPTURE_ROW_CAP
       && Array.isArray(p?.columns) && p.columns.length > 0
       && typeof p?.total === 'number' && Number.isFinite(p.total) && p.total >= 0,
+    liveCapable: false,
+  },
+  cot: {
+    labels: { header: 'COT Positioning', menu: 'COT Positioning', tab: 'COT' },
+    defaults: { w: 5, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      // ⛔ `market`, NEVER `symbol`. A CFTC code ('ES', 'CL') is not an equity
+      // ticker, and `notes._sync_note_sidecars` files any `params.symbol` into
+      // j2_note_embeds as one — 'ES' would become Eversource.
+      { key: 'market', type: 'string', required: true },
+      { key: 'marketName', type: 'string' },
+      { key: 'reportDate', type: 'string', required: true }, // 'YYYY-MM-DD' — the report week shown
+      // {commercials|largeSpecs|smallSpecs: {net, wow, index}} — ruling 2's figures.
+      { key: 'groups', type: 'json', required: true },
+      { key: 'openInterest', type: 'json' },                 // {value, wow, index}
+      { key: 'bias', type: 'json' },                         // the rail's contrarian-bias verdict, as shown
+      { key: 'crowding', type: 'json' },                     // the rail's crowding verdict, as shown
+    ],
+    plainText: (p) => {
+      const verdicts = [p?.bias?.label, p?.crowding?.label].filter((s) => typeof s === 'string' && s)
+      return `[cot: ${p?.market || 'market'}${p?.marketName ? ` ${p.marketName}` : ''}`
+        + ` — report week ${p?.reportDate || 'unknown'}${verdicts.length ? ` · ${verdicts.join(' · ')}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE (ruling 2). CFTC revises its data, so a re-fetch can
+    // silently disagree with what the member saw; the frozen figures are the record.
+    reconstructable: (p) => _isIsoDay(p?.reportDate) && _isRecord(p?.groups)
+      && COT_CAPTURE_GROUPS.every((k) => _isRecord(p.groups[k])),
     liveCapable: false,
   },
 }

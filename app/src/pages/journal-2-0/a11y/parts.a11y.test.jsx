@@ -31,6 +31,7 @@ import ScannerEmbed from '../components/notebook/ScannerEmbed'
 import ThemesEmbed from '../components/notebook/ThemesEmbed'
 import WatchlistEmbed from '../components/notebook/WatchlistEmbed'
 import ScreenerEmbed from '../components/notebook/ScreenerEmbed'
+import CotEmbed from '../components/notebook/CotEmbed'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -122,6 +123,13 @@ const EMBEDS = [
     spec: { filters: { price: { op: 'gte', min: 10 } } },
     columns: [{ key: 'ticker', label: 'Ticker' }, { key: 'price', label: 'Price' }],
     rows: [{ ticker: 'NVDA', cells: ['NVDA', '$142.80'] }], total: 12,
+  })],
+  ['embed-cot', CotEmbed, embed('cot', {
+    market: 'ES', marketName: 'E-mini S&P 500', reportDate: '2026-09-15',
+    groups: { commercials: { net: -1000, wow: 50, index: 12 }, largeSpecs: { net: 900, wow: -20, index: 88 }, smallSpecs: { net: 100, wow: -30, index: 40 } },
+    openInterest: { value: 21000, wow: 120, index: 55 },
+    bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
+    crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
   })],
 ]
 
