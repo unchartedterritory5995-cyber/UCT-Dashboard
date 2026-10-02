@@ -6217,6 +6217,29 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
      *  memo is keyed by node AND guard context, and lives for one call — a shared
      *  node is one Pine value at one point in the bar, so answering it once is
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
+    /** ⭐ H1 — is this test a Pine `bool` that can never be `na`? Crossings and
+     *  comparisons, joined by `&&` / `||` / `!`. Anything else is not. */
+    const neverNaBool = (x) => {
+      if (!x || typeof x !== 'object' || reads(x)) return false
+      if (x.type === 'call') return x.name === 'crossOver' || x.name === 'crossUnder'
+      if (x.type !== 'op' || !Array.isArray(x.args)) return false
+      if (RANGE_ORDER.has(x.name) || x.name === '==' || x.name === '!=') return true
+      if (x.name === '&&' || x.name === '||' || x.name === '!') return x.args.every(neverNaBool)
+      return false
+    }
+    /** ⭐ H1 — that test's Pine value on bar `j`: a crossing that answers `NaN`
+     *  is `false`; the rest composes as Pine's `bool` does. */
+    const pineBoolAt = (x, j) => {
+      if (x.type === 'call') {
+        const c = toColumn(evalNode(x), length)
+        return c[j] !== c[j] ? 0 : c[j]
+      }
+      if (x.name === '!') return pineBoolAt(x.args[0], j) ? 0 : 1
+      if (x.name === '&&') return pineBoolAt(x.args[0], j) && pineBoolAt(x.args[1], j) ? 1 : 0
+      if (x.name === '||') return pineBoolAt(x.args[0], j) || pineBoolAt(x.args[1], j) ? 1 : 0
+      const c = toColumn(evalNode(x), length)
+      return c[j] !== c[j] ? 0 : c[j]
+    }
     /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
     let heldLatch = false
     const stepListing = (x, j, history, read, strict = false) => {
@@ -6253,10 +6276,25 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             // the state (`TERNARY`), and a v6 `bool` is never `na`. Only here: from
             // the listing a `na` test is Pine's own `na` (a warm-up), where behind
             // the curtain it is a value this engine does not have (`strict`, above).
-            v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
+            // ⭐ H1 — and from the listing a test built only of crossings and
+            // comparisons is a Pine `bool` that is never `na`: `ta.cross`,
+            // `crossover` and `crossunder` compare two series on this bar and the
+            // last, and a comparison with `na` is false. The column answers `NaN`
+            // there (the event domain's warm-up, right for a window that starts
+            // mid-history), so the test is re-read with a `NaN` crossing as Pine's
+            // `false` (`pineBoolAt`). MEASURED: `qqe-signals` from the RDDT listing
+            // — `trend := cross(…, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend[1], 1)`
+            // read `na` on bars 71–72 where Pine reads 1, and `trend == 1`
+            // downstream drew a "Long" on bar 73 TradingView never drew
+            // (`vendorHarness.h1Ratchet.test.js`). Only in the listing pass, where
+            // a `NaN` IS Pine's `na`; an unknown bar is a probe value there, never
+            // `NaN`, so `interpretAgreed` still sees it move.
+            const pineTest = !strict && Number.isNaN(values[0]) && neverNaBool(n.args[0])
+              ? pineBoolAt(n.args[0], j) : values[0]
+            v = pineTest === LISTING_UNKNOWN || (strict && Number.isNaN(pineTest))
               ? LISTING_UNKNOWN
-              : heldLatch && Number.isNaN(values[0]) ? values[2]
-                : TERNARY(values[0], values[1], values[2])
+              : heldLatch && Number.isNaN(pineTest) ? values[2]
+                : TERNARY(pineTest, values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {

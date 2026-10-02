@@ -77,3 +77,61 @@ describe('H1 — pivot-point-supertrend is TradingView\'s', () => {
     expect(drawn).toBeGreaterThan(100)
   })
 })
+
+// ─── H1 — qqe-signals: two ratchets and a crossing over a warm-up `na` ──────────
+//
+//     longband  := RSIndex[1] > longband[1]  and RSIndex > longband[1]  ? max(…) : …
+//     shortband := RSIndex[1] < shortband[1] and RSIndex < shortband[1] ? min(…) : …
+//     trend     := cross(RSIndex, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend[1], 1)
+//
+// ⭐ PINNED against `qqe-signals-rddt-1d-2026-09-27` (NYSE:RDDT 1D, the listing):
+// every Long / Short label drawn sits on TradingView's bar at TradingView's value.
+// ⚰️ It drew one Long TradingView never drew (bar 73) until the listing pass read a
+// crossing over a warm-up `na` as Pine's `false`: `trend` went `na` on bars 71–72
+// where Pine's is 1, `trend == 1` chose the short band, and the long counter
+// restarted two bars late (`interpret.js::pineBoolAt`).
+const QQE = loadCapture(path.join(H, 'qqe-signals-rddt-1d-2026-09-27.json')).capture
+function gradeQqe(listing, title) {
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  const ours = runOurSide({ ...QQE, history: { ...QQE.history, startsAtBar0: listing } })
+  expect(ours.ok, ours.refusal).toBe(true)
+  const p = ours.plots.find((x) => x.title === title)
+  expect(p && p.column, title).toBeTruthy()
+  const plot = QQE.study.plots.find((x) => x.title === title)
+  const at = QQE.plotValues.fields.indexOf(plot.id)
+  const byTime = new Map(QQE.plotValues.rows.map((r) => [r[0], r[at]]))
+  const times = QQE.bars.rows.map((r) => r[0])
+  let drawn = 0
+  const wrong = []
+  Array.from(p.column).forEach((a, i) => {
+    const b = byTime.has(times[i]) ? byTime.get(times[i]) : null
+    if (a !== a) {
+      // a bar we leave empty is never one TradingView draws, from the listing
+      if (listing && b !== null && b !== undefined) wrong.push(`#${i} ours na tv ${b}`)
+      return
+    }
+    drawn += 1
+    if (b === null || b === undefined || Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b))) wrong.push(`#${i} ours ${a} tv ${b}`)
+  })
+  return { drawn, wrong }
+}
+
+describe('H1 — qqe-signals is TradingView\'s', () => {
+  it('⭐ the capture starts at the listing', () => {
+    expect(QQE.history.startsAtBar0).toBe(true)
+  })
+
+  it.each(['QQE long', 'QQE short'])('⭐ from the listing: every %s label is TradingView\'s, none missing', (title) => {
+    const { drawn, wrong } = gradeQqe(true, title)
+    expect(wrong).toEqual([])
+    expect(drawn).toBeGreaterThan(10)
+  })
+
+  it.each(['QQE long', 'QQE short'])('⛔ behind the curtain on 631 bars: %s is withheld whole, never drawn wrong', (title) => {
+    // the counters read a 250-bar window over two ema-of-ema chains, so a chart this
+    // short that does not start at the listing has no bar whose answer is fixed
+    const { drawn, wrong } = gradeQqe(false, title)
+    expect(wrong).toEqual([])
+    expect(drawn).toBe(0)
+  })
+})
