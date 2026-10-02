@@ -4,6 +4,7 @@ import UIcon from '../../components/ui/UIcon'
 import { WIDGET_TAB_TYPES, WIDGET_TAB_MENU_LABEL } from './widgetTabs'
 import { catalogMeta } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
+import Input from '../../components/ui/Input'
 
 // 'N' = grey "not linked": the widget syncs its ticker with nothing.
 const COLORS = ['A', 'B', 'C', 'D', 'N']
@@ -192,7 +193,7 @@ export default function WidgetHeader({
                   title={onRenameTab ? `${tab.label} tab — double-click to rename` : `${tab.label} tab`}
                 >
                   {editing ? (
-                    <input
+                    <Input aria-label="Rename tab"
                       ref={renameInputRef}
                       className={styles.wtabRename}
                       value={draft}
