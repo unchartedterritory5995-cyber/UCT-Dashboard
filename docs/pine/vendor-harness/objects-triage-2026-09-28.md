@@ -4710,3 +4710,14 @@ v4 default transparency, read straight off `styleState`), queue `docs/pine/captu
 3. **Paint-only scripts ride the objects-only flag** (D2: a script with no screenable column). Measured:
    no corpus script attaches through it today (the 4 candidates are withheld or lose their drawings).
 4. **The fix-order step number** is written `B1`; renumber on merge.
+
+### Addendum - merged tree, bytes, suite
+
+Merged `origin/master` `5564cca92b` (two Notebook-only commits). On the merged tree: member-door census
+45 / 68, 0 rows differ from the pre-merge tip; base-vs-base control 0 rows. Bytes (vite build, base -> tip):
+notebook first-open 2,148,818 -> 2,148,818 B (+0, `notebook_perf_budgets` PASS); `pine` chunk 417,918 ->
+422,659 (+4,741); `StockChart` chunk 702,343 -> 707,910 (+5,567); total JS 13,253,874 -> 13,268,078
+(+14,204). Full `src/components/chart` suite: `Tests  10 failed | 16894 passed | 85 skipped (16989)` -
+nine 15 s timeouts (the brief's known list plus `enumerationSites` and `flipCGeometry`'s source walk, both
+green alone) and `pineProbeReplay`'s artemis pin, re-pinned with its reason (one paint Resolver, 8 steps).
+`paramIds.test.js` green, unedited.
