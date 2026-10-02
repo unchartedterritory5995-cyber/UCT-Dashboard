@@ -31,6 +31,7 @@
  */
 
 import { h, p, labeled, linkP, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
+import { PLAN_ROLES } from './planLevels'
 import { callout, isWalkthroughNode, metricTable, table, walkthroughToggle } from './templateBlocks'
 
 // ── Families (picker grouping) ────────────────────────────────────────────────
@@ -282,6 +283,17 @@ const POSITION_TRACKER_PROPERTIES = Object.freeze([
     expression: 'round({Shares} * {Entry} / {Account size} * 100, 2)',
   },
 ].map((d) => Object.freeze(d)))
+
+/**
+ * Wave 13 lane 13A: the Trade Plan's four plan levels as NUMBER properties, so a plan is read
+ * by the grader (api/services/journal_two/plan_extract.py, the one reader) without parsing
+ * prose. Named from the one role vocabulary (lib/planLevels.js, pinned to plan_extract's
+ * PLAN_ROLES), so "Entry" here and "Entry" in the reader cannot drift. Same names and type as
+ * the Position Tracker's, so the two templates share the member's definitions (reused by name).
+ */
+const TRADE_PLAN_PROPERTIES = Object.freeze(PLAN_ROLES.map((role) => Object.freeze({
+  key: role, name: role[0].toUpperCase() + role.slice(1), type: 'number',
+})))
 
 // ── The catalog (TEMPLATES, below, is this with each walkthrough appended) ────
 
@@ -938,6 +950,7 @@ const CATALOG = [
     description: 'Entry, stop, target, size, and the line that invalidates it — written before you are in it.',
     tags: ['trade-plan'],
     needs: {},
+    propertyDefinitions: TRADE_PLAN_PROPERTIES,
     walkthrough: [
       'Write it before you place the order.',
       'Fill in entry, stop, target, and size as numbers.',

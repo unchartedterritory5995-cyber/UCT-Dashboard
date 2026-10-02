@@ -40,6 +40,7 @@ import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
+import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -61,6 +62,9 @@ function tradeChartWindow(trade) {
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
 const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
+// Wave 13 lane 13A: the plan-grade card is loaded only while its gate is latched on, so the
+// trade page's own graph is unchanged with the feature dark.
+const PlanGradeCard = lazyChunk(() => import('./PlanGradeCard'))
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
 // (kept for the "not yet computed" state + shown in the chart footer then).
@@ -746,6 +750,19 @@ export default function TradeDetailPage() {
       </div>
 
       {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+
+      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
+          renders nothing while off). The setup chip writes through the same PATCH. */}
+      {planGradingEnabled() && (
+        <Suspense fallback={null}>
+          <PlanGradeCard
+            tradeId={trade.id}
+            trade={trade}
+            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
+            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
+          />
+        </Suspense>
+      )}
 
       {/* ── 3. The story ──────────────────────────────────────────────── */}
       <section className={styles.section}>

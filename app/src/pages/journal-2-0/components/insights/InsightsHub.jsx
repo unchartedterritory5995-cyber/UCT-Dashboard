@@ -38,6 +38,8 @@ import EdgeScoreCard from './EdgeScoreCard'
 import PsychologySection from './PsychologySection'
 import RegimeSection from './RegimeSection'
 import VerdictScorecard from './VerdictScorecard'
+import DisciplineRecord from './DisciplineRecord'
+import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import useScope from '../../hooks/useScope'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { useFeatureFlag } from '../../featureFlags'
@@ -52,7 +54,9 @@ const SECTIONS = [
   { key: 'regime', label: 'Regime' },
   { key: 'coach', label: 'Coach' },
 ]
-const SECTION_KEYS = SECTIONS.map((s) => s.key)
+// Wave 13 lane 13A: the Discipline section exists only while notebook_plan_grading_enabled is
+// latched on (dark by default), so the six sections above are unchanged with the flag off.
+const DISCIPLINE_SECTION = { key: 'discipline', label: 'Discipline' }
 const DEFAULT_SECTION = 'playbook'
 
 export default function InsightsHub({ analytics }) {
@@ -73,8 +77,9 @@ export default function InsightsHub({ analytics }) {
   const { apiParams } = useScope()
   const { accountId } = useJ2SelectedAccount()
 
+  const sections = planGradingEnabled() ? [...SECTIONS, DISCIPLINE_SECTION] : SECTIONS
   const raw = searchParams.get('ins')
-  const active = SECTION_KEYS.includes(raw) ? raw : DEFAULT_SECTION
+  const active = sections.some((s) => s.key === raw) ? raw : DEFAULT_SECTION
 
   // Clone all params, set ONLY `ins` — j2tab + sc_* ride through untouched.
   // `{replace:true}` so sub-nav clicks don't spam browser history.
@@ -95,7 +100,7 @@ export default function InsightsHub({ analytics }) {
   return (
     <div className={styles.hub}>
       <nav className={styles.subnav} aria-label="Insights sections">
-        {SECTIONS.map((s) => {
+        {sections.map((s) => {
           const on = s.key === active
           return (
             <button
@@ -137,6 +142,7 @@ export default function InsightsHub({ analytics }) {
               text="Coming with the regime release — how your edge holds up across bull, chop, and bear market conditions."
             />
           ))}
+        {active === 'discipline' && <DisciplineRecord accountId={accountId} />}
         {active === 'coach' &&
           (verdictScoreOn ? (
             <VerdictScorecard accountId={accountId} apiParams={apiParams} />

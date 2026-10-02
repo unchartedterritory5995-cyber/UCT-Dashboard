@@ -1,0 +1,133 @@
+/* Wave 13 lane 13A — Plan vs execution card on the closed-trade page. */
+.card {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #101013);
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text, #e8e6e1);
+}
+
+.muted { color: var(--text-muted, #8a8a8a); font-size: 13px; margin: 0; }
+.error { color: var(--loss, #ef4444); font-size: 13px; margin: 8px 0 0; }
+
+.statusLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text, #e8e6e1);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.chipUnplanned {
+  border: 1px solid var(--warn, #d4a017);
+  color: var(--warn, #d4a017);
+}
+
+.source { margin: 0 0 10px; font-size: 13px; color: var(--text, #e8e6e1); }
+
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.check {
+  display: grid;
+  grid-template-columns: 64px minmax(96px, auto) 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border, #2a2a2e);
+  font-size: 13px;
+}
+.check:first-child { border-top: 0; }
+.checkName { color: var(--text-muted, #8a8a8a); font-weight: 600; }
+.verdict { font-weight: 600; }
+.checkDetail { color: var(--text-muted, #8a8a8a); font-variant-numeric: tabular-nums; }
+.tone_good { color: var(--gain, #22c55e); }
+.tone_bad { color: var(--loss, #ef4444); }
+.tone_warn { color: var(--warn, #d4a017); }
+.tone_muted { color: var(--text-muted, #8a8a8a); }
+
+.labels { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.label {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #2a2a2e);
+  color: var(--text-muted, #8a8a8a);
+}
+
+.frozen { margin: 10px 0 0; font-size: 12px; color: var(--text-muted, #8a8a8a); }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.actionBtn,
+.setupChip {
+  border: 1px solid var(--border, #2a2a2e);
+  background: transparent;
+  color: var(--text, #e8e6e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.setupChip { margin-top: 10px; border-color: var(--accent, #dcbb5e); color: var(--accent, #dcbb5e); }
+.actionBtn:hover:not(:disabled),
+.setupChip:hover { border-color: var(--accent, #dcbb5e); }
+.actionBtn:disabled { opacity: 0.6; cursor: default; }
+
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent, #dcbb5e);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.candidates { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border, #2a2a2e);
+  background: transparent;
+  color: var(--text, #e8e6e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.candidate:hover:not(:disabled) { border-color: var(--accent, #dcbb5e); }
+.candidateTitle { font-size: 13px; font-weight: 600; }
+.candidateMeta { font-size: 12px; color: var(--text-muted, #8a8a8a); }
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .actionBtn,
+  .setupChip,
+  .candidate,
+  .linkBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  .check { grid-template-columns: 56px 1fr; }
+  .checkDetail { grid-column: 1 / -1; }
+}

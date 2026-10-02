@@ -15,6 +15,7 @@ import {
 import UIcon from '../../../components/ui/UIcon'
 import { useGridSort } from '../../../lib/presentation/dataGrid'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
+import { usePlanStatuses } from '../hooks/usePlanGrade'
 import styles from './TradesTable.module.css'
 
 export function buildTradesColumns() {
@@ -59,16 +60,29 @@ function cellFor(key, trade, opts) {
           {trade.source === 'broker' && (
             <span
               title="Auto-imported from your connected brokerage"
+              role="img"
               aria-label="Imported from brokerage"
               style={{ marginLeft: 4, opacity: 0.7, fontSize: '0.85em' }}
             >
               <UIcon name="link" size={12} />
             </span>
           )}
+          {/* Wave 13 lane 13A: a trade with no prior plan is FLAGGED, never hidden or
+              filtered (dark behind notebook_plan_grading_enabled; no statuses = no chip). */}
+          {!trade.isOption && ['unplanned', 'member_none'].includes(opts?.planStatuses?.[trade.id]?.status) && (
+            <span
+              className={styles.unplannedChip}
+              title="No plan was written for this trade before entry"
+              data-testid="unplanned-chip"
+            >
+              Unplanned
+            </span>
+          )}
           {reviewed && (
             <span
               className={styles.compassDot}
               title="Compass has a post-mortem for this trade"
+              role="img"
               aria-label="Compass post-mortem available"
             >
               <UIcon name="compass" size={12} />
@@ -188,7 +202,7 @@ function tradesTiebreak(a, b) {
  * trade drawer (same as tapping the symbol cell on desktop). The inline
  * setup <select> stays desktop-only.
  */
-function TradeCard({ trade, onRowAction, reviewedIds }) {
+function TradeCard({ trade, onRowAction, reviewedIds, planStatuses }) {
   const net = trade.pnlDollarNet ?? trade.pnlDollar
   const pnlCls = net > 0 ? styles.pos : net < 0 ? styles.neg : ''
   return (
@@ -200,7 +214,7 @@ function TradeCard({ trade, onRowAction, reviewedIds }) {
     >
       <div className={styles.cardHead}>
         <span className={styles.cardIdent}>
-          {cellFor('symbol', trade, { reviewedIds })}
+          {cellFor('symbol', trade, { reviewedIds, planStatuses })}
           {resultBadge(trade.result)}
         </span>
         <span className={styles.cardFigures}>
@@ -221,6 +235,10 @@ function TradeCard({ trade, onRowAction, reviewedIds }) {
 
 export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds, setups, onUpdateSetup }) {
   const isPhone = useIsPhone()
+  // Option rows are strategies, not j2_trades rows: they are never graded in v1.
+  const { statuses: planStatuses } = usePlanStatuses(
+    (trades || []).filter((t) => !t.isOption).map((t) => String(t.id)),
+  )
   // Default sort: entryDate DESC (spec §11.3). Clicking a header re-sorts.
   // The sort state, the blanks-sink comparator and the header semantics come
   // from the S10 DataGrid seed (TERM-065); the markup below is unchanged.
@@ -251,7 +269,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
     return (
       <div className={styles.cardList}>
         {sorted.map((t) => (
-          <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} />
+          <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} planStatuses={planStatuses} />
         ))}
       </div>
     )
@@ -321,7 +339,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
                     },
                   } : {})}
                 >
-                  {cellFor(c.key, t, { reviewedIds, setups, onUpdateSetup })}
+                  {cellFor(c.key, t, { reviewedIds, setups, onUpdateSetup, planStatuses })}
                 </td>
               ))}
             </tr>
