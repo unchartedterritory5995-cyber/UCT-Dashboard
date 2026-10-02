@@ -358,7 +358,7 @@ export default function ScannerShell({ embedded = false }) {
             <SaveScanButton spec={s.baseSpec}
               hasFilters={Object.keys(s.filters).length > 0} />
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
-              label="Screener results" ariaLabel="Save these screener results to Notebook"
+              label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />
           </>} />
         <div className={styles.underbar}>

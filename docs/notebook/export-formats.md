@@ -128,6 +128,7 @@ route takes none of them).
 | `linkPreview` | 2 | flattened | flattened | kept | flattened |
 | `tableOfContents` | 2 | dropped | dropped | kept | dropped |
 | `webEmbed` | 2 | flattened | flattened | kept | flattened |
+| `tradeCanvas` | 3 | flattened | flattened | kept | flattened |
 <!-- END GENERATED -->
 
 ## Safety

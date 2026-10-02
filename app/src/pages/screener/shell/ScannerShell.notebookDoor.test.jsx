@@ -49,7 +49,7 @@ describe('Screener — Save to Notebook (G-040)', () => {
   it('is a real, named button that freezes the result set as shown', async () => {
     scanMock.mockReturnValue(READY)
     render(<ScannerShell />)
-    const btn = screen.getByRole('button', { name: 'Save these screener results to Notebook' })
+    const btn = screen.getByRole('button', { name: 'Save these results to Notebook' })
     expect(btn.tagName).toBe('BUTTON')
     expect(btn.getAttribute('type')).toBe('button')
     expect(btn).not.toBeDisabled()
@@ -75,7 +75,7 @@ describe('Screener — Save to Notebook (G-040)', () => {
   it('an EMPTY result is still saveable — zero matches is a fact the capture carries', async () => {
     scanMock.mockReturnValue({ result: { total: 0, rows: [], page: 1, snapshot_date: '2026-08-21' }, isLoading: false, error: null })
     render(<ScannerShell />)
-    fireEvent.click(screen.getByRole('button', { name: 'Save these screener results to Notebook' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save these results to Notebook' }))
     await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1))
     expect(sendMock.mock.calls[0][1]).toMatchObject({ rows: [], total: 0 })
   })
@@ -83,6 +83,6 @@ describe('Screener — Save to Notebook (G-040)', () => {
   it('is disabled until a result has landed — there is nothing to freeze yet', () => {
     scanMock.mockReturnValue({ result: null, isLoading: true, error: null })
     render(<ScannerShell />)
-    expect(screen.getByRole('button', { name: 'Save these screener results to Notebook' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save these results to Notebook' })).toBeDisabled()
   })
 })
