@@ -161,6 +161,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
 | 60 | L1 `import Author/Library/Version` is LINKED (§ L1): a server-side library store (data dir, never git; licence + attribution per version; `GET /api/pine/libraries`), a fetch tool for the owner, a client registry the doors fill, and a token-level linker both lanes call after `lexPine` - an imported export compiles to exactly what the same function pasted into the script compiles to (proved bar for bar in both lanes on fixtures written for the test). Unknown library, other Pine version, ambiguous block shadowing, kept `var` / top-level-reassigned library values, cycles: refused by name on the import line. No budget moved | `a30aa584c0`, `9066030225`, `43b02c38a4`, `f34c0c4cd5`, `38dca3d9c1` (merge `e5d0198b34`) | unchanged: no capture imports a library (0 / 139 harness files) | unchanged | with the libraries in a scratch store: importers past the import wall 29 / 34 both lanes; runtime `runtime:library` 30 -> 5, compiled 15 -> 15; member door on 68 -> **70** (`all-chart-patterns-theeccentrictrader`, `black-scholes-...-loxx`); with an empty registry (production today) 0 served outputs, 0 params, 0 object programs changed over 266 x 3 lanes, door 45 / 68, only the 34 importers' refusal sentence names the missing library. Notebook first-open 2,148,818 B (+0, PASS), `pine` chunk +13,766 B, total JS +14,810 B. `paramIds.test.js` green, no edit. 8 mutations, 7 red, 1 equivalent survivor named. Q-L1 queued |
 | 61 | B1 `bgcolor(...)` / `barcolor(...)` are DRAWN (§ B1, step 61). The host lane carries each top-level call as a paint (`presentation.paints`) whose colour goes through the one colour reader a plot uses (static, two-colour, palette with the transparent `na` entry, gradient), or is WITHHELD by name (`offset` non-zero or `na`, `show_last`, another `display`, `overlay` / `force_overlay`, a v3/v4 `bgcolor` with no `transp`, an uncarried colour); nothing mints. The member door mints each rule as a hidden condition column (shared with a plot or fill on the same rule) and writes `definition.paints` (`defSchema.validatePaints`); the binder draws one background primitive per `bgcolor` (behind the series, full pane height) and hands `time -> colour` candle overrides to the chart only when they change (StockChart applies them to the price series' own data). Graded against the 14 committed captures that record paints (`bg_colorer` / `bar_colorer`): every paint the door draws agrees on every bar (2,639 vendor-painted bars compared). 12 mutations, each red | `875245b282` + the § B1 commit | 30 / 46 -> 30 / 46 (overall 29 -> 29) | 169 / 190 -> 169 / 190 (count+text families read off `verdicts.json`) | paints JOIN the verdict (§ B1, follow-ups): graded on 7 of the 47 and 9 of the committed 138, **0 verdicts move** in either (47: 29 / 17 / 1 both ways; committed: 50 / 26 / 62 both ways); heat-map-seasons' withheld `barcolor` counts as a gap (already DIVERGE on its plots); the `pine:chart-only` sentence says per call what the door does; member door attach 45 / 68 unchanged; 5 attached scripts now draw their paints |
+| 60 | H1 the host translator's three largest first refusals (`pine:state`, `pine:reassign`, `pine:request`) on the 266, clustered by shape (§ H1). **Served:** **(1)** a pivot on a PLATEAU is TradingView's: a tie on the LEFT pivots, a tie on the RIGHT does not, so a flat top pivots on its LAST bar (`interpret.js::pivotCol` ⇄ `ast_interpret.py::_pivot_col`; witness RDDT bars 473/474 in `pivot-point-supertrend-rddt-1d-2026-09-27`); **(2)** a SWITCHED recurrence whose reset test reads its own state (the ratchet: `up := close[1] > up1 ? max(up, up1) : up`) is decided by a RANGE window, published only on a bar every earlier history agrees on (`forgetsOnReset::orderingTest`, `interpret.js::rangeSwitchedColumn` ⇄ `_Range` in Python); **(3)** a helper's own `x = init` / `x := f(x[1])` recurrence (`Resolver.finalLocalOf`); **(4)** from the listing a crossing over a warm-up `na` is Pine's `false` (`interpret.js::pineBoolAt`). Id rule: a script `param-ids.json` pins mints only its frozen ids in the pinned lane (`paramIdPinned.js`, derived); `paramIds.test.js` unedited. **Refused, named:** all 18 `pine:request` first walls (other symbol / dark lower timeframe / barstate offset / 12M / budget), loop running totals (ruling R7), coupled vars, block-local stops. No budget moved | `9808723a7e`, `ee1c6a7cc7`, `a8ff4b52fc`, `1cde2b4581` | 29 / 47 → 29 / 47 (pane off 16 → 16; base `5564cca92b`, objects pane on) | member door **68 → 75 / 266** on (45 → 52 off), base-vs-base 0 rows | the 47: 0 entries change. Committed harness dir: overall MATCH 50 → 52 of 138 (pane off 37 → 39) — `pivot-point-supertrend-rddt-1d-2026-09-27` and `qqe-signals-rddt-1d-2026-09-27` INCONCLUSIVE → MATCH, 0 regressions. Translation census 266: strict / member ok 64 → 71, screen 58 → 64; 0 previously served outputs changed. Notebook first-open 2,148,818 B both sides (+0, PASS); `pine` chunk 417,918 → 423,187 B (+5,269) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4848,3 +4849,71 @@ said carried, a withheld paint said drawn, a site writing its own sentence). Ful
 `Tests  9 failed | 16922 passed | 85 skipped (17016)` - eight 15 s timeouts (the known list, all green alone:
 7 files, 54 tests) and `defSchema`'s fill-reader rail, which caught a stash field named `fill` in `pine.js`
 (renamed `fillRec`; green). `paramIds.test.js` green, unedited.
+## H1 - the host translator's three largest walls: pivots on a plateau, a ratchet decided by range, a helper's own recurrence (2026-10-02, step 60)
+
+Lane H1 of the "import any TradingView Pine script" program, branch `pine/h1-host-walls`, base `5564cca92b`,
+master merged at `c31023ef1d`. Goal metric: the member-door census over the 266 committed scripts.
+
+### The walls, by shape (first refusal per script at base, flag on)
+
+| wall | scripts | shapes (clustered) | outcome |
+|---|---|---|---|
+| `pine:state` | 16 | ratchet stop whose reset test reads the stop (supertrend family, ATR trailing stops); a helper's own `x = init` / `x := f(x[1])` (range filter, PMax); coupled `var`s (inside-bar, smc-structures, wyckoff); running totals with no window (fvg-trend, smoothed-gaussian, deadband, ema-92150 vwap); a `var` never updated (auto-trendline); stops inside an `if` (neural-network) | first two SERVED (7 scripts attach); the rest refused by name |
+| `pine:reassign` | 15 | comma statement `_direction = na , _direction := switch` (3-level / pa zigzag); `for` running totals (ruling R7: machine-learning-ma, moving-averages-sr-mtf, order-block-finder); loops in blocks (delta-imbalance, smart-money, smt, supply-demand, support-resistance-logreg, volatility-coil); `var` state (bolingger, inside-bar-boxes); a UDT field (ict-turtle-soup); a tuple part (williams-fractal) | refused by name; every shape is either a loop total (R7) or would next hit a dark lower timeframe |
+| `pine:request` | 18 | another symbol (4c-nyse USI, ad-line SP sectors, banknifty, sub INDEX:, cumulative-volume-delta BINANCE, open-interest and swing-points computed symbols); a lower timeframe with `VITE_PINE_LOWER_TF_ENABLED` dark (advanced-custom, ai-supertrend, mtf-dashboard, multi-tf-rsi, multi-tf-trend, take-profit); a `barstate` offset (ml-logistic-regression, previous-n-days with `gaps_on`); 12M (camarilla); a string-ternary timeframe that then exceeds `budget:series` 13 > 8 (cppivot); a computed timeframe plus loops (delta-volume) | none served: each is behind a rule (other symbol unserved, dark flag, unwitnessed `barstate`/`gaps_on`, no budget raised) |
+
+### Rules served
+
+1. **A plateau pivots on its LAST bar.** `pivothigh(src, L, R)` at the candidate bar `i`: a bar on the left may EQUAL it, a bar on
+   the right may not. Witness: RDDT bars 473/474 tie at 152.44 and TradingView confirms the second; a hand replay of
+   pivot-point-supertrend's arithmetic over `FN.pivothigh/pivotlow` equals vendor `plot_4` on all 631 bars, while the strict rule
+   diverges first at bar 476 (`vendorHarness.h1PivotTies.test.js`). JS and Python move together (`tests/test_ast_pivots.py`:
+   plateau `[(4, 20.0)]`, corpus counts 54/54 → 62/63).
+2. **A ratchet is decided by RANGE.** `forgetsOnReset` admits a reset arm whose test is an ORDERING (`< <= > >=`) between the
+   state (`self` or `nz(self, k)`) and a MOVING value (not a constant, not carried). `interpret.js` then runs the body in a range
+   domain (a value is a number or `{lo, hi, na}`; each op its interval extension; a test that reads the state refines it per
+   branch and joins the answers) and publishes a bar only when every run entering the window collapses to one number. A NaN
+   series bar is read as the whole range, never as `na`. Python mirror `_Range` / `test_ast_ratchet_parity.py`.
+3. **A helper's own recurrence** is the same tree as the identical top-level one: the fold maps every earlier binding of a
+   local to its final (`finalLocals.chainFinal`), so `x[1]` above or below the last `:=` reads the column a bar back, two call
+   sites build two columns, and a top-level name the helper shadows stays top-level (`ast/functionLocalRecurrence.test.js`).
+4. **From the listing, a crossing over `na` is `false`.** Found by this lane's own measurement: after (2) attached
+   `qqe-signals`, the committed capture graded its `QQE long` DIVERGE on one bar (73, ours 20.72, TradingView `na`). The
+   listing pass carried `trend` as `na` where `cross(...)` was `NaN`; Pine's crossing is never `na`. The listing pass now
+   re-reads a test built only of crossings and comparisons with a `NaN` crossing as `false` (`pineBoolAt`); behind the curtain
+   nothing changes (`ast/listingPineBool.test.js`, `vendorHarness.h1Ratchet.test.js`). JS only: the Python lane has no listing pass.
+5. **Ids.** A declared input whose ordinal the frozen map holds is still minted, and a script `docs/pine/param-ids.json` pins
+   mints ONLY its frozen ids in the pinned lane (`paramIdPinned.js`, 297 keys DERIVED from the artifact by
+   `ast/paramIdPinned.test.js`). `paramIds.test.js` green with no edit; `param-ids.json` unchanged.
+
+### Measured (base `5564cca92b` vs tip, same box, same commands)
+
+| | base | tip |
+|---|---|---|
+| the 47, pane on / off | 29 / 47, 16 / 47 | 29 / 47, 16 / 47 (0 entries change) |
+| committed harness dir, pane on / off | 50 / 138, 37 / 138 | 52 / 138, 39 / 138 |
+| member door, on / off | 68 / 266, 45 / 266 | 75 / 266, 52 / 266 (base-vs-base 0 rows) |
+| translation census, strict / screen / member ok | 64 / 58 / 64 | 71 / 64 / 71 |
+| notebook first-open | 2,148,818 B PASS | 2,148,818 B PASS |
+| `pine` chunk / total JS | 417,918 / 13,255,669 B | 423,187 / 13,269,891 B (total includes master's two merged commits) |
+
+Census attach (flag on) as the shapes landed: base 68 → plateau rule + ratchet window 73 (measured together, not separately) → helper recurrence 75 → listing bool 75.
+Newly attached: atr-trailing-stop-by-ceyhun, pivot-point-supertrend, qqe-signals, supertrend-explorer, supertrend-strategy,
+pmax-explorer, twin-range-filter. Two first refusals moved without attaching (atr-god-strategy → `pine:block`,
+momentum-based-zigzag → `pine:function` on an unbounded `barssince`). The only served-output change in the translation census
+is three newly translated plots of cpr-with-mas-super-trend in the screen lane (the member door still refuses it on `pine:arity`).
+
+### What stays refused, and what settles it
+
+Every `pine:request` wall (above). The ratchet curtain on a short chart: qqe-signals behind the curtain on 631 bars is withheld
+whole (its counters read a 250-bar window over two ema-of-ema chains). Probe `tools/visual_conformance/probes/vw-ratchet-stops.pine`,
+queue `docs/pine/capture-queue-2026-10-02-h1-ratchet.md` (Q-H1a SPY 1D grades the curtain path; Q-H1b RDDT 1D widens the plateau
+evidence).
+
+### Decisions for the integrator
+
+- **Param-id gains.** C46's text says a script that gains a translation gains source ids; its rails (`paramIds`, the legacy
+  dense rail) forbid a pinned map from growing. H1 resolved it with the derived `PINNED_SCRIPT_KEYS` rule (member door keeps the
+  knobs at source ids). A regeneration of `param-ids.json` is the alternative and is the owner's call.
+- **Ruling R7** (loop running totals) decides the next five `pine:reassign` scripts.
+- **The plateau rule moves every served pivot script** (vendor-grounded; 0 harness regressions).

@@ -172,6 +172,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -4090,11 +4091,40 @@ export function forgetsOnReset(node, table) {
     const inner = n.type === 'call' && table.functions[n.name] && table.functions[n.name].recurrence
     if (Array.isArray(n.args)) n.args.forEach((a, i) => { if (!inner || i !== inner.body) stack.push(a) })
   }
+  // ⭐⭐ H1 — A RATCHET'S TEST. `up := close[1] > up1 ? max(up, up1) : up` (every
+  // supertrend, every ATR trailing stop) resets on a test that READS the stop:
+  // price closing through it. From an unknown state C12s cannot decide that test,
+  // but the RANGE window can (`interpret.js::RANGE_TOP`): the test splits the
+  // state at a number the data fixes, so it is admitted when every read of the
+  // state inside it is one side of an ORDERING comparison against something that
+  // does not read the state — bare `self`, or `nz(self, k)`. `&&`, `||` and `!`
+  // over such tests are read the same way. ⛔ NOT `na(self)` and NOT `==`: a
+  // latch that fires while unset, or on one exact value, is never narrowed by the
+  // data, so it stays the refusal it was (and `forgetsItsSeed`'s
+  // `reseedsOnceSet` keeps naming it). ⛔ AND NOT A CONSTANT: `self > 3 ? 0 :
+  // self + 1` splits the state at a point the data never moves, so a state that
+  // starts far below it is never squeezed onto one value — a counter with a
+  // threshold stays refused (`switchedCounter.test.js`). The ratchet compares
+  // the stop with PRICE, which moves.
+  const isSelf = (x) => !!x && x.type === 'series' && x.name === bind
+  const stateRead = (x) => isSelf(x)
+    || (!!x && x.type === 'call' && x.name === 'nz' && Array.isArray(x.args) && x.args.length === 2
+      && isSelf(x.args[0]) && !carries(x.args[1]))
+  const orderingTest = (x) => {
+    if (!x || typeof x !== 'object' || !carries(x)) return true
+    const a = x.args || []
+    if (x.type === 'op' && (x.name === '&&' || x.name === '||' || x.name === '!')) return a.every(orderingTest)
+    if (x.type === 'op' && (x.name === '<' || x.name === '<=' || x.name === '>' || x.name === '>=') && a.length === 2) {
+      const moving = (y) => !carries(y) && typeof constantValueOf(y) !== 'number'
+      return (stateRead(a[0]) && moving(a[1])) || (stateRead(a[1]) && moving(a[0]))
+    }
+    return false
+  }
   const resets = (n) => {
     if (!n || typeof n !== 'object') return true
     if (!carries(n)) return true
     const args = n.args || []
-    if (n.type === 'op' && n.name === '?:' && args.length === 3 && !carries(args[0])) {
+    if (n.type === 'op' && n.name === '?:' && args.length === 3 && orderingTest(args[0])) {
       return resets(args[1]) || resets(args[2])
     }
     return false
@@ -6303,6 +6333,35 @@ export class Resolver {
       : cOp('&&', [cOp('<', [xNow, yNow]), cOp('>=', [xPrev, yPrev])])
   }
 
+  /** ⭐⭐ H1 — THE LAST WORD ON A FUNCTION-LOCAL PLAIN NAME, when `bound` is an
+   *  earlier binding of it in the same body — or null.
+   *
+   *  `x = init` then `x := f(x[1])` INSIDE a helper is the same recurrence as at
+   *  the top level, and only the top level could build it: `finalBindings` is
+   *  keyed by name and scoped to the top level, so a local's `x[1]` refused
+   *  (`pine:state`, "reads what `x` held on an earlier bar, and this script
+   *  reassigns it") — every supertrend, QQE and PMax written inside a function.
+   *  ⭐ ONE CHAIN IS ONE NAME: each `:=` binds its right-hand side in a SNAPSHOT
+   *  of the env that holds the binding before it (`foldStatements`), so the fold
+   *  walks a final local's env back by name, stops at the binding the body began
+   *  with, and records every link (`finalLocals.chainFinal`). Matched by
+   *  IDENTITY, never by name, so neither a top-level `x` nor another local whose
+   *  env happens to hold an `x` can answer for this one. */
+  finalLocalOf(bound, name) {
+    if (!bound || !name || !this.mutated.has(name)) return null
+    const chain = this.finalLocals && this.finalLocals.chainFinal
+    const b = chain ? chain.get(bound) : null
+    return b && b.kind === 'expr' ? b : null
+  }
+
+  /** Is `bound` the last word on a function-local plain name that the body
+   *  reassigns (an earlier binding of the same name sits in its own env)? */
+  isLocalFinalReassign(bound, name) {
+    if (!bound || !name || bound.kind !== 'expr' || !this.finalLocals.has(bound) || !this.mutated.has(name)) return false
+    const prior = bound.env && bound.env.get(name)
+    return !!prior && this.finalLocalOf(prior, name) === bound
+  }
+
   finalStateOf(bound, name) {
     if (!bound || bound.kind !== 'state') return null
     if (this.finalLocals.has(bound)) return null
@@ -6930,8 +6989,10 @@ export class Resolver {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
     const wasBuilding = this.buildingRecurrence
+    // ⭐ H1 — …and so does a helper's own local (`finalLocalOf`)
+    const isLocalFinal = !!name && this.isLocalFinalReassign(bound, name)
     const isFinalOfMutable = !!name && this.mutated.has(name)
-      && this.finalBindings.get(name) === bound
+      && (this.finalBindings.get(name) === bound || isLocalFinal)
     // ⭐⭐ PINE'S PLAIN SELF-REFERENCE — `x = na(x[1]) ? seed : f(x[1])` — IS THE
     // SAME RECURRENCE WEARING THE OTHER SPELLING, and this door could not reach
     // it. Only `var x` + `x := …` entered `mutated`, so the commonest stateful
@@ -7009,7 +7070,10 @@ export class Resolver {
         args[spec.recurrence.body] = body
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
-        this.recurrenceColumns.set(name, built)
+        // ⛔ NOT for a local: a helper inlined at two call sites builds two
+        // different columns under one name, and the name-keyed memo would hand
+        // the second call the first call's column
+        if (!isLocalFinal) this.recurrenceColumns.set(name, built)
         return built
       }
       if (isSelfRef && containsFreeSelfSeries(body, this.table)) {
@@ -9323,6 +9387,26 @@ export class Resolver {
       }
       const base = cSeries(spec.recurrence.binds)
       return node.n === 1 ? base : { type: 'offset', value: node.n - 1, args: [base] }
+    }
+    // ⭐ H1 — a FUNCTION-LOCAL name read through `x[k]` above its last `:=` —
+    // asked FIRST, by identity, so neither a top-level `x` nor the name-keyed memo
+    // can answer for it
+    {
+      const here = this.env.get(name)
+      const local = this.finalLocalOf(here, name)
+      if (local) {
+        const seeded = !this.recurrenceSeeds.has(name)
+        if (seeded) {
+          this.recurrenceSeeds.set(name, here)
+          this.recurrenceSeedAt.set(name, locate(tok))
+        }
+        const column = this.resolveBinding(local, tok, name)
+        if (!column || column.type !== 'call' || column.name !== 'accum') {
+          if (seeded) { this.recurrenceSeeds.delete(name); this.recurrenceSeedAt.delete(name) }
+          return null
+        }
+        return { type: 'offset', value: node.n, args: [column] }
+      }
     }
     if (this.recurrenceColumns.has(name)) {
       return { type: 'offset', value: node.n, args: [this.recurrenceColumns.get(name)] }
@@ -12813,8 +12897,18 @@ export class Resolver {
     // fresh `Resolver` per output, so only something every Resolver agrees on
     // survives across "the same input feeds two plots." Until C46 that was the
     // call node's object identity; it is now the call's ordinal in the source.
+    // ⭐ H1 (2026-10-02) — THE PINNED LANE MINTS ONLY WHAT IT PINS. A script
+    // `param-ids.json` lists (`paramIdPinned.js`) may not GAIN an id in the pinned
+    // (plain strict) lane: that artifact and `paramIdLegacy`'s dense-entry rail are
+    // its whole address book — including the scripts it lists with NO ids. So when a script that used to refuse starts
+    // translating (a ratchet) and a column reaches an input the old walk never
+    // did, that input folds to its default with no id in this lane — a literal,
+    // exactly what TradingView draws until it is moved. Every other lane mints it
+    // at its source id as before.
+    const pinnedOut = !!(this.paramMint && this.paramMint.pinnedLane
+      && !(Array.isArray(this.paramMint.legacy) && this.paramMint.legacy.includes(paramOrdinalOf(this.paramMint, node.tok))))
     const mintable = !!(this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
-      && resolved && resolved.type === 'num' && Number.isFinite(resolved.value))
+      && resolved && resolved.type === 'num' && Number.isFinite(resolved.value)) && !pinnedOut
     const mintEntry = () => {
       // ⭐⭐ C46 — THE ID IS THE CALL'S PLACE IN THE SOURCE, NOT ITS TURN IN THE
       // WALK. This was a counter: the N-th input the walk resolved first. What
@@ -12896,7 +12990,16 @@ export class Resolver {
         // here, at the same point in the same walk, keeps every id where it was
         // (`builderInputs.withColourInputs` verifies it). The leaf carries no
         // `__uctParamId`: the identifier is the knob now, not a literal to edit.
-        if (mintable && this.mintDeclared && this.mintDeclared.has(boundName)) mintEntry()
+        // ⭐ H1 (2026-10-02) — AND SO IS ONE A FROZEN ID ALREADY ADDRESSES. When a
+        // script that used to refuse starts translating (a ratchet: supertrend-
+        // explorer's `changeATR`, atr-god's `mult_st_1..4`), an input the old walk
+        // minted as a literal can now reach a column that DECLARES it — and a
+        // declared input does not mint, so its frozen id would vanish from the
+        // lane. The frozen table (`paramIdLegacy.js`) is the address; an input
+        // holding one keeps it, minted beside the knob exactly as above.
+        const frozen = mintable && this.paramMint && Array.isArray(this.paramMint.legacy)
+          && this.paramMint.legacy.includes(paramOrdinalOf(this.paramMint, node.tok))
+        if (mintable && ((this.mintDeclared && this.mintDeclared.has(boundName)) || frozen)) mintEntry()
         return leaf
       }
       // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
@@ -21843,6 +21946,9 @@ function newParamMint(tokens, opts) {
     sites,
     ordinalAt,
     legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(own)], legacyLaneOf(opts)),
+    // ⭐ H1 — in the pinned lane (0) a script `param-ids.json` lists cannot grow its
+    // map (`paramIdPinned.js`); `resolveInput` reads this
+    pinnedLane: legacyLaneOf(opts) === 0 && PINNED_SCRIPT_KEYS.has(scriptKey(own)),
   }
 }
 
@@ -22712,6 +22818,18 @@ function translatePineResult(source, opts = {}) {
         for (const [localName, localBound] of fnEnv) {
           if (beforeFn.get(localName) !== localBound) {
             finalLocals.add(localBound)
+            // ⭐ H1 — every binding of THIS local in THIS body, mapped to its last
+            // word: walked back by name through each `:=`'s env snapshot and
+            // stopped at the binding the body started from (`beforeFn`), so the
+            // chain never reaches a same-named name of the enclosing scope
+            // (`Resolver.finalLocalOf`).
+            if (!finalLocals.chainFinal) finalLocals.chainFinal = new WeakMap()
+            const outer = beforeFn.get(localName)
+            let link = localBound
+            for (let hop = 0; link && link !== outer && hop < 256; hop += 1) {
+              if (link !== localBound && typeof link === 'object') finalLocals.chainFinal.set(link, localBound)
+              link = link.env instanceof Map ? link.env.get(localName) : null
+            }
             // ⭐ C31 — and by NAME, for the text reader: a helper that builds its
             // text in a local (`string r = ""` … `r`) returns a NAME, which is
             // visible only inside the helper (`textNodeOf`'s inline branch).

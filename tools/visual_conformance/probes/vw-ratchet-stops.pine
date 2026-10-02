@@ -1,0 +1,43 @@
+//@version=5
+// H1 probe (2026-10-02) - trailing stops whose reset test reads the stop, written the
+// three ways the corpus writes them, plus the pivot plateau rule. Every row is a plain
+// number so the capture grades it bar for bar.
+indicator("vw-ratchet-stops", overlay = true)
+
+// R01-R03: the classic supertrend (KivancOzbilgic shape), top level
+src = hl2
+atrv = ta.atr(10)
+up = src - 3 * atrv
+up1 = nz(up[1], up)
+up := close[1] > up1 ? math.max(up, up1) : up
+dn = src + 3 * atrv
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+plot(up, "R01_up")
+plot(dn, "R02_dn")
+plot(trend, "R03_trend")
+
+// R04: the same stop inside a helper (PMax / QQE shape)
+stop(s, m) =>
+    l = s - m * ta.atr(10)
+    lp = nz(l[1], l)
+    l := s > lp ? math.max(l, lp) : l
+    l
+plot(stop(close, 2.5), "R04_local_stop")
+
+// R05: a range filter (twin-range shape), helper with a nested test on the state
+rngfilt(x, r) =>
+    f = x
+    f := x > nz(f[1]) ? x - r < nz(f[1]) ? nz(f[1]) : x - r : x + r > nz(f[1]) ? nz(f[1]) : x + r
+    f
+plot(rngfilt(close, ta.ema(ta.ema(math.abs(close - close[1]), 27), 53) * 2), "R05_range_filter")
+
+// R06-R07: pivots on the bar where TradingView confirms them, raw
+plot(nz(ta.pivothigh(high, 2, 2), -1), "R06_pivot_high")
+plot(nz(ta.pivotlow(low, 2, 2), -1), "R07_pivot_low")
+
+// R00: control
+plot(bar_index, "R00_bar_index_CONTROL")
