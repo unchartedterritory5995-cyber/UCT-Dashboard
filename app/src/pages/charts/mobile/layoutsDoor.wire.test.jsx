@@ -91,6 +91,16 @@ describe('⛔ the template lists must be computed ABOVE the mobile return', () =
     expect(call).toContain('layoutsPrebuilt={wsGlobalLayouts}')
   })
 
+  it('COV-06: the phone restores through the SAME handler the desktop Layout Dock uses', () => {
+    const start = at('<MobileChartsApp')
+    const call = src.slice(start, src.indexOf('/>', start))
+    expect(call).toContain('onLayoutRestored={handleDockRestored}')
+    expect(src).toContain('onRestored={handleDockRestored}')            // the desktop dock's wiring
+    expect(at('const handleDockRestored'),
+      'handleDockRestored is declared AFTER `if (isMobile)` — the phone restore would be undefined',
+    ).toBeLessThan(at(MOBILE_RETURN))
+  })
+
   it('CONTROL — the probe can see a prop that is NOT there', () => {
     const call = src.slice(at('<MobileChartsApp'), at('<MobileChartsApp') + 1400)
     expect(call).not.toContain('onInventedLayoutThing=')
@@ -105,5 +115,6 @@ describe('the phone shell mounts the sheet', () => {
     expect(src).toContain('<MobileLayoutsSheet')
     expect(src).toContain("open={sheet === 'layouts'}")
     expect(src).toContain("onOpenLayouts={() => setSheet('layouts')}")
+    expect(src).toContain('onRestored={onLayoutRestored}')              // COV-06 phone door
   })
 })

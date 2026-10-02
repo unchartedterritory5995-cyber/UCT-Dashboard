@@ -2803,6 +2803,8 @@ export default function ChartsWorkspace() {
             onSaveLayout={handleSaveLayout}
             onSaveLayoutAs={handleSaveAsTemplate}
             onDeleteLayout={handleDeleteTemplate}
+            /* COV-06 — the same restore handler the desktop Layout Dock uses. */
+            onLayoutRestored={handleDockRestored}
           />
         )}
         {noticeHost}

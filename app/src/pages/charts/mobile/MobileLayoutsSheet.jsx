@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../../../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../../../components/artifactHistory/RecentlyDeleted'
 import styles from './MobileCharts.module.css'
 
 /* The phone's door to the workspace/layout system the desktop already has.
@@ -22,6 +24,14 @@ import styles from './MobileCharts.module.css'
  * ⛔ PREBUILT (`scope: 'global'`) ROWS ARE FIRM-PUBLISHED AND READ-ONLY unless
  * the viewer is an admin: the backend refuses a non-admin DELETE on a global
  * row, so the control is not rendered for them rather than rendered-and-failing.
+ *
+ * COV-06 (phone door): the same two version-history entry points the desktop
+ * Layout Dock has — "Version history" on each of MY layouts, and "Recently
+ * deleted" under My layouts — using the SAME shared components. Both are HIDDEN
+ * unless the ARTIFACT_VERSIONS_ENABLED status probe answers 200, and the probe
+ * only runs while this sheet is open. A restore/bring-back hands the route's row
+ * to `onRestored`, which is ChartsWorkspace's `handleDockRestored` (adopts the
+ * row; re-applies the OPEN layout without the switch flush).
  */
 export default function MobileLayoutsSheet({
   open, onClose,
@@ -36,9 +46,13 @@ export default function MobileLayoutsSheet({
   onSaveCurrent,           // ()    => void   — handleSaveLayout
   onSaveAs,                // (name, scope) => Promise<void> — handleSaveAsTemplate
   onDelete,                // (id)  => void   — handleDeleteTemplate
+  onRestored,              // (row) => void   — handleDockRestored (COV-06)
   className = '',
 }) {
-  const [mode, setMode] = useState('list')       // 'list' | 'saveAs'
+  const [mode, setMode] = useState('list')       // 'list' | 'saveAs' | 'history'
+  const [historyOf, setHistoryOf] = useState(null)   // the layout whose history is open
+  const [deletedRev, setDeletedRev] = useState(0)    // re-reads Recently deleted after a delete
+  const historyAvailable = useArtifactVersionsAvailable(!!open)
   const [name, setName] = useState('')
   const [scope, setScope] = useState('user')
   const [err, setErr] = useState('')
@@ -49,7 +63,7 @@ export default function MobileLayoutsSheet({
   // Reopening always lands on the list — a half-typed name from last time is
   // noise, and a stranded delete confirmation is a hazard.
   useEffect(() => {
-    if (!open) { setMode('list'); setName(''); setErr(''); setConfirmId(null); setBusy(false) }
+    if (!open) { setMode('list'); setName(''); setErr(''); setConfirmId(null); setBusy(false); setHistoryOf(null) }
   }, [open])
 
   // The keyboard only helps if the field is focused; a phone sheet that opens a
@@ -78,7 +92,10 @@ export default function MobileLayoutsSheet({
     }
   }
 
-  const renderRow = (t, { deletable }) => {
+  const openHistory = (t) => { haptics.tap(); setConfirmId(null); setHistoryOf(t); setMode('history') }
+  const restored = (row) => { if (row) onRestored?.(row) }
+
+  const renderRow = (t, { deletable, versioned = false }) => {
     const isActive = t.id === activeId
     const confirming = confirmId === t.id
     return (
@@ -98,9 +115,22 @@ export default function MobileLayoutsSheet({
             {!deletable && <span className={styles.layoutBadge}>Firm</span>}
           </span>
         </button>
+        {versioned && historyAvailable && !confirming && (
+          <button
+            type="button"
+            className={styles.layoutHistory}
+            aria-label={`Version history of layout ${t.name}`}
+            onClick={() => openHistory(t)}
+          >
+            <UIcon name="clock" size={15} gold={false} />
+          </button>
+        )}
         {deletable && (confirming ? (
           <span className={styles.layoutConfirm}>
-            <button type="button" className={styles.layoutConfirmYes} onClick={() => { setConfirmId(null); onDelete?.(t.id) }}>Delete</button>
+            <button type="button" className={styles.layoutConfirmYes} onClick={() => {
+              setConfirmId(null)
+              Promise.resolve(onDelete?.(t.id)).finally(() => setDeletedRev(n => n + 1))
+            }}>Delete</button>
             <button type="button" className={styles.layoutConfirmNo} onClick={() => setConfirmId(null)}>Cancel</button>
           </span>
         ) : (
@@ -122,11 +152,24 @@ export default function MobileLayoutsSheet({
       open={open}
       onClose={onClose}
       variant="bottom-sheet"
-      title={mode === 'saveAs' ? 'Save layout as' : 'Layouts'}
+      title={mode === 'saveAs' ? 'Save layout as' : mode === 'history' ? 'Version history' : 'Layouts'}
       ariaLabel="Chart layouts"
       className={className}
     >
-      {mode === 'saveAs' ? (
+      {mode === 'history' && historyOf ? (
+        <div className={`${styles.sheetList} ${styles.historyHost}`}>
+          <button type="button" className={styles.row} onClick={() => { setMode('list'); setHistoryOf(null) }}>
+            <span className={styles.rowLabel}>{'‹ Back'}</span>
+          </button>
+          <ArtifactHistory
+            kind="layout"
+            artifactId={historyOf.id}
+            title={`Versions of “${historyOf.name}”`}
+            onRestored={(res) => restored(res?.artifact)}
+            onUnavailable={() => { setMode('list'); setHistoryOf(null) }}
+          />
+        </div>
+      ) : mode === 'saveAs' ? (
         <div className={styles.sheetList}>
           <button type="button" className={styles.row} onClick={() => { setMode('list'); setErr('') }}>
             <span className={styles.rowLabel}>{'‹ Back'}</span>
@@ -211,7 +254,16 @@ export default function MobileLayoutsSheet({
               None yet. “Save as…” keeps this arrangement so you can come back to it from any device.
             </div>
           )}
-          {mine.map(t => renderRow(t, { deletable: true }))}
+          {mine.map(t => renderRow(t, { deletable: true, versioned: true }))}
+
+          {/* COV-06: a deleted layout's history outlives it; bring it back here.
+              Hidden unless ARTIFACT_VERSIONS_ENABLED answers and something was deleted. */}
+          {historyAvailable && (
+            <div className={styles.historyHost}>
+              <RecentlyDeleted kind="layout" noun="layout" refreshKey={deletedRev}
+                onBroughtBack={(res) => restored(res?.artifact)} />
+            </div>
+          )}
         </div>
       )}
     </Sheet>
