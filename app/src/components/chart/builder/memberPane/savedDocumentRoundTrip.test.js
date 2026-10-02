@@ -19,6 +19,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { memberPaneDefinition } from './memberPaneDefinition.js'
 import { applyParamEdit, reconcileParams } from '../paramEdit.js'
+import { treesHash } from '../../engine/ast/trees.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -40,6 +41,33 @@ const valuesOf = (definition) => {
 const build = (script) => memberPaneDefinition({
   source: fs.readFileSync(path.join(REPO, script), 'utf8'), id: 'u_member-pane-c46',
 })
+
+/** ⭐ B1 — A PAINT'S COLOUR COLUMN IS AN APPEND (the manifest's own rule, C46 ruling 3 /
+ *  R-P, applied to the computation). A `bgcolor` / `barcolor` the door now carries adds a
+ *  hidden condition column that ONLY the paint reads; the document a member saved is the
+ *  rest of today's computation, byte for byte. So the comparison takes those columns out —
+ *  and only those: a column a plot or a fill also reads existed before and stays. */
+const paintOnlyKeys = (definition) => {
+  const used = new Set()
+  for (const p of definition.plots || []) {
+    if (typeof p.colorMode === 'string' && p.colorMode.startsWith('column:')) used.add(p.colorMode.slice(7))
+    if (p.fill && typeof p.fill.colorMode === 'string') used.add(p.fill.colorMode.slice(7))
+  }
+  return new Set((definition.paints || [])
+    .map((p) => (typeof p.colorMode === 'string' ? p.colorMode.slice(7) : null))
+    .filter((k) => k && !used.has(k)))
+}
+const computeBeforePaints = (definition) => {
+  const keys = paintOnlyKeys(definition)
+  if (!keys.size) return definition.compute
+  const c = JSON.parse(JSON.stringify(definition.compute))
+  for (const k of keys) {
+    delete c.trees[k]
+    if (c.sources) delete c.sources[k]
+  }
+  c.treesHash = treesHash(c.trees)
+  return c
+}
 
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k)))
 
@@ -72,7 +100,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!same) moved.push({ script, id, was: a.sourceName, now: b.sourceName, locators: [a.locators, (b.locators || []).length] })
       }
       // …and the document around the manifest is the same document.
-      if (sha(JSON.stringify(built.definition.compute)) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
+      if (sha(JSON.stringify(computeBeforePaints(built.definition))) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
     }
     expect(moved, `saved documents no longer round-trip:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
   }, 900000)
@@ -97,7 +125,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      if (sha(JSON.stringify(doc.compute)) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
+      if (sha(JSON.stringify(computeBeforePaints(doc))) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)
@@ -122,6 +150,22 @@ describe('C46 — documents saved under the walk-order ids', () => {
       doc = applied.definition
     }
     expect(doc.compute).toEqual(saved.compute)
+  }, 120000)
+
+  it('⭐ B1 — the paint-column rule is LOAD-BEARING and NARROW: without it a paint script differs; with it, it is the saved document', () => {
+    // atr-support-and-resistance carries a `barcolor` the door now draws; its colour column
+    // is an append. Without taking it out the computation differs (the rule is not vacuous)…
+    const script = 'corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine'
+    const built = build(script)
+    expect(built.ok).toBe(true)
+    expect(paintOnlyKeys(built.definition).size).toBeGreaterThan(0)
+    expect(sha(JSON.stringify(built.definition.compute))).not.toBe(SAVED[script].computeSha)
+    // …and with it out, the computation is the saved one exactly.
+    expect(sha(JSON.stringify(computeBeforePaints(built.definition)))).toBe(SAVED[script].computeSha)
+    // a script that writes no paint takes the identity path: nothing is taken out.
+    const plain = build('tests/fixtures/member/uncharted-volume-v2.pine')
+    expect(plain.ok).toBe(true)
+    expect(computeBeforePaints(plain.definition)).toBe(plain.definition.compute)
   }, 120000)
 
   it('⛔ a value moved on ONE id reaches that input only', () => {
