@@ -68,8 +68,14 @@ export const MEMBER_PANE_DEF_PREFIX = 'u_member-pane'
  *  anchors; the visible ceiling is unchanged at 12 and the document ceiling is
  *  23 × 1.5 = 34, rounded to 36 for headroom, so a script one cloud larger than
  *  Clouds still lands. */
-const CARRY_MAX = 12
-const DOC_CARRY_MAX = 36
+// ⭐⭐ R-P (2026-10-01, owner delegated: "you decide it all") - THE PANE'S CEILING IS
+// TRADINGVIEW'S OWN: 64 plots per script. A member's script that TradingView draws in full
+// is drawn in full here; at 12 it was cut (candlestick-patterns, madrid, ema-ribbon's 13th
+// row). The document ceiling keeps R25's 1.5x headroom for hidden anchors: 64 x 1.5 = 96.
+// (`BuilderSheet.jsx`'s own CARRY_MAX is a different limit - FORM rows in the formula
+// editor, one live field each - and stays where it is, disclosed to the member.)
+export const CARRY_MAX = 64
+const DOC_CARRY_MAX = 96
 
 const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
 

@@ -19,7 +19,7 @@ import {
   SCALAR_STYLES, OHLC_STYLES, PRESENTATION_DEFAULT_STYLE, sourceCapabilityOf,
 } from '../sourceCapability'
 import {
-  PLOT_STYLES, PLOT_STYLE_CHOICES, PLOT_STYLE_TO_DEF_STYLE,
+  PLOT_STYLES, PLOT_STYLE_CHOICES, PLOT_STYLE_TO_DEF_STYLE, OHLC_PLOT_STYLES,
   availableStyles, resolvePlotStyle,
 } from '../presentation'
 
@@ -246,7 +246,8 @@ describe('an unclassified source constrains nothing', () => {
     // ⚠️ THE BACKWARD-COMPATIBILITY RAIL. Most call sites have never heard of a
     // source capability; they must keep every style they always offered.
     const before = availableStyles(valuePlot(), { ohlcCapable: false })
-    expect(before).toEqual(PLOT_STYLES.filter((s) => s !== 'candles'))
+    // every style except the four-field ones (Candles AND Bars), which need a source
+    expect(before).toEqual(PLOT_STYLES.filter((s) => !OHLC_PLOT_STYLES.includes(s)))
   })
 
   it('a null catalogue row falls back to line and the scalar list', () => {

@@ -45,7 +45,22 @@ export const PLOT_STYLES = Object.freeze([
   // `ohlcCapability`). Listing it here is what makes a stored value resolve
   // rather than silently read as `line`.
   'candles',
+  // ⭐ 2026-10-01 — THE SECOND FOUR-FIELD STYLE: the traditional OHLC bar (High→Low
+  // stem, open tick left, close tick right), drawn by the SAME LWC `BarSeries` the
+  // primary chart's 'bars' chart type uses. Same capability rule as candles, one
+  // shared list (`OHLC_PLOT_STYLES`) so the two can never be gated differently.
+  'bars',
 ])
+
+/** The styles that draw FOUR fields, not one column — offered only to a source
+ *  `ohlcCapability` admits. ⛔ ONE LIST: every gate below reads this, so Candles and
+ *  Bars cannot drift into being allowed in different places. */
+export const OHLC_PLOT_STYLES = Object.freeze(['candles', 'bars'])
+
+/** Does this user style draw an OHLC bar (candle or bar) rather than a column? */
+export function isOhlcPlotStyle(style) {
+  return OHLC_PLOT_STYLES.includes(style)
+}
 
 /** What the Plot Style control offers, with the words a user sees. */
 export const PLOT_STYLE_CHOICES = Object.freeze([
@@ -60,6 +75,8 @@ export const PLOT_STYLE_CHOICES = Object.freeze([
   // belong at the end. `availableStyles` still decides whether this is OFFERED —
   // a choice list is not a capability.
   { value: 'candles', label: 'Candles' },
+  // ⚠️ THE MEMBER-FACING WORD IS "Bars" (owner ruling 2026-10-01) — not "OHLC Bars".
+  { value: 'bars', label: 'Bars' },
 ])
 
 /**
@@ -90,6 +107,9 @@ export const PLOT_STYLE_TO_DEF_STYLE = Object.freeze({
   // DEFINITION style, and there is no existing shape to borrow: a candlestick is
   // its own LWC series with its own data contract.
   candles: 'candles',
+  // The author vocabulary's name for an OHLC bar. `ohlcBars`, not `bars`, so it can
+  // never be confused with a histogram's `bar` geometry (`plots[].bar`).
+  bars: 'ohlcBars',
 })
 
 /**
@@ -158,7 +178,7 @@ export function availableStyles(plot, ctx) {
   const bySource = ctx && Array.isArray(ctx.allowedStyles) ? ctx.allowedStyles : null
   return PLOT_STYLES.filter((s) => {
     if (bySource && !bySource.includes(s)) return false
-    if (s === 'candles') return ohlc
+    if (isOhlcPlotStyle(s)) return ohlc
     return !(shared && SHARED_PANE_EXCLUDED.has(s))
   })
 }

@@ -58,6 +58,7 @@ import {
   DEFAULT_MARKER_COLOR,
   bindingKey,
   lineStyleValue,
+  OHLC_POOL_KEYS,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
@@ -84,9 +85,9 @@ import { fundamentalColumn } from './fundamentalSource'
 import { economicColumn, economicPlotStyle, observationAtFor } from './economicSource'
 import { economicMeta } from './economicSeries'
 import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
-import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
+import { ohlcCapabilityOf, barHasOhlc, outputIsSource, drawableOhlcBars } from './ohlcCapability'
 import { sourceCapabilityOf, SCALAR_STYLES } from './sourceCapability'
-import { resolvePlotStyle, resolveCandleColors } from './presentation'
+import { resolvePlotStyle, resolveCandleColors, isOhlcPlotStyle } from './presentation'
 import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapRuns'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
@@ -153,6 +154,9 @@ const SERIES_CTOR = {
   // computes, and then silently does not exist. `engineLwc()` in StockChart must
   // carry the constructor this names, or the same hole opens one file over.
   candlestick: 'CandlestickSeries',
+  // ⭐ The OHLC bar — the same `BarSeries` the primary chart's 'bars' type uses.
+  // `engineLwc()` in StockChart carries it, for the reason the comment above gives.
+  bar: 'BarSeries',
 }
 
 /**
@@ -218,7 +222,9 @@ function isOhlcPayload(v) {
  * ⛔ THE BAR'S OWN `t`, NEVER THE PRIMARY'S. `clippedBarsFor` has already dropped
  * every bar outside the chart's time domain, so each survivor is a real bar of
  * the secondary instrument at its own timestamp. Rewriting it would attribute one
- * instrument's auction to another's bar.
+ * instrument's auction to another's bar. (An index whose day is keyed as unix
+ * midnight arrives here already spelled as the chart spells that SAME day —
+ * `clipBarsToDomain` — because one axis cannot hold two time formats.)
  *
  * ⛔ AND NO SIGN COLOURS. `colorMode: 'sign'` paints a histogram bar from the
  * value's sign; a candle's colour is its own up/down option and is LWC's to
@@ -427,6 +433,33 @@ function observationAtOf(column, bars, adjustTime) {
     observationMemo.set(column, m)
   }
   return m.f
+}
+
+// ⭐ AN OHLC BINDING'S LEGEND READS THE CLOSE, BAR BY BAR. A candle/bar point has no
+// `value`, so without this the chip fell back to nothing at all on hover. The close
+// is the number of record on EVERY bar — including a breadth bar whose O/H/L is drawn
+// as whitespace because it was not observed — so the legend still answers there, and
+// the same number a Line would show. Keyed on the payload's identity, like the points.
+const ohlcValueAtMemo = new WeakMap()
+function ohlcValueAtOf(payload, adjustTime) {
+  let m = ohlcValueAtMemo.get(payload)
+  if (!m || m.adjustTime !== adjustTime) {
+    const byTime = new Map()
+    for (const b of (payload && Array.isArray(payload.bars) ? payload.bars : [])) {
+      if (!b) continue
+      byTime.set(adjustTime(b.t), Number.isFinite(b.c) ? b.c : NaN)
+    }
+    m = { adjustTime, f: (time) => (byTime.has(time) ? byTime.get(time) : undefined) }
+    ohlcValueAtMemo.set(payload, m)
+  }
+  return m.f
+}
+
+/** The close of an OHLC payload's newest bar — the developing-bar fallback. */
+function lastOhlcClose(payload) {
+  const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
+  for (let i = bars.length - 1; i >= 0; i--) if (bars[i] && Number.isFinite(bars[i].c)) return bars[i].c
+  return undefined
 }
 
 const valueAtMemo = new WeakMap()
@@ -1386,8 +1419,11 @@ export function createBinder({ chart, LWC }) {
         // ⛔ THE SAME RESOLUTION THE PLAN MADE, with the same capability answer —
         // a stored `candles` the source cannot mean is clamped to a line in both
         // places, so the series type and its payload can never disagree.
-        if (resolvePlotStyle(instance, plot, { ohlcCapable: true }) !== 'candles') return null
-        return clippedBarsFor(entry.bars, bars)
+        if (!isOhlcPlotStyle(resolvePlotStyle(instance, plot, { ohlcCapable: true }))) return null
+        // ⛔ PER BAR, FOR A FAMILY THAT IS ATTESTED PER BAR (breadth): an unobserved
+        // bar keeps its time and close and draws as whitespace — never as the
+        // close-to-close body it is. Identity for a security.
+        return drawableOhlcBars(clippedBarsFor(entry.bars, bars), cap.family)
       }
 
       // ── A FRAMED INSTANCE: keep its own-frame columns, project onto the chart ──
@@ -1629,8 +1665,11 @@ export function createBinder({ chart, LWC }) {
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on
         // this instance. No new palette, no second source of truth.
-        candleColors: b.poolKey === 'candlestick'
-          ? resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles)
+        // ⭐ A BAR READS THE SAME PAIR, plus the chart's own `thinBars` — the one
+        // option the primary chart's BarSeries takes that a candlestick does not.
+        candleColors: OHLC_POOL_KEYS.includes(b.poolKey)
+          ? { ...resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles),
+              thinBars: !(ctx.cs && ctx.cs.candles && ctx.cs.candles.thinBars === false) }
           : null,
       })
       if (!options) { orphan(b); continue }
@@ -2033,7 +2072,7 @@ export function createBinder({ chart, LWC }) {
         // Carried on the BINDING because that is the only place the column and
         // the series are both in hand; `readout.js` is pure and gets no other
         // route to the value legacy reads off `indicatorData`.
-        lastValue: lastPointValue(points),
+        lastValue: isOhlcPayload(columns.get(b.key)) ? lastOhlcClose(columns.get(b.key)) : lastPointValue(points),
         // ⭐ …AND THE ONE BEFORE IT, for the one live writer that steps a
         // recurrence: an average's EMA on the developing bar is
         // `c·k + prev·(1-k)`, and on a same-bucket tick `prev` is THIS value, not
@@ -2052,6 +2091,7 @@ export function createBinder({ chart, LWC }) {
         // ⭐ 2026-10-01 — a `sparse` plot is a gap-breaking line too (above), so a
         // blank bar answers NaN and its chip is dropped there.
         ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
+        ...(isOhlcPayload(columns.get(b.key)) ? { valueAt: ohlcValueAtOf(columns.get(b.key), adjustTime) } : {}),
         // The legend's OBSERVATION PERIOD for an economic passthrough (`Aug 2026`).
         ...(econObs.has(b.instanceId) ? { observationAt: observationAtOf(econObs.get(b.instanceId), bars, adjustTime) } : {}),
       })

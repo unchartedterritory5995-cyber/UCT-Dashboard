@@ -641,7 +641,8 @@ def _live_universe(universe: str) -> dict:
     return out
 
 
-def universe_history(metric: str, universe: Optional[str], limit: int = 6000) -> Optional[dict]:
+def universe_history(metric: str, universe: Optional[str], limit: int = 6000,
+                     with_source: bool = False) -> Optional[dict]:
     """The `breadth_daily_ohlc.history` answer under V2 for a universe V2 owns, else None.
 
     {date: {o, h, l, c}} newest `limit` sessions: frozen V2 rows + validated live rows. A metric V2
@@ -657,7 +658,13 @@ def universe_history(metric: str, universe: Optional[str], limit: int = 6000) ->
         if metric in byd and d > FROZEN_END:
             rows[d] = byd[metric]
     keep = sorted(rows)[-int(limit):] if limit else sorted(rows)
-    return {d: {"o": rows[d][0], "h": rows[d][1], "l": rows[d][2], "c": rows[d][3]} for d in keep}
+    out = {d: {"o": rows[d][0], "h": rows[d][1], "l": rows[d][2], "c": rows[d][3]} for d in keep}
+    if with_source:
+        # OPT-IN provenance (the row's own V2 source), read only by the chart to tell an
+        # observed 1-minute OHLC from a `_body` row; no value changes, and off is unchanged.
+        for d in keep:
+            out[d]["src"] = rows[d][4] if len(rows[d]) > 4 else None
+    return out
 
 
 def universe_dates(universe: Optional[str], since: str = "") -> Optional[list]:

@@ -133,15 +133,20 @@ describe('C45 — the same five on TradingView\'s whole history: the count is th
     expect(ours.notes.filter((n) => /bar-index:/.test(n)), id).toEqual([])
   }, 60000)
 
-  it('vw-ne-na: MATCH, all twelve rows; vw-gradient: the twelve rows the pane carries MATCH', () => {
+  it('vw-ne-na: MATCH, all twelve rows; vw-gradient: every row the pane carries MATCHES', () => {
     const ne = gradeCapture(joinedFromListing(parent('vw-ne-na-spy-1d-2026-09-30'), { control: 'Q00_bar_index_CONTROL' })).verdict
     expect(ne.verdict, ne.reason).toBe('MATCH')
     expect(byVerdict(ne, 'MATCH').length).toBe(12)
     const g = gradeCapture(joinedFromListing(parent('vw-gradient-spy-1d-2026-09-30'), { control: 'G00_bar_index_CONTROL' })).verdict
-    expect(byVerdict(g, 'MATCH')).toEqual([
+    // R-P (2026-10-01): the pane carries up to TradingView's 64 rows, so every non-constant
+    // row is graded - 17 MATCH (the six constant rows are hidden by the pane's own rule).
+    const matchedG = byVerdict(g, 'MATCH')
+    expect(matchedG).toHaveLength(17)
+    expect(matchedG).toEqual(expect.arrayContaining([
       'G00_bar_index_CONTROL', 'G01_v', 'G02_g1_r', 'G03_g1_g', 'G04_g1_b', 'G05_g1_t', 'G06_w',
       'G07_g2_r_clamp', 'G08_g2_g_clamp', 'G09_g2_b_clamp', 'G10_g2_t_clamp', 'G11_g3_r_new30',
-    ])
+    ]))
+    expect(byVerdict(g, 'DIVERGE')).toEqual([])
   }, 60000)
 
   it('CONTROL — the grade can fail: the vendor\'s count moved by one bar is a DIVERGE', () => {

@@ -83,6 +83,9 @@ export const LIMIT_NAMES = Object.freeze([
 export const DEFAULT_LIMITS = Object.freeze({
   PROGRAM_SIZE: 512 * 1024,
   IR_SIZE: 200000,
+  // R-B (2026-10-01): a raise to 250,000 was MEASURED and NOT taken - it moves no graded
+  // script today (dual-view and poor-man stop earlier on the host lane, on loop state and a
+  // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
   LOOP_ITERATIONS: 100000,

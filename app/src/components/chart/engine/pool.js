@@ -74,7 +74,11 @@ import { presentedPlot } from './presentation'
  * candlestick. Listing it here is what makes the pool REFUSE that swap instead
  * of feeding four fields to a series that draws one.
  */
-export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick', 'columns'])
+export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick', 'bar', 'columns'])
+
+/** The pool keys whose data is an OHLC bar, not a column. ⭐ ONE LIST, so the binder's
+ *  colour resolution and every "is this four-field" question agree. */
+export const OHLC_POOL_KEYS = Object.freeze(['candlestick', 'bar'])
 
 /**
  * `plots[].style` → the LWC constructor that draws it.
@@ -109,7 +113,7 @@ export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline',
  * registration, so this is the second lock, not the first.)
  *
  * @param {object} plot a definition's plot
- * @returns {'line'|'histogram'|'columns'|'area'|'baseline'|'candlestick'|null}
+ * @returns {'line'|'histogram'|'columns'|'area'|'baseline'|'candlestick'|'bar'|null}
  */
 export function poolKey(plot) {
   switch (plot && plot.style) {
@@ -136,6 +140,12 @@ export function poolKey(plot) {
     // been answered.
     case 'candles':
       return 'candlestick'
+    // ⭐ THE OHLC BAR — LWC's own `BarSeries`, the same constructor the primary
+    // chart's 'bars' chart type draws with. Same data contract as a candlestick
+    // ({open, high, low, close}), a different series type, so the pool can never
+    // re-purpose one as the other.
+    case 'ohlcBars':
+      return 'bar'
     default:
       return null
   }
@@ -647,6 +657,20 @@ export function seriesOptionsForPlot(plot, ctx) {
       wickUpColor: cc.upColor,
       wickDownColor: cc.downColor,
     })
+  }
+
+  // ── AN OHLC BAR — the primary chart's 'bars' look, option for option ──
+  //
+  // ⭐ `StockChart`'s `case 'bars'` creates its `BarSeries` with `upColor`,
+  // `downColor` and `thinBars: cs.candles.thinBars !== false`, and leaves the open
+  // tick on. A secondary series drawn as Bars wears exactly that, so the two read
+  // as one visual language on one chart. `openVisible` is ALWAYS emitted: a key that
+  // can be set must be set on every bind (LWC's merge skips undefined).
+  if (pk === 'bar') {
+    const cc = c.candleColors
+    Object.assign(base, { openVisible: true, thinBars: !(cc && cc.thinBars === false) })
+    if (!cc || !cc.upColor || !cc.downColor) return base
+    return Object.assign(base, { upColor: cc.upColor, downColor: cc.downColor })
   }
 
   if (pk === 'columns') {

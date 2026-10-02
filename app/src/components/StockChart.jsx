@@ -505,6 +505,8 @@ const engineLwc = () => (_engineLwc || (_engineLwc = {
   // literal resolves to `undefined`, `addSeries(undefined, …)` throws, `attempt`
   // swallows it, and the plot plans, computes and then silently does not exist.
   CandlestickSeries,
+  // ⭐ A secondary series' "Bars" presentation (`binder.SERIES_CTOR.bar`).
+  BarSeries,
 }))
 
 // "Same % scale" comparison → transform the comparison's raw closes into the base's
