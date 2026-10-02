@@ -116,10 +116,17 @@ def test_suspicious_tiny_count_refused_unless_another_channel_corroborates():
     same_channel_repeat = validate([ob(date(2025, 12, 31), date(2026, 4, 1), 1.0, accn="a"),
                                     ob(date(2026, 3, 31), date(2026, 5, 1), 1.0, accn="b")], Ledger())
     assert not any(c.usable for c in same_channel_repeat)                      # a repeated placeholder is not evidence
+    # ⛔ a pre-closing SHELL's cover and balance sheet both say "1,000 shares" in ONE filing (RBBN, MLCI, FTI's "1"):
+    # corroboration must come from ANOTHER filing and ANOTHER channel
+    shell = validate([ob(date(2025, 12, 31), date(2026, 4, 1), 5_000, accn="a"),
+                      ob(date(2025, 12, 31), date(2026, 4, 1), 5_000, R.BALANCE_SHEET_XBRL, accn="a",
+                         tag="us-gaap:CommonStockSharesOutstanding")], Ledger())
+    assert not any(c.usable for c in shell)
     real = validate([ob(date(2025, 12, 31), date(2026, 4, 1), 5_000, accn="a"),
-                     ob(date(2025, 12, 31), date(2026, 4, 1), 5_000, R.BALANCE_SHEET_XBRL, accn="a",
+                     ob(date(2026, 3, 31), date(2026, 5, 10), 5_100, R.BALANCE_SHEET_XBRL, accn="b",
                         tag="us-gaap:CommonStockSharesOutstanding")], Ledger())
-    assert any(c.usable for c in real)
+    c0 = [c for c in real if c.obs.accn == "a"][0]
+    assert c0.usable and c0.effective_from == date(2026, 5, 10)        # usable once the other filing is public
 
 
 def test_scale_error_first_observation_contradicted_inside_its_own_filing_is_refused():

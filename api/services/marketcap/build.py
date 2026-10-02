@@ -120,7 +120,8 @@ def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dic
             r = n[2] / p[2]
             rr = r if r > 1 else 1 / r
             k = round(rr)
-            if rr < 1.9 or not (2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.02):
+            # within 5%: the first post-split count has usually moved a little (USIO 2015 1:15 -> x14.59)
+            if rr < 1.9 or not (2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.05):
                 continue
             ds = date.fromisoformat(n[0])
             a_ = date.fromisoformat(p[1])
@@ -518,6 +519,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 pobs, pfsets, _pinv = observations(D.pred, pred_cik, pf)
                 pobs = [(k_, o_, m_) for k_, o_, m_ in pobs if o_.as_of < lin_eff]
                 pfsets = {a_: v for a_, v in pfsets.items() if v[0].astimezone(ET).date() < lin_eff}
+                obs = [(k_, o_, m_) for k_, o_, m_ in obs if o_.as_of >= lin_eff]
                 if any(len(v[1]) > 1 for v in pfsets.values()) and not each_cls:
                     lin_reason, lin_note = R.SUCCESSOR_UNRESOLVED, "multi-class predecessor without a class-for-class conversion statement"
                 else:
@@ -535,6 +537,10 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             lin_reason, lin_note = R.PREDECESSOR_DIFFERENT_ENTITY, f"{kind} ({laccn})"
         else:
             lin_reason, lin_note = R.SUCCESSOR_UNRESOLVED, f"{kind}/{lstatus} ({laccn})"
+        if lin_reason:
+            # ⛔ the successor's OWN counts dated before the effective date are a pre-closing SHELL's ("5 shares" ICE
+            # 2013, "1,000 shares" RBBN 2017): never the listed security's capitalization
+            obs = [(k_, o_, m_) for k_, o_, m_ in obs if o_.as_of >= lin_eff]
 
     # listed class map (letter -> ticker)
     listed: dict = {}
@@ -721,8 +727,27 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 cdays_all, ccloses = bars[c.price_ticker]
                 # ⛔ only splits the PRICES reflect: a split after the last bar (KUST 1:10 on 2026-10-01, bars end
                 # 09-29) was applied to the shares but not to the prices -> cap 10x low
-                ledger = Ledger([s_ for s_ in ref_c[1] if lst.start <= s_.ex_date <= cdays_all[-1]]
-                                + [s_ for s_ in (extra_splits or []) if s_.ex_date <= cdays_all[-1]])
+                cand_splits = [s_ for s_ in ref_c[1] if lst.start <= s_.ex_date <= cdays_all[-1]]
+                cobs_raw = [o for k, o, _m in obs if k == c.class_key and o.value > 0]
+                kept_splits = []
+                for s_ in cand_splits:
+                    # ⛔ INVA 2013: the ticker's ledger lists a 1:100 split on 2013-06-17 while Theravance's own counts
+                    # went 99.45M (2013-04-25, published 05-02) -> 100.77M (2013-06-30): the split did not happen to
+                    # this issuer's shares. A split is dropped when the last count dated AND published before it and the
+                    # first count dated on/after it agree within 1.5x although the factor is >= 2x.
+                    pre = [o for o in cobs_raw if o.as_of < s_.ex_date and o.known_from <= s_.ex_date]
+                    post = [o for o in cobs_raw if o.as_of >= s_.ex_date]
+                    # (never for an ADS: an ADS ratio change leaves the ORDINARY count unchanged by design)
+                    if st.kind != "ADR" and pre and post and abs(math.log(s_.ratio)) >= math.log(2):
+                        a0 = max(pre, key=lambda o: o.as_of).value
+                        b0 = min(post, key=lambda o: o.as_of).value
+                        if abs(math.log(b0 / a0)) < math.log(1.5):
+                            w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
+                                                   "LEDGER_SPLIT_CONTRADICTED", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
+                                                   None, f"raw {a0:.0f} -> {b0:.0f}"))
+                            continue
+                    kept_splits.append(s_)
+                ledger = Ledger(kept_splits + [s_ for s_ in (extra_splits or []) if s_.ex_date <= cdays_all[-1]])
                 cobs = [o for k, o, _m in obs if k == c.class_key]
                 pre_listing = []
                 if lst.start:
@@ -744,8 +769,9 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     stmts = valid_statements([s_ for s_ in ratio_stmts if s_.as_of >= lst.start - timedelta(days=120)],
                                              ledger, ord_raw)
                     conv = []
+                    adr_type = bool(ptype and ptype.type in ("ADRC", "ADRS"))
                     for o in cobs:
-                        if not ads_at(o.known_from):
+                        if not ads_at(o.known_from) and not adr_type:
                             conv.append(o)                      # the listed security is not an ADS at this time
                             continue
                         rs = ratio_at(o.as_of, stmts, ledger, o.value * ledger.factor_after(o.as_of), ord_points, trade_breaks)

@@ -88,7 +88,7 @@ def correction_pass_goldens(g) -> None:
     g.check("LINEAGE", "XOM: Exxon Mobil Corporation history before the 2026 redomiciliation is valued", n > 1000, n)
     for t, eff in (("DIS", 20190320), ("MDT", 20150127), ("DD", 20170901), ("ETN", 20121130)):
         c = g.cik(t)
-        codes = {r[2] for r in g.gaps(c) if r[1] < eff} if c else set()
+        codes = {r[2] for r in g.gaps(c) if r[0] < eff} if c else set()                 # runs STARTING before it
         vals = g.db.execute("SELECT COUNT(*) FROM cap_daily WHERE cik=? AND d < ?", (c, eff)).fetchone()[0] if c else None
         g.check("LINEAGE", f"{t}: merger boundary -- nothing valued before {eff}, coded PREDECESSOR_DIFFERENT_ECONOMIC_ENTITY",
                 vals == 0 and "PREDECESSOR_DIFFERENT_ECONOMIC_ENTITY" in codes, {"values_before": vals, "codes": sorted(codes)})

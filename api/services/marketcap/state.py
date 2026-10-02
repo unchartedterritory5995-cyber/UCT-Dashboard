@@ -79,9 +79,18 @@ def _logr(a: float, b: float) -> float:
 
 
 def _unit_signature(a: float, b: float) -> bool:
-    """a / b is an exact power of 1,000 (thousands / millions mis-scaling), within ~5%."""
+    """a / b is a power of 1,000 (thousands / millions mis-scaling) within ~15% (the count itself may have moved:
+    EIG 2011 cover 34,878,399,000 against a state of 38,561,537 is x904)."""
     lr = math.log10(a / b)
-    return any(abs(lr - k) < 0.02 for k in (3, -3, 6, -6))
+    return any(abs(lr - k) < 0.06 for k in (3, -3, 6, -6))
+
+
+def _chan(o: "Obs") -> tuple:
+    """A CHANNEL is a source + concept; the rendered member suffix ("[entity]") and the ADS conversion tag are not a
+    different channel (EIG: the companyfacts and the rendered cover of ONE filing 'corroborated' a x1000 count)."""
+    import re as _re
+    t = _re.sub(r"\[.*?\]", "", o.tag.split("/")[0])
+    return (o.source, _re.sub(r"@\d+$", "", t))          # a text rule's byte offset is not a channel (PENN 2006/2009)
 
 
 DISCONTINUITY = math.log10(3)        # a >= 3x move against the state in force needs independent corroboration
@@ -169,7 +178,7 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
     prim: list[tuple[Obs, list[Obs]]] = [(grp[0], grp[1:]) for grp in groups.values()]
 
     def independent(a: Obs, b: Obs, channel_only: bool = False) -> bool:
-        other_channel = a.source != b.source or a.tag.split("/")[0] != b.tag.split("/")[0]
+        other_channel = _chan(a) != _chan(b)
         if channel_only or a.accn == b.accn:
             return other_channel and (a.accn != b.accn or a.source != b.source)
         return other_channel or a.as_of != b.as_of
@@ -236,7 +245,9 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
             val, pick, st = b["AS_OF"], "AS_OF", R.ACCEPTED
         c = Checked(o, st, val, pick, effective_from=t0)
         if o.value < TINY_RAW:
-            t = corroborated_at(o, val, channel_only=True)
+            # another FILING and another CHANNEL: a pre-merger shell's cover and balance sheet both say "1,000 shares"
+            # (RBBN, MLCI) or "1 share" (FTI) inside one filing -- that is not corroboration of a listed count
+            t = corroborated_at(o, val, channel_only=True, other_filing=True)
             if t is None:
                 decided[i] = Checked(o, R.REJ_SUSPICIOUS, val, pick, note=f"reported {o.value:g} shares, uncorroborated",
                                      block=(t0, None, R.SUSPICIOUS_SHARE_COUNT))
@@ -251,7 +262,8 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
             contra = "contradicted >= 3x inside its own filing"
         if contra:
             unit = ref is not None and _unit_signature(val, ref)
-            t = corroborated_at(o, val, channel_only=unit, other_filing=unit)
+            tenx = ref is not None and _logr(val, ref) >= 1
+            t = corroborated_at(o, val, channel_only=unit or tenx, other_filing=unit)
             if t is None:
                 decided[i] = Checked(o, R.REJ_SCALE_UNRESOLVED, val, pick, note=contra + "; no independent corroboration",
                                      block=(t0, None, R.SCALE_UNRESOLVED))
@@ -323,7 +335,7 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
 
     def _support(v: float, a: date) -> int:
         agree = [o_ for o_, cb in every if abs((o_.as_of - a).days) <= CORROBORATE_DAYS and any(_logr(x, v) < AGREE for x in cb.values())]
-        return min(len({o_.accn for o_ in agree}), len({(o_.source, o_.tag.split("/")[0]) for o_ in agree}))
+        return min(len({o_.accn for o_ in agree}), len({_chan(o_) for o_ in agree}))
     for j in [j for j in decided if decided[j].usable]:
         c = decided[j]
         rivals = [o_ for o_, cb in every if abs((o_.as_of - c.obs.as_of).days) <= CORROBORATE_DAYS

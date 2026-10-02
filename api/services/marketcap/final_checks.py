@@ -31,6 +31,22 @@ def run(build: str, baseline: str, data: str) -> dict:
                                          "AND o.issuer_id=s.issuer_id AND o.class_key=s.class_key AND o.as_of=s.as_of WHERE o.validation_status='REJECTED_INVALID_UNIT'").fetchone()[0]
     out["other_member_classes_in_state"] = B.execute("SELECT COUNT(DISTINCT issuer_id) FROM state_run WHERE class_key LIKE 'OTHER:%$%' "
                                                      "OR class_key LIKE '%AdrMember%'").fetchone()[0]
+    # ORDER-OF-MAGNITUDE CAP STEPS NOT EXPLAINED BY THE PRICE between consecutive valued days (the in-build analogue
+    # of gate B for history): every one is listed
+    px = sqlite3.connect(f"{data}/prices.db")
+    import math as _m
+    steps = []
+    for cik, t in B.execute("SELECT cik, primary_ticker FROM coverage").fetchall():
+        caps = B.execute("SELECT d, cap FROM cap_daily WHERE cik=? ORDER BY d", (cik,)).fetchall()
+        if len(caps) < 2:
+            continue
+        cl = dict(px.execute("SELECT d, c FROM bar WHERE ticker=?", (t.replace(".", "-"),)))
+        for (d0, c0), (d1, c1) in zip(caps, caps[1:]):
+            if cl.get(d0) and cl.get(d1) and c0 > 0 and c1 > 0:
+                q = _m.log(c1 / c0) - _m.log(cl[d1] / cl[d0])
+                if abs(q) >= _m.log(10):
+                    steps.append((t, d0, d1, round(_m.exp(q), 6)))
+    out["unexplained_10x_cap_steps"] = {"count": len(steps), "securities": len({s[0] for s in steps}), "list": steps[:500]}
     # named cases: current V1 vs production vs Massive
     M = {}
     for line in open(f"{data}/ref.jsonl", encoding="utf-8"):
