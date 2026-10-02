@@ -1,0 +1,234 @@
+{
+ "wave": 12,
+ "lane": "12A",
+ "checks": {
+  "G0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": {
+    "author": true,
+    "member": true,
+    "admin": true
+   },
+   "firm_picks": [
+    "Weekly Review",
+    "Trade Review",
+    "Earnings Prep",
+    "Setup Checklist",
+    "Trade Plan",
+    "Pre-Market Plan"
+   ],
+   "member_is_admin": {
+    "admin": false
+   }
+  },
+  "G1_publish_by_mouse": {
+   "verdict": "PASS",
+   "message": "Submitted “W12A plan r121319” for review. You'll see it under Your submissions in the community gallery.",
+   "status": "pending",
+   "leaks": [],
+   "kept_heading": true,
+   "has_image": false,
+   "task_checked": [
+    false
+   ],
+   "texts": [
+    "Entry rules",
+    "Ask email address first",
+    "see ",
+    "linked note",
+    "pasted in-app link"
+   ],
+   "screenshot": "g1-submitted.jpg"
+  },
+  "G2_invisible_before_review": {
+   "verdict": "PASS",
+   "in_member_list": false,
+   "member_read_status": 404
+  },
+  "G3_admin_approves_by_mouse": {
+   "verdict": "PASS",
+   "message": "Approved “W12A plan r121319”. It is listed now.",
+   "in_member_list": true,
+   "screenshot": "g3-approved.jpg"
+  },
+  "G4_browse_preview_use": {
+   "verdict": "PASS",
+   "picks": [
+    "UCT PICKS",
+    "Weekly Review",
+    "Trade Review",
+    "Earnings Prep",
+    "Setup Checklist",
+    "Trade Plan",
+    "Pre-Market Plan"
+   ],
+   "preview_excerpt": "W12A plan r121319\n×\n\nby Walker Author · Trade plan\n\nEntry rules\n\nAsk email address first\n\nsee linked note\n\npasted in-app link\n\n☐\nSize it\nCancel\nUse this template",
+   "use_message": "Added “W12A plan r121319” to Your templates.",
+   "member_templates": [
+    "W12A plan r121319"
+   ],
+   "note_made": {
+    "id": "8818ee2b8a7448b49bd41952d9d5a1f6",
+    "title": "W12A plan r121319"
+   },
+   "url_after": "/journal/notebook?note=8818ee2b8a7448b49bd41952d9d5a1f6",
+   "screenshots": [
+    "g4-browse.jpg",
+    "g4-preview.jpg",
+    "g4-note-made.jpg"
+   ]
+  },
+  "G5_report": {
+   "verdict": "PASS",
+   "message": "Thanks. A moderator will review “W12A plan r121319”.",
+   "queue_reports": [
+    {
+     "id": "46f893325f4f4a3bb634008761c5ec3a",
+     "reason": "spam",
+     "note": "walk report",
+     "createdAt": "2026-10-02T17:13:35.934039+00:00"
+    }
+   ],
+   "reporter_named": false,
+   "screenshot": "g5-reported.jpg"
+  },
+  "G6_hide_then_unhide": {
+   "verdict": "PASS",
+   "member_sees_after_hide": false,
+   "author_row_after_hide": [
+    {
+     "status": "approved",
+     "hidden": true
+    }
+   ],
+   "member_sees_after_unhide": true,
+   "screenshots": [
+    "g6-hidden.jpg",
+    "g6-unhidden.jpg"
+   ]
+  },
+  "G7_keyboard": {
+   "verdict": "PASS",
+   "door_focused": true,
+   "focus_after_enter": "Community gallery",
+   "tab_order": [
+    "Browse",
+    "Your submissions",
+    "Search the community gallery",
+    "All"
+   ],
+   "focus_back_on_door": true,
+   "focus_on_body": false
+  },
+  "G8_phone_390": {
+   "verdict": "PASS",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "screenshot": "g8-phone-390.jpg"
+  },
+  "G9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "POST /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/items/296c0df3a5ac4fd78cf4bcb91a257c1c",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?q=W12A+plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan",
+  "GET /api/j2/template-gallery/296c0df3a5ac4fd78cf4bcb91a257c1c",
+  "POST /api/j2/template-gallery/296c0df3a5ac4fd78cf4bcb91a257c1c/use",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan&category=trade_plan",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery?q=W12A+plan&section=picks",
+  "GET /api/j2/template-gallery?q=W12A+plan",
+  "POST /api/j2/template-gallery/296c0df3a5ac4fd78cf4bcb91a257c1c/report",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/reports/46f893325f4f4a3bb634008761c5ec3a",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "PATCH /api/j2/template-gallery/admin/items/296c0df3a5ac4fd78cf4bcb91a257c1c",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery/admin/queue",
+  "GET /api/j2/template-gallery?section=picks",
+  "GET /api/j2/template-gallery"
+ ],
+ "tip": "e22ed6873a",
+ "base": "http://127.0.0.1:8581",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data3",
+ "instrument": "tools\\notebook_w12a_gallery_walk.py",
+ "gate_source": "the sandbox's auth payload (row G0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8581 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T12-11-31.md (identity b4efc7e6bcab..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data3)"
+ },
+ "run": "r121319",
+ "accounts": {
+  "author": "w12a-author-r121319@local.dev",
+  "member": "w12a-member-r121319@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave12-12a\\walk-e22ed6873a\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave12-12a\\walk-e22ed6873a\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 12:11:41",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 12:13:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 12:15:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 12:15:34",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
