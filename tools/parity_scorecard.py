@@ -15,7 +15,7 @@ docs/notebook/evidence/wave9-9b-8a0098029/, the wave-7 and wave-8 walk reports, 
 at be9ca78b6 before; a flag armed since then made every such cell wrong). The competitor quotes and
 the metadata of every page they were cut from (URL, where the text was read, fetch time, sha256)
 are embedded below as data (QUOTES, SOURCES), recorded 2026-09-26 by lane 9B's fetch pass (research
-ledger R12-R16) and 10E-1's Evernote fold.
+ledger R12-R16) and 10E-1's Evernote fold, and 2026-10-02 by wave 12 lane 12C's fetch pass (R18).
 
 --pages DIR re-verifies every quote verbatim against the text extracted from those fetches (one
 <page id>.txt per page; Obsidian's markdown has its links rendered to their display text first).
@@ -79,7 +79,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gap_ledger_summary as GLS  # noqa: E402
 
 DATE = '2026-09-29'              # this re-score (wave 10, lane RS, after follow-up F3's 2026-09-28)
-FETCH_DATE = '2026-09-26'        # the day every competitor page cited here was fetched (R12-R17)
+FETCH_DATE = '2026-09-26'        # R12-R17's fetch day; since lane 12C (R18) a cell prints its own page's fetch date
 EVD = 'docs/notebook/evidence/wave9-9b-8a0098029'
 LEDGER = 'docs/notebook/competitive-gap-ledger.md'
 PLAN = 'docs/notebook/NOTEBOOK-10-OF-10-PLAN.md'
@@ -590,11 +590,11 @@ QUOTES = {
   "Use @ to mention notebooks, stacks, and spaces directly from a note, so related content is easier to connect and access."
  ],
  "E_find": [
-  "evernote__release_notes",
+  "evernote__release_notes_11_35_6",
   "Find in note now supports match case again, replacing matches with nothing, and prefilled selected text."
  ],
  "E_pdfexport": [
-  "evernote__release_notes",
+  "evernote__release_notes_11_35_6",
   "You can now use Page break to force a new page when exporting to PDF"
  ],
  "E_emailin": [
@@ -664,6 +664,132 @@ QUOTES = {
  "E_savedsearch": [
   "evernote_help__209005267",
   "Saved searches are synced across all your devices"
+ ],
+ # ── wave 12, lane 12C phase 1 (2026-10-02): cut from the R18 fetch pass, each checked verbatim against the
+ # text extracted from that fetch (the R12-R14 extraction) before it was entered ──
+ "E_atrest": [
+  "evernote__security",
+  "The users’ data that we store in the Google Cloud Platform is protected using Google’s built-in encryption-at-rest features."
+ ],
+ "E_backlinks": [
+  "evernote_hc__360022954093",
+  "You can also insert links to other notes in your Evernote account, and quickly navigate from one to another using backlinks."
+ ],
+ "E_color": [
+  "evernote_hc__360022954093",
+  "Highlight important sections with bold, italics, underline, or text colors and highlighters."
+ ],
+ "E_recents": [
+  "evernote_hc__360040282613",
+  "Before you begin typing, the search modal displays a well-structured view consisting of: Recent searches Saved searches Recent notes"
+ ],
+ "E_pdfpreview": [
+  "evernote_hc__209005587",
+  "To preview the PDF without leaving your note, select the chevron on the attachment card to expand it."
+ ],
+ "E_publiclink": [
+  "evernote_hc__34377080881939",
+  "Anyone can view the note in the Lite editor without creating an Evernote account or logging in."
+ ],
+ "E_math": [
+  "evernote_hc__35610214032531",
+  "You can add math formulas with LaTeX syntax on Web, Desktop and mobile."
+ ],
+ "E_tables": [
+  "evernote__release_notes_11_36_4",
+  "sort and filter rows by column values, toggle a header row, customize borders, and distribute columns evenly (rolling out gradually)"
+ ],
+ "E_drag": [
+  "evernote_hc__36617500119315",
+  "You can now drag paragraphs and move them around within your note."
+ ],
+ "E_wordcount": [
+  "evernote_hc__35615740098835",
+  "you will see various details about the note, including its size , word count , and character count"
+ ],
+ "E_emoji": [
+  "evernote_hc__50066095106835",
+  "The emoji picker provides a visual way to find and insert emojis as you type."
+ ],
+ "E_headings": [
+  "evernote_hc__39988842532627",
+  "for each text style (Normal text, Large header H1, Medium header H2, Small header H3, Extra small header H4)."
+ ],
+ "E_undo": [
+  "evernote_hc__16280830963091",
+  "You can click or tap the Undo button in the editing toolbar to reverse the last change or edit made to the note."
+ ],
+ "E_bulkmove": [
+  "evernote_hc__115006310828",
+  "In order to save time, move multiple notes at once between notebooks by using Evernote on a desktop computer."
+ ],
+ "E_nestedtags": [
+  "evernote_hc__4412905761299",
+  "A main tag can have one or more sub-tags."
+ ],
+ "E_lock": [
+  "evernote_hc__360053951213",
+  "If you want to lock a note and open it in a read-only mode until you're ready to edit it"
+ ],
+ "E_daily": [
+  "evernote_hc__32780525935763",
+  "The Daily notes feature helps you effortlessly capture your ideas and tasks, with a new note created for you each day."
+ ],
+ "E_help": [
+  "evernote_hc__home",
+  "Evernote Help & Learning"
+ ],
+ "E_aiscope": [
+  "evernote_hc__46319409880211",
+  "When you ask a question, the assistant automatically determines what information to use as context"
+ ],
+ "E_aimention": [
+  "evernote_hc__46319409880211",
+  "When you want the AI Assistant to recognize specific notes, notebooks, or tags, make sure to use @ -mentions"
+ ],
+ "E_aicite": [
+  "evernote_hc__46319409880211",
+  "Replies include which notes were used to generate them."
+ ],
+ "E_aifallback": [
+  "evernote_hc__46319409880211",
+  "If your request can’t be answered using your notes, the assistant may suggest using its built-in knowledge or searching the web."
+ ],
+ "E_clipcomment": [
+  "evernote_hc__209125877",
+  "add a tag, or add a comment, you can do that easily right before you clip!"
+ ],
+ "N_lock": [
+  "notion__collaborate_within_a_workspace",
+  "You can lock a page so that no one can make changes to the page’s content unless they explicitly turn the lock off"
+ ],
+ "N_bulkedit": [
+  "notion__tables__w12c",
+  "You can select multiple rows in order to edit their properties."
+ ],
+ "N_injection": [
+  "notion__custom_agents_security_features",
+  "While Notion maintains security controls that help protect against prompt injection"
+ ],
+ "N_noocr": [
+  "notion__import_data_into_notion__w12c",
+  "Scanned or image-only PDFs won’t be reliably searchable unless OCR is run first."
+ ],
+ "O_recents": [
+  "obsidian__Plugins_Quick_switcher_md__w12c",
+  "If the search term is empty, the Quick switcher shows the most recent notes."
+ ],
+ "O_multiselect": [
+  "obsidian__Plugins_File_explorer_md",
+  "you can select multiple individual files and drag them to another folder."
+ ],
+ "O_filterstmt": [
+  "obsidian__Bases_Bases_syntax_md",
+  "A filter statement is a line which evaluates to truthy or falsey when applied to a note."
+ ],
+ "O_datearith": [
+  "obsidian__Bases_Bases_syntax_md",
+  "returns true if the file was modified within the last week."
  ]
 }
 
@@ -1469,6 +1595,251 @@ SOURCES = {
   "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
+ },
+ # ── wave 12, lane 12C phase 1: the R18 fetch pass (2026-10-02, scripted HTTP GET; help.evernote.com articles read
+ # through the help centre's own article JSON, which answered 200 where R15's page fetch met a challenge) ──
+ "evernote__release_notes_11_35_6": {
+  "vendor": "evernote",
+  "public_url": "https://evernote.com/release-notes/11.35.6",
+  "read_from": "https://evernote.com/release-notes/11.35.6",
+  "status": 200,
+  "sha256": "f24708e6980f088986b2abcffbfe08e3eff88e5aaa0cc704da0540168744ef42",
+  "fetched_utc": "2026-10-02T16:34:15Z",
+  "rrow": "R18"
+ },
+ "evernote__release_notes_11_36_4": {
+  "vendor": "evernote",
+  "public_url": "https://evernote.com/release-notes/11.36.4",
+  "read_from": "https://evernote.com/release-notes/11.36.4",
+  "status": 200,
+  "sha256": "03c2bf28c2f6167095301017994c3e9ae5d23d98badaca82cfe9c2ab88918923",
+  "fetched_utc": "2026-10-02T16:34:14Z",
+  "rrow": "R18"
+ },
+ "evernote__security": {
+  "vendor": "evernote",
+  "public_url": "https://evernote.com/security",
+  "read_from": "https://evernote.com/security",
+  "status": 200,
+  "sha256": "0f7317dd894ed3b9d6293cb32f262b4f65c40a26632eca3ac5456d66ad9f2c31",
+  "fetched_utc": "2026-10-02T16:34:13Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__115006310828": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/115006310828-How-to-work-with-separate-individual-and-team-accounts",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/115006310828.json",
+  "status": 200,
+  "sha256": "fcfba439888494ac3a362324de01293763fc5e82893c250b855ccabad98ec5d7",
+  "fetched_utc": "2026-10-02T16:34:09Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__16280830963091": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/16280830963091-AI-Note-Cleanup-Overview",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/16280830963091.json",
+  "status": 200,
+  "sha256": "33e09abb7ff31168fa7d784a41c93727cdb01eb6cef325615e65c819077aa0fd",
+  "fetched_utc": "2026-10-02T16:34:08Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__209005587": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/209005587-Annotate-images-and-PDFs",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/209005587.json",
+  "status": 200,
+  "sha256": "39e8f5efc51915df99f468d06bd202267e6f1ec9844ae846212a044ad0c0e6fe",
+  "fetched_utc": "2026-10-02T16:34:04Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__209125877": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/209125877-Evernote-Web-Clipper-Quick-Start-Guide",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/209125877.json",
+  "status": 200,
+  "sha256": "cd55348de8ed0a2a68f2644d63d2a6a23d0c7f771db70a0e243bd35c0184fd80",
+  "fetched_utc": "2026-10-02T16:34:12Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__32780525935763": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/32780525935763-Daily-notes",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/32780525935763.json",
+  "status": 200,
+  "sha256": "c08b499bf4d597c8a508ea58317bd2dc5425e96c724e9017161510b17684bf2a",
+  "fetched_utc": "2026-10-02T16:34:11Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__34377080881939": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/34377080881939-Share-notes",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/34377080881939.json",
+  "status": 200,
+  "sha256": "a613360e151c5d7e8a1f17cfe71228d46aea9dcab3cee8add987c5a02f83dd81",
+  "fetched_utc": "2026-10-02T16:34:04Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__35610214032531": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/35610214032531-Add-a-math-formula-with-LaTeX-syntax",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/35610214032531.json",
+  "status": 200,
+  "sha256": "d107b79039a6b2768611875aa7bef28c54c4b84b6fe60a74e2633dc560baa922",
+  "fetched_utc": "2026-10-02T16:34:05Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__35615740098835": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/35615740098835-How-to-check-the-size-of-a-note",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/35615740098835.json",
+  "status": 200,
+  "sha256": "73d1251a2145884b2b4974538970ad848187fbedf4533cee5c76a301d70d9acf",
+  "fetched_utc": "2026-10-02T16:34:06Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__360022954093": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/360022954093-Note-editor-and-editing-toolbar-overview",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/360022954093.json",
+  "status": 200,
+  "sha256": "0be7111245fcb7c5b4f574c3ddcfc75aefc8a7119608a98cb0de14afae3b765e",
+  "fetched_utc": "2026-10-02T16:34:02Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__360040282613": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/360040282613-Search-overview",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/360040282613.json",
+  "status": 200,
+  "sha256": "067fd4060689292c4b6942a8f096dd70c42f1f8c7489df06cab5279ec136af54",
+  "fetched_utc": "2026-10-02T16:34:03Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__360053951213": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/360053951213-Enable-edit-protection",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/360053951213.json",
+  "status": 200,
+  "sha256": "89efbf594c38f54502a85b9f8944fa4f6c5fe52378e8082b1e335fed460ba31b",
+  "fetched_utc": "2026-10-02T16:34:10Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__36617500119315": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/36617500119315-Draggable-paragraphs-and-collapsible-sections",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/36617500119315.json",
+  "status": 200,
+  "sha256": "149740ea1bdff3ff0595ce07e8dad91b9c152c554865b575e28b73a3bbee098f",
+  "fetched_utc": "2026-10-02T16:34:06Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__39988842532627": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/39988842532627-Default-font-settings",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/39988842532627.json",
+  "status": 200,
+  "sha256": "bb0481367481cb6be0280b2cfdae603d7f81058db01cb50a5f5e17ed6fff9dc8",
+  "fetched_utc": "2026-10-02T16:34:08Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__4412905761299": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/4412905761299-Nested-tags",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/4412905761299.json",
+  "status": 200,
+  "sha256": "4590f3635d8c4137e068df20244016d79cac64a6d38d497bb760251a641be505",
+  "fetched_utc": "2026-10-02T16:34:09Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__46319409880211": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/46319409880211.json",
+  "status": 200,
+  "sha256": "08e668d7e31c1b214a4641c7dcfd1db0c23cd38f25f5a1c8e9c0fff5ac22eb2f",
+  "fetched_utc": "2026-10-02T16:34:11Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__50066095106835": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/50066095106835-Emoji-shortcodes",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/50066095106835.json",
+  "status": 200,
+  "sha256": "aa36e354dd4a62ca53bec936af06602b248ceec882671cbadd18b6238bb3f0b7",
+  "fetched_utc": "2026-10-02T16:34:07Z",
+  "rrow": "R18"
+ },
+ "evernote_hc__home": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us",
+  "read_from": "https://help.evernote.com/hc/en-us",
+  "status": 200,
+  "sha256": "a5b7c773f663c9d90f7533d1e4456e85a6d02f875720f8d9c2d7348bda9d1ec6",
+  "fetched_utc": "2026-10-02T16:34:16Z",
+  "rrow": "R18"
+ },
+ "notion__collaborate_within_a_workspace": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/collaborate-within-a-workspace",
+  "read_from": "https://www.notion.com/help/collaborate-within-a-workspace",
+  "status": 200,
+  "sha256": "0e2aef6c44389f73dd75a4b2caf9cb6d20b08a4a976454bc203476d9a821be92",
+  "fetched_utc": "2026-10-02T16:34:16Z",
+  "rrow": "R18"
+ },
+ "notion__custom_agents_security_features": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/custom-agents-security-features",
+  "read_from": "https://www.notion.com/help/custom-agents-security-features",
+  "status": 200,
+  "sha256": "3d569e86736816affa5f1ea7d1883640d9839d75af74ec07b854baf1a5ab102f",
+  "fetched_utc": "2026-10-02T16:34:17Z",
+  "rrow": "R18"
+ },
+ "notion__import_data_into_notion__w12c": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/import-data-into-notion",
+  "read_from": "https://www.notion.com/help/import-data-into-notion",
+  "status": 200,
+  "sha256": "4b6f62d1eaa55c33914ddbdc2cb30d38fb035b83cad9af69984a531dde6ac771",
+  "fetched_utc": "2026-10-02T16:34:18Z",
+  "rrow": "R18"
+ },
+ "notion__tables__w12c": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/tables",
+  "read_from": "https://www.notion.com/help/tables",
+  "status": 200,
+  "sha256": "894b661f414cbf40e516c55a728720562baa260cc4d1d9be1d82fd8a7cc96c47",
+  "fetched_utc": "2026-10-02T16:34:17Z",
+  "rrow": "R18"
+ },
+ "obsidian__Bases_Bases_syntax_md": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/help/bases/syntax",
+  "read_from": "https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Bases/Bases%20syntax.md",
+  "status": 200,
+  "sha256": "7fabd5f8fc3dadc45cdac2cac687016e9fdd9bc5e97f6879ef6beb4d26aac8e7",
+  "fetched_utc": "2026-10-02T16:34:20Z",
+  "rrow": "R18"
+ },
+ "obsidian__Plugins_File_explorer_md": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/help/plugins/file-explorer",
+  "read_from": "https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Plugins/File%20explorer.md",
+  "status": 200,
+  "sha256": "f3b6a4c8fe9667009bab0059b298d786ee500bf324c621446e494893f8b7619f",
+  "fetched_utc": "2026-10-02T16:34:19Z",
+  "rrow": "R18"
+ },
+ "obsidian__Plugins_Quick_switcher_md__w12c": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/help/plugins/quick-switcher",
+  "read_from": "https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Plugins/Quick%20switcher.md",
+  "status": 200,
+  "sha256": "114f299e96fe1bae5d6b75175ee45bad4002e1ebd966a7389a3ca188bfca493b",
+  "fetched_utc": "2026-10-02T16:34:19Z",
+  "rrow": "R18"
  }
 }
 
@@ -1507,6 +1878,21 @@ def browser_read_problems(quotes=None, sources=None, evidence=None):
         elif not any(r.get('quote') and r['quote'] == q for r in recs):
             bad.append((key, 'not the verbatim quote the evidence file records (a paraphrase is never a quote)'))
     return bad
+
+
+def paraphrase_superseded(cited, quotes=None, sources=None):
+    """Wave 12, lane 12C: True when a row's Evernote cell cites only verbatim quotes cut from FETCHED pages (an HTTP
+    200 with a sha256 of the bytes, never a browser read), so the R17 paraphrase for that row is no longer shown.
+    A string cell, an empty list, or any browser-read quote leaves the paraphrase rule exactly as wave 10 wrote it."""
+    quotes = QUOTES if quotes is None else quotes
+    sources = SOURCES if sources is None else sources
+    if not isinstance(cited, list) or not cited:
+        return False
+    for k in cited:
+        src = sources.get(quotes[k][0]) or {}
+        if src.get('kind') == 'browser-read' or src.get('status') != 200 or not src.get('sha256'):
+            return False
+    return True
 
 
 def git(*a):
@@ -2755,6 +3141,7 @@ def build(pages_dir=None):
     NFN = 'not verified — no Notion help page fetched today (R12) states it'
     NFO = 'not verified — no Obsidian help page fetched today (R13) states it'
     NA = 'not verified — no competitor claim made: a UCT-internal or UCT-unique row'
+    R18 = ' (R18, wave 12 lane 12C, 2026-10-02)'   # the lane-12C fetch pass, named in a cell's note
     SPEED = ('not verified — a competitor\'s speed is lane 9A\'s protocol and the owner\'s run '
              '(`docs/notebook/benchmark/protocol.md`), never stated here')
     USED = OrderedDict()
@@ -2764,7 +3151,9 @@ def build(pages_dir=None):
         pid, q = QUOTES[key]
         m = SOURCES[pid]
         USED.setdefault(key, []).append(rid)
-        return f'{m["public_url"]} "{q}" ({FETCH_DATE})'
+        # Wave 12, lane 12C: the date is the page's OWN fetch date (R12-R17's pages read 2026-09-26, R18's
+        # 2026-10-02), never one constant for every cell.
+        return f'{m["public_url"]} "{q}" ({m["fetched_utc"][:10]})'
 
 
     PARA_WORD = {'HAS': 'has it', 'PARTIAL': 'has part of it', 'LACKS': 'lacks it',
@@ -2833,10 +3222,11 @@ def build(pages_dir=None):
       'quotes are cited but no comparative verdict is published. Evernote by review M-4 (F3 fix round 1); Notion by '
       'controller ruling 1, F3 fix round 2 (consistency with M-4) -- it was wave 9\'s PARITY on the same code reading.',
       'a committed walk of an account deletion on UCT (sign up, write a note, delete the account, confirm the notes are gone)')
-    R('G-004', ('P', 'NV', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
-      {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
-                                'secrets, not member notes at rest', 'O': ['O_e2e']},
-      'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named.')
+    R('G-004', ('P', 'P', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
+      {'N': ['N_encrypt'], 'E': ['E_atrest'], 'O': ['O_e2e']},
+      'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named. '
+      'Evernote: its security page, re-fetched' + R18 + ', states infrastructure encryption at rest for the data it stores '
+      '(wave 9 read it as in transit and for secrets only).')
     R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 195, 'const DRAFT_KEY')],
       {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
@@ -2852,8 +3242,10 @@ def build(pages_dir=None):
       'quiet-box verdict waits on the controller\'s quiet slot (§C); competitor latency is not this file\'s to state.')
     R('G-012', 'NA', [code(f'{NB}/FolderSidebar.jsx', 619, 'P0-2 fix')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT correctness bug row.')
-    R('G-013', ('P', 'P', 'NV'), [code(NS, 1523, 'date_from'), walk9('B20_more_older_rows')],
-      {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': NFO}, 'B20: the filter panel carries "Note created from".')
+    R('G-013', ('P', 'P', 'P'), [code(NS, 1523, 'date_from'), walk9('B20_more_older_rows')],
+      {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': ['O_filterstmt', 'O_datearith']},
+      'B20: the filter panel carries "Note created from". Obsidian: a Bases filter is a statement over a note, and its own '
+      'date-arithmetic example selects files modified within the last week' + R18 + '.')
     R('G-014', ('NV', 'P', 'P'), [code(NS, 1696, 'def _snippets_for('), walk9('B20_more_older_rows')],
       {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
     R('G-015', ('P', 'NV', 'NV'), [code(NS, 1842, 'relevance ranking is opt-in')],
@@ -2880,13 +3272,16 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2671, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
-      {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
-      'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
+    R('G-022', ('P', 'P', 'P'), [code(NS, 2671, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+      {'N': ['N_backlinks'], 'E': ['E_backlinks'], 'O': ['O_backlinks', 'O_graph']},
+      'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions). PARITY is backlinks as '
+      'Notion and Evernote name them; only Obsidian also documents a graph.')
     R('G-023', ('P', 'P', 'P'), [code(NS, 3130, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4337, 'j2_note_recents'), walk9('B20_more_older_rows')],
-      {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
+    R('G-024', ('P', 'P', 'P'), [code(NS, 4337, 'j2_note_recents'), walk9('B20_more_older_rows')],
+      {'N': ['N_favorites', 'N_switch'], 'E': ['E_recents'], 'O': ['O_recents']},
+      'B20: the sidebar carries Recents. Evernote lists recent notes in its search view; Obsidian\'s Quick switcher lists '
+      'them on an empty search' + R18 + '.')
     R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
       {'N': ['N_savedview'], 'E': ['E_savedsearch'], 'O': ['O_views']},
@@ -2914,15 +3309,18 @@ def build(pages_dir=None):
     R('G-036', 'P', [code(f'{NB}/NoteEditorPage.jsx', 9, 'ALLOWED_ATTACHMENT_MIMES'), walk9('B29_pdf_upload_preview_search')],
       {'N': ['N_pdf'], 'E': ['E_searchimg'], 'O': ['O_attach']},
       'B29: a PDF uploaded through Attach a file became an attachment chip in the note.')
-    R('G-036b', ('P', 'NV', 'P'), [code(f'{NB}/DocumentPreviewSheet.jsx', 23, 'the same fullscreen'),
+    R('G-036b', ('P', 'P', 'P'), [code(f'{NB}/DocumentPreviewSheet.jsx', 23, 'the same fullscreen'),
                                   walk9('B29_pdf_upload_preview_search')],
-      {'N': ['N_pdfembed'], 'E': EB, 'O': ['O_formats']},
+      {'N': ['N_pdfembed'], 'E': ['E_pdfpreview'], 'O': ['O_formats']},
       'B29: clicking the chip opened "Preview of <file>" with the page drawn on a canvas.')
     # Capture
     R('G-040', 'NA', [D(8, 'G-040: stays descoped')], {'N': NA, 'E': NA, 'O': NA},
       'Internal UCT capture coverage (widgets into the Notebook); descoped by the owner.')
-    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note')], {'N': NFN, 'E': EB, 'O': NFO},
-      'The capture dialog was not driven, and no page fetched today states a capture-time comment. ' + UI_NOT)
+    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note')], {'N': NFN, 'E': ['E_clipcomment'], 'O': NFO},
+      'The capture dialog was not driven, so no verdict against any competitor; Evernote\'s Web Clipper guide states a '
+      'comment added before the clip' + R18 + '. ' + UI_NOT,
+      'drive the capture dialog in a browser pass (UCT side); N: a page that states it (next R-row); O: a page that '
+      'states it (next R-row)')
     R('G-042', 'NA', [code(f'{JT}/note_trade_links.py', 68, 'def resolve_trade_ref(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (trade references).')
     R('G-043', 'BO', [code('extension/manifest.json', 3, '"name": "UCT Browser Capture",'),
@@ -2991,10 +3389,10 @@ def build(pages_dir=None):
                       walk9('B17_older_rows'), walk9('B30_live_research_tab')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique; B17 opened /journal/notebook/research/NVDA and B30 the same workspace on /research/NVDA.')
     # Collaboration / offline / mobile / extensibility
-    R('G-080', ('P', 'NV', 'P'), [code(f'{JT}/note_shares.py', 64, 'def enabled() -> bool:'), flag('J2_SHARE_LINKS_ENABLED', 'armed'),
+    R('G-080', ('P', 'P', 'P'), [code(f'{JT}/note_shares.py', 64, 'def enabled() -> bool:'), flag('J2_SHARE_LINKS_ENABLED', 'armed'),
                                  record('docs/notebook/share-links-authorization-proof.md', 1, 'the authorization proof'),
                                  walk9('B13_share_publish_export'), walk8('W2_share_links')],
-      {'N': ['N_share'], 'E': EB, 'O': ['O_publish']},
+      {'N': ['N_share'], 'E': ['E_publiclink'], 'O': ['O_publish']},
       'B13: a link minted in the share sheet; a signed-out stranger read the note through it.')
     R('G-081', 'D4', [D(4, 'OUT:** real-time multiplayer, comments, team workspaces (G-081)')],
       {'N': ['N_collab', 'N_comments'], 'E': EB, 'O': ['O_collab']}, 'Recorded scope, not an oversight.')
@@ -3073,23 +3471,35 @@ def build(pages_dir=None):
       'UCT-unique; the Evidence section is one of the four a "Best matches" group fuses above the sections (wave 10).')
     R('G-120', 'NA', [code(f'{JT}/thesis_evidence.py', 7, 'SUPPORTS/OPPOSES')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-121', 'NV', [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'), flag('J2_OCR_ENABLED', 'armed'),
-                      walk7('W14_image_ocr_document')], {'N': NFN, 'E': ['E_searchimg'], 'O': NFO},
-      'As G-045. ' + UI_NOT)
+                      walk7('W14_image_ocr_document')], {'N': ['N_noocr'], 'E': ['E_searchimg'], 'O': NFO},
+      'As G-045. Notion\'s import page states a scanned PDF is not reliably searchable until OCR is run' + R18 + ', '
+      'so the UCT side, once driven, decides that cell. ' + UI_NOT,
+      'upload a scanned PDF and search its text in a browser pass (as G-045); O: a page that states it (next R-row)')
     # Ask (Wave K)
     R('G-122', ('P', 'NV', 'NV'), [code(f'{JT}/ask_service.py', 54, '"This note"'), test_py('tests/test_ask_security.py'),
                                   walk9('B31_ask_scope_label')],
-      {'N': ['N_scope'], 'E': EB, 'O': NFO},
+      {'N': ['N_scope'], 'E': ['E_aiscope', 'E_aimention'], 'O': NFO},
       'B31: the Ask panel states its scope as text ("Asking: This note") before any question; Notion documents an explicit '
-      'source chooser.')
+      'source chooser. Evernote\'s AI Assistant page' + R18 + ' states both an assistant that picks its own context and '
+      '@-mentions that name the notes to use, so no Evernote verdict either way.',
+      'O: a page that states it (next R-row); E: a ruling on whether @-mention scoping is an explicit, member-visible scope')
     R('G-123', 'NV', [code(f'{LB}/askCitation.js', 35, "VALID_EXACT = 'valid_exact'"),
                       test_vt('app/src/pages/journal-2-0/lib/askCitation.parity.test.js')],
-      {'N': ['N_cite'], 'E': EB, 'O': NFO},
+      {'N': ['N_cite'], 'E': ['E_aicite'], 'O': NFO},
       'Both cite sources; that UCT\'s citation is a verified location and Notion\'s is page-level is not evidenced by the '
-      'fetched text, so no AHEAD.')
+      'fetched text, so no AHEAD. Evernote\'s replies name the notes used' + R18 + ' (note-level), the same gap.',
+      'O: a page that states it (next R-row); N and E: a page that states where inside a source a citation points')
     R('G-124', 'NV', [code(f'{JT}/ask_ranking.py', 212, 'def answer_evidence('), test_py('tests/test_ask_evidence.py')],
-      {'N': NFN, 'E': EB, 'O': NFO}, 'Refusal is railed; no competitor page fetched today states refusal behaviour.')
-    R('G-125', 'NV', [code(f'{JT}/ask_prompt.py', 167, 'def system_prompt() -> str:'), test_py('tests/test_ask_prompt_injection.py')],
-      {'N': NFN, 'E': EB, 'O': NFO}, 'Railed on the UCT side; an absence cannot be cited, so no AHEAD.')
+      {'N': NFN, 'E': ['E_aifallback'], 'O': NFO},
+      'Refusal is railed. Evernote\'s page' + R18 + ' says that when the notes cannot answer, the assistant may suggest its '
+      'built-in knowledge or a web search: whether that is a refusal is not stated, so no Evernote verdict.',
+      'N: a page that states it (next R-row); O: a page that states it (next R-row); E: a ruling on whether a suggested '
+      'fallback is a refusal')
+    R('G-125', ('P', 'NV', 'NV'), [code(f'{JT}/ask_prompt.py', 167, 'def system_prompt() -> str:'),
+                                  test_py('tests/test_ask_prompt_injection.py')],
+      {'N': ['N_injection'], 'E': EB, 'O': NFO},
+      'Railed on the UCT side; an absence cannot be cited, so no AHEAD. Notion states security controls that help protect '
+      'against prompt injection' + R18 + ': PARITY is a stated protection as named, not a guarantee on either side.')
     R('G-126', 'NA', [code('api/services/note_ask.py', 13, 'tests/test_note_ask_prompt_boundary.py'), test_py('tests/test_ask_security.py')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     R('G-127', 'BE', [code(f'{JT}/note_semantic.py', 186, 'def provider_mode() -> str:'),
@@ -3100,11 +3510,11 @@ def build(pages_dir=None):
     # ── Phase 1–5 inventory rows (G-129 …) ──
     R('G-129', ('P', 'NV', 'P'), [code(f'{LB}/codeBlockNode.js', 2, 'syntax highlighting'), walk9('B02_code_math_callout')],
       {'N': ['N_code'], 'E': EB, 'O': ['O_code']})
-    R('G-130', ('P', 'NV', 'P'), [code(f'{LB}/mathNodes.js', 2, 'math in a note'), walk9('B02_code_math_callout')],
-      {'N': ['N_math'], 'E': EB, 'O': ['O_math']})
-    R('G-131', ('P', 'NV', 'NV'), [code(f'{NB}/TextColorMenu.jsx', 25, "TEXT_COLOR_MENU_LABEL = 'Text color and highlight'"),
+    R('G-130', ('P', 'P', 'P'), [code(f'{LB}/mathNodes.js', 2, 'math in a note'), walk9('B02_code_math_callout')],
+      {'N': ['N_math'], 'E': ['E_math'], 'O': ['O_math']})
+    R('G-131', ('P', 'P', 'NV'), [code(f'{NB}/TextColorMenu.jsx', 25, "TEXT_COLOR_MENU_LABEL = 'Text color and highlight'"),
                                   walk9('B05_typing_features')],
-      {'N': ['N_color'], 'E': EB, 'O': ['O_highlight']},
+      {'N': ['N_color'], 'E': ['E_color'], 'O': ['O_highlight']},
       'Obsidian\'s fetched syntax page evidences highlights, not text colour, so no Obsidian verdict.')
     R('G-132', 'P', [code(f'{LB}/calloutNode.js', 37, "a callout's STYLE"), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout']})
@@ -3112,26 +3522,27 @@ def build(pages_dir=None):
       {'N': ['N_align', 'N_caption'], 'E': ['E_caption'], 'O': NFO},
       'B26: an uploaded image centred (data-align center) and captioned (a figcaption with the typed text). Evernote\'s '
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
-    R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 103, "'addRowBefore', 'Row above'"),
+    R('G-134', ('P', 'P', 'P'), [code(f'{NB}/TableToolbar.jsx', 103, "'addRowBefore', 'Row above'"),
                                  code(f'{LB}/tiptap.js', 125, 'resizable: true'),
                                  code(f'{NB}/TableToolbar.jsx', 301, 'Sort A→Z'), walk9('B03_table_toolbar'),
                                  walk10('B2_table_sort_resize_reload')],
-      {'N': ['N_tables'], 'E': ['E_editmode'], 'O': ['O_tables']},
+      {'N': ['N_tables'], 'E': ['E_tables'], 'O': ['O_tables']},
       'B03 (wave 9): add/delete rows and columns and a header row. Wave 10 (10B) added resize and sort; L1a\'s B2 '
       'sorted a column (header pinned, one undo step), dragged a column wider and read both back after a reload. '
-      'PARITY is against Notion\'s simple table (which its page says has no sorts) and Obsidian\'s row/column editing.')
-    R('G-135', ('P', 'NV', 'NV'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
-      {'N': ['N_drag'], 'E': EB, 'O': NFO})
+      'PARITY is against Notion\'s simple table (which its page says has no sorts), Obsidian\'s row/column editing and '
+      'Evernote\'s 11.36.4 release note (sort, header row, column widths; rolling out gradually)' + R18 + '.')
+    R('G-135', ('P', 'P', 'NV'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
+      {'N': ['N_drag'], 'E': ['E_drag'], 'O': NFO})
     R('G-136', 'P', [code(f'{LB}/tableOfContentsNode.js', 94, "name: 'tableOfContents',"),
                      code(f'{NB}/NoteOutline.jsx', 43, "OUTLINE_LABEL = 'Outline'"), walk9('B04_drag_outline_stats')],
       {'N': ['N_toc'], 'E': ['E_toc'], 'O': ['O_outline']})
-    R('G-137', ('P', 'NV', 'P'), [code(f'{LB}/noteStats.js', 12, 'READING TIME'), walk9('B04_drag_outline_stats')],
-      {'N': ['N_wordcount'], 'E': EB, 'O': ['O_wordcount']},
+    R('G-137', ('P', 'P', 'P'), [code(f'{LB}/noteStats.js', 12, 'READING TIME'), walk9('B04_drag_outline_stats')],
+      {'N': ['N_wordcount'], 'E': ['E_wordcount'], 'O': ['O_wordcount']},
       'Reading time is UCT\'s addition; not claimed as AHEAD (an absence cannot be cited).')
     R('G-138', ('NV', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B05_typing_features')],
       {'N': NFN, 'E': ['E_find'], 'O': NFO}, 'B05: Replace all turned every "alpha" into "gamma".')
-    R('G-139', ('P', 'NV', 'NV'), [code(f'{NB}/EmojiMenu.jsx', 2, 'the emoji picker'), walk9('B05_typing_features')],
-      {'N': ['N_emoji'], 'E': EB, 'O': NFO})
+    R('G-139', ('P', 'P', 'NV'), [code(f'{NB}/EmojiMenu.jsx', 2, 'the emoji picker'), walk9('B05_typing_features')],
+      {'N': ['N_emoji'], 'E': ['E_emoji'], 'O': NFO})
     R('G-140', ('P', 'P', 'NV'), [code(f'{LB}/dateMentionNode.js', 5, '@date mentions'), walk9('B05_typing_features')],
       {'N': ['N_date'], 'E': ['E_date'], 'O': NFO})
     R('G-141', ('P', 'NV', 'P'), [code(f'{LB}/webLinkNodes.js', 76, "name: 'linkPreview',"),
@@ -3140,29 +3551,35 @@ def build(pages_dir=None):
       'B06 is a dispatched paste event (an engine test of the paste path, not a real clipboard).')
     R('G-142', ('P', 'NV', 'NV'), [code(f'{LB}/columnsNode.js', 6, 'side-by-side columns'), walk9('B05_typing_features')],
       {'N': ['N_columns'], 'E': EB, 'O': NFO})
-    R('G-143', ('A', 'NV', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
-      {'N': ['N_headings'], 'E': EB, 'O': ['O_headings']},
-      'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six.')
-    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 217, 'export function canRunHistory(editor, cmd)'),
+    R('G-143', ('A', 'A', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
+      {'N': ['N_headings'], 'E': ['E_headings'], 'O': ['O_headings']},
+      'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six. Evernote\'s own '
+      'list of its text styles stops at H4' + R18 + ', the limit stated on its page, so AHEAD as for Notion.')
+    R('G-144', ('NV', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 217, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
-      {'N': NFN, 'E': EB, 'O': NFO},
+      {'N': NFN, 'E': ['E_undo'], 'O': NFO},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
-      'B10 reached Undo after 60 lines. No competitor page fetched states a touch undo, so no comparative verdict.')
+      'B10 reached Undo after 60 lines. Evernote states an Undo button in its editing toolbar that is clicked or '
+      'tapped' + R18 + '; no Notion or Obsidian page fetched states a touch undo.')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
-    R('G-146', 'NV', [code(f'{NB}/BulkActionBar.jsx', 47, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
-      {'N': NFN, 'E': EB, 'O': NFO},
-      'B09: two notes selected, the bulk export offered four formats. No competitor page fetched today documents multi-select.')
-    R('G-147', ('NV', 'NV', 'P'), [code(f'{LB}/tagTree.js', 2, 'Nested tags'), walk9('B09_list_views_bulk')],
-      {'N': NFN, 'E': EB, 'O': ['O_tags']}, 'B09: #inbox expanded to #to-read in the sidebar.')
+    R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 47, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
+      {'N': ['N_bulkedit'], 'E': ['E_bulkmove'], 'O': ['O_multiselect']},
+      'B09: two notes selected, the bulk export offered four formats. Each competitor\'s page' + R18 + ' states a '
+      'multi-select with an action on it (Notion: edit properties; Evernote: move between notebooks; Obsidian: drag to a '
+      'folder). PARITY is multi-select with an action, as named.')
+    R('G-147', ('NV', 'P', 'P'), [code(f'{LB}/tagTree.js', 2, 'Nested tags'), walk9('B09_list_views_bulk')],
+      {'N': NFN, 'E': ['E_nestedtags'], 'O': ['O_tags']}, 'B09: #inbox expanded to #to-read in the sidebar.')
     R('G-148', ('NV', 'NV', 'P'), [code(f'{NB}/UnlinkedMentions.jsx', 9, 'Unlinked mentions'), walk9('B10_unlinked_mentions')],
       {'N': NFN, 'E': EB, 'O': ['O_unlinked']})
     R('G-149', ('P', 'NV', 'NV'), [code(f'{NB}/NoteTimelineView.jsx', 2, 'the Timeline view'), walk9('B09_list_views_bulk')],
       {'N': ['N_timeline'], 'E': EB, 'O': NFO})
     R('G-150', ('P', 'NV', 'NV'), [code(f'{LB}/noteArchive.js', 2, 'archive and unarchive ONE note'), walk9('B11_organise')],
       {'N': ['N_archive'], 'E': EB, 'O': NFO}, 'B11: an archived note left the default list.')
-    R('G-151', 'NV', [code(f'{LB}/lockedNote.js', 6, 'A lock prevents ACCIDENTAL'), walk9('B11_organise')],
-      {'N': NFN, 'E': EB, 'O': NFO}, 'B11: a locked note\'s editor is not editable; no competitor page fetched today states a lock.')
+    R('G-151', ('P', 'P', 'NV'), [code(f'{LB}/lockedNote.js', 6, 'A lock prevents ACCIDENTAL'), walk9('B11_organise')],
+      {'N': ['N_lock'], 'E': ['E_lock'], 'O': NFO},
+      'B11: a locked note\'s editor is not editable. Notion locks a page; Evernote\'s edit protection (mobile) opens a '
+      'note read-only' + R18 + '. No Obsidian page fetched states a lock.')
     R('G-152', ('NV', 'NV', 'P'), [code(f'{LB}/splitView.js', 2, 'split view'), walk9('B12_split_view')],
       {'N': NFN, 'E': EB, 'O': ['O_tabs']}, 'B12: two editors mounted side by side.')
     R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
@@ -3174,8 +3591,8 @@ def build(pages_dir=None):
       {'N': ['N_tasks'], 'E': ['E_taskview'], 'O': NFO})
     R('G-155', 'P', [code(f'{LB}/memberTemplates.js', 2, "the member's OWN templates"), walk9('B11_organise')],
       {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, 'B11: "Save as template" on the note.')
-    R('G-156', ('NV', 'NV', 'P'), [code(f'{LB}/dailyNote.js', 2, "the member's daily note"), walk9('B11_organise')],
-      {'N': NFN, 'E': EB, 'O': ['O_daily']}, 'B11: Today opened a note.')
+    R('G-156', ('NV', 'P', 'P'), [code(f'{LB}/dailyNote.js', 2, "the member's daily note"), walk9('B11_organise')],
+      {'N': NFN, 'E': ['E_daily'], 'O': ['O_daily']}, 'B11: Today opened a note.')
     R('G-157', 'D10', [D(10, 'folders + links + backlinks')], {'N': ['N_subpage'], 'E': EB, 'O': NFO},
       'Recorded scope, not an oversight.')
     R('G-158', ('P', 'NV', 'NV'), [code(f'{NB}/RelationPropertyValue.jsx', 33, 'export default function RelationPropertyValue'),
@@ -3254,12 +3671,14 @@ def build(pages_dir=None):
       {'N': ['N_onboard'], 'E': EB, 'O': NFO},
       'B14: a fresh member got the "Welcome to your Notebook" tour and a sample-notebook offer; Notion documents '
       'onboarding that adds starter templates.')
-    R('G-172', ('P', 'NV', 'P'), [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
-      {'N': ['N_help'], 'E': EB, 'O': ['O_help']},
-      'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre refused every fetch.')
+    R('G-172', ('P', 'P', 'P'), [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
+      {'N': ['N_help'], 'E': ['E_help'], 'O': ['O_help']},
+      'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre answered R18\'s fetch '
+      '(2026-10-02) where it refused R15\'s.')
 
     # ── wave 10: fold the Evernote evidence (EVERNOTE_EVIDENCE) ──
     EVN = evernote_evidence()
+    SUPERSEDED = []   # wave 12, lane 12C: paraphrases a fetched verbatim quote now stands in for
     for ev in EVN:
         row = ROWS.get(ev['g'])
         if row is None:
@@ -3269,6 +3688,11 @@ def build(pages_dir=None):
             cited = row['comp']['E']
             if isinstance(cited, str) or not any(SOURCES[QUOTES[k][0]].get('public_url') == ev['url'] for k in cited):
                 PROBLEMS.append(f'{ev["g"]}: the evidence carries a verbatim quote the row does not cite')
+            continue
+        if paraphrase_superseded(row['comp']['E']):
+            # A verbatim quote from a FETCHED page (R18) supersedes the reader's paraphrase: the paraphrase is
+            # kept in the committed evidence file, never shown beside a quote, and never evidence either way.
+            SUPERSEDED.append(ev['g'])
             continue
         if row['comp']['E'] != EB:
             PROBLEMS.append(f'{ev["g"]}: a paraphrase would replace a cell that is not the unfetched-Evernote cell')
@@ -3862,12 +4286,14 @@ def build(pages_dir=None):
     w('- The **gap ledger** (`docs/notebook/competitive-gap-ledger.md`) is the STATUS authority (ruling D-9B4). This scorecard '
       'COMPARES only: its "ledger row" column cites the row and never restates its status. Where the two disagree, the ledger wins '
       'and this file is the one that drifted.')
-    w('- It **does not supersede** the gap ledger, the research log (`docs/notebook/competitive-research-ledger.md`, whose R12–R16 '
+    w('- It **does not supersede** the gap ledger, the research log (`docs/notebook/competitive-research-ledger.md`, whose R12–R18 '
       'record every fetch behind this file), or the performance record (`docs/notebook/perf-budgets.md`).')
     w('- It **supersedes, as the current parity comparison, and leaves untouched**: `docs/notebook/primary-notebook-readiness-scorecard.md` '
       'and `docs/notebook/notebook-ux-ui-competitive-ledger.md`. Both are older comparisons; neither was edited.')
     w('- The plan\'s §1 "Now" numbers (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`) are **estimates**, shown beside the clause count in §B, '
       'never averaged (ruling D-9B1).')
+    w('- **Wave 12, lane 12C phase 1 (2026-10-02)** added competitor citations from a new fetch pass (research ledger R18) and '
+      'moved the cells those quotes decide; it re-scored nothing else. The full re-score is lane 12C phase 2.')
     w('- No competitor\'s speed is stated here (lane 9A\'s protocol, `docs/notebook/benchmark/protocol.md`, and the owner\'s run), and no '
       'user-study or soak result (9C\'s kits and the owner\'s runs).')
     w('')
@@ -3884,7 +4310,8 @@ def build(pages_dir=None):
       'doc:line` (a record, "per record, not re-read"; a flag record names the revision the ledger was read at); `RULING doc:line` '
       'for a deliberate no. **Competitor cells:** `N:` Notion · `E:` Evernote · `O:` Obsidian, each an official URL, a quoted '
       'sentence of at most 25 words from the page fetched, and the fetch date — or `not verified` with the reason. Every quote was '
-      'checked verbatim against the fetched text before it was entered (R16; Evernote\'s against the committed evidence file).')
+      'checked verbatim against the fetched text before it was entered (R16; Evernote\'s browser reads against the committed '
+      'evidence file; R18\'s against the text of its own fetch). The date beside a quote is the date its page was fetched.')
     w('')
     w('## §0 — B0: the evidence index, verified at the revision above')
     w('')
@@ -4160,7 +4587,14 @@ def build(pages_dir=None):
           f'{", ".join(d["keys"])} | {rows_u} |')
     w('')
     w('Failed fetches (logged, nothing cited): `https://help.evernote.com/hc/en-us/articles/208313748` — Cloudflare challenge '
-      '("Just a moment..."), HTTP 403 to curl and to WebFetch (R15); `https://evernote.com/features/note-taking` — HTTP 404 (R14).')
+      '("Just a moment..."), HTTP 403 to curl and to WebFetch (R15); `https://evernote.com/features/note-taking` — HTTP 404 (R14). '
+      'R18 (2026-10-02) read help.evernote.com articles through the help centre\'s own article JSON, HTTP 200 each, and moved '
+      'two quotes R14 cut from `https://evernote.com/release-notes` (which now shows a later release) to that release\'s own '
+      'page, `https://evernote.com/release-notes/11.35.6`, where both are verbatim today.')
+    if SUPERSEDED:
+        w('')
+        w('Evernote paraphrases (R17) now stood in for by a fetched verbatim quote (R18), kept in the committed evidence file and '
+          'shown nowhere: ' + ', '.join(SUPERSEDED) + '.')
     w('')
 
 
