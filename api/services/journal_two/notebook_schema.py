@@ -101,6 +101,12 @@ NOTEBOOK_TYPE_SCHEMA: dict[str, int] = {
     "linkPreview": 2,
     "tableOfContents": 2,
     "webEmbed": 2,
+    # ── 3: wave 11 lane 11D (2026-10-01) — the trade-plan canvas ──
+    # ⛔ NEVER-REVERT, like every row above. A canvas note's body is ONE
+    # `tradeCanvas` block atom holding the whole board in its attrs; an editor
+    # that lacks the node would open it EMPTY and its next save would write the
+    # empty document over the plan. Level 3 makes the server refuse that write.
+    "tradeCanvas": 3,
 }
 
 

@@ -56,6 +56,11 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },
+  // Wave 11 lane 11D: the trade-plan canvas (a canvas note's board, its cards and its
+  // dialogs); rail a11y/tradeCanvas.a11y.test.jsx.
+  'components/notebook/TradeCanvasBoard.jsx': { recipe: 'trade-canvas' },
+  'components/notebook/TradeCanvasItem.jsx': { coveredBy: 'trade-canvas' },
+  'components/notebook/TradeCanvasDialogs.jsx': { recipe: 'trade-canvas-dialogs' },
   'components/notebook/NoteHistoryPanel.jsx': { coveredBy: 'editor-history' },
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },

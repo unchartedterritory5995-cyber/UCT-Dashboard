@@ -331,8 +331,12 @@ describe('deriveDeclaredSchema', () => {
     // schema level costs. 1 = wave 5 (math, colour, highlight); 2 = wave 6
     // (columns, dateMention, imageFigure/imageCaption, tableOfContents,
     // linkPreview, webEmbed), registered 2026-09-24 when wave 5 merged into 6.
-    expect(top).toBe(2)
+    // 3 = wave 11 lane 11D (tradeCanvas, the trade-plan canvas), 2026-10-01.
+    expect(top).toBe(3)
     expect(deriveDeclaredSchema(fake())).toBe(top)
+  })
+  it('a bundle without the canvas node declares 2 -- so the server refuses its write to a canvas note', () => {
+    expect(deriveDeclaredSchema(fake(['tradeCanvas']))).toBe(2)
   })
   it('drops below a level one of whose types is missing — the rollback case', () => {
     expect(deriveDeclaredSchema(fake(['inlineMath']))).toBe(0)

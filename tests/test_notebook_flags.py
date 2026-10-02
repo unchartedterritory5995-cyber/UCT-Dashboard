@@ -31,6 +31,8 @@ NOTEBOOK_KEYS = [
     "j2_share_links_enabled",
     "notebook_publish_enabled",
     "notebook_onboarding_enabled",
+    # Wave 11 lane 11D: the trade-plan canvas — an enablement gate.
+    "notebook_trade_canvas_enabled",
 ]
 
 

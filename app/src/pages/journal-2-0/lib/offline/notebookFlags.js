@@ -47,6 +47,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   j2_share_links_enabled: false,       // share links (lane 8B)
   notebook_publish_enabled: false,     // publish-to-web (lane 8B)
   notebook_onboarding_enabled: false,  // first-run tour + sample notebook (lane 8C)
+  notebook_trade_canvas_enabled: false, // wave 11 lane 11D: the trade-plan canvas — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

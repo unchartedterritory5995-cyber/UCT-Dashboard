@@ -1309,3 +1309,25 @@ that failed to read the note:**
 | `append_widget_embed`, `append_financial_fact`, `append_document_excerpt` | They load the stored JSON, append one node and save; unknown types pass through untouched |
 | Connector sync `_apply_resolved_body` (`note_connectors/engine.py`) | It rewrites placeholders in a body the same sync just wrote, locked on `updated_at` |
 | Notebook migration v1 insert (`db.py`) | It is a one-time creation |
+
+## Level 3 -- wave 11 lane 11D, the trade-plan canvas (2026-10-01)
+
+⛔ **NEVER-REVERT, like levels 1 and 2.** Lane 11D adds ONE type, `tradeCanvas`, at level 3 in
+both tables (`lib/notebookSchema.js` and `notebook_schema.py`). A canvas note's body is that one
+block atom (plus TipTap's trailing empty paragraph) holding the whole board in its `board`
+attribute.
+
+- **Why a new type, not a property or an existing node.** Every other place the board could
+  live loses it to an older editor without the server noticing: an existing node's unknown
+  attribute is DROPPED by an editor that does not declare it (and its next save writes the plan
+  away), and a note property rides neither the offline outbox nor the body's compare-and-set.
+  A new type is the only shape the schema guard can protect: a bundle without it declares 2 and
+  is refused (409) on any note whose stored body holds the canvas.
+- **What a rollback of 11D must keep:** both table entries. The node itself
+  (`lib/tradeCanvasNode.js`, registered in `tiptap.js`) may be reverted with the feature; the
+  derived declaration then drops to 2 and every canvas note becomes read-only (refused), never
+  blanked. Restoring the feature restores editing.
+- **The gate is not the schema.** `NOTEBOOK_TRADE_CANVAS_ENABLED` gates the doors that make a
+  canvas and the board's editing controls; the node is registered unconditionally so a gate-off
+  tab still declares 3.
+

@@ -1,0 +1,318 @@
+/* Wave 11 lane 11D — the trade-plan canvas (TradeCanvasBoard.jsx, TradeCanvasItem.jsx,
+   TradeCanvasDialogs.jsx). Touch tier is <=1024 px: every control there is >= 44 px. */
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.readOnly {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool,
+.toolZoom,
+.miniBtn,
+.hintBtn,
+.btnGhost,
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tool:hover:not(:disabled),
+.toolZoom:hover,
+.miniBtn:hover,
+.hintBtn:hover,
+.btnGhost:hover { border-color: var(--ut-gold); }
+.tool:disabled { opacity: 0.5; cursor: not-allowed; }
+.tool[aria-pressed='true'],
+.tool[aria-expanded='true'] { border-color: var(--ut-gold); color: var(--ut-gold); }
+.tool:focus-visible,
+.toolZoom:focus-visible,
+.miniBtn:focus-visible,
+.hintBtn:focus-visible,
+.btnGhost:focus-visible,
+.btnPrimary:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.toolZoom { min-width: 56px; font-variant-numeric: tabular-nums; }
+.toolDanger { color: var(--danger-ink); }
+.btnPrimary { border-color: var(--accent); background: var(--accent); color: var(--bg); font-weight: 600; }
+.sep { width: 1px; height: 22px; background: var(--border); }
+
+.viewport {
+  position: relative;
+  height: min(72vh, 760px);
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-elevated);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--text-muted) 22%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  /* ⛔ The board owns every touch gesture inside it: one finger pans or drags,
+     two fingers pinch. Without this the page would scroll instead. */
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.viewport:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+
+.layer {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.edgeLine { stroke: var(--ut-gold); stroke-width: 2; }
+.edgeHead { fill: var(--ut-gold); }
+.edgeLabel { fill: var(--text); font-size: 13px; paint-order: stroke; stroke: var(--bg-elevated); stroke-width: 4px; }
+
+.item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text);
+  cursor: move;
+  contain: layout paint;
+}
+.item:focus { outline: none; }
+.item:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 3px; }
+.itemSelected { border-color: var(--ut-gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ut-gold) 45%, transparent); }
+
+.textCard { padding: 10px 12px; }
+/* A sticky note is a card with a coloured band: its text stays on the theme's own
+   surface, so it reads in every theme (the contrast audit checks text, never the band). */
+.sticky { padding: 14px 12px 10px; border-top: 6px solid var(--sticky-band, var(--ut-gold)); }
+.sticky_gold { --sticky-band: var(--ut-gold); }
+.sticky_blue { --sticky-band: #4f8cff; }
+.sticky_green { --sticky-band: #22c55e; }
+.sticky_red { --sticky-band: #ef4444; }
+.sticky_purple { --sticky-band: #a855f7; }
+
+.cardText { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; overflow: hidden; }
+.cardEmpty { margin: 0; color: var(--text-muted); font-size: 13px; font-style: italic; }
+.cardEditor {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  user-select: text;
+  cursor: text;
+}
+
+.chartCard { padding: 0; }
+.chartHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.chartSym { font-weight: 700; letter-spacing: 0.04em; }
+.chartTf { color: var(--text-muted); }
+.badgeLive,
+.badgeFrozen { padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.badgeLive { background: color-mix(in srgb, #22c55e 22%, transparent); color: var(--text); }
+.badgeFrozen { background: color-mix(in srgb, #4f8cff 22%, transparent); color: var(--text); }
+.chartLevels { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.levelChip {
+  padding: 1px 6px;
+  border: 1px solid var(--level-color);
+  border-radius: 999px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.chartBody { position: relative; flex: 1; min-height: 0; pointer-events: none; }
+.chartNote { margin: 0; padding: 12px; color: var(--text-muted); font-size: 13px; }
+
+.resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--ut-gold) 50%);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100% - 32px));
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: default;
+  user-select: text;
+}
+.hintTitle { margin: 0 0 8px; font-size: 16px; }
+.hintSteps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.hintSteps strong { color: var(--text); }
+.hintBtn { min-height: 30px; color: var(--ut-gold); border-color: var(--ut-gold); }
+.hintFoot { margin: 10px 0 0; color: var(--text-muted); font-size: 12px; }
+
+.selBar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  cursor: default;
+}
+.selCount { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 12px; }
+
+.levels {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(280px, calc(100% - 24px));
+  max-height: calc(100% - 90px);
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: default;
+  user-select: text;
+}
+.levelsHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.levelsTitle { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.levelList { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.levelRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.levelDot { width: 10px; height: 10px; border-radius: 50%; background: var(--level-color); flex: none; }
+.levelName { font-weight: 600; }
+.levelPrice { font-variant-numeric: tabular-nums; }
+.levelOn { color: var(--text-muted); font-size: 12px; }
+.levelActions { display: inline-flex; gap: 4px; margin-left: auto; }
+.miniBtn { min-height: 26px; padding: 0 8px; font-size: 12px; }
+.levelsEmpty { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
+
+/* dialogs */
+.form { display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); flex: 1; }
+.fieldRow { display: flex; gap: 10px; flex-wrap: wrap; }
+.fieldset { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.fieldset legend { padding: 0 4px; font-size: 13px; color: var(--text-muted); }
+.radio { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+.radio input { margin-top: 3px; }
+.input {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.input:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.levelLabel::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--level-color); }
+.formNote { margin: 0; color: var(--text-muted); font-size: 13px; }
+.formError { margin: 0; color: var(--danger-ink); font-size: 13px; }
+.formActions { display: flex; justify-content: flex-end; gap: 8px; }
+.arrowList { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.arrowList li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.keys { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.keyRow { display: grid; grid-template-columns: minmax(150px, auto) 1fr; gap: 10px; font-size: 13px; }
+.keyRow dt { margin: 0; }
+.keyRow dd { margin: 0; color: var(--text-muted); }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── touch tier: every control a finger can reach is at least 44 px ── */
+@media (max-width: 1024px) {
+  .tool,
+  .toolZoom,
+  .miniBtn,
+  .hintBtn,
+  .btnGhost,
+  .btnPrimary,
+  .input { min-height: var(--tap-min); }
+  .miniBtn { min-width: var(--tap-min); }
+  .tool { min-width: var(--tap-min); }
+  .resize { width: 32px; height: 32px; }
+}
+
+/* ── phone ── */
+@media (max-width: 640px) {
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sep { display: none; }
+  .viewport { height: 62vh; min-height: 360px; }
+  .levels { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; max-height: 40%; }
+  .selBar { top: 8px; bottom: auto; }
+  .hint { width: calc(100% - 24px); padding: 12px; }
+}

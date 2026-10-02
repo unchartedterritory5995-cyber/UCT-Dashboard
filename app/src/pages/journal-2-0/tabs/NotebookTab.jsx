@@ -20,6 +20,7 @@ import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
+import { createTradeCanvasNote, tradeCanvasEnabled } from '../lib/tradeCanvasCreate'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
@@ -1509,6 +1510,29 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
+  // Wave 11 lane 11D: "Trade-plan canvas" in the New note sheet -- a note whose
+  // body is a board, made through the canvas's create door (`createTradeCanvasNote`
+  // -> createNoteViaApi + settleNoteWrite), then the same tree bookkeeping and
+  // open as any other new note. Offered only while the gate is LATCHED on.
+  const canvasOn = tradeCanvasEnabled()
+  const createCanvas = async () => {
+    setCreating(true)
+    setPickerOpen(false)
+    try {
+      const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
+        ? folderId : undefined
+      const created = await createTradeCanvasNote({ folderId: safeFolderId })
+      addNoteToTree(created)
+      refreshAll()
+      openNote(created, null, { fresh: true })
+    } catch (e) {
+      console.error('[notebook] create trade-plan canvas failed', e)
+      setActionError("Couldn't create that trade plan. Nothing was saved.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
   // Wave 6 (item 4): Today — open the member's note for today's ET date,
   // making it the first time (the server keeps it to one per day). The daily
   // template is the member's own preference.
@@ -2095,6 +2119,16 @@ export default function NotebookTab() {
           variant="auto"
           maxWidth={720}
         >
+          {canvasOn && (
+            <div className={styles.canvasStart} role="group" aria-label="Plan a trade">
+              <button type="button" className={styles.templatesBtn} onClick={createCanvas} disabled={creating}>
+                <UIcon name="board" size={15} gold={false} /> Trade-plan canvas
+              </button>
+              <span className={styles.canvasStartHint}>
+                A board for a chart, your entry, stop and target, and notes — then link it from your thesis.
+              </span>
+            </div>
+          )}
           <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
         </Sheet>
 

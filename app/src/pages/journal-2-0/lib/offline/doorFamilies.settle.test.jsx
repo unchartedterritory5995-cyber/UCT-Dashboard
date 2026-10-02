@@ -436,3 +436,24 @@ describe('import_confirm — a re-import over a note with queued offline work', 
     expect(landed(), 'nothing was written, so nothing has a revision').toEqual([])
   })
 })
+
+// ⭐ Wave 11 lane 11D — the trade-plan canvas's create door. A NEW canvas goes
+// through the canonical create (`createNoteViaApi`) and lands the revision it was
+// answered with. Every later board change is an editor transaction on that note's
+// own autosave (lib/tradeCanvas.js `commitBoard`) — no endpoint, nothing to land here.
+describe('trade-plan canvas — a new canvas note', () => {
+  it('the create lands the revision it was answered with', async () => {
+    const { createTradeCanvasNote } = await import('../tradeCanvasCreate')
+    answering({ note: { id: 'nc1', title: 'NVDA trade plan', updatedAt: T2 } })
+    await createTradeCanvasNote({ ticker: 'NVDA' })
+    expect(landed()).toEqual([T2])
+    expect(landedFor()).toEqual(['nc1'])
+  })
+
+  it('⛔ CONTROL — a create the server REFUSED lands nothing', async () => {
+    const { createTradeCanvasNote } = await import('../tradeCanvasCreate')
+    answering({}, { ok: false, status: 500 })
+    await expect(createTradeCanvasNote({ ticker: 'NVDA' })).rejects.toThrow()
+    expect(landed()).toEqual([])
+  })
+})

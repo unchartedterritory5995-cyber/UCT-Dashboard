@@ -113,6 +113,10 @@ import {
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import lazyChunk from '../../lib/lazyChunk'
+import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
+import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
+import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
+import { notePath } from '../../../../hooks/useNoteBacklinks'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -128,6 +132,25 @@ const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
 const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
+// Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
+// renders it, and only a chart card on it ever loads the chart.
+const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
+// The canvas's link-from-a-thesis offer, shown on the note the member picked:
+// "Add a link to <plan> at the end of this note?" -- nothing is written until
+// the member presses Add (an editor transaction on THIS note's own autosave).
+export const LINK_CANVAS_PARAM = 'linkCanvas'
+function LinkCanvasOffer({ canvasId, onAdd, onDismiss }) {
+  const target = useNoteLinkTarget(canvasId)
+  const name = target.title || 'the trade plan'
+  return (
+    <div className={styles.lockBanner} role="region" aria-label="Link a trade plan" data-export-exclude>
+      <UIcon name="link" size={14} gold={false} style={{ verticalAlign: '-2px' }} />
+      <span>Add a link to “{name}” at the end of this note?</span>
+      <button type="button" className={styles.lockBannerBtn} onClick={onAdd}>Add link</button>
+      <button type="button" className={styles.lockBannerBtn} onClick={onDismiss}>Not now</button>
+    </div>
+  )
+}
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -1535,6 +1558,7 @@ export default function NoteEditorPage({
   // PDF upload can take, which is a worse experience than the image case
   // this was copied from.
   const [uploadToast, setUploadToast] = useState(null)
+  const navigateTo = useNavigate()
   // Wave I: { href, name } of the PDF currently open in the preview Sheet, or
   // null. Wave J extends it with `documentId` (needed to save an excerpt
   // against) and `page`/`emphasizeExcerptId` (click-to-source targeting --
@@ -1742,6 +1766,86 @@ export default function NoteEditorPage({
     }
     setWritingHelp(req)
   }, [])
+  // ── Wave 11 lane 11D: the trade-plan canvas ───────────────────────────────
+  // A canvas note (its body opens with a `tradeCanvas` node) renders the board
+  // in place of the text editor; the editor stays mounted, hidden, and is the
+  // board's store. ⛔ DARK behind `notebook_trade_canvas_enabled`: off, nothing
+  // makes a canvas (no /canvas, no New-note entry, no Plan this trade) and an
+  // existing canvas opens READ-ONLY with a sentence saying so -- never hidden.
+  const isCanvas = isTradeCanvasDoc(note?.bodyJson)
+  const isCanvasRef = useRef(isCanvas)
+  isCanvasRef.current = isCanvas
+  const canvasOn = tradeCanvasEnabled()
+  // Blocks in a canvas note OTHER than the board (a capture appended by a
+  // server door, say): shown under the board as ordinary text, never hidden.
+  const [canvasExtra, setCanvasExtra] = useState(0)
+  // /canvas in a note: make a canvas and link it at the caret.
+  const creatingCanvasRef = useRef(false)
+  const canvasNoteRef = useRef(null)
+  canvasNoteRef.current = note
+  const createLinkedCanvas = useCallback(async () => {
+    const ed = editorRef.current
+    if (!tradeCanvasEnabled() || !ed || ed.isDestroyed || creatingCanvasRef.current) return
+    if (lockedRef.current || !ed.isEditable) {
+      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    creatingCanvasRef.current = true
+    try {
+      const base = (titleRef.current || '').trim()
+      const from = canvasNoteRef.current
+      const created = await createTradeCanvasNote({
+        title: base ? `${base} — trade plan` : '',
+        ticker: from?.ticker || null,
+        folderId: from?.folderId || undefined,
+      })
+      const live = editorRef.current
+      if (created?.id && live && !live.isDestroyed && live.isEditable && !lockedRef.current) {
+        live.chain().focus().insertContent([
+          { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
+        ]).run()
+        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+        setUploadToast({ message: `Trade plan created and linked: “${created.title}”. Open it from the link.`, tone: 'success' })
+      } else if (created?.id) {
+        setUploadToast({ message: `Trade plan created: “${created.title}”. This note could not take the link.`, tone: 'error' })
+      }
+    } catch (e) {
+      console.error('[notebook] create trade-plan canvas failed', e)
+      setUploadToast({ message: "Couldn't create the trade plan. Nothing was saved.", tone: 'error' })
+    } finally {
+      creatingCanvasRef.current = false
+    }
+  }, [])
+  // The canvas's "Link from a thesis": open the picked note with the offer.
+  const linkCanvasFromNote = useCallback((picked) => {
+    if (!picked?.id) return
+    navigateTo(`${notePath(picked.id)}&${LINK_CANVAS_PARAM}=${encodeURIComponent(noteId)}`)
+  }, [navigateTo, noteId])
+  const linkCanvasId = searchParams.get(LINK_CANVAS_PARAM)
+  const offerCanvasLink = Boolean(linkCanvasId && linkCanvasId !== noteId && !isCanvas)
+  const clearLinkCanvasParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(LINK_CANVAS_PARAM)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+  const acceptCanvasLink = useCallback(() => {
+    const ed = editorRef.current
+    const canvasId = linkCanvasId
+    if (!ed || ed.isDestroyed || !canvasId) return
+    if (lockedRef.current || !ed.isEditable) {
+      setUploadToast({ message: 'This note is locked — unlock it in the Notebook first', tone: 'error' })
+      return
+    }
+    const end = ed.state.doc.content.size
+    ed.chain().insertContentAt(end, {
+      type: 'paragraph', content: [{ type: 'text', text: 'Trade plan: ' }, { type: 'noteLink', attrs: { noteId: canvasId } }],
+    }).run()
+    clearLinkCanvasParam()
+    setUploadToast({ message: 'Linked. The plan now shows this note under “Linked from”. Undo takes the link back out.', tone: 'success' })
+  }, [linkCanvasId, clearLinkCanvasParam])
+
   // Accept — the ONE write: an askInsert block with `action` + `model`, as one
   // undo step. Said either way; a draft that could not land keeps the panel open.
   const acceptWritingHelpDraft = useCallback((draft) => {
@@ -2114,12 +2218,19 @@ export default function NoteEditorPage({
         canDictate: () => micRef.current?.available === true,
         // Wave 7 H2: read when the slash menu opens, like `canDictate`.
         canWritingHelp: () => writingHelpOnRef.current === true,
+        // Wave 11 11D: the same, for /canvas -- never inside a canvas note itself.
+        // Read live (the gate is latched per tab), so a payload that arrives after
+        // this editor was created is honoured the next time the menu opens.
+        canTradeCanvas: () => tradeCanvasEnabled() && !isCanvasRef.current,
       }
       // One reading per note: the timer's own stop() speaks once.
       if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
       // (owner decision #9) — opening a note for editing is what makes it the
       // target. Title rides along for the capture toast.
+      // Wave 11 11D: a trade-plan canvas is not a capture target (a capture is
+      // text, and the board would show it only as "Also in this note").
+      if (isCanvasRef.current) return
       try {
         localStorage.setItem('uct.jw.lastNote', JSON.stringify({
           id: noteId, ts: Date.now(),
@@ -2181,6 +2292,14 @@ export default function NoteEditorPage({
   // reach the live editor instance.
   editorRef.current = editor
   const unreadable = useUnreadableNote(editor)
+  // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.
+  useEffect(() => {
+    if (!editor || !isCanvas) { setCanvasExtra(0); return undefined }
+    const count = () => { if (!editor.isDestroyed) setCanvasExtra(extraBlockCount(editor.state)) }
+    count()
+    editor.on('transaction', count)
+    return () => { editor.off('transaction', count) }
+  }, [editor, isCanvas])
   // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
   // read in render (font/size dropdowns, bold/italic active) goes stale. Bump
   // on every selection/mark change to keep the toolbar in sync -- but through
@@ -3030,12 +3149,15 @@ export default function NoteEditorPage({
     }
     // Wave 7 lane H2: the slash menu's "Writing help", same per-editor target.
     const onWritingHelp = () => openWritingHelp()
+    // Wave 11 lane 11D: the slash menu's "Trade-plan canvas", same per-editor target.
+    const onTradeCanvas = () => { createLinkedCanvas() }
     let dom = null
     const detach = () => {
       if (dom) {
         dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
         dom.removeEventListener(DICTATE_EVENT, onDictate)
         dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
+        dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
       }
       dom = null
     }
@@ -3048,6 +3170,7 @@ export default function NoteEditorPage({
       dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
       dom.addEventListener(DICTATE_EVENT, onDictate)
       dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
+      dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
     }
     attach()
     editor.on('mount', attach)
@@ -3706,16 +3829,18 @@ export default function NoteEditorPage({
             2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
             by this -- purely a missing entry point, not new find logic.
           */}
-          <button
-            type="button"
-            className={styles.chromeBtn}
-            onClick={() => setFindOpen(true)}
-            title="Find in this note"
-            aria-label="Find in note"
-          >
-            <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            Find
-          </button>
+          {!isCanvas && (
+            <button
+              type="button"
+              className={styles.chromeBtn}
+              onClick={() => setFindOpen(true)}
+              title="Find in this note"
+              aria-label="Find in note"
+            >
+              <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Find
+            </button>
+          )}
           <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
           {/* Wave 8 (8A): the header's select and inputs carry names -- a
               placeholder vanishes once there is a value, and a select has none. */}
@@ -3745,7 +3870,7 @@ export default function NoteEditorPage({
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
-          {editor && !locked && writingHelpOn && editor.isEditable && (
+          {editor && !locked && writingHelpOn && editor.isEditable && !isCanvas && (
             <button
               type="button"
               className={styles.chromeBtn}
@@ -3895,7 +4020,7 @@ export default function NoteEditorPage({
           nothing is hidden, never silent. Since wave 10 lane K2 (D-3) every control left in
           this row is an editing control, so on a locked note the ROW is not rendered at all
           (review M-4: it rendered as an empty, named toolbar). */}
-      {editor && !locked && (
+      {editor && !locked && !isCanvas && (
         <div
           ref={toolbarRowRef}
           className={styles.toolbarRow}
@@ -4299,7 +4424,34 @@ export default function NoteEditorPage({
         <TableToolbar editor={editor} />
         <LinkPasteMenu editor={editor} />
 
-        <div onClickCapture={handleEditorClickCapture}>
+        {offerCanvasLink && (
+          <LinkCanvasOffer canvasId={linkCanvasId} onAdd={acceptCanvasLink} onDismiss={clearLinkCanvasParam} />
+        )}
+
+        {isCanvas && (
+          <Suspense fallback={<p className={styles.canvasLoading} role="status">Loading the canvas…</p>}>
+            <TradeCanvasBoard
+              editor={editor}
+              noteId={noteId}
+              noteTitle={title}
+              ticker={note.ticker || null}
+              readOnly={locked || unreadable || !canvasOn}
+              readOnlyReason={!canvasOn && !locked
+                ? 'Trade-plan canvases are switched off right now, so this plan is read-only. Nothing in it has changed.'
+                : null}
+              onLinkFromNote={canvasOn ? linkCanvasFromNote : null}
+            />
+          </Suspense>
+        )}
+
+        {/* ⛔ A canvas note keeps its editor MOUNTED (it is the board's store);
+            only blocks other than the board are shown, under a heading. */}
+        <div
+          onClickCapture={handleEditorClickCapture}
+          hidden={isCanvas && canvasExtra === 0}
+          className={isCanvas ? styles.canvasExtra : undefined}
+        >
+          {isCanvas && canvasExtra > 0 && <h3 className={styles.canvasExtraTitle}>Also in this note</h3>}
           <EditorContent editor={editor} />
         </div>
 
