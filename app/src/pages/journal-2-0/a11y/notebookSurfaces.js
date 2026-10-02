@@ -106,6 +106,7 @@ export const SURFACES = Object.freeze({
   // G-040 (wave 10, lane CX): the three capture-only kinds.
   'components/notebook/ScreenerEmbed.jsx': { recipe: 'embed-screener' },
   'components/notebook/CotEmbed.jsx': { recipe: 'embed-cot' },
+  'components/notebook/ModelBookEmbed.jsx': { recipe: 'embed-model-book' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },
