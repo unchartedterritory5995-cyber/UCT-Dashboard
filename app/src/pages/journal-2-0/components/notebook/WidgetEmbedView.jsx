@@ -56,6 +56,7 @@ const EMBED_COMPONENTS = {
   // host — no /charts widget exists behind them (registry `captureOnly`).
   screener: lazyLeaf(() => import('./ScreenerEmbed')),
   cot: lazyLeaf(() => import('./CotEmbed')),
+  modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render

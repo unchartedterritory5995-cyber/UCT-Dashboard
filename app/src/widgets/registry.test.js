@@ -45,10 +45,10 @@ const IDS = [
   'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
-  'screener', 'cot',
+  'screener', 'cot', 'modelbook',
 ]
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = ['screener', 'cot',]
+const CAPTURE_ONLY = ['screener', 'cot', 'modelbook']
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
@@ -65,7 +65,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
-      screener: 'Screener', cot: 'COT Positioning',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
     })
   })
 
@@ -78,7 +78,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
-      screener: 'Screener', cot: 'COT Positioning',
+      screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book',
     })
   })
 
@@ -91,7 +91,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
-      screener: 'Screener', cot: 'COT',
+      screener: 'Screener', cot: 'COT', modelbook: 'Model Book',
     })
   })
 
@@ -120,6 +120,7 @@ describe('widget registry — metadata pins', () => {
       scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
       cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
+      modelbook:    { w: 6,  h: 8,  minW: 3, minH: 4 },
     })
   })
 
@@ -323,6 +324,11 @@ const CAPTURE_FIXTURES = {
     bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
     crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
   },
+  modelbook: {
+    year: 2023, symbol: 'nvda', setupId: 7, setupType: 'High Tight Flag (Powerplay)',
+    setupDate: '2023-05-25', title: 'NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25',
+    annotation: 'the gap that started it',
+  },
 }
 
 describe('widget registry — params layer', () => {
@@ -394,6 +400,8 @@ describe('widget registry — params layer', () => {
       .toBe('[screener: Screener — UCT Universe — 57 matches · NVDA AMD — as of 2026-09-30 03:00 ET (nightly build)]')
     expect(paramsPlainText('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot)))
       .toBe('[cot: ES E-mini S&P 500 — report week 2026-09-22 · Contrarian Bearish · Crowded long]')
+    expect(paramsPlainText('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook)))
+      .toBe('[model book: NVDA 2023 — High Tight Flag (Powerplay) 2023-05-25 — the gap that started it]')
     // Unknown id degrades to a generic label, never throws (render chain rule).
     expect(paramsPlainText('nope', {})).toBe('[widget]')
   })
@@ -464,8 +472,9 @@ describe('widget registry — params layer', () => {
     // capture a reference — each renders from data (their own cases above pin how).
     expect(isReconstructable('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener))).toBe(true)
     expect(isReconstructable('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot))).toBe(true)
+    expect(isReconstructable('modelbook', normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook))).toBe(true)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot', 'modelbook'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.
@@ -612,5 +621,16 @@ describe('G-040 capture-only definitions', () => {
     expect(isReconstructable('cot', { ...ok, reportDate: '9/22/2026' })).toBe(false)
     const { smallSpecs: _gone, ...two } = ok.groups
     expect(isReconstructable('cot', { ...ok, groups: two })).toBe(false)
+  })
+
+  it('modelbook: a reference needs year + symbol; the setup is optional', () => {
+    const ok = normalizeParams('modelbook', CAPTURE_FIXTURES.modelbook)
+    expect(ok.symbol).toBe('NVDA')
+    expect(validateParams('modelbook', ok).ok).toBe(true)
+    const bare = normalizeParams('modelbook', { year: 2023, symbol: 'NVDA' })
+    expect(validateParams('modelbook', bare).ok).toBe(true)
+    expect(isReconstructable('modelbook', bare)).toBe(true)
+    expect(validateParams('modelbook', { symbol: 'NVDA' }).ok).toBe(false)
+    expect(validateParams('modelbook', { ...ok, year: '2023' }).ok).toBe(false)
   })
 })

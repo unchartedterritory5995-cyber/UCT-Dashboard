@@ -806,6 +806,34 @@ const PANEL_MANIFESTS = {
       && COT_CAPTURE_GROUPS.every((k) => _isRecord(p.groups[k])),
     liveCapable: false,
   },
+  modelbook: {
+    labels: { header: 'Model Book', menu: 'Model Book', tab: 'Model Book' },
+    defaults: { w: 6, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      // Ruling 3: a REFERENCE to the canonical stock (year + symbol) and, if one
+      // was selected, the setup. It re-renders from the Model Book store.
+      { key: 'year', type: 'number', required: true },
+      { key: 'symbol', type: 'symbol', required: true },
+      { key: 'setupId', type: 'number' },                    // the setup row selected at capture
+      { key: 'setupType', type: 'string' },                  // …and its canonical identity, for a re-keyed row
+      { key: 'setupDate', type: 'string' },                  // label_date, 'YYYY-MM-DD'
+      { key: 'title', type: 'string' },                      // the captured title — the tombstone's words
+      { key: 'annotation', type: 'string' },                 // the member's own words, typed at capture
+    ],
+    plainText: (p) => {
+      const setup = [p?.setupType, p?.setupDate].filter(Boolean).join(' ')
+      return `[model book: ${p?.symbol || '?'} ${p?.year ?? ''}${setup ? ` — ${setup}` : ''}`
+        + `${p?.annotation ? ` — ${p.annotation}` : ''}]`
+    },
+    // A reference to curated, static data: re-rendered from the store, with a
+    // tombstone when the entry is gone (ModelBookEmbed) — never an error.
+    reconstructable: (p) => Number.isInteger(p?.year) && typeof p?.symbol === 'string' && p.symbol !== '',
+    liveCapable: false,
+  },
 }
 
 export const WIDGET_REGISTRY = deepFreeze(Object.fromEntries(

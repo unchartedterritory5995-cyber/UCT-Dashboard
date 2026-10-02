@@ -89,6 +89,7 @@ const G040_DOORS = [
     market: 'ES', reportDate: '2026-09-22',
     groups: { commercials: { net: 1 }, largeSpecs: { net: 2 }, smallSpecs: { net: 3 } },
   }],
+  ['modelbook', 'NVDA 2023 (Model Book)', { year: 2023, symbol: 'NVDA', annotation: 'mine' }],
 ]
 
 describe('append_widget_embed — the G-040 doors (Screener · COT · Model Book)', () => {

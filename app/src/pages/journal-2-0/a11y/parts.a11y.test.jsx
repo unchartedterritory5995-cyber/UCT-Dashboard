@@ -32,6 +32,7 @@ import ThemesEmbed from '../components/notebook/ThemesEmbed'
 import WatchlistEmbed from '../components/notebook/WatchlistEmbed'
 import ScreenerEmbed from '../components/notebook/ScreenerEmbed'
 import CotEmbed from '../components/notebook/CotEmbed'
+import ModelBookEmbed from '../components/notebook/ModelBookEmbed'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -131,6 +132,7 @@ const EMBEDS = [
     bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
     crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
   })],
+  ['embed-model-book', ModelBookEmbed, embed('modelbook', { year: 2023, symbol: 'NVDA', title: 'NVDA 2023', annotation: 'the gap' })],
 ]
 
 describe('journal embed renderers', () => {
