@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
   const [tickerHistoryEnabled, setTickerHistoryEnabled] = useState(false)
   const [addressSpaceEnabled, setAddressSpaceEnabled] = useState(false)
   const [optionsChainEnabled, setOptionsChainEnabled] = useState(false)
+  const [optionsVolSurfaceEnabled, setOptionsVolSurfaceEnabled] = useState(false)
   const [seasonalityEnabled, setSeasonalityEnabled] = useState(false)
   const [cohortsWithdrawn, setCohortsWithdrawn] = useState([])
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
@@ -94,6 +95,7 @@ export function AuthProvider({ children }) {
     ['ticker_history_enabled', (d) => d.ticker_history_enabled === true, setTickerHistoryEnabled],
     ['address_space_enabled', (d) => d.address_space_enabled === true, setAddressSpaceEnabled],
     ['options_chain_enabled', (d) => d.options_chain_enabled === true, setOptionsChainEnabled],
+    ['options_vol_surface_enabled', (d) => d.options_vol_surface_enabled === true, setOptionsVolSurfaceEnabled],
     ['seasonality_enabled', (d) => d.seasonality_enabled === true, setSeasonalityEnabled],
     ['cohorts_withdrawn', (d) => (Array.isArray(d.cohorts_withdrawn) ? d.cohorts_withdrawn : []), setCohortsWithdrawn],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
@@ -304,7 +306,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, seasonalityEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, seasonalityEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
