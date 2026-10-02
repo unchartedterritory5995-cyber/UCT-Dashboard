@@ -263,13 +263,13 @@ class TestRequestPath:
     def test_request_path_never_touches_the_network(self, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
         scheduled = []
-        monkeypatch.setattr(fb, "_schedule", lambda sym: scheduled.append(sym) or True)
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": scheduled.append((sym, form)) or True)
         monkeypatch.setattr(fb, "_sec_get", lambda url: pytest.fail("request path reached SEC"))
         monkeypatch.setattr(fb, "_resolve_cik", lambda s: pytest.fail("request path resolved a CIK"))
         snap = fb.blackline_snapshot("aapl")
         assert snap == {"state": "pending", "sym": "AAPL", "vendor": "sec_edgar", "form": "10-K",
                         "queued": True}
-        assert scheduled == ["AAPL"]
+        assert scheduled == [("AAPL", "10-K")]
 
     def test_armed_worker_fills_the_cache_once(self, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
@@ -361,7 +361,7 @@ class TestRoute:
 
     def test_on_miss_is_pending(self, client, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
-        monkeypatch.setattr(fb, "_schedule", lambda sym: True)
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": True)
         body = client.get("/api/research/blackline/aapl").json()
         assert body["state"] == "pending" and body["ticker"] == "AAPL" and "sections" not in body
 

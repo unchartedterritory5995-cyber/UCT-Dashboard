@@ -167,13 +167,18 @@ def measure_pair(fetch: Fetcher, cik: str, filings: list[dict], form: str) -> di
                 rec["sides"][side] = {"state": "found", "heading": r["heading"],
                                       "paragraphs": len(r["paragraphs"]),
                                       "chars": sum(len(p) for p in r["paragraphs"]),
-                                      **({"reference_only": True} if r.get("reference_only") else {})}
+                                      **({"reference_only": True} if r.get("reference_only") else {}),
+                                      **({"reflowed": True} if r.get("fragmented") else {}),
+                                      **({"heading_shape": r["heading_shape"]} if r.get("heading_shape") else {})}
+            elif r.get("omitted"):
+                rec["sides"][side] = {"state": "omitted", "reason": r["reason"]}
             else:
                 rec["sides"][side] = {"state": "not_found", "reason": r["reason"],
                                       "candidates": _heading_candidates(b)}
         states = [rec["sides"][s]["state"] for s in ("newer", "older")]
         rec["state"] = ("parse_error" if "parse_error" in states else
-                        "found" if states == ["found", "found"] else "not_found")
+                        "found" if states == ["found", "found"] else
+                        "omitted" if states == ["omitted", "omitted"] else "not_found")
         out["sections"][spec["key"]] = rec
     return out
 
@@ -226,8 +231,8 @@ def summarise(result: dict, forms: list[str]) -> dict:
         keys = [s["key"] for s in _sections_for(form)]
         per = {}
         for k in keys:
-            n = found = nf = pe = 0
-            ref = 0
+            n = found = nf = pe = om = 0
+            ref = both = reflowed = 0
             for row in result["rows"]:
                 sec = ((row.get("forms") or {}).get(form) or {}).get("sections", {}).get(k)
                 if not sec:
@@ -236,13 +241,18 @@ def summarise(result: dict, forms: list[str]) -> dict:
                 found += sec["state"] == "found"
                 nf += sec["state"] == "not_found"
                 pe += sec["state"] == "parse_error"
+                om += sec["state"] == "omitted"
                 ref += any(sec["sides"][s].get("reference_only") for s in ("newer", "older"))
+                both += all(sec["sides"][s].get("reference_only") for s in ("newer", "older"))
+                reflowed += any(sec["sides"][s].get("reflowed") for s in ("newer", "older"))
             total = len(result["rows"])
-            per[k] = {"n": n, "found": found, "not_found": nf, "parse_error": pe,
+            per[k] = {"n": n, "found": found, "not_found": nf, "parse_error": pe, "omitted": om,
+                      "resolved_rate": round((found + om) / n, 3) if n else None,
                       "found_rate": round(found / n, 3) if n else None,
                       "tickers": total,
                       "end_to_end_rate": round(found / total, 3) if total else None,
-                      "reference_only_pairs": ref}
+                      "reference_only_pairs": ref, "reference_only_both_sides": both,
+                      "found_with_text": found - both, "reflowed_pairs": reflowed}
         unread = [r["ticker"] for r in result["rows"]
                   if r.get("unread") or ((r.get("forms") or {}).get(form) or {}).get("unread")]
         summ[form] = {"sections": per, "unread": unread}
@@ -258,12 +268,15 @@ def to_markdown(result: dict, summ: dict, forms: list[str], label: str, meta: di
          "and are outside the denominator; they are listed by name.", ""]
     for form in forms:
         L += [f"## {form}", "",
-              "| Section | n (pairs read) | found | not_found | parse_error | found rate | end-to-end (found / all tickers) |",
-              "|---|---|---|---|---|---|---|"]
+              "| Section | n (pairs read) | found | of which both sides only refer back | omitted by both filings | not_found | parse_error | found rate | found+omitted rate | end-to-end (found / all tickers) | reflowed pairs |",
+              "|---|---|---|---|---|---|---|---|---|---|---|"]
         for k, v in summ[form]["sections"].items():
             rate = f"{v['found_rate']:.1%}" if v["found_rate"] is not None else "n/a"
             e2e = f"{v['found']}/{v['tickers']} = {v['end_to_end_rate']:.1%}"
-            L.append(f"| {k} | {v['n']} | {v['found']} | {v['not_found']} | {v['parse_error']} | {rate} | {e2e} |")
+            rr = f"{v['resolved_rate']:.1%}" if v.get("resolved_rate") is not None else "n/a"
+            L.append(f"| {k} | {v['n']} | {v['found']} | {v.get('reference_only_both_sides', '-')} | "
+                     f"{v.get('omitted', '-')} | {v['not_found']} | "
+                     f"{v['parse_error']} | {rate} | {rr} | {e2e} | {v.get('reflowed_pairs', '-')} |")
         L += ["", f"Unread ({len(summ[form]['unread'])}): {', '.join(summ[form]['unread']) or 'none'}", ""]
         L += ["| Ticker | Cohort | " + " | ".join(summ[form]["sections"]) + " |",
               "|---|---|" + "---|" * len(summ[form]["sections"])]
@@ -293,7 +306,7 @@ def to_markdown(result: dict, summ: dict, forms: list[str], label: str, meta: di
             for k, sec in f["sections"].items():
                 for s in ("newer", "older"):
                     sd = sec["sides"][s]
-                    if sd["state"] != "found":
+                    if sd["state"] not in ("found",):
                         L.append(f"- **{row['ticker']}** {k} {s} ({f[s]['accession']}): {sd['state']}: "
                                  f"{sd.get('reason') or sd.get('error')}")
         L.append("")
