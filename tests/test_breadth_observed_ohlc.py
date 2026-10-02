@@ -60,8 +60,7 @@ def test_only_observed_sources_mark_a_bar(fresh_store):
 def test_the_mark_moves_no_value(fresh_store):
     _seed()
     marked = _build()
-    with patch.object(store, "OBSERVED_OHLC_SOURCES", frozenset()), \
-         patch.object(bs, "_OBSERVED_OHLC_SOURCES", frozenset()):
+    with patch.object(bs, "_ohlc_is_observed", lambda *a, **k: False):
         bs._breadth_cache.delete_prefix("breadthdaily_")
         plain = _build()
     strip = [{k: v for k, v in b.items() if k != "ohlc"} for b in marked]
@@ -222,3 +221,38 @@ def test_the_developing_week_is_marked_only_when_every_day_is(fresh_store):
     bs._breadth_cache.delete_prefix("breadthdaily_")
     wk = {b["t"]: b for b in _build_today("2026-08-17", 52.0, "W")}["2026-08-21"]
     assert wk.get("ohlc") == 1 and (wk["o"], wk["c"]) == (50.0, 52.0)
+
+
+
+# ─── 'live' is observed only for a metric the sample MEASURES (prod-found 2026-10-02) ───
+
+def test_a_live_row_for_a_carried_or_derived_field_is_not_an_observation(fresh_store):
+    """UCTHS shipped 35 marked bars: the accumulator records the whole derived row, so a
+    carried field (constant all session) or a rolling score gets a 'live' row too."""
+    from api.services import breadth_monitor, breadth_live
+    for d in ("2026-08-10", "2026-08-11"):
+        store.update_intraday(d, {"breadth_score": 40.0})
+        store.update_intraday(d, {"breadth_score": 44.0})
+    with patch.object(breadth_monitor, "get_history", return_value=[]),          patch.object(breadth_live, "enabled", return_value=False),          patch.object(bs, "_live_map", return_value={}):
+        bars = bs.build_breadth_bars("UCTHS", "D", 400)["bars"]
+    assert bars and not any(b.get("ohlc") == 1 for b in bars)
+
+
+def test_ohlc_is_observed_rules():
+    assert store.ohlc_is_observed("intraday_recon_1m", "breadth_score")     # V2 owns its provenance
+    assert store.ohlc_is_observed("intraday_recon", "pct_above_5sma")
+    assert store.ohlc_is_observed("live", "pct_above_5sma")
+    assert not store.ohlc_is_observed("live", "breadth_score")
+    assert not store.ohlc_is_observed("live", "cnn_fear_greed")
+    assert not store.ohlc_is_observed("close_recon", "pct_above_5sma")
+    assert not store.ohlc_is_observed("intraday_recon_1m_body", "pct_above_5sma")
+    assert not store.ohlc_is_observed(None, "pct_above_5sma")
+
+
+def test_live_observed_metrics_exclude_every_carried_and_derived_field():
+    from api.services import breadth_live
+    assert not (store.LIVE_OBSERVED_METRICS & set(breadth_live.NOT_LIVE))
+    assert not (store.LIVE_OBSERVED_METRICS & set(breadth_live.PARTIAL_SESSION))
+    for derived in ("breadth_score", "ratio_5day", "ratio_10day", "hi_ratio", "lo_ratio",
+                    "net_new_high_low", "adv_decline_cum"):
+        assert derived not in store.LIVE_OBSERVED_METRICS

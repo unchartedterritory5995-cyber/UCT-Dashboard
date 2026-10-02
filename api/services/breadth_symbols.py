@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date, datetime, timedelta
 from typing import Optional
 
-from api.services.breadth_daily_ohlc import OBSERVED_OHLC_SOURCES as _OBSERVED_OHLC_SOURCES
+from api.services.breadth_daily_ohlc import ohlc_is_observed as _ohlc_is_observed
 from api.services.breadth_universes import DEFAULT_UNIVERSE
 
 _log = logging.getLogger("breadth_symbols")
@@ -817,7 +817,7 @@ def _build_breadth_series(sym: str, metric: str,
             o, c = ro, v
             h = max(rh, o, c)
             l = min(rl, o, c)
-            observed = row.get("src") in _OBSERVED_OHLC_SOURCES
+            observed = _ohlc_is_observed(row.get("src"), metric)
         else:
             o, c = (prev if prev is not None else v), v   # close-to-close body
             h, l = max(o, c), min(o, c)
@@ -872,7 +872,7 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
             row = breadth_daily_ohlc.live_row(today, metric)
         except Exception:
             row = None
-        if row:
+        if row and breadth_daily_ohlc.ohlc_is_observed("live", metric):
             bar.update({"o": round(row["o"], 4), "h": round(max(row["h"], c), 4),
                         "l": round(min(row["l"], c), 4), OHLC_OBSERVED_KEY: 1})
     return daily + [bar]
