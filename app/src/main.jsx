@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { installErrorBeacon } from './lib/errorBeacon'
+import { legacyRegistrations } from './utils/webPush'
 
 // Wave 6 (controller wiring, lane F's beacon): window error / unhandledrejection
 // / pagehide listeners, installed BEFORE the first render so a crash during
@@ -25,7 +26,10 @@ createRoot(document.getElementById('root')).render(
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.getRegistrations()
     .then((regs) => {
-      if (regs.length > 0) {
+      // ⛔ BRK-04: the push worker (/push-sw.js, scope /push/) is NOT the
+      // legacy caching worker. Counting it here would re-register the kill
+      // switch on every page load for every member who enabled push.
+      if (legacyRegistrations(regs).length > 0) {
         // Existing SW found — fetch the new (kill-switch) sw.js so the
         // browser updates the registration. The kill switch's activate
         // handler then deletes caches and unregisters itself.

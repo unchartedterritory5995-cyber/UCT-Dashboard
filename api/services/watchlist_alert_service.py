@@ -50,6 +50,23 @@ def _delivery_report(claimed: bool, channels: dict, errors: dict) -> dict:
     }
 
 
+def _push_channel(user_id, title: str, message: str, url: str | None,
+                  tag: str | None = None) -> None:
+    """BRK-04: Web Push, AFTER every other channel. Fire-and-forget.
+
+    ⛔ NEVER RAISES AND NEVER BLOCKS. `web_push.dispatch` only reads env and
+    submits to its own executor; the import and the call are both guarded so a
+    broken push module can never cost a member the alert the other channels
+    already delivered. ⛔ Deliberately NOT a key in `channels`: its outcome is
+    unknown when the report is built, and `channels_ok` decides lease release.
+    """
+    try:
+        from api.services import web_push
+        web_push.dispatch(user_id, title, message, url=url, tag=tag)
+    except Exception as e:
+        _logger.warning("web push channel failed (%s: %s)", type(e).__name__, e)
+
+
 def create_alert(user_id: str, sym: str, target_price: float, direction: str,
                  alert_type: str = "price", anchors: tuple | None = None,
                  drawing_id: str | None = None) -> dict:
@@ -445,6 +462,10 @@ def _deliver_alert(alert: dict, current_price: float) -> dict:
     # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
     # A private alert has no Discord leg any more — this room is for something
     # an operator or the whole audience should see, not one member's alert.
+
+    # 4. Web Push (BRK-04, dark) — last, off-thread, never raises.
+    _push_channel(alert["user_id"], f"Alert: {sym} ${current_price:.2f}", msg,
+                  f"/research/{sym.upper()}", tag=f"price-{alert.get('id')}")
     return _delivery_report(True, channels, errors)
 
 
@@ -626,6 +647,10 @@ def deliver_alert_payload(
     # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
     # A private alert has no Discord leg any more — this room is for something
     # an operator or the whole audience should see, not one member's alert.
+
+    # 4. Web Push (BRK-04, dark) — last, off-thread, never raises.
+    _push_channel(user_id, title, message, data.get("research_url"),
+                  tag=str(data.get("alert_id") or "") or None)
     return _delivery_report(True, channels, errors)
 
 
