@@ -74,3 +74,20 @@ measurement, never on assertion:
 - R-B MEASURED, NOT TAKEN: 200k -> 250k moved no graded script. dual-view's product path stops
   on `pine:state` / `coll:diverged` before the budget; poor-man's on its withheld-text gate; the
   ceiling only binds in the dark runtime pane. Revisit together with R-RT.
+
+## R-LTF measured 2026-10-01 23:40 CT - lower-timeframe serving STAYS OFF
+Our store (`GET /api/bars/RDDT?tf=15&bars=60000`, read-only, public, 200 / 2.46 MB) against
+TradingView's `vw-bar-counters-rddt-15-2026-09-30`, through `storeIntradayAgreement`:
+634 sessions in both; coverage 99.84%; sessions price-equal on every bar 77.06% (bar 99%);
+last-bar close equal 96.99% (bar 99.5%); volume equal 0.00%. Bar level: o 16321/16371,
+h 16345/16371, l 16350/16371, c 16289/16371 (max rel 1.15e-2). Verdict: does NOT meet the bar.
+A lower read would differ from TradingView on ~1 day in 30; volume never agrees (provider
+convention). `VITE_PINE_LOWER_TF_ENABLED` stays OFF. The payload is NOT committed (the rail is
+built to go red when it is and the store fails). Next: trace WHICH bars differ (session edges?
+auction prints? the provider's 15m aggregation vs TradingView's) - a store/data fix, not Pine.
+Traced the same night: price mismatches are scattered one-cent provider differences (1-7 bars per
+15m slot of ~630 days), clustered on 15:45 close (19 days) and 09:30 open (29 days). NOT a rule we
+can apply: TradingView's last-15m close equals its own DAILY close on only 84/634 days, and ours
+equals TradingView's last-15m close on 609/634. Volume: ours / TradingView's median 1.383 (p05 1.170,
+p95 1.751) - a provider volume convention. Conclusion: R-LTF needs a data-source decision (an
+intraday feed matching TradingView's prints), not engine work. The flag stays OFF.
