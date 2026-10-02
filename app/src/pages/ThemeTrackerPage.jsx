@@ -498,7 +498,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
   )
 }
 
-export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null }) {
+export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null, onOpenThemeChange = null }) {
   // Per-widget persistence (opts) — the Close/Open basis and the chosen theme set stick
   // per widget instance via the workspace's debounced layout save.
   const patchOpts = useCallback((patch) => {
@@ -1024,6 +1024,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (!q) return sortedThemes
     return sortedThemes.filter(theme => themeMatches(theme, q))
   }, [sortedThemes, debouncedSearch, themeMatches])
+
+  // COV-10 follow-up: report the OPEN taxonomy theme (its theme_db id + name) to a host that
+  // asked (the /charts Themes widget publishes it as a list SOURCE). A custom theme, or a row
+  // with no taxonomy id, reports null: there is no server-side list to track. No host => no-op.
+  const openTaxonomyTheme = useMemo(() => {
+    if (!openTheme) return null
+    const t = sortedThemes.find(x => x.ticker === openTheme)
+    return t && !t.is_custom && t.theme_id ? { id: t.theme_id, name: t.name } : null
+  }, [openTheme, sortedThemes])
+  const openThemeId = openTaxonomyTheme?.id || null
+  const openThemeName = openTaxonomyTheme?.name || null
+  useEffect(() => {
+    if (onOpenThemeChange) onOpenThemeChange(openThemeId ? { id: openThemeId, name: openThemeName } : null)
+  }, [onOpenThemeChange, openThemeId, openThemeName])
 
   // What actually renders: edit mode uses the locally-built, FIXED-ORDER list (no re-sort on
   // edit, so adding a stock never reorders the tracker); view mode uses the sorted leaderboard.

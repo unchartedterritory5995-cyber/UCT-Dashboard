@@ -5,7 +5,7 @@ import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { ALIAS_PREFIX } from '../../watchlist/communityPick'
 import { KIND, channelFor, listRefCtx, usePublish, useChannel } from '../../../lib/context/contextChannels'
-import { SubscribeOffer, SubscribedList, SUBSCRIBABLE_SOURCES } from './ListSubscription'
+import { SubscribeOffer, SubscribedList, ScreenSourceOffer, SUBSCRIBABLE_SOURCES } from './ListSubscription'
 
 // Default column layout for a prebuilt (curated UCT) list. Prebuilt lists ALWAYS open in
 // their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
@@ -91,7 +91,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   useEffect(() => () => { clearList() }, [clearList])
 
   // COV-10 — SUBSCRIBE to a list this colour group publishes that this widget cannot
-  // pick itself (today: a Scanner widget's scan), as a FROZEN copy or a TRACKING list,
+  // pick itself (a Scanner widget's scan, a Themes widget's open theme, or one of the
+  // member's saved screens offered right here), as a FROZEN copy or a TRACKING list,
   // chosen at import. Dark behind the board's `listSubscribeEnabled`: off => `listSub`
   // is ignored and the channel is never read, so the widget is exactly what it was.
   // The channel is read ONLY while the picker is showing (nothing chosen yet), so a
@@ -157,10 +158,16 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     )
   }
 
-  if (!watchKey && offered) {
+  // COV-10 follow-up: a saved screen is a list source no widget on the board publishes, so
+  // the empty widget offers it itself (collapsed to one button; nothing is read until asked).
+  const screenOfferable = subOn && !watchKey && !listSub && !opts?.source
+  if (!watchKey && (offered || screenOfferable)) {
     return (
       <div style={OFFER_WRAP}>
-        <SubscribeOffer key={`${offered.source}:${offered.value}`} color={color} offered={offered} onSubscribe={subscribe} />
+        {offered && (
+          <SubscribeOffer key={`${offered.source}:${offered.value}`} color={color} offered={offered} onSubscribe={subscribe} />
+        )}
+        {screenOfferable && <ScreenSourceOffer onSubscribe={subscribe} />}
         <div style={OFFER_BODY}>
           <WatchlistPicker
             onPick={pick}
