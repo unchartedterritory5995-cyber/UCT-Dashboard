@@ -1,0 +1,12 @@
+[PASS] 1_screener: {"note_id": "3a6d43bdacbc46e78d6f7b80ebe27f13", "tabs_to_button": 337, "toast": "Screener results sent to “CX walk Screener 214253”", "rows_frozen": 50, "total_line": "72 matches", "asof_line": "As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:43 PM ET", "cut_line": "Showing the first 50 of 72 matches, as captured.", "run_href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ", "identical_after_reload": true, "criteria": ["All Market", "Price: Over $10"], "fresh_run_filter_chip": "Price: Over $10", "fresh_run_chip_count": 1, "fresh_run_url": "http://127.0.0.
+[PASS] 2_cot: {"note_id": "c2720d72d8aa46dfa691b08b9150d47a", "latest_week_label": "Save CL COT positioning for the week of 9/22/2026 to Notebook", "scrubbed_week_label": "Save CL COT positioning for the week of 1/13/2026 to Notebook", "tabs_to_button": 35, "toast": "CL COT positioning sent to “CX walk COT 214253”", "week_saved": "1/13/2026", "week_saved_iso": "2026-01-13", "embed_week_line": "Report week Jan 13, 2026, captured Oct 1, 2026", "current_href": "/breadth?tab=cot&cot=CL", "current_link_landed_on": "Save CL COT positioning for the week of 9/22/2026 to Notebook", "rail_head": "POSITIONING\nWEEK OF
+[PASS] 3_modelbook: {"note_id": "7155897277754bf8b28870e442cbf044", "setup_id": 4, "tabs_to_button": 45, "annotation_box_focused": "Your note on this (optional)", "toast": "MU 2025 (Model Book) sent to “CX walk Model Book 214253”", "embed_text": "MU (Micron Technology) · 2025\nSetup\nVCP\nDate\nJun 20, 2025\nGrade\nA\nEntry\n$120.50\nStop\n$111.00\nTarget\n$150.00\n\nCX walk fixture setup\n\nmemory names breaking out of a tight VCP", "setup_delete_status": 200, "tombstone_text": "This Model Book entry was removed.\n\nCaptured as: MU 2025 — VCP 2025-06-20\n\nmemory names breaking out of a tight VCP", "leftover_fix
+[PASS] 4_locked: {"note_id": "33568b7c649b4460b666aae51a58c787", "lock_status": 200, "toast": "“CX walk Locked 214253” is locked — Screener results captured to your inbox until you unlock it", "expected": "“CX walk Locked 214253” is locked — Screener results captured to your inbox until you unlock it", "inbox_before": 3, "inbox_after": 4, "inbox_widget_ids": ["screener", "screener", "screener", "screener"], "embeds_in_locked_note": 0}
+[PASS] 5_page_errors: {"pageerror_count": 0, "pageerrors": [], "console_error_count": 10}
+{
+ "1_screener": "PASS",
+ "2_cot": "PASS",
+ "3_modelbook": "PASS",
+ "4_locked": "PASS",
+ "5_page_errors": "PASS"
+}

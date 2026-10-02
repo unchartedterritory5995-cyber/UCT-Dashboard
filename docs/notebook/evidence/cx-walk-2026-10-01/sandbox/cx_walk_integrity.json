@@ -1,0 +1,43 @@
+{
+ "stop": "graceful (rc 0)",
+ "line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful (rc 0); log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-cx\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-21-53.md",
+ "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-cx\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-21-53.md",
+ "required": [
+  "pre-boot (baseline)",
+  "post-boot (+15s)",
+  "shutdown"
+ ],
+ "checkpoints": [
+  {
+   "label": "pre-boot (baseline)",
+   "at": "2026-10-01 21:22:00",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "post-boot (+15s)",
+   "at": "2026-10-01 21:23:12",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "post-prewarm (+120s)",
+   "at": "2026-10-01 21:25:06",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "shutdown",
+   "at": "2026-10-01 21:44:16",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  }
+ ],
+ "status": "CLEAN",
+ "clean": true,
+ "why": ""
+}
