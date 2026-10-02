@@ -370,13 +370,16 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         h._dismiss_intro(pg)
         prep_btn = pg.get_by_role("button", name="Earnings prep")
         try:
-            pg.get_by_role("heading", name="NVDA", exact=True).wait_for(state="visible", timeout=90000)
+            pg.get_by_role("heading", name="NVDA", exact=True).first.wait_for(state="visible", timeout=90000)
             loaded = round(time.time() - t9, 1)
-            prep_btn.wait_for(state="visible", timeout=5000)
+            prep_btn.first.wait_for(state="visible", timeout=5000)
             ok9 = True
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 -- kept: run 3 failed here with no reason recorded
             loaded, ok9 = None, False
+            w.raw["W9_error"] = str(e)[:600]
         w.raw["W9_workspace_load_s"] = loaded
+        w.raw["W9_counts"] = {"heading_NVDA": pg.get_by_role("heading", name="NVDA", exact=True).count(),
+                              "earnings_prep_buttons": prep_btn.count()}
         w.record("W9_research_workspace_entry", ok9,
                  f"'Earnings prep' button on /journal/notebook/research/NVDA={ok9}; workspace header after {loaded}s")
         w.shot(pg, "W9-research-workspace-1200")
