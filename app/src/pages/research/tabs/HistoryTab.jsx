@@ -12,6 +12,7 @@ import styles from '../ResearchPage.module.css'
 // ⛔ THE FLOW LANE IS COUNTS ONLY: prints per session plus a link to the Options Flow page;
 // the API never receives premium, side or strike, so this tab cannot render them.
 // ⛔ A FAILED READ IS NOT AN EMPTY HISTORY: an unavailable lane or request says so.
+// ⛔ THE JOURNAL LANE IS THE VIEWER'S OWN TRADES ONLY (keyed server-side on the caller).
 
 export const LANE_LABEL = {
   wire: 'Morning Wire',
@@ -20,6 +21,7 @@ export const LANE_LABEL = {
   room: 'Community room',
   flow: 'Options flow',
   setups: 'Setups',
+  journal: 'Your journal',
 }
 
 const SOURCE_LABEL = {
@@ -29,6 +31,9 @@ const SOURCE_LABEL = {
   buzz_mentions: 'Community mention counts',
   flow_tape: 'Options flow tape (print counts)',
   setup_triggers: 'UCT setup ledger',
+  // The member's OWN journal (owner-scoped server-side); never anyone else's.
+  j2_trades: 'Your Journal 2.0 trades (only you see these)',
+  j2_positions: 'Your Journal 2.0 open positions (only you see these)',
 }
 
 export async function fetchHistory(url) {
