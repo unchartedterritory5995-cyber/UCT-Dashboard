@@ -157,6 +157,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 52 | C42 a call that runs exactly ONCE reads what TradingView reads (section C42). The witness is `vw-fn-series-history-rddt-1d-2026-09-30` and the C04 arm of ema-ribbon: under a guard that is PROVABLY `barstate.islast` (`guardIsLastBarOnly`, alone or as a top-level `and` conjunct), in no loop, (i) `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` are the chart's values `k` bars back and move to `CHART_SERIES_WITNESSED`; (ii) `bar_index[k]` is the call's own history (`na` on its one run) and moves to `CALL_OWNED_SERIES`; (iii) `ta.highest(src, len)` reads its source and `ta.sma(src, len ≥ 2 literal)` reads `na`. Everything else keeps a named refusal: every other `ta.*`, every other guard, a loop, a non-literal offset or length, `time_close[k]` / `hlcc4[k]`, `bar_index[k]` under any other guard. On the way: a bare `input(<literal>, …)` is a simple input (its guard is bar-invariant); the clock functions `time(…)` / `time_close(…)` and the calendar readers answer from the bar's own timestamp, so a conditional call that reads them has no history to starve (`fn:conditional-history` 540 → 383 across the 266, no object program moved). ema-ribbon's cell (2,3) is TradingView's ██████████.
 | 54 | C44 a measured sweep on the wave-10 tree and ONE verdict change (§ C44). **Sweep:** the 47 and the committed harness dir re-graded at `e4e24524ef` and at wave 9 (`46f54d80b5`), every entry that moved named; each of the 22 non-MATCH captures traced to its first wall with code@line and classed (buildable / capture-pending / budget / dark flag / correct end state / data / grammar); buildable walls ranked; the owed captures in one table; the member-door and translation censuses re-run. **Verdict:** object COLOUR joins the harness verdict (integrator ruling on C37's question) — `compare.mjs::objectColourRows`, theme-relative slots agree, an object NEITHER side draws (an `na` coordinate on both) is counted and not graded, fail-closed on an unknown state; every verdict also carries `verdictWithoutColour`, so both numbers come from one run. Found on the way: the pairing never paired an object at an `na` price (`NaN` here, `null` in the capture), so 504 + 51 + 48 objects had no colour read; fixed (`objectColours.js::isNa`). No engine semantics | `122521b211` | 30 / 47 without colour, as every row above was taken → **29 / 47 with colour** | 234 / 266 (count and text, unchanged); colour families 72 / 73 | wave 9 → wave 10 moved no graded verdict on the 47 (trend-duration line 0 → 1, labels 26 → 27; ema-ribbon cells 36 → 37). Colour moves ONE: `heat-map-seasons` (one cell fill, a variable named `color`). `multi-timeframe-supply-demand-zones` holds 8 boxes in the wrong colour that neither platform draws: counted (16 undrawn slots differ), not a verdict. Overall 27 → 26; harness dir 66 → 65 objects, 48 → 47 overall. 29 mutations, each red alone |
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
+| 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -3970,3 +3971,184 @@ and is not gated here. (5) `time("D")` on an intraday chart, and bare `time` / `
 clock is unreadable, are untouched. (6) A 1W / 1M chart is always read as a session chart: it cannot show
 whether its symbol trades every day, so an every-day symbol's weekly chart is answered from the session
 calendar on the New York stamp C36 already recorded as not the vendor's. Stated in `chartClockRegime`.
+## C48 - what capture round 3 (2026-10-01) witnesses in the object / call-site / colour area, served or refused by name (2026-10-01, step 58)
+
+Branch `pine/c48-captured-objects`, base `integrate/wave10-2026-10-01` @ `e4e24524ef`; first commit merges
+`origin/pine/captures-2026-09-30b` (`97dea45492`, the 21 fixtures sealed 2026-10-01). Every claim of
+`docs/pine/OWNER-CAPTURE-PACKET.md` § "Results - capture session 2026-10-01" in this area was re-derived
+from the fixture's own rows and objects before anything was served; each rail below starts with that
+re-derivation.
+
+### PRIORITY 0 - were wrong values live?
+
+**(a) `bar_index[k]` in code that runs once.** No. In a BLOCK (`if barstate.islast`) it was already the
+chart's value (rows A13 / C06 of `vw-call-site-history`, graded); C42's `CALL_OWNED_SERIES` `na` is applied
+only inside an inlined HELPER body, where the capture also prints `na`. **Two neighbouring reads were wrong
+and are fixed:**
+
+- object lane: a block LOCAL's `bx[1]` under `barstate.islast` printed the every-bar number (284.88 on RDDT)
+  where TradingView prints `NaN` (A12). Now `na`.
+- plot lane: a `ta.*` call, a block local's `[k]` and a helper's own history inside a block that runs on
+  SOME bars were read the every-bar way. On `vw-call-site-history-rddt` the ten rows C01-C05 / H01-H05 were
+  wrong on 205 / 239 / 242 / 307 / 163 and 163 / 163 / 242 / 151 / 163 of 634 bars; a destructured helper
+  tuple in such a block was not marked at all. Now each such plot carries the block's guard
+  (`definition.meta.blockRuns`) and the BIND refuses it, by name (`pine:block`), on a chart where the block
+  runs after a skipped bar; a block that runs on every bar (or never) keeps its plot.
+  A tuple is gated part by part: a part whose own expression reads none of the call's history
+  (`partReadsCallHistory` - H06, `volume[1]`, the chart's on 317 / 317 run bars) keeps its plot.
+  **Corpus exposure: 0 of 266 door rows changed and 0 served outputs changed** - two corpus scripts read a
+  marked conditional call (deadband-hysteresis-filter-backquant, renko-candles-overlay) and neither
+  attaches. The owner's `uncharted-volume-v2` keeps every plot (its block runs on every daily bar); its
+  document gains the `meta.blockRuns` stamp and nothing else (compute and objects byte-identical).
+
+**(b) a gradient between colours of different transparency.** No, for the blend: `fromGradient`
+(`runtime/colours.js`), its tree spelling `gradientChannelTree`, and C37's plot / object gradients are EXACT
+on `vw-colour-components-spy-1d-2026-10-01` - 12 gradient rows x 300 bars, **3,600 of 3,600 component-bars**
+(B01-B04, G05-G08 and the nested G01-G04 computed by the function), and 42 served component rows MATCH
+300 / 300 through the member door. Same-transparency gradients are unchanged (C37's rails, no edit).
+**The EDGES were wrong or unmeasured, and are now what the capture shows:** equal bounds and an `na`
+bound / value answered "no colour" (held) - TradingView answers r = b = 0, t = 100; reversed bounds
+(bottom > top) were MIRRORED - TradingView answers the bottom colour while the value lies between them. No
+corpus script writes literal reversed or equal bounds (one, bull-vs-bear-market-intraday-sessions, has
+per-bar bounds `neg.max(), neg.min()` and does not attach), so no member drawing moved.
+
+### What is served, rule by rule
+
+| capture | rule, as implemented | where | rail (all under `__tests__/vendorHarness/`) |
+|---|---|---|---|
+| `vw-call-site-history-rddt-1d` / `-spy-1d` | **One run** (a guard that is provably `barstate.islast`): `ta.lowest(x, n)` and `ta.highest(x, n)` read the bar's x; one-argument `ta.highest(n)` the bar's `high`; `ta.sma(x, 1)` x; `ta.cum(x)` x; `ta.ema` / `ta.rsi` / `ta.stdev` (length >= 2 literal), `ta.atr(n)`, `ta.change(x)`, `ta.sma(x, n >= 2)` `na`; a block local's `[k >= 1]` `na`; in a helper `time_close[k]` / `hlcc4[k]` are the chart's, `x[0]` / `src[0]` the current value. `ta.rsi` / `ta.stdev` / `ta.atr` / `ta.change` / `ta.cum` are served in a BLOCK only (the helper rows of the capture do not print them). | `objectFnInline.js::ONE_EXECUTION_TA`, `oneExecutionTokens`, `CHART_SERIES_WITNESSED`; `pine.js` fold marks (`blockLocal`, `execGuard`), `Resolver.blockLocalHistory`, `resolveBinding`; `engine/blockRuns.js`; `nativeRegistry.astColumnsFor`; `memberPaneDefinition` (`meta.blockRuns`) | `vendorHarness.c48CallSite` - RDDT 24 / 24 labels text for text, SPY 22 + the two bar-count rows |
+| `vw-colour-components-spy-1d` | the gradient formula unchanged; equal / `na` bounds -> the zero colour; reversed bounds, value between -> the bottom colour; the components (`color.r/g/b/t`) of an 8-digit literal, an `input.color` default, a ternary of colours, a per-bar transparency on a fixed base when the number provably stays in 0..100, a gradient with fixed ends and literal / `na` / per-bar bounds | `runtime/colours.js::fromGradient`, `gradientChannelTree`, `GRADIENT_ZERO_COLOUR`; `pine.js::witnessedColourOf`, `transparencyRange`, `gradientPositionTree`; `objectRuntime.js` (`grad`), `pool.js::gradientPointColour` | `vendorHarness.c48ColourComponents` - 42 rows 300 / 300 |
+| `vw-input-tf-text-v5-spy-1d` / `-v6-spy-1d` | an `input.timeframe` default prints VERBATIM under v5 and v6 (the two-entry witness table is the rule); `timeframe.period` is `D` under v5, `1D` under v6 | `pine.js::INPUT_TIMEFRAME_TEXT_WITNESS`, `inputTimeframeTextWitnessed`, `periodTextOf` | `vendorHarness.c33ObjectReads` (C48 block) - both fixtures' ten labels text for text |
+| `vw-int-array-avg-neg-spy-1d` | a float handed to an `int` bar coordinate is truncated TOWARD ZERO, negative included; a negative bar index is no error. Also `l.set_x2(a.avg())` - a plain per-bar float coordinate - is truncated where the property takes its value (it was written as -1.5) | `objectRuntime.js` (`trunc`, `resolveProps`) | `vendorHarness.c48IntAvgNeg` - 11 rows |
+| `vw-getter-history-spy-1d` | `str.tostring(line.get_y1(l))` prints the live number; `line.get_y1(l)[1]` is the number one BAR ago; inside the last-bar block it is `NaN`; a TOP-LEVEL variable holding a getter reads its previous-bar value from anywhere (`{v:'num', back: 1}`); `line.get_y1(c[1])` reads the handle the variable held a bar ago, `na` once that line was deleted | `objectRuntime.js` (`textTainted`, `tainted` `get`, `numsPrev`, `deepestBack`), `objectProgram.js`, `pine.js::getterRef`, `stateOperand`, `objectFnInline.js::getterScalars` (`top`) | `vendorHarness.c48GetterHistory` - ten rows as a label per bar, 300 / 300 each, on the vendor's bars from the listing |
+| `vw-forin-collections-rddt-1d` | `for x in <own list>` whose body shifts / pushes / sets walks the LIVE list (`live`: the length is re-read before each pass, the slot copied as the pass starts); `<family>.all` is a SNAPSHOT (a walk that deletes or creates runs one pass per object it started with); a position in `<family>.all` is the object's place, oldest first (`pos`; withheld for a family with a lost or withheld create); `var ... = array.new_label(3)` holds three `na` slots (`slots`) | `pineObjects.js::forInPlan`, `FOR_IN_LIVE_WITNESSED`, `witnessedSlots`; `pine.js` loop conversion; `objectProgram.js`; `objectRuntime.js` (`loop`) | `vendorHarness.c48ForIn` - the probe's drawing steps replayed: 24 lines, 3 boxes, 5 labels, every y, length and text |
+
+### What stays refused, and the capture that settles it
+
+Probes under `tools/visual_conformance/probes/`, queue `docs/pine/capture-queue-2026-10-01-c48.md`.
+
+| refused, by name | probe |
+|---|---|
+| `ta.highest` / `ta.lowest` in a block that runs on SOME bars (C01 / C02 / H04 fit neither "last N bars" nor "last N runs") | `vw-cond-window-extremes` |
+| the gradient's zero colour `g`, the reversed-bounds bottom colour's `g` / `b` (served by inference - the rows print r, b, t and r, t), reversed bounds with the value outside them (held) | `vw-gradient-edges` |
+| a getter number from two or more bars back; a scalar's `[2]`; a getter's `[1]` in a block that runs on some bars when the previous bar did not run it | `vw-getter-history-2` |
+| a body that changes its list by `remove` / `pop` / `unshift` / `insert` / `clear`, reassigns it, or hands it to a helper; `array.new_x(n, na)`, a non-literal size, a sized list without `var`; positions after the collector evicted | `vw-forin-collections-2` |
+| `ta.rsi` / `ta.stdev` / `ta.atr` / `ta.change` / `ta.cum` inside a HELPER called once; `ta.wma` and every other `ta.*` on one run | `vw-once-ta-helper` |
+| a gradient between gradients (G01-G04), a user colour helper (U01 / U02), a per-bar transparency not provably within 0..100, `color.new` over a colour that moves | none needed for G01-G04 (the formula is exact; what is missing is the per-component end as a tree) |
+
+**A call, a block local or a helper's history in a block that runs on MANY bars is NOT served, and is not
+waiting on a capture.** Round 3 shows the rule and it was verified on the fixtures before deciding (RDDT:
+`ta.sma` and `ta.ema` windows count RUNS, the EMA seeded by the SMA of the first n runs; `x[1]` and a helper
+parameter's `[1]` are the previous RUN's value; a call-owned `bar_index[1]` is the previous run's index; a
+chart series' `[1]` in a helper is the chart's - C03-C05, H01-H03, H05, H06 at 307 / 307 and 317 / 317).
+What serving needs, precisely:
+
+1. the previous-run read. The columnar engine already has it exactly: `ta.valuewhen(G, x, k)`
+   (`interpret.js::valueWhenOccurrence`, an unbounded forward scan) is x on the k-th previous bar where the
+   block's guard G held. So `x[k]` -> `valuewhen(G, x, k)`, `ta.sma(x, n)` -> the mean of
+   `valuewhen(G, x, 0..n-1)`, `ta.change(x)` -> `x - valuewhen(G, x, 1)`, a call-owned `bar_index[1]` ->
+   `valuewhen(G, bar_index, 1)`. No budget moves for small n (n value-when nodes over one shared guard
+   subtree, inside the 128-node cap).
+2. three things the rewrite must get right before it draws: G must read an `na` condition as "did not run"
+   (`valueWhenOccurrence` CLEARS its occurrence list on a NaN condition bar; TradingView keeps it); G must be
+   the guard as it stood at the `if` (the fold's `execGuard` chain of bound nodes - not the condition's tokens
+   re-read after the block reassigned a name the guard reads); and on a chart that does not start at the
+   listing the first run(s) in the window read `na` where TradingView reads a value, which the object lane
+   must mark unknown (C17) rather than print as `NaN`.
+3. `ta.ema` / `ta.rsi` / `ta.atr` / `ta.stdev` over runs are recurrences over RUNS: they need a recurrence
+   stepped by a guard (seeded as the capture shows), which `MAX_RECURRENCE_STEPS` does not express today.
+
+It was not built in this lane: it is a new mechanism in both lanes with its own rails, and the plots it would
+light are refused correctly today.
+
+### Measured (base = `ac4e9d4a00`, wave 10 + the capture merge; tip = `df2435843b`)
+
+| | base | tip |
+|---|---|---|
+| 47 captures, objects pane ON: objects MATCH / overall / families / plots | 30 of 46 graded / 27 / 234 of 266 / 161 of 172 | 30 of 46 / 27 / 234 of 266 / 161 of 172 (no entry moves) |
+| 47 captures, pane OFF | 18 of 25 / 15 / 108 of 119 / 140 of 151 | 18 of 25 / 15 / 108 of 119 / 140 of 151 (no entry moves) |
+| committed harness dir (138), pane ON | 68 of 91 / 48 / 343 of 385 / 358 of 546 | **71** of 91 / 48 / **350** of 385 / 358 of 546 (6 entries move) |
+| committed harness dir, pane OFF | 56 of 70 / 36 / 217 of 238 / 337 of 525 | **59** of 70 / 36 / **224** of 238 / 337 of 525 (6 entries move) |
+| member-door census, 266 x both flags: attach | 41 / 64 | 41 / 64, **0 rows changed** |
+| translation census (266): ok off / on, served outputs | 44 / 67, 818 | 44 / 67, 818 - 2 rows (off) / 3 rows (on) changed, **0 served outputs** |
+| notebook first-open / pine chunk / total JS (bytes) | 1,901,893 (PASS) / 387,103 / 12,757,155 | 1,901,893 (+0, PASS) / 396,623 (+9,520) / 12,768,773 (+11,618) |
+| `paramIds.test.js` (no edit) | 4 passed, 1 skipped | 4 passed, 1 skipped; `docs/pine/param-ids.json` untouched |
+
+Base-vs-base control: door and translation censuses byte-identical (0 rows). Every entry of the 47 is
+unchanged. Harness-dir entries that move, both flag states: `vw-call-site-history-rddt` objects DIVERGE ->
+MATCH (labels 5 -> 24 of 24, text for text; its ten gated plots DIVERGE -> not graded, overall DIVERGE ->
+INCONCLUSIVE), `vw-call-site-history-spy` labels 5 -> 24 of 24 with the two bar-count texts still differing
+(a 300-bar window counts bars from 0), `vw-input-tf-text-v5` / `-v6` objects DIVERGE -> MATCH (10 of 10),
+`vw-colour-components` / `vw-theme-colours` refusal sentence only (the door still refuses each on a row
+that stays refused). `vw-forin-collections`, `vw-getter-history`, `vw-int-array-avg-neg` stay INCONCLUSIVE
+at the door (their PLOT rows are counters and getters the plot lane does not carry); the rails replay them.
+
+Translation census rows that move: average-day-range-adr-pivots (object program - its `(W)` / `(M)` texts
+are read; the picture is the same, TradingView deletes those boxes the bar it makes them),
+smt-divergence-ict-killzones and double-topbottom-ultimate-os (object diagnostics only; neither attaches).
+
+The object lane's own reading of the 266 (non-strict translate, every script): 15 scripts move.
+`input.timeframe:unwitnessed` refusals 7 scripts -> 0 (delta-imbalance-map-joat, elliot-wave-detector-pro,
+fibonacci-retracement-mtflog, renderingnature-smc-reversal-engine-v71, smarter-snr,
+smoothed-gaussian-trend-filter-algoalpha, volume-footprint-...). `coll:sized` 10 scripts -> 5: the sized
+lists of auto-harmonic-patterns, linear-regression-channel (both), market-profile-with-tpo,
+market-structure-break-order-block and two of stop-loss-clustering's four are modelled and each list now
+stops on its NEXT wall, named (`guard:coll_set`, `coll:set`, `loop:box.delete`, `coll:push`, `guard:loop`);
+the rest keep `coll:sized` (a size that is not a literal, a UDT field). No corpus program carries a served
+`slots` list or a `live` walk yet. **market-structure-break-order-block**: its four walks stay refused - the
+body hands the list to a helper (`f_delete_box(bu_ob_boxes)`), sentence now "... by more than push / shift /
+set"; probe row G07. **trend-lines-supports-and-resistances**: unchanged (its `f_clearAll` walks run as
+before; the 47 entry does not move).
+
+### Proof
+
+Rails: `vendorHarness.c48CallSite` (33), `c48ColourComponents` (15), `c48IntAvgNeg` (4),
+`c48GetterHistory` (25), `c48ForIn` (10), the C48 block of `vendorHarness.c33ObjectReads`, and
+`__tests__/objectForInLoops`. Re-pinned with the reason in the test: `objectFnInline.test`,
+`c34ChartSeries`, `c31Loops`, `c42OneExecution`, `c43IntAvg`, `c33ObjectReads` (ast + vendor),
+`colourComponents`, `colours`, `c18WhileAndLastBar`, `objectColourNodes`, `pineGradientColour`,
+`bindingsAreVisible`, `closingPassDoesNotMint`, `objectForInLoops`.
+
+Mutations: 74, each applied alone - bytes and sha256 captured, mutated, rails run, restored by bytes, sha
+and `git status` verified after each; controls green before and after. 66 ran on `9774e28e4a`; that pass
+left 5 survivors, four of which were missing rails and are RED now (the mint-only read of a one-run
+binding, two arms of the plot gradient's position, a scalar's previous-bar taint); 5 for the tuple-part
+rule and 3 for the gate's place at the bind ran on the commits that added them, one more survivor closed
+(the single-tree document's gate). **72 RED, 2 survive, both fail-closed arms nothing servable reaches:**
+`m61` (a for-in over a bounded numeric WINDOW whose body writes it - `forInWindow` already answers false
+for such a window, so the refusal beside it never fires) and `m71` (the catch-all of
+`partReadsCallHistory` - every node shape outside its walk is refused at translation for its own reason).
+
+The full chart suite on the first tip found one defect of this lane's own: the bind asked the block-run
+gate BEFORE the plot's own tree, so a plot that could not be computed at all (an unresolved symbol) was
+reported as a block refusal (`builder/memberPane/symbolThread.test.js`, 3 cases). The gate is asked after
+the tree now (`d72ced8037`); a tree that throws keeps its own reason.
+
+### Found on the way, not changed
+
+- **A drawing list declared WITHOUT `var` is kept across bars** (`line[] a = array.new_line()` at the top
+  level, pushed and capped every bar: a 60-bar hand run holds 1 line here, where a list made anew on every
+  bar never has two to cut and holds 60). Pre-existing, the same at the base. From source: 17 corpus scripts
+  declare one, most as a UDT field or inside a function; of the door-attached, sector-rotation draws nothing
+  (withheld) and htf-candle-footprint-cartel-console is already DIVERGE (boxes 3 of 13). Probe rows S03 /
+  S04. The once-run blocks this lane serves are unaffected (one run, one list).
+- `scriptBoundNames` takes every name up to a statement's first `]` as script-bound, so a tuple RETURN that
+  opens with `volume[1]` makes `volume` the script's own name there (fail-closed; the read is refused).
+- `OBJECT_STATUS.UNWITNESSED` has no producer left (the `.all` walk was its only one); the status and its
+  member sentence are kept for the next unwitnessed stop.
+
+### Decisions left for the integrator
+
+1. The SCREENER lane still reads a conditional call the every-bar way (unchanged on purpose - nothing binds a
+   chart there, so there is no bar series to test the guard on). Refuse it there, or leave it.
+2. A document saved before this lane carries no `meta.blockRuns`; it is gated the first time it is
+   re-translated.
+3. The block-only `ta.*` rows are refused inside a helper (strict reading of the capture). `vw-once-ta-helper`
+   settles it.
+4. The zero colour's `g` and the reversed bottom colour's `g` / `b` are served by inference.
+   `vw-gradient-edges` settles it; until then say the word and they are withheld instead.
+5. In the plot lane a `NaN` gradient position still draws the series colour (an uncomputable warm-up bar and
+   Pine's `na` are the same NaN there); the object lane and the component trees answer the zero colour.
+6. Many-run serving (above) is expressible with `ta.valuewhen` and was left out.
+7. The non-`var` drawing list (above) is live and wrong for any pasted script that caps such a list; refuse
+   it by name (`coll:not-var`) until S03 / S04 are captured, or model it as cleared at its declaration.

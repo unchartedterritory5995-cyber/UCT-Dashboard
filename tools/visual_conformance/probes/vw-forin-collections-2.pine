@@ -1,0 +1,148 @@
+//@version=5
+indicator("UCTPROBE_VW_FORIN_COLLECTIONS_2", overlay = false, max_lines_count = 100, max_boxes_count = 100, max_labels_count = 100)
+
+// --- 2026-10-01 C48 - WHAT `vw-forin-collections` DID NOT SHOW ----------------------------
+//
+// That capture settled: `for x in <own list>` walks the LIVE list when the body shifts,
+// pushes or sets (F03 / F04 / F05); `<family>.all` is a snapshot (A02 / A04 / A05) whose
+// positions are oldest first (A06); `var ... = array.new_label(3)` holds three slots (Z).
+// Served. Refused by name, until a row shows them:
+//   G01  the body REMOVES the element it stands on    passes over 5 lines; which are left
+//        (index walk over the live list -> 3 passes, y = 111 and 113 left)
+//   G02  the body POPS                                passes over 5 (live -> 3)
+//   G03  the body UNSHIFTS a line (4 at most)         passes over 3 (live -> 7); which line
+//        a pass is handed after the front grew (x2 of each line = bar_index + 1 + pass)
+//   G04  the body INSERTS at 0 (4 at most)            as G03
+//   G05  the body CLEARS on its first pass            passes over 5 (live -> 1)
+//   G06  the body REASSIGNS the list variable         passes; which list is walked
+//   G07  a HELPER handed the list shifts it           passes over 5 (live -> 3)
+//   S01  array.size(array.new_box(4, na))             4?
+//   S02  a sized list declared WITHOUT `var`: labels on the chart after the
+//        replace-in-place idiom on every bar          (one set per bar up to the cap? or 3?)
+//   S03  an EMPTY drawing list declared WITHOUT `var`, pushed onto on every bar:
+//        array.size after the push          (1 = made anew every bar; bar_index + 1 = kept)
+//        and the lines on the chart with `if array.size(nv) > 1 -> line.delete(array.shift(nv))`
+//        (made anew: none is ever deleted, the chart holds the last max_lines_count)
+//   P01  positions in `label.all` once the collector has evicted: 60 labels made on the
+//        last bar under max_labels_count = 100 with S02's on the chart
+//
+// CAPTURE: NYSE:RDDT 1D (from the listing), inputs at defaults (none), AFTER THE CLOSE.
+// A runtime error is itself a reading - record its text and the bar it names.
+
+f_shift(line[] a) =>
+    if array.size(a) > 0
+        line.delete(array.shift(a))
+
+float G01 = na
+float G02 = na
+float G03 = na
+float G04 = na
+float G05 = na
+float G06 = na
+float G07 = na
+float S01 = na
+if barstate.islast
+    line[] rm = array.new_line()
+    for k = 0 to 4
+        array.push(rm, line.new(bar_index, 110 + k, bar_index + 1, 110 + k))
+    int p1 = 0
+    for [i, l] in rm
+        line.delete(array.remove(rm, i))
+        p1 += 1
+    G01 := p1
+    line[] pp = array.new_line()
+    for k = 0 to 4
+        array.push(pp, line.new(bar_index, 120 + k, bar_index + 1, 120 + k))
+    int p2 = 0
+    for l in pp
+        line.delete(array.pop(pp))
+        p2 += 1
+    G02 := p2
+    line[] un = array.new_line()
+    for k = 0 to 2
+        array.push(un, line.new(bar_index, 130 + k, bar_index + 1, 130 + k))
+    int p3 = 0
+    for l in un
+        line.set_x2(l, bar_index + 1 + p3)
+        if p3 < 4
+            array.unshift(un, line.new(bar_index, 135 + p3, bar_index + 1, 135 + p3))
+        p3 += 1
+    G03 := p3
+    line[] ins = array.new_line()
+    for k = 0 to 2
+        array.push(ins, line.new(bar_index, 140 + k, bar_index + 1, 140 + k))
+    int p4 = 0
+    for l in ins
+        line.set_x2(l, bar_index + 1 + p4)
+        if p4 < 4
+            array.insert(ins, 0, line.new(bar_index, 145 + p4, bar_index + 1, 145 + p4))
+        p4 += 1
+    G04 := p4
+    line[] cl = array.new_line()
+    for k = 0 to 4
+        array.push(cl, line.new(bar_index, 150 + k, bar_index + 1, 150 + k))
+    int p5 = 0
+    for l in cl
+        array.clear(cl)
+        p5 += 1
+    G05 := p5
+    line[] ra = array.new_line()
+    for k = 0 to 4
+        array.push(ra, line.new(bar_index, 160 + k, bar_index + 1, 160 + k))
+    line[] rb = array.new_line()
+    array.push(rb, line.new(bar_index, 169, bar_index + 1, 169))
+    int p6 = 0
+    for l in ra
+        line.set_x2(l, bar_index + 3)
+        ra := rb
+        p6 += 1
+    G06 := p6
+    line[] hs = array.new_line()
+    for k = 0 to 4
+        array.push(hs, line.new(bar_index, 170 + k, bar_index + 1, 170 + k))
+    int p7 = 0
+    for l in hs
+        f_shift(hs)
+        p7 += 1
+    G07 := p7
+    S01 := array.size(array.new_box(4, na))
+
+label[] zn = array.new_label(3)
+for i = 0 to 2
+    label.delete(array.get(zn, i))
+    array.set(zn, i, label.new(bar_index, 190 + i, "N" + str.tostring(i)))
+int s2 = 0
+for l in label.all
+    if label.get_y(l) >= 190 and label.get_y(l) < 200
+        s2 += 1
+float S02 = s2
+
+line[] nv = array.new_line()
+array.push(nv, line.new(bar_index, 300, bar_index + 1, 300))
+float S03 = array.size(nv)
+if array.size(nv) > 1
+    line.delete(array.shift(nv))
+int s4 = 0
+for l in line.all
+    if line.get_y1(l) == 300
+        s4 += 1
+float S04 = s4
+
+if barstate.islast
+    for k = 0 to 59
+        label.new(bar_index, 200 + k, "P")
+    for [i, l] in label.all
+        label.set_text(l, str.tostring(i) + "|" + str.tostring(label.get_y(l)))
+
+plot(G01, "G01_forin_passes_body_removes")
+plot(G02, "G02_forin_passes_body_pops")
+plot(G03, "G03_forin_passes_body_unshifts")
+plot(G04, "G04_forin_passes_body_inserts")
+plot(G05, "G05_forin_passes_body_clears")
+plot(G06, "G06_forin_passes_body_reassigns")
+plot(G07, "G07_forin_passes_helper_shifts")
+plot(S01, "S01_sized_with_na_size")
+plot(S02, "S02_nonvar_sized_labels_held")
+plot(S03, "S03_nonvar_list_size_after_push")
+plot(S04, "S04_nonvar_list_lines_on_chart")
+plot(bar_index, "C00_bar_index_CONTROL")

@@ -129,11 +129,14 @@ describe('C33 — average-day-range-adr-pivots: a helper\'s drawing pushed onto 
     expect(cells.find((c) => c.col === 0 && c.row === 0).text).toBe('Range Width:')
   })
 
-  it('⛔ the weekly and monthly boxes (texts `(W)` / `(M)`, unwitnessed under v6) are never drawn', () => {
+  // ⭐ C48 re-pin — this pinned two refusals (`'M' v6`, `'W' v6`): the weekly and
+  // monthly boxes' texts were unwitnessed under v6. `vw-input-tf-text-v6` prints
+  // both verbatim, so nothing is refused for them now — and the picture is the
+  // one it was: TradingView deletes each of those boxes the bar it makes it.
+  it('⭐ the weekly and monthly boxes (texts `(W)` / `(M)`) are read, and deleted the bar they are made', () => {
     const cap = capOf(ADR)
     const { run, diag } = runObjects(cap)
-    expect(Object.keys(diag.textFormatRefusals || {}).sort())
-      .toEqual(['input.timeframe:unwitnessed \'M\' v6', 'input.timeframe:unwitnessed \'W\' v6'])
+    expect(Object.keys(diag.textFormatRefusals || {})).toEqual([])
     // TradingView deletes each the bar it makes it (`showlast` 1), and so does this
     // run — so none is held, and nothing unwitnessed can reach the chart.
     expect(run.live.filter((o) => o.family === 'box').map((b) => b.props.text).filter((t) => !/\(D\)$/.test(String(t)))).toEqual([])
@@ -242,16 +245,32 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     expect(vLines.filter((l) => l.ex === 'n').length).toBe(400)   // C49: 399 + the oldest line, now held
   })
 
-  it('⛔ a getter\'s history on a LIVE handle is unmeasured: the label that reads it is held, not drawn', () => {
+  // ⭐ C48 re-pin — this read "a getter's history on a LIVE handle is unmeasured:
+  // the label that reads it is held". `vw-getter-history-spy-1d-2026-10-01` measures
+  // it: `line.get_y1(l)[1]` is the number the getter answered one bar ago (H04,
+  // 299 / 299 — `vendorHarness.c48GetterHistory`). `f_line2` runs on every bar, so
+  // the four `LW | …` labels are now drawn, each printing the y its line held one
+  // bar ago. The capture's last bar opens a week, so the line was replaced on it:
+  // the label STANDS at the new line's y and PRINTS the old one's — the y of the
+  // line `f_line2` made the week before, which is still on the chart.
+  it('⭐ C48 — a getter\'s history on a LIVE handle is the number one bar ago: the four `LW | …` labels are drawn', () => {
     const cap = capOf(OHLM)
     // "Extend Last Range" on: `hline` in `f_line2` now holds a line, so
-    // `line.get_y1(hline)[1]` reads a NUMBER back — which no capture shows.
+    // `line.get_y1(hline)[1]` reads a NUMBER back.
     const on = cap.source.text.replace('bool3       =   input.bool        (   false,', 'bool3       =   input.bool        (   true,')
     expect(on).not.toBe(cap.source.text)
     const { run } = runObjects(cap, on)
-    const texts = run.live.filter((o) => o.family === 'label').map((l) => String(l.props.text))
-    expect(texts.filter((t) => /^LW \| /.test(t))).toEqual([])
-    expect(run.withheld.label).toBeGreaterThan(0)
+    const lw = run.live.filter((o) => o.family === 'label' && /^LW \| /.test(String(o.props.text)))
+    expect(lw.map((l) => String(l.props.text).split(' | ')[1]).sort()).toEqual(['High', 'Low', 'Mid', 'Open'])
+    for (const l of lw) {
+      const n = Number(String(l.props.text).split(' | ')[2])
+      expect(Number.isFinite(n), l.props.text).toBe(true)
+      // one bar ago is NOT the current read here (the line was just replaced) …
+      expect(Math.abs(n - l.props.y), l.props.text).toBeGreaterThan(0.01)
+      // … it is the y of a line that is on the chart: the one replaced on this bar
+      const lines = run.live.filter((o) => o.family === 'line')
+      expect(lines.some((x) => Math.abs(x.props.y1 - n) < 0.006), l.props.text).toBe(true)
+    }
   })
 })
 
@@ -276,8 +295,60 @@ describe('C33 — a guard with a term nothing reads, on a capture (ict-killzones
   })
 })
 
-describe('C33 — `input.timeframe` text: each served spelling is printed by its capture', () => {
-  for (const [spelling, w] of Object.entries(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+// ⭐⭐ C48 — THE RULE'S OWN WITNESS: `vw-input-tf-text-v5` / `-v6` (AMEX:SPY 1D,
+// 2026-10-01), one label per default under each Pine version.
+describe('C48 — `input.timeframe` text: every default is printed VERBATIM, under v5 and v6', () => {
+  for (const [version, id] of Object.entries(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+    it(`⭐⭐ v${version} — ${id}: our ten labels are TradingView's, text for text`, () => {
+      const cap = capOf(id)
+      expect(Number((/\/\/@version=(\d+)/.exec(cap.source.text) || [])[1])).toBe(Number(version))
+      // what TradingView printed: each default as written, the empty one empty
+      const texts = cap.objects.records.labels.map((l) => String(l.t ?? ''))
+      expect(texts).toEqual(expect.arrayContaining(['L01 D|D', 'L02 W|W', 'L03 M|M', 'L04 60|60', 'L05 240|240', 'L06 1D|1D', 'L07 empty|', 'D', 'W']))
+      // …and the one thing the version changes: `timeframe.period` itself
+      expect(texts).toContain(`L08 timeframe.period CONTROL|${version === '6' ? '1D' : 'D'}`)
+      expect(texts).toHaveLength(10)
+      // our object lane, on the probe's own source and the capture's bars
+      vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+      const bars = toProductBars(cap)
+      const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c48tf', name: 'c48tf' })
+      expect(d.ok, d.reason).toBe(true)
+      expect((d.translation.objectDiagnostics || {}).textFormatRefusals).toBeUndefined()
+      const reader = objectReaderFor(d.definition, bars, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'AMEX' }, newestBarIsForming: cap.newestBarIsForming ?? null })
+      const run = evaluateObjects(reader.program, {
+        barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
+      })
+      const ours = run.live.filter((o) => o.family === 'label').map((o) => String(o.props.text ?? ''))
+      expect(run.withheld || {}).toEqual({})
+      expect([...ours].sort()).toEqual([...texts].sort())
+    })
+  }
+
+  it('⭐ the plots agree too: `"D" == "1D"` is false both ways, and an empty default is not the chart\'s period', () => {
+    for (const id of Object.values(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+      const cap = capOf(id)
+      const col = (title) => {
+        const p = cap.study.plots.find((x) => x.title === title)
+        const k = cap.plotValues.fields.indexOf(p.id)
+        return [...new Set(cap.plotValues.rows.map((r) => r[k]))]
+      }
+      expect(col('I02_D_eq_D')).toEqual([1])
+      expect(col('I03_D_eq_1D')).toEqual([0])
+      expect(col('I16_1D_eq_D')).toEqual([0])
+      expect(col('I14_len_1D')).toEqual([2])
+      expect(col('I17_len_empty')).toEqual([0])
+      expect(col('I18_empty_eq_timeframe_period')).toEqual([0])
+    }
+  })
+})
+
+// The two corpus captures C33 served from, before the probes: still printed.
+const CORPUS_TF_TEXT = Object.freeze({
+  D: Object.freeze({ versions: Object.freeze([6]), capture: ADR }),
+  W: Object.freeze({ versions: Object.freeze([5]), capture: OHLM }),
+})
+describe('C33 — `input.timeframe` text: the two corpus captures that print a default', () => {
+  for (const [spelling, w] of Object.entries(CORPUS_TF_TEXT)) {
     it(`⭐ \`${spelling}\` under v${w.versions.join('/v')} — ${w.capture}`, () => {
       const cap = capOf(w.capture)
       const version = Number((/\/\/@version=(\d+)/.exec(cap.source.text) || [])[1])

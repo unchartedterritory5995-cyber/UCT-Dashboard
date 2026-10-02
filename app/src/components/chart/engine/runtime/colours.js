@@ -76,16 +76,33 @@ export function byteTransparency(byte) {
   return Math.round((Number(byte) / BYTE_MAX) * TRANSPARENCY_MAX)
 }
 
+/** ⭐⭐ C48 — THE COLOUR A DEGENERATE GRADIENT HOLDS: red 0, blue 0,
+ *  transparency 100 on every bar, whatever the value — a NUMBER, never `na`.
+ *  Capture `vw-colour-components-spy-1d-2026-10-01`, rows E01–E03 (`top ==
+ *  bottom`), X01 / X02 (an `na` bound), X03 / X04 (an `na` value), 300 / 300
+ *  each. ⚠️ Green is not a row of the probe; it is 0 here as the other two
+ *  channels are. */
+export const GRADIENT_ZERO_COLOUR = packColor({ r: 0, g: 0, b: 0, transparencyByte: BYTE_MAX })
+
 /** ⭐⭐ C29 — `color.from_gradient(value, bottom, top, a, b)`, as MEASURED on the
  *  vendor (`vw-gradient-spy-1d-2026-09-30.json`): the position `w = (value −
  *  bottom) / (top − bottom)` CLAMPED to [0, 1] (w < 0 is endpoint `a`, w > 1 is
  *  `b`), then red, green, blue AND transparency each interpolated LINEARLY and
  *  TRUNCATED to a whole number (v = 0.5: 127.5 → 127; v = 0.01: 2.55 → 2,
- *  99.5 → 99, 198.5 → 198; transparency 0 → 100 reads 100·v). Answers null for
- *  what no capture pins (an `na` value or bound, `top == bottom`). */
+ *  99.5 → 99, 198.5 → 198; transparency 0 → 100 reads 100·v).
+ *  ⭐⭐ C48 — the edges `vw-colour-components-spy-1d-2026-10-01` measured:
+ *    · an `na` value or bound, or `top == bottom` → `GRADIENT_ZERO_COLOUR`;
+ *    · `top < bottom` (rows E04 / E05, bounds 1 → 0, `v` sweeping 0 … 1) → the
+ *      BOTTOM colour at every value between the two bounds — not the mirrored
+ *      blend this function used to answer.
+ *  Answers null for what no capture pins: a value outside reversed bounds, an
+ *  infinite value or bound. */
 export function fromGradient(value, bottom, top, a, b) {
   const v = Number(value), lo = Number(bottom), hi = Number(top)
-  if (![v, lo, hi].every(Number.isFinite) || hi === lo) return null
+  if (Number.isNaN(v) || Number.isNaN(lo) || Number.isNaN(hi)) return GRADIENT_ZERO_COLOUR
+  if (![v, lo, hi].every(Number.isFinite)) return null
+  if (hi === lo) return GRADIENT_ZERO_COLOUR
+  if (hi < lo) return v >= hi && v <= lo ? (Number(a) >>> 0) : null
   const w = Math.min(1, Math.max(0, (v - lo) / (hi - lo)))
   const A = unpackColor(Number(a) >>> 0)
   const B = unpackColor(Number(b) >>> 0)
@@ -125,32 +142,64 @@ export function fromGradient(value, bottom, top, a, b) {
  *  `vendorHarness.c38ColourValue.test.js` grades it against the vendor's 300
  *  bars. Change either spelling alone and both go red. `floor` stands for
  *  `Math.trunc` (every quantity here is ≥ 0) and `round` is
- *  `byteTransparency`'s; an `na` value gives an `na` component (what a gradient
- *  of `na` holds is unmeasured — nothing is drawn for it). */
+ *  `byteTransparency`'s.
+ *
+ *  ⭐⭐ C48 — the edges, as `fromGradient` holds them (same capture, same rows):
+ *  `lo` / `hi` may each be a NUMBER (a bound the script wrote) or a canonical
+ *  TREE (a per-bar bound — rows B01–B04, `low` … `high` at `close`). A bar whose
+ *  value or bound is `na`, or whose bounds are equal, holds the zero colour's
+ *  component; reversed bounds hold the bottom colour's between them and are
+ *  not computable outside them. ⛔ Two numeric bounds in order keep the tree
+ *  they always had, wrapped in ONE test for an `na` value. */
 export function gradientChannelTree({ value, lo, hi, a, b }, channel) {
   const op = (name, args) => ({ type: 'op', name, args })
   const call = (name, args) => ({ type: 'call', name, args })
   // a negative literal is `u-` of a positive one — the canonical spelling
   const num = (v) => (v < 0 ? op('u-', [{ type: 'num', value: -v }]) : { type: 'num', value: v })
-  // `(value − lo) / (hi − lo)`; `x − 0` and `x / 1` are `x` exactly, so they are not written
-  const above = lo === 0 ? value : op('-', [value, num(lo)])
-  const w = call('min', [num(1), call('max', [num(0), hi - lo === 1 ? above : op('/', [above, num(hi - lo)])])])
-  const rest = op('-', [num(1), w])
   const A = unpackColor(Number(a) >>> 0)
   const B = unpackColor(Number(b) >>> 0)
-  const opA = BYTE_MAX - A.transparencyByte
-  const opB = BYTE_MAX - B.transparencyByte
-  const opO = op('+', [op('*', [num(opA), rest]), op('*', [num(opB), w])])
-  if (channel === 't') {
-    // `byteTransparency(BYTE_MAX − trunc(opO))`
-    return call('round', [op('*', [
-      op('/', [op('-', [num(BYTE_MAX), call('floor', [opO])]), num(BYTE_MAX)]), num(TRANSPARENCY_MAX)])])
+  const NA = op('/', [num(0), num(0)])
+  /** The zero colour's component, and the bottom colour's — as numbers. */
+  const zero = num(channel === 't' ? TRANSPARENCY_MAX : 0)
+  const bottom = num(channel === 't' ? byteTransparency(A.transparencyByte) : A[channel])
+  const isNumber = (x) => typeof x === 'number'
+  const tree = (x) => (isNumber(x) ? num(x) : x)
+  /** The blend itself, for bounds in order — `fromGradient`'s arithmetic. */
+  const blend = () => {
+    // `(value − lo) / (hi − lo)`; `x − 0` and `x / 1` are `x` exactly, so they are not written
+    const above = lo === 0 ? value : op('-', [value, tree(lo)])
+    const span = isNumber(lo) && isNumber(hi) ? hi - lo : op('-', [hi, tree(lo)])
+    const w = call('min', [num(1), call('max', [num(0), span === 1 ? above : op('/', [above, tree(span)])])])
+    const rest = op('-', [num(1), w])
+    const opA = BYTE_MAX - A.transparencyByte
+    const opB = BYTE_MAX - B.transparencyByte
+    const opO = op('+', [op('*', [num(opA), rest]), op('*', [num(opB), w])])
+    if (channel === 't') {
+      // `byteTransparency(BYTE_MAX − trunc(opO))`
+      return call('round', [op('*', [
+        op('/', [op('-', [num(BYTE_MAX), call('floor', [opO])]), num(BYTE_MAX)]), num(TRANSPARENCY_MAX)])])
+    }
+    const aA = opA / BYTE_MAX
+    const aB = opB / BYTE_MAX
+    const aO = op('/', [opO, num(BYTE_MAX)])
+    const mixed = op('+', [op('*', [num(A[channel] * aA), rest]), op('*', [num(B[channel] * aB), w])])
+    return op('?:', [op('==', [aO, num(0)]), num(0), call('floor', [op('/', [mixed, aO])])])
   }
-  const aA = opA / BYTE_MAX
-  const aB = opB / BYTE_MAX
-  const aO = op('/', [opO, num(BYTE_MAX)])
-  const mixed = op('+', [op('*', [num(A[channel] * aA), rest]), op('*', [num(B[channel] * aB), w])])
-  return op('?:', [op('==', [aO, num(0)]), num(0), call('floor', [op('/', [mixed, aO])])])
+  /** `x == x` is false exactly for `na`. */
+  const known = (x) => op('==', [x, x])
+  /** Reversed bounds: the bottom colour between them, not computable outside. */
+  const reversed = () => op('?:', [op('&&', [op('>=', [value, tree(hi)]), op('<=', [value, tree(lo)])]), bottom, NA])
+  if (isNumber(lo) && isNumber(hi)) {
+    // an `na` or EQUAL pair of written bounds: the zero colour on every bar
+    if (Number.isNaN(lo) || Number.isNaN(hi) || lo === hi) return zero
+    return op('?:', [known(value), hi > lo ? blend() : reversed(), zero])
+  }
+  // a per-bar bound: which case a bar is in is read on the bar
+  const L = tree(lo)
+  const H = tree(hi)
+  const ordered = op('&&', [op('>', [H, L]), known(value)])
+  const crossed = op('&&', [op('<', [H, L]), known(value)])
+  return op('?:', [ordered, blend(), op('?:', [crossed, reversed(), zero])])
 }
 
 /** ⭐⭐ C37 — THE OBJECT LANE'S COLOUR STRING ⇄ THE PACKED INTEGER.

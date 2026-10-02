@@ -104,6 +104,7 @@ import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
+import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -1766,6 +1767,28 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           ? { guard: err.guard, message: String(err.message) }
           : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
             message: String((err && err.message) || err) }
+        continue
+      }
+      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
+      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
+      // the block runs after a bar it skipped the plot is refused by name —
+      // never drawn off the every-bar number. Same budget, same options, same
+      // memo as the plot's own tree (the guard is a subtree of it).
+      // ⛔ AFTER the plot's own tree, never before it: a plot that cannot be
+      // computed at all keeps ITS reason (`interpret:bind-time-text` on a chart
+      // whose symbol is not resolved, `symbolThread.test.js`) — the guard is a
+      // subtree of that tree, and asked first it failed the same way and the
+      // member was told about blocks instead of about the symbol.
+      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+        undefined, { tf: ctx && ctx.tf,
+          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...(other ? { symbols: other.symbols } : {}), crossMemo,
+          chartClockSink: new Map() }))
+      if (runsWhy) {
+        delete out[key]
+        delete clock[key]
+        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
     return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
@@ -1792,15 +1815,24 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
   const clock = { [keys[0]]: new Map() }
-  return withLowerTf(withChartClock(withOtherSymbols({
-    [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
-      undefined, { tf: ctx && ctx.tf,
-        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}),
-        ...(lower ? { lowerTf: lower.supply } : {}),
-        chartClockSink: clock[keys[0]] }),
-  }, other), clock), lower)
+  const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}),
+      chartClockSink: clock[keys[0]] })
+  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
+  // AFTER its tree computed (a tree that cannot keeps its own reason, above).
+  const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}),
+      chartClockSink: new Map() }))
+  if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
+  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
 }
 
 /** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read

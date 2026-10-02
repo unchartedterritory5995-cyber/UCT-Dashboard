@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../../ast/pine.js'
 import { interpret } from '../../ast/interpret.js'
-import { fromGradient, gradientChannelTree, hexToPacked, byteTransparency } from '../colours.js'
+import { fromGradient, gradientChannelTree, hexToPacked, byteTransparency, GRADIENT_ZERO_COLOUR } from '../colours.js'
 import { unpackColor } from '../../colorInt.js'
 
 const HEAD = '//@version=6\nindicator("t")\n'
@@ -33,7 +33,10 @@ const sweep = (lo, hi, n) => Array.from({ length: n }, (_, i) => {
   return { t: 1700000000 + i * 86400, o: c, h: c, l: c, c, v: 1 }
 })
 const VALUE = { type: 'series', name: 'close' }
+// ⭐ C48 — `fromGradient` answers `null` where no capture reads a colour (a value
+// outside REVERSED bounds); the tree answers `na` on exactly those bars.
 const componentOf = (packed, channel) => {
+  if (packed === null) return NaN
   const u = unpackColor(packed)
   return channel === 't' ? byteTransparency(u.transparencyByte) : u[channel]
 }
@@ -59,7 +62,7 @@ describe('C38 — `gradientChannelTree` IS `fromGradient`, component for compone
           const col = interpret(gradientChannelTree({ value: VALUE, lo, hi, a, b }, channel), bars, {})
           for (let i = 0; i < bars.length; i++) {
             const want = componentOf(fromGradient(bars[i].c, lo, hi, a, b), channel)
-            if (col[i] !== want) {
+            if (!Object.is(col[i], want)) {
               throw new Error(`${label} ${channel} [${lo}, ${hi}] at ${bars[i].c}: tree ${col[i]}, fromGradient ${want}`)
             }
             compared++
@@ -72,14 +75,76 @@ describe('C38 — `gradientChannelTree` IS `fromGradient`, component for compone
     })
   }
 
-  it('an `na` value is an `na` component — nothing is drawn for a gradient of `na`', () => {
-    const bars = sweep(0, 1, 5).map((b, i) => (i === 2 ? { ...b, c: NaN } : b))
+  // ⭐ C48 — the reversed range in `RANGES` ([3, −3]) is the BOTTOM colour between
+  // its bounds and unanswered outside them (rows E04 / E05); it used to be the
+  // mirrored blend in BOTH spellings, which is why the sweep above never saw it.
+  it('⭐ C48 — reversed bounds: the bottom colour between them, `na` outside, in both spellings', () => {
+    const a = hexToPacked('#0064C8', 70)
+    const b = hexToPacked('#FF3232', 10)
+    const bars = sweep(-5, 5, 201)
     for (const channel of ['r', 'g', 'b', 't']) {
-      const col = interpret(gradientChannelTree({ value: VALUE, lo: 0, hi: 1, a: hexToPacked('#0064C8', 70), b: hexToPacked('#FF3232', 70) }, channel), bars, {})
-      expect(Number.isNaN(col[2]), channel).toBe(true)
-      expect(Number.isFinite(col[1]) && Number.isFinite(col[3]), channel).toBe(true)
+      const col = interpret(gradientChannelTree({ value: VALUE, lo: 3, hi: -3, a, b }, channel), bars, {})
+      const inside = bars.map((x, i) => (x.c >= -3 && x.c <= 3 ? col[i] : null)).filter((x) => x !== null)
+      expect(new Set(inside), channel).toEqual(new Set([componentOf(a, channel)]))
+      expect(bars.every((x, i) => (x.c >= -3 && x.c <= 3) || Number.isNaN(col[i])), channel).toBe(true)
     }
-    expect(fromGradient(NaN, 0, 1, 1, 2)).toBe(null)
+    expect(fromGradient(0, 3, -3, a, b)).toBe(a)
+    expect(fromGradient(4, 3, -3, a, b)).toBeNull()
+  })
+
+  // ⭐ C48 re-pin — this read "an `na` value is an `na` component … unmeasured".
+  // It is measured now (`vw-colour-components`, rows X03 / X04, and X01 / X02 /
+  // E01–E03 for an `na` or equal pair of bounds): the zero colour.
+  it('⭐ C48 — an `na` value, an `na` bound and equal bounds are the ZERO colour, in both spellings', () => {
+    const a = hexToPacked('#0064C8', 70)
+    const b = hexToPacked('#FF3232', 70)
+    const bars = sweep(0, 1, 5).map((x, i) => (i === 2 ? { ...x, c: NaN } : x))
+    for (const channel of ['r', 'g', 'b', 't']) {
+      const zero = channel === 't' ? 100 : 0
+      const col = interpret(gradientChannelTree({ value: VALUE, lo: 0, hi: 1, a, b }, channel), bars, {})
+      expect(col[2], channel).toBe(zero)
+      expect(col[1], channel).toBe(componentOf(fromGradient(bars[1].c, 0, 1, a, b), channel))
+      for (const [lo, hi] of [[5, 5], [NaN, 1], [0, NaN]]) {
+        const flat = interpret(gradientChannelTree({ value: VALUE, lo, hi, a, b }, channel), bars, {})
+        expect(Array.from(flat), `${channel} [${lo}, ${hi}]`).toEqual([zero, zero, zero, zero, zero])
+      }
+    }
+    expect(fromGradient(NaN, 0, 1, 1, 2)).toBe(GRADIENT_ZERO_COLOUR)
+    expect(fromGradient(0.5, 5, 5, 1, 2)).toBe(GRADIENT_ZERO_COLOUR)
+  })
+
+  it('⭐ C48 — PER-BAR bounds: the tree is `fromGradient` on every bar, each case of it', () => {
+    const a = hexToPacked('#0064C8', 70)
+    const b = hexToPacked('#FF3232', 10)
+    const LOW = { type: 'series', name: 'low' }
+    const HIGH = { type: 'series', name: 'high' }
+    // bounds in order, equal, reversed (the value inside and outside), and `na`
+    const bars = []
+    for (let i = 0; i < 400; i += 1) {
+      const kind = i % 8
+      const c = 100 + ((i * 37) % 61) / 3
+      let l = c - 1 - (i % 5)
+      let h = c + 1 + (i % 7) / 2
+      if (kind === 3) h = l                       // equal
+      if (kind === 4) { const x = l; l = h; h = x } // reversed, value between
+      if (kind === 5) { l = c - 5; h = c - 9 }      // reversed, value above both
+      if (kind === 6) l = NaN
+      bars.push({ t: 1700000000 + i * 86400, o: c, h, l, c: kind === 7 ? NaN : c, v: 1 })
+    }
+    let compared = 0
+    const cases = new Set()
+    for (const channel of ['r', 'g', 'b', 't']) {
+      const col = interpret(gradientChannelTree({ value: VALUE, lo: LOW, hi: HIGH, a, b }, channel), bars, {})
+      bars.forEach((x, i) => {
+        const packed = fromGradient(x.c, x.l, x.h, a, b)
+        const want = componentOf(packed, channel)
+        if (!Object.is(col[i], want)) throw new Error(`${channel} bar ${i} (${x.l}, ${x.h}) at ${x.c}: tree ${col[i]}, fromGradient ${want}`)
+        cases.add(packed === null ? 'unanswered' : packed === GRADIENT_ZERO_COLOUR ? 'zero' : packed === a ? 'bottom' : 'blend')
+        compared += 1
+      })
+    }
+    expect(compared).toBe(1600)
+    expect([...cases].sort()).toEqual(['blend', 'bottom', 'unanswered', 'zero'])
   })
 
   it('CONTROL — the comparison can fail: a tree for the WRONG end is caught', () => {
@@ -125,13 +190,13 @@ describe('C38 — the translator: the witnessed colours are numbers', () => {
 })
 
 describe('C38 — every colour the capture does NOT witness still refuses `pine:colour-value`', () => {
+  // ⭐ C48 re-pin — five entries left this list: an eight-digit literal, an
+  // `input.color`, a ternary of colours, a gradient over a per-bar bound and one
+  // over an empty range are rows of `vw-colour-components-spy-1d-2026-10-01` now,
+  // graded 300 / 300 in `vendorHarness.c48ColourComponents`. The per-bar
+  // transparency below stays: `close` is not provably within 0-100.
   const UNWITNESSED = {
-    'an eight-digit literal': 'plot(color.t(#0064C84D))',
-    'an `input.color`': 'c = input.color(color.red)\nplot(color.r(c))',
     'a per-bar transparency': 'plot(color.t(color.new(color.red, close)))',
-    'a ternary of colours': 'plot(color.r(close > open ? color.green : color.red))',
-    'a gradient over a per-bar bound': 'plot(color.r(color.from_gradient(close, low, high, color.blue, color.red)))',
-    'a gradient over an empty range': 'plot(color.r(color.from_gradient(close, 5, 5, color.blue, color.red)))',
     'a gradient between gradients': 'g = color.from_gradient(close, 0, 1, color.blue, color.red)\nplot(color.r(color.from_gradient(open, 0, 1, g, color.red)))',
     '`color.new` twice over a gradient': 'plot(color.r(color.new(color.new(color.from_gradient(close, 0, 1, color.blue, color.red), 30), 40)))',
     'a transparency outside 0-100': 'plot(color.t(color.new(color.red, 140)))',

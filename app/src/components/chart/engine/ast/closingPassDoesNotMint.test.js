@@ -158,8 +158,12 @@ describe('R13 — the closing pass resolves without minting', () => {
     // undo the ruling that created it.
     const t = translatePine(fs.readFileSync(CLOUDS, 'utf8'), {})
     const notes = (t.notes || []).map((n) => `${n.code || n.guard}@${n.line}`)
-    expect(notes.filter((s) => s.startsWith('pine:colour-value')))
-      .toEqual(['pine:colour-value@90', 'pine:colour-value@91'])
+    // ⭐ C48 re-pin — lines 90 / 91 (`color.t(bullColor)`, the component of an
+    // `input.color`) were noted `pine:colour-value`: unread AND unreadable.
+    // `vw-colour-components-spy-1d-2026-10-01` measures that form (300 / 300), so
+    // they are READ now, and an unread readable binding is silent. The pass still
+    // speaks for what it cannot read: the eight input kinds below.
+    expect(notes.filter((s) => s.startsWith('pine:colour-value'))).toEqual([])
     expect(notes.filter((s) => s.startsWith('pine:input-kind')))
       .toEqual(['pine:input-kind@10', 'pine:input-kind@11', 'pine:input-kind@13',
         'pine:input-kind@17', 'pine:input-kind@18', 'pine:input-kind@20',

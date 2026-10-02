@@ -162,8 +162,8 @@ describe('C43 — replayed on the capture\'s bars: our texts and our line are Tr
     const want = answers(cap)
     const { run } = runReplay(cap)
     const lines = run.live.filter((o) => o.family === 'line').sort((a, b) => a.id - b.id)
-    // five served lines, in creation order i1 … i5 (the sixth, negative, is held — below)
-    expect(lines).toHaveLength(5)
+    // six served lines, in creation order i1 … i5, then the negative one (below)
+    expect(lines).toHaveLength(6)
     const dx = lines.map((l) => l.props.x2 - l.props.x1)
     expect(dx.slice(0, 4).map(String)).toEqual([want.X01, want.X02, want.X03, want.X04])
     // ⛔ NON-VACUITY: rounding would say 3 for 1.5 + 1 and 1.67 + 1; a ceiling 3 for all
@@ -177,14 +177,21 @@ describe('C43 — replayed on the capture\'s bars: our texts and our line are Tr
     for (const l of lines) expect(Number.isInteger(l.props.x2)).toBe(true)
   }, 120000)
 
-  it('⛔ a NEGATIVE sum is not served: truncation and floor were never told apart, so the line is held, not drawn', () => {
+  // ⭐ C48 re-pin — this read "a NEGATIVE sum is not served … the line is held".
+  // This capture could not tell truncation from floor (its sums are positive);
+  // `vw-int-array-avg-neg-spy-1d-2026-10-01` does — toward zero, and a line at a
+  // negative bar index is no error (`vendorHarness.c48IntAvgNeg`). So the sixth
+  // line is served: x1 + (−1.5) − 100 = −71.5 on a line made at bar 30 → −71.
+  it('⭐ C48 — a NEGATIVE sum is truncated toward zero and served: the sixth line ends at bar −71', () => {
     const cap = load()
     const { run } = runReplay(cap)
-    // `l_neg` is the sixth line made on bar 30: x1 + (−1.5) − 100 is below zero
-    expect(run.stats.truncNegative).toBeGreaterThan(100)
-    expect(run.stats.created).toBeGreaterThanOrEqual(6)
-    expect(run.live.filter((o) => o.family === 'line')).toHaveLength(5)
-    expect(run.stats.objectsTainted).toBeGreaterThanOrEqual(1)
+    expect(run.stats.truncNegative).toBeUndefined()
+    const lines = run.live.filter((o) => o.family === 'line').sort((a, b) => a.id - b.id)
+    expect(lines).toHaveLength(6)
+    expect(lines[5].props.x1).toBe(30)
+    expect(lines[5].props.x2).toBe(-71)
+    expect(Math.floor(30 - 1.5 - 100)).toBe(-72)   // what floor would have written
+    expect(run.stats.objectsTainted || 0).toBe(0)
     expect(run.status).toBe('ok')
   }, 120000)
 })

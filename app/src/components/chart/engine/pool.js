@@ -783,7 +783,11 @@ export function gradientPointColour(gradient, w) {
   // must not be coerced to 0 and painted the bottom colour. A NaN or infinite
   // position is `fromGradient`'s to refuse (it answers `null`), and `null` flows
   // through the two conversions below as `null`.
-  if (!gradient || typeof w !== 'number') return null
+  // ⛔ C48 — and a NaN position is refused HERE: `fromGradient` answers the
+  // zero colour for an `na` value now (measured), but this column cannot tell a
+  // bar Pine holds `na` from a bar this window cannot compute, and painting the
+  // second kind transparent would hide a line TradingView draws.
+  if (!gradient || typeof w !== 'number' || Number.isNaN(w)) return null
   const hex = packedToObjectHex(fromGradient(w, 0, 1, gradient.a, gradient.b))
   return gradient.transparency !== null ? withObjectTransparency(hex, gradient.transparency) : hex
 }
