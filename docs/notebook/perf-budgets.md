@@ -935,3 +935,50 @@ decorate the page's rows. It now takes the total as the window count before the 
 **Rejected:** a covering index for the tasks list. It gave the same answers and was **5-7x
 slower** (for example, 64 ms before and 351 ms after at 25k, `diag-ab.*`). It is not in the
 product.
+
+### Typing: which reading the 16 ms line binds (ruling D24, 2026-10-01)
+
+The harness has two typing rows since lane TY4 (`tools/notebook_perf_harness.py --busy`):
+
+- `typing_per_char`: wall-clock, keydown to the task after the `input` event. It includes the
+  wait for the next display frame.
+- `typing_busy_per_char`: the renderer main thread's task time per keystroke, from a trace with
+  no wrappers. Idle time is not counted. GPU and compositor work off the main thread is not in it.
+
+Measured on 2026-10-01 (`docs/notebook/perf-runs/ty-floor/README.md`; frame interval 16.7 ms,
+headless Chromium):
+
+| median of 3 runs, p95 | 1 paragraph | 1,000 | 2,000 |
+|---|---:|---:|---:|
+| `typing_per_char` (wall-clock) | 14.8 ms | 15.5 ms | 16.8 ms |
+| `typing_busy_per_char` (busy) | 7.6 ms | 10.1 ms | 21.0 ms |
+
+The wall-clock row barely moves across a 2,000-fold change in document size, and reads 14.8 ms
+on a note that cannot be slow. Its tail is the frame interval. That is why three rounds of real
+fixes moved its median and never its p95.
+
+**Ruling D24** (`NOTEBOOK-10-OF-10-PLAN.md`, decisions table): the 16 ms line is read on
+`typing_busy_per_char` p95. The wall-clock row stays in every report. The number in
+`perf-budgets.json` is unchanged.
+
+**Where that leaves clause 4d: NOT MET.** On the busy reading, 1,000 paragraphs is under the line
+on all three runs (9.75 to 11.2 ms) and 2,000 paragraphs is over it on all three (19.5 to
+21.1 ms). Those three busy runs started on a BUSY box (another session's tests), so the absolute
+numbers are not a verdict; the shape across sizes is the finding. A quiet-box busy reading is
+owed, and the work is at 2,000 paragraphs: busy p50 grows from 5.0 ms at one paragraph to
+14.9 ms at 2,000, so something in a keystroke still scales with the size of the note.
+
+⚠️ The harness's own budget check still reads `typing_per_char` (`summarize()` was not changed
+by TY4). Until it is moved to the busy row, its typing verdict line is the wall-clock one and is
+not the clause's reading.
+
+**Update, 2026-10-01 (lane TY6):** the line above is superseded. `summarize()` now reads the
+typing budget off `typing_busy_per_char` p95 (`summarize_busy`'s rows, which since this lane
+carry the budget up to 2,000 paragraphs the same way `note_open`'s rows carry theirs), exactly
+per ruling D24. `typing_per_char` is still produced and written on every run, with
+`budget_ms: None` ("n/a" in the markdown table) and a note that it is not the budget's reading.
+A run with no `--busy` pass, or one where `--busy` shared a context with `--attribute` (an
+unclean, wrapper-loaded trace -- `run_live`'s own caveat), now reports the typing budget
+INCONCLUSIVE, never a silent pass and never a breach read off the wall-clock row. See
+`tools/notebook_perf_harness.py`'s `summarize()`/`summarize_busy()` and
+`tests/test_notebook_perf_harness.py`'s D24 cases.

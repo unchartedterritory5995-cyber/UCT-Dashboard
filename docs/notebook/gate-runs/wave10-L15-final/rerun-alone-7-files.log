@@ -1,0 +1,269 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10-l13/app
+
+stderr | src/components/chart/engine/__tests__/flipCGeometry.test.jsx > PANE_MODE panes — the cutover, exercised > a drift that SURVIVES its own re-apply is reported by name, not swallowed
+paneLayout: pane 1 is 91px, expected 100px (re-applied once and it did not take; the chart is drawn anyway)
+
+ ✓ src/components/chart/engine/__tests__/flipCGeometry.test.jsx (31 tests) 2443ms
+     ✓ production never calls the test override, and nobody compares the constant directly  531ms
+     ✓ the four files do not exist, and NOTHING in app/src names their exports  547ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js > ⭐⭐ the object lane, measured over the committed corpus > ⭐⭐ prints where the DRAWING dies, by lane, and accounts for every script
+
+OBJECT-LANE CENSUS  —  266 scripts, tf=D, clock told
+the object lane BUILDS : 13  (4.9%)
+  ⛔ A BUILD IS NOT A DRAW — nothing here is EXECUTED. A script that builds and then throws, or runs and emits no object, is counted above.
+  n  lane / guard
+ 23  runtime/runtime:library
+ 22  runtime/runtime:statement
+ 20  objects/objects:no-objects-in-source
+ 16  objects/pine:declaration-strategy
+ 12  runtime/runtime:call-undeclared-builtin-state
+ 11  runtime/pine:function
+ 10  runtime/pine:builtin
+  9  runtime/runtime:declaration
+  8  objects/pine:block
+  8  runtime/pine:request
+  8  runtime/pine:input-kind
+  7  objects/pine:module
+  7  objects/pine:no-output
+  6  objects/pine:state
+  6  runtime/pine:block
+  5  runtime/runtime:history-dynamic-offset
+  5  runtime/runtime:object-op
+  4  objects/pine:request
+  4  objects/pine:function-def
+  4  objects/pine:collection
+  4  runtime/pine:window-dependent
+  4  runtime/runtime:function
+  3  objects/pine:reassign
+  3  runtime/runtime:block-value
+  3  runtime/pine:statement
+  3  objects/pine:function
+  2  runtime/runtime:call-text-state
+  2  runtime/runtime:loop
+  2  runtime/runtime:varip
+  2  runtime/runtime:function-global-state
+  2  runtime/runtime:presentation
+  2  runtime/pine:window
+  2  objects/pine:builtin
+  2  runtime/runtime:history-expression
+  2  runtime/runtime:request
+  2  runtime/runtime:input-state
+  1  runtime/runtime:call-windowed-state
+  1  runtime/runtime:switch
+  1  runtime/runtime:expression-statement
+  1  runtime/pine:text-value
+  1  objects/pine:timeout
+  1  objects/pine:arity
+  1  objects/pine:tuple
+  1  runtime/runtime:directive
+  1  runtime/runtime:call-conversion-state
+  1  runtime/pine:role-order
+  1  runtime/lower-tf:unwitnessed
+  1  runtime/lower-tf:lookahead
+  1  objects/pine:statement
+  1  runtime/pine:drawing
+  1  threw/threw:this Pine line is not a shape the transl
+  1  objects/pine:na
+  1  runtime/runtime:array
+  1  runtime/pine:arity
+
+drawn:
+  4c-nyse-market-breadth-ratio__722410befd.pine
+  extrapolated-pivot-connector__vROeQSQlNs.pine
+  fib-retracement__8XcLscnekw.pine
+  fibonacci-pivot-points-cc__p8DQ3RIR97.pine
+  inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine
+  liquidity-pools__fa7b28e733.pine
+  makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine
+  market-structure-by-leviathan__9ca1dae1ac.pine
+  options-max-pain-calculator-backquant__c904837c16.pine
+  price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine
+  trend-targets-algoalpha__92ff5628d7.pine
+  trendlines__43QQg9nDN0.pine
+  wyckoff-accumulation-distribution__d9ae726e21.pine
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js (3 tests) 24509ms
+     ✓ ⭐⭐ prints where the DRAWING dies, by lane, and accounts for every script  12542ms
+     ✓ ⛔ CONTROL — the lane tag is real, and BOTH lanes appear in the table  11964ms
+ ❯ src/components/chart/engine/__tests__/objectFnInline.vendor.test.js (4 tests | 1 failed) 18941ms
+     ✓ ⭐ no call is refused as conditional-history any more 227ms
+     ✓ ⭐ 37 of TradingView's 45 cells are drawn, and every one is a cell TradingView shows  699ms
+     ✓ ⭐ its lines are held (C30: 503 of 504) and its labels are the 504 (C33)  564ms
+     × ⛔ its lines are withheld: TradingView holds two per bar where this chart makes one 17448ms
+stdout | src/components/chart/engine/runtime/__tests__/guardProbe.measure.test.js > PROBE > groups each guard by message shape
+
+================ pine:block — 14 scripts, 3 distinct shapes ================
+
+  [7]  a Pine block spans several statements and this engine stores a single expression — `X` (reached through `X`)
+        [objects] atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine L36
+          for k = 0 to period - 1
+        [objects] kalman-price-filter-backquant__47a601e4bc.pine L36
+          for i = 0 to N-1
+
+  [6]  a Pine block spans several statements and this engine stores a single expression
+        [runtime] artemis-oscillator-pro__ea1097ca9e.pine L233
+          switch m
+        [runtime] auto-trendline-dojiemoji__c21f83602c.pine L14
+          switch str_input // {string:int}
+
+  [1]  a Pine block spans several statements and this engine stores a single expression — `X`
+        [objects] sessions__2677.pine L41
+          londonLow := if londonSession
+
+ ✓ src/components/chart/engine/runtime/__tests__/guardProbe.measure.test.js (1 test) 13043ms
+     ✓ groups each guard by message shape  13042ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js > ⭐⭐ the drawable ceiling, cross-tabbed against where the drawing dies > ⭐⭐ prints the ceiling and the per-guard drawer count
+
+DRAWABLE CEILING  —  266 scripts, tf=D, clock told
+contain a drawing call : 190  (71.4%)   <- nothing above this can ever draw
+contain none           : 76  (28.6%)
+
+  n  drawers  lane / guard
+ 23       23  runtime/runtime:library
+ 22       22  runtime/runtime:statement
+ 13       13  DREW
+ 12       12  runtime/runtime:call-undeclared-builtin-state
+ 11       11  runtime/pine:function
+ 10       10  runtime/pine:builtin
+  9        9  runtime/runtime:declaration
+  8        8  runtime/pine:request
+  8        8  runtime/pine:input-kind
+  6        6  runtime/pine:block
+  7        5  objects/pine:no-output
+  5        5  runtime/runtime:history-dynamic-offset
+  5        5  runtime/runtime:object-op
+  4        4  runtime/pine:window-dependent
+  4        4  runtime/runtime:function
+ 16        3  objects/pine:declaration-strategy
+  3        3  runtime/runtime:block-value
+  3        3  runtime/pine:statement
+  2        2  runtime/runtime:call-text-state
+  2        2  runtime/runtime:loop
+  2        2  runtime/runtime:varip
+  2        2  runtime/runtime:function-global-state
+  2        2  runtime/runtime:presentation
+  2        2  runtime/pine:window
+  2        2  runtime/runtime:history-expression
+  2        2  runtime/runtime:request
+  2        2  runtime/runtime:input-state
+ 20        1  objects/objects:no-objects-in-source
+  7        1  objects/pine:module
+  6        1  objects/pine:state
+  3        1  objects/pine:reassign
+  2        1  objects/pine:builtin
+  1        1  runtime/runtime:call-windowed-state
+  1        1  runtime/runtime:switch
+  1        1  runtime/runtime:expression-statement
+  1        1  runtime/pine:text-value
+  1        1  runtime/runtime:directive
+  1        1  runtime/runtime:call-conversion-state
+  1        1  runtime/pine:role-order
+  1        1  runtime/lower-tf:unwitnessed
+  1        1  runtime/lower-tf:lookahead
+  1        1  runtime/pine:drawing
+  1        1  threw/this Pine line is not a shape the transl
+  1        1  runtime/runtime:array
+  1        1  runtime/pine:arity
+  8        0  objects/pine:block
+  4        0  objects/pine:request
+  4        0  objects/pine:function-def
+  4        0  objects/pine:collection
+  3        0  objects/pine:function
+  1        0  objects/pine:timeout
+  1        0  objects/pine:arity
+  1        0  objects/pine:tuple
+  1        0  objects/pine:statement
+  1        0  objects/pine:na
+
+⭐ a row whose drawer count is 0 cannot move "draws end to end", however
+   large its n — its scripts have nothing for this lane to draw.
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js (3 tests) 13314ms
+     ✓ ⭐⭐ prints the ceiling and the per-guard drawer count  13311ms
+stdout | src/lib/presentation/dataGrid/dataGridSeed.rail.test.js > TERM-065 — a new sortable grid uses the DataGrid seed > prints the census (derived)
+[TERM-065] hand-rolled grids: 14; migrated onto the seed: 4
+  app/src/components/tiles/CatalystTable.jsx: FLIP@731
+  app/src/pages/calendar/CalendarDayTable.jsx: NEGATE@122
+  app/src/pages/charts/widgets/CalendarWidget.jsx: FLIP@188
+  app/src/pages/DarkPool.jsx: STATE@487, FLIP@515, STATE@619, FLIP@648, STATE@2323, FLIP@2350
+  app/src/pages/desk/Shelf.jsx: STATE@222
+  app/src/pages/journal-2-0/components/HoldingsList.jsx: FLIP@122
+  app/src/pages/LiveFlow.jsx: FLIP@1593
+  app/src/pages/LiveFlowMassive.jsx: FLIP@3315, STATE@3376, FLIP@4403
+  app/src/pages/ModelBook.jsx: FLIP@1802
+  app/src/pages/OptionsFlow.jsx: FLIP@7198, FLIP@7898, FLIP@8858, FLIP@8981
+  app/src/pages/OptionsFlow_admin.jsx: STATE@1757, FLIP@1796, FLIP@8070, FLIP@8737, FLIP@9068, FLIP@9181
+  app/src/pages/ThemeTrackerPage.jsx: STATE@887, FLIP@923, FLIP@1408, FLIP@1419
+  app/src/pages/UCT20.jsx: ARIA@491
+  app/src/pages/Watchlists.jsx: STATE@929, FLIP@968, FLIP@2093
+
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js > ⭐⭐ the call sites behind one guard > ⭐⭐ prints every script that dies on $GUARD, with its line
+
+CALL SITES — guard=runtime:declaration   (9 scripts)
+
+  heikin-ashi-supertrend__2fb7267210.pine  [lane runtime]
+    L11: strategy("Heikin Ashi Supertrend", overlay=true, max_bars_back=5000, default_qty_type=strategy.cash, default_qty_value=1
+    why: a script that is not an indicator — `strategy()`
+
+  linear-regression-channel-breakout-strategy__3a1cf28800.pine  [lane runtime]
+    L5: strategy('Linear Regression Channel Breakout Strategy', overlay=true)
+    why: a script that is not an indicator — `strategy()`
+
+  machine-learning-lorentzian-classification__5c7960db26.pine  [lane runtime]
+    L8: strategy('Machine Learning: Lorentzian Classification', 'Lorentzian Classification Strategy', true, precision=2, initial
+    why: a script that is not an indicator — `strategy()`
+
+  multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine  [lane runtime]
+    L5: strategy("Multi Timeframe RSI Buy Sell Strategy [TradeDots]", overlay=false, initial_capital = 10000, commission_type = 
+    why: a script that is not an indicator — `strategy()`
+
+  rsi-vwap-indicator__pTI5ZVw9n4.pine  [lane runtime]
+    L5: strategy("RSI-VWAP Indicator %", overlay = false, pyramiding = 5, initial_capital = 100000, default_qty_value = 0, commi
+    why: a script that is not an indicator — `strategy()`
+
+  scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine  [lane runtime]
+    L5: strategy("Scalping Strategy with Williams %R, MACD, and SMA (1-Minute Only)", overlay=true)
+    why: a script that is not an indicator — `strategy()`
+
+  take-profit-multi-timeframe__8c16588ae9.pine  [lane runtime]
+    L4: strategy(title = "Take profit Multi timeframe", overlay = true,  pyramiding=0,initial_capital = 10000, default_qty_type=
+    why: a script that is not an indicator — `strategy()`
+
+  tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine  [lane runtime]
+    L5: strategy(title='TradingView Alerts to MT4 MT5 Strategy example', commission_type=strategy.commission.cash_per_order, com
+    why: a script that is not an indicator — `strategy()`
+
+  trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine  [lane runtime]
+    L53: strategy(title = 'Trailing Take Profit Trailing Stop Loss',
+    why: a script that is not an indicator — `strategy()`
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js (2 tests) 12445ms
+     ✓ ⭐⭐ prints every script that dies on $GUARD, with its line  12443ms
+ ✓ src/lib/presentation/dataGrid/dataGridSeed.rail.test.js (12 tests) 6542ms
+     ✓ a planted new grid fails the census BY NAME  6515ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/chart/engine/__tests__/objectFnInline.vendor.test.js > sector-rotation — a coincidental count is not a match > ⛔ its lines are withheld: TradingView holds two per bar where this chart makes one
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/chart/engine/__tests__/objectFnInline.vendor.test.js:100:5
+     98| 
+     99| describe('sector-rotation — a coincidental count is not a match', () =…
+    100|   it('⛔ its lines are withheld: TradingView holds two per bar where th…
+       |     ^
+    101|     vi.stubEnv(FLAG, '1')
+    102|     const cap = load('sector-rotation')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  1 failed | 55 passed (56)
+   Start at  18:07:36
+   Duration  56.57s (transform 4.64s, setup 1.13s, import 13.20s, tests 91.24s, environment 4.36s)
+

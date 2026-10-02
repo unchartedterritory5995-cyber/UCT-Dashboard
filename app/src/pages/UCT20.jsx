@@ -154,16 +154,16 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
 
   return (
     <div className={`${styles.card} ${expanded ? styles.cardOpen : ''}`}>
-      {/* Collapsed row — aligned grid; keyboard-drivable (Enter/Space toggles) */}
+      {/* Collapsed row — aligned grid. The row itself is a plain, non-interactive
+          container (mouse-only onClick, no role/tabIndex): it used to be
+          `role="button"` with its own Enter/Space handler, which is what forced
+          the ticker chip below to opt OUT of A2R-05's keyboard fix (nesting one
+          focus stop inside another). Keyboard users now get two SIBLING stops —
+          the ticker chip (TickerPopup, default `focusable`) and the caret button
+          below, which owns `aria-expanded` and the Enter/Space toggle instead. */}
       <div
         className={styles.row}
         onClick={onToggle}
-        tabIndex={0}
-        role="button"
-        aria-expanded={expanded}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
-        }}
       >
         <span className={styles.rank}>{rank}</span>
         <span className={`${styles.cTag} ${styles.tagCell}`}>
@@ -190,7 +190,20 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
         <span className={`${styles.cDays} ${styles.days}`}>{daysHeld != null ? `${daysHeld}d` : <span className={styles.dim}>—</span>}</span>
         <span className={`${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
         <span className={styles.rating}>{rating != null ? rating.toFixed(1) : '—'}</span>
-        <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>
+        {/* The row's own expand/collapse control — a REAL <button>, a sibling of
+            the ticker chip above, never a wrapper around it. `stopPropagation`
+            keeps this from also firing the row's onClick (which would toggle
+            twice — once here, once from the bubble — and net to a no-op, but
+            for the wrong reason). `aria-expanded` moved here from the row. */}
+        <button
+          type="button"
+          className={styles.caret}
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${sym} details`}
+          onClick={e => { e.stopPropagation(); onToggle() }}
+        >
+          {expanded ? '▾' : '▸'}
+        </button>
       </div>
 
       {/* Expanded — full width, two columns */}

@@ -1,5 +1,96 @@
 # Notebook 10/10 — the owner's actions, as checklists
 
+## What is left, and what each step unlocks
+
+Twelve owner actions are tracked in this file. A "scorecard clause" below is one line of the
+61-line checklist in `docs/notebook/parity-scorecard.md`, which scores this product standard by
+standard against Notion, Evernote and Obsidian. Each clause reads one of: `MET`, `NOT MET`,
+`NOT MEASURED` (nobody has taken the reading yet), or `BLOCKED` (something outside this
+programme has to happen first). Seven of the twelve actions below would move one or more
+clauses; the other five are real work — repo cleanup, one unfinished check, one open policy
+question — that do not move a counted clause, and are marked "None" rather than given one.
+
+Rows are ordered by scorecard clauses gained per hour of the owner's own time, highest first.
+Two rows (the vendor letters and the 30-day trial) have a fuse outside anyone's control — a
+vendor's reply time, and 30 calendar days — so both are worth starting today regardless of
+their place in this ordering; see each row's "Blocked today?" cell.
+
+| # | Action, in plain words | About how long | Scorecard clause(s) it would move | Steps | Blocked today? |
+|---|---|---|---|---|---|
+| 1 | Send the two already-drafted letters to Anthropic and OpenAI, asking each for a "zero data retention" (ZDR) promise in writing — a commitment that the vendor will not keep or train on what UCT sends it | ~15–20 min to review and send both | #8 `"vendor data terms verified in writing (zero retention)"` (`parity-scorecard.md:504`, `NOT MET`) → `MET` once BOTH vendors reply yes; #12 `"semantic retrieval"` (`:549`, `NOT MET`) → `MET` once OpenAI replies yes (this also arms the already-built meaning-search feature); #12 `"all on verified vendor terms"` (`:550`, `NOT MET`) → `MET` once both reply yes; #13 `"keyword + meaning search"` (`:558`, `NOT MET`) → `MET` once OpenAI replies yes | §2 | No — the drafts are ready. The clauses do not flip the moment the letters are sent; they flip once each vendor replies, and that reply time is outside anyone's control, which is why this row is ranked first despite its clause count being per letter SENT, not per letter ANSWERED |
+| 2 | Submit the already-built, already-packaged browser extension ("web clipper") to the Chrome Web Store | ~15–20 min | #1 `"every weekly feature exists for members"` and #1 `"or is a recorded, deliberate \"no\" with a reason"` (`parity-scorecard.md:429`, `:430`, both `NOT MET`) — closes the extension half of both; both stay `NOT MET` until row 1's OpenAI letter also lands, since the clause covers every weekly feature together, not one at a time | §1 | No — zero blockers found in a fresh check today (§1 "Blockers found"). Needs row 1 above to also land before either clause fully closes |
+| 3 | Build the two iPhone Shortcuts by hand on a real iPhone and test each once | ~20–30 min | #10 `"iOS + Android capture parity"` (`parity-scorecard.md:526`, `NOT MEASURED — OWNER`) → `MET` (Android's half is already done) | §3.4 | No |
+| 4 | Sign in to a BrowserStack Live session (real rented phones, reached through a browser) on one iOS 16, one iOS 17, one iOS 18 and one Android device, and run a short check on each | ~45–60 min for all four devices | #10 `"real-device matrix green every release"` (`parity-scorecard.md:528`, `NOT MEASURED — OWNER`) → `MET` for this dated pass; the clause's own words, "every release", mean it needs repeating at each future release to stay `MET` | §3.3 | No |
+| 5 | Install NVDA (free, already supported on this Windows machine) and walk the 27-step screen-reader script; add the VoiceOver half later if a Mac becomes available | ~60–70 min for NVDA alone, +30–45 min more with a Mac | #9 `"a full screen-reader pass (VoiceOver + NVDA)"` (`parity-scorecard.md:517`, `NOT MEASURED — OWNER`) → `MET`; the clause names both readers, so an NVDA-only pass is a real step but a partial one unless VoiceOver is also run, or its absence is recorded honestly as the script asks | §3.2 | No |
+| 6 | Start the 30-day data-safety trial (the "soak"): work through the setup checklist and invite at least 5 real, consenting members into the cohort | ~60–90 min to start, then ~10 min/week for 30 days | #3 `"zero data-loss incidents over a 30-day window with real members"` (`parity-scorecard.md:450`, `NOT MEASURED — OWNER`) → `MET`, only after 30 clean calendar days | §3.5 | No, but it has a 30-calendar-day fuse: every day it is not started is a day added before standard #3 can close, which is why it is worth starting today even though six rows above rank higher by clauses-per-hour |
+| 7 | Recruit and run 45-minute sessions with 5–8 traders, using the kit that is already built | ~6–8 hours of session time across 5–8 people, plus ~30 min to score | #5 `"a task-based test with 5-8 traders"`, #5 `"every core task completed unaided"`, #5 `"SUS >= 80"` (`parity-scorecard.md:473-475`, all `NOT MEASURED — OWNER`) → `MET`; #16 `"a new member reaches a first useful note in < 2 minutes unaided"` (`:591`, `NOT MEASURED — OWNER`) → `MET` | §3.1 | No. One more clause shares this kit, #1 `"the list is what Notion/Evernote/Obsidian users actually reach for weekly"` (`:431`), but is NOT counted as closed by this row: the screener (`docs/notebook/user-study/screener.md`) does not currently ask participants what they use weekly in their old tool — checked today, the words "weekly" and "census" appear nowhere in that file or in `user-study-kit.md`. That clause stays open even after this row runs, until the question is added |
+| 8 | Delete the leftover sandbox folders and two finished CI branches that nobody working inside an agent session can remove | ~10 min | None of the 61 scorecard clauses — repo cleanup only | §3.9 | No |
+| 9 | Check the one personal-API action that has not been run against real data: appending to today's daily note (as opposed to a regular note) | ~10–15 min | None of the 61 scorecard clauses — closes one loose end in gap-ledger row G-085's own evidence; G-085 already reads as live for every scorecard clause that touches it | §3.10 | No |
+| 10 | Pick a second accessibility reviewer — anyone who did not build wave 8 — and hand them the existing brief | ~10–15 min of owner time (the reviewer's own walk is ~2–3 hours, and that time is not the owner's) | None of the 61 scorecard clauses — closes Plan Phase 7 item 5, not a counted clause; standard #9's own clause is the one row 5 above closes | §3.7 | No |
+| 11 | Decide how long UCT keeps `activity_log` rows — the table that records member actions, including Notebook's own save/export/import/share/publish/writing-help/dictation events — and say so | ~15–20 min | None of the 61 scorecard clauses — no clause names an internal retention policy; this closes an open privacy question the vendor-terms review found and never answered | §3.11 | No |
+| 12 | Sit for a full working day timing UCT against Notion, Evernote and Obsidian on the same tasks | ~1 full working day (the protocol states no duration; this is an estimate) | None of the 61 scorecard clauses — standard #4's own clauses are already scored from UCT's internal budgets, independently of any competitor; this closes Plan Phase 7 item 1 and one caveat line in the scorecard, not a clause | §3.6 | No, but needs a quiet machine for the whole sitting |
+
+**Already done or decided (controller, 2026-10-01).** The table above was written from the
+repository alone. Three of its rows are further along than it says. The source for the first
+three lines below is the controller's working ledger, which is not in git, and the owner's own
+words in chat; the scheduled-task readings were taken on this machine on 2026-10-01.
+
+- **Row 2 (browser extension): already submitted.** The owner submitted it to the Chrome Web
+  Store on 2026-09-26 as an unlisted item. What is left is the store's review, which is outside
+  anyone's control, and then two small steps: put the install link in the Notebook's capture
+  help, and switch the listing to Public at launch.
+- **Row 6 (the soak): already running.** The nightly roll-up task `UCT-NB-Soak` has run since
+  2026-09-26; its last run was 2026-09-30 18:30 and exited 0. That run's line reads day 4.2 of
+  30, verdict INCONCLUSIVE, with 2 of the 5 organic members and 3 of the 20 active members the
+  soak needs. So the setup is done; what is left is the cohort. The 30 days only count once
+  enough real members are using the Notebook.
+- **Row 1 (the two zero-retention letters): deferred by the owner.** On 2026-09-26 the owner
+  chose to send them shortly after the live launch. The drafts in §2 are unchanged and ready.
+- **Row 7's caveat is closed.** The screener now asks the weekly question (question 6 in
+  `docs/notebook/user-study/screener.md` §2), and the kit says how to read the answers
+  (`docs/notebook/user-study-kit.md` §9), both added on 2026-10-01. So the trader study can
+  also settle standard #1's third clause, "the list is what Notion/Evernote/Obsidian users
+  actually reach for weekly". With rows 1, 2 and 7 all done, #1 Features would read 3 of 3, and
+  the totals below become 55 of 61 clauses and 11 of 16 standards, not 54 and 10.
+- **The weekly restore drill (standard #7): next unattended run is Sunday 2026-10-04 at 09:00.**
+  The folder the task runs from, `C:\Users\Patrick\uct-worktrees\notebook-soak-ref`, was
+  missing on 2026-10-01 and was re-created that day, so the run can start. The last scheduled run
+  (2026-09-27) ended INCONCLUSIVE because that night's attachment backup predated the checksum
+  list; a run by hand on 2026-09-28 passed. Nothing for the owner to do unless Sunday's run fails.
+
+**The arithmetic, derived from `docs/notebook/parity-scorecard.md` §B and §C (checked today
+against the committed file, not estimated):** the scorecard reads **40 of 61 clauses met, 3 of
+16 standards at the bar** today. If every row above runs, and both vendor letters in row 1 come
+back yes, **14 more clauses close** (rows 1, 2, 3, 4, 5, 6 and 7 — rows 8 through 12 close none),
+for **54 of 61 clauses met**, and **10 of 16 standards at the bar** (the seven newly at the bar —
+#1 Features, #3 Reliability, #5 User experience, #8 Security & privacy, #9 Accessibility, #12 AI
+trustworthiness & usefulness, #13 Search quality, #16 Onboarding & learnability — minus #1, which
+stays short one clause for the reason in row 7 — join the three already there, #2 Functionality,
+#6 User interface, #15 Operability & observability). Re-counted by standard: #1 Features would
+read 2/3 (not at bar, see row 7's note); #4 Speed stays 5/6; #7 Data safety & durability stays
+2/3; #10 Mobile, offline & cross-device would read 2/3; #11 Import, export & interoperability
+stays 3/4; #14 Performance at scale stays 2/4. **7 clauses would still be unmet even then**, for
+four different reasons, none of them owner-actionable today:
+
+- **Two are permanent, already-decided "no"s**, not open questions: #10 `"cold-start offline"`
+  (`parity-scorecard.md:527`, ruling D6/D19) and #11 `"two-way sync where offered"` (`:538`,
+  ruling D18).
+- **One is a standing owner ruling, not a pending decision**: #14 `"size-cap notes"` (`:571`,
+  ruling G-035/D20 — no hard cap on note size).
+- **One needs an unattended scheduled task to fire and pass on its own**, not a person running
+  it by hand: #7 `"restore rehearsed end-to-end on a schedule"` (`:494`) — the hand-run version
+  already reads a full PASS; what is owed is the next automatic weekly run.
+- **Two need a quiet-machine reading from the controller or an agent**, not an owner action: #4
+  `"typing < 16 ms/char up to the size cap"` (`:463` — a quiet-box reading exists at `17.35–17.75
+  ms` median for 2,000 paragraphs, `docs/notebook/perf-runs/ty2-quiet/README.md:29`, still over
+  the line) and #14 `"no super-linear curve"` (`:572` — the measurement method changed under
+  ruling D22, but the re-read on the new default has not yet been taken).
+- **And the seventh is #1's `"the list is what Notion/Evernote/Obsidian users actually reach for
+  weekly"`** (`:431`), open for the reason given in row 7 above: the trader-study kit does not
+  yet ask the question that would answer it.
+
+---
+
 This is a checklist, not a status report. Every clause below is one the parity scorecard
 (`docs/notebook/parity-scorecard.md`) already marks `NOT MET`, `NOT MEASURED — OWNER`, or
 `BLOCKED (owner)` — and every one of them is blocked on something only the owner can do:
@@ -767,15 +858,146 @@ closed it without a separate outside-counsel review ever running, the same way i
 consensus to Notebook" button — with the same frozen-at-insert semantics and the same honest
 missing-data refusal (never a fabricated number) when FMP has no consensus for a ticker.
 Unit-verified (`api/services/journal_two/test_wave_f_facts.py`,
-`tests/test_journal_two_facts_router.py`); the real-browser walk
-(`tools/notebook_g62_consensus_walk.py`) is written and handed to the controller to run — **pending**
-as of this commit.
+`tests/test_journal_two_facts_router.py`).
 
-**Where recorded:** G-062's row in `docs/notebook/competitive-gap-ledger.md` and the parity
-scorecard's G-062 row (`tools/parity_scorecard.py`).
+**CLOSED — this section previously said the real-browser walk was pending; it has since run and
+passed.** `tools/notebook_g62_consensus_walk.py` ran 8 of 8 PASS:
 
-**What remains:** nothing owner-facing. The real-browser walk is a controller/agent verification
-step, not an owner action, and closes this row to fully `DONE` once it runs.
+> "real-browser walk PASSED 8/8 (`tools/notebook_g62_consensus_walk.py`,
+> `docs/notebook/gate-runs/g62/walk-4d2a4edfa-run3.json`, 2026-09-30: both doors, frozen-at-insert,
+> the "Source: FMP" credit, G3 on live FMP data)" (`docs/notebook/competitive-gap-ledger.md`:118)
+
+That landed in L13 (PR #259, squash `a680b0d40`), which merged to `master` 2026-10-01 and is an
+ancestor of `origin/production` as of this check (`git merge-base --is-ancestor a680b0d40
+origin/production`, checked today). The parity scorecard reads G-062 as fully closed:
+
+> "Legal sign-off landed (owner, 2026-09-25): FMP licensing approved directly, so the conditional
+> fact type is ACTIVE; both member doors (the /consensus slash command and the TickerPopup
+> button) walked PASS in a real browser, G3 on live FMP data." (`docs/notebook/parity-scorecard.md`:307)
+
+**Where recorded:** G-062's row in `docs/notebook/competitive-gap-ledger.md`:118 and the parity
+scorecard's G-062 row (`docs/notebook/parity-scorecard.md`:307, generated by
+`tools/parity_scorecard.py`).
+
+**What remains:** nothing. Both halves of this plan item — legal sign-off and the real-browser
+walk — are done; there is no further owner or agent action against G-062.
+
+### 3.9 — Delete the leftover sandbox folders and two dead CI branches
+
+**Found by a ledger verification pass, not by any scorecard clause** — these do not move a
+clause; they are repo cleanup that nobody working inside an agent session has permission to do.
+
+**What exists today, checked just now:**
+
+- A directory listing of the box's root (`ls -la /c/`, run today) shows roughly two dozen
+  `C:\data-w10*` folders — scratch data directories left behind by finished wave-10 lane
+  sandboxes. Three were specifically named as needing the owner: `C:\data-w10a`,
+  `C:\data-w10r1d`, and `C:\data-w10r1d-2`. The others (`data-w10ax`, `data-w10ctl2`,
+  `data-w10d2`, and about twenty more) were **not** named and are left alone here — some may
+  still belong to an active lane's sandbox, and deleting one without checking first risks
+  breaking another lane's run in progress.
+- `git ls-remote --heads origin` (run today) shows `ci/notebook-w10a-latency-red` and
+  `ci/notebook-w10a-flapwatch` still exist on the remote. A third, similarly-named branch,
+  `ci/notebook-w10a-bytes-red`, also exists and is **not** included here, since it was not
+  flagged as dead.
+
+**Why the owner:** these sit outside any worktree's tracked contents, at the root of the box
+(the data folders) or on the shared remote (the branches), and nobody running inside this
+programme's agent sessions has delete permission for either.
+
+**Steps:**
+
+1. From an ordinary terminal (not an agent session), delete the three named data folders and
+   everything in them:
+   ```
+   Remove-Item -Recurse -Force C:\data-w10a, C:\data-w10r1d, C:\data-w10r1d-2
+   ```
+   (or `rm -rf` from Git Bash). None of the three is a git worktree and none is tracked by git —
+   deleting them removes only scratch SQLite/data files from finished test runs.
+2. Delete the two finished CI branches from any normal checkout (not from inside this
+   worktree, which is itself a `feat/notebook-w10-*` branch):
+   ```
+   git push origin --delete ci/notebook-w10a-latency-red ci/notebook-w10a-flapwatch
+   ```
+
+**Where to record:** nothing in the scorecard or the gap ledger reads these — there is nothing
+to update afterward beyond confirming the delete succeeded.
+
+### 3.10 — Check the personal API's daily-note append against real production data
+
+**Found by a ledger verification pass.** Standard #1's "every weekly feature exists for
+members" and standard #11's "a documented API" already read the personal API (G-085) as live —
+this item closes a loose end in that row's own evidence, not a scorecard clause.
+
+**What's already verified:** lane 10D walked the personal API in production as the synthetic
+member account `bench@uctintelligence.internal` — mint a token, create a note, append to it,
+read it back, revoke the token, and confirm a bogus and a revoked token are both refused with
+401 — all PASS (`docs/notebook/evidence/wave10-10d/personal-api-walk-20260927T043218Z.json`).
+
+**What's not verified:** the one remaining personal-API action, appending to **today's daily
+note** rather than to a regular note, was deliberately skipped in that walk because it creates a
+new folder in production. Quoted exactly:
+
+> "the daily-note append NOT RUN (it would create a folder in production)"
+> (`docs/notebook/competitive-gap-ledger.md`:143)
+
+**Why the owner:** creating that folder is a real write against the live product's data under a
+synthetic member account, and whether to spend that production write (and clean it up
+afterward) is the same kind of call this programme has reserved for the owner throughout —
+compare the smoke/bench account rules in `CLAUDE.md`'s "Testing → Smoke" section, which this
+programme's production walks already follow.
+
+**Steps (either one closes this item):**
+
+1. Sign in as `bench@uctintelligence.internal`, mint a personal-API token in Settings → Personal
+   API, and send one append-to-daily-note request — either by hand against the endpoint
+   documented in `docs/notebook/personal-api.md`, or by adapting
+   `tools/notebook_personal_api_walk.py` to drive it — then delete the resulting folder/note
+   afterward so the bench account stays clean, per the "whatever a run creates, that run
+   removes" rule this account already follows; **or**
+2. Decide that "append to a regular note" is sufficient evidence for this capability (the
+   underlying write path is the same function with a different target) and record that decision
+   instead of running a fourth production write.
+
+**Where to record:** either outcome, update G-085's row in
+`docs/notebook/competitive-gap-ledger.md`:143 to say which was chosen.
+
+### 3.11 — Decide how long UCT keeps `activity_log` rows
+
+**Found by a ledger verification pass while checking the vendor zero-retention letters in §2.**
+No scorecard clause names this — standard #8's "vendor data terms verified in writing" is about
+outside vendors, not UCT's own database — so this closes an open privacy question, not a clause.
+
+**What was found, re-checked today:**
+
+> "`page_views` stores `user_id` (`auth_db.py:164-168`) and `activity_log` stores `ip_address`
+> (`auth_db.py:120-126`). Second, *"individual records purged after 90 days"*: no purge exists."
+> (`docs/notebook/VENDOR-TERMS-2026-09-23.md`:49-50)
+
+Still true on this tree: `api/services/journal_two/account_purge.py` does not mention
+`activity_log` at all (checked today with a grep across the file — zero hits), and no scheduled
+job in `api/main.py` deletes old `activity_log` rows. `activity_log` is also where Notebook's own
+wave-10 telemetry events live — `save_success`, `export_used`, `import_used`, `share_used`,
+`publish_used`, `writing_help_used`, `dictation_used`, `bulk_used`
+(`app/src/pages/journal-2-0/lib/notebookTelemetry.js`:59, `CORE_ACTION_EVENTS`) — so this table
+is growing every day a member uses the Notebook, with no decided end date.
+
+**Why the owner:** how long UCT keeps a record tying a member's IP address to their actions is a
+privacy policy decision, not an engineering one. `Privacy.jsx` today makes no retention claim
+for this table at all (the previous, false "90 days" claim was removed in `24db02b9e` per
+`VENDOR-TERMS-2026-09-23.md`:50) — which is honest but leaves the member with no answer.
+
+**Steps:**
+
+1. Decide a retention window for `activity_log` (for example, the 90 days the old, false
+   Privacy-page claim used, or any other period).
+2. Say so, so a purge job can be built and `Privacy.jsx` can state the real number.
+3. Record the decision (date and window) the same way other owner rulings in this programme are
+   recorded — for example, alongside the D-numbered rulings in
+   `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`, or in `VENDOR-TERMS-2026-09-23.md` itself.
+
+**Owner time:** ~15–20 min to decide and say so; building the purge job and updating the Privacy
+page is not owner time.
 
 ---
 

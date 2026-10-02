@@ -1,0 +1,819 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "surface": "SUP-shortcuts",
+      "keys": "(navigate)",
+      "note": "*clean list load",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/sup-0001-SUP-shortcuts-nav.png"
+    },
+    {
+      "n": 2,
+      "surface": "SUP-shortcuts",
+      "keys": "Escape",
+      "note": "dismiss intro if still present",
+      "focus": {
+        "present": false
+      }
+    },
+    {
+      "n": 3,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 1",
+      "focus": {
+        "present": false
+      }
+    },
+    {
+      "n": 4,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 2",
+      "focus": {
+        "present": false
+      }
+    },
+    {
+      "n": 5,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Skip intro",
+        "rect": {
+          "x": 1195,
+          "y": 18,
+          "w": 67,
+          "h": 28
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 6,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content",
+        "rect": {
+          "x": 8,
+          "y": 8,
+          "w": 154,
+          "h": 37
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 7,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page",
+        "rect": {
+          "x": 0,
+          "y": 10,
+          "w": 59,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 8,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 6",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K",
+        "rect": {
+          "x": 8,
+          "y": 81,
+          "w": 43,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 9,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal",
+        "rect": {
+          "x": 8,
+          "y": 136,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 10,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts",
+        "rect": {
+          "x": 8,
+          "y": 169,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 11,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire",
+        "rect": {
+          "x": 8,
+          "y": 201,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 12,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard",
+        "rect": {
+          "x": 8,
+          "y": 234,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 13,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search",
+        "rect": {
+          "x": 8,
+          "y": 267,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 14,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20",
+        "rect": {
+          "x": 8,
+          "y": 299,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 15,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth",
+        "rect": {
+          "x": 8,
+          "y": 332,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 16,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener",
+        "rect": {
+          "x": 8,
+          "y": 365,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 17,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow",
+        "rect": {
+          "x": 8,
+          "y": 397,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 18,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record",
+        "rect": {
+          "x": 8,
+          "y": 430,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 19,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow",
+        "rect": {
+          "x": 8,
+          "y": 463,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 20,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History",
+        "rect": {
+          "x": 8,
+          "y": 495,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 21,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book",
+        "rect": {
+          "x": 8,
+          "y": 528,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 22,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference",
+        "rect": {
+          "x": 8,
+          "y": 561,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 23,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk",
+        "rect": {
+          "x": 8,
+          "y": 593,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 24,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal",
+        "rect": {
+          "x": 8,
+          "y": 626,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 25,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk",
+        "rect": {
+          "x": 8,
+          "y": 659,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 26,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: A11y Supplement, Pro",
+        "rect": {
+          "x": 8,
+          "y": 699,
+          "w": 43,
+          "h": 51
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 27,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 25",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings",
+        "rect": {
+          "x": 8,
+          "y": 759,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 28,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 26",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support",
+        "rect": {
+          "x": 8,
+          "y": 803,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 29,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 27",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website",
+        "rect": {
+          "x": 8,
+          "y": 847,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 30,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 28",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Got it",
+        "rect": {
+          "x": 1156,
+          "y": 23,
+          "w": 63,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 31,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 29",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Today",
+        "rect": {
+          "x": 246,
+          "y": 91,
+          "w": 95,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 32,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 30",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Trades",
+        "rect": {
+          "x": 342,
+          "y": 91,
+          "w": 99,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 33,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 31",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Calendar",
+        "rect": {
+          "x": 444,
+          "y": 91,
+          "w": 115,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 34,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 32",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Notebook",
+        "rect": {
+          "x": 561,
+          "y": 91,
+          "w": 120,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 35,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 33",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Insights",
+        "rect": {
+          "x": 683,
+          "y": 91,
+          "w": 107,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 36,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 34",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Compass",
+        "rect": {
+          "x": 792,
+          "y": 91,
+          "w": 117,
+          "h": 44
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 37,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 35",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Log Trade",
+        "rect": {
+          "x": 776,
+          "y": 151,
+          "w": 112,
+          "h": 32
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 38,
+      "surface": "SUP-shortcuts-reach",
+      "keys": "Tab",
+      "note": "seek 'Show keyboard shortcuts' button 36",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Show keyboard shortcuts",
+        "rect": {
+          "x": 899,
+          "y": 151,
+          "w": 32,
+          "h": 32
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 39,
+      "surface": "SUP-shortcuts",
+      "keys": "Enter",
+      "note": "*Enter on 'Show keyboard shortcuts'",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Show keyboard shortcuts",
+        "rect": {
+          "x": 899,
+          "y": 151,
+          "w": 32,
+          "h": 32
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      },
+      "screenshot": "screenshots/sup-0039-SUP-shortcuts.png"
+    },
+    {
+      "n": 40,
+      "surface": "SUP-shortcuts",
+      "keys": "(evaluate)",
+      "note": "dialog probe after '?': {'dialogCount': 0, 'found': False, 'contains': None}",
+      "focus": {}
+    },
+    {
+      "n": 41,
+      "surface": "SUP-bareq",
+      "keys": "Tab",
+      "note": "settle focus before the bare '?' press",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Default$100,000.00\u25be",
+        "rect": {
+          "x": 941,
+          "y": 153,
+          "w": 179,
+          "h": 29
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      }
+    },
+    {
+      "n": 42,
+      "surface": "SUP-bareq",
+      "keys": "?",
+      "note": "*press bare '?' (no button) to compare",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Default$100,000.00\u25be",
+        "rect": {
+          "x": 941,
+          "y": 153,
+          "w": 179,
+          "h": 29
+        },
+        "visibleIndicator": true,
+        "inViewport": true
+      },
+      "screenshot": "screenshots/sup-0042-SUP-bareq.png"
+    },
+    {
+      "n": 43,
+      "surface": "SUP-bareq",
+      "keys": "(evaluate)",
+      "note": "dialog probe after bare '?': {'dialogCount': 0, 'found': False, 'contains': None}",
+      "focus": {}
+    }
+  ],
+  "findings": [
+    {
+      "id": "S001",
+      "surface": "H (Keyboard Shortcuts button)",
+      "sc": "4.1.2",
+      "expected": "Enter on the 'Show keyboard shortcuts' button opens the Keyboard Shortcuts dialog",
+      "seen": "dialog probe after Enter: {'dialogCount': 0, 'found': False, 'contains': None}",
+      "severity": "blocker",
+      "step_n": 40,
+      "screenshot": ""
+    },
+    {
+      "id": "S002",
+      "surface": "H (Keyboard Shortcuts, bare '?')",
+      "sc": "2.1.1",
+      "expected": "the documented '?' shortcut (ShortcutCheatSheet mounted in JournalLayout.jsx) opens the dialog from a settled, non-input focus",
+      "seen": "dialog probe after a bare '?' key press: {'dialogCount': 0, 'found': False, 'contains': None} (the explicit button works -- see the other finding; this is the GLOBAL KEY shortcut specifically)",
+      "severity": "minor",
+      "step_n": 43,
+      "screenshot": ""
+    }
+  ]
+}

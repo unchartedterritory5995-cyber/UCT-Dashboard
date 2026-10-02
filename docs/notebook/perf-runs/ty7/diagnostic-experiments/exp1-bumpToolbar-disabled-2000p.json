@@ -1,0 +1,492 @@
+{
+ "keys": 200,
+ "total_self_ms": 9724.34,
+ "idle_self_ms": 8634.723,
+ "busy_self_ms": 1089.617,
+ "busy_self_ms_per_key": 5.4481,
+ "sample_count": 17828,
+ "rows": [
+  {
+   "functionName": "commitBeforeMutationEffects",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 6689,
+   "column": 38,
+   "self_ms": 107.472,
+   "self_ms_per_key": 0.53736
+  },
+  {
+   "functionName": "stringifyNode",
+   "url": "http://127.0.0.1:8392/assets/NotebookFlagGate-CaUbVO-k.js",
+   "line": 952,
+   "column": 24,
+   "self_ms": 104.792,
+   "self_ms_per_key": 0.52396
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 86.529,
+   "self_ms_per_key": 0.43265
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 66.68,
+   "self_ms_per_key": 0.3334
+  },
+  {
+   "functionName": "toJSON",
+   "url": "http://127.0.0.1:8392/assets/NotebookFlagGate-CaUbVO-k.js",
+   "line": 931,
+   "column": 17,
+   "self_ms": 22.133,
+   "self_ms_per_key": 0.11066
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 1174,
+   "column": 14,
+   "self_ms": 21.472,
+   "self_ms_per_key": 0.10736
+  },
+  {
+   "functionName": "someProp",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 11644,
+   "column": 10,
+   "self_ms": 18.838,
+   "self_ms_per_key": 0.09419
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "column": 32,
+   "self_ms": 18.098,
+   "self_ms_per_key": 0.09049
+  },
+  {
+   "functionName": "forEach",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 355,
+   "column": 9,
+   "self_ms": 17.974,
+   "self_ms_per_key": 0.08987
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 9371,
+   "column": 29,
+   "self_ms": 16.661,
+   "self_ms_per_key": 0.08331
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8392/assets/tiptap-dfm_v-t8.js",
+   "line": 6473,
+   "column": 17,
+   "self_ms": 16.119,
+   "self_ms_per_key": 0.08059
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8392/assets/NotebookFlagGate-CaUbVO-k.js",
+   "line": 7309,
+   "column": 27,
+   "self_ms": 15.093,
+   "self_ms_per_key": 0.07547
+  },
+  {
+   "functionName": "walk",
+   "url": "http://127.0.0.1:8392/assets/tiptap-dfm_v-t8.js",
+   "line": 6472,
+   "column": 15,
+   "self_ms": 10.22,
+   "self_ms_per_key": 0.0511
+  },
+  {
+   "functionName": "batchedUpdates$1",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1583,
+   "column": 27,
+   "self_ms": 10.078,
+   "self_ms_per_key": 0.05039
+  },
+  {
+   "functionName": "stageNoteWithIntent",
+   "url": "http://127.0.0.1:8392/assets/offlineFlag-BG6Dupir.js",
+   "line": 94,
+   "column": 28,
+   "self_ms": 10.028,
+   "self_ms_per_key": 0.05014
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 6904,
+   "column": 27,
+   "self_ms": 9.827,
+   "self_ms_per_key": 0.04913
+  },
+  {
+   "functionName": "nodesBetween",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 191,
+   "column": 14,
+   "self_ms": 8.196,
+   "self_ms_per_key": 0.04098
+  },
+  {
+   "functionName": "findNodeMatch",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 8372,
+   "column": 15,
+   "self_ms": 8.137,
+   "self_ms_per_key": 0.04068
+  },
+  {
+   "functionName": "get size",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 7931,
+   "column": 10,
+   "self_ms": 7.685,
+   "self_ms_per_key": 0.03843
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 1575,
+   "column": 14,
+   "self_ms": 7.608,
+   "self_ms_per_key": 0.03804
+  },
+  {
+   "functionName": "SyntheticBaseEvent",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1663,
+   "column": 31,
+   "self_ms": 7.507,
+   "self_ms_per_key": 0.03753
+  },
+  {
+   "functionName": "get isLeaf",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 2082,
+   "column": 12,
+   "self_ms": 7.226,
+   "self_ms_per_key": 0.03613
+  },
+  {
+   "functionName": "commitRoot",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8672,
+   "column": 21,
+   "self_ms": 7.22,
+   "self_ms_per_key": 0.0361
+  },
+  {
+   "functionName": "eq",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 309,
+   "column": 4,
+   "self_ms": 6.698,
+   "self_ms_per_key": 0.03349
+  },
+  {
+   "functionName": "clientRect",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 6893,
+   "column": 19,
+   "self_ms": 6.646,
+   "self_ms_per_key": 0.03323
+  },
+  {
+   "functionName": "checkIfContextChanged",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2609,
+   "column": 32,
+   "self_ms": 6.448,
+   "self_ms_per_key": 0.03224
+  },
+  {
+   "functionName": "posBeforeChild",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 7398,
+   "column": 16,
+   "self_ms": 6.438,
+   "self_ms_per_key": 0.03219
+  },
+  {
+   "functionName": "getListener",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1596,
+   "column": 22,
+   "self_ms": 6.096,
+   "self_ms_per_key": 0.03048
+  },
+  {
+   "functionName": "getBoundingClientRect",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 6.092,
+   "self_ms_per_key": 0.03046
+  },
+  {
+   "functionName": "matchMedia",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 6.055,
+   "self_ms_per_key": 0.03027
+  },
+  {
+   "functionName": "setTimeout",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 6.03,
+   "self_ms_per_key": 0.03015
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "column": 33,
+   "self_ms": 5.946,
+   "self_ms_per_key": 0.02973
+  },
+  {
+   "functionName": "applyTransaction",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 5903,
+   "column": 18,
+   "self_ms": 5.937,
+   "self_ms_per_key": 0.02969
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 7953,
+   "column": 7,
+   "self_ms": 5.894,
+   "self_ms_per_key": 0.02947
+  },
+  {
+   "functionName": "renderWithHooks",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3532,
+   "column": 26,
+   "self_ms": 5.506,
+   "self_ms_per_key": 0.02753
+  },
+  {
+   "functionName": "flush",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 10934,
+   "column": 7,
+   "self_ms": 5.481,
+   "self_ms_per_key": 0.0274
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 10908,
+   "column": 23,
+   "self_ms": 5.41,
+   "self_ms_per_key": 0.02705
+  },
+  {
+   "functionName": "bailoutOnAlreadyFinishedWork",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 5606,
+   "column": 39,
+   "self_ms": 5.209,
+   "self_ms_per_key": 0.02604
+  },
+  {
+   "functionName": "readDOMChange",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 11189,
+   "column": 22,
+   "self_ms": 5.12,
+   "self_ms_per_key": 0.0256
+  },
+  {
+   "functionName": "createWorkInProgress",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2203,
+   "column": 31,
+   "self_ms": 4.742,
+   "self_ms_per_key": 0.02371
+  },
+  {
+   "functionName": "dispatchTransaction",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 16621,
+   "column": 21,
+   "self_ms": 4.448,
+   "self_ms_per_key": 0.02224
+  },
+  {
+   "functionName": "runCustomHandler",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 9502,
+   "column": 25,
+   "self_ms": 4.263,
+   "self_ms_per_key": 0.02132
+  },
+  {
+   "functionName": "emit",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 14618,
+   "column": 6,
+   "self_ms": 3.918,
+   "self_ms_per_key": 0.01959
+  },
+  {
+   "functionName": "getClientRects",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 3.9,
+   "self_ms_per_key": 0.0195
+  },
+  {
+   "functionName": "getEventTarget",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1523,
+   "column": 25,
+   "self_ms": 3.853,
+   "self_ms_per_key": 0.01927
+  },
+  {
+   "functionName": "F",
+   "url": "http://127.0.0.1:8392/assets/index-BLT_FFr7.js",
+   "line": 104,
+   "column": 10,
+   "self_ms": 3.847,
+   "self_ms_per_key": 0.01923
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 13650,
+   "column": 22,
+   "self_ms": 3.815,
+   "self_ms_per_key": 0.01907
+  },
+  {
+   "functionName": "apply",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 19512,
+   "column": 11,
+   "self_ms": 3.801,
+   "self_ms_per_key": 0.01901
+  },
+  {
+   "functionName": "child",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 339,
+   "column": 7,
+   "self_ms": 3.763,
+   "self_ms_per_key": 0.01881
+  },
+  {
+   "functionName": "removeDuplicates",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 13648,
+   "column": 25,
+   "self_ms": 3.589,
+   "self_ms_per_key": 0.01794
+  },
+  {
+   "functionName": "inputRuleMatcherHandler",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 14655,
+   "column": 30,
+   "self_ms": 3.564,
+   "self_ms_per_key": 0.01782
+  },
+  {
+   "functionName": "put",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 3.345,
+   "self_ms_per_key": 0.01673
+  },
+  {
+   "functionName": "takeRecords",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 3.323,
+   "self_ms_per_key": 0.01662
+  },
+  {
+   "functionName": "resolveUpdatePriority",
+   "url": "http://127.0.0.1:8392/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1082,
+   "column": 32,
+   "self_ms": 3.32,
+   "self_ms_per_key": 0.0166
+  },
+  {
+   "functionName": "eq",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 10811,
+   "column": 4,
+   "self_ms": 3.289,
+   "self_ms_per_key": 0.01645
+  },
+  {
+   "functionName": "get commands",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 12143,
+   "column": 18,
+   "self_ms": 3.288,
+   "self_ms_per_key": 0.01644
+  },
+  {
+   "functionName": "append",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 231,
+   "column": 8,
+   "self_ms": 3.267,
+   "self_ms_per_key": 0.01633
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 11995,
+   "column": 17,
+   "self_ms": 3.248,
+   "self_ms_per_key": 0.01624
+  },
+  {
+   "functionName": "TableToolbar",
+   "url": "http://127.0.0.1:8392/assets/NotebookFlagGate-CaUbVO-k.js",
+   "line": 3713,
+   "column": 21,
+   "self_ms": 3.161,
+   "self_ms_per_key": 0.0158
+  },
+  {
+   "functionName": "findSuggestionMatch",
+   "url": "http://127.0.0.1:8392/assets/askInsert-D0t6EFLh.js",
+   "line": 19284,
+   "column": 28,
+   "self_ms": 3.102,
+   "self_ms_per_key": 0.01551
+  }
+ ],
+ "paragraphs": 2000,
+ "raw_profile": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty7-exp1-raw\\profile-2000p-r143528.cpuprofile.json"
+}

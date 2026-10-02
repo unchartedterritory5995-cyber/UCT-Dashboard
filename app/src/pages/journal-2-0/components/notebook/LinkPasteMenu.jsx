@@ -24,15 +24,43 @@ import styles from './LinkPasteMenu.module.css'
 
 export const LINK_PASTE_MENU_LABEL = 'Pasted link'
 
+/**
+ * Wave 10 (lane TY7, "whose caller" perf pass): this used to be a BARE counter
+ * (`(x) => x + 1`), bumped on every transaction in every note, pasted link or
+ * not -- forcing a React commit on every keystroke of every note. React's own
+ * `commitBeforeMutationEffects` runs a selection-offset walk over the WHOLE
+ * focused contenteditable on every commit, regardless of what that commit
+ * changed (confirmed by reading the compiled, unminified React source,
+ * `vendor-react …js:6690` -- `hasSelectionCapabilities` + a manual DOM
+ * tree-walk computing the browser selection's character offsets, so the cost
+ * is O(note size) while the editor has focus, which is the whole time a
+ * member is typing). A CPU-profile caller-tree walk
+ * (docs/notebook/perf-runs/ty7/) traced most of that cost to exactly this
+ * kind of always-new counter.
+ *
+ * `linkPasteKey`'s own plugin state (`lib/linkPasteOffer.js::apply`) is
+ * ALREADY exactly the signal worth re-rendering on: it returns the identical
+ * `null` while there is no offer, and the identical offer OBJECT while an
+ * active offer survives a transaction unchanged -- that is what makes it safe
+ * to use directly as the reducer's tracked value instead of a counter that
+ * can never bail.
+ */
+export function linkOfferBumpReducer(prev, editor) {
+  if (!editor || editor.isDestroyed) return prev
+  const next = editor.isEditable ? linkPasteKey.getState(editor.state) : null
+  return next === prev ? prev : next
+}
+
 export default function LinkPasteMenu({ editor }) {
-  const [, bump] = useReducer((x) => x + 1, 0)
+  const [, bump] = useReducer(linkOfferBumpReducer, null)
   const [status, setStatus] = useState(null) // { offer, text, busy }
   const barRef = useRef(null)
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return undefined
-    editor.on('transaction', bump)
-    return () => { editor.off('transaction', bump) }
+    const update = () => bump(editor)
+    editor.on('transaction', update)
+    return () => { editor.off('transaction', update) }
   }, [editor])
 
   const offer = editor && !editor.isDestroyed && editor.isEditable ? linkPasteKey.getState(editor.state) : null

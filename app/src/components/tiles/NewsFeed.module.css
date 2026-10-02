@@ -7,6 +7,10 @@
 }
 .item {
   display: block;
+  /* A2R-05 nesting fix: the card is a plain <div> now (the anchor only wraps
+     the headline), so it needs its own pointer cursor + text-decoration reset
+     — a <a> carried both by default; a <div> carries neither. */
+  cursor: pointer;
   text-decoration: none;
   padding: 8px 0 8px 10px;
   border-bottom: 1px solid var(--border);
@@ -25,6 +29,12 @@
 .sentimentBearish  { border-left-color: #e74c3c; }
 
 .headline {
+  /* A2R-05 nesting fix: this is now the real <a> (it used to be a <div> inside
+     one) — reset the anchor's default underline/inline display so it reads
+     exactly as it did before. Color was already set explicitly, overriding
+     the anchor default. */
+  display: block;
+  text-decoration: none;
   font-size: 12px;
   color: var(--text-bright);
   line-height: 1.5;

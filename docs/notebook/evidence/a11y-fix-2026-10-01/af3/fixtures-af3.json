@@ -1,0 +1,36 @@
+{
+  "locked_note": {
+    "id": "0c7e01b9685a4c4fa1578e456a1a7474",
+    "userId": "08b73edb-0981-4afa-9029-ede27d8abcb4",
+    "accountId": null,
+    "folderId": null,
+    "title": "AF3 locked note",
+    "subtitle": null,
+    "bodyJson": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Locked before any capture is attempted."
+            }
+          ]
+        }
+      ]
+    },
+    "bodyPlain": "Locked before any capture is attempted.",
+    "heroImageUrl": null,
+    "firstImageUrl": null,
+    "ticker": null,
+    "tags": [],
+    "createdAt": "2026-10-01T21:48:39.579552+00:00",
+    "updatedAt": "2026-10-01T21:48:39.579552+00:00",
+    "deletedAt": null,
+    "archivedAt": null,
+    "locked": false,
+    "dailyDate": null,
+    "propertiesJson": {}
+  }
+}

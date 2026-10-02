@@ -1,0 +1,30 @@
+Ad hoc Playwright probe (tools/notebook_perf_harness.py's Sandbox/_provision/_seed reused,
+same pattern as the check script), run against the first CSS draft (contain-intrinsic-size:
+auto 1.9em) on a 2,000-paragraph note, to measure what the browser does to `#notebook-pane`
+(the real scroll container -- see the README) BEFORE any block has rendered vs AFTER a full
+top-to-bottom pass that forces every block to render once and "remember" its real size.
+
+Per-paragraph measurement (first 6 paragraphs near the top, already real-rendered):
+  real border-box height: 28.890625px  (measured via getBoundingClientRect)
+  contain-intrinsic-size guess in effect: auto 32.3px  (1.9em @ 17px)
+  gap between consecutive paragraphs: 12px (margins collapse normally -- confirmed, this
+    was a real risk considered and ruled out: content-visibility does not stop margin
+    collapsing between content-visibility:auto siblings in Chromium)
+
+Total scrollHeight:
+  before any full scroll-through (near-top real, everything else still the 1.9em estimate):
+    88939px
+  after scrolling top-to-bottom in clientHeight-sized steps (forces every block to render
+    once, replacing the estimate with its real remembered size):
+    82249px
+  delta: -6690px (~7.5% of the total), i.e. the 1.9em guess OVERSTATED the note's total
+    height before a single block had rendered.
+
+Reading: 32.3px (the 1.9em guess) vs 28.9px (the real height, which is exactly 1.7em @ 17px)
+is an ~11.8% per-block overstatement; across ~2,000 blocks that compounds to the measured
+~6,700px drift. Fixed by changing contain-intrinsic-size from `auto 1.9em` to `auto 1.7em`
+(the editor's own line-height value, NoteEditorPage.module.css `.proseEditor { font-size:
+17px; line-height: 1.7 }`) -- re-measured after the fix (docs/notebook/perf-runs/ty3/
+ty3-browser-checks.log, check #5b): scrollHeight samples while paging top-to-bottom were
+IDENTICAL at every sample point (82278 throughout, spread 0.000), i.e. no detectable
+estimate-vs-real correction left to cause a visible jump or jitter.

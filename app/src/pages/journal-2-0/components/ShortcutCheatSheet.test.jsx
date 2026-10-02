@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { useState } from 'react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ShortcutCheatSheet from './ShortcutCheatSheet'
 
@@ -80,6 +81,100 @@ describe('ShortcutCheatSheet', () => {
     const { container } = render(<ShortcutCheatSheet open onClose={onClose} />)
     await user.click(container.firstChild)
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+// A2R-04 (a11y second review, 2026-10-01): the dialog had no initial focus, no
+// trap and no restore-on-close -- Tab walked straight out into the page
+// behind it, and closing left focus wherever it fell (usually <body>). This
+// mirrors ConfirmModal's own "keyboard (F4, A2R-05)" block, adapted for a
+// component that stays mounted with `open` toggling rather than being
+// conditionally rendered by its caller.
+function Page() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(true)}>Open shortcuts</button>
+      <button type="button">Something else on the page</button>
+      <ShortcutCheatSheet open={open} onClose={() => setOpen(false)} />
+    </div>
+  )
+}
+
+describe('ShortcutCheatSheet — keyboard (A2R-04)', () => {
+  it('Enter on the opener button opens the dialog with focus on Close', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    screen.getByRole('button', { name: 'Open shortcuts' }).focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' })))
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('Tab and Shift+Tab stay on the dialog\'s one focusable control (the trap)', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    screen.getByRole('button', { name: 'Open shortcuts' }).focus()
+    await user.keyboard('{Enter}')
+    await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    const closeBtn = screen.getByRole('button', { name: 'Close' })
+    await waitFor(() => expect(document.activeElement).toBe(closeBtn))
+    for (let i = 0; i < 3; i += 1) {
+      await user.tab()
+      expect(document.activeElement).toBe(closeBtn)
+    }
+    for (let i = 0; i < 3; i += 1) {
+      await user.tab({ shift: true })
+      expect(document.activeElement).toBe(closeBtn)
+    }
+  })
+
+  it('Escape closes it and returns focus to the button that opened it', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    const opener = screen.getByRole('button', { name: 'Open shortcuts' })
+    opener.focus()
+    await user.keyboard('{Enter}')
+    await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
+  })
+
+  it('the X button also closes it and restores focus to the opener', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    const opener = screen.getByRole('button', { name: 'Open shortcuts' })
+    await user.click(opener)
+    await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
+  })
+
+  it('a re-render of the page behind it does not pull focus back to Close', async () => {
+    const onClose = vi.fn()
+    // A real, focusable element outside the dialog to prove focus STAYS where
+    // a caller (or the member) put it on purpose, across a re-render — the
+    // dialog itself offers nothing else to Tab to.
+    const elsewhere = document.createElement('button')
+    elsewhere.textContent = 'elsewhere'
+    document.body.appendChild(elsewhere)
+    const { rerender } = render(<ShortcutCheatSheet open onClose={() => onClose()} />)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' })))
+    // Nothing else focusable INSIDE the dialog to Tab to, but a stray
+    // re-render with a FRESH onClose arrow (every real caller passes one)
+    // must not re-run the open-transition effect and yank focus back.
+    elsewhere.focus()
+    expect(document.activeElement).toBe(elsewhere)
+    rerender(<ShortcutCheatSheet open onClose={() => onClose()} />)
+    rerender(<ShortcutCheatSheet open onClose={() => onClose()} />)
+    expect(document.activeElement).toBe(elsewhere)
+    // and Escape still reaches the LATEST onClose
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    elsewhere.remove()
   })
 })
 

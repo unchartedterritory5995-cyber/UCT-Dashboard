@@ -81,8 +81,15 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     setExportBusy(true)
     onMessage('rendering…')
     try {
-      const ok = await exportNoteAsPng(columnRef.current, title)
-      onMessage(ok ? 'PNG saved' : 'export failed')
+      // exportNoteAsPng returns { ok, reason? } -- `reason`, when present, is
+      // the member-facing sentence for a refused/failed render (too long for
+      // one image, or a blob too small to be real content); its absence
+      // means an ordinary failure, where this door's own generic message
+      // still applies. Read defensively: a mock or a future caller that
+      // resolves nothing must not throw on destructuring.
+      const result = await exportNoteAsPng(columnRef.current, title)
+      const ok = !!result?.ok
+      onMessage(ok ? 'PNG saved' : (result?.reason || 'export failed'))
       // Wave 10 (10D, R-16): a note left as a file. The FORMAT only — never its title.
       if (ok) trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'png', scope: 'note', count: 1 })
     } catch {

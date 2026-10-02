@@ -17,7 +17,11 @@ import path from 'node:path'
 const DIR = path.resolve(__dirname)
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8')
 
-const READ_RE = /editor\.isActive\(|editor\.getAttributes\(|editor\.can\(\)|editor\.state\?\.selection|editor\.state\.selection/g
+// Wave 10 (lane TY7): `nodeActiveAtCursor\(` is tracked the same way as a
+// direct `editor.isActive(` call -- it IS one, just indirected through
+// `lib/fastToolbarProbes.js` for the common fast path (see that file's own
+// describe block below for the fallback read it still makes).
+const READ_RE = /editor\.isActive\(|editor\.getAttributes\(|editor\.can\(\)|editor\.state\?\.selection|editor\.state\.selection|nodeActiveAtCursor\(/g
 
 /** Real code lines only -- a JSDoc line (trimmed, starts with `*`) or a `//`
  *  comment can quote `editor.isActive(...)` as PROSE (this very file's own
@@ -47,14 +51,27 @@ function findReads(src) {
 // this reducer cannot make it stale).
 const NOTE_EDITOR_PAGE_READS = {
   // readToolbarFormatState's own body -- the signature IS these reads.
+  //
+  // ⛔⛔ Wave 10 (lane TY7, "whose caller" perf pass): the six NODE-type rows
+  // below (h1/h2/bulletList/orderedList/blockquote/codeBlock) used to read
+  // `editor.isActive(...)` directly here -- measured O(doc size) per call
+  // (`docs/notebook/perf-runs/ty7/`, `isNodeActive@askInsert:12893`), because
+  // `@tiptap/core`'s `isNodeActive` always calls `doc.nodesBetween` from the
+  // document's start. They now go through `nodeActiveAtCursor`
+  // (`lib/fastToolbarProbes.js`), an O(depth) equivalent for the common
+  // collapsed-selection case that FALLS BACK to the exact same
+  // `editor.isActive(...)` call this dictionary used to track directly --
+  // see the "fastToolbarProbes.js" describe block below for that read's own
+  // coverage. Marks (bold/italic/highlight) and getAttributes are untouched:
+  // confirmed O(1) the same way, not assumed.
   "bold: editor.isActive('bold'),": 'bold',
   "italic: editor.isActive('italic'),": 'italic',
-  "h1: editor.isActive('heading', { level: 1 }),": 'h1',
-  "h2: editor.isActive('heading', { level: 2 }),": 'h2',
-  "bulletList: editor.isActive('bulletList'),": 'bulletList',
-  "orderedList: editor.isActive('orderedList'),": 'orderedList',
-  "blockquote: editor.isActive('blockquote'),": 'blockquote',
-  "codeBlock: editor.isActive('codeBlock'),": 'codeBlock',
+  "h1: nodeActiveAtCursor(editor, 'heading', { level: 1 }),": 'h1',
+  "h2: nodeActiveAtCursor(editor, 'heading', { level: 2 }),": 'h2',
+  "bulletList: nodeActiveAtCursor(editor, 'bulletList'),": 'bulletList',
+  "orderedList: nodeActiveAtCursor(editor, 'orderedList'),": 'orderedList',
+  "blockquote: nodeActiveAtCursor(editor, 'blockquote'),": 'blockquote',
+  "codeBlock: nodeActiveAtCursor(editor, 'codeBlock'),": 'codeBlock',
   "fontFamily: editor.getAttributes('textStyle').fontFamily || '',": 'fontFamily',
   "fontSize: editor.getAttributes('textStyle').fontSize || '',": 'fontSize',
   "textColor: editor.getAttributes('textColor').color || '',": 'textColor',
@@ -109,6 +126,22 @@ describe('TextColorMenu.jsx: every render-time editor read matches a field readT
       "const textColor = editor.getAttributes('textColor').color || null",
       "const highlighted = editor.isActive('highlight')",
       "const highlightColor = highlighted ? (editor.getAttributes('highlight').color || 'yellow') : null",
+    ])
+  })
+})
+
+describe('lib/fastToolbarProbes.js (TY7): the fallback path nodeActiveAtCursor hands back to still reads editor.isActive, accounted for here rather than silently moving out of the audit', () => {
+  it('reads exactly editor.isActive(typeOrName, attributes) -- the EXACT call the six NOTE_EDITOR_PAGE_READS node-type rows used to make directly, now made only on the fast path\'s fallback (a non-empty selection, or a test double with no resolved $from)', () => {
+    const src = read('../../lib/fastToolbarProbes.js')
+    const hits = findReads(src)
+    // `nodeActiveAtCursor(` also matches the READ_RE addition above on its OWN
+    // function-definition line (not a call) -- expected and harmless, since
+    // this describe block exists to pin the ONE genuine editor-state READ in
+    // this file (the fallback), not to re-run the call/definition audit that
+    // applies to NoteEditorPage.jsx.
+    expect(hits.map((h) => h.text)).toEqual([
+      'export function nodeActiveAtCursor(editor, typeOrName, attributes = {}) {',
+      'return editor.isActive(typeOrName, attributes)',
     ])
   })
 })

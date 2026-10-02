@@ -1,0 +1,24 @@
+Ad hoc Playwright probe confirming the PNG export's near-empty output for a very long note
+(docs/notebook/perf-runs/ty3/ty3-browser-checks.log, check #8c) is NOT caused by this lane's
+content-visibility change. Run against the BASE tree (f314076f7, app/src/pages/journal-2-0/
+components/notebook/NoteEditorPage.module.css and app/src/pages/journal-2-0/lib/exportNote.js
+restored to their exact `git show f314076f7:<path>` bytes, binary-copied -- never through this
+lane's content-visibility rule or the uct-exporting-note class at all, which do not exist on
+that tree) on a fresh sandbox, same 2,000-paragraph note shape, same real UI path (open the
+"More note actions" menu, click the PNG button) with URL.createObjectURL intercepted in-page to
+read the Blob's own size directly (bypassing Playwright's download machinery):
+
+  captured blob info: {'size': 54, 'type': 'image/png'} elapsed ms: 4337.7
+
+Byte-identical result to the SAME probe against this lane's tree (54 bytes, image/png). Root
+cause (read from modern-screenshot's own source, app/node_modules/modern-screenshot/dist/
+index.js): the output canvas is sized from the exported root element's OWN
+getBoundingClientRect() (confirmed separately, both builds: `.column`'s own box is 866 x
+~82,000px, correct and content-visibility-independent -- a skipped child's box still
+contributes its real/remembered height to its parent's flow height) at `scale: 2`, i.e. a
+canvas roughly 1,732 x 164,000px is requested with no `maximumCanvasSize` configured. That
+exceeds the browser's own maximum 2D canvas dimension on both builds alike, independent of
+this lane's change -- a pre-existing limitation of the PNG export for a note this tall, not a
+regression. The Wave 10 TY3 lever's own correctness claim for this path rests on checks #8a/
+#8b (the content-visibility:visible CSS override is proven, directly, under both print and
+export), not on #8c succeeding -- #8c cannot succeed on EITHER build at this note length.

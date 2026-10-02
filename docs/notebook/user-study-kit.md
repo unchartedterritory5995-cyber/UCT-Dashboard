@@ -162,3 +162,30 @@ Mark each task **U** (unaided), **H** (with hint), **F** (failed) or **NT** (not
 
 `python tools/notebook_study_score.py docs/notebook/user-study/results-template.csv` prints
 the verdict; it is the arithmetic of this rule and nothing more.
+
+## 9. The weekly-feature census (scorecard standard #1, third clause)
+
+The scorecard's clause "the list is what Notion/Evernote/Obsidian users actually reach for
+weekly" asks whether the product's feature list is the RIGHT list. The list was built from
+the plan (`parity-scorecard.md` §B1), not from users, so only users can confirm it. Screener
+question 6 (`user-study/screener.md` §2) collects that, unprompted, from every participant.
+
+After the last session, for each thing a participant named:
+
+| P | Their words (verbatim) | §B1 inventory item it maps to, or "none" | That item's ledger row and status |
+|---|---|---|---|
+| | | | |
+
+**Reading rule (controller ruling, owner-delegated, 2026-10-01):**
+
+- The clause is **MET** when at least five participants answered question 6 and every thing
+  named maps to an item in §B1 (built, or a recorded "no" with its reason).
+- A thing named by **two or more** participants that maps to nothing is a **miss**: it goes
+  on the gap ledger as a new row, and the clause stays not met until that row is built or
+  ruled out.
+- A thing named by **one** participant that maps to nothing is recorded in the table and
+  judged by the controller: either a new ledger row, or a one-line reason it is not a
+  notes-tool feature.
+- Fewer than five answers is **INCOMPLETE**, not a pass.
+
+This table is filled in by hand. `tools/notebook_study_score.py` does not read it.
