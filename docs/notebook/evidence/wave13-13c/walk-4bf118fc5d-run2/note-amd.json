@@ -1,0 +1,1159 @@
+{
+ "id": "23eee4c49d30410e85162b780ebd5736",
+ "userId": "a7a90b8e-a14d-420d-b7cd-daed3f19ea5b",
+ "accountId": null,
+ "folderId": null,
+ "title": "Earnings Prep — AMD (Mon, Oct 5)",
+ "subtitle": null,
+ "bodyJson": {
+  "type": "doc",
+  "content": [
+   {
+    "type": "callout",
+    "attrs": {
+     "variant": "info"
+    },
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Drafted by UCT on Oct 2, 2026, 5:56 PM from the sources named under each value. The values are frozen in this note: they will not change when the data does."
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "The report"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Date:"
+     },
+     {
+      "type": "text",
+      "text": " Mon, Oct 5, 2026"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: UCT earnings calendar, as of Oct 2, 2026, 5:55 PM."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Before or after the bell:"
+     },
+     {
+      "type": "text",
+      "text": " — not available: The calendar has not said before or after the bell yet."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: UCT earnings calendar."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Expected move (from options):"
+     },
+     {
+      "type": "text",
+      "text": " — not available: Not captured yet. UCT records the options-implied move the evening before the report, and the calendar shows a live one only once it has computed that day."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: Options-implied move, captured by UCT before the report."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "What the Street expects"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "content": [
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph"
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Estimate"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "A year ago"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Growth"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "EPS"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Revenue"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "EPS estimate: — not available: No consensus estimate for the coming quarter in UCT's earnings data."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Revenue estimate: — not available: No consensus estimate for the coming quarter in UCT's earnings data."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "EPS a year ago: — not available: No reported result for the same quarter a year ago in UCT's earnings data."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Revenue a year ago: — not available: No reported result for the same quarter a year ago in UCT's earnings data."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "The last four reactions"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "content": [
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Quarter"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Reported"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "EPS"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Revenue"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Implied move"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Reaction"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "FY2026 Q2"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Tue, Aug 4"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +2.5%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +2.0%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "−7.0%"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "FY2026 Q1"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Tue, May 5"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +6.2%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +3.6%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "+18.6%"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "FY2025 Q4"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Tue, Feb 3"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +15.9%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +6.2%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "−17.3%"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "FY2025 Q3"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Tue, Nov 4"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +2.6%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Beat +5.6%"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "−3.7%"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: UCT earnings data, reactions from UCT daily bars, as of Oct 2, 2026, 5:56 PM."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "— in a cell: UCT holds no value for it (no consensus to score against, no implied move captured before that report, or no bars for that day)."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "Last call recap"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: No stored call recap for AMD. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: UCT call recap (stored)."
+     }
+    ]
+   },
+   {
+    "type": "horizontalRule"
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "What the market will listen for"
+     }
+    ]
+   },
+   {
+    "type": "bulletList",
+    "content": [
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Guidance: —"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "The metric that moves this stock: —"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Anything new: —"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My history on the name"
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 3
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My notes"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: You have no notes on AMD yet."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: Your Notebook."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 3
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My trades"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: You have no closed trades in AMD in your journal."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: Your trade journal."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My position going in"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: You hold no open position in AMD."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: Your open positions."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "Holding through it, trimming, or flat? Say why before the print, not after."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "Where the stock sits going in"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "After the report"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "The numbers, the reaction, and whether the setup you described held."
+     }
+    ]
+   }
+  ]
+ },
+ "bodyPlain": "Drafted by UCT on Oct 2, 2026, 5:56 PM from the sources named under each value. The values are frozen in this note: they will not change when the data does. The report Date: Mon, Oct 5, 2026 Source: UCT earnings calendar, as of Oct 2, 2026, 5:55 PM. Before or after the bell: — not available: The calendar has not said before or after the bell yet. Source: UCT earnings calendar. Expected move (from options): — not available: Not captured yet. UCT records the options-implied move the evening before the report, and the calendar shows a live one only once it has computed that day. Source: Options-implied move, captured by UCT before the report. What the Street expects  Estimate A year ago Growth EPS — — — Revenue — — — EPS estimate: — not available: No consensus estimate for the coming quarter in UCT's earnings data. Revenue estimate: — not available: No consensus estimate for the coming quarter in UCT's earnings data. EPS a year ago: — not available: No reported result for the same quarter a year ago in UCT's earnings data. Revenue a year ago: — not available: No reported result for the same quarter a year ago in UCT's earnings data. The last four reactions Quarter Reported EPS Revenue Implied move Reaction FY2026 Q2 Tue, Aug 4 Beat +2.5% Beat +2.0% — −7.0% FY2026 Q1 Tue, May 5 Beat +6.2% Beat +3.6% — +18.6% FY2025 Q4 Tue, Feb 3 Beat +15.9% Beat +6.2% — −17.3% FY2025 Q3 Tue, Nov 4 Beat +2.6% Beat +5.6% — −3.7% Source: UCT earnings data, reactions from UCT daily bars, as of Oct 2, 2026, 5:56 PM. — in a cell: UCT holds no value for it (no consensus to score against, no implied move captured before that report, or no bars for that day). Last call recap — not available: No stored call recap for AMD. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar. Source: UCT call recap (stored). What the market will listen for Guidance: — The metric that moves this stock: — Anything new: — My history on the name My notes — not available: You have no notes on AMD yet. Source: Your Notebook. My trades — not available: You have no closed trades in AMD in your journal. Source: Your trade journal. My position going in — not available: You hold no open position in AMD. Source: Your open positions. Holding through it, trimming, or flat? Say why before the print, not after. Where the stock sits going in In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do. After the report The numbers, the reaction, and whether the setup you described held.",
+ "heroImageUrl": null,
+ "firstImageUrl": null,
+ "ticker": "AMD",
+ "tags": [
+  "earnings",
+  "earnings-prep"
+ ],
+ "createdAt": "2026-10-02T22:56:23.154472+00:00",
+ "updatedAt": "2026-10-02T22:56:23.154472+00:00",
+ "deletedAt": null,
+ "archivedAt": null,
+ "locked": false,
+ "dailyDate": null,
+ "propertiesJson": {},
+ "isFavorite": false
+}
