@@ -141,3 +141,84 @@ def test_v2_rows_mark_by_their_own_source(fresh_store, monkeypatch):
     assert bars["2026-09-25"].get("ohlc") == 1
     assert (bars["2026-09-25"]["o"], bars["2026-09-25"]["h"]) == (50.0, 58.0)
     assert "ohlc" not in bars["2026-09-26"]
+
+
+# ─── TODAY: the developing bar from the live accumulator ─────────────────────
+
+def _build_today(today, live, tf="D"):
+    """Serve with `today` as the developing session. ⚠️ Production (BREADTH_AUTHORITY=v2)
+    never lets today's accumulator row into the SEALED series — the seam owns every session
+    from 2026-03-23 — so the developing bar is the serve-time append. The sealed read here
+    drops today's row to stand in for that, leaving `live_row` as the only door to it."""
+    from api.services import breadth_monitor, breadth_live
+    real_history = store.history
+    sealed_only = lambda *a, **k: {d: r for d, r in real_history(*a, **k).items() if d < today}  # noqa: E731
+    bs._breadth_cache.delete_prefix("breadthdaily_")
+    with patch.object(breadth_monitor, "get_history", return_value=[]), \
+         patch.object(breadth_live, "enabled", return_value=False), \
+         patch.object(store, "history", sealed_only), \
+         patch.object(bs, "_et_today", return_value=today), \
+         patch.object(bs, "_live_map", return_value={M: live}):
+        return bs.build_breadth_bars("UCTA5", tf, 400)["bars"]
+
+
+def test_developing_bar_takes_the_accumulators_observed_ohlc(fresh_store):
+    _seed()
+    # three anchored samples: open fixed at the first, h/l extend, c moves
+    store.update_intraday("2026-08-12", {M: 63.0})
+    store.update_intraday("2026-08-12", {M: 70.0})
+    store.update_intraday("2026-08-12", {M: 58.0})
+    b = _build_today("2026-08-12", 61.5)[-1]
+    assert b["t"] == "2026-08-12" and b.get("ohlc") == 1
+    assert (b["o"], b["h"], b["l"], b["c"]) == (63.0, 70.0, 58.0, 61.5)
+
+
+def test_developing_bar_evolves_with_open_fixed(fresh_store):
+    _seed()
+    seen = []
+    for v in (60.0, 66.0, 55.0, 59.0):
+        store.update_intraday("2026-08-12", {M: v})
+        bs._breadth_cache.delete_prefix("breadthdaily_")
+        b = _build_today("2026-08-12", v)[-1]
+        seen.append((b["o"], b["h"], b["l"], b["c"]))
+    assert seen == [(60.0, 60.0, 60.0, 60.0), (60.0, 66.0, 60.0, 66.0),
+                    (60.0, 66.0, 55.0, 55.0), (60.0, 66.0, 55.0, 59.0)]
+
+
+def test_live_close_outside_the_stored_range_widens_it(fresh_store):
+    _seed()
+    store.update_intraday("2026-08-12", {M: 60.0})
+    b = _build_today("2026-08-12", 72.0)[-1]           # a sample the store has not seen yet
+    assert (b["o"], b["h"], b["l"], b["c"], b.get("ohlc")) == (60.0, 72.0, 60.0, 72.0, 1)
+
+
+def test_no_live_row_means_an_unmarked_body(fresh_store):
+    _seed()
+    b = _build_today("2026-08-12", 64.0)[-1]
+    assert "ohlc" not in b and b["o"] == 62.0           # yesterday's close: the body
+
+
+def test_a_non_live_row_for_today_is_not_an_observation(fresh_store):
+    _seed()
+    store.write_bulk([("2026-08-12", M, 62.0, 64.0, 62.0, 64.0)], source="close_recon")
+    assert "ohlc" not in _build_today("2026-08-12", 64.0)[-1]
+
+
+def test_a_body_only_series_gains_no_developing_candle(fresh_store):
+    store.write_bulk([("2026-08-10", M, 60.0, 61.0, 60.0, 61.0),
+                      ("2026-08-11", M, 61.0, 62.0, 61.0, 62.0)], source="close_recon")
+    store.update_intraday("2026-08-12", {M: 63.0})
+    bars = _build_today("2026-08-12", 63.0)
+    assert not any(b.get("ohlc") == 1 for b in bars)
+
+
+def test_the_developing_week_is_marked_only_when_every_day_is(fresh_store):
+    _seed()                                              # 08-10 is a body, 08-11 observed
+    store.update_intraday("2026-08-12", {M: 63.0})
+    week = {b["t"]: b for b in _build_today("2026-08-12", 63.0, "W")}["2026-08-14"]
+    assert "ohlc" not in week                            # the 08-10 body poisons it
+    # a fresh week whose only day so far is today's observed bar IS observed
+    store.update_intraday("2026-08-17", {M: 50.0})
+    bs._breadth_cache.delete_prefix("breadthdaily_")
+    wk = {b["t"]: b for b in _build_today("2026-08-17", 52.0, "W")}["2026-08-21"]
+    assert wk.get("ohlc") == 1 and (wk["o"], wk["c"]) == (50.0, 52.0)

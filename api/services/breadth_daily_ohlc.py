@@ -986,6 +986,34 @@ def _rebuild_after_write(conn, dates) -> None:
         pass
 
 
+def live_row(date: str, metric: str, universe: str = DEFAULT_UNIVERSE) -> Optional[dict]:
+    """The live accumulator's row for one (date, metric) — `{o, h, l, c}` — or None.
+
+    ⭐ THE DEVELOPING SESSION'S OBSERVED OHLC. `update_intraday` seeds o=h=l=c from the
+    first anchored, non-degraded sample of the session and then only extends h/l and moves
+    c, so o is the first observation, h/l the extremes so far and c the latest. Only a row
+    whose source is still 'live' qualifies; anything else (a body, a recon) is not today's
+    accumulation. A single primary-key read; None on any error. Read-only."""
+    if not date or not metric:
+        return None
+    try:
+        _ensure_init()
+        with _conn() as c:
+            r = c.execute(
+                "SELECT o, h, l, c FROM breadth_daily_ohlc "
+                "WHERE universe=? AND date=? AND metric=? AND source='live'",
+                (_uni(universe), date, metric),
+            ).fetchone()
+    except Exception:
+        return None
+    if not r:
+        return None
+    vals = [_finite(x) for x in r]
+    if None in vals:
+        return None
+    return {"o": vals[0], "h": vals[1], "l": vals[2], "c": vals[3]}
+
+
 def history(metric: str, limit: int = 6000,
             universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources

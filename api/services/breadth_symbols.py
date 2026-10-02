@@ -841,7 +841,20 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
     intentionally simpler than the old baked-in candle (which also merged the store's
     intraday high/low wick) — breadth history is close-to-close by nature, and the wick
     would have been build-time-stale under the long sealed-cache TTL anyway. Never mutates
-    the cached list (returns a new one)."""
+    the cached list (returns a new one).
+
+    ⭐ 2026-10-02 — AN OBSERVED DEVELOPING BAR, WHEN THE ACCUMULATOR HAS ONE. The live
+    accumulator (`breadth_daily_ohlc.update_intraday`, fed the same anchored per-minute
+    samples as the intraday path) holds today's open = first sample, high/low = extremes so
+    far, close = latest. Read at SERVE time (one primary-key read), so it is never build-time
+    stale. When it exists the developing bar takes its open/high/low, keeps the live value
+    as its close (the number a Line shows), widens high/low to include that close — itself
+    an observation — and is marked observed. Otherwise it stays the unmarked body above.
+
+    ⛔ ONLY FOR A SERIES WHOSE SEALED HISTORY IS ALREADY ATTESTED. A body-only series (UV
+    ratio, HVC) is scalar; one observed developing bar would make it candle-capable for the
+    afternoon and refuse again at the collector's seal — a presentation that flips under the
+    member. Capability comes from the history; today's observation extends it."""
     today = _et_today()
     if not (today and daily and daily[-1]["t"] < today):
         return daily
@@ -851,8 +864,18 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
     o = daily[-1]["c"]
     c = live_val
     h, l = max(o, c), min(o, c)
-    return daily + [{"t": today, "o": round(o, 4), "h": round(h, 4),
-                     "l": round(l, 4), "c": round(c, 4), "v": 0}]
+    bar = {"t": today, "o": round(o, 4), "h": round(h, 4),
+           "l": round(l, 4), "c": round(c, 4), "v": 0}
+    if any(b.get(OHLC_OBSERVED_KEY) == 1 for b in daily):
+        try:
+            from api.services import breadth_daily_ohlc
+            row = breadth_daily_ohlc.live_row(today, metric)
+        except Exception:
+            row = None
+        if row:
+            bar.update({"o": round(row["o"], 4), "h": round(max(row["h"], c), 4),
+                        "l": round(min(row["l"], c), 4), OHLC_OBSERVED_KEY: 1})
+    return daily + [bar]
 
 
 def _refresh_series(sym: str, metric: str,
