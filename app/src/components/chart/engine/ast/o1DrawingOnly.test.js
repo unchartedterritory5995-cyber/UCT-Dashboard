@@ -149,3 +149,52 @@ describe('O1 G8 — comma-joined reassignments split exactly as separate lines',
     expect(sigOf(host(one))).not.toBe(sigOf(host(two)))
   })
 })
+
+// ─── a getter read through a local (`top = box.get_top(b)` … `if x > top`) ────
+const LIST = [
+  'var boxes = array.new_box()',
+  'if bar_index % 7 == 0',
+  '    array.push(boxes, box.new(bar_index, high, bar_index + 3, low))',
+]
+const loopOver = (...body) => v5(...LIST,
+  'if array.size(boxes) > 0',
+  '    for i = array.size(boxes) - 1 to 0',
+  '        b = array.get(boxes, i)',
+  ...body.map((l) => `        ${l}`))
+const ALIAS = loopOver('top = box.get_top(b)', 'if close[1] > top', '    array.remove(boxes, i)', '    box.delete(b)')
+const INLINE = loopOver('if close[1] > box.get_top(b)', '    array.remove(boxes, i)', '    box.delete(b)')
+const objDrops = (t) => diag(t).droppedOps
+
+describe('O1 — a getter read through a local is the getter read at the `if`', () => {
+  it('⛔ CONTROL — the inline spelling is read cleanly (C16)', () => {
+    const t = host(INLINE)
+    expect(objDrops(t)).toBe(0)
+    expect(t.objects.ops.length).toBeGreaterThan(0)
+  })
+
+  it('⭐⭐ SAME PROGRAM, TWO SPELLINGS — the local and the inline getter', () => {
+    const a = host(ALIAS)
+    expect(objDrops(a)).toBe(0)
+    expect(progOf(a)).toBe(progOf(host(INLINE)))
+  })
+
+  it('a second alias between the binding and the `if` keeps it (no object effect)', () => {
+    const a = host(loopOver('top = box.get_top(b)', 'bot = box.get_bottom(b)', 'if close[1] > top', '    array.remove(boxes, i)', '    box.delete(b)'))
+    expect(progOf(a)).toBe(progOf(host(INLINE)))
+  })
+
+  it('⛔ not rewritten when an object operation stands between them', () => {
+    const t = host(loopOver('top = box.get_top(b)', 'box.set_right(b, bar_index)', 'if close[1] > top', '    array.remove(boxes, i)', '    box.delete(b)'))
+    expect(objDrops(t)).toBeGreaterThan(0)
+  })
+
+  it('⛔ not rewritten when the handle is reassigned between them', () => {
+    const t = host(loopOver('top = box.get_top(b)', 'b := array.get(boxes, 0)', 'if close[1] > top', '    array.remove(boxes, i)', '    box.delete(b)'))
+    expect(objDrops(t)).toBeGreaterThan(0)
+  })
+
+  it('⛔ not rewritten for a history read of the local (`top[1]`)', () => {
+    const t = host(loopOver('top = box.get_top(b)', 'if close[1] > top[1]', '    array.remove(boxes, i)', '    box.delete(b)'))
+    expect(objDrops(t)).toBeGreaterThan(0)
+  })
+})

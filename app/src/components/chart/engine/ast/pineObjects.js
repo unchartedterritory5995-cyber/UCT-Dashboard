@@ -589,6 +589,8 @@ export function collectObjectOps(stmts, h) {
       }
       pendingFold = null
     }
+    // ⭐ O1 — the getter aliases standing in THIS statement list (`getterAliasStep`).
+    const getterAliases = new Map()
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     const walkItems = splitCommaStatements(list, h)
     for (let wi = 0; wi < walkItems.length; wi += 1) {
@@ -620,6 +622,11 @@ export function collectObjectOps(stmts, h) {
         t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries }).toks
         noteOnceLines(st)
       }
+      // ⭐ O1 (step 67) — a getter read through a local (`top = box.get_top(b)` …
+      // `if x > top`) is the getter read at the `if` while nothing in between can
+      // change the object (see `getterAliasStep`). Only this `if`'s own condition
+      // tokens are rewritten; `st` keeps its header.
+      t = getterAliasStep(st, t, getterAliases)
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -2463,6 +2470,116 @@ export function collectObjectOps(stmts, h) {
     }
     diagnostics.pushedDrawCalls = (diagnostics.pushedDrawCalls || 0) + 1
     return [assign, push]
+  }
+
+  /** ⭐⭐ O1 (step 67) — A GETTER READ THROUGH A LOCAL.
+   *
+   *  `top = box.get_top(sbox)` … `if OBBearMitigation > top` (sonarlab-order-blocks):
+   *  Pine evaluates the getter where the binding stands and the `if` reads the
+   *  number. While no statement between them can change `sbox` or what it holds —
+   *  no object operation, no call to a function or method that draws, no
+   *  reassignment of the local or of the handle — reading the getter AT the `if`
+   *  answers the same number, and that is the form this reader already serves
+   *  (C16: `if low < box.get_bottom(b)` in a loop over a list, graded on
+   *  `institutional-smc-order-flow-matrix-pro`). So the `if`'s condition tokens
+   *  get the getter in place of the local.
+   *
+   *  ⛔ Exactly: the binding is `[<type>] name = <family>.get_<prop>(<handle>)`
+   *  or `name = <handle>.get_<prop>()` with a bare handle name, in the SAME
+   *  statement list as the `if`, above it; a local read with a history offset
+   *  (`top[1]`) is not rewritten (the local's history is not the getter's); an
+   *  `else if` is not rewritten. Any statement with an object effect anywhere in
+   *  it (header or nested body) clears every alias for the statements after it.
+   *  Called once per statement, in order: rewrite (an `if`), then forget, then
+   *  learn. */
+  const OBJECT_EFFECT_NS = new Set([...OBJECT_NAMESPACES, 'polyline'])
+  const tokenHasObjectEffect = (tk) => {
+    if (!tk || tk.kind !== 'ident') return false
+    const v = String(tk.value)
+    if (drawFns.has(v)) return true
+    const dot = v.lastIndexOf('.')
+    if (dot <= 0) return false
+    const m = v.slice(dot + 1)
+    const ns = v.slice(0, v.indexOf('.'))
+    if (OBJECT_EFFECT_NS.has(ns)) return !m.startsWith('get_')
+    return /^set_/.test(m) || m === 'delete' || m === 'copy' || drawMethods.has(m)
+  }
+  const statementHasObjectEffect = (s) => {
+    if (!s) return false
+    if ((s.header || []).some(tokenHasObjectEffect)) return true
+    return (s.sub || []).some(statementHasObjectEffect)
+  }
+  const reassignedNames = (s, out = new Set()) => {
+    const ts = (s && s.header) || []
+    for (let i = 1; i < ts.length; i += 1) {
+      if (ts[i - 1].kind === 'ident' && ts[i].kind === 'punct' && (ts[i].value === ':=' || isMutator(ts[i]))) {
+        out.add(String(ts[i - 1].value))
+      }
+    }
+    for (const c of (s && s.sub) || []) reassignedNames(c, out)
+    return out
+  }
+  const getterAliasOf = (ts) => {
+    const eq = h.findTop(ts, (x) => h.isPunct(x, '='))
+    if (eq <= 0 || ts.slice(0, eq).some((x) => x.kind !== 'ident')) return null
+    if (ts[0].kind === 'ident' && (ts[0].value === 'var' || ts[0].value === 'varip')) return null
+    const rhs = ts.slice(eq + 1)
+    const head = rhs[0]
+    if (!head || head.kind !== 'ident' || !h.isPunct(rhs[1], '(') || closeOf(rhs, 1) !== rhs.length - 1) return null
+    const v = String(head.value)
+    const dot = v.lastIndexOf('.')
+    if (dot <= 0 || !v.slice(dot + 1).startsWith('get_')) return null
+    const ns = v.slice(0, dot)
+    let handle = null
+    if (OBJECT_NAMESPACES.includes(ns)) {
+      if (rhs.length !== 4 || rhs[2].kind !== 'ident' || String(rhs[2].value).includes('.')) return null
+      handle = String(rhs[2].value)
+    } else {
+      if (rhs.length !== 3 || ns.includes('.')) return null
+      handle = ns
+    }
+    return { name: String(ts[eq - 1].value), handle, rhs }
+  }
+  function getterAliasStep(st, t, aliases) {
+    let out = t
+    if (aliases.size && t[0] && t[0].kind === 'ident' && t[0].value === 'if') {
+      const offsetRead = new Set()
+      for (let i = 1; i < t.length; i += 1) {
+        if (t[i].kind === 'ident' && aliases.has(String(t[i].value)) && h.isPunct(t[i + 1], '[')) offsetRead.add(String(t[i].value))
+      }
+      let changed = false
+      const next = [t[0]]
+      for (let i = 1; i < t.length; i += 1) {
+        const tk = t[i]
+        const a = tk.kind === 'ident' ? aliases.get(String(tk.value)) : null
+        if (!a || offsetRead.has(a.name) || h.isPunct(t[i + 1], '(')) { next.push(tk); continue }
+        const at = (x) => ({ ...x, line: tk.line, column: tk.column, index: tk.index })
+        next.push(at({ kind: 'punct', value: '(' }), ...a.rhs.map(at), at({ kind: 'punct', value: ')' }))
+        changed = true
+      }
+      if (changed) {
+        out = next
+        diagnostics.getterAliasReads = (diagnostics.getterAliasReads || 0) + 1
+      }
+    }
+    if (statementHasObjectEffect(st)) aliases.clear()
+    else {
+      const re = reassignedNames(st)
+      for (const [name, a] of [...aliases]) if (re.has(name) || re.has(a.handle)) aliases.delete(name)
+    }
+    const al = getterAliasOf(st.header || [])
+    if (al) {
+      // a new binding of a name (or of a handle an alias reads) replaces what stood before
+      for (const [name, a] of [...aliases]) if (name === al.name || a.handle === al.name) aliases.delete(name)
+      aliases.set(al.name, al)
+    } else {
+      const decl = h.findTop(st.header || [], (x) => h.isPunct(x, '='))
+      if (decl > 0) {
+        const nm = String((st.header[decl - 1] || {}).value)
+        for (const [name, a] of [...aliases]) if (name === nm || a.handle === nm) aliases.delete(name)
+      }
+    }
+    return out
   }
 
   /** ⭐ O1 — how many times each identifier is written anywhere in the script
