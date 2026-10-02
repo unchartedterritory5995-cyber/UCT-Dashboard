@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-10-02",
   "scripts": 266,
-  "host_ok": 71,
+  "host_ok": 72,
   "screener_ok": 64,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -780,11 +780,9 @@
     },
     {
       "file": "fib-retracement__8XcLscnekw.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]

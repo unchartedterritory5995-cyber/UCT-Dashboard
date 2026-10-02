@@ -49,3 +49,63 @@ describe('O1 — the sentence behind a dropped create (`createDropWhy`)', () => 
     expect(long[0].startsWith(`${short[0]} :: `)).toBe(true)
   })
 })
+
+// ─── G7 — a drawing helper as the THEN arm of `?:` whose ELSE arm is `na` ─────
+const HELPER = [
+  'show = input.bool(false, "extra")',
+  'lvl(x) =>',
+  '    var line ln = na',
+  '    line.delete(ln)',
+  '    ln := line.new(bar_index - 5, x, bar_index, x)',
+]
+const TERNARY_FORM = v5(...HELPER, 'a = show ? lvl(close) : na')
+const IF_FORM = v5(...HELPER, 'if show', '    lvl(close)')
+const progOf = (t) => {
+  const p = t.objects || { ops: [], trees: [] }
+  return JSON.stringify({ ops: p.ops, trees: p.trees }, (k, v) => (k === 'site' || k === 'line' ? undefined : v))
+}
+
+describe('O1 G7 — `x = cond ? f(…) : na` is `if cond` + `f(…)`', () => {
+  it('⛔ CONTROL — the `if` spelling draws, cleanly, under a guard', () => {
+    const t = host(IF_FORM)
+    expect(diag(t).droppedOps).toBe(0)
+    expect((t.objects.ops || []).length).toBeGreaterThan(0)
+    expect(t.objects.ops.some((o) => o.k === 'create' && o.when)).toBe(true)
+  })
+
+  it('⭐⭐ SAME PROGRAM, TWO SPELLINGS', () => {
+    const a = host(TERNARY_FORM)
+    const b = host(IF_FORM)
+    expect(diag(a).dropReasons['fn:in-expression']).toBeUndefined()
+    expect(diag(a).droppedOps).toBe(0)
+    expect(progOf(a)).toBe(progOf(b))
+  })
+
+  it('a bare `cond ? f(…) : na` statement is the same program too', () => {
+    expect(progOf(host(v5(...HELPER, 'show ? lvl(close) : na')))).toBe(progOf(host(IF_FORM)))
+  })
+
+  it('⛔ the guard is the test — dropping it would draw on every bar', () => {
+    const always = host(v5(...HELPER, 'lvl(close)'))
+    expect(progOf(host(TERNARY_FORM))).not.toBe(progOf(always))
+  })
+
+  const refusedInExpression = (src) => diag(host(src)).dropReasons['fn:in-expression'] || 0
+  it('⛔ still refused: the bound name is READ elsewhere', () => {
+    expect(refusedInExpression(v5(...HELPER, 'a = show ? lvl(close) : na', 'plot(na(a) ? 1 : 0)'))).toBe(1)
+  })
+  it('⛔ still refused: a reassignment (`:=`) or a `var` binding', () => {
+    expect(refusedInExpression(v5(...HELPER, 'line a = na', 'a := show ? lvl(close) : na'))).toBe(1)
+    // a `var` initialiser runs once, on the first bar — never `if cond` on every bar
+    expect(refusedInExpression(v5(...HELPER, 'var a = show ? lvl(close) : na'))).toBe(1)
+  })
+  it('⛔ still refused: an ELSE arm other than `na`', () => {
+    expect(refusedInExpression(v5(...HELPER, 'a = show ? lvl(close) : lvl(open)'))).toBe(1)
+  })
+  it('⛔ still refused: the call is not the WHOLE arm', () => {
+    expect(refusedInExpression(v5(...HELPER, 'a = show ? lvl(close) + 0 : na'))).toBe(1)
+  })
+  it('⛔ still refused: the TEST itself draws', () => {
+    expect(refusedInExpression(v5(...HELPER, 'a = not na(lvl(open)) ? lvl(close) : na'))).toBe(1)
+  })
+})

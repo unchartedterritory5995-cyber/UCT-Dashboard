@@ -698,6 +698,29 @@ export function collectObjectOps(stmts, h) {
             walk(pushed, guards, inLoop, localScope)
             continue
           }
+          // ⭐⭐ O1 (step 67) — `[x =] cond ? f(…) : na`: a drawing helper as the
+          // THEN arm of a `?:` whose ELSE arm is `na`, its value bound to a name
+          // nothing reads (or to no name). Pine runs only the arm `?:` picks
+          // (vendor capture `options-max-pain-calculator-backquant-rddt-1d-2026-09-28`,
+          // C18), and takes the ELSE arm when the test is `na` (RT1's two
+          // captures), so `f` runs exactly on the bars where `cond` is true — the
+          // bars `if cond` runs its body on (`na` is false there). With the bound
+          // value never read, the statement IS
+          //
+          //     if cond
+          //         f(…)
+          //
+          // and is inlined under that guard, the walk's own `if` entry. Same
+          // equivalence `emitTernaryCreate` carries for a built-in `<family>.new`.
+          // ⛔ Refused, as before, for anything else: a `var` / `:=` binding, a
+          // name read anywhere else in the script, an ELSE arm other than `na`,
+          // a test that itself draws.
+          const tern = ternaryDrawArm(t, headOf)
+          if (tern) {
+            inlineAt(tern.head, tern.call, 1, null,
+              [...guards, { toks: tern.cond, negate: false, locals: localScope }], inLoop, st, localScope)
+            continue
+          }
         }
         refuseCall('in-expression', drawMethod || drawCall, st)
       }
@@ -2440,6 +2463,57 @@ export function collectObjectOps(stmts, h) {
     }
     diagnostics.pushedDrawCalls = (diagnostics.pushedDrawCalls || 0) + 1
     return [assign, push]
+  }
+
+  /** ⭐ O1 — how many times each identifier is written anywhere in the script
+   *  (every statement, every nested body), counted once. A name a binding gives
+   *  that appears exactly once is read by nothing. */
+  let identCounts = null
+  const identCount = (name) => {
+    if (!identCounts) {
+      identCounts = new Map()
+      const visit = (list) => {
+        for (const s of list || []) {
+          for (const tk of (s && s.header) || []) {
+            if (tk && tk.kind === 'ident') identCounts.set(tk.value, (identCounts.get(tk.value) || 0) + 1)
+          }
+          visit(s && s.sub)
+        }
+      }
+      visit(stmts)
+    }
+    return identCounts.get(name) || 0
+  }
+
+  /** ⭐⭐ O1 — `[<type>] x = cond ? f(…) : na` or `cond ? f(…) : na` as a whole
+   *  statement, where `f(…)` is a call `headOf` names (a function or method that
+   *  draws), the ELSE arm is the bare `na`, the test draws nothing, and `x` (if
+   *  any) is written nowhere else in the script → `{cond, head, call}`; else
+   *  null. See the call site for why that statement is `if cond` + `f(…)`. */
+  function ternaryDrawArm(t, headOf) {
+    if (!t.length || (t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip'))) return null
+    if (h.findTop(t, (x) => h.isPunct(x, ':=')) >= 0) return null
+    const asIdx = h.findTop(t, (x) => h.isPunct(x, '='))
+    let rhs = t
+    if (asIdx >= 0) {
+      if (asIdx === 0) return null
+      const lhs = t.slice(0, asIdx)
+      if (lhs.some((x) => x.kind !== 'ident')) return null
+      if (identCount(String(lhs[lhs.length - 1].value)) !== 1) return null
+      rhs = t.slice(asIdx + 1)
+    }
+    const split = splitTernary(rhs)
+    if (!split || !split.cond.length) return null
+    if (split.alt.length !== 1 || split.alt[0].kind !== 'ident' || split.alt[0].value !== 'na') return null
+    const call = split.then
+    const head = call.length >= 3 ? headOf(call[0]) : null
+    if (!head || !h.isPunct(call[1], '(') || closeOf(call, 1) !== call.length - 1) return null
+    if ((drawMethods.size && (callsMethodAny(split.cond, drawMethods) || callsAny(split.cond, drawMethods)))
+        || (drawFns.size && callsAny(split.cond, drawFns))) return null
+    if (split.cond.some((x) => x.kind === 'ident' && nsOf(String(x.value))
+        && OBJECT_NAMESPACES.includes(nsOf(String(x.value))))) return null
+    diagnostics.ternaryDrawCalls = (diagnostics.ternaryDrawCalls || 0) + 1
+    return { cond: split.cond, head, call }
   }
 
   /** ⭐ C34 — a body inlined into a loop this reader does not run: what it
