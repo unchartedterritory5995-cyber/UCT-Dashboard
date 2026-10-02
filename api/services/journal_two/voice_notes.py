@@ -208,7 +208,30 @@ def probe_duration(path: Path) -> float | None:
     try:
         d = float((info.get("format") or {}).get("duration"))
     except (TypeError, ValueError):
+        # ⛔ A BROWSER RECORDING CARRIES NO DURATION. MediaRecorder writes its WebM
+        # as a stream (it cannot seek back to fill the header in), so ffprobe answers
+        # an audio stream and NO format duration -- for every recording made in the
+        # browser. The length is then measured by decoding to the end.
+        return _decoded_duration(path)
+    return d if math.isfinite(d) and d > 0 else None
+
+
+_TIME = re.compile(r"time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
+
+
+def _decoded_duration(path: Path) -> float | None:
+    """Seconds of audio, measured by decoding the whole stream (ffmpeg's own
+    progress clock, last value). None when nothing decodes."""
+    try:
+        r = _run(["ffmpeg", "-nostdin", "-v", "error", "-stats", "-i", str(path),
+                  "-map", "0:a:0", "-f", "null", "-"], timeout=300)
+    except (OSError, subprocess.SubprocessError):
         return None
+    found = _TIME.findall(r.stderr.decode("utf-8", "replace").replace(chr(13), chr(10)))
+    if r.returncode != 0 or not found:
+        return None
+    h, m, sec = found[-1]
+    d = int(h) * 3600 + int(m) * 60 + float(sec)
     return d if math.isfinite(d) and d > 0 else None
 
 

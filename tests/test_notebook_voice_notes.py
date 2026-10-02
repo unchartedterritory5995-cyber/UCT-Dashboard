@@ -267,6 +267,20 @@ def test_a_real_ffmpeg_split_yields_ordered_parts_under_the_vendor_limit(tmp_pat
     assert [round(d) for d in durations] == [5, 5, 2]
     from api.services import voice_openai
     assert all(p.stat().st_size < voice_openai.MAX_AUDIO_BYTES for p in parts)
+    # A BROWSER recording: MediaRecorder streams its WebM, so the header carries no
+    # duration. It is measured by decoding, then split like any other file.
+    streamed = tmp_path / "streamed.webm"
+    with open(streamed, "wb") as out:
+        subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+                        "sine=frequency=300:duration=8", "-c:a", "libopus", "-f", "webm", "pipe:1"],
+                       stdout=out, check=True, timeout=60)
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json",
+                            str(streamed)], capture_output=True, text=True, check=True)
+    assert "duration" not in json.loads(probe.stdout).get("format", {}), "precondition: no header duration"
+    d = vn.probe_duration(streamed)
+    assert d is not None and abs(d - 8.0) < 0.3
+    sparts = vn.split_audio(streamed, tmp_path / "sparts", chunk_seconds=3, duration=d)
+    assert [round(vn.probe_duration(p)) for p in sparts] == [3, 3, 2]
     # A file with no audio stream is unreadable, never a zero-length "recording".
     (tmp_path / "text.mp3").write_bytes(b"not audio at all")
     assert vn.probe_duration(tmp_path / "text.mp3") is None
