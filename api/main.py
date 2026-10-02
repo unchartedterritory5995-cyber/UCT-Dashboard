@@ -120,6 +120,10 @@ from api.routers import notebook_template_gallery as notebook_template_gallery_r
 # (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
 from api.routers import notebook_fingerprint as notebook_fingerprint_router
 
+# Wave 13 lane 13H-1: the chart plan -- sizing from drawn levels, alerts at drawn levels
+# (/api/j2/chart-plan/*), dark behind NOTEBOOK_CHART_PLAN_ENABLED.
+from api.routers import notebook_chart_alerts as notebook_chart_alerts_router
+
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8917,6 +8921,10 @@ app.include_router(notebook_template_gallery_router.router)
 
 # Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
 app.include_router(notebook_fingerprint_router.router)
+
+# Wave 13 lane 13H-1 (router-level 404 while NOTEBOOK_CHART_PLAN_ENABLED is off). Outside
+# /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_chart_alerts_router.router)
 
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.

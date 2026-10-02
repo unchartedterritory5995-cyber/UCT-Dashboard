@@ -1269,6 +1269,15 @@
       "where": [],
       "note": "Wave 13 lane 13I-1, 2026-10-02. Enablement gate for the technical fingerprint and the chart-block index: the ONE authority for a chart's fingerprint (api/services/journal_two/tech_fingerprint.py -- ADR%, distance from the 10/20/50/200-day averages, MA stack, RS rank and RS-line trend, base length and depth, volume dry-up, close CV, pole %, and the pattern engine's CONFIRMED verdicts, each computed by the screener's own functions, never re-derived) and the per-member index of chart blocks in notes (api/services/journal_two/chart_blocks.py: j2_chart_blocks, a projection read off the save path's j2_note_embeds sidecar, and j2_chart_fingerprints, the freeze ledger -- a block's fingerprint is computed once from bars as of its day and never recomputed). Routes /api/j2/notebook-fingerprint/* (api/routers/notebook_fingerprint.py) answer the one 404 while off, before any session is read; every route needs a paid plan. No member surface yet: lane 13I-2 builds the panel and the visual playbook, 13J the find-similar, on this API (docs/notebook/wave13-13i1.md). Zero model calls, zero vendor calls, never writes a note. Rides the auth payload as notebook_ta_fingerprint_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision: dark until 13I-2's walk passes. Rollback: unset or 0 on web."
     },
+    "NOTEBOOK_CHART_PLAN_ENABLED": {
+      "member_facing": {
+        "label": "Chart plan in notes",
+        "where": "Notebook"
+      },
+      "status": "dark",
+      "where": [],
+      "note": "Wave 13 lane 13H-1, 2026-10-02. Enablement gate for the chart plan in notes: sizing from the levels a member draws on a chart block (POST /api/j2/chart-plan/size -- the block's plan read by plan_extract, the ONE reader of plan levels, plus the member's account size and max risk per trade, plus Compass's size_a_trade answer for a long when the member is paid; the client sizes with the trader starter formulas otherwise and names the engine) and one-click alerts at a drawn level or trendline (POST /api/j2/chart-plan/alerts -- a thin adapter that calls the EXISTING watchlist-alert route function with the drawing's id, so the alert is the same row, checker, channels and follow-the-line resync as the chart's own alert button; it writes no table of its own). Both routes answer the one 404 while off, before any session is read (api/routers/notebook_chart_alerts.py), and never write a note. NOT gated: the ta attribute on widgetEmbed (schema level 4, NEVER-REVERT, docs/notebook/wave5-rollback.md Level 4) -- it is schema and is registered in every bundle. No member surface yet: lane 13H-2 builds the plan panel, alerts and replay on these doors. Rides the auth payload as notebook_chart_plan_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request. Unset means OFF and that is the decision: dark until 13H-2's walk passes. Rollback: unset or 0 on web."
+    },
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": {
       "member_facing": {
         "label": "Community template gallery",

@@ -53,6 +53,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_trade_canvas_enabled: false, // wave 11 lane 11D: the trade-plan canvas — absent ⇒ OFF
   notebook_template_gallery_enabled: false, // wave 12 lane 12A: the community template gallery — absent ⇒ OFF
   notebook_ta_fingerprint_enabled: false, // wave 13 lane 13I-1: the technical fingerprint — absent ⇒ OFF
+  notebook_chart_plan_enabled: false, // wave 13 lane 13H-1: the chart plan (sizing, alerts at drawn levels) — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

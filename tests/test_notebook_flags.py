@@ -43,6 +43,8 @@ NOTEBOOK_KEYS = [
     "notebook_template_gallery_enabled",
     # Wave 13 lane 13I-1: the technical fingerprint + chart-block index — an enablement gate.
     "notebook_ta_fingerprint_enabled",
+    # Wave 13 lane 13H-1: the chart plan (sizing + alerts at drawn levels) — an enablement gate.
+    "notebook_chart_plan_enabled",
 ]
 
 
