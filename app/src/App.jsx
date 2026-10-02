@@ -10,6 +10,7 @@ import { SWRConfig } from 'swr'
 // retry that hard-reloads the page instead of hanging on a missing chunk.
 import lazy from './utils/lazyWithRetry'
 import { COMING_SOON } from './utils/comingSoon'
+import { UPGRADE_PATH } from './constants/freePages'
 import { isDiscordLaunch } from './utils/discordLaunch'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -264,7 +265,7 @@ function GlobalVoiceGateForUser() {
 function PublicOnly({ children }) {
   const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
+  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
   return children
 }
 
@@ -273,9 +274,14 @@ function PublicOnly({ children }) {
  *  so an existing member who bookmarked /pricing still lands somewhere useful. */
 function PreLaunchGate({ children }) {
   const { user, isPaid, loading } = useAuth()
+  const location = useLocation()
   if (!COMING_SOON) return children
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
+  // ⛔ A signed-in member without a paid plan has no free page to go to (owner
+  // ruling 2026-10-02), so their home IS the upgrade screen. Render it here
+  // rather than redirect: redirecting /subscribe to /subscribe never settles.
+  if (user && !isPaid && location.pathname === UPGRADE_PATH) return children
+  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
   return <Navigate to="/" replace />
 }
 
