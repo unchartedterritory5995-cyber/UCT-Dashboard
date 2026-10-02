@@ -324,3 +324,23 @@ and `api/services/journal_two/notebook_schema.py`, take a `NODE_POLICY` row in e
 11. **Decide whether the three recorded "no" rulings stand** (D18 two-way sync, D19 cold-start
     offline, D20 the size cap). While they stand, 13 of 16 standards is the ceiling, and that is a
     scope decision, not a defect.
+
+## 5. Rulings taken 2026-10-02 (controller, owner-delegated: "figure it out")
+
+- **D18, D19 and D20 STAND.** Each "no" protects member data or the rollback path, and none
+  is worth that cost for a scorecard number:
+  - two-way sync writes into systems we cannot roll back;
+  - a caching service worker can serve a stale bundle straight through a rollback, which is the
+    one failure a beta rollout must never have;
+  - virtualising the editor is a large rewrite for the top few percent of note sizes.
+- **So the finish line is 13 of 16 standards at bar.** Standards 10, 11 and 14 finish at their
+  maximum with these clauses recorded as deliberate no's. The remaining 18 (c) clauses are the
+  owner's beta-testing plan: people, devices, vendor letters and calendar time.
+- **Gallery review step:** owner's "reviewed before publishing" (WAVE-11-PLAN.md:20) is read as
+  admin approval before a template is listed. Any admin approves.
+- **Wave-11 arming:**
+  - trade canvas and AI actions are armed after the peer measurement window closes;
+  - formulas are armed after a quiet 50k reading;
+  - voice notes stay dark until the OpenAI zero-retention item (owner list item 4) is settled,
+    because it would send meeting audio, including other people's voices, to an organisation whose
+    retention is unverified.
