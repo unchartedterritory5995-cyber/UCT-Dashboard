@@ -203,8 +203,10 @@ describe('R22 / d1 — the two silences speak', () => {
     const top = 'indicator("x")\nalert("boom", alert.freq_once_per_bar)\nplot(close)\n'
     const n = notesOf(translatePine(top, {}), 'pine:chart-only')
     expect(n.map((x) => x.line)).toEqual([2])
+    // ⭐ B1 (step 61): one sentence per call, true of what it does — `alert()`
+    // draws nothing and nothing here delivers it (`chartOnlySentence`).
     expect(String(n[0].message))
-      .toContain('reads plot() and alertcondition() and nothing else')
+      .toContain('`alert()` sends an alert on TradingView and draws nothing')
   })
 
   // ⚰️ MOVED TO `alertMessageRides.test.js` (R22a, d2) — NOT DELETED.

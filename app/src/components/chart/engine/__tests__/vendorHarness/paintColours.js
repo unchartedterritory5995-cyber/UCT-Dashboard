@@ -97,7 +97,13 @@ export function gradePaints(capture, ours) {
       if (t.na) ourColours = v.colors.map(() => null)
       else {
         const drawn = (ours.paints || []).find((p) => p.kind === kind && p.line === t.line)
-        if (!drawn || !drawn.colors) { rows.push({ ...base, state: 'notDrawn' }); return }
+        if (!drawn || !drawn.colors) {
+          // how many bars TradingView painted — 0 means neither side draws a bar
+          // (the verdict counts that, `compare.mjs::comparePaints`)
+          const vendorPainted = v.colors.filter((c) => c !== undefined && canon(c) !== NO_COLOUR).length
+          rows.push({ ...base, state: 'notDrawn', vendorPainted })
+          return
+        }
         ourColours = drawn.colors
       }
       let compared = 0

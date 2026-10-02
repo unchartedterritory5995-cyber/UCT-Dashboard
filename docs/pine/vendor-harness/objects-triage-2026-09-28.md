@@ -159,7 +159,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
-| B1 | B1 `bgcolor(...)` / `barcolor(...)` are DRAWN (§ B1). The host lane carries each top-level call as a paint (`presentation.paints`) whose colour goes through the one colour reader a plot uses (static, two-colour, palette with the transparent `na` entry, gradient), or is WITHHELD by name (`offset` non-zero or `na`, `show_last`, another `display`, `overlay` / `force_overlay`, a v3/v4 `bgcolor` with no `transp`, an uncarried colour); nothing mints. The member door mints each rule as a hidden condition column (shared with a plot or fill on the same rule) and writes `definition.paints` (`defSchema.validatePaints`); the binder draws one background primitive per `bgcolor` (behind the series, full pane height) and hands `time -> colour` candle overrides to the chart only when they change (StockChart applies them to the price series' own data). Graded against the 14 committed captures that record paints (`bg_colorer` / `bar_colorer`): every paint the door draws agrees on every bar (2,639 vendor-painted bars compared). 12 mutations, each red | `875245b282` + the § B1 commit | 30 / 46 -> 30 / 46 (overall 29 -> 29) | 169 / 190 -> 169 / 190 (count+text families read off `verdicts.json`) | none in the 47 or the committed dir (verdicts do not grade paints yet: § B1, decision 1); member door attach 45 / 68 unchanged; 5 attached scripts now draw their paints |
+| 61 | B1 `bgcolor(...)` / `barcolor(...)` are DRAWN (§ B1, step 61). The host lane carries each top-level call as a paint (`presentation.paints`) whose colour goes through the one colour reader a plot uses (static, two-colour, palette with the transparent `na` entry, gradient), or is WITHHELD by name (`offset` non-zero or `na`, `show_last`, another `display`, `overlay` / `force_overlay`, a v3/v4 `bgcolor` with no `transp`, an uncarried colour); nothing mints. The member door mints each rule as a hidden condition column (shared with a plot or fill on the same rule) and writes `definition.paints` (`defSchema.validatePaints`); the binder draws one background primitive per `bgcolor` (behind the series, full pane height) and hands `time -> colour` candle overrides to the chart only when they change (StockChart applies them to the price series' own data). Graded against the 14 committed captures that record paints (`bg_colorer` / `bar_colorer`): every paint the door draws agrees on every bar (2,639 vendor-painted bars compared). 12 mutations, each red | `875245b282` + the § B1 commit | 30 / 46 -> 30 / 46 (overall 29 -> 29) | 169 / 190 -> 169 / 190 (count+text families read off `verdicts.json`) | paints JOIN the verdict (§ B1, follow-ups): graded on 7 of the 47 and 9 of the committed 138, **0 verdicts move** in either (47: 29 / 17 / 1 both ways; committed: 50 / 26 / 62 both ways); heat-map-seasons' withheld `barcolor` counts as a gap (already DIVERGE on its plots); the `pine:chart-only` sentence says per call what the door does; member door attach 45 / 68 unchanged; 5 attached scripts now draw their paints |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4573,7 +4573,7 @@ builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (20
 (+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
 1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.
 
-## B1 - `bgcolor` / `barcolor` are drawn, graded against the captures that record them (2026-10-02, step B1)
+## B1 - `bgcolor` / `barcolor` are drawn, graded against the captures that record them (2026-10-02, step 61)
 
 Branch `pine/b1-bgcolor-barcolor`, base `origin/master` `cf5e38d5d2` (waves 7-13 + C50).
 
@@ -4703,13 +4703,16 @@ v4 default transparency, read straight off `styleState`), queue `docs/pine/captu
 
 1. **Paints are graded in their own rail, not in the harness verdict.** Joining them (as C44 joined object
    colour) would leave every verdict unchanged on this tree (no paint differs) but would turn heat-map-seasons'
-   withheld barcolor into a counted gap. Recommended: join, as a column like object colour.
+   withheld barcolor into a counted gap. Recommended: join, as a column like object colour. **RULED: join,
+   default ON** - see the follow-ups below.
 2. **The `pine:chart-only` note still says "this line is ignored here too"** on the host lane for a paint
    that is now drawn (as `hline` / `fill` already do). Rewording it is a member-visible copy change across
-   every lane test that pins notes; left as is.
+   every lane test that pins notes; left as is. **RULED: make it true per call, one authority, railed** - see
+   the follow-ups below.
 3. **Paint-only scripts ride the objects-only flag** (D2: a script with no screenable column). Measured:
    no corpus script attaches through it today (the 4 candidates are withheld or lose their drawings).
-4. **The fix-order step number** is written `B1`; renumber on merge.
+4. **The fix-order step number** is written `B1`; renumber on merge. **RULED: step 61** (L1 = 60, R1 = 62,
+   H1 = 63, RT1 = 64).
 
 ### Addendum - merged tree, bytes, suite
 
@@ -4721,3 +4724,50 @@ notebook first-open 2,148,818 -> 2,148,818 B (+0, `notebook_perf_budgets` PASS);
 nine 15 s timeouts (the brief's known list plus `enumerationSites` and `flipCGeometry`'s source walk, both
 green alone) and `pineProbeReplay`'s artemis pin, re-pinned with its reason (one paint Resolver, 8 steps).
 `paramIds.test.js` green, unedited.
+
+### Follow-ups - the two rulings (2026-10-02)
+
+**(1) Paints join the harness verdict, default ON.** `compare.mjs::comparePaints` states, once, what each
+paint state means: `agree` / `naBoth` / `hiddenBoth` agree; `differ` / `naDiffers` / `titleMismatch` /
+`hiddenVendorOnly` / `hiddenOursOnly` differ; `withheld` differs (a GAP) unless TradingView does not draw it
+either; `notDrawn` differs where TradingView painted a bar and is counted, NOT graded, where it painted none;
+`vendorUnreadable` is not graded; an unpaired count differs; an unknown state throws. The pairing and the
+per-bar grade stay the runner's (`paintColours.js::gradePaints`). `harness.js::paintsGraded` is the option
+(`{paints: false}` or `VENDOR_HARNESS_PAINTS=0`); every verdict a paint row joins carries
+`verdictWithoutPaints`, and the summary prints `WITHOUT PAINTS` and `CHANGED BY PAINTS` beside C44's lines.
+`verdictWithoutColour` now keeps the paint row in, so each "without" number differs from the verdict by its
+own cause only.
+
+| set | verdict (paints ON) | `verdictWithoutPaints` | paints graded on | moved |
+|---|---|---|---|---|
+| the 47 (`ext-2026-09-28`, objects pane on) | MATCH 29 / DIVERGE 17 / INCONCLUSIVE 1 | 29 / 17 / 1 | 7 | none |
+| committed harness dir (138, objects pane on) | MATCH 50 / DIVERGE 26 / INCONCLUSIVE 62 | 50 / 26 / 62 | 9 | none |
+
+Byte for byte: a `VENDOR_HARNESS_PAINTS=0` run's `verdicts.json` equals the pre-follow-up tip's run on every
+record (all 47 + 138, `JSON` identical), and `verdictWithoutPaints` equals it on every entry. Paint rows:
+heat-map-seasons **DIVERGE** (`barcolor plot_0 "Bar Color"` withheld - its colour chooses between two
+gradients; the capture was already DIVERGE on its plots, so its verdict does not move); btc-charlie MATCH
+with 3 paints neither side draws counted (`plot_14`, `plot_16`, `plot_17`: TradingView's every bar is `na`
+at the defaults); the other 7 MATCH. Rail: `vendorHarness.b1PaintVerdict.test.js` (11).
+
+**(2) The `pine:chart-only` sentence is true per call.** `pine.js::chartOnlySentence(word, how)` is the one
+authority (`how` = lane, site - top / assigned / in a block - and the outcome resolution knows: a folded level,
+a carried band, the resolved paint record); a `fill` and a paint are re-said after resolution through the same
+function. Host lane: a drawn paint says `is drawn: it shades the background behind this script` /
+`recolours the chart's own candles`; a withheld one `is not drawn here: <the door's reason>`; `display.none`
+and `na` say they paint nothing, as on TradingView; `hline` says it is **not drawn on this chart** (the member
+document carries no level - checked against `memberPaneDefinition`); a `fill` whose edges are carried plots is
+`carried as the band between its two plots` (the document draws it), otherwise `is not drawn` with why;
+`alert()` draws nothing and nothing here delivers it. Screener lane keeps the screen statement and says what
+the builder carries (a folded `hline` as a level line, a carried `fill` as its band; `bgcolor` / `barcolor`
+not carried). Rail: `ast/chartOnly.test.js` (16) - every sentence against the door's own record, and across
+the corpus on both lanes no host note says "ignored", a paint says drawn iff its record draws, a fill says
+carried iff a band is; `alphaCarriage` / `silenceSpeaks` re-pinned to the new sentences.
+
+Proof: 10 mutations, each red alone (5 on the verdict join - paints never join, a withheld paint read as
+agreeing, `notDrawn` never differing, the option ignored, `verdictWithoutPaints` taken from the new verdict;
+5 on the sentence - a host paint said as on the screener, fills never re-said after resolution, a host `hline`
+said carried, a withheld paint said drawn, a site writing its own sentence). Full `src/components/chart` suite:
+`Tests  9 failed | 16922 passed | 85 skipped (17016)` - eight 15 s timeouts (the known list, all green alone:
+7 files, 54 tests) and `defSchema`'s fill-reader rail, which caught a stash field named `fill` in `pine.js`
+(renamed `fillRec`; green). `paramIds.test.js` green, unedited.
