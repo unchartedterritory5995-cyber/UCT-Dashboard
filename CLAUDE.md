@@ -1259,7 +1259,7 @@ $env:MOBILE_AUDIT_EMAIL="mobtest@local.dev"; $env:MOBILE_AUDIT_PASSWORD="LocalTe
 python tools/mobile_audit.py --base http://localhost:8077 --auth                                   # all routes, all viewports
 python tools/mobile_audit.py --base http://localhost:8077 --auth --viewport phone --routes /journal # focused
 ```
-Loop: edit CSS → `cd app && npm run build` → re-run audit → read `report.md` + screenshots. Against live Railway instead: `--base https://uctintelligence.com` (a free test account only sees FREE_PAGES + /settings). Auth uses `page.request.post('/api/auth/login')` so the cookie lands in the context jar — robust vs the intro overlay. **Must pass `--auth`** to log in (the `--routes` flag alone does not).
+Loop: edit CSS → `cd app && npm run build` → re-run audit → read `report.md` + screenshots. Against live Railway instead: `--base https://uctintelligence.com` (a free test account sees no member page at all — it is bounced to /subscribe; use a paid or admin account). Auth uses `page.request.post('/api/auth/login')` so the cookie lands in the context jar — robust vs the intro overlay. **Must pass `--auth`** to log in (the `--routes` flag alone does not).
 
 ## Cinematic Intro Animation (LIVE — 2026-05-09)
 
@@ -1311,7 +1311,7 @@ const greetingName = user?.display_name?.trim().split(' ')[0] || user?.email?.sp
 
 ## Charts Hub V2 — `/charts` Customizable Workspace (2026-05-24 + polish 2026-05-25)
 
-The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V1's sub-tab Charts Hub. Free tier includes everything.
+The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V1's sub-tab Charts Hub. Paid page (there is no free tier).
 
 ### Architecture
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
@@ -1693,9 +1693,9 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - SQLite DB at `/data/auth.db` (Railway persistent volume)
 - Tables: users, sessions, subscriptions, email_verifications, password_resets, activity_log, page_views, feedback, support_tickets, ticket_messages, user_tags, admin_notes, user_preferences, referrals, mrr_snapshots
 - `AuthGuard` component: checks auth + email verification + plan + admin role
-- **Free tier**: Dashboard, Breadth, Charts, Options Flow, Journal, Model Book accessible without payment
-- `FREE_PAGES` whitelist in AuthGuard, NavBar, MobileNav — locked pages hidden from nav, redirect to `/dashboard`
-- Signup flow does NOT redirect to Stripe — users land directly on dashboard after email verification
+- **No free tier — everything is paywall** (owner ruling 2026-10-02, TERM-081 / OI-12). `FREE_PAGES = []` in `app/src/constants/freePages.js`, the ONE authority. AuthGuard, NavBar and MoreSheet import it, and the old Wire-only free tier (`['/morning-wire']`, 2026-07-19 → 2026-10-02) is gone. A signed-in member without a paid plan (admin, pro/premium/lifetime, or active trial) is sent to the upgrade screen `/subscribe` (`UPGRADE_PATH`) by AuthGuard, Login, `PublicOnly` and `PreLaunchGate`. Nav rows render locked (gold lock) and link to `/subscribe`. Server side, the Wire's content routes (`/api/rundown`, `/api/rundown/speech-text`, `/api/wire/archive*`) are `require_paid` (402 "The daily wire surface requires a paid plan"). The shared reads that page also makes (`/api/catalysts/today`, `/api/tweets/feed`, ...) are still session-only, pinned in `tests/test_paywall_gate_free_tier.py::LEFT_OPEN` as candidates for a later paid pass. Rails: `app/src/constants/freePages.paywallAll.test.jsx` and `tests/test_wire_paywall.py`.
+- Deliberately public (not member pages): `/login`, `/signup`, `/subscribe`, `/pricing`, `/forgot-password`, `/reset-password`, `/verify-email`, `/verify-pending`, `/smoke-login` (token-gated), `/terms`, `/privacy`, `/methodology`, the share-link landings (screener shares, J2 share/publish), the `/r/*` bot renderers (own token auth), `/api/health`, and `/api/webhooks/stripe`.
+- Signup flow does NOT redirect to Stripe — a verified but unpaid member lands on `/subscribe`
 - Stripe integration still intact (checkout/portal/webhooks) for future monetization
 - Admin role check: `user.role === 'admin'`; set via `ADMIN_EMAILS` env var
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
@@ -4869,8 +4869,8 @@ Three chart modes toggled via tabs centered in the chart header. **Default: Trad
 `/model-book` is a **curated library of the best stocks in history**, organized
 by year, where clicking a stock opens its chart with the firm's playbook setups
 labeled on it (markers + entry/stop/target price lines + grade + teaching notes).
-Global single library (like UCT20), admin-curated, viewable by all logged-in
-users (FREE_PAGE). **Replaced the old personal trade-log** (see retirement note).
+Global single library (like UCT20), admin-curated, viewable by paid members
+(paid page; there is no free tier since 2026-10-02). **Replaced the old personal trade-log** (see retirement note).
 
 ### Files
 - `app/src/pages/ModelBook.jsx` — year pills → stock gallery (left) → stock detail (right: StockChart + labeled setups)
