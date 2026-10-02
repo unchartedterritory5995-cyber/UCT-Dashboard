@@ -508,6 +508,32 @@ _TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
 # whose O/H/L came from one of these, and draws Candles/Bars from nothing else.
 OBSERVED_OHLC_SOURCES = frozenset(("live", "intraday_recon", "intraday_recon_1m"))
 
+# ⛔⛔ 'live' IS OBSERVED ONLY FOR A METRIC THE SAMPLE ACTUALLY MEASURES (prod-found
+# 2026-10-02). The accumulator is fed the whole DERIVED live row: the per-sample
+# measurements AND fields carried from yesterday (`breadth_live.NOT_LIVE` — Fear & Greed,
+# put/call, exposure…, constant all session) AND scores/ratios derived from rolling rows
+# (breadth_score, ratio_5day, hi/lo ratio…). Its 'live' row for a carried field is o=h=l=c of
+# yesterday's number — a body — and UCTHS shipped 35 marked bars from exactly that. These are
+# the metrics `breadth_live.compute_metrics` (+ the recon's composites) measures per sample:
+# the same set the minute-file replay observes (`intraday_recon`), so one definition of
+# "observed" serves both. V2's own sources carry their provenance and are not restricted.
+LIVE_OBSERVED_METRICS = frozenset((
+    "adv_decline", "advancing", "declining", "down_20pct_5d", "down_25pct_month",
+    "down_25pct_quarter", "down_4pct_today", "down_50pct_month", "magna_down", "magna_up",
+    "mcclellan_osc", "near_52w_high", "new_20d_highs", "new_20d_lows", "new_52w_highs",
+    "new_52w_lows", "new_ath", "pct_above_100sma", "pct_above_10sma", "pct_above_200sma",
+    "pct_above_20ema", "pct_above_40sma", "pct_above_50sma", "pct_above_5sma",
+    "stage2_count", "stage4_count", "universe_count", "up_20pct_5d", "up_25pct_month",
+    "up_25pct_quarter", "up_4pct_today", "up_50pct_month",
+))
+
+
+def ohlc_is_observed(src, metric: str) -> bool:
+    """Is a store row's open/high/low an OBSERVATION of `metric` through the session?"""
+    if src not in OBSERVED_OHLC_SOURCES:
+        return False
+    return src != "live" or metric in LIVE_OBSERVED_METRICS
+
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,
                universe: str = DEFAULT_UNIVERSE) -> int:
