@@ -1911,6 +1911,35 @@ _PHASE_2_ALTERS = [
     # name. NULL for every existing note (additive, no fabricated values) --
     # only ever written by a member explicitly setting a property.
     "ALTER TABLE j2_notes ADD COLUMN properties_json TEXT",
+    # Wave 11 (lane 11B) — formula and rollup properties. A computed property's
+    # settings (the formula's expression, stored with property IDS; a rollup's
+    # source/property/aggregate) live on its definition row. NULL for every other
+    # type and for every existing row: ADD COLUMN on SQLite is a schema edit, never
+    # a table rebuild, so this is safe on a live auth.db of any size.
+    "ALTER TABLE j2_note_properties ADD COLUMN config_json TEXT",
+    # The cached VALUES of computed properties, one row per (member, property,
+    # note), so the table view can sort and filter by them in SQL. Every row
+    # carries the FINGERPRINT of the inputs it was computed from, and
+    # note_computed.py serves a row only while that still matches -- see its
+    # docstring for why that, rather than a TTL. A new, empty table: nothing to
+    # backfill, and rows are written lazily on first read.
+    """CREATE TABLE IF NOT EXISTS j2_note_computed (
+        user_id      TEXT NOT NULL,
+        note_id      TEXT NOT NULL,
+        property_id  TEXT NOT NULL,
+        num_value    REAL,
+        reason       TEXT,
+        set_size     INTEGER,
+        used_size    INTEGER,
+        fingerprint  TEXT NOT NULL,
+        computed_at  TEXT NOT NULL,
+        PRIMARY KEY (user_id, property_id, note_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_computed_note ON j2_note_computed(note_id)",
+    # Same symmetric-tidiness contract as j2_notes_links_ad: a hard-deleted note's
+    # cached values go with it (a trashed note's stay, and are simply never read).
+    "CREATE TRIGGER IF NOT EXISTS j2_notes_computed_ad AFTER DELETE ON j2_notes BEGIN"
+    " DELETE FROM j2_note_computed WHERE note_id = old.id; END",
     # Wave E checkpoint §26: user-set property values ARE versioned, on the
     # same coalescing gate as title/subtitle/body_plain (see
     # _versioned_content_of/_maybe_capture_version) -- a deliberate choice,

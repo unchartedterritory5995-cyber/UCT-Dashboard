@@ -26,6 +26,15 @@ const NEW_PROPERTY_TYPES = [
 // pinned by tests/test_journal_two_relation_property_router.py (it PARSES this
 // list, so keep it a literal array of `{ value: '…', label: '…' }`).
 
+// Wave 11 (lane 11B): the two CALCULATED types, offered only while
+// `notebook_formulas_enabled` is on. ⛔ ONE FACT IN TWO FILES with the server's
+// `note_computed.COMPUTED_TYPES`, pinned by tests/test_notebook_formula_properties.py
+// (which PARSES this literal, same as the list above).
+export const COMPUTED_PROPERTY_TYPES = [
+  { value: 'formula', label: 'Formula' },
+  { value: 'rollup', label: 'Rollup' },
+]
+
 /**
  * Wave E — the note editor's Properties section. Progressive disclosure by
  * design (checkpoint §21): a note with nothing set shows only a single

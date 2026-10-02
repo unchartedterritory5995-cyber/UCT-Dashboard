@@ -114,6 +114,10 @@ _DIRECT_USER_TABLES = (
     # copies (note_templates.py); a copy, never a link to the note it was
     # made from. Wave 6 fix round 1, I3.
     "j2_note_templates",
+    # Wave 11 (lane 11B) — the cached values of a member's formula and rollup
+    # properties (note_computed.py). Derived from the member's own notes and
+    # trades, so it leaves with them.
+    "j2_note_computed",
     # Wave 6 (Phase 2, task reminders) — the daily reminder's claim log
     # (note_tasks.run_task_reminders): which member was reminded on which ET
     # day, and how many of their tasks were due and overdue. Created lazily

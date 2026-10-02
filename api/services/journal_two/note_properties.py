@@ -36,6 +36,23 @@ from api.services.auth_db import get_connection
 # validate_property_value and notes.get_note_related_from.
 _VALID_TYPES = ("text", "number", "select", "multi_select", "date", "checkbox", "url", "relation")
 
+# Wave 11 (lane 11B): the two COMPUTED types, `formula` and `rollup`. Kept OUT of
+# `_VALID_TYPES` on purpose -- that tuple is pinned to the client's always-offered
+# NEW_PROPERTY_TYPES, and these two are offered only while NOTEBOOK_FORMULAS_ENABLED
+# is on. ⛔ ONE FACT IN TWO FILES with the client's COMPUTED_PROPERTY_TYPES
+# (PropertiesSection.jsx), pinned by tests/test_notebook_formula_properties.py.
+# With the flag off a computed definition is invisible to EVERY read below
+# (`_computed_hidden`), so existing notes and property types behave as before.
+from api.services.journal_two.note_computed import COMPUTED_TYPES as _COMPUTED_TYPES  # noqa: E402
+
+
+def _computed_hidden() -> bool:
+    from api.services.journal_two.note_computed import formulas_enabled
+    return not formulas_enabled()
+
+
+_HIDE_COMPUTED_SQL = " AND type NOT IN ('formula', 'rollup')"
+
 # A relation holds at most this many notes; each id is at most this long.
 MAX_RELATION_NOTES = 50
 _MAX_RELATION_ID_CHARS = 64
@@ -101,7 +118,7 @@ def is_builtin_property_id(property_id: str) -> bool:
 # ── User-defined property definitions (j2_note_properties) ─────────────────
 
 def _def_row_to_dict(r: sqlite3.Row) -> dict[str, Any]:
-    return {
+    out = {
         "id": r["id"],
         "name": r["name"],
         "type": r["type"],
@@ -111,6 +128,13 @@ def _def_row_to_dict(r: sqlite3.Row) -> dict[str, Any]:
         "createdAt": r["created_at"],
         "updatedAt": r["updated_at"],
     }
+    # Wave 11: only a computed definition carries `config` -- every other type's
+    # payload is byte-for-byte what it was.
+    if r["type"] in _COMPUTED_TYPES:
+        raw = r["config_json"] if "config_json" in r.keys() else None
+        out["config"] = json.loads(raw) if raw else None
+        out["computed"] = True
+    return out
 
 
 def list_property_defs(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
@@ -121,9 +145,10 @@ def list_property_defs(user_id: str, conn: sqlite3.Connection | None = None) -> 
     owned = conn is None
     conn = conn or get_connection()
     try:
+        hide = _HIDE_COMPUTED_SQL if _computed_hidden() else ""
         rows = conn.execute(
-            "SELECT * FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL"
-            " ORDER BY sort_order, name",
+            "SELECT * FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL" + hide
+            + " ORDER BY sort_order, name",
             (user_id,),
         ).fetchall()
         return [dict(d) for d in BUILTIN_PROPERTY_DEFS] + [_def_row_to_dict(r) for r in rows]
@@ -139,8 +164,9 @@ def get_property_def(user_id: str, property_id: str, conn: sqlite3.Connection | 
     owned = conn is None
     conn = conn or get_connection()
     try:
+        hide = _HIDE_COMPUTED_SQL if _computed_hidden() else ""
         r = conn.execute(
-            "SELECT * FROM j2_note_properties WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            "SELECT * FROM j2_note_properties WHERE id = ? AND user_id = ? AND deleted_at IS NULL" + hide,
             (property_id, user_id),
         ).fetchone()
         return _def_row_to_dict(r) if r else None
@@ -155,12 +181,13 @@ class PropertyValidationError(ValueError):
 
 def create_property_def(
     user_id: str, name: str, type_: str, options: list[dict[str, Any]] | None = None,
-    conn: sqlite3.Connection | None = None,
+    conn: sqlite3.Connection | None = None, config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     name = (name or "").strip()
     if not name:
         raise PropertyValidationError("Property name is required")
-    if type_ not in _VALID_TYPES:
+    computed = type_ in _COMPUTED_TYPES and not _computed_hidden()
+    if type_ not in _VALID_TYPES and not computed:
         raise PropertyValidationError(f"Unsupported property type: {type_!r}")
     opts_json = None
     if type_ in ("select", "multi_select"):
@@ -179,18 +206,33 @@ def create_property_def(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        config_json = None
+        if computed:
+            from api.services.journal_two.note_computed import ComputedConfigError, validate_config
+            try:
+                config_json = json.dumps(validate_config(conn, user_id, type_, config))
+            except ComputedConfigError as e:
+                raise PropertyValidationError(str(e))
         pid = uuid.uuid4().hex
         now = _now_iso()
         row = conn.execute(
             "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM j2_note_properties WHERE user_id = ?",
             (user_id,),
         ).fetchone()
-        conn.execute(
-            "INSERT INTO j2_note_properties"
-            " (id, user_id, name, type, options_json, sort_order, created_at, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?)",
-            (pid, user_id, name, type_, opts_json, row["n"], now, now),
-        )
+        if computed:
+            conn.execute(
+                "INSERT INTO j2_note_properties"
+                " (id, user_id, name, type, options_json, sort_order, created_at, updated_at, config_json)"
+                " VALUES (?,?,?,?,?,?,?,?,?)",
+                (pid, user_id, name, type_, opts_json, row["n"], now, now, config_json),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO j2_note_properties"
+                " (id, user_id, name, type, options_json, sort_order, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?)",
+                (pid, user_id, name, type_, opts_json, row["n"], now, now),
+            )
         conn.commit()
         return get_property_def(user_id, pid, conn=conn)
     finally:
@@ -201,6 +243,7 @@ def create_property_def(
 def update_property_def(
     user_id: str, property_id: str, *, name: str | None = None,
     options: list[dict[str, Any]] | None = None, conn: sqlite3.Connection | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Rename the property and/or edit its option labels/colors -- NEVER the
     property's own id, and NEVER an option's own id (only its label/color).
@@ -231,6 +274,19 @@ def update_property_def(
             opts_json = json.dumps(normalized)
         elif existing["options"] is not None:
             opts_json = json.dumps(existing["options"])
+        if config is not None and existing["type"] in _COMPUTED_TYPES:
+            # Wave 11: a computed definition's settings -- validated, including the
+            # circular-reference check against every OTHER formula, before any write.
+            from api.services.journal_two.note_computed import ComputedConfigError, validate_config
+            try:
+                config_json = json.dumps(validate_config(
+                    conn, user_id, existing["type"], config, self_id=property_id))
+            except ComputedConfigError as e:
+                raise PropertyValidationError(str(e))
+            conn.execute(
+                "UPDATE j2_note_properties SET config_json = ? WHERE id = ? AND user_id = ?",
+                (config_json, property_id, user_id),
+            )
         conn.execute(
             "UPDATE j2_note_properties SET name = ?, options_json = ?, updated_at = ?"
             " WHERE id = ? AND user_id = ?",
@@ -288,6 +344,8 @@ def validate_property_value(prop_def: dict[str, Any], value: Any) -> Any:
     if value is None:
         return None
     t = prop_def["type"]
+    if t in _COMPUTED_TYPES:
+        raise PropertyValidationError(f"{prop_def['name']} is calculated and can't be set by hand")
     if t == "text" or t == "url":
         if not isinstance(value, str):
             raise PropertyValidationError(f"{prop_def['name']} must be text")
@@ -433,10 +491,18 @@ def resolve_note_properties(user_id: str, note: dict[str, Any], conn: sqlite3.Co
     defs = list_property_defs(user_id, conn=conn)
     values = note.get("propertiesJson") or {}
     derived = _derived_financial_values(user_id, note, conn)
+    computed: dict[str, Any] = {}
+    if any(d.get("computed") for d in defs) and not note.get("deletedAt"):
+        from api.services.journal_two.note_computed import values_for_notes
+        computed = values_for_notes(conn, user_id, [note["id"]]).get(note["id"], {})
     out = []
     for d in defs:
         if d["source"] == "financial_derived":
             value = derived.get(d["id"])
+        elif d.get("computed"):
+            cell = computed.get(d["id"]) or {}
+            out.append({**d, "value": cell.get("value"), "computedValue": cell or None})
+            continue
         else:
             value = values.get(d["id"])
         out.append({**d, "value": value})
@@ -637,6 +703,18 @@ def property_filter_sql(
                     f"{prop_def['name']} is derived and cannot be filtered through property_filter"
                 )
             continue
+        if prop_def.get("computed"):
+            # Wave 11: a formula/rollup filters on its CACHED value, made current
+            # for every live note first (note_computed's fingerprint check).
+            from api.services.journal_two import note_computed
+            note_computed.ensure_fresh(conn, user_id, property_id)
+            try:
+                frag, frag_params = note_computed.filter_sql(user_id, property_id, op, value)
+            except note_computed.ComputedConfigError as e:
+                raise PropertyValidationError(str(e))
+            clauses.append(frag)
+            params.extend(frag_params)
+            continue
         extract = 'json_extract(properties_json, ?)'
         path_param = f'$."{property_id}"'
         if op == "is_empty":
@@ -711,6 +789,11 @@ def property_sort_sql(
         if strict:
             raise PropertyValidationError("A relation cannot be sorted")
         return None
+    if prop_def.get("computed"):
+        # Wave 11: sort by the CACHED value, made current for every live note first.
+        from api.services.journal_two import note_computed
+        note_computed.ensure_fresh(conn, user_id, property_id)
+        return note_computed.sort_sql(user_id, property_id, direction)
     # NULLS LAST regardless of direction -- an unset property should never
     # dominate the top of an ascending sort just because SQLite treats NULL
     # as smallest (Wave E checkpoint's own "honest empty state" discipline,
@@ -745,6 +828,12 @@ def purge_expired_property_defs_and_saved_views(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Wave 11: a purged computed definition's cached values go with it.
+        conn.execute(
+            "DELETE FROM j2_note_computed WHERE property_id IN ("
+            " SELECT id FROM j2_note_properties WHERE deleted_at IS NOT NULL AND deleted_at < ?)",
+            (cutoff,),
+        )
         d_cur = conn.execute(
             "DELETE FROM j2_note_properties WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff,),
         )
