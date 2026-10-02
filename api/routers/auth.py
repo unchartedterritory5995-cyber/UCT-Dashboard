@@ -569,7 +569,9 @@ CHARTS_LIST_SUBSCRIBE_FLAG = "CHARTS_LIST_SUBSCRIBE_ENABLED"
 def charts_list_subscribe_enabled() -> bool:
     """COV-10: a /charts Watchlist widget may subscribe to a scan its colour group
     publishes, as a FROZEN copy or a TRACKING list, chosen at import. Read per call.
-    Client-only feature: no route reads this, so the auth payload IS the gate."""
+    The auth payload is the client's gate; the only routes that read it are the follow-up
+    list SOURCES (``api/routers/charts_list_sources.py``: a saved screen, a theme's
+    holdings), which answer 404 while it is unset."""
     return os.environ.get(CHARTS_LIST_SUBSCRIBE_FLAG, "0").strip().lower() in ("1", "true", "yes", "on")
 
 

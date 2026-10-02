@@ -147,6 +147,7 @@ from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
 from api.routers import workspace_doc as workspace_doc_router
 from api.routers import artifact_versions as artifact_versions_router
+from api.routers import charts_list_sources as charts_list_sources_router
 from api.routers import discord_interactions as discord_interactions_router
 from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
@@ -8992,6 +8993,7 @@ app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(workspace_doc_router.router)  # /api/workspace/doc/* — TERM-021, 404 unless WORKSPACE_DOC_STORE_ENABLED
 app.include_router(artifact_versions_router.router)  # /api/artifact-versions/* — COV-06, 404 unless ARTIFACT_VERSIONS_ENABLED
+app.include_router(charts_list_sources_router.router)  # /api/charts/list-sources/* — COV-10, 404 unless CHARTS_LIST_SUBSCRIBE_ENABLED
 app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
 from api.routers import indicator_vision as indicator_vision_router  # noqa: E402
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
