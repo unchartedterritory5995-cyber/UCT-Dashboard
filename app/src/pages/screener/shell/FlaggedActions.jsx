@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import { useFlagged } from '../../../hooks/useFlagged'
 import styles from './ScannerShell.module.css'
+import Input from '../../../components/ui/Input'
 
 // ── Flagged → watchlist ──────────────────────────────────────────────────────
 // The end of the flag-while-scrolling flow: the shared "Flagged" set (written by
@@ -105,7 +106,7 @@ export default function FlaggedActions() {
               onClick={() => moveTo(w.id, w.name)}>{w.name}</button>
           ))}
           <div className={styles.flaggedNewRow}>
-            <input className={styles.flaggedInput} placeholder="New watchlist…"
+            <Input aria-label="New watchlist name" className={styles.flaggedInput} placeholder="New watchlist…"
               value={newName} onChange={e => setNewName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') createAndMove() }} />
             <button type="button" className="btn btn-primary btn-sm" disabled={busy || !newName.trim()}
