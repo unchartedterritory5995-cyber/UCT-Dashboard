@@ -2,6 +2,23 @@
 
 ---
 
+## READ THIS FIRST — 2026-10-01 night (session patrick-4e)
+
+**DEPLOYED 2026-10-02 01:40Z:** `a7878c5867` on master + production (owner-run push; web new boot; `hub_nav_smoke --auth`
+PASS, 19 routes / 37 nav entries, busiest /desk 7% blocked). Carried: BRK-01 inc 2 (payoff), COV-01 seasonality (dark
+`SEASONALITY_ENABLED`), TERM-067 batches, TERM-038 slice 2 (T: theme sets, F: Floor posts; LIVE because
+`ADDRESS_SPACE_ENABLED` is armed), TERM-049 slice 2 (flow + setup lanes, dark `TICKER_HISTORY_LANES2_ENABLED`; arming
+shows the firm's per-ticker setup record: owner call), COV-04 slice 1 (Filing changes, dark `FILING_BLACKLINE_ENABLED`;
+measure not_found rate across tickers before arming). Integrator gate: backend 331 passed; frontend 147/147 files.
+The integrator gate caught two `pollingSites.rail` reds the lanes never ran (OptionsChainTab, FilingChangesTab) — both
+allow-listed with reasons. ⚠️ That rail's first test has a hard 30 s timeout and times out under `--maxWorkers=3` load;
+it passes alone. Not fixed.
+
+**In flight (lanes, isolated worktrees):** `lane/term-067-batch`, `lane/brk01-inc3` (vol surface, dark
+`OPTIONS_VOL_SURFACE_ENABLED`), `lane/term-038-inpage` (doors react while the page is mounted — live defect: picking an
+address while already on /charts or /community did nothing). Report from TERM-049 lane, unverified: `signature.py` and
+`ai_search.py` may call the flow route without a credential (401).
+
 ## READ THIS FIRST — 2026-09-30 evening (21:00–23:00 CT)
 
 **Backlog, from its own status column (re-verified vs master 2026-09-30 by the afternoon session):** 93 tickets;
