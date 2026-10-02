@@ -288,7 +288,7 @@ def test_the_author_is_a_display_name_never_an_email_or_id(svc):
     assert rows[a["id"]]["author"] == "Alice Trader"
     assert rows[b["id"]]["author"] == svc.ANONYMOUS_AUTHOR
     assert rows[c["id"]]["author"] == svc.ANONYMOUS_AUTHOR
-    payload = json.dumps(svc.list_gallery(B))
+    payload = json.dumps(svc.list_gallery(B)) + json.dumps(svc.get_item(B, a["id"]))
     for leak in (A, B, C, "a@example.com", "b@example.com"):
         assert leak not in payload, leak
 
