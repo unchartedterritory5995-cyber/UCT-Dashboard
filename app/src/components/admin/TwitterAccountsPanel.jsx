@@ -13,6 +13,7 @@ import UIcon from '../ui/UIcon'
 // its `{detail}` body is truthy, so every `!data` loading guard below is
 // skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
 import fetcher from '../../utils/jsonFetcher'
+import Input from '../ui/Input'
 
 function relativeMin(ts) {
   if (!ts) return '—'
@@ -194,7 +195,7 @@ export default function TwitterAccountsPanel() {
       )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input
+        <Input aria-label="Twitter handle"
           type="text"
           placeholder="handle (no @)"
           value={newHandle}
