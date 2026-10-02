@@ -109,7 +109,12 @@ describe('ImportWizard wire', () => {
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
     const input = screen.getByTestId('import-file-input')
     fireEvent.change(input, { target: { files: [mdFile] } })
-    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
+    // The first preview after a drop waits on two cold dynamic imports (commit, then the
+    // TipTap converter). Wave 11 made the converter chunk heavier, and in jsdom its first
+    // load can outlast Testing Library's default waitFor timeout (measured 2026-10-02: red
+    // run alone at the default, green in 2.1 s with a longer wait). A slow cold import is
+    // not the defect this test guards, so the wait is widened, never the assertion.
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument(), { timeout: 10000 })
     expect(screen.getByText(/5,000 of 6,000/)).toBeInTheDocument()
   })
 
