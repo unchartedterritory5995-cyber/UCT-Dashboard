@@ -195,8 +195,14 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
 
         # ── G: the gallery, on a fresh account (the empty notebook renders it inline) ──
         pg = page_for(wide, "1200")
-        pg.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60000)
+        # Run 3 showed bare /journal/notebook lands on "Research home" (no gallery, no
+        # Templates button); the notes view ("All notes") is where the gallery lives.
+        pg.goto(f"{base}/journal/notebook?view=all", wait_until="domcontentloaded", timeout=60000)
         ph._dismiss_intro(pg)
+        try:
+            pg.get_by_role("button", name="Got it", exact=True).first.click(timeout=4000)
+        except Exception:  # noqa: BLE001 -- the Compass hint did not show in this tab
+            pass
         # Run 1 waited only for the INLINE gallery (the empty-notebook state) and timed out
         # with nothing on disk to say why. The gallery has two doors: inline on an empty
         # notebook, and the toolbar's "Templates" sheet. Use whichever this page offers,
