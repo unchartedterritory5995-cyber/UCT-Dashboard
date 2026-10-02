@@ -35,7 +35,8 @@ import {
   isReconstructable,
 } from './registry'
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
-import { SCREENER_CAPTURE_ROW_CAP, registerPanel } from './registry'
+import { GROUPS as COT_RAIL_GROUPS } from '../pages/cot/cotRead'
+import { SCREENER_CAPTURE_ROW_CAP, COT_CAPTURE_GROUPS, registerPanel } from './registry'
 
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
@@ -44,10 +45,10 @@ const IDS = [
   'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
   // G-040 (wave 10, lane CX): the three CAPTURE-ONLY Notebook kinds. Registered so
   // a capture can store `widgetId` + `params`; bound by the journal host alone.
-  'screener',
+  'screener', 'cot',
 ]
 // The ids a /charts board can hold — everything except the capture-only kinds.
-const CAPTURE_ONLY = ['screener',]
+const CAPTURE_ONLY = ['screener', 'cot',]
 const BOARD_IDS = IDS.filter(id => !CAPTURE_ONLY.includes(id))
 
 describe('widget registry — metadata pins', () => {
@@ -64,7 +65,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
-      screener: 'Screener',
+      screener: 'Screener', cot: 'COT Positioning',
     })
   })
 
@@ -77,7 +78,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
-      screener: 'Screener',
+      screener: 'Screener', cot: 'COT Positioning',
     })
   })
 
@@ -90,7 +91,7 @@ describe('widget registry — metadata pins', () => {
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
-      screener: 'Screener',
+      screener: 'Screener', cot: 'COT',
     })
   })
 
@@ -118,6 +119,7 @@ describe('widget registry — metadata pins', () => {
       volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
       scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
       screener:     { w: 6,  h: 10, minW: 3, minH: 4 },
+      cot:          { w: 5,  h: 8,  minW: 3, minH: 4 },
     })
   })
 
@@ -310,6 +312,17 @@ const CAPTURE_FIXTURES = {
     rows: [{ ticker: 'NVDA', cells: ['NVDA', '$181.20'] }, { ticker: 'AMD', cells: ['AMD', '$160.05'] }],
     total: 57, coverage: null, _stray: true,
   },
+  cot: {
+    market: 'ES', marketName: 'E-mini S&P 500', reportDate: '2026-09-22',
+    groups: {
+      commercials: { net: -120000, wow: 5000, index: 12 },
+      largeSpecs: { net: 150000, wow: -2000, index: 88 },
+      smallSpecs: { net: -30000, wow: -3000, index: 40 },
+    },
+    openInterest: { value: 2100000, wow: 12000, index: 55 },
+    bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
+    crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
+  },
 }
 
 describe('widget registry — params layer', () => {
@@ -379,6 +392,8 @@ describe('widget registry — params layer', () => {
     // TICKERS, a COT market + its report week, a Model Book stock + the member's words.
     expect(paramsPlainText('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener)))
       .toBe('[screener: Screener — UCT Universe — 57 matches · NVDA AMD — as of 2026-09-30 03:00 ET (nightly build)]')
+    expect(paramsPlainText('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot)))
+      .toBe('[cot: ES E-mini S&P 500 — report week 2026-09-22 · Contrarian Bearish · Crowded long]')
     // Unknown id degrades to a generic label, never throws (render chain rule).
     expect(paramsPlainText('nope', {})).toBe('[widget]')
   })
@@ -448,8 +463,9 @@ describe('widget registry — params layer', () => {
     // G-040: the Screener and COT captures are payload freezes, the Model Book
     // capture a reference — each renders from data (their own cases above pin how).
     expect(isReconstructable('screener', normalizeParams('screener', CAPTURE_FIXTURES.screener))).toBe(true)
+    expect(isReconstructable('cot', normalizeParams('cot', CAPTURE_FIXTURES.cot))).toBe(true)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext', 'screener', 'cot'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.
@@ -567,6 +583,10 @@ describe('G-040 capture-only definitions', () => {
     expect(() => registerPanel('screenerX', { ...base, captureOnly: 'yes' })).toThrow(/captureOnly must be a boolean/)
   })
 
+  it('the COT capture freezes exactly the rail’s three trader groups', () => {
+    expect([...COT_CAPTURE_GROUPS]).toEqual(COT_RAIL_GROUPS.map(g => g.key))
+  })
+
   it('screener: required params are enforced, and the row cap is the reconstruct gate', () => {
     const ok = normalizeParams('screener', CAPTURE_FIXTURES.screener)
     expect(ok._stray).toBeUndefined()
@@ -581,5 +601,16 @@ describe('G-040 capture-only definitions', () => {
     const tooMany = Array.from({ length: SCREENER_CAPTURE_ROW_CAP + 1 }, (_, i) => ({ ticker: `T${i}`, cells: [`T${i}`] }))
     expect(isReconstructable('screener', { ...ok, rows: tooMany })).toBe(false)
     expect(isReconstructable('screener', { ...ok, columns: [] })).toBe(false)
+  })
+
+  it('cot: the report week and every trader group are required to re-render', () => {
+    const ok = normalizeParams('cot', CAPTURE_FIXTURES.cot)
+    expect(validateParams('cot', ok).ok).toBe(true)
+    expect(ok.symbol, 'a CFTC code must never ride `symbol` (the ticker sidecar)').toBeUndefined()
+    expect(validateParams('cot', { ...ok, reportDate: undefined }).ok).toBe(false)
+    expect(isReconstructable('cot', ok)).toBe(true)
+    expect(isReconstructable('cot', { ...ok, reportDate: '9/22/2026' })).toBe(false)
+    const { smallSpecs: _gone, ...two } = ok.groups
+    expect(isReconstructable('cot', { ...ok, groups: two })).toBe(false)
   })
 })
