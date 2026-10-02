@@ -9040,6 +9040,8 @@ from api.routers import filing_blackline as filing_blackline_router  # noqa: E40
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)
 app.include_router(web_push_router.router)
+from api.routers import data_exports as data_exports_router  # noqa: E402  (FT-041/042/043, dark)
+app.include_router(data_exports_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
