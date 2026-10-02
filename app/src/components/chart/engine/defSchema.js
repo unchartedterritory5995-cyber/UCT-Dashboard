@@ -738,8 +738,9 @@ function validateCompute(compute, errors, inputScope) {
  *
  * ⛔ WELL-FORMED IS NOT RUNNABLE. Like `script`, `runtime` is NOT in
  * `SUPPORTED_KINDS`: `nativeRegistry.validateUserDefinitions` admits it only while
- * `runtimePaneGate.runtimePaneEnabled()` is on, and the server's save door takes
- * `ast` alone — so a runtime document is a PREVIEW until that door is widened.
+ * `runtimePaneGate.runtimePaneEnabled()` is on. ⭐ RT1 (2026-10-02): the server's
+ * save door has its own branch for it (`api/services/runtime_definitions.py`,
+ * these same rules), switched off by default (`PINE_RUNTIME_SAVE_ENABLED`).
  */
 function validateRuntimeCompute(compute, errors) {
   if (!isNonEmptyString(compute.source)) {

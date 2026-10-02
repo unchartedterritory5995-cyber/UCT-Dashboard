@@ -90,8 +90,13 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
     const built = memberPaneDefinition({ source: SOURCE, id: DEF_ID })
     expect(built.ok, built.reason).toBe(true)
     expect(built.lane).toBe('runtime')
-    // ⛔ A PREVIEW: the server's store takes `ast` alone, so it is not offered as a save.
-    expect(built.saveable).toBe(false)
+    // ⭐ RT1 — offered as a save: the store has a runtime door now
+    // (`api/services/runtime_definitions.py`), switched off by default, whose
+    // refusal the pane renders verbatim while it is off.
+    expect(built.saveable).toBe(true)
+    // ⭐ RT1 — the ROUTED case keeps its measured behaviour: no listing-history
+    // requirement (that is the general fallback's, `runtimeHistory`).
+    expect(built.definition.meta.runtimeHistory).toBeUndefined()
     expect(built.definition.compute.kind).toBe('runtime')
     expect(built.definition.compute.source).toBe(SOURCE)
     expect(built.rows.map((r) => r.output)).toEqual([0, 1])

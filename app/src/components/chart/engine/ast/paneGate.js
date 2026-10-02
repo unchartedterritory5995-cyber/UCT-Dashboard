@@ -195,6 +195,29 @@ export function runtimeRouteOf(t) {
   return refusals.every((r) => !!r && r.route === 'runtime')
 }
 
+/** ⭐⭐ RT1 (2026-10-02) — MAY THE RUNTIME LANE BE ASKED, AS THE MEMBER DOOR'S
+ *  GENERAL FALLBACK? (integrator ruling: the per-bar runtime lane is the member
+ *  door's fallback for whatever the host lane refuses.)
+ *
+ *  True when the HOST TRANSLATION refused — at least one refusal and `ok` not
+ *  true — whatever the refusal's kind. It decides only that the runtime lane is
+ *  ASKED; whether it builds, and whether what it would draw is exact, is the
+ *  runtime lane's own answer (its refusals and budgets) and the door's
+ *  (`memberPaneDefinition::runtimeLaneDefinition`). A script the host lane
+ *  translates but `paneGate` still refuses (nothing drawable, a lost removal) is
+ *  NOT a fallback case: the runtime lane would be asked the same question.
+ *
+ *  ⛔ A PURE DECISION; the switch is `runtimePaneGate.runtimePaneEnabled()`, read
+ *  by the caller. `runtimeRouteOf` stays the narrower question (every refusal
+ *  NAMES the runtime lane), because a routed refusal is worded differently when
+ *  the runtime lane then declines.
+ *
+ *  @returns {boolean} */
+export function runtimeFallbackOf(t) {
+  if (!t || typeof t !== 'object' || t.mode !== PANE_LANE || t.ok === true) return false
+  return (Array.isArray(t.refusals) && t.refusals.length > 0) || !!t.refusal
+}
+
 /** ⭐ The same decision as a predicate, for a call site that only branches.
  *  Derived from `paneGate` rather than restated — two authorities over one
  *  value is the defect this module exists to prevent. */

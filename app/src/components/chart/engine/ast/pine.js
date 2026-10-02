@@ -23605,10 +23605,28 @@ function translatePineResult(source, opts = {}) {
       // RDDT capture: without it both marks drew in the platform default blue
       // where TradingView draws green and red. Only for a routed refusal: every
       // other refused row keeps exactly the shape it always had.
-      if (err && err.route) {
+      // ⭐ RT1 — and for EVERY refused row when the caller asks
+      // (`refusedPresentation: true`, the member door with the runtime fallback
+      // switched on): that door may now draw any refused row from the runtime
+      // lane, and the presentation is the call's, not the value's. Not asked,
+      // nothing changes.
+      if (err && (err.route || opts.refusedPresentation === true)) {
         try {
           const pargs = parseArguments(new Cursor(out.toks.slice(2)))
           row.presentation = outputPresentation(pargs, { env, resolver, kind: out.kind })
+          // ⭐ RT1 — whether the call was written with an `offset` (named, or at
+          // its place in Pine's signature), so a door that draws this row bar by
+          // bar can withhold a shifted one rather than draw it on the wrong bar.
+          // Non-enumerable, asked-for only: no digest or persisted copy sees it.
+          if (opts.refusedPresentation === true) {
+            // …and its title, read by the same reader a translated row's is, so
+            // the row is named as the author named it.
+            if (!row.title) row.title = outputTitle(pargs, out.kind, out.role) || null
+            const at = REFUSED_ROW_OFFSET_POSITION[out.kind]
+            const written = pargs.some((a) => a && a.name === 'offset')
+              || (Number.isInteger(at) && pargs.filter((a) => a && !a.name).length > at)
+            Object.defineProperty(row, '_offsetWritten', { value: written, enumerable: false })
+          }
         } catch { /* a presentation that cannot be read is simply not carried */ }
       }
     }
@@ -25903,6 +25921,13 @@ const POSITIONAL_PRESENTATION = Object.freeze({
   plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
+
+/** ⭐ RT1 — the earliest positional slot `offset` can occupy in each output call
+ *  across Pine versions (v5: `plot` 7, `plotshape`/`plotchar` 5; v4's `transp`
+ *  pushes each one later). The EARLIER slot is taken, so a script reaching it is
+ *  read as possibly shifted — withheld from a bar-by-bar door, never drawn on a
+ *  guessed bar. Read only for a refused row the caller asked about. */
+const REFUSED_ROW_OFFSET_POSITION = Object.freeze({ plot: 7, plotshape: 5, plotchar: 5 })
 
 /** ⭐⭐ 2026-09-28 — A RIGHTWARD `offset = N` MOVES THE COLOUR WITH THE VALUE.
  *
