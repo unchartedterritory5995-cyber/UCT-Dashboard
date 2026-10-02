@@ -3283,7 +3283,7 @@ function TextInputOverlay({ x, y, style, contentWidth = null, initialValue = '',
   const ink = style?.color || UCT_DRAW_GOLD
 
   return (
-    <textarea
+    <textarea aria-label="Text"
       ref={ref}
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -4009,7 +4009,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         <MenuAction label={item.label} onClick={openLevel} big={sheet} icon={CONTROL_ICONS.setLevel} />
         {levelOpen && (
           <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
-            <input
+            <input aria-label="Price level"
               type="number"
               inputMode="decimal"
               step="any"

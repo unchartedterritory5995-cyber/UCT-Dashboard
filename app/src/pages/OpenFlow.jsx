@@ -86,19 +86,19 @@ export default function OpenFlow() {
       </div>
 
       <div className={styles.controls}>
-        <input
+        <input aria-label="Search ticker"
           className={styles.search}
           type="text"
           placeholder="Search ticker…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select className={styles.select} value={cap} onChange={(e) => setCap(e.target.value)}>
+        <select aria-label="Market cap" className={styles.select} value={cap} onChange={(e) => setCap(e.target.value)}>
           {CAP_BANDS.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
           ))}
         </select>
-        <select className={styles.select} value={days} onChange={(e) => setDays(Number(e.target.value))}>
+        <select aria-label="Lookback" className={styles.select} value={days} onChange={(e) => setDays(Number(e.target.value))}>
           <option value={30}>30 days</option>
           <option value={60}>60 days</option>
           <option value={90}>90 days</option>

@@ -153,7 +153,7 @@ export default function VoiceDocumentsPanel() {
             </button>
           )}
         </div>
-        <input
+        <input aria-label="Upload a document"
           ref={fileInputRef}
           type="file"
           accept=".pdf,.txt,.md,.json"
@@ -172,14 +172,14 @@ export default function VoiceDocumentsPanel() {
           Or paste text directly
         </summary>
         <div className={styles.pasteFields}>
-          <input
+          <input aria-label="Document title"
             type="text"
             className={styles.input}
             placeholder="Title (e.g. NVDA Q4 earnings call)"
             value={pasteTitle}
             onChange={(e) => setPasteTitle(e.target.value)}
           />
-          <textarea
+          <textarea aria-label="Document text"
             className={styles.textarea}
             placeholder="Paste the document content…"
             rows={6}
