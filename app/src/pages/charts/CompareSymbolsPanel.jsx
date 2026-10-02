@@ -8,6 +8,7 @@ import UIcon from '../../components/ui/UIcon'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import shell from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
+import Input from '../../components/ui/Input'
 
 const GROUP_TYPES = [
   { key: 'theme', label: 'Themes' },
@@ -171,7 +172,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
 
         <div className={c.body}>
           {/* Add a single ticker */}
-          <input
+          <Input aria-label="Add symbol"
             className={c.input}
             value={entry}
             onChange={e => setEntry(e.target.value.toUpperCase())}
@@ -195,7 +196,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
             </div>
             {groupType && (
               <div className={c.groupBox}>
-                <input
+                <Input aria-label="Search group"
                   className={c.input}
                   value={groupQuery}
                   onChange={e => setGroupQuery(e.target.value)}
