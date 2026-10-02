@@ -398,3 +398,17 @@ describe('walk run 2 — what the board must do', () => {
   })
 })
 
+describe('walk run 3 — a lost finger never blocks the next pinch', () => {
+  it('a pointer whose pointerup never arrived does not turn the next pinch into a pan', () => {
+    const { viewport } = mount(two())
+    const label = screen.getByRole('button', { name: 'Show everything' })
+    // a one-finger touch that is never released (its pointerup went elsewhere)
+    fireEvent.pointerDown(viewport, { pointerId: 7, isPrimary: true, pointerType: 'touch', clientX: 900, clientY: 600, button: 0 })
+    const before = label.textContent
+    fireEvent.pointerDown(viewport, { pointerId: 8, isPrimary: true, pointerType: 'touch', clientX: 500, clientY: 300, button: 0 })
+    fireEvent.pointerDown(viewport, { pointerId: 9, isPrimary: false, pointerType: 'touch', clientX: 560, clientY: 300, button: 0 })
+    fireEvent.pointerMove(viewport, { pointerId: 9, pointerType: 'touch', clientX: 760, clientY: 300 })
+    expect(label.textContent).not.toBe(before)
+  })
+})
+

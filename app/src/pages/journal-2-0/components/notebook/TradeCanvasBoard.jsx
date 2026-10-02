@@ -549,6 +549,11 @@ export default function TradeCanvasBoard({
     // Controls inside the board (toolbar, panels, a card's editor) keep their own clicks.
     if (t.closest('button, input, textarea, select, a, [data-canvas-chrome]')) return
     const vp = viewportRef.current
+    // ⛔ Walk run 3: a finger whose pointerup never reached the board (it lifted outside,
+    // or the browser dropped it) stayed in this map, so the NEXT two-finger pinch counted
+    // three pointers and never became a pinch. The first pointer of a new gesture is the
+    // primary one: it starts the map afresh.
+    if (e.isPrimary === true) pointersRef.current.clear()
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     try { vp.setPointerCapture(e.pointerId) } catch { /* not every environment supports capture */ }
     if (pointersRef.current.size === 2) {
