@@ -103,6 +103,42 @@ def _okey(o: Obs) -> tuple:
     return (o.accn, o.as_of, o.source, o.value, o.tag)
 
 
+BASIS_SHIFT_TOL = 0.03      # log tolerance: a count that moved by EXACTLY the split factor (issuance is never that exact)
+
+
+def _split_basis_shift(o: Obs, val: float, cur: "Checked", ledger: Ledger):
+    """A count whose basis is on the WRONG side of a split it is dated next to (no split between its as-of and its
+    publication, so the as-of basis alone would be used):
+
+    ANTICIPATORY  dated and published BEFORE a split (>= 1.5x either way, within 180 days) but already on the post-split
+                  basis: on the as-of basis it is EXACTLY the split factor away from the state in force (FFIN 2011
+                  3-for-2: 20.96M -> 31.44M = x1.500 on the cover dated before the ex date; INTC 1999 3,324.7M). It is
+                  normalized from the split's ex date.
+    STALE         dated AFTER a forward split (>= 1.5) yet still the pre-split count: on the as-of basis it is exactly
+                  1/factor of the state in force (SHOO 2011: the 08-04 cover repeated 27.67M after the 3-for-2). Refused.
+    """
+    if not cur.normalized or cur.obs.as_of >= o.as_of:
+        return None
+    r = val / cur.normalized
+    from .build import clean_factor
+    for s in ledger.splits:
+        # price-only factors (spin-offs) never move the count: a count is never "anticipatory" or "stale" against one
+        if abs(math.log(s.ratio)) < math.log(1.5) or not clean_factor(s.ratio):
+            continue
+        if o.as_of < s.ex_date <= o.as_of + timedelta(days=180) and cur.obs.as_of < s.ex_date \
+                and abs(math.log(r) - math.log(s.ratio)) < BASIS_SHIFT_TOL:
+            return ("ANTICIPATORY", s)
+        # ...only against a state in force that is ITSELF a count dated after the split (SHOO: the same filing's 06-30
+        # balance sheet): a class whose count does not move at a split-like ledger event (GOOGL class A at the 2014
+        # class C dividend) is never "stale"
+        if s.ratio >= 1.5 and o.as_of - timedelta(days=400) < s.ex_date <= o.as_of and cur.obs.as_of >= s.ex_date \
+                and abs(math.log(r) - math.log(1 / s.ratio)) < 0.05:
+            # (wider: the stale count is the PRE-split count, which itself moved a little against the post-split state
+            # in force: SHOO 27.67M vs 42.81M / 1.5 = 28.54M)
+            return ("STALE", s)
+    return None
+
+
 def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol: float = 0.02,
              basis_evidence: dict | None = None) -> list[Checked]:
     """Iterates the point-in-time pass: counts found to be a unit-error LEVEL (see the post-pass) are excluded from
@@ -243,6 +279,15 @@ def _validate_pass(obs: list[Obs], ledger: Ledger, conflict_tol: float, dup_tol:
             st = R.ACCEPTED if pick == "AS_OF" else R.ACCEPTED_RESTATED_BASIS
         else:
             val, pick, st = b["AS_OF"], "AS_OF", R.ACCEPTED
+            shift = _split_basis_shift(o, val, cur, ledger) if cur is not None else None
+            if shift and shift[0] == "ANTICIPATORY":
+                val, pick, st = o.value * ledger.factor_after(shift[1].ex_date), "POST_SPLIT", R.ACCEPTED_RESTATED_BASIS
+            elif shift and shift[0] == "STALE":
+                # non-blocking: the state in force (already on the post-split basis) carries on
+                decided[i] = Checked(o, R.REJ_STALE_SPLIT_BASIS, val, pick,
+                                     note=f"{o.value:.0f} after the {shift[1].ratio:g}-for-1 of {shift[1].ex_date} "
+                                          f"= the state in force before it")
+                continue
         c = Checked(o, st, val, pick, effective_from=t0)
         if o.value < TINY_RAW:
             # another FILING and another CHANNEL: a pre-merger shell's cover and balance sheet both say "1,000 shares"

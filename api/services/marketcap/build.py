@@ -106,6 +106,147 @@ def _late(d: str) -> datetime:
 ENTITY_AXES = frozenset({"dei_LegalEntity", "srt_ConsolidatedEntities"})
 
 
+def merge_evidence_splits(ledger_splits: list, evidence_splits: list) -> list:
+    """⛔ An evidence split is the SAME event as a ledger split of the same factor (2%) within 60 days (OTEX 2014 2-for-1:
+    issuer XBRL dates it 2014-01-23, the ledger 2014-02-19; adding both doubled every earlier count; CYRX 2015 1:12).
+    The evidence date stands -- it was confirmed where the bars step."""
+    kept = [s for s in ledger_splits
+            if not any(abs(math.log(s.ratio / e.ratio)) < 0.02 and abs((s.ex_date - e.ex_date).days) <= 60 for e in evidence_splits)]
+    return kept + list(evidence_splits)
+
+
+def ads_after_form_switch(forms: list, titled: dict, is_adr: bool) -> tuple[dict, date | None]:
+    """⛔ FOREIGN -> DOMESTIC FORM SWITCH (RCEL: 20-F with "ADS, each representing 20 ordinary shares" in 2019; from
+    2020-08 10-K/10-Q of a redomiciled US common stock -- every count was divided by 20 until a 2026 title). A 12(b)
+    title filed before the switch does not speak after it: the first title filed AFTER the switch decides from the
+    switch on; with none, the ADS status after the switch is unresolved (returned: withheld from that date).
+    `forms`: [(filing_date, form)]; `titled`: {filing_date: is_ads_title}. Returns (titled', unresolved_from)."""
+    fper = sorted((d, f) for d, f in forms if f in ("20-F", "40-F", "10-K", "10-Q", "10-KT"))
+    last_foreign = max((d for d, f in fper if f in ("20-F", "40-F")), default=None)
+    switch = min((d for d, f in fper if f in ("10-K", "10-Q", "10-KT") and last_foreign and d > last_foreign), default=None)
+    out = dict(titled)
+    if switch is None or not titled:
+        return out, None
+    before = [v for t, v in sorted(titled.items()) if t < switch]
+    after = [v for t, v in sorted(titled.items()) if t >= switch]
+    if (before and before[-1]) or (not before and is_adr):
+        if after:
+            out[switch] = after[0]
+            return out, None
+        return out, switch
+    return out, None
+
+
+def unapplied_post_state_splits(rows: list, last_asof: str, known: list, last_bar: date) -> list[tuple[date, float]]:
+    """⛔ THE ISSUER STATES A SPLIT AFTER ITS LAST SHARE STATE that no ledger carries (SGRX: XBRL 1-for-60 2026-01-20 and
+    1-for-5 2026-08-21, filed 2026-09-18, under a renamed ticker whose ledger is empty; the bars carry both, so every
+    earlier day was 300x high). With no count across it no transition can expose it: every earlier day is withheld.
+    `rows`: issuer XBRL (ex_date, ratio) statements; `known`: the splits already in force. A statement within 60 days of
+    a known split, or of the same ratio within 400 days (an XBRL comparative period restating it: JAGX's 2025-06-30
+    "0.028" is the 2026-04-30 1-for-35), is that split."""
+    out = []
+    for exd, r in rows:
+        try:
+            ed = date.fromisoformat(exd)
+        except (TypeError, ValueError):
+            continue
+        if exd <= last_asof or not r or abs(math.log(r)) < math.log(2) or not clean_factor(r) or ed > last_bar:
+            continue
+        if any(abs((ed - s.ex_date).days) <= 60 or (abs(math.log(r / s.ratio)) < 0.05 and abs((ed - s.ex_date).days) <= 400)
+               for s in known):
+            continue
+        out.append((ed, r))
+    return out
+
+
+def clean_factor(r: float) -> bool:
+    """A split factor (k or 1/k = n/m, m in 1, 2, 4, within 1%) as opposed to a price-only adjustment factor (a spin-off
+    or special distribution: EBAY 2015 x2.376, SLM 2014 x2.798) -- which never moves the share count, so the issuer's
+    counts can neither confirm nor contradict it."""
+    k = max(r, 1 / r)
+    return any(abs(k * m - round(k * m)) < 0.01 * k * m for m in (1, 2, 4))
+
+
+def _px_step(s, days: list, closes: dict) -> float | None:
+    i = bisect.bisect_left(days, s.ex_date)
+    if i == 0 or i >= len(days) or not closes.get(days[i - 1]) or not closes.get(days[i]):
+        return None
+    return closes[days[i]] / closes[days[i - 1]]
+
+
+def price_only_verdict(s, days: list, closes: dict) -> str:
+    step = _px_step(s, days, closes)
+    if step is None:
+        return "UNRESOLVED"
+    return "CONFIRMED" if abs(math.log(step)) < abs(math.log(step * s.ratio)) else "CONTRADICTED"
+
+
+def price_splice_before(s, days: list, closes: dict) -> date | None:
+    """The latest ONE-SESSION adjusted-price step >= 2x before a price-only factor's ex date: the bars before it are
+    spliced on another basis (WY: 61.84 -> 24.08 on 2003-09-10, no corporate action) -- a factor the bars carry from
+    the ex date back to the splice says nothing about the bars before it."""
+    i = bisect.bisect_left(days, s.ex_date)
+    for j in range(i - 1, 0, -1):
+        a, b = closes.get(days[j - 1]), closes.get(days[j])
+        if a and b and abs(math.log(b / a)) >= math.log(2):
+            return days[j]
+    return None
+
+
+def issuer_states_split(D, cik: int, s) -> bool:
+    """An issuer statement (XBRL split-ratio fact or filing text) of this split: the same ratio within 5%, dated from
+    60 days before to 92 days after the ledger's ex date."""
+    if getattr(D, "splitev", None) is None:
+        return False
+    for exd, r in D.splitev.execute("SELECT ex_date, ratio FROM split_evidence WHERE cik=?", (cik,)):
+        if not r or abs(math.log(r / s.ratio)) >= 0.05:
+            continue
+        for d_ in re.findall(r"\d{4}-\d{2}-\d{2}", exd or ""):
+            # an XBRL context ends at the PERIOD end: up to a quarter after the event (JAGX: "0.0285" ending 2026-06-30
+            # for the 2026-04-30 1-for-35)
+            if -60 <= (date.fromisoformat(d_) - s.ex_date).days <= 92:
+                return True
+    return False
+
+
+def ledger_split_verdict(s, obs: list) -> str:
+    """Whether the issuer's own RAW counts speak to a ledger split (`obs` are one class's raw observations).
+
+    CONFIRMED     a count dated within 400 days before the split sits on the PRE-split basis (first post count / ratio
+                  within 1.3x): INTC 1999 1,667M -> 3,318M. A count dated before the split that already equals the post
+                  count is an ANTICIPATORY restatement (the 10-K cover after the record date), never a contradiction.
+    CONTRADICTED  counts dated within 120 days on BOTH sides agree (1.5x) and none is on the pre-split basis: INVA 2013
+                  99.45M (04-25) -> 100.77M (06-30) against a 1:100 ledger entry.
+    UNRESOLVED    neither: no contemporaneous count on one side (JAGX 2026: the nearest counts are 211 days before and
+                  71 days after a 1:35 the bars carry back to 2015).
+    """
+    post = sorted((o for o in obs if s.ex_date <= o.as_of), key=lambda o: o.as_of)
+    pre = [o for o in obs if s.ex_date - timedelta(days=120) <= o.as_of < s.ex_date and o.known_from <= s.ex_date]
+    win = [o for o in obs if s.ex_date - timedelta(days=400) <= o.as_of < s.ex_date and o.known_from <= s.ex_date]
+    if not post:
+        return "UNRESOLVED"
+    b0 = post[0].value
+    if any(abs(math.log(o.value * s.ratio / b0)) < math.log(1.3) for o in win):
+        return "CONFIRMED"
+    # ...or a count dated within 400 days AFTER it sits on the post-split basis of the last pre-split count (CGNX 2017
+    # 2-for-1: a stale 85.9M repeated after the split, then 172M)
+    if win:
+        a_last = max(win, key=lambda o: o.as_of).value
+        if any(s.ex_date <= o.as_of <= s.ex_date + timedelta(days=400) and abs(math.log(o.value / (a_last * s.ratio))) < math.log(1.3)
+               for o in obs):
+            return "CONFIRMED"
+    # the SAME count on both sides (CBAT 12,619,597 from 2013-12-31 to 2014-12-31 across a 1:100): no split plus
+    # issuance reproduces a count to the share
+    if any(o.as_of >= s.ex_date - timedelta(days=400) and o.as_of < s.ex_date and o.known_from <= s.ex_date
+           and abs(o.value / b0 - 1) < 0.001 for o in obs) and any(o.as_of > post[0].as_of and abs(o.value / b0 - 1) < 0.001 for o in post):
+        return "CONTRADICTED"
+    near = [o for o in post[:3] if o.as_of <= s.ex_date + timedelta(days=120)]
+    agree = [o for o in pre + near if abs(math.log(o.value / b0)) < math.log(1.5)]
+    if pre and near and len(agree) * 3 >= 2 * len(pre + near) and any(o in agree for o in pre):
+        return "CONTRADICTED"
+    return "UNRESOLVED"
+
+
 def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dict]:
     """Every transition between consecutive share states that looks like a split the ledger lacks: the state ratio is
     a clean split factor k or 1/k (k = 2..100, within 2%), the primary's adjusted close is CONTINUOUS from the last
@@ -666,6 +807,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 ratio_stmts.append(RatioStatement(fdate, v, accn, snip))
     # ⭐ the listed security is an ADS only while the filings' 12(b) titles say so (issuer-level evidence before the
     # first titled filing); a count is converted to ADS-equivalents only for those periods
+    # ⛔ FOREIGN -> DOMESTIC FORM SWITCH (RCEL: 20-F with "ADS, each representing 20 ordinary shares" in 2019; from
+    # 2020-08 10-K/10-Q of a redomiciled US common stock -- every count was divided by 20 until a 2026 title). A 12(b)
+    # title filed before the switch does not speak after it: the first title filed AFTER the switch decides from the
+    # switch on; with none, the ADS status after the switch is unresolved (withheld).
+    titled, ads_unresolved_from = ads_after_form_switch(
+        [(date.fromisoformat(v["filing_date"]), v["form"]) for v in filings.values()], titled, is_adr)
     ads_at = ads_listed_fn(list(titled.items()), is_adr)
     ads_changes = ads_transitions(list(titled.items()))
 
@@ -697,6 +844,9 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     reasons_by_day: dict = {}
     struct_summary = []
     obs_rows_written = set()
+    ledger_unresolved: list = []          # ledger splits the counts neither confirm nor contradict (all regimes)
+    price_splices: list = []              # price-only factors carried back to a bar splice
+    ledgers_used: list = []               # (kind, Ledger) per class, for the post-state evidence check
     for ri, (p0, ks, p1) in enumerate(regimes):
         rdays = [d for d in all_days if day_regime[d] == ri]
         if not rdays:
@@ -769,13 +919,49 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                         restated = any(x.as_of == y.as_of and x.as_of < s_.ex_date and x.known_from <= s_.ex_date < y.known_from
                                        and x.value > 0 and y.value > 0 and abs(math.log(y.value / x.value) - math.log(s_.ratio)) < 0.05
                                        for _k1, x, _m1 in obs for _k2, y, _m2 in obs if _k1 == _k2)
-                        if not restated and abs(math.log(b0 / a0)) < math.log(1.5):
+                        if restated or abs(math.log(b0 / a0)) >= math.log(1.5):
+                            verdict = "CONFIRMED"
+                        elif clean_factor(s_.ratio):
+                            step_ = _px_step(s_, cdays_all, ccloses)
+                            if step_ and abs(math.log(step_ / s_.ratio)) < abs(math.log(step_)):
+                                # the count did not move and the ADJUSTED price steps by the factor: the bars carry a
+                                # split the shares did not undergo (ASPS 2025 2.0: x2.336). Units must cancel -> applied
+                                verdict = "CONFIRMED"
+                            else:
+                                verdict = ledger_split_verdict(s_, cobs_raw)
+                            if verdict == "UNRESOLVED" and issuer_states_split(D, cik, s_):
+                                # the issuer's OWN filings state this split (JAGX: XBRL 1-for-35 "0.0285", 2026): the
+                                # counts around it are far apart and the issuance between them offset it
+                                verdict = "CONFIRMED"
+                        else:
+                            # a PRICE-ONLY factor (spin-off / distribution) never moves the count; whether the bars
+                            # carry it is visible in the PRICE: a real distribution drops the raw close by ~1/factor, so
+                            # bars that carry it are continuous at the ex date (EBAY 2015 x2.376: 1.024) and bars that
+                            # do not show the drop
+                            verdict = price_only_verdict(s_, cdays_all, ccloses)
+                            sp_ = price_splice_before(s_, cdays_all, ccloses) if verdict == "CONFIRMED" else None
+                            if sp_ is not None:
+                                price_splices.append(sp_)
+                                w["split_gap"].append((cik, sp_.isoformat(), None, "PRICE_SPLICE", c.class_key, None, None,
+                                                       "HELD_PRICE_SPLICE", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
+                                                       None, f"price-only factor {s_.ratio:g} carried back to a one-session "
+                                                             f"step on {sp_}"))
+                        if verdict == "CONTRADICTED":
                             w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
                                                    "LEDGER_SPLIT_CONTRADICTED", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
                                                    None, f"raw {a0:.0f} -> {b0:.0f}"))
                             continue
+                        if verdict == "UNRESOLVED":
+                            # the counts neither confirm nor contemporaneously contradict it: the ledger (= the price
+                            # basis) is kept and every earlier day is withheld
+                            ledger_unresolved.append(s_.ex_date)
+                            w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
+                                                   "HELD_LEDGER_SPLIT_UNRESOLVED", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
+                                                   None, f"raw {a0:.0f} -> {b0:.0f}; no contemporaneous count on either side"))
                     kept_splits.append(s_)
-                ledger = Ledger(kept_splits + [s_ for s_ in (extra_splits or []) if s_.ex_date <= cdays_all[-1]])
+                extra_c = [s_ for s_ in (extra_splits or []) if s_.ex_date <= cdays_all[-1]]
+                ledger = Ledger(merge_evidence_splits(kept_splits, extra_c))
+                ledgers_used.append((st.kind, ledger, cand_splits))
                 cobs = [o for k, o, _m in obs if k == c.class_key]
                 pre_listing = []
                 if lst.start:
@@ -830,6 +1016,11 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 events += unlisted_split_events(cdays_all, ccloses, ref_c[1], counts_)
                 if st.kind == "ADR":
                     events += [(t_, R.ADR_RATIO) for t_ in ads_changes] + [(b_, R.ADR_RATIO) for b_ in trade_breaks]
+                else:
+                    # ⛔ a count is never carried across a > 90-day break in trading: the security that resumes is a
+                    # reorganized / relisted capitalization (LEA: delisted 2009-07-01 in Chapter 11, the NEW common
+                    # began trading 2009-11-20 -- the cancelled 77.4M pre-petition shares were carried onto it)
+                    events += [(b_, R.RELISTING_RECOUNT) for b_ in trade_breaks]
                 # ⛔ REGISTERED ISSUANCE that dwarfs the state in force (ZBAO 2026: F-1s registering the resale of up to
                 # 414,275,709 Class A shares while the last count was 16.2M): the state is superseded by authoritative
                 # evidence of issuance -> withheld from the registration's public close until a newer count (never an
@@ -907,6 +1098,40 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                 n_aff += 1
         w["lineage_applied"].append((cik, lin[0], lin[1], lin[2], pred_cik_used or lin[3], lin[4], n_aff, lin_note[:300]))
     gaps = split_ledger_gaps(_runs_by_class(w, issuer_id), bars[primary][1], caps)
+    if ledger_unresolved:
+        lu = max(ledger_unresolved)
+        for d in [d for d in caps if d < lu]:
+            del caps[d]
+            reasons_by_day[d] = R.LEDGER_SPLIT_UNRESOLVED
+        first_val = min(caps) if caps else None
+    # ⛔ THE ISSUER STATES A SPLIT AFTER ITS LAST SHARE STATE that no ledger carries (SGRX: XBRL 1-for-60 2026-01-20 and
+    # 1-for-5 2026-08-21, filed 2026-09-18, under a renamed ticker whose ledger is empty; the bars carry both, so every
+    # earlier day was 300x high). With no count across it no transition can expose it: every earlier day is withheld.
+    if D.splitev is not None and ledgers_used and all(k_ != "ADR" for k_, _l, _c in ledgers_used):
+        last_asof = max((r_[4] for rs_ in _runs_by_class(w, issuer_id).values() for r_ in rs_), default=None)
+        known = [s_ for _k, l_, c_ in ledgers_used for s_ in list(l_.splits) + list(c_)]
+        if last_asof:
+            rows_ = D.splitev.execute("SELECT DISTINCT ex_date, ratio FROM split_evidence WHERE cik=? AND source LIKE 'XBRL%' "
+                                      "AND ex_date > ?", (cik, last_asof)).fetchall()
+            for ed_, r_ in unapplied_post_state_splits(rows_, last_asof, known, pdays_all[-1]):
+                w["split_gap"].append((cik, ed_.isoformat(), None, "EVIDENCE", None, None, last_asof, "HELD_SPLIT_AFTER_LAST_STATE",
+                                       ed_.isoformat(), r_, "XBRL", None, f"issuer split {r_:g} on {ed_} after the last share "
+                                                                         f"state ({last_asof}); no ledger carries it"))
+                for d in [d for d in caps if d < ed_]:
+                    del caps[d]
+                    reasons_by_day[d] = R.HIST_SPLIT_UNRESOLVED
+            first_val = min(caps) if caps else None
+    if ads_unresolved_from is not None:
+        for d in [d for d in caps if d >= ads_unresolved_from]:
+            del caps[d]
+            reasons_by_day[d] = R.ADR_RATIO
+        first_val = min(caps) if caps else None
+    if price_splices:
+        ps = max(price_splices)
+        for d in [d for d in caps if d < ps]:
+            del caps[d]
+            reasons_by_day[d] = R.PRICE_BASIS_INCONSISTENT
+        first_val = min(caps) if caps else None
     hold_before = max((g_["date"] for g_ in gaps), default=None)
     if hold_before is not None:
         for d in [d for d in caps if d < hold_before]:

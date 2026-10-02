@@ -69,6 +69,47 @@ def segments(days: list[date], gap_days: int = GAP_DAYS) -> list[tuple[date, dat
     return out
 
 
+MASSIVE_EVENTS_START = date(2003, 10, 10)   # Massive's ticker history starts 2003-09-10: an event then is the INITIAL symbol
+
+
+def foreign_ticker_end(ticker: str, days: list[date], events: list) -> date | None:
+    """The end of the last span in which the issuer traded under ANOTHER symbol while bars of `ticker` exist.
+
+    `events`: [(date, "ticker_change", new_symbol)]. From each event on, the issuer's symbol is that event's. Before the
+    first event: the first event's symbol when it is the initial record (dated at the start of Massive's history);
+    otherwise (a later change TO a symbol) the issuer traded under something else before it. When the last event is to
+    another symbol although this record's ticker is current (a return missing from the history: Fiserv FISV -> FI 2023
+    -> FISV), the foreign span ends where this ticker's last bar segment begins."""
+    norm = lambda s: (s or "").upper().replace(".", "-")
+    T = norm(ticker)
+    ev = sorted((d, norm(x)) for d, typ, x in events if d and typ == "ticker_change" and x)
+    if not ev:
+        return None
+    spans = []
+    d0, x0 = ev[0]
+    if x0 != T or d0 > MASSIVE_EVENTS_START:
+        spans.append((date.min, d0))
+    for i, (d, x) in enumerate(ev):
+        if x == T:
+            continue
+        if i + 1 < len(ev):
+            spans.append((d, ev[i + 1][0]))
+        else:
+            last_seg = segments(days)[-1][0] if days else d
+            spans.append((d, max(d, last_seg)))
+    # a provider-STITCHED history (the same security renamed: FB -> META, GOOG -> GOOGL class A) is continuous through
+    # the change; another issuer's use of the symbol is separated from this issuer's by a > GAP_DAYS break in the bars
+    segs = segments(days)
+    out = None
+    for s, e in spans:
+        if not any(s <= b < e for b in days):
+            continue
+        seg = next((g for g in segs if g[1] >= e), None)
+        if seg is None or seg[0] >= e - timedelta(days=10):
+            out = max(out, seg[0] if seg else e) if out else (seg[0] if seg else e)
+    return out
+
+
 def decide(ticker: str, cik: int, days: list[date], ref: Ref | None, cik_first_filing: date | None,
            foreign: bool = False) -> ListingDecision | None:
     if not days:
@@ -95,12 +136,23 @@ def decide(ticker: str, cik: int, days: list[date], ref: Ref | None, cik_first_f
             if provably_other(e):
                 nxt = segs[segs.index((s, e)) + 1][0]
                 start, basis = nxt, "SEGMENT_AFTER_REUSE"
+    # ⛔ THE ISSUER'S OWN TICKER HISTORY (Massive ticker_change events of the record whose CIK is this issuer's): bars of
+    # this ticker while the issuer traded under ANOTHER symbol are another issuer's (Cencora: ABC until 2023-08-30 --
+    # "COR" before it was CoreSite and others; Waste Management: WMI until 2009-08-06 -- "WM" before it was Washington
+    # Mutual; 3D Systems: TDSC until 2011-05-27). Everything up to the last such span that holds bars is withheld.
+    reuse_end = foreign_ticker_end(ticker, days, ref.events) if ref_ok and ref.events else None
+    if reuse_end is not None and reuse_end > start:
+        nxt = next((d for d in days if d >= reuse_end), None)
+        if nxt is None:
+            return None
+        start, basis = nxt, "TICKER_EVENTS"
+        notes.append(f"issuer traded under another ticker until {reuse_end}")
     pre = [d for d in days if d < start]
     pre_reason = None
     if pre:
         last_pre = pre[-1]
         gap = (start - last_pre).days
-        pre_reason = R.TICKER_REUSE if (provably_other(last_pre) or gap > GAP_DAYS) else R.NOT_YET_LISTED
+        pre_reason = R.TICKER_REUSE if (provably_other(last_pre) or gap > GAP_DAYS or basis == "TICKER_EVENTS") else R.NOT_YET_LISTED
     end = None
     if ref_ok and ref.active is False and ref.delisted:
         end = ref.delisted

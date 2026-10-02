@@ -147,6 +147,8 @@ def run(build: str, data: str) -> list:
         g.check("KO", "pre-EDGAR days never valued, coded PRE_EDGAR", v == 0 and codes <= {"PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"}, codes)
     from .golden_correction import correction_pass_goldens
     correction_pass_goldens(g)
+    from .golden_adjudication import adjudication_goldens
+    adjudication_goldens(g)
     return g.results
 
 

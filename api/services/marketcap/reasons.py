@@ -30,6 +30,8 @@ SUCCESSOR_UNRESOLVED = "SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED"        # bars 
 PREDECESSOR_DIFFERENT_ENTITY = "PREDECESSOR_DIFFERENT_ECONOMIC_ENTITY"   # merger / spin-off / new entity boundary
 ISSUANCE_EXCEEDS_STATE = "REGISTERED_ISSUANCE_EXCEEDS_SHARE_STATE"      # a registration >= 3x the count in force
 PRICE_BASIS_INCONSISTENT = "PRICE_BASIS_INCONSISTENT_WITH_CORPORATE_ACTION"  # price and shares step the same way
+LEDGER_SPLIT_UNRESOLVED = "LEDGER_SPLIT_UNRESOLVED"        # counts neither confirm nor contemporaneously contradict it
+RELISTING_RECOUNT = "TRADING_BREAK_RECOUNT_PENDING"        # a count dated before a > 90-day trading break
 FOREIGN_MULTI_CLASS = "FOREIGN_MULTI_CLASS_UNRESOLVED"     # ADS over several ordinary classes, economics not established
 PRE_LISTING_EVIDENCE = "PRE_LISTING_EVIDENCE_ONLY"         # only counts dated before this security began trading
 
@@ -38,7 +40,7 @@ REASON_CODES = (PRE_EDGAR, PRE_FIRST, TICKER_REUSE, IPO_UNRESOLVED, MULTI_CLASS,
                 DELISTED, BUG, OTHER_EXPLAINED, SCALE_UNRESOLVED, SUSPICIOUS_SHARE_COUNT, SPLIT_BASIS_UNRESOLVED,
                 REVERSE_SPLIT_RECOUNT, UNLISTED_SPLIT_SUSPECTED, HIST_SPLIT_UNRESOLVED, SUCCESSOR_UNRESOLVED,
                 FOREIGN_MULTI_CLASS, PRE_LISTING_EVIDENCE, PREDECESSOR_DIFFERENT_ENTITY, ISSUANCE_EXCEEDS_STATE,
-                PRICE_BASIS_INCONSISTENT)
+                PRICE_BASIS_INCONSISTENT, LEDGER_SPLIT_UNRESOLVED, RELISTING_RECOUNT)
 
 # Evidence source types, in selection precedence (lower rank wins a same-as-of tie).
 COVER_XBRL = "COVER_XBRL"            # dei:EntityCommonStockSharesOutstanding (class-dimensional or not)
@@ -61,6 +63,7 @@ REJ_SCALE_UNRESOLVED = "REJECTED_SCALE_UNCORROBORATED"
 REJ_SUSPICIOUS = "REJECTED_SUSPICIOUS_COUNT_UNCORROBORATED"
 REJ_INVALID_UNIT = "REJECTED_INVALID_UNIT"                 # not a share count ($ / shares column, ADR-member row ...)
 REJ_PRE_LISTING = "REJECTED_PRE_LISTING"                   # dated before the priced security began trading
+REJ_STALE_SPLIT_BASIS = "REJECTED_STALE_PRE_SPLIT_BASIS"      # dated after a forward split, still the pre-split count
 FLAG_LARGE_CHANGE = "LARGE_CHANGE"
 
 EDGAR_COMPLETE = "1996-05-06"   # EDGAR phase-in complete: all domestic registrants file electronically
