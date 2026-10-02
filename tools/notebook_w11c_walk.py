@@ -10,7 +10,7 @@ driver's own process, pointed at whatever paths this shell has). The last row as
 
 ⛔ NO MODEL IS CALLED. The launcher blanks every model key; the plan call is answered by
 `ai_actions`' sandbox-only stub, which this driver arms with NOTEBOOK_AI_ACTIONS_SANDBOX_STUB=1
-in the CHILD's environment. The stub needs a blank ANTHROPIC_API_KEY, no RAILWAY_* variable and
+in the CHILD's environment. The stub needs a blank ANTHROPIC_API_KEY, none of Railway's service variables and
 the repo conftest imported (the launcher imports it) -- never true on a pod.
 
 Run from PowerShell (a Windows path through the Bash tool loses its backslash):
@@ -339,8 +339,9 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     # The CHILD's environment (Popen inherits it): the gate on, the sandbox stub armed, and no
     # Railway variable or model key the stub would refuse to run beside.
-    for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
-        del os.environ[k]
+    for k in ("RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
+              "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_SERVICE_NAME", "RAILWAY_DEPLOYMENT_ID"):
+        os.environ.pop(k, None)
     # ⛔ Written for the CHILD, never read here: the gate's one parse lives in the app
     # (notebook_flags.flag_on), and tests/test_notebook_flag_parse.py holds every reader to it.
     os.environ.update({"NOTEBOOK_AI_ACTIONS_ENABLED": "1", "NOTEBOOK_AI_ACTIONS_SANDBOX_STUB": "1",

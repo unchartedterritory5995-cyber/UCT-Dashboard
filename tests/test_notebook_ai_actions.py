@@ -683,9 +683,13 @@ def test_the_sandbox_stub_needs_every_local_condition(monkeypatch):
     monkeypatch.setenv(ai.SANDBOX_STUB_ENV, "1")
     assert "conftest" in sys.modules                       # pytest imported the repo conftest
     assert ai.sandbox_stub_active() is True                 # CONTROL: the stub CAN be on locally
-    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
-    assert ai.sandbox_stub_active() is False                # any Railway pod
-    monkeypatch.delenv("RAILWAY_ENVIRONMENT")
+    monkeypatch.setenv("RAILWAY_VOLUME_MOUNT_PATH", r"C:\sandbox\data")
+    assert ai.sandbox_stub_active() is True                 # the conftest's own PATH pin is not a pod
+    for name in ai.RAILWAY_IDENTITY_ENV:                    # any Railway pod
+        monkeypatch.setenv(name, "x")
+        assert ai.sandbox_stub_active() is False, name
+        monkeypatch.delenv(name)
+    assert ai.sandbox_stub_active() is True
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-real")
     assert ai.sandbox_stub_active() is False                # a real model key
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")

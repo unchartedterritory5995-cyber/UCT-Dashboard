@@ -288,28 +288,46 @@ export default function ResearchHome({
 
   // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
   // after a failed load told a member there was nothing, when we could not look.
+  // Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while its flag is
+  // off. ⛔ ONE element at ONE tree position for both the quiet and the full home: applying a
+  // change set refreshes the home, which can flip it from quiet to full, and a box mounted in
+  // each branch was REMOUNTED by that flip -- the member's applied list and its Undo button
+  // vanished mid-task (found by the lane's real-browser walk, W8 -> W9). As the first child of
+  // the same fragment in both returns, React keeps it, and its state, across the flip.
+  const aiBox = (
+    <div className={styles.aiSlot}>
+      <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
+    </div>
+  )
+
   if (nothingToShow && homeError) {
     return (
-      <div className={styles.quietState}>
-        {sampleNotice}
-        <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
-      </div>
+      <>
+        {aiBox}
+        <div className={styles.quietState}>
+          {sampleNotice}
+          <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
+        </div>
+      </>
     )
   }
 
   if (nothingToShow) {
     return (
-      <div className={styles.quietState}>
-        {sampleNotice}
-        {/* Wave 11 lane 11C: a member with notes but a quiet home can still ask. */}
-        <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
-        <p>Nothing needs your attention right now.</p>
-        <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
-      </div>
+      <>
+        {aiBox}
+        <div className={styles.quietState}>
+          {sampleNotice}
+          <p>Nothing needs your attention right now.</p>
+          <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
+        </div>
+      </>
     )
   }
 
   return (
+    <>
+    {aiBox}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
@@ -324,9 +342,6 @@ export default function ResearchHome({
           signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
         })} />
       </div>
-      {/* Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while
-          its flag is off. Inline, under Ask: a plan's review list scrolls with the page. */}
-      <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />
@@ -360,5 +375,6 @@ export default function ResearchHome({
         } : null}
       />
     </div>
+    </>
   )
 }

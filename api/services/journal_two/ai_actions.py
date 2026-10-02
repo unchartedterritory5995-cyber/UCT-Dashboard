@@ -67,6 +67,13 @@ GATE = "NOTEBOOK_AI_ACTIONS_ENABLED"
 #: every model key). Active only when ALL of `sandbox_stub_active`'s conditions
 #: hold, and three of them are false on every production pod.
 SANDBOX_STUB_ENV = "NOTEBOOK_AI_ACTIONS_SANDBOX_STUB"
+#: The variables Railway sets on EVERY service it runs (the app already relies on the first:
+#: `auth.COOKIE_SECURE`). ⚰️ Not "any RAILWAY_* name": the repo conftest PINS
+#: `RAILWAY_VOLUME_MOUNT_PATH` to a sandbox path (it names a /data root), so the sandbox itself
+#: carries one -- measured by the first walk, whose stub stayed off.
+RAILWAY_IDENTITY_ENV = ("RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
+                        "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_SERVICE_NAME",
+                        "RAILWAY_DEPLOYMENT_ID")
 
 # ── The closed vocabulary ────────────────────────────────────────────────────
 ADD_TAG = "add_tag"
@@ -137,7 +144,7 @@ def sandbox_stub_active() -> bool:
     required, and the last three are false on every production pod:
 
       * `NOTEBOOK_AI_ACTIONS_SANDBOX_STUB` is exactly "1";
-      * NO `RAILWAY_*` variable is set (Railway sets them on every service);
+      * NONE of `RAILWAY_IDENTITY_ENV` is set (Railway sets them on every service);
       * `ANTHROPIC_API_KEY` is blank (the sandbox launcher blanks it; production
         holds the real key -- a key present means a real model is reachable);
       * the repo's `conftest` is imported with its data-root census
@@ -148,7 +155,7 @@ def sandbox_stub_active() -> bool:
     other three conditions alone turns the stub off."""
     if os.environ.get(SANDBOX_STUB_ENV) != "1":
         return False
-    if any(k.startswith("RAILWAY_") for k in os.environ):
+    if any(os.environ.get(k) for k in RAILWAY_IDENTITY_ENV):
         return False
     if (os.environ.get("ANTHROPIC_API_KEY") or "").strip():
         return False
