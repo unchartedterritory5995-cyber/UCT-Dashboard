@@ -71,12 +71,15 @@ export function probeRuntimeProgram(source) {
   if (!built.ok) return { ok: false, refusal: built.refusal || { guard: 'runtime:build', message: '' } }
   let program
   try {
-    program = lowerIrProgram(built.ir)
+    // ⭐⭐ RT3 — lowered as the member door's FALLBACK document runs: from the
+    // listing (`runtimeHistory: 'listing'`, R-W), where an `na` condition is read
+    // as Pine reads it. A routed document reads only `outputs` from this probe.
+    program = lowerIrProgram(built.ir, { historyFromListing: true })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:lower', message: String((err && err.message) || err) } }
   }
-  // ⭐ RT1 — `naTests`: the program's `?:` whose test can be `na` (`naTestsOf`),
-  // read by the member door's runtime fallback.
+  // ⭐ RT1 — `naTests`: the program's conditions whose `na` reading is not settled
+  // (`naTestsOf`), read by the member door's runtime fallback.
   return { ok: true, outputs: program.outputs.map((o) => ({ call: o.call })), naTests: naTestsOf(program) }
 }
 
@@ -170,7 +173,9 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     const r = built.refusal || {}
     throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
   }
-  const program = lowerIrProgram(built.ir)
+  // ⭐⭐ RT3 — from the listing, a `NaN` is Pine's `na` and an `na` condition reads
+  // as Pine reads it; off it the shared `{0,1,NaN}` rules stand (`lowerIrProgram`).
+  const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.

@@ -39,6 +39,7 @@ const capture = (name) => {
 const ADX = 'adx-and-di-for-v4-rddt-1d-2026-09-27.json'
 const QQE = 'qqe-signals-rddt-1d-2026-09-27.json'
 const PPST = 'pivot-point-supertrend-rddt-1d-2026-09-27.json'
+const YATA = 'cc-yata-rddt-1d-2026-09-27.json'
 
 /** The vendor's column for a plot title, aligned to the capture's bars. */
 const vendorColumn = (cap, title) => {
@@ -110,49 +111,47 @@ describe('RT1 — routing: flag off is the door it always was', () => {
   })
 })
 
-describe('RT1 — a `?:` whose test can be `na` is withheld from the fallback, by name', () => {
-  // The two captures where the runtime lane's `?:` answers `na` and TradingView
-  // takes the other branch. The rail proves BOTH halves: the door never hands the
-  // script to the runtime lane, and that lane really would draw the disagreement.
-  // ⭐ Wave 15: H1 lets the HOST lane draw both, TradingView's on every label
-  // (`vendorHarness.h1Ratchet`), so the door now serves them there and the runtime
-  // fallback is never consulted. The decline itself is witnessed at the door below
-  // on a corpus script the host lane still refuses.
-  it('⛔ qqe-signals: drawn by the host lane, never the fallback; the runtime run would mark bar 73 where TradingView marks nothing', () => {
+describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only what is unsettled is withheld', () => {
+  // RT1 found the runtime `?:` answering `na` on an `na` test where TradingView
+  // takes the other branch, and withheld every such script from the fallback.
+  // ⭐ RT3: the runtime lane now reads an `na` condition as TradingView does
+  // from v4 (`interpret.js::pineBool`, one rule for both lanes), so the two v4
+  // captures below are drawn by the runtime run exactly as TradingView draws
+  // them. H1 still serves both from the host lane first, so the runtime run is
+  // graded here directly. What stays withheld is what is still unsettled — a
+  // `?:` below v4, and a v4/v5 `or` / `not` over a value that can be `na`.
+  it('⭐ qqe-signals: the runtime run now marks exactly TradingView\'s bars — bar 73 included', () => {
     const cap = capture(QQE)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok).toBe(true)
-    expect(built.lane).toBeUndefined()
-    expect(built.runtimeDeclined).toBeUndefined()
+    expect(built.lane).toBeUndefined() // the host lane serves it first (H1)
     const probe = probeRuntimeProgram(cap.source.text)
     expect(probe.ok).toBe(true)
-    expect(probe.naTests).toBeGreaterThan(0)
-    const k = probe.outputs.findIndex((o) => o.call === 'plotshape')
-    const cols = computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source: cap.source.text, outputs: { v: k } } },
-      toProductBars(cap), { tf: 'D', newestBarIsForming: false, historyFromListing: true })
-    const vendor = vendorColumn(cap, 'QQE long')
-    const differ = cols.v.map((v, i) => (isNa(v) !== isNa(vendor[i]) ? i : -1)).filter((i) => i >= 0)
-    expect(differ.length).toBeGreaterThan(0)
-    expect(isNa(vendor[differ[0]])).toBe(true) // TradingView draws nothing there
-    expect(Number.isFinite(cols.v[differ[0]])).toBe(true) // the runtime lane would
+    expect(probe.naTests).toBe(0) // v4: the `?:` tests are settled now
+    const shapes = probe.outputs.map((o, i) => (o.call === 'plotshape' ? i : -1)).filter((i) => i >= 0)
+    for (const [ord, title] of [[0, 'QQE long'], [1, 'QQE short']]) {
+      const cols = computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source: cap.source.text, outputs: { v: shapes[ord] } } },
+        toProductBars(cap), { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+      const vendor = vendorColumn(cap, title) // sparse capture: a bar it does not list is not drawn
+      const differ = cols.v.map((v, i) => (isNa(v) !== isNa(vendor[i]) ? i : -1)).filter((i) => i >= 0)
+      expect(differ, title).toEqual([])
+      expect(cols.v.filter((v) => !isNa(v)).length, title).toBeGreaterThan(10) // non-vacuity
+    }
+    expect(isNa(vendorColumn(cap, 'QQE long')[73])).toBe(true) // the bar RT1 found: TradingView draws nothing there
   })
 
-  it('⭐ pivot-point-supertrend: drawn by the host lane, never the fallback; and the runtime `Buy` now agrees with TradingView', () => {
+  it('⭐ pivot-point-supertrend: no unsettled condition is left, and the runtime `Buy` agrees with TradingView', () => {
     // ⚰️ RT1 measured this `Buy` differing on a bar and put it down to the `na`
-    // test. It was the pivot tie: the runtime lane reads `pivothigh` / `pivotlow`
-    // as the house column (`interpret.js::pivotCol`), and H1's plateau rule
-    // (`vendorHarness.h1PivotTies`) moved both lanes at once. The `na` test is
-    // still in the script (asserted below), so the runtime rule still declines it.
-    // That is now an over-refusal, and harmless only because the host lane serves first.
+    // test. It was the pivot tie (`vendorHarness.h1PivotTies`); the `na` test
+    // (`ph ? ph : pl ? pl : na`, v4) is now read as TradingView reads it.
     const cap = capture(PPST)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok).toBe(true)
     expect(built.lane).toBeUndefined()
-    expect(built.runtimeDeclined).toBeUndefined()
     const probe = probeRuntimeProgram(cap.source.text)
-    expect(probe.naTests).toBeGreaterThan(0)
+    expect(probe.naTests).toBe(0)
     const shapes = probe.outputs.map((o, i) => (o.call === 'plotshape' ? i : -1)).filter((i) => i >= 0)
     const buy = shapes[2] // the third plotshape is `Buy` (two pivot marks precede it)
     const cols = computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source: cap.source.text, outputs: { v: buy } } },
@@ -164,18 +163,36 @@ describe('RT1 — a `?:` whose test can be `na` is withheld from the fallback, b
     expect(cols.v.filter((v) => !isNa(v)).length).toBeGreaterThan(3)
   })
 
-  it('⛔ at the door, by name: a script the host lane refuses and whose `?:` can test `na` is declined, with the host sentence', () => {
-    // trend-targets-algoalpha: one of three committed scripts (with cc-yata and
-    // fibonacci-dolphintradebot) that reach the fallback and meet this rule.
+  it('⭐ at the door: trend-targets-algoalpha (v6), withheld by RT1, is now drawn by the runtime lane', () => {
     const src = fs.readFileSync(path.resolve(process.cwd(), '..', 'corpus/committed/trend-targets-algoalpha__92ff5628d7.pine'), 'utf8')
+    vi.stubEnv(OBJECTS, '1')
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
+    expect(built.ok, built.reason).toBe(true)
+    expect(built.lane).toBe('runtime')
+    expect(built.runtimeDeclined).toBeUndefined()
+    // the control: with the lane off the host lane refuses it, so it was the runtime lane that drew it
+    vi.stubEnv(FLAG, '0')
+    expect(memberPaneDefinition({ source: src, id: DEF_ID }).ok).toBe(false)
+  })
+
+  it('⛔ at the door, by name: a v5 `or` / `not` over a value that can be `na` is still declined, with the host sentence', () => {
+    // cc-yata: a v5 script the host lane refuses, whose `or` / `not` read
+    // values this lane cannot show are never `na`. Whether a v5 `bool` carries
+    // `na` through `or` / `not` is unwitnessed (no capture separates the two
+    // readings — its own capture grades the same either way), so it is withheld.
+    const cap = capture(YATA)
+    vi.stubEnv(OBJECTS, '1')
+    vi.stubEnv(FLAG, '')
+    const off = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
+    vi.stubEnv(FLAG, '1')
+    const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok).toBe(false)
     expect(built.runtimeDeclined.code).toBe('runtime:na-test')
-    expect(probeRuntimeProgram(src).naTests).toBeGreaterThan(0)
+    expect(built.reason).toBe(off.reason) // the host sentence, verbatim
+    expect(probeRuntimeProgram(cap.source.text).naTests).toBeGreaterThan(0)
     // the control: with the lane off nothing is offered to it, so nothing declines
-    vi.stubEnv(FLAG, '0')
-    expect(memberPaneDefinition({ source: src, id: DEF_ID }).runtimeDeclined).toBeUndefined()
+    expect(off.runtimeDeclined).toBeUndefined()
   })
 })
 
