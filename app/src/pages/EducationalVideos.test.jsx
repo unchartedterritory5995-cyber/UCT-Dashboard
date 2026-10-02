@@ -8,7 +8,10 @@ vi.mock('../components/mobile/Sheet', () => ({
 
 // Controllable auth role per test.
 let mockRole = null
-vi.mock('../context/AuthContext', () => ({
+// Partial: keep the real module (the Desk dock reads `AuthContext` itself, optionally,
+// since wave 11 lane 11A) and override only the hook this page reads.
+vi.mock('../context/AuthContext', async (importOriginal) => ({
+  ...(await importOriginal()),
   useAuth: () => ({ user: mockRole ? { role: mockRole } : { role: 'pro-user' } }),
 }))
 

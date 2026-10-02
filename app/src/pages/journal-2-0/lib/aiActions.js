@@ -34,7 +34,10 @@ export const BLOCKED_SENTENCE = `${BLOCKED_TITLE} — nothing was changed on it.
 export const REQUEST_FAILED_SENTENCE = "That didn't go through. Nothing was changed."
 
 async function readError(res, fallback) {
-  const detail = await res.json().then((b) => b?.detail).catch(() => null)
+  // The request already FAILED; this only reads its reason. An unreadable error body keeps
+  // the fallback sentence -- it is never turned into an empty success.
+  let detail = null
+  try { detail = (await res.json())?.detail } catch { detail = null }
   const err = new Error(typeof detail === 'string' && detail ? detail : fallback)
   err.status = res.status
   return err

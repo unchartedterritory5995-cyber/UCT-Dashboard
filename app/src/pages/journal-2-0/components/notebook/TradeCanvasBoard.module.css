@@ -136,7 +136,8 @@
   cursor: move;
   contain: layout paint;
 }
-.item:focus { outline: none; }
+/* Mouse focus only: keyboard focus keeps the gold ring below (focus-visible). */
+.item:focus:not(:focus-visible) { outline: none; }
 .item:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 3px; }
 .itemSelected { border-color: var(--ut-gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ut-gold) 45%, transparent); }
 
@@ -157,7 +158,6 @@
   width: 100%;
   resize: none;
   border: none;
-  outline: none;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -166,6 +166,10 @@
   user-select: text;
   cursor: text;
 }
+/* The editing box inside a card: a visible ring for keyboard focus (the card's own ring is
+   outside it), never `outline: none` with nothing in its place. */
+.cardEditor:focus:not(:focus-visible) { outline: none; }
+.cardEditor:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: -2px; }
 
 .chartCard { padding: 0; }
 .chartHead {

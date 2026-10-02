@@ -59,6 +59,12 @@ export const SURFACES = Object.freeze({
   // Wave 11 lane 11A: the voice-note dialog (the editor's /voice, the New note sheet's
   // "Start from audio", a Desk session's Save to Notebook); rail a11y/voiceNote.a11y.test.jsx.
   'components/notebook/VoiceNoteDialog.jsx': { recipe: 'voice-note-dialog' },
+  // Wave 11 lane 11B: formula and rollup properties (dark behind notebook_formulas_enabled,
+  // so the tab/editor recipes never render them); rail a11y/formulas.a11y.test.jsx.
+  'components/notebook/FormulaEditor.jsx': { recipe: 'formula-editor' },
+  'components/notebook/RollupEditor.jsx': { recipe: 'rollup-editor' },
+  'components/notebook/ComputedValue.jsx': { coveredBy: 'table-computed-columns' },
+  'components/notebook/ComputedFilterControl.jsx': { recipe: 'computed-filter-dialog' },
   // Wave 11 lane 11D: the trade-plan canvas (a canvas note's board, its cards and its
   // dialogs); rail a11y/tradeCanvas.a11y.test.jsx.
   'components/notebook/TradeCanvasBoard.jsx': { recipe: 'trade-canvas' },

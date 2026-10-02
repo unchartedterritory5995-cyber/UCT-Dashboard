@@ -487,7 +487,12 @@ let closeHistoryFn = null
 export function loadHistoryHelpers() {
   if (closeHistoryFn) return Promise.resolve(closeHistoryFn)
   return import('@tiptap/pm/history').then((m) => { closeHistoryFn = m.closeHistory; return closeHistoryFn })
-    .catch(() => null)
+    .catch((err) => {
+      // Not data: a code chunk. Without it a board edit still saves; it just does not close
+      // an undo step on its own. Say so in the console rather than failing silently.
+      console.warn('[tradeCanvas] undo-step helper did not load; edits still save', err)
+      return null
+    })
 }
 
 /**
