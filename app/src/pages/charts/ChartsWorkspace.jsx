@@ -1874,7 +1874,7 @@ export default function ChartsWorkspace() {
   }, [])
 
   // ── Named layout templates (prebuilt + personal) ──
-  const { user } = useAuth()
+  const { user, addressSpaceEnabled } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
 
@@ -2117,6 +2117,37 @@ export default function ChartsWorkspace() {
       handleAddWidget('watchlist', { watchKey: key, watchName: null, watchTab: null }, { instant: true })
     }
   }, [prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
+
+  // ── TERM-038 slice 2 (2026-10-01): a THEME SET is a name, and a name is an address ──
+  //
+  //   ?openThemeSet=<id>   the T:<id> address door
+  //
+  // The ?openWatchlist= shape exactly: the board's first Themes widget is pointed at the
+  // set through its own opts path (ThemeTrackerPage follows opts.themeSetId), and with no
+  // Themes widget on the board one is added carrying the id. Honoured ONLY while the
+  // address space rides the auth payload (unset = the param is ignored and left alone, so
+  // the page is byte-identical). An id the member does not own falls back to the shared
+  // default inside ThemeTrackerPage, the same as a set deleted elsewhere.
+  const openThemeSetAppliedRef = useRef(false)
+  useEffect(() => {
+    if (!addressSpaceEnabled || openThemeSetAppliedRef.current || prefsLoading || templatesLoading) return
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const id = params.get('openThemeSet')
+    if (!id) return
+    openThemeSetAppliedRef.current = true
+    try {
+      params.delete('openThemeSet')
+      const q = params.toString()
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
+    } catch { /* history unavailable — a lingering param is harmless */ }
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return
+    const existing = layoutRef.current?.widgets?.find(w => w.type === 'themes')
+    if (existing) {
+      handleOptsChange(existing.id, { ...(existing.opts || {}), themeSetId: id })
+    } else {
+      handleAddWidget('themes', { themeSetId: id }, { instant: true })
+    }
+  }, [addressSpaceEnabled, prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code

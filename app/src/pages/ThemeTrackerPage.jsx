@@ -1,5 +1,5 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
@@ -29,6 +29,7 @@ import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
+import { AuthContext } from '../context/AuthContext'
 import { chordById, matchesChord } from './command/chords.js'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -583,6 +584,21 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       setThemeSetId(null); patchOpts({ themeSetId: null })
     }
   }, [themeSetId, themeSetsEnabled, sets, patchOpts])
+  // TERM-038 slice 2: the T:<id> address door (ChartsWorkspace ?openThemeSet=) retargets
+  // THIS widget by writing opts.themeSetId from outside. `themeSetId` is seeded from opts
+  // once, so follow an outside change of opts.themeSetId -- only while the address space
+  // rides the auth payload (unset = this widget behaves exactly as before). A change we
+  // made ourselves (selectSet -> patchOpts) arrives equal to the state and is a no-op.
+  const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  const optsSetId = opts?.themeSetId || null
+  const seenOptsSetIdRef = useRef(optsSetId)
+  useEffect(() => {
+    if (seenOptsSetIdRef.current === optsSetId) return
+    seenOptsSetIdRef.current = optsSetId
+    if (!addressSpaceEnabled || optsSetId === themeSetId) return
+    setThemeSetId(optsSetId); setEditing(false); setPendingCustomize(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optsSetId, addressSpaceEnabled])
   const activeSet = themeSetId ? sets.find(s => s.id === themeSetId) : null
   const selectSet = useCallback((id) => {
     setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false); setPendingCustomize(false)
