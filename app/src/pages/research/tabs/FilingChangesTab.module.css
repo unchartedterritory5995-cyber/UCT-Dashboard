@@ -1,0 +1,20 @@
+/* COV-04 — filing-to-filing blackline. */
+.lede { font-size: 13px; color: var(--text); margin: 4px 0 12px; overflow-wrap: anywhere; }
+.lede a { color: inherit; text-decoration: underline; }
+.note { color: var(--text-muted); font-size: 13px; padding: 12px 0; }
+.muted { color: var(--text-muted); font-size: 12px; margin-top: 12px; }
+.section { margin-bottom: 20px; }
+.h { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 4px; }
+.counts { font-size: 12px; color: var(--text-muted); margin: 0 0 8px; font-variant-numeric: tabular-nums; }
+.list { list-style: none; margin: 0; padding: 0; }
+.para { border-left: 3px solid var(--border); padding: 6px 10px; margin-bottom: 8px; }
+.added { border-left-color: var(--gain); }
+.removed { border-left-color: var(--loss); }
+.removed .text { text-decoration: line-through; opacity: 0.75; }
+.changed { border-left-color: var(--text-muted); }
+.moved { border-left-color: var(--border); }
+.kind { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.boiler { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.text { font-size: 13px; line-height: 1.55; color: var(--text); margin: 2px 0 0; overflow-wrap: anywhere; }
+.ins { background: color-mix(in srgb, var(--gain) 22%, transparent); text-decoration: none; }
+.del { background: color-mix(in srgb, var(--loss) 22%, transparent); text-decoration: line-through; }

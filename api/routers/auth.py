@@ -213,6 +213,17 @@ def _seasonality_enabled() -> bool:
         return False
 
 
+def _filing_blackline_flag() -> dict:
+    """COV-04: the Research "Filing changes" tab -- the SAME reader the route's dark gate
+    uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
+    payload is byte-identical to before the lane. The client reads `=== true`. Never raises."""
+    try:
+        from api.services import filing_blackline
+        return {"filing_blackline_enabled": True} if filing_blackline.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
 def _address_space_enabled() -> bool:
     """TERM-038: the command palette's Saved rows -- the SAME reader the address
     routes' dark gate uses. Never raises."""
@@ -527,6 +538,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # payload; the client reads `=== true`, so absent and false mean the
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
+        **_filing_blackline_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
