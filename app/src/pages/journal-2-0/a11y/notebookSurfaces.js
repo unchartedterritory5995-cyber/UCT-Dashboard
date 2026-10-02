@@ -103,6 +103,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/ThemesEmbed.jsx': { recipe: 'embed-themes' },
   'components/notebook/WatchlistEmbed.jsx': { recipe: 'embed-watchlist' },
   'components/notebook/FrozenList.jsx': { recipe: 'frozen-list' },
+  // G-040 (wave 10, lane CX): the three capture-only kinds.
+  'components/notebook/ScreenerEmbed.jsx': { recipe: 'embed-screener' },
 
   // ── documents ──────────────────────────────────────────────────────────────
   'components/notebook/DocumentPreviewSheet.jsx': { recipe: 'document-preview-pdf' },

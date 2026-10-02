@@ -39,6 +39,10 @@
 //                    through its widget's Send-to-Journal door instead — a
 //                    capture needs the widget's on-screen state/payload,
 //                    which a slash command has no way to supply.
+// - captureOnly    — (G-040) a Notebook capture kind with NO workspace widget:
+//                    bound only by the journal host (EMBED_COMPONENTS), offered
+//                    by no menu, held by no board. registerPanel refuses one
+//                    that any menu offers.
 // - themeFollow    — when uncustomized, the widget chrome re-flips to the app
 //                    theme's light tokens (every type except chart, whose
 //                    canvas always comes from its own settings blob).
@@ -93,6 +97,12 @@ import { releasedTypes } from './captureRelease'
 // Daily/weekly/monthly are effectively unbounded (30y + yfinance to IPO).
 
 const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
+
+// G-040 ruling 1: a Screener capture freezes AT MOST this many rows (ticker +
+// the visible columns' values). ONE authority — the capture builder slices to
+// it and the registry's own reconstructable predicate refuses anything longer.
+export const SCREENER_CAPTURE_ROW_CAP = 50
+
 
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
 // this is what lands in body_plain for search, not a UI label (the UI keeps
@@ -239,6 +249,18 @@ export function validatePanelManifest(id, manifest) {
     if (manifest.menus.terminal !== undefined && typeof manifest.menus.terminal !== 'boolean') {
       problems.push('menus.terminal must be a boolean when present')
     }
+    // G-040 (wave 10, lane CX): a CAPTURE-ONLY definition is a Notebook capture
+    // kind with no workspace widget behind it (Screener / COT / Model Book). It is
+    // bound by the journal host alone, so a menu that offered it would put a panel
+    // on a board that renders nothing. Refused here, at registration.
+    if (manifest.captureOnly === true) {
+      for (const k of [...MENU_FLAGS, 'terminal']) {
+        if (manifest.menus[k] === true) problems.push(`captureOnly entry cannot be offered by menus.${k}`)
+      }
+    }
+  }
+  if (manifest.captureOnly !== undefined && typeof manifest.captureOnly !== 'boolean') {
+    problems.push('captureOnly must be a boolean when present')
   }
   return problems
 }
@@ -701,6 +723,49 @@ const PANEL_MANIFESTS = {
     ],
     plainText: (p) => `[market map: ${p.value || p.source || 'market'} — ${p.yKey || 'y'} vs ${p.xKey || 'x'}]`,
     reconstructable: false,                     // a live market map at a past instant is not replayable
+    liveCapable: false,
+  },
+
+  // ── G-040 (wave 10, lane CX): the three trader-specific capture doors ───────
+  // Rulings: docs/notebook/future-internal-capture-expansion.md (controller,
+  // owner-delegated, 2026-10-01). ⛔ CAPTURE-ONLY: none of these is a workspace
+  // widget. They exist so a capture from the Screener page, the COT tab's
+  // positioning rail and the Model Book can store `widgetId` + `params` and
+  // re-render through the Notebook's EMBED_COMPONENTS — which is why every menu
+  // flag is false and WidgetHost binds none of them (registry.test.js pins both).
+  screener: {
+    labels: { header: 'Screener', menu: 'Screener', tab: 'Screener' },
+    defaults: { w: 6, h: 10, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
+    captureOnly: true,
+    themeFollow: true,
+    paramsSchema: [
+      // Ruling 1: a FROZEN SNAPSHOT of the result set as the member saw it. It
+      // never re-runs on open — "Run this scan now" is a NEW run, labelled so.
+      { key: 'name', type: 'string', required: true },       // the screen's name as shown
+      { key: 'criteria', type: 'json' },                     // [string] — the definition as text (the chips)
+      { key: 'spec', type: 'json' },                         // the definition itself, for "Run this scan now"
+      { key: 'asOf', type: 'string', required: true },       // the data's own as-of, as the Screener states it
+      { key: 'columns', type: 'json', required: true },      // [{key, label}] — the columns shown
+      { key: 'rows', type: 'json', required: true },         // [{ticker, cells:[string]}] — ≤ SCREENER_CAPTURE_ROW_CAP
+      { key: 'total', type: 'number', required: true },      // the total match count
+      { key: 'coverage', type: 'json' },                     // [{label, coverage}] — CoverageLine's four counts
+    ],
+    // ⭐ THE TICKERS ARE IN THE SEARCH LINE. Ruling 1 freezes up to 50 rows, and a
+    // member searching their notes for a ticker must find the screen it was in.
+    plainText: (p) => {
+      const rows = Array.isArray(p?.rows) ? p.rows : []
+      const tickers = rows.map((r) => r?.ticker).filter((t) => typeof t === 'string' && t)
+      const total = Number.isFinite(p?.total) ? p.total : 0
+      return `[screener: ${p?.name || 'screen'} — ${total} ${total === 1 ? 'match' : 'matches'}`
+        + `${tickers.length ? ` · ${tickers.join(' ')}` : ''}${p?.asOf ? ` — as of ${p.asOf}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE, zero rows included: a screen that matched nothing is a
+    // fact the capture carries honestly (ruling 1), never a placeholder chip.
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length <= SCREENER_CAPTURE_ROW_CAP
+      && Array.isArray(p?.columns) && p.columns.length > 0
+      && typeof p?.total === 'number' && Number.isFinite(p.total) && p.total >= 0,
     liveCapable: false,
   },
 }

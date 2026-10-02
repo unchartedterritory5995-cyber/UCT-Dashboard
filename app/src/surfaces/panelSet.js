@@ -112,7 +112,11 @@ function refusalOf(row, labelByPath) {
  */
 export function derivePanelSet({ manifest, navItems, registry }) {
   const labelByPath = new Map(navItems.map((i) => [i.to, i.label]))
-  const nativeIds = Object.keys(registry)
+  // G-040: a CAPTURE-ONLY registry entry (Screener / COT / Model Book Notebook
+  // captures) is a capture kind, not a board tool — no board can hold it, so it is
+  // not in the set. It still guards collisions: a surface id may not reuse it.
+  const allIds = Object.keys(registry)
+  const nativeIds = allIds.filter((id) => registry[id].captureOnly !== true)
   const defaults = pageDefaults(registry)
   const promoted = {}
   const refused = []
@@ -125,7 +129,7 @@ export function derivePanelSet({ manifest, navItems, registry }) {
     }
     const id = surfacePanelId(row.path)
     if (id in promoted) throw new Error(`surface panel id ${id} is derived twice (${promoted[id].surface}, ${row.path})`)
-    if (nativeIds.includes(id)) throw new Error(`surface panel id ${id} collides with a native registry id`)
+    if (allIds.includes(id)) throw new Error(`surface panel id ${id} collides with a native registry id`)
     const label = labelByPath.get(row.path)
     promoted[id] = registerPanel(id, {
       labels: { header: label, menu: label, tab: label },
