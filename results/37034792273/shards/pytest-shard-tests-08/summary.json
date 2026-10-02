@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 2648,
+  "passed": 2611,
+  "failed": 20,
+  "errored": 13,
+  "skipped": 4,
+  "wall_s": 794.3,
+  "failed_files": [
+    "tests/test_notebook_bench_uct.py",
+    "tests/test_notebook_bridges_pin_the_root.py",
+    "tests/test_notebook_rollback_chain.py",
+    "tests/test_notebook_route_security_census.py",
+    "tests/test_notebook_switch_rehearsal.py",
+    "tests/test_notes_cas_is_atomic.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_paywall_gate_free_tier.py",
+    "tests/test_perf_batch_a.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "20 failed, 2611 passed, 4 skipped, 66 warnings, 13 errors in 794.30s (0:13:14)",
+  "ok": true
+}
