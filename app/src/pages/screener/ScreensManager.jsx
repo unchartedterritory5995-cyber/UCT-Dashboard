@@ -12,6 +12,7 @@ import { DEFAULT_BUDGET } from '../../components/chart/engine/ast/budget'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
+import Input from '../../components/ui/Input'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -515,7 +516,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
               <div key={s.id}>
                 <div className={styles.saveMenuItem}>
                   {renameId === s.id ? (
-                    <input className={styles.saveMenuInput} autoFocus value={renameVal}
+                    <Input aria-label="Rename screen" className={styles.saveMenuInput} autoFocus value={renameVal}
                       onChange={e => setRenameVal(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && commitRename(s.id)}
                       onBlur={() => commitRename(s.id)} />
@@ -582,7 +583,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                           <UIcon name="globe" size={11} /> Anyone with this link can open it
                         </div>
                         <div className={styles.shareLinkRow}>
-                          <input className={styles.saveMenuInput} readOnly
+                          <Input className={styles.saveMenuInput} readOnly
                             aria-label={`Share link for ${s.name}`}
                             value={sharedScreenUrl(s.share_token)}
                             onFocus={e => e.target.select()} />
@@ -740,7 +741,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     <div data-testid={`scan-detail-${row.def_id}`}>
                       <label className={panelStyles.session}>
                         <span className={panelStyles.sessionLabel}>Session</span>
-                        <input
+                        <Input
                           type="date"
                           className={panelStyles.sessionInput}
                           value={session}
@@ -825,7 +826,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           </div>
 
           <div className={styles.saveMenuFoot}>
-            <input className={styles.saveMenuInput} placeholder="Name this screen…"
+            <Input aria-label="Screen name" className={styles.saveMenuInput} placeholder="Name this screen…"
               value={newName} onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && saveCurrent()} />
             <button type="button" className="btn btn-primary" onClick={saveCurrent}>Save current</button>
