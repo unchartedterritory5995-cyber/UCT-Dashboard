@@ -194,3 +194,72 @@ describe('Q-B1 — paints', () => {
     expect(rows.plot_2.state).toBe('withheld')
   })
 })
+
+// ─── Q-O1 (lane O1's queue, branch pine/o1-drawing-only) ──────────────────────
+// Graded here on THIS base (integrate/wave15, 7008853902), where O1 is not merged:
+// the door refuses each corpus script by name, and the probe's ternary-helper
+// labels are missing. The vendor facts are what O1's own rails should grade
+// against on its branch.
+const TDH = load('vw-ternary-draw-helper-rddt-1d-2026-10-02')
+const FIB = load('fib-retracement-rddt-1d-2026-10-02')
+const FIBX = load('fib-retracement-extrafibs-rddt-1d-2026-10-02')
+const SONAR_RDDT = load('sonarlab-order-blocks-rddt-1d-2026-10-02')
+const SONAR_SPY = load('sonarlab-order-blocks-spy-1d-2026-10-02')
+const ATL = load('auto-trendline-dojiemoji-rddt-1d-2026-10-02')
+const PAZ = load('pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02')
+const count = (arr) => arr.reduce((a, x) => ((a[x] = (a[x] || 0) + 1), a), {})
+
+describe('Q-O1 — what TradingView draws', () => {
+  it('Q-O1a: a bare `?:` statement does not compile (T03 removed); TradingView holds 504 labels (max_labels_count 500) — the newest 504 bars, T01 on the up bars and I01 on the down bars — and ONE T02 line', () => {
+    expect(TDH.source.text).toMatch(/Syntax error at input '>'/)
+    expect(TDH.objects.counts.labels).toBe(504)
+    expect(count(TDH.objects.texts.labels)).toEqual({ T01: 243, I01: 261 })
+    expect(TDH.objects.counts.lines).toBe(1)
+    const xs = TDH.objects.records.labels.map((r) => r.x).sort((a, b) => a - b)
+    expect(new Set(xs).size).toBe(504)
+  })
+
+  it('Q-O1b: default inputs — 7 lines + 7 labels; ExtraFibs on — 8 + 8, the extra one 0.886, no 1.113', () => {
+    expect(FIB.objects.counts.lines).toBe(7)
+    expect(FIB.objects.counts.labels).toBe(7)
+    expect(FIBX.objects.counts.lines).toBe(8)
+    expect(FIBX.objects.counts.labels).toBe(8)
+    const extra = FIBX.objects.texts.labels.filter((t) => !FIB.objects.texts.labels.includes(t))
+    expect(extra).toEqual(['0.886 ( 199.7476422 )'])
+    expect(FIBX.objects.texts.labels.some((t) => t.startsWith('1.113'))).toBe(false)
+  })
+
+  it('Q-O1c: sonarlab holds 5 boxes on RDDT (from the listing) and 24 on SPY (max_boxes_count 20)', () => {
+    expect(SONAR_RDDT.objects.counts.boxes).toBe(5)
+    expect(SONAR_SPY.objects.counts.boxes).toBe(24)
+  })
+
+  it('Q-O1d: auto-trendline holds 2 lines; pa-zigzag has no row on bars 0, 1 and 3', () => {
+    expect(ATL.objects.counts.lines).toBe(2)
+    const rows = new Set(PAZ.plotValues.rows.map((r) => r[0]))
+    const missing = PAZ.bars.rows.map((b, i) => (rows.has(b[0]) ? null : i)).filter((i) => i !== null)
+    expect(missing).toEqual([0, 1, 3])
+  })
+})
+
+describe('Q-O1 — the door on this base (O1 not merged)', () => {
+  it.each([
+    ['fib-retracement', FIB, /pine:object-removal-lost/],
+    ['sonarlab RDDT', SONAR_RDDT, /pine:no-output/],
+    ['sonarlab SPY', SONAR_SPY, /pine:no-output/],
+    ['auto-trendline', ATL, /pine:state/],
+    ['pa-zigzag', PAZ, /pine:reassign/],
+  ])('%s: refused by name', (_, cap, re) => {
+    const v = grade(cap)
+    expect(v.verdict).toBe('INCONCLUSIVE')
+    expect(v.reason).toMatch(re)
+  })
+
+  it('ternary helper: R00 MATCH; objects DIVERGE (ours 328 labels / 0 lines vs 504 / 1)', () => {
+    const v = grade(TDH)
+    expect(item(v, 'R00').verdict).toBe('MATCH')
+    expect(v.objects.verdict).toBe('DIVERGE')
+    const c = Object.fromEntries(v.objects.counts.map((x) => [x.family, x]))
+    expect([c.labels.vendor, c.labels.ours, c.lines.vendor, c.lines.ours]).toEqual([504, 328, 1, 0])
+  })
+})
