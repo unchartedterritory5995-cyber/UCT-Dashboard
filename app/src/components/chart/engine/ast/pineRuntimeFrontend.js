@@ -33,7 +33,7 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
-  constantTestValue,
+  constantTestValue, STRATEGY_ORDER_CALLS,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -5486,7 +5486,25 @@ export function buildRuntimeIr(source, opts = {}) {
 
       // ── declarations of the script itself ──
       if (word === 'indicator' || word === 'study') continue
-      if (word === 'strategy' || word === 'library') {
+      // ⭐⭐ R1 (2026-10-02) - A STRATEGY DRAWS LIKE AN INDICATOR, in this lane as in the
+      // host lane (C50, `pine.js`). The declaration is read exactly as `indicator(...)` is
+      // here - this lane reads nothing from either; title and overlay come from the host
+      // translation - and the simulated broker is left out: an ORDER call is skipped below
+      // (`STRATEGY_ORDER_CALLS`, the host lane's own set - one authority), and a
+      // `strategy.*` VALUE still refuses by name, because it is a fill this engine never
+      // simulates. ⛔ ONLY THE CALL FORM `strategy(`: a bare `strategy` word in any other
+      // position is not a declaration and keeps refusing.
+      if (word === 'strategy' && isPunct(toks[1], '(')) { note('runtime:strategy-chart'); continue }
+      if (word && STRATEGY_ORDER_CALLS.has(word) && isPunct(toks[1], '(')) {
+        note('runtime:strategy-order')
+        continue
+      }
+      // ⛔ AND ONLY THE CALL FORM IS A DECLARATION. `liquidity-engulfing-candles-upslidedown`
+      // declares `indicator(...)` and keeps a VARIABLE named `strategy` (`strategy := ...`
+      // @L55); refusing that line as "a script that is not an indicator — `strategy()`" was
+      // a confident wrong sentence about the one line the member got right. A bare word
+      // falls through to the ordinary binding paths below.
+      if ((word === 'strategy' || word === 'library') && isPunct(toks[1], '(')) {
         throw new RuntimeRefusal('runtime:declaration', `\`${word}()\``, locate(first))
       }
       // ⛔ `import` AND `export` ARE NOT THE SAME FACT, so they no longer share a
