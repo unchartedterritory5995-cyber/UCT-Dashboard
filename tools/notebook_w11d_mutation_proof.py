@@ -103,21 +103,17 @@ MUTATIONS = [
      [VT_BOARD]),
     ("T1 touch: a finger whose pointerup was lost blocks every later pinch",
      f"{J2}/components/notebook/TradeCanvasBoard.jsx",
-     "    if (e.isPrimary === true) pointersRef.current.clear()
-",
+     "    if (e.isPrimary === true) pointersRef.current.clear()\n",
      "",
      [VT_BOARD]),
     ("T2 touch: a pinch's second finger on a panel over the board is ignored",
      f"{J2}/components/notebook/TradeCanvasBoard.jsx",
-     "    const ongoing = pointersRef.current.size > 0 && e.isPrimary !== true
-",
-     "    const ongoing = false
-",
+     "    const ongoing = pointersRef.current.size > 0 && e.isPrimary !== true\n",
+     "    const ongoing = false\n",
      [VT_BOARD]),
     ("K2 keyboard: letters typed before a new card's text box mounts reach the shortcuts",
      f"{J2}/components/notebook/TradeCanvasBoard.jsx",
-     "    if (editingRef.current && e.key !== 'Escape' && e.key !== 'Tab') { if (e.key.length === 1) e.preventDefault(); return }
-",
+     "    if (editingRef.current && e.key !== 'Escape' && e.key !== 'Tab') { if (e.key.length === 1) e.preventDefault(); return }\n",
      "",
      [VT_BOARD]),
 ]
