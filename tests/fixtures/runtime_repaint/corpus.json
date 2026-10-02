@@ -1,5 +1,5 @@
 {
- "generatedBy": "app/src/components/chart/engine/runtime/runtimeRepaint.test.js",
+ "generatedBy": "app/src/components/chart/engine/runtime/__tests__/runtimeRepaint.test.js",
  "rows": [
   {
    "file": "corpus/committed/3-level-zigzag-semafor__3078.pine",

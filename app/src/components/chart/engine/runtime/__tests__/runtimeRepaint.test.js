@@ -1,4 +1,4 @@
-// app/src/components/chart/engine/runtime/runtimeRepaint.test.js
+// app/src/components/chart/engine/runtime/__tests__/runtimeRepaint.test.js
 //
 // ─── RT2 — THE RUNTIME DOCUMENT'S REPAINT CLASS ───────────────────────────────
 //
@@ -19,10 +19,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 
-import { runtimeRepaintOf, lexRepaint, clockLeafReach, RUNTIME_REPAINT_RULES } from './runtimeRepaint'
-import { REPAINT_MODES, modeFromReach, UNBOUNDED } from '../ast/lint'
-import { TABLE } from '../ast/parse'
-import { BUILTIN_BARSTATE_SERIES, pineClockKeyOf } from '../ast/pine'
+import { runtimeRepaintOf, lexRepaint, clockLeafReach, RUNTIME_REPAINT_RULES } from '../runtimeRepaint'
+import { REPAINT_MODES, modeFromReach, UNBOUNDED } from '../../ast/lint'
+import { TABLE } from '../../ast/parse'
+import { BUILTIN_BARSTATE_SERIES, pineClockKeyOf } from '../../ast/pine'
 
 const src = (body) => `//@version=6\nindicator("t")\n${body}\n`
 const of = (body) => runtimeRepaintOf(src(body))
@@ -185,7 +185,7 @@ describe('RT2 — the corpus answer both languages are held to', () => {
     if (process.env.RT2_WRITE_REPAINT_FIXTURE === '1') {
       fs.mkdirSync(path.dirname(fixture), { recursive: true })
       fs.writeFileSync(fixture, `${JSON.stringify({
-        generatedBy: 'app/src/components/chart/engine/runtime/runtimeRepaint.test.js',
+        generatedBy: 'app/src/components/chart/engine/runtime/__tests__/runtimeRepaint.test.js',
         rows,
       }, null, 1)}\n`)
     }

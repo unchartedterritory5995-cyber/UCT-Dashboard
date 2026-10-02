@@ -20,10 +20,10 @@
 // integrator, and the control below proves the instrument can say "stable".
 
 import { describe, it, expect } from 'vitest'
-import { computeClock, CLOCK_COLUMNS } from '../../indicators.js'
-import { RUNTIME_REPAINT_RULES, clockLeafReach } from './runtimeRepaint'
-import { TABLE } from '../ast/parse'
-import { UNBOUNDED } from '../ast/lint'
+import { computeClock, CLOCK_COLUMNS } from '../../../indicators.js'
+import { RUNTIME_REPAINT_RULES, clockLeafReach } from '../runtimeRepaint'
+import { TABLE } from '../../ast/parse'
+import { UNBOUNDED } from '../../ast/lint'
 
 const DAY = 86400
 const noonDow = (t) => new Date((t + 12 * 3600) * 1000).getUTCDay()
