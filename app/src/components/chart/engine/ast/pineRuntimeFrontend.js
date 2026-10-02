@@ -4167,7 +4167,10 @@ export function buildRuntimeIr(source, opts = {}) {
           // draw whichever one happened to be on top and quietly grow the
           // stack every bar until the run died far from this line.
           if (fn.valueless && !(opts && opts.effect)) {
-            throw new RuntimeRefusal('runtime:function', fn.valuelessEnd
+            throw new RuntimeRefusal('runtime:function', fn.valuelessEnd === 'drawing'
+              ? `\`${node.name}\` ends in a drawing, which the object program draws — its value is `
+                + 'not computed in this lane, so call it on a line of its own'
+              : fn.valuelessEnd
               ? `\`${node.name}\` ends in \`${fn.valuelessEnd}(…)\`, which returns nothing, so its `
                 + 'value cannot be read — call it on a line of its own'
               : `\`${node.name}\` ends in a loop, and the value Pine returns for one is the loop's `
@@ -5147,6 +5150,31 @@ export function buildRuntimeIr(source, opts = {}) {
   const blockKeywordOf = (ln) => (
     ln && ln.header && ln.header[0] && ln.header[0].kind === 'ident'
       ? ln.header[0].value : null)
+
+  /** ⭐ R1 — DOES THIS STATEMENT LIST END IN A DRAWING THE OBJECT PASS OWNS?
+   *  Its last line is a drawing CALL statement (`label.set_text(…)`,
+   *  `label.new(…)`), or a trailing `if` chain every arm of which ends that way.
+   *  Under `objectPassOwnsDrawing` the statement is the object program's and
+   *  `lowerStmts` skips it, so a function ending in one has no value THIS lane
+   *  computes — it is compiled valueless, like the loop case (C18), and a call
+   *  that READS it still refuses by name.
+   *  ⛔ OWNERSHIP IS NOT RE-ASKED HERE: without it `lowerStmts` refuses the
+   *  drawing statement itself (`runtime:object-op`), which is the one authority —
+   *  a mutation proved a second check here dead. */
+  const isDrawingCallStmt = (ln) => {
+    const w = blockKeywordOf(ln)
+    return w !== null && callFamily(w) === 'runtime:object-op'
+      && isPunct((ln.header || [])[1], '(') && !(ln.sub && ln.sub.length)
+  }
+  const endsInOwnedDrawing = (list) => {
+    if (!list || !list.length) return false
+    if (isDrawingCallStmt(list[list.length - 1])) return true
+    let k = list.length - 1
+    while (k >= 0 && blockKeywordOf(list[k]) === 'else') k -= 1
+    if (k < 0 || blockKeywordOf(list[k]) !== 'if') return false
+    for (let j = k; j < list.length; j += 1) if (!endsInOwnedDrawing(list[j].sub)) return false
+    return true
+  }
 
   /** ⭐⭐ ONE ARM OF A VALUE-POSITION BLOCK — the rule, in ONE place.
    *
@@ -6784,7 +6812,9 @@ export function buildRuntimeIr(source, opts = {}) {
           // name). It was lowered as the result and refused "`array.set`
           // returns nothing, so it cannot be used as a value".
           || (lastWord !== null && ARRAY_FNS[lastWord] && isVoid(lastWord)
-            && isPunct((lines[lines.length - 1].header || [])[1], '('))) {
+            && isPunct((lines[lines.length - 1].header || [])[1], '('))
+          // ⭐ R1 — and a body ending in a drawing the object pass owns.
+          || endsInOwnedDrawing(lines)) {
           // ⭐⭐ C18 — A BODY THAT ENDS IN A LOOP IS A HELPER CALLED FOR ITS
           // EFFECT (max-pain's `generate_strikes`: clear a global array, refill
           // it in a `while`). Pine's value for it is the loop's last evaluated
@@ -6794,7 +6824,8 @@ export function buildRuntimeIr(source, opts = {}) {
           // on a line of its own, the result is discarded and nothing is lost.
           body = lowerStmts(lines, fnScope)
           record.valueless = true
-          record.valuelessEnd = (lastWord === 'while' || lastWord === 'for') ? null : lastWord
+          record.valuelessEnd = (lastWord === 'while' || lastWord === 'for') ? null
+            : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
         } else if (chainAt >= 0) {
           body = lowerStmts(lines.slice(0, chainAt), fnScope)
