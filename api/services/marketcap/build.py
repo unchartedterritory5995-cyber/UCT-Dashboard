@@ -188,10 +188,14 @@ def extreme_step_decisions(caps: dict, pclose: dict, runs_by_class: dict, obs_ro
             continue                                     # gradual: every move between issuer counts is < 10x
         src_b_form = next((o[14] for o in obs_rows if o[13] == sb[0][1][3]), None)
         event = any(asof_a < fd <= asof_b for fd, _f in ev_forms) or (src_b_form in CAPITAL_EVENT_FORMS)
+        # ⛔ an event explains a step only when it can: issuance never makes a count FALL 10x (CMCL 487.9M -> 19.2M,
+        # RIME 2022 x1/12 -- consolidations the ledger lacks), and over more than two years "some offering between" is
+        # no evidence of THIS step (CMCL's counts are 15 years apart) -- only a path of issuer counts is
+        event = event and ratio > 1 and (date.fromisoformat(asof_b) - date.fromisoformat(asof_a)).days <= 730
         if event:
             continue                                     # an offering / combination / tender between: a capital change
         split_between = any(asof_a < s.isoformat() <= asof_b for s in known_splits)
-        if not split_between and any(abs(math.log(k / f)) < 0.03 for f in COMMON_SPLIT_FACTORS):
+        if not split_between and (ratio < 1 or any(abs(math.log(k / f)) < 0.03 for f in COMMON_SPLIT_FACTORS)):
             return {d: (R.HIST_SPLIT_UNRESOLVED, f"SPLIT_LIKE_EXTREME_STEP x{ratio:.4g} between {asof_a} and {asof_b}: "
                                                  "no ledger or issuer split, no capital event")
                     for d in days if d < b}

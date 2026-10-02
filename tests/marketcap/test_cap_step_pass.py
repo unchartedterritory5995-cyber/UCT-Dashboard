@@ -62,8 +62,8 @@ def test_a_split_like_extreme_step_without_a_ledger_split_is_a_split_gap():
     # with the split on file it is not a gap (the earlier state is then simply unproven -- no capital event either)
     dec2 = extreme_step_decisions(caps, closes("2009-03-31", "2023-05-18"), runs, rows, [], [date(2013, 6, 1)])
     assert dec2 and next(iter(dec2.values()))[0] == R.SCALE_UNRESOLVED
-    # a capital event between makes it a capital change (SIRI 2003: the debt-for-equity exchange, S-4 / tender offer)
-    assert extreme_step_decisions(caps, closes("2009-03-31", "2023-05-18"), runs, rows, [("2015-01-01", "S-4")], []) == {}
+    # a capital event between does not explain a 25x FALL (issuance never shrinks a count)
+    assert extreme_step_decisions(caps, closes("2009-03-31", "2023-05-18"), runs, rows, [("2015-01-01", "S-4")], [])
 
 
 def test_dilution_bridged_by_issuer_counts_is_served():
@@ -131,3 +131,22 @@ def test_a_split_like_step_between_served_states_is_a_split_gap():
     assert split_like_gaps(runs, caps, [], ["1999-12-01"], [], set()) == []                 # an offering between
     mids = [row("COMMON", "1999-12-31", 760e6, "e9")]                                          # gradual through counts
     assert split_like_gaps(runs, caps, mids, [], [], set()) == []
+
+
+def test_a_10x_fall_is_never_explained_by_issuance_and_old_events_explain_nothing():
+    """RIME 2022: 36.6M -> 3.0M with an uplisting offering between (a 1-for-30 the ledger lacks); counts 15 years apart
+    with 'some offering between' (CMCL) prove nothing."""
+    caps = {date(2022, 5, 25): 1.2e6 * 10.0, date(2022, 7, 15): 1e5 * 10.0}
+    runs = {("cik:1", "COMMON"): [("2022-02-14", "2022-05-25", 1.2e6, "f1", "2022-02-11", "COVER_XBRL"),
+                                  ("2022-07-15", "2022-08-19", 1e5, "f2", "2022-03-31", "COVER_XBRL")]}
+    rows = [row("COMMON", "2022-02-11", 1.2e6, "f1"), row("COMMON", "2021-12-31", 1.2e6, "f0"),
+            row("COMMON", "2022-03-31", 1e5, "f2"), row("COMMON", "2022-06-30", 1e5, "f3")]
+    dec = extreme_step_decisions(caps, closes("2022-05-25", "2022-07-15"), runs, rows, [("2022-03-01", "424B4")], [])
+    assert dec and next(iter(dec.values()))[0] == R.HIST_SPLIT_UNRESOLVED
+    caps2 = {date(2009, 3, 31): 1e6 * 10.0, date(2023, 5, 18): 30e6 * 10.0}
+    runs2 = {("cik:1", "COMMON"): [("2008-05-09", "2009-03-31", 1e6, "g1", "2007-12-31", "COVER_TEXT"),
+                                   ("2023-05-18", "2024-05-14", 30e6, "g2", "2023-05-16", "COVER_TEXT")]}
+    rows2 = [row("COMMON", "2007-12-31", 1e6, "g1"), row("COMMON", "2008-06-30", 1e6, "g0"),
+             row("COMMON", "2023-05-16", 30e6, "g2"), row("COMMON", "2022-12-31", 30e6, "g3")]
+    dec2 = extreme_step_decisions(caps2, closes("2009-03-31", "2023-05-18"), runs2, rows2, [("2015-01-01", "S-3")], [])
+    assert dec2 and all(d < date(2023, 5, 18) for d in dec2)
