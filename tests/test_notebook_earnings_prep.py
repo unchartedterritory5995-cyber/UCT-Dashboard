@@ -325,6 +325,21 @@ def test_reporting_soon_offers_open_for_a_name_already_prepped(client, app, gate
     assert by["AMD"]["prepNote"] is None
 
 
+def test_an_open_position_is_listed_through_the_journals_own_reader(client, app, gate_on, monkeypatch):
+    """The walk's first run found it: the shared interest reader answers NO positions (it reads
+    columns j2_positions does not have). The open position must still be listed, from the journal's
+    own reader, while a closed one is not -- with the shared reader returning nothing at all."""
+    _today(monkeypatch)
+    _sets(monkeypatch, {A: {"positions": set(), "watchlist": set(), "flagged": set()}})
+    _window(monkeypatch, {"NVDA": "2026-10-05", "AMD": "2026-10-06"})
+    _position(A, "NVDA")
+    _position(A, "AMD", closed=True)
+    _position(B, "AMD")                                                          # another member's
+    as_user(app, A)
+    items = client.get("/api/j2/earnings-prep/soon").json()["items"]
+    assert [(i["symbol"], i["sources"]) for i in items] == [("NVDA", ["positions"])]
+
+
 def test_a_partial_window_is_reported_not_hidden(client, app, gate_on, monkeypatch):
     _today(monkeypatch)
     _sets(monkeypatch, {A: {"watchlist": {"NVDA"}}})

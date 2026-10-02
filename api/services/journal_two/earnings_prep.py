@@ -245,10 +245,22 @@ def _timing_from_calendar_cache(sym: str, day: str) -> str | None:
 def _member_sets(user_id: str) -> dict[str, list[str]]:
     """{SYM: [source, ...]} over the member's own sets, in `MEMBER_SOURCES` order."""
     from api.services.calendar_personalization import get_user_ticker_sets
-    sets = get_user_ticker_sets(user_id)
+    sets = {k: set(v or ()) for k, v in get_user_ticker_sets(user_id).items()}
+    # ⛔ OPEN POSITIONS COME FROM THE JOURNAL'S OWN READER. `member_interest._position_syms`
+    # selects `sym` / `status = 'open'` from j2_positions, columns that table does not have
+    # (it has `symbol` / `closed_at`), so it raises, is swallowed, and answers an EMPTY set for
+    # every member -- found by this lane's walk (wave13-13c run 1: an open NVDA position was not
+    # listed). Reported, not fixed here (not this lane's file). The union keeps this right
+    # whether or not that reader is fixed later.
+    try:
+        from api.services.journal_two.positions import list_open_positions
+        held = {str(p.get("symbol") or "").upper() for p in list_open_positions(user_id)}
+        sets["positions"] = (sets.get("positions") or set()) | {s for s in held if s}
+    except Exception as e:  # noqa: BLE001 -- one source failing never blanks the others
+        _log.info("earnings prep: open positions read failed: %s", e)
     out: dict[str, list[str]] = {}
     for source in MEMBER_SOURCES:
-        for sym in sets.get(source) or ():
+        for sym in sorted(sets.get(source) or ()):
             out.setdefault(str(sym).upper(), []).append(source)
     return out
 
