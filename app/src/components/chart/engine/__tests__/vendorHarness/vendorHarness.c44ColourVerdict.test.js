@@ -296,28 +296,31 @@ describe('C44 — the option: colour off is the verdict as it was', () => {
     expect(objectColourGraded()).toBe(true)
   })
 
-  it('⭐ heat-map-seasons — the one committed capture colour moves: MATCH before, DIVERGE now, on ONE cell', () => {
-    // The gauge point: `bgcolor = color`, a variable NAMED `color` (§ C37, "still
-    // not carried"). We draw #dde44f where TradingView drew #f3e841. Every count
-    // and every text agrees, which is why it graded MATCH until colour joined.
-    // ⛔ WHEN THIS GOES RED BECAUSE THE CELL IS FIXED, that is the progress this
-    // pin exists to notice: re-pin to MATCH / MATCH and say so in the triage doc.
+  it('⭐ heat-map-seasons — the one cell whose colour we could not carry is now WITHHELD, not drawn wrong', () => {
+    // History: the gauge point, cell (13,1), `bgcolor = color` (a variable NAMED
+    // `color`). C44 found it drawn #dde44f where TradingView drew #f3e841 - the one
+    // carried-and-different slot in the 47. ⭐ Wave 12 (C45): the name binds, and its
+    // colour is a `ta.*` read under a test that varies bar to bar - a call C48 showed
+    // this engine cannot yet answer per bar - so the CELL is held by name instead of
+    // drawn in a colour that is not TradingView's. Measured on the merged tree: 30 of
+    // the vendor's 31 cells drawn, the missing one is the gauge glyph, and EVERY colour
+    // we draw agrees (33 of 33 cell slots). A withheld cell is a count difference, so
+    // the verdict is DIVERGE with or without colour - but nothing drawn is wrong.
     const cap = load(HEAT)
     const on = gradeCapture(cap).verdict
-    expect(on.objects.verdictWithoutColour).toBe('MATCH')
     expect(on.objects.verdict).toBe('DIVERGE')
-    expect(on.verdictWithoutColour).toBe('MATCH')
-    expect(on.verdict).toBe('DIVERGE')
+    expect(on.objects.verdictWithoutColour).toBe('DIVERGE')
     const cells = colourRow(on, 'tableCells')
-    expect(cells).toMatchObject({ agree: false, differing: 1 })
-    expect(cells.first).toMatchObject({ slot: 'cell.bgcolor', state: 'carriedDiffers', vendor: '#f3e841ff', ours: '#dde44fff' })
-    expect(cells.first.where).toMatch(/^cell \(13,1\)/)
+    expect(cells).toMatchObject({ agree: true, differing: 0 })
     expect(colourRow(on, 'tables').agree).toBe(true)
+    const cellCount = on.objects.counts.find((r) => r.family === 'tableCells')
+    expect(cellCount).toMatchObject({ vendor: 31, ours: 30 })
+    const cellText = on.objects.texts.find((r) => r.family === 'tableCells text')
+    expect(cellText.onlyOurs).toEqual([])
+    expect(cellText.onlyVendor).toHaveLength(1)
 
     const off = gradeCapture(cap, { objectColour: false }).verdict
-    expect(off.objects.verdict).toBe('MATCH')
-    expect(off.verdict).toBe('MATCH')
-    expect(off.objects.reason).toBe('object counts and texts agree; coordinates are NOT compared by v1')
+    expect(off.objects.verdict).toBe('DIVERGE')
     expect(off.objects).not.toHaveProperty('colours')
     expect(off.objects).not.toHaveProperty('verdictWithoutColour')
     expect(off).not.toHaveProperty('verdictWithoutColour')

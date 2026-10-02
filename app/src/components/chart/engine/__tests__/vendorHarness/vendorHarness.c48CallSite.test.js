@@ -244,15 +244,15 @@ describe('C48 — ONE execution: our object lane on the probe\'s own source', ()
     const { d, diag, labels } = run(cap, onceSource(cap))
     expect(d.ok, d.reason || '').toBe(true)
     expect(diag.dropReasons || {}).toEqual({})
-    expect(labels).toHaveLength(24)
-    // A13 / B01 print `bar_index`, which counts the chart's 8,476 bars on
-    // TradingView and the 1,800 this capture holds here — the window, not the rule.
+    // A13 / B01 print `bar_index`, which counts the chart's 8,476 bars on TradingView and
+    // only the window's here. ⚰️ They used to be DRAWN with the window's count - a number
+    // that is not TradingView's. ⭐ wave 12 (C45): an absolute `bar_index` off the listing is
+    // withheld by name, so those two labels are not drawn; the other 22 are TradingView's.
     const counted = (t) => t.startsWith('A13 ') || t.startsWith('B01 ')
-    expect(labels.map((l) => l.text).filter((t) => !counted(t)).sort())
+    expect(labels).toHaveLength(22)
+    expect(labels.map((l) => l.text).filter(counted)).toEqual([])
+    expect(labels.map((l) => l.text).sort())
       .toEqual(cap.objects.texts.labels.filter((t) => !counted(t)).sort())
-    const n = cap.bars.rows.length - 1 - 5
-    expect(labels.map((l) => l.text).filter(counted).sort())
-      .toEqual([`A13 block bar_index[5]|${n}|bar_index-5|${n}`, `B01 bar_index[k]|NaN|bar_index-k|${n}`])
   })
 
   it('⚰️ A12 — a block local\'s `bx[1]` is NaN, not the previous bar\'s value it used to print', () => {
@@ -397,6 +397,16 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
       const ours = runOurSide({ ...cap, source: { ...cap.source, text: source } })
       expect(ours.ok, ours.refusal || '').toBe(true)
+      // ⭐ wave 12 (C45): an ABSOLUTE `bar_index` is TradingView's only where the loaded
+      // bars start at the listing. RDDT's capture does; SPY's is a 300-bar window of a
+      // longer history, where our count is lower by a number of bars we cannot know - so
+      // the plot is withheld BY NAME (`bar-index:window`), never drawn as the window's own
+      // count. This test adds the offset itself (`firstIndex`); the product cannot.
+      if (file === SPY) {
+        expect(ours.plots[0].column).toBeNull()
+        expect(ours.notes.some((n) => n.includes('(bar-index:window)'))).toBe(true)
+        continue
+      }
       const col = ours.plots[0].column
       const vendor = columnOf(cap, 'C06_bar_index1_cond')
       const at = vendor.findIndex((v) => v !== undefined && v !== null)
@@ -530,7 +540,9 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(t.blockRuns.outputs[0].gates).toHaveLength(1)
     expect(t.blockRuns.outputs[0].gates[0].why).toMatch(/`v` calls `ta\.sma` inside a block that does not run on every bar/)
     expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
-      ['__uct_param_1', 'Cond length'], ['__uct_param_2', 'Mult'], ['__uct_param_3', 'Other length']])
+      // wave 12 (C46): a script outside the corpus takes SOURCE ids (1000 + its n-th input),
+      // so nothing the translator folds can renumber them - the property this pin guards.
+      ['__uct_param_1001', 'Cond length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect((t.notes || []).filter((n) => n.code === 'pine:block')).toEqual([])
     // ⛔ the screener lane binds no chart: no stamp, and the tree it always had
     const screen = translatePine(source, { paramManifest: true })
@@ -575,9 +587,10 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     const t = translatePine(source, { strict: true, paramManifest: true })
     expect(t.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['ok', 'ok'])
     expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
-      ['__uct_param_1', 'Mult'], ['__uct_param_2', 'Other length']])
+      // wave 12 (C46): source ids - fixed before the walk, so a one-run binding cannot move them
+      ['__uct_param_1001', 'Mult'], ['__uct_param_1002', 'Other length']])
     // the one-run tree itself reads no input
-    expect(t.outputs[0].formula).not.toMatch(/__uct_param_1/)
+    expect(t.outputs[0].formula).not.toMatch(/__uct_param_1001/)
   })
 })
 
