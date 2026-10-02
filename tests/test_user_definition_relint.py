@@ -304,6 +304,49 @@ def test_DIRECTION_B_a_LOOSER_badge_is_NEVER_flipped_and_the_ARMED_alert_is_NAME
     assert f"{danger}.value" in text and f"active alert ids [{alert_id}]" in text
 
 
+def test_RT4_the_right_edge_clock_leaves_are_badged_by_what_they_do_and_old_rows_are_REPORTED(store):
+    """RT4 (2026-10-02): `closedTable.json` now declares `forward` on the nine
+    clock leaves that read the fetch's right edge (`_clock_right_edge`). The
+    consequence at the store, measured rather than described:
+
+      * a FRESH save stores the true badge -- `islast` `preview-repaints` (the
+        alert gate asks an acknowledgement), `lastbarindex` `repaints` (refused);
+      * a row SAVED BEFORE the ruling still carries `non-repainting`, and the
+        relint pass REPORTS it (direction B) and never flips it.
+
+    ⭐ CONTROL: a stable clock leaf (`isconfirmed`) saved the same way is clean
+    and produces no finding, so the report is not "every clock leaf".
+    """
+    edge1, edgeU, stable = "u_000000000e41", "u_000000000e42", "u_000000000e43"
+    trees = {edge1: {"type": "series", "name": "islast"},
+             edgeU: {"type": "series", "name": "lastbarindex"},
+             stable: {"type": "series", "name": "isconfirmed"}}
+    for def_id, tree in trees.items():
+        svc.save(USER, def_id, defn(def_id, tree))
+    assert json.loads(_repaint_column(edge1, 1)) == {"value": "preview-repaints"}
+    assert json.loads(_repaint_column(edgeU, 1)) == {"value": "repaints"}
+    assert json.loads(_repaint_column(stable, 1)) == {"value": "non-repainting"}
+
+    with pytest.raises(aus.AdmissionRefused) as exc:
+        aus.user_value_function(USER, f"{edge1}.value")
+    assert exc.value.gate == "repaint" and "preview-repaints" in str(exc.value)
+    with pytest.raises(aus.AdmissionRefused) as exc:
+        aus.user_value_function(USER, f"{edgeU}.value")
+    assert exc.value.gate == "repaint" and "'repaints'" in str(exc.value)
+
+    # rows written before the ruling carried the old, looser badge
+    _force_stored(edge1, {"value": "non-repainting"})
+    _force_stored(edgeU, {"value": "non-repainting"})
+    before = {d: _repaint_column(d, 1) for d in (edge1, edgeU)}
+    report = rl.relint()
+    flagged = sorted((f["def_id"], f["stored"], f["current"]) for f in report["needs_decision"]
+                     if f["verdict"] == rl.STORED_LOOSER)
+    assert flagged == [(edge1, "non-repainting", "preview-repaints"),
+                       (edgeU, "non-repainting", "repaints")]
+    assert {d: _repaint_column(d, 1) for d in (edge1, edgeU)} == before   # never flipped
+    assert stable not in [f["def_id"] for f in report["needs_decision"] + report["healed"]]
+
+
 def test_an_INACTIVE_alert_is_a_FOOTNOTE_not_a_notification(store):
     """Armed and merely saved are different facts, and the report says which.
 

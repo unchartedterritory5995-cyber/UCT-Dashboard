@@ -57,6 +57,10 @@ def test_moving_the_host_declaration_moves_the_runtime_reach():
     moved["clock"]["islast"] = dict(moved["clock"]["islast"], forward="unbounded")
     assert runtime_repaint.clock_leaf_reach("islast", moved) == "unbounded"
     assert runtime_repaint.clock_leaf_reach("islast") == 1
+    # RT4: the reach IS the shared declaration -- take it away and there is no
+    # second copy left to answer 1
+    del moved["clock"]["islast"]["forward"]
+    assert runtime_repaint.clock_leaf_reach("islast", moved) == 0
 
 
 def test_every_bound_clock_leaf_is_in_the_shared_table():

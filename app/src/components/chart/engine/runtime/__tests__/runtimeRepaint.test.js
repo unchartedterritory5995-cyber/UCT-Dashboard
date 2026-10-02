@@ -151,10 +151,15 @@ describe('RT2 — ONE AUTHORITY: a clock leaf\'s reach is the host linter\'s', (
     expect(modeFromReach(clockLeafReach('isconfirmed'))).toBe('non-repainting')
     expect(clockLeafReach('isconfirmed', moved)).toBe(3)
     expect(modeFromReach(clockLeafReach('isconfirmed', moved))).toBe('preview-repaints')
-    // and the edge finding joins the host's answer, never replaces it
+    // RT4: a right-edge leaf's reach is the shared declaration and nothing else —
+    // move it and the runtime answer moves; take it away and nothing answers 1
     moved.clock.islast = { ...moved.clock.islast, forward: 'unbounded' }
     expect(clockLeafReach('islast', moved)).toBe(UNBOUNDED)
     expect(clockLeafReach('islast')).toBe(1)
+    const bare = { ...moved.clock.islast }
+    delete bare.forward
+    moved.clock.islast = bare
+    expect(clockLeafReach('islast', moved)).toBe(0)
   })
 })
 
