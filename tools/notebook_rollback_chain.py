@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "c75bf6ea0"          # moved from a680b0d40 by lane R1g, 2026-10-01 (L14 #260 + hotfix #261 live)
+MEASURED_AT = "b529c8a78"          # moved from c75bf6ea0 by lane R1h, 2026-10-01 (L15 #262 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,7 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L15", "b529c8a78", "wave 10 L15 #262"),
     ("L14", "0e7d0561a", "wave 10 L14 #260"),
     ("L13", "a680b0d40", "wave 10 L13 #259"),
     ("L12", "599cd44f1", "wave 10 L12 #258"),
@@ -235,7 +236,27 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # inside the measured window the rail checks (`WAVE5^..MEASURED_AT`); and because the hotfix's
 # own edit to tests/test_tools_pin_the_root.py is a REAL conflict with L14's revert (both touch
 # that file; it is not a KEEP_PATH), that conflict now has its own rule -- see RULES["0e7d0561a"].
+# Lane R1h, 2026-10-01: one path-only commit in c75bf6ea0..b529c8a786 (on top of L14+hotfix, in
+# CHAIN by SUBJECT AND PATH both -- its squash kept the literal word "wave", same shape as
+# L13/L14), read via its own diff and message: 726586201 (feat(charts): Technical library Tier 1
+# -- 33 studies, 9 MA types, real fixed scales) touches app/src/pages/Settings.jsx only to widen
+# the Moving Average overlay's type <select> from a hardcoded SMA/EMA pair to the full MA_TYPES
+# kit for an ADOPTED (engine-instance) overlay slot; every other file it ships
+# (movingAverages.js, technicalStudies.js, technicalCategories.js, indicatorCatalog.js, the chart
+# engine's readout/sourceRef/registrySizes modules, their tests, and a decision-record doc) sits
+# outside the derived Notebook set entirely. No Notebook route or file touched. Nothing here is
+# RAISED. MEASURED_AT moves to L15's own sha, b529c8a786, not past it: unlike L14's window, no
+# REVIEWED_NOT_LANDINGS commit lands after L15 in this one -- L15 is the newest commit the census
+# selects at all, and it is itself the tip.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
+    "7265862018f7a2fee21771fce86e5dea580e87c7":
+        "feat(charts): Technical library Tier 1 -- 33 studies, 9 MA types, real fixed scales; "
+        "touches app/src/pages/Settings.jsx only to widen the Moving Average overlay's type "
+        "<select> from a hardcoded SMA/EMA pair to the full MA_TYPES kit for an ADOPTED "
+        "(engine-instance) overlay slot (shared file); every other shipped file "
+        "(movingAverages.js, technicalStudies.js, technicalCategories.js, indicatorCatalog.js, "
+        "the chart engine's readout/sourceRef/registrySizes modules) is outside the derived "
+        "Notebook set, no Notebook route touched",
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
         "reachable.test.js hunk is entirely Pine-runtime AWAITING_A_DECISION entries and its "
