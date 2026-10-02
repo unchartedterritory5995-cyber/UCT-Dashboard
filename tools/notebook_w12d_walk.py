@@ -45,7 +45,8 @@ the off-site bucket, a directory beside the data dir). No model key: the launche
         file's bytes, the note's title and body do not contain it
     S2  the document settles with its page read by OCR (pagesFromOcr >= 1)
     S3  the sidebar search finds it (a "document page" row, the "Scanned text" chip, the word
-        in the snippet); the API agrees with textOrigin "ocr"; the control word finds nothing
+        in the snippet); the row opens the note with the scanned page in the preview; the API
+        agrees with textOrigin "ocr"; the control word finds nothing
   W_no_page_errors · W_driver_never_imported_api
 
 PHASE 2 -- `--phase production` is REFUSED before 2026-10-02T20:30:00Z (another session samples
@@ -491,7 +492,19 @@ def run_g045(base, br, admin_ctx, sandbox_log: Path, w: Walk, run: str):
     if row_texts:
         rows.first.click()
         opened = note_id_from(pg)
+        # the hit opens the note AND the scanned page in the document preview (a fullscreen
+        # sheet over the sidebar -- run 0858254468 clicked the search tab through it and timed
+        # out). Wait for the preview, read it, close it with Escape.
+        preview = pg.get_by_role("region", name="Document pages").first
+        try:
+            preview.wait_for(state="visible", timeout=30000)
+            g["preview_opened"] = True
+        except Exception:  # noqa: BLE001
+            g["preview_opened"] = False
         w.shot(pg, "S3-hit-opened")
+        if g["preview_opened"]:
+            pg.keyboard.press("Escape")
+            preview.wait_for(state="hidden", timeout=15000)
         pg.get_by_role("tab", name="Search notes").first.click(timeout=15000)
         box = pg.get_by_label("Search your notes").first
         box.wait_for(state="visible", timeout=15000)
@@ -506,12 +519,13 @@ def run_g045(base, br, admin_ctx, sandbox_log: Path, w: Walk, run: str):
                    "control_ui_count_elements": ctl_count, "control_api": api_ctl}
     # the row's own page label is "p.1" (CSS may upper-case the rendered text)
     ok3 = (bool(count_text) and any(SECRET_WORD in t.lower() and re.search(r"\bp\.\s*1(?!\d)", t.lower())
-                                    for t in row_texts) and opened == nid
+                                    for t in row_texts) and opened == nid and g.get("preview_opened")
            and any(x.get("noteId") == nid and x.get("textOrigin") == "ocr" for x in hits)
            and ctl_count == 0 and not (api_ctl.get("results") or []))
     w.record("G-045.S3_search_finds_image_word", ok3,
              f"sidebar search {SECRET_WORD!r}: {count_text!r}, Scanned-text rows {row_texts}, the row "
-             f"opened note {opened} (the scan's note {nid}); API "
+             f"opened note {opened} (the scan's note {nid}) with the page preview shown="
+             f"{g.get('preview_opened')}; API "
              f"{[(x.get('noteId'), x.get('pageNumber'), x.get('textOrigin')) for x in hits]}; control "
              f"{CONTROL_WORD!r}: {ctl_count} UI count lines, {len(api_ctl.get('results') or [])} API results")
     ctx.close()
