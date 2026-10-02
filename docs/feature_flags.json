@@ -115,6 +115,42 @@
       "where": [],
       "note": "FT-056 Market Tide (lane/gaps-options). ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). SERVICE: web. Unset: GET /api/options/market-tide answers the FastAPI 404 before identity is read, and the Options Desk Market Tide panel renders nothing. Set (paid): market-wide net call / net put premium by minute (ET) for the latest session, COMPUTED from our flow tape read server-side over /api/flow/data?days=1 and /api/flow/indexes-data?days=1 with the PUSH_SECRET service bearer (flow_proxy.internal_read_headers); scope=all|stocks|etfs. Every answer states the tape filters (50+ contracts, $10K+ premium), counts unsigned (mid/no side) prints, names a source that could not be read (partial), and 503s if none could. Cached 60 s, one shared build, stale served while one background thread refreshes. Pending: owner arms it when the panel should show. Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_GEX_HEATMAP_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-049 (lane/gaps-options). GET /api/options/positioning/{sym}/heatmap?dte=: net GEX (gex_service.contract_gex, the one formula) per expiration x strike, 8 nearest expiries x 30 strikes nearest spot; a strike with no computable contract is blank, never 0. Gamma only: no charm/delta-pressure, no forward projection. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_MAX_PAIN_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-055 max-pain (lane/gaps-options). GET /api/options/positioning/{sym}/max-pain?dte=: per expiration, the strike of least total intrinsic payout; states that the Massive walk covers strikes within 15% of spot only. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_NOPE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-055 NOPE (lane/gaps-options). GET /api/options/positioning/{sym}/nope?dte=: net delta of today's contract volume (totalVolume, now carried by gex_service.to_schwab_shape) over today's share volume from Massive daily bars; no share volume yet = a sentence, never a number. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_IMPACT_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-050 Options Impact (lane/gaps-options). GET /api/options/positioning/{sym}/impact?dte=: unsigned gamma notional per 1% move over the 20-session average dollar volume; bands low <2%, moderate 2-8%, high >8% are stated as ours and uncalibrated, the raw ratio is always shown. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_POSITIONING_VOCAB_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-047 (lane/gaps-options). GET /api/options/positioning/vocabulary (closed, versioned, TERM-041 pattern: api/services/options_analytics/positioning_vocab.py, pinned per version in tests/test_options_positioning.py) and GET /api/options/positioning/{sym}/levels: Call Wall / Put Wall / Zero Gamma from gex_service.get_gex_data (with its role word), Absolute Gamma and Key Delta strikes, Max Pain, Implied 1-/5-Day Move from vendor ATM IV, every label from the vocabulary. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_DEALER_SHORT_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-052 (lane/gaps-options). GET /api/options/positioning/{sym}/dealer-short: the latest dealer_positioning snapshot's 100 largest-OI contracts read from flow-worker's /api/dealer-positioning/sample with the service bearer; dealer net = minus estimated customer net; contracts dealers are estimated net short are listed with confidence and a plain-language explanation. A failed read is a 503. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",
