@@ -3,10 +3,142 @@ Watchlist service — user-created watchlists with optional public sharing.
 All data in auth.db (watchlists + watchlist_items tables).
 """
 
+import json
 import uuid
 from datetime import datetime, timezone
 
+from api.services import artifact_versions
 from api.services.auth_db import get_connection
+
+
+# ── COV-06: version history (dark behind ARTIFACT_VERSIONS_ENABLED) ──────────
+#
+# A list is edited in many small writes (add / bulk add / remove / reorder / note / rename), so a
+# VERSION is a snapshot of the WHOLE list after each committed write, and the store's 60 s
+# coalescing turns a burst of edits into one checkpoint. Only a list whose contents are the
+# member's own is versioned: never the flagged shadow list (a sync of the flags), an admin INDEX
+# list (curated, thousands of rows), or a LINKED list (its source is authoritative).
+
+def _items_json(conn, wl_id: str) -> str:
+    rows = conn.execute(
+        "SELECT sym, notes FROM watchlist_items WHERE watchlist_id = ? "
+        "ORDER BY sort_order ASC, added_at DESC", (wl_id,)
+    ).fetchall()
+    return json.dumps([{"sym": r["sym"], "notes": r["notes"] or ""} for r in rows],
+                      separators=(",", ":"), ensure_ascii=False)
+
+
+def is_versionable(row) -> bool:
+    """True when this watchlist row's contents are its owner's own authoring."""
+    if row is None or row["is_flagged_list"] or row["is_prebuilt"]:
+        return False
+    from api.services import watchlist_origin
+    if watchlist_origin.enabled() and watchlist_origin.is_linked(row["id"]):
+        return False
+    return True
+
+
+def _content(conn, user_id: str, wl_id: str) -> dict | None:
+    """The list's versioned content, or ``None`` when dark / not the member's / not versionable.
+    Read-only; the ``is_enabled()`` here only avoids the extra reads while dark."""
+    if not artifact_versions.is_enabled():
+        return None
+    row = conn.execute(
+        "SELECT * FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)
+    ).fetchone()
+    if not is_versionable(row):
+        return None
+    return {"name": row["name"], "description": row["description"] or "",
+            "items_json": _items_json(conn, wl_id)}
+
+
+def versioned_content(user_id: str, wl_id: str) -> dict | None:
+    if not artifact_versions.is_enabled():
+        return None
+    conn = get_connection()
+    try:
+        return _content(conn, user_id, wl_id)
+    finally:
+        conn.close()
+
+
+def _version(user_id: str, wl_id: str, before: dict | None, *, created: bool = False,
+             source: str = "save", restored_from: int | None = None):
+    """Snapshot one committed write. ``before`` is the content it replaced (``None`` only for a
+    create). Never raises into the member's write; dark, nothing is read."""
+    if not artifact_versions.is_enabled() or (before is None and not created):
+        return None
+    after = versioned_content(user_id, wl_id)
+    if after is None:
+        return None
+    return artifact_versions.record_save(
+        user_id, artifact_versions.KIND_WATCHLIST, wl_id, before=before, after=after,
+        label=after["name"], source=source, restored_from=restored_from)
+
+
+def _write_items(conn, wl_id: str, items: list) -> None:
+    """Make ``wl_id``'s items exactly ``items`` (``[{sym, notes}]``, in order). A row whose symbol
+    survives keeps its id, so its notes handle and React key stay stable."""
+    current = {r["sym"]: r["id"] for r in conn.execute(
+        "SELECT id, sym FROM watchlist_items WHERE watchlist_id = ?", (wl_id,)).fetchall()}
+    want, seen = [], set()
+    for it in items or []:
+        sym = str((it or {}).get("sym") or "").strip().upper()
+        if sym and sym not in seen:
+            seen.add(sym)
+            want.append((sym, str((it or {}).get("notes") or "")))
+    for sym, item_id in current.items():
+        if sym not in seen:
+            conn.execute("DELETE FROM watchlist_items WHERE id = ?", (item_id,))
+    for idx, (sym, notes) in enumerate(want):
+        if sym in current:
+            conn.execute("UPDATE watchlist_items SET notes = ?, sort_order = ? WHERE id = ?",
+                         (notes, idx, current[sym]))
+        else:
+            conn.execute(
+                "INSERT INTO watchlist_items (id, watchlist_id, sym, notes, sort_order) VALUES (?,?,?,?,?)",
+                (str(uuid.uuid4())[:12], wl_id, sym, notes, idx))
+
+
+def restore_content(user_id: str, wl_id: str, payload: dict, *, restored_from: int):
+    """COV-06: write a version's name, description and membership back to one of the member's own
+    versionable lists. Publication is left exactly as it is. Recorded as a new ``restore``
+    version; nothing is removed from the history. ``None`` if not the member's / not versionable."""
+    conn = get_connection()
+    try:
+        before = _content(conn, user_id, wl_id)
+        if before is None:
+            return None
+        conn.execute(
+            "UPDATE watchlists SET name = ?, description = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (payload["name"], payload["description"] or "",
+             datetime.now(timezone.utc).isoformat(), wl_id, user_id))
+        _write_items(conn, wl_id, json.loads(payload["items_json"] or "[]"))
+        conn.commit()
+    finally:
+        conn.close()
+    res = _version(user_id, wl_id, before, source="restore", restored_from=restored_from)
+    return get_watchlist(wl_id, user_id), res
+
+
+def undelete_content(user_id: str, wl_id: str, payload: dict, *, restored_from: int):
+    """COV-06: bring a DELETED list back from one of its kept versions, under its OLD id (so its
+    history continues). It comes back PRIVATE: publication is not content, and a share the delete
+    ended must not come back on its own. ``None`` if the id exists."""
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_connection()
+    try:
+        if conn.execute("SELECT 1 FROM watchlists WHERE id = ?", (wl_id,)).fetchone():
+            return None
+        conn.execute(
+            "INSERT INTO watchlists (id, user_id, name, description, is_public, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+            (wl_id, user_id, payload["name"], payload["description"] or "", 0, now, now))
+        _write_items(conn, wl_id, json.loads(payload["items_json"] or "[]"))
+        conn.commit()
+    finally:
+        conn.close()
+    res = _version(user_id, wl_id, None, created=True, source="restore", restored_from=restored_from)
+    return get_watchlist(wl_id, user_id), res
 
 
 def create_watchlist(user_id: str, name: str, description: str = "", is_public: bool = False) -> dict:
@@ -19,9 +151,10 @@ def create_watchlist(user_id: str, name: str, description: str = "", is_public: 
             (wl_id, user_id, name, description, int(is_public), now, now),
         )
         conn.commit()
-        return get_watchlist(wl_id, user_id)
     finally:
         conn.close()
+    _version(user_id, wl_id, None, created=True)
+    return get_watchlist(wl_id, user_id)
 
 
 def get_watchlist(wl_id: str, user_id: str = None) -> dict | None:
@@ -164,7 +297,7 @@ def list_prebuilt_watchlists(limit: int = 50, include_items: bool = True) -> lis
         conn.close()
 
 
-def update_watchlist(user_id: str, wl_id: str, data: dict) -> dict | None:
+def _update_watchlist_unversioned(user_id: str, wl_id: str, data: dict) -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute("SELECT * FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
@@ -191,7 +324,7 @@ def update_watchlist(user_id: str, wl_id: str, data: dict) -> dict | None:
         conn.close()
 
 
-def delete_watchlist(user_id: str, wl_id: str) -> bool:
+def _delete_watchlist_unversioned(user_id: str, wl_id: str) -> bool:
     conn = get_connection()
     try:
         row = conn.execute("SELECT is_flagged_list FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
@@ -204,7 +337,7 @@ def delete_watchlist(user_id: str, wl_id: str) -> bool:
         conn.close()
 
 
-def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None:
+def _add_item_unversioned(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
@@ -239,7 +372,7 @@ def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None
         conn.close()
 
 
-def bulk_add_items(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
+def _bulk_add_items_unversioned(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
     """Add multiple tickers to a watchlist, skipping duplicates."""
     conn = get_connection()
     try:
@@ -274,7 +407,7 @@ def bulk_add_items(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
         conn.close()
 
 
-def update_item_notes(user_id: str, wl_id: str, item_id: str, notes: str) -> dict | None:
+def _update_item_notes_unversioned(user_id: str, wl_id: str, item_id: str, notes: str) -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
@@ -288,7 +421,7 @@ def update_item_notes(user_id: str, wl_id: str, item_id: str, notes: str) -> dic
         conn.close()
 
 
-def remove_item(user_id: str, wl_id: str, item_id: str) -> bool:
+def _remove_item_unversioned(user_id: str, wl_id: str, item_id: str) -> bool:
     conn = get_connection()
     try:
         # Verify ownership
@@ -425,7 +558,7 @@ def toggle_flagged_sharing(user_id: str, is_public: bool) -> dict | None:
         conn.close()
 
 
-def reorder_items(user_id: str, wl_id: str, item_ids: list[str]) -> bool:
+def _reorder_items_unversioned(user_id: str, wl_id: str, item_ids: list[str]) -> bool:
     conn = get_connection()
     try:
         row = conn.execute("SELECT id FROM watchlists WHERE id = ? AND user_id = ?", (wl_id, user_id)).fetchone()
@@ -440,6 +573,69 @@ def reorder_items(user_id: str, wl_id: str, item_ids: list[str]) -> bool:
         return True
     finally:
         conn.close()
+
+
+# ── the public writes: each is the unversioned write plus the COV-06 snapshot ──
+# ``versioned_content`` is ``None`` while dark (no read) and for a list that is not versionable;
+# ``_version`` then does nothing. The snapshot runs only after the member's write committed and
+# never raises into it.
+
+def update_watchlist(user_id: str, wl_id: str, data: dict) -> dict | None:
+    before = versioned_content(user_id, wl_id)
+    out = _update_watchlist_unversioned(user_id, wl_id, data)
+    if out:
+        _version(user_id, wl_id, before)
+    return out
+
+
+def delete_watchlist(user_id: str, wl_id: str) -> bool:
+    before = versioned_content(user_id, wl_id)
+    gone = _delete_watchlist_unversioned(user_id, wl_id)
+    if gone and before is not None:
+        # The history outlives the list (a tombstone), so the delete can be undone.
+        artifact_versions.record_delete(user_id, artifact_versions.KIND_WATCHLIST, wl_id,
+                                        before=before, label=before["name"])
+    return gone
+
+
+def add_item(user_id: str, wl_id: str, sym: str, notes: str = "") -> dict | None:
+    before = versioned_content(user_id, wl_id)
+    out = _add_item_unversioned(user_id, wl_id, sym, notes)
+    if out and not out.get("duplicate"):
+        _version(user_id, wl_id, before)
+    return out
+
+
+def bulk_add_items(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
+    before = versioned_content(user_id, wl_id)
+    out = _bulk_add_items_unversioned(user_id, wl_id, symbols)
+    if out and out.get("added"):
+        _version(user_id, wl_id, before)
+    return out
+
+
+def update_item_notes(user_id: str, wl_id: str, item_id: str, notes: str) -> dict | None:
+    before = versioned_content(user_id, wl_id)
+    out = _update_item_notes_unversioned(user_id, wl_id, item_id, notes)
+    if out:
+        _version(user_id, wl_id, before)
+    return out
+
+
+def remove_item(user_id: str, wl_id: str, item_id: str) -> bool:
+    before = versioned_content(user_id, wl_id)
+    out = _remove_item_unversioned(user_id, wl_id, item_id)
+    if out:
+        _version(user_id, wl_id, before)
+    return out
+
+
+def reorder_items(user_id: str, wl_id: str, item_ids: list[str]) -> bool:
+    before = versioned_content(user_id, wl_id)
+    out = _reorder_items_unversioned(user_id, wl_id, item_ids)
+    if out:
+        _version(user_id, wl_id, before)
+    return out
 
 
 def _get_items(conn, wl_id: str) -> list[dict]:
