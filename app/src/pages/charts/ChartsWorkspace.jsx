@@ -40,6 +40,7 @@ import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
+import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
@@ -2049,44 +2050,25 @@ export default function ChartsWorkspace() {
   // Waits on templatesLoading the same way the deep-link effect waits on
   // prefsLoading — applying against an empty myLayouts/globalLayouts list
   // would silently no-op the very first time this ever runs.
-  const namedAddressAppliedRef = useRef(false)
-  useEffect(() => {
-    if (namedAddressAppliedRef.current || templatesLoading) return
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-    const openLayoutId = params.get('openLayout')
-    const openSharedToken = params.get('openShared')
-    if (!openLayoutId && !openSharedToken) return
-    namedAddressAppliedRef.current = true
-
-    const strip = () => {
-      try {
-        params.delete('openLayout')
-        params.delete('openShared')
-        const q = params.toString()
-        window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-      } catch { /* history unavailable — lingering params are harmless */ }
-    }
-
-    if (openLayoutId) {
-      const id = Number(openLayoutId)
-      const tpl = globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id)
-      strip()
-      if (tpl) applyTemplate(tpl)
-      // A missing id (deleted, or belongs to someone else and isn't shared)
-      // falls through to whatever the workspace would otherwise open on —
-      // never a crash, matching this repo's own "an invalid deep link degrades,
-      // it doesn't break the page" convention.
-      return
-    }
-
-    // Share token: not in the preloaded lists by construction (it may belong
-    // to a different user), so this is a live fetch.
-    fetch(`/api/charts/layouts/shared/${encodeURIComponent(openSharedToken)}`, { credentials: 'include' })
+  // TERM-038 in-page: through useDoorParam, so a pick from the palette while the board is
+  // ALREADY mounted opens the layout too (it used to apply once per mount only).
+  useDoorParam('openLayout', (raw) => {
+    const id = Number(raw)
+    const tpl = globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id)
+    // A missing id (deleted, or belongs to someone else and isn't shared)
+    // falls through to whatever the workspace would otherwise open on —
+    // never a crash, matching this repo's own "an invalid deep link degrades,
+    // it doesn't break the page" convention.
+    if (tpl) applyTemplate(tpl)
+  }, { ready: !templatesLoading })
+  // Share token: not in the preloaded lists by construction (it may belong
+  // to a different user), so this is a live fetch.
+  useDoorParam('openShared', (token) => {
+    fetch(`/api/charts/layouts/shared/${encodeURIComponent(token)}`, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : null))
-      .then(tpl => { strip(); if (tpl) applyTemplate(tpl) })
-      .catch(() => strip())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templatesLoading, globalLayouts, myLayouts])
+      .then(tpl => { if (tpl) applyTemplate(tpl) })
+      .catch(() => {})
+  }, { ready: !templatesLoading })
 
   // ── A12 CP2 (2026-09-25): a WATCHLIST is a name, and a name is an address ──────
   //
@@ -2096,21 +2078,11 @@ export default function ChartsWorkspace() {
   // the ?openLayout=/?openShared= doors above. The board's first Watchlist widget is
   // pointed at the list through its own opts path (so the change persists exactly like
   // a pick from the widget's menu); with no Watchlist widget on the board, one is added
-  // carrying the key. Runs once per mount, after prefs AND templates load (so it lands
+  // carrying the key. Runs after prefs AND templates load (so it lands
   // after the default-layout and named-address effects rather than under them), strips
-  // its own param, and an unrecognised key degrades to a no-op — never a crash.
-  const openWatchlistAppliedRef = useRef(false)
-  useEffect(() => {
-    if (openWatchlistAppliedRef.current || prefsLoading || templatesLoading) return
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-    const key = params.get('openWatchlist')
-    if (!key) return
-    openWatchlistAppliedRef.current = true
-    try {
-      params.delete('openWatchlist')
-      const q = params.toString()
-      window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-    } catch { /* history unavailable — a lingering param is harmless */ }
+  // its own param, and an unrecognised key degrades to a no-op — never a crash. Runs on
+  // every router location that carries the param (useDoorParam), not only at mount.
+  useDoorParam('openWatchlist', (key) => {
     if (!WATCH_KEY_RE.test(key)) return
     const existing = layoutRef.current?.widgets?.find(w => w.type === 'watchlist')
     if (existing) {
@@ -2118,7 +2090,7 @@ export default function ChartsWorkspace() {
     } else {
       handleAddWidget('watchlist', { watchKey: key, watchName: null, watchTab: null }, { instant: true })
     }
-  }, [prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
+  }, { ready: !prefsLoading && !templatesLoading })
 
   // ── TERM-038 slice 2 (2026-10-01): a THEME SET is a name, and a name is an address ──
   //
@@ -2130,18 +2102,7 @@ export default function ChartsWorkspace() {
   // address space rides the auth payload (unset = the param is ignored and left alone, so
   // the page is byte-identical). An id the member does not own falls back to the shared
   // default inside ThemeTrackerPage, the same as a set deleted elsewhere.
-  const openThemeSetAppliedRef = useRef(false)
-  useEffect(() => {
-    if (!addressSpaceEnabled || openThemeSetAppliedRef.current || prefsLoading || templatesLoading) return
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-    const id = params.get('openThemeSet')
-    if (!id) return
-    openThemeSetAppliedRef.current = true
-    try {
-      params.delete('openThemeSet')
-      const q = params.toString()
-      window.history.replaceState(window.history.state, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-    } catch { /* history unavailable — a lingering param is harmless */ }
+  useDoorParam('openThemeSet', (id) => {
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return
     const existing = layoutRef.current?.widgets?.find(w => w.type === 'themes')
     if (existing) {
@@ -2149,7 +2110,7 @@ export default function ChartsWorkspace() {
     } else {
       handleAddWidget('themes', { themeSetId: id }, { instant: true })
     }
-  }, [addressSpaceEnabled, prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
+  }, { ready: addressSpaceEnabled && !prefsLoading && !templatesLoading })
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code

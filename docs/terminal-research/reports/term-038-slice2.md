@@ -43,7 +43,7 @@ The new store helpers are `community_store.list_floor_titles()` and `floor_title
 
 - **Notebook saved views (`j2_note_saved_views`) and folders (`j2_note_folders`):** still `no-door`. Their door belongs in the Notebook editor files (`app/src/pages/journal-2-0/components/notebook/**`), which the notebook workstream owns. The EXEMPT reasons now say so.
 - **Playbook entries (`upb_entries`):** `no-door`, with no URL instruction yet. This was outside this slice.
-- **Re-applying a door:** each door applies once per page mount. Opening an address while already on `/charts` or `/community` does not re-apply it. `openWatchlist` behaves the same way.
+- **Re-applying a door:** each door applies once per page mount. Opening an address while already on `/charts` or `/community` does not re-apply it. `openWatchlist` behaves the same way. ✅ Fixed 2026-10-01 on `lane/term-038-inpage` by the shared `useDoorParam` hook (see the TERM-038 backlog row).
 - **Pre-existing red, not caused by this slice:** `src/hooks/pollingSites.rail.test.js` fails on `app/src/pages/research/tabs/OptionsChainTab.jsx`, which this branch does not touch.
 
 ## Rails

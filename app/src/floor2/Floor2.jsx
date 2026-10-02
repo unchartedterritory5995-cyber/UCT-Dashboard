@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import './styles.css'
 import { useAuth } from '../context/AuthContext'
+import useDoorParam from '../hooks/useDoorParam'
 import { CATEGORIES } from './data'
 import {
   useFeed, useSearch, useFloorThread, useNotifications, useActivity,
@@ -65,15 +66,15 @@ export default function Floor2({ embedded = false }) {
   const [arrival] = useState(() => (addressSpaceEnabled === true ? threadFromUrl() : null))
   const [view, setView] = useState(arrival ? 'detail' : 'feed')       // 'feed' | 'detail'
   const [activeId, setActiveId] = useState(arrival)
-  useEffect(() => {   // one-shot: strip the instruction so a refresh after "back" shows the feed
-    if (!arrival) return
-    try {
-      const params = new URLSearchParams(window.location.search)
-      params.delete(THREAD_PARAM)
-      const q = params.toString()
-      window.history.replaceState(window.history.state, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-    } catch { /* history unavailable — a lingering param is harmless */ }
-  }, [arrival])
+  // The door, through useDoorParam: strips the instruction (so a refresh after "back"
+  // shows the feed) and, because it re-reads on every router location, a palette pick
+  // made while the Floor is ALREADY open opens that post too. The arrival above only
+  // saves the first paint a flash of the feed; re-applying the same id here is a no-op.
+  useDoorParam(THREAD_PARAM, (v) => {
+    if (!/^\d{1,12}$/.test(v)) return
+    setActiveId(Number(v))
+    setView('detail')
+  }, { ready: addressSpaceEnabled === true })
   const [category, setCategory] = useState('all') // category key | myposts | bookmarks | notifications
   const [sort, setSort] = useState('hot')
   const [query, setQuery] = useState('')
