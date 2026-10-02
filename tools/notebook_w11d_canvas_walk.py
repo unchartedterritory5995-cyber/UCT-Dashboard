@@ -378,7 +378,14 @@ def run_walk(base: str, art: Path) -> None:
             dlg.get_by_role("button", name="Add arrow").click()
             dlg.wait_for(state="detached", timeout=5000)
             b, saved = wait_board(nid, lambda b: len(b["edges"]) == 1)
-            pg.wait_for_timeout(2500)   # let the chart cards ask for their bars
+            # show every card (run 5: the live chart had been scrolled out of the rendered set
+            # by the later adds, so it had asked for nothing yet), then wait for both asks
+            pg.get_by_role("button", name="Show everything").click()
+            end = time.time() + 10
+            while time.time() < end and not (any("/api/bars/NVDA" in u for u in res["bars_requests"][n_bars0:])
+                                             and any("/api/bars/AMD" in u for u in res["bars_requests"][n_bars0:])):
+                pg.wait_for_timeout(250)
+            pg.wait_for_timeout(1000)
             shot(pg, "C2-board")
             amd = next((i for i in b["items"] if i["kind"] == "chart" and i["symbol"] == "AMD"), {})
             bars = res["bars_requests"][n_bars0:]

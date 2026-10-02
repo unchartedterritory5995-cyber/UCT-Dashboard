@@ -412,3 +412,29 @@ describe('walk run 3 — a lost finger never blocks the next pinch', () => {
   })
 })
 
+describe('walk run 5 — the second finger of a pinch may land on a panel', () => {
+  it('a pinch whose second finger starts on the levels list still zooms', () => {
+    let b = addItems(emptyBoard(), [makeChart({ x: 0, y: 0, symbol: 'NVDA' })]).board
+    b = addLevels(b, [{ role: 'entry', price: 10 }])
+    const { viewport } = mount(b)
+    const label = screen.getByRole('button', { name: 'Show everything' })
+    const before = label.textContent
+    const panel = screen.getByRole('region', { name: 'Plan levels' })
+    fireEvent.pointerDown(viewport, { pointerId: 11, isPrimary: true, pointerType: 'touch', clientX: 300, clientY: 300, button: 0 })
+    fireEvent.pointerDown(panel, { pointerId: 12, isPrimary: false, pointerType: 'touch', clientX: 360, clientY: 300, button: 0 })
+    fireEvent.pointerMove(viewport, { pointerId: 12, pointerType: 'touch', clientX: 560, clientY: 300 })
+    expect(label.textContent).not.toBe(before)
+  })
+  it('CONTROL — a FIRST finger on the panel is the panel’s, not a pan', () => {
+    let b = addItems(emptyBoard(), [makeChart({ x: 0, y: 0, symbol: 'NVDA' })]).board
+    b = addLevels(b, [{ role: 'entry', price: 10 }])
+    mount(b)
+    const layer = document.querySelector('[role="application"] > div')
+    const t0 = layer.style.transform
+    const panel = screen.getByRole('region', { name: 'Plan levels' })
+    fireEvent.pointerDown(panel, { pointerId: 13, isPrimary: true, pointerType: 'touch', clientX: 900, clientY: 100, button: 0 })
+    fireEvent.pointerMove(panel, { pointerId: 13, pointerType: 'touch', clientX: 800, clientY: 50 })
+    expect(layer.style.transform).toBe(t0)
+  })
+})
+

@@ -546,8 +546,11 @@ export default function TradeCanvasBoard({
   const onPointerDown = (e) => {
     if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return
     const t = e.target
-    // Controls inside the board (toolbar, panels, a card's editor) keep their own clicks.
-    if (t.closest('button, input, textarea, select, a, [data-canvas-chrome]')) return
+    // Controls inside the board (toolbar, panels, a card's editor) keep their own clicks --
+    // but only a FIRST finger. ⛔ Walk run 5: on a phone the second finger of a pinch landed
+    // on a panel over the board, was ignored here, and the pinch never became one.
+    const ongoing = pointersRef.current.size > 0 && e.isPrimary !== true
+    if (!ongoing && t.closest('button, input, textarea, select, a, [data-canvas-chrome]')) return
     const vp = viewportRef.current
     // ⛔ Walk run 3: a finger whose pointerup never reached the board (it lifted outside,
     // or the browser dropped it) stayed in this map, so the NEXT two-finger pinch counted
