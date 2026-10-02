@@ -169,7 +169,10 @@ surfaced yet.
 
 ## DEC-12 — Canonical earnings-date authority (OQ-14)
 
-**Status: RECOMMENDED, REVERSIBLE — an assumption, not a decision, but worth registering.** The
+**Status: DECIDED 2026-10-02 (owner-delegated, TERM-004; `2026-10-02-term-004-term-093.md`).**
+`/api/calendar` is canonical. Measured: the bot's path is unreachable and superseded. The engine's
+own `get_catalyst_calendar_context` is the live second authority, disagreeing on 31% of overlapping
+symbols, and conforms in TERM-004b. *Original text:* **RECOMMENDED, REVERSIBLE.** The
 architecture assumes `/api/calendar` is the canonical earnings-date authority and designs the
 Discord bot's `get_catalyst_calendar_context` to conform through one adapter, closing the
 duplicate-authority gap the Readiness Review's Part 2 audit found unflagged in the Day 1 synthesis.
