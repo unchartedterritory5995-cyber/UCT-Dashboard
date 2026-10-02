@@ -28,4 +28,14 @@ reason is written down.
 
 ## Step 2: what this lane builds, in value order
 
-Filled in as each surface lands; see the "Built" table at the end.
+All surfaces live under a new Research > **Depth** tab, which exists only while at
+least one of its panels' flags is on. Each panel is its own surface behind its own
+dark flag (ledger status `pending`), served on the auth payload only when on.
+Router: `api/routers/research_depth.py`. Client gate list:
+`app/src/pages/research/depth/researchDepthFlags.js` (railed against
+`_RESEARCH_DEPTH_SURFACES` in `api/routers/auth.py`).
+
+| Order | Row | Flag | Route | Source named in the payload |
+|---|---|---|---|---|
+| 1 | FT-058/059/060 | `FILING_SEARCH_ENABLED` | `GET /api/research/filing-search` | SEC EDGAR primary documents via `fundamentals_pit.sec_client`, sections by the COV-04 extractor; every hit cites form, accession, filing date, section, URL |
+| 2 | FT-005 | `EARNINGS_REACTION_PANEL_ENABLED` | `GET /api/research/earnings-reaction/{sym}` | UCT daily bar store; quarters from the cached earnings payload; implied move from the front ATM straddle with its read time |

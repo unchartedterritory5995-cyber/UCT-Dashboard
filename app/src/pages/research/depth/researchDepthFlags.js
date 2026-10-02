@@ -10,6 +10,7 @@
 // researchDepthFlags.test.js reads the Python tuple rather than restating it.
 export const RESEARCH_DEPTH_KEYS = [
   'filing_search_enabled',
+  'earnings_reaction_panel_enabled',
 ]
 
 export function readResearchDepth(d) {

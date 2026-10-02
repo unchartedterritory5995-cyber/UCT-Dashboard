@@ -244,6 +244,7 @@ def _filing_blackline_flag() -> dict:
 # `is_enabled()` is that surface's ONE gate (the same reader its routes' dark gate uses).
 _RESEARCH_DEPTH_SURFACES = (
     ("filing_search_enabled", "filing_search"),
+    ("earnings_reaction_panel_enabled", "earnings_reaction_panel"),
 )
 
 

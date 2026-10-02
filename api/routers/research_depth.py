@@ -4,7 +4,8 @@ One router, one dark flag PER SURFACE. Each surface's flag is read per request
 by its own service module's `is_enabled()`; unset, that surface's routes answer
 FastAPI's 404 before identity is read, exactly like seasonality and COV-04.
 
-  FILING_SEARCH_ENABLED   GET /api/research/filing-search            FT-058/059/060
+  FILING_SEARCH_ENABLED            GET /api/research/filing-search            FT-058/059/060
+  EARNINGS_REACTION_PANEL_ENABLED  GET /api/research/earnings-reaction/{sym}  FT-005
 
 Every handler is a plain `def`: each one reads local SQLite stores, which is
 blocking I/O, and an `async def` that awaits nothing would run it ON the event
@@ -62,3 +63,17 @@ def filing_search_route(q: str = Query(..., min_length=1, max_length=400),
         return svc.search(q, sym=_sym(sym), form=form, section=section, limit=limit)
     except svc.QueryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ── FT-005 earnings-reaction panel ──────────────────────────────────────────
+
+def _earnings_reaction_armed() -> None:
+    from api.services import earnings_reaction_panel
+    if not earnings_reaction_panel.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/earnings-reaction/{sym}", dependencies=[Depends(_earnings_reaction_armed)])
+def earnings_reaction_route(sym: str, _user: dict = Depends(require_paid)):
+    from api.services import earnings_reaction_panel as svc
+    return svc.panel(_sym(sym))

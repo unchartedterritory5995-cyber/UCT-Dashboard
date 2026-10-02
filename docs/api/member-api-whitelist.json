@@ -2306,6 +2306,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/earnings-reaction/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
