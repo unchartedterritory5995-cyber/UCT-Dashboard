@@ -195,6 +195,8 @@ NOT_REHEARSED = {
     "NOTEBOOK_CONFLICT_UX_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_ATTACHMENTS_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "dark (wave 12 12A): waits for its real-browser walk and "
+                                         "the owner naming who reviews submissions",
 }
 
 

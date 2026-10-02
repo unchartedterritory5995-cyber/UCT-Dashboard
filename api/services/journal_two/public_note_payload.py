@@ -33,6 +33,15 @@ What each mode does (the rows below are the authority; this is the summary):
     cleared -- no in-app URL, which would carry a note id, reaches a stranger (M-6).
   * publish only -- Ask answers (`askInsert` with no `action`) go, writing-help blocks
     stay with their label (ruling D-B5), and every `askCitation` goes.
+  * gallery only (wave 12, lane 12A: a member template published to the COMMUNITY GALLERY,
+    `template_gallery.py`) -- a template is a scaffold other members copy, not a page of the
+    author's, so it keeps less than publish does: EVERY image and image-bearing attribute goes
+    (an image, a figure and its caption, a link card's picture; re-uploading is a later step),
+    every `askInsert` goes, writing help included, and every `askCitation` (both were computed
+    from the author's private notes), a `noteLink` is the plain text "linked note" (a gallery
+    copy has no publication to link into), every market-data node is the neutral line whatever
+    its vendor, task items are UNCHECKED (a template starts undone), and an email address --
+    written as text or as a `mailto:` link -- becomes the words "email address".
 """
 from __future__ import annotations
 
@@ -116,7 +125,11 @@ def client_key(request: Any) -> str:
 #: The public keys of a NOTE, exactly (rail: tests/test_share_publish_authorization.py).
 PUBLIC_NOTE_KEYS = ("title", "subtitle", "bodyJson", "heroImageUrl", "updatedAt")
 
-MODES = ("share", "publish")
+MODES = ("share", "publish", "gallery")
+
+#: What an email address becomes in a gallery copy (wave 12, lane 12A).
+EMAIL_TEXT = "email address"
+_EMAIL_IN_TEXT = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.IGNORECASE)
 
 #: ONE neutral paragraph where a market-data item stood (ruling D-B4, extended to share
 #: links by the owner's L3). Adjacent ones collapse to one.
@@ -220,59 +233,61 @@ def market_data_verdict(node_type: str, discriminator: str | None) -> str:
 #   citation-n    askCitation keeps only {n}
 #   ask           askInsert: share keeps it (G-064 ruling); publish keeps writing help only
 #   market-data   the vendor table decides: shown -> a public rendition; neutral -> NEUTRAL_LINE
+#   neutral       gallery: the neutral line, whatever the vendor table says
+#   task          gallery: a taskItem kept UNCHECKED (a template starts undone)
 NODE_POLICY: dict[str, dict[str, str]] = {
     # ── nodes ──
-    "doc": {"share": "keep", "publish": "keep"},
-    "paragraph": {"share": "keep", "publish": "keep"},
-    "text": {"share": "keep", "publish": "keep"},
-    "heading": {"share": "keep", "publish": "keep"},
-    "blockquote": {"share": "keep", "publish": "keep"},
-    "bulletList": {"share": "keep", "publish": "keep"},
-    "orderedList": {"share": "keep", "publish": "keep"},
-    "listItem": {"share": "keep", "publish": "keep"},
-    "taskList": {"share": "keep", "publish": "keep"},
-    "taskItem": {"share": "keep", "publish": "keep"},
-    "codeBlock": {"share": "keep", "publish": "keep"},
-    "hardBreak": {"share": "keep", "publish": "keep"},
-    "horizontalRule": {"share": "keep", "publish": "keep"},
-    "table": {"share": "keep", "publish": "keep"},
-    "tableRow": {"share": "keep", "publish": "keep"},
-    "tableCell": {"share": "keep", "publish": "keep"},
-    "tableHeader": {"share": "keep", "publish": "keep"},
-    "callout": {"share": "keep", "publish": "keep"},
-    "toggle": {"share": "keep", "publish": "keep"},
-    "toggleSummary": {"share": "keep", "publish": "keep"},
-    "toggleContent": {"share": "keep", "publish": "keep"},
-    "videoTimestamp": {"share": "keep", "publish": "keep"},
-    "blockMath": {"share": "keep", "publish": "keep"},
-    "inlineMath": {"share": "keep", "publish": "keep"},
-    "columns": {"share": "keep", "publish": "keep"},
-    "column": {"share": "keep", "publish": "keep"},
-    "dateMention": {"share": "keep", "publish": "keep"},
-    "tableOfContents": {"share": "keep", "publish": "keep"},
-    "imageCaption": {"share": "keep", "publish": "keep"},
-    "linkPreview": {"share": "keep", "publish": "keep"},   # the member's external link card
-    "webEmbed": {"share": "keep", "publish": "keep"},      # an allowlisted external embed
-    "image": {"share": "image", "publish": "image"},
-    "imageFigure": {"share": "figure", "publish": "figure"},
-    "attachmentChip": {"share": "drop", "publish": "drop"},  # file attachments never leave
-    "noteLink": {"share": "linked-note", "publish": "linked-note"},
-    "askCitation": {"share": "citation-n", "publish": "drop"},
-    "askInsert": {"share": "keep", "publish": "ask"},
-    "widgetEmbed": {"share": "market-data", "publish": "market-data"},
-    "financialFact": {"share": "market-data", "publish": "market-data"},
-    "documentExcerpt": {"share": "market-data", "publish": "market-data"},
-    "tradeCanvas": {"share": "market-data", "publish": "market-data"},  # wave 11 11D: a trade plan
+    "doc": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "paragraph": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "text": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "heading": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "blockquote": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "bulletList": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "orderedList": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "listItem": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "taskList": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "taskItem": {"share": "keep", "publish": "keep", "gallery": "task"},
+    "codeBlock": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "hardBreak": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "horizontalRule": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "table": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "tableRow": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "tableCell": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "tableHeader": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "callout": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "toggle": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "toggleSummary": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "toggleContent": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "videoTimestamp": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "blockMath": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "inlineMath": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "columns": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "column": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "dateMention": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "tableOfContents": {"share": "keep", "publish": "keep", "gallery": "keep"},
+    "imageCaption": {"share": "keep", "publish": "keep", "gallery": "drop"},
+    "linkPreview": {"share": "keep", "publish": "keep", "gallery": "keep"},   # the member's external link card
+    "webEmbed": {"share": "keep", "publish": "keep", "gallery": "keep"},      # an allowlisted external embed
+    "image": {"share": "image", "publish": "image", "gallery": "drop"},
+    "imageFigure": {"share": "figure", "publish": "figure", "gallery": "drop"},
+    "attachmentChip": {"share": "drop", "publish": "drop", "gallery": "drop"},  # file attachments never leave
+    "noteLink": {"share": "linked-note", "publish": "linked-note", "gallery": "linked-note"},
+    "askCitation": {"share": "citation-n", "publish": "drop", "gallery": "drop"},
+    "askInsert": {"share": "keep", "publish": "ask", "gallery": "drop"},
+    "widgetEmbed": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
+    "financialFact": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
+    "documentExcerpt": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
+    "tradeCanvas": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},  # wave 11 11D: a trade plan
     # ── marks ──
-    "bold": {"share": "mark", "publish": "mark"},
-    "code": {"share": "mark", "publish": "mark"},
-    "italic": {"share": "mark", "publish": "mark"},
-    "strike": {"share": "mark", "publish": "mark"},
-    "underline": {"share": "mark", "publish": "mark"},
-    "textStyle": {"share": "mark", "publish": "mark"},
-    "highlight": {"share": "mark", "publish": "mark"},
-    "textColor": {"share": "mark", "publish": "mark"},
-    "link": {"share": "link-mark", "publish": "link-mark"},
+    "bold": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "code": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "italic": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "strike": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "underline": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "textStyle": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "highlight": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "textColor": {"share": "mark", "publish": "mark", "gallery": "mark"},
+    "link": {"share": "link-mark", "publish": "link-mark", "gallery": "link-mark"},
 }
 
 #: The widgetEmbed attributes a public copy keeps -- exactly what the archived render reads
@@ -352,17 +367,54 @@ def _is_public_address(address: str) -> bool:
     return path.startswith(_PUBLIC_PATH_PREFIXES)
 
 
-def _scrub_in_app_addresses(text: str) -> str:
+_IN_APP_PATHS = ("/journal/", "/api/")
+_NOTE_QUERY = re.compile(r"(^|[?&])note=", re.IGNORECASE)
+
+
+def _in_app_shape(href: Any) -> bool:
+    """GALLERY MODE ONLY (wave 12 12A walk run 2, `0b80ee9945` G1): an address that LOOKS like
+    one of this app's -- a `/journal/` or `/api/` path, or a `note=` query -- whatever host it
+    names. `_internal_href` decides by HOST, so the app reached through any other name (a
+    sandbox's 127.0.0.1, the Railway service address) passed as external and a pasted
+    `.../journal/notebook?note=<id>` kept the other note's id. Share and publish are unchanged
+    (that is the owner's question, docs/notebook/wave12-12a.md); a template is copied into
+    strangers' notebooks, so it errs further."""
+    if not isinstance(href, str) or not _WEB_URL.match(href.strip()):
+        return False
+    try:
+        parts = urlsplit(href.strip())
+    except ValueError:
+        return True
+    return parts.path.startswith(_IN_APP_PATHS) or bool(_NOTE_QUERY.search(parts.query or ""))
+
+
+def _scrub_in_app_addresses(text: str, strict: bool = False) -> str:
     """`text` with every in-app address replaced by `IN_APP_LINK_TEXT`; an external address and
-    a public page's own address stay."""
+    a public page's own address stay. `strict` (gallery mode) also replaces an address that has
+    an in-app SHAPE on any host (`_in_app_shape`)."""
     def repl(m: "re.Match[str]") -> str:
         s = m.group(0)
         core = s.rstrip(_TRAILING_PUNCT)
         tail = s[len(core):]
         if core and _internal_href(core) and not _is_public_address(core):
             return IN_APP_LINK_TEXT + tail
+        if core and strict and _in_app_shape(core) and not _is_public_address(core):
+            return IN_APP_LINK_TEXT + tail
         return s
     return _ADDRESS_IN_TEXT.sub(repl, text)
+
+
+def scrub_emails(text: str) -> str:
+    """`text` with every email address replaced by `EMAIL_TEXT` (gallery mode)."""
+    return _EMAIL_IN_TEXT.sub(EMAIL_TEXT, text) if isinstance(text, str) else text
+
+
+def scrub_gallery_text(text: Any) -> str:
+    """A gallery template's own plain-text fields (its title, its description): the same two
+    rules its body's text nodes get -- in-app addresses and email addresses go."""
+    if not isinstance(text, str):
+        return ""
+    return scrub_emails(_scrub_in_app_addresses(text, strict=True))
 
 
 def _public_image_src(src: Any, attachment_base: str) -> str | None:
@@ -408,14 +460,16 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         `{provider, ref}` on render (webEmbeds.js), never from this string."""
     attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
     if t == "linkPreview":
-        if _internal_href(attrs.get("url")):
+        if _internal_href(attrs.get("url")) or (ctx.mode == "gallery" and _in_app_shape(attrs.get("url"))):
             return None
+        if ctx.mode == "gallery" and attrs.get("image") is not None:
+            return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
         if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
             node = {**node, "attrs": {**attrs, "image": None}}
         return node
     if t == "webEmbed":
         url = attrs.get("url")
-        if url is not None and _internal_href(url):
+        if url is not None and (_internal_href(url) or (ctx.mode == "gallery" and _in_app_shape(url))):
             node = {**node, "attrs": {**attrs, "url": None}}
         return node
     return node
@@ -430,7 +484,7 @@ def _is_neutral(node: Any) -> bool:
             and node.get("content") == [{"type": "text", "text": NEUTRAL_LINE}])
 
 
-def _reduce_marks(marks: Any) -> list | None:
+def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
     if not isinstance(marks, list):
         return None
     out = []
@@ -445,6 +499,8 @@ def _reduce_marks(marks: Any) -> list | None:
             href = (m.get("attrs") or {}).get("href")
             if _internal_href(href):
                 continue
+            if mode == "gallery" and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
+                continue                             # gallery: an address is personal; the words stay
         if action in ("mark", "link-mark"):
             out.append(m)
     return out
@@ -540,6 +596,8 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
     action = policy[ctx.mode]
     if action == "drop":
         return []
+    if action == "neutral":
+        return [_neutral()]
     if action == "market-data":
         return _market_data(node, ctx)
     if action == "linked-note":
@@ -564,10 +622,15 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
             return []
         node = kept
     out = {k: v for k, v in node.items() if k not in ("content", "marks")}
+    if action == "task":
+        attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+        out["attrs"] = {**attrs, "checked": False}
     if t == "text" and isinstance(out.get("text"), str):
-        out["text"] = _scrub_in_app_addresses(out["text"])      # wave-8 walk W3
+        out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.mode == "gallery")  # walk W3
+        if ctx.mode == "gallery":
+            out["text"] = scrub_emails(out["text"])
     if "marks" in node:
-        marks = _reduce_marks(node.get("marks"))
+        marks = _reduce_marks(node.get("marks"), ctx.mode)
         if marks is not None and (marks or not node.get("marks")):
             out["marks"] = marks                     # an empty list stays empty; an emptied one goes
     if "content" in node:

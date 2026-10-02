@@ -31,11 +31,19 @@
 //   * the catalog has grown from 9 to 25 built-ins (breadth) -- every test in
 //     this file's sibling `.gallery.test.jsx` is derived from `TEMPLATES`, so
 //     it covers the new ones without being told their names.
-import { useId, useMemo, useState } from 'react'
+//
+// Wave 12 lane 12A: while notebook_template_gallery_enabled is LATCHED on, a "Browse the
+// community gallery" door below the chips swaps this dialog's content for
+// TemplateGallery.jsx (members' shared templates, reviewed by UCT); its Back button
+// returns here with focus on the door. "Make a note from it" there calls the same
+// `onPickMember` this picker hands MemberTemplates. Gate off: no door, nothing changes.
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FAMILIES, templatesByFamily, templatePreview } from '../../lib/notebookTemplates'
 import MemberTemplates from './MemberTemplates'
 import TemplatePreview from './TemplatePreview'
+import TemplateGallery from './TemplateGallery'
+import { templateGalleryEnabled } from '../../lib/templateGallery'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplatePicker.module.css'
 
@@ -82,6 +90,16 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
   // preview fetches the full record first (see MemberTemplates.jsx) and is
   // opened by that component through `onPreviewMember` below.
   const [preview, setPreview] = useState(null)
+  const galleryOn = templateGalleryEnabled()
+  const [community, setCommunity] = useState(false)
+  const [backToDoor, setBackToDoor] = useState(false)
+  const doorRef = useRef(null)
+  useEffect(() => {
+    if (backToDoor && !community) {
+      doorRef.current?.focus()
+      setBackToDoor(false)
+    }
+  }, [backToDoor, community])
 
   const q = query.trim().toLowerCase()
   const showFamily = (famKey) => category === ALL || category === famKey
@@ -104,6 +122,18 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
   })
 
   const closePreview = () => setPreview(null)
+
+  if (galleryOn && community) {
+    return (
+      <div className={styles.wrap}>
+        <TemplateGallery
+          onBack={() => { setCommunity(false); setBackToDoor(true) }}
+          onUseNow={onPickMember}
+          busy={busy}
+        />
+      </div>
+    )
+  }
 
   return (
     // The keys are handled for the card buttons inside (see onGalleryKeyDown).
@@ -161,6 +191,18 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
             </button>
           )}
         </div>
+        {galleryOn && (
+          <button
+            type="button"
+            ref={doorRef}
+            className={styles.galleryDoor}
+            onClick={() => setCommunity(true)}
+            data-community-gallery-door=""
+          >
+            <UIcon name="community" size={14} gold={false} />
+            <span>Browse the community gallery</span>
+          </button>
+        )}
       </div>
 
       <button

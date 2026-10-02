@@ -181,6 +181,8 @@ EXEMPT: dict[str, str] = {
                            "belongs in the Notebook editor files, owned by the notebook workstream "
                            "(TERM-038 slice 2 stopped here by rule)",
     "j2_note_templates": "no-door: a note template is applied from the editor, never opened by URL",
+    "j2_template_gallery": "no-door: a community gallery template is browsed and copied inside the "
+                           "Notebook's template dialog, never opened by URL (wave 12, lane 12A)",
     "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet; that door belongs "
                        "in the Notebook editor files (notebook workstream, slice 2 stopped by rule)",
     "j2_note_documents": "not-a-saved-object: an attached document belongs to its note",

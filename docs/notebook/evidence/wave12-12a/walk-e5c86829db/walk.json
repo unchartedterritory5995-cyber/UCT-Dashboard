@@ -1,0 +1,69 @@
+{
+ "wave": 12,
+ "lane": "12A",
+ "checks": {},
+ "errors": [],
+ "requests": [],
+ "tip": "e5c86829db",
+ "base": "http://127.0.0.1:8580",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data",
+ "instrument": "tools\\notebook_w12a_gallery_walk.py",
+ "gate_source": "the sandbox's auth payload (row G0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8580 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T11-55-25.md (identity 3d5a79183f64..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12a\\w12a-data)"
+ },
+ "run": "r115630",
+ "accounts": {
+  "author": "w12a-author-r115630@local.dev",
+  "member": "w12a-member-r115630@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\tools\\notebook_w12a_gallery_walk.py\", line 420, in main\n    run_walk(base, art)\n    ~~~~~~~~^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\tools\\notebook_w12a_gallery_walk.py\", line 141, in run_walk\n    H._provision(admin.request, member.request, base, member=(b_email, pw, \"Walker Member\"))\n    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\tools\\notebook_perf_harness.py\", line 884, in _provision\n    _signup_or_login(member_req, base, email, pw, name)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w12a\\tools\\notebook_perf_harness.py\", line 871, in _signup_or_login\n    raise SetupFailed(f\"could not sign in {email}: HTTP {r.status}\")\ntools.notebook_perf_harness.SetupFailed: could not sign in w12a-member-r115630@local.dev: HTTP 401\n",
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: NOT RUN (SetupFailed: could not sign in w12a-member-r115630@local.dev: HTTP 401) -- the sandbox's checkpoints: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave12-12a\\walk-e5c86829db\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave12-12a\\walk-e5c86829db\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 11:55:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 11:56:29",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 11:58:25",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 11:58:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": "SetupFailed: could not sign in w12a-member-r115630@local.dev: HTTP 401"
+}

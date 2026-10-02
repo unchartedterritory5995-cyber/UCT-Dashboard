@@ -468,7 +468,11 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   scopes `notebook-share-{public,images,mint}` and `notebook-publish-{public,images,mint}`
   (the rates are the constants at the top of `api/routers/notebook_shares.py` and
   `notebook_publish.py`; public reads key on the client IP, mints on the member — a second
-  process doubles every one) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  process doubles every one), and since wave 12 (lane 12A, dark) the two community-gallery
+  scopes `notebook-gallery-publish` (10/hour) and `notebook-gallery-report` (30/hour), keyed
+  on the member (constants at the top of `api/routers/notebook_template_gallery.py`; each
+  also has a DURABLE daily cap in `daily_usage_counters`, so a second process doubles only
+  the hourly half) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·

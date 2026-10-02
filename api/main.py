@@ -112,6 +112,9 @@ from api.routers import notebook_shares as notebook_shares_router
 from api.routers import notebook_publish as notebook_publish_router
 from api.routers import notebook_export as notebook_export_router
 from api.routers import notebook_onboarding as notebook_onboarding_router
+# Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), dark
+# behind NOTEBOOK_TEMPLATE_GALLERY_ENABLED; mounted with the other Notebook routers.
+from api.routers import notebook_template_gallery as notebook_template_gallery_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8903,6 +8906,9 @@ app.include_router(journal_two_router.router, dependencies=_OPEN_READS)
 app.include_router(notebook_publish_router.router)
 app.include_router(notebook_export_router.router)
 app.include_router(notebook_onboarding_router.router)
+# Wave 12 lane 12A: outside /api/j2/notes/... and /api/j2/note-templates/..., so mount
+# order against journal_two does not matter (tests/test_main_router_order.py).
+app.include_router(notebook_template_gallery_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

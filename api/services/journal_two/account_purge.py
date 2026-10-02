@@ -142,6 +142,14 @@ _DIRECT_USER_TABLES = (
     # so on a pod where the door never ran this is a "no such table" no-op.
     "j2_ai_change_sets",
     "j2_ai_change_items",
+    # Wave 12 (lane 12A, the community template gallery) -- the member's published
+    # gallery copies (an author's account deletion takes their listings with it; copies
+    # other members already made are theirs and stay), the reports they filed, and the
+    # record of which gallery templates they copied. Created by db.ensure_schema via
+    # template_gallery.ensure_gallery_schema. Firm rows carry no user_id and never match.
+    "j2_template_gallery",
+    "j2_template_gallery_reports",
+    "j2_template_gallery_uses",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

@@ -2099,6 +2099,14 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     from api.services.journal_two.capture_auth import ensure_capture_auth_schema
     ensure_capture_auth_schema(conn)
 
+    # Wave 12 (lane 12A): the community template gallery's three j2_ tables
+    # (j2_template_gallery, _reports, _uses) and its firm "UCT picks" seed. The DDL
+    # lives with the module that owns it, like the capture tables above; it is called
+    # from HERE so the account-purge manifest rail, which reads ensure_schema, sees
+    # every member table it creates. The seed never raises (template_gallery.py).
+    from api.services.journal_two.template_gallery import ensure_gallery_schema
+    ensure_gallery_schema(conn)
+
     # Phase 2 ALTER additions: idempotent via try/except since SQLite
     # doesn't have IF NOT EXISTS for ADD COLUMN.
     for stmt in _PHASE_2_ALTERS:

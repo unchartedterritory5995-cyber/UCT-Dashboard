@@ -283,6 +283,19 @@ EXPECTED.update({
     "tradeCanvas": ("neutral", "neutral"),  # wave 11 11D: a plan mixes member text with Massive charts
 })
 
+#: Wave 12 lane 12A -- what each type becomes in the THIRD mode, `gallery` (a member template
+#: published to the community gallery). Stricter than publish: every image and figure goes
+#: (re-upload is a later step), every Ask answer AND writing-help block goes, and every
+#: market-data node is the neutral line whatever its vendor. A type added to the editor
+#: tomorrow fails by name here too.
+EXPECTED_GALLERY: dict[str, str] = {t_: EXPECTED[t_][1] for t_ in EXPECTED}
+EXPECTED_GALLERY.update({
+    "image": "gone", "imageFigure": "gone", "imageCaption": "gone",
+    "askInsert": "gone",                     # writing help too -- computed from private notes
+    "askCitation": "gone",
+    "financialFact": "neutral", "widgetEmbed": "neutral",
+})
+
 
 def test_the_derivation_reads_the_real_schema_table():
     """Non-vacuity: the node import returned the table, including types from every era."""
@@ -296,8 +309,8 @@ def test_every_schema_type_has_a_declared_policy(type_):
     assert type_ in pnp.NODE_POLICY, (
         f"`{type_}` is in lib/notebookSchema.js and has NO row in public_note_payload.NODE_POLICY -- "
         "decide what a stranger sees before a note holding it can be shared or published")
-    assert set(pnp.NODE_POLICY[type_]) == {"share", "publish"}, type_
-    assert type_ in EXPECTED and type_ in FIXTURES, (
+    assert set(pnp.NODE_POLICY[type_]) == set(pnp.MODES) == {"share", "publish", "gallery"}, type_
+    assert type_ in EXPECTED and type_ in FIXTURES and type_ in EXPECTED_GALLERY, (
         f"`{type_}` has a policy but no expectation/fixture in this rail")
 
 
@@ -326,6 +339,77 @@ def test_each_type_becomes_what_is_declared(type_, mode):
     out = reduce(body, mode)
     want = EXPECTED[type_][0 if mode == "share" else 1]
     assert _outcome(type_, body, out) == want, (type_, mode, out)
+
+
+@pytest.mark.parametrize("type_", schema_types())
+def test_each_type_becomes_what_is_declared_in_gallery_mode(type_):
+    body = FIXTURES[type_]()
+    out = reduce(body, "gallery")
+    assert _outcome(type_, body, out) == EXPECTED_GALLERY[type_], (type_, out)
+
+
+def test_gallery_mode_drops_every_image_bearing_attribute_even_an_external_one():
+    """CONTROL beside the M-6 rail: in share/publish an external image SURVIVES; in gallery
+    mode it does not -- so this cannot pass by a reducer that never kept one."""
+    web = {"type": "image", "attrs": {"src": "https://example.com/c.png"}}
+    assert "image" in types_in(reduce(doc(web), "publish"))
+    assert "image" not in types_in(reduce(doc(web), "gallery"))
+    card = doc({"type": "linkPreview", "attrs": {"url": "https://example.com/a", "image": "https://example.com/i.png"}})
+    assert find(reduce(card, "publish"), "linkPreview")[0]["attrs"]["image"] == "https://example.com/i.png"
+    assert find(reduce(card, "gallery"), "linkPreview")[0]["attrs"]["image"] is None
+    fund = _fundamentals_widget("https://example.com/w.png")
+    assert "widgetEmbed" in types_in(reduce(fund, "publish"))         # FMP is SHOWN on a page
+    assert texts_in(reduce(fund, "gallery")) == [NEUTRAL]             # never in a template
+
+
+def test_gallery_mode_unchecks_tasks_and_the_other_modes_do_not():
+    body = doc({"type": "taskList", "content": [
+        {"type": "taskItem", "attrs": {"checked": True}, "content": [p(t("done"))]}]})
+    assert find(reduce(body, "share"), "taskItem")[0]["attrs"]["checked"] is True
+    assert find(reduce(body, "gallery"), "taskItem")[0]["attrs"]["checked"] is False
+
+
+def test_gallery_mode_scrubs_email_addresses_as_text_and_as_mailto_links():
+    mail = {"type": "link", "attrs": {"href": "mailto:me@example.com"}}
+    body = doc(p(t("write to me@example.com or "), t("here", mail), t(" -- or the site", {
+        "type": "link", "attrs": {"href": "https://example.com/contact"}})))
+    shared = reduce(body, "share")
+    assert "me@example.com" in json.dumps(shared)                      # share keeps an email (unchanged)
+    out = reduce(body, "gallery")
+    dumped = json.dumps(out)
+    assert "me@example.com" not in dumped and "mailto:" not in dumped
+    assert pnp.EMAIL_TEXT in texts_in(out)[0]
+    assert "here" in texts_in(out) and "https://example.com/contact" in dumped
+
+
+FOREIGN_HOST_IN_APP = [
+    f"http://127.0.0.1:8580/journal/notebook?note={OTHER}",                       # a sandbox
+    f"https://web-production-05cb6.up.railway.app/journal/notebook?note={OTHER}",  # the Railway name
+    f"https://example.org/anything?x=1&note={OTHER}",                               # a note= query
+    "http://localhost:8000/api/j2/notes/abc",
+]
+
+
+@pytest.mark.parametrize("url", FOREIGN_HOST_IN_APP)
+def test_gallery_mode_scrubs_an_in_app_address_on_ANY_host(url):
+    """Wave 12 12A walk run 2 (0b80ee9945, G1): the host test passed a pasted
+    `http://127.0.0.1:8580/journal/notebook?note=<id>` as external. Gallery mode judges the
+    address's SHAPE too -- as text, as a link mark, as a link card and as an embed's fallback."""
+    link = {"type": "link", "attrs": {"href": url}}
+    bodies = [doc(p(t(f"see {url} now"))), doc(p(t("words", link))),
+              doc({"type": "linkPreview", "attrs": {"url": url, "title": "T"}}),
+              doc({"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": url}})]
+    for body in bodies:
+        out = json.dumps(reduce(body, "gallery"))
+        assert OTHER not in out and "note=" not in out and "/journal/" not in out and "/api/" not in out, (url, out)
+
+
+def test_CONTROL_gallery_shape_rule_keeps_ordinary_web_addresses_and_share_mode_is_unchanged():
+    keep = "https://example.com/blog/how-i-trade?ref=nav"
+    assert texts_in(reduce(doc(p(t(f"Read {keep}."))), "gallery")) == [f"Read {keep}."]
+    foreign = FOREIGN_HOST_IN_APP[0]
+    # share/publish still decide by host: this is recorded as an owner question, not changed here
+    assert foreign in json.dumps(reduce(doc(p(t(foreign))), "share"))
 
 
 def test_an_unknown_type_is_dropped_at_run_time():
