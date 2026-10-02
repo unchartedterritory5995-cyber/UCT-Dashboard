@@ -566,6 +566,19 @@ def run_walk(base: str, art: Path) -> None:
             pg.wait_for_timeout(200)
             layer_t1 = pg.evaluate("() => document.querySelector('[role=\"application\"] > div').style.transform")
             z0 = pg.get_by_role("button", name="Show everything").inner_text()
+            # runs 3-4: the pinch left the zoom where it was. Record what the board RECEIVED.
+            pg.evaluate("""() => {
+              const vp = document.querySelector('[role="application"]')
+              window.__w11dPtr = []
+              for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'touchstart']) {
+                vp.addEventListener(t, (e) => {
+                  if (window.__w11dPtr.length < 80) window.__w11dPtr.push([t, e.pointerId ?? null, e.isPrimary ?? null,
+                    Math.round(e.clientX ?? 0), Math.round(e.clientY ?? 0),
+                    (e.target.closest && (e.target.closest('[data-canvas-item]')?.getAttribute('data-canvas-item')
+                      || (e.target.closest('[data-canvas-chrome]') ? 'chrome' : e.target.tagName))) || null])
+                }, true)
+              }
+            }""")
             cx, cy = vp["x"] + vp["width"] / 2, vp["y"] + vp["height"] / 2
             touch("touchStart", [{"x": cx - 30, "y": cy, "id": 1}, {"x": cx + 30, "y": cy, "id": 2}])
             for s in range(1, 11):
@@ -573,6 +586,8 @@ def run_walk(base: str, art: Path) -> None:
             touch("touchEnd", [])
             pg.wait_for_timeout(200)
             z1 = pg.get_by_role("button", name="Show everything").inner_text()
+            pinch_events = pg.evaluate("() => window.__w11dPtr")
+            (art / "C5-pinch-events.json").write_text(json.dumps(pinch_events, indent=0), encoding="utf-8")
             # a level through the real control (no keyboard, no drag). Run 1: Playwright scrolled
             # the button to the very top, under the app's fixed phone header, and the tap landed on
             # the header. A member scrolls the board into view first; so does the walk.
@@ -591,7 +606,8 @@ def run_walk(base: str, art: Path) -> None:
             shot(pg, "C5-phone-after")
             ok = overflow <= 1 and not small and layer_t1 != layer_t0 and z1 != z0 and added
             record("C5_touch_390", "PASS" if ok else "FAIL", sideways_overflow_px=overflow, controls_under_44px=small,
-                   pan_transform=[layer_t0, layer_t1], pinch_zoom=[z0, z1], level_added=added, level_error=level_error)
+                   pan_transform=[layer_t0, layer_t1], pinch_zoom=[z0, z1], pinch_events_head=(pinch_events or [])[:12],
+                   pinch_at=[cx, cy], level_added=added, level_error=level_error)
             phone.close()
 
         # ── C6 ─────────────────────────────────────────────────────────────
