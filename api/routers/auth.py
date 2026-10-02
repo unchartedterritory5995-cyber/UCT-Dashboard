@@ -157,6 +157,10 @@ NOTEBOOK_FLAGS = {
     "J2_SHARE_LINKS_ENABLED": False,         # enablement  — unset means OFF (share links, lane 8B)
     "NOTEBOOK_PUBLISH_ENABLED": False,       # enablement  — unset means OFF (publish-to-web, lane 8B)
     "NOTEBOOK_ONBOARDING_ENABLED": False,    # enablement  — unset means OFF (tour + sample notebook, lane 8C)
+    # Wave 11 lane 11C: "Ask Notebook to do something" (journal_two/ai_actions.py).
+    # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
+    # variable per request through `flag_on`.
+    "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
