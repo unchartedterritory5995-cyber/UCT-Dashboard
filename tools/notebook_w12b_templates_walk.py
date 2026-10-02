@@ -201,9 +201,13 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
         # with nothing on disk to say why. The gallery has two doors: inline on an empty
         # notebook, and the toolbar's "Templates" sheet. Use whichever this page offers,
         # say which, and keep a screenshot of what the page showed first.
-        pg.wait_for_selector(".ProseMirror, [data-template-key], button:has-text('Templates')",
-                             state="visible", timeout=60000)
-        shot(pg, "notebook-landing-1200")
+        try:
+            pg.wait_for_selector(".ProseMirror, [data-template-key], button:has-text('Templates')",
+                                 state="visible", timeout=60000)
+        finally:
+            # Runs 1 and 2 stopped here with nothing on disk to say what the page showed.
+            shot(pg, "notebook-landing-1200")
+            rec["landing"] = {"url": pg.url, "text": pg.locator("body").inner_text()[:1500]}
         door = "inline (empty notebook)"
         if pg.locator("[data-template-key]").count() == 0:
             door = "toolbar Templates sheet"
