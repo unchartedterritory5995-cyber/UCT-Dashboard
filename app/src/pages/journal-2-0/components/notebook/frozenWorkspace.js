@@ -58,5 +58,7 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     floatNewWidget: () => {},
     applyThemeToAllCharts: () => {},
     applyThemeToAllWidgets: () => {},
+    // COV-10 list subscription (2026-10-01): a frozen capture never subscribes.
+    listSubscribeEnabled: false,
   }
 }

@@ -15,14 +15,21 @@
 // source is now unreadable. An empty list is shown only when the source answered that
 // it holds nothing — and then the line says that, in words.
 //
-// First (and only) source kind: `scan` — a Scanner widget's preset scan, published by
-// ScannerResults on `list-ref:<colour>`. The next kinds (themes, saved screens) add a
-// resolver to SOURCE_RESOLVERS; a kind with no resolver is "unavailable", by name.
+// Source kinds, each one resolver in SOURCE_RESOLVERS (a kind with no resolver is
+// "unavailable", by name):
+//   * `scan`   — a Scanner widget's preset scan, published by ScannerResults on `list-ref:<colour>`;
+//   * `theme`  — the theme open in a Themes widget, published by ThemesWidget; its holdings are
+//                resolved server-side through theme_db (owner + engine overlay);
+//   * `screen` — one of the member's SAVED SCREENS, run on the nightly snapshot. No widget on the
+//                board shows a saved screen, so the Watchlist widget offers it itself
+//                (`ScreenSourceOffer`), with the same two buttons.
+// The `theme` and `screen` endpoints answer 404 WITH A REASON for a source that is gone, never an
+// empty list (api/routers/charts_list_sources.py).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
-import { SCAN_ENDPOINTS } from './scanEndpoints'
+import { SCAN_ENDPOINTS } from './ScannerResults'
 import { ChartsSymContext } from '../ChartsSymContext'
 import styles from './ListSubscription.module.css'
 
@@ -31,7 +38,18 @@ export const SUB_MODE = Object.freeze({ FREEZE: 'freeze', TRACK: 'track' })
 /** list-ref source → (value) → endpoint URL, or null when this board cannot read it. */
 const SOURCE_RESOLVERS = {
   scan: (value) => SCAN_ENDPOINTS[value] || null,
+  theme: (value) => (value ? `/api/charts/list-sources/theme/${encodeURIComponent(value)}` : null),
+  screen: (value) => (/^[1-9]\d*$/.test(String(value ?? '')) ? `/api/charts/list-sources/screen/${value}` : null),
 }
+
+/** How each source kind is named on the offer and on a tracking line. `fresh` says what
+ *  "current" means for it: a scan is live, a saved screen is its nightly result. */
+const SOURCE_META = {
+  scan: { noun: 'the scan', follows: 'follows the scan live', fresh: 'live' },
+  theme: { noun: 'the theme', follows: "follows the theme's holdings", fresh: 'current holdings' },
+  screen: { noun: 'the saved screen', follows: 'follows its nightly results', fresh: 'nightly results' },
+}
+const metaOf = (source) => SOURCE_META[source] || { noun: 'the list', follows: 'follows the source', fresh: 'live' }
 export const SUBSCRIBABLE_SOURCES = Object.freeze(Object.keys(SOURCE_RESOLVERS))
 
 export function endpointFor(source, value) {
@@ -61,7 +79,16 @@ async function readSource(url) {
   } catch {
     throw new Error('network error')
   }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) {
+    // A list-sources route says WHY in `detail` ("That saved screen no longer exists.");
+    // carry it, so the member reads the reason and not only a status code.
+    let detail = ''
+    try {
+      const body = await res.json()
+      if (typeof body?.detail === 'string') detail = body.detail.trim().replace(/\.$/, '')
+    } catch { /* no body: the status is the reason */ }
+    throw new Error(detail ? `HTTP ${res.status} · ${detail}` : `HTTP ${res.status}`)
+  }
   let data
   try { data = await res.json() } catch { throw new Error('the answer was not readable') }
   if (!data || typeof data !== 'object' || (!Array.isArray(data.results) && data.status !== 'computing')) {
@@ -82,6 +109,8 @@ export function fmtEt(iso) {
 }
 
 const plural = (n) => `${n} ${n === 1 ? 'stock' : 'stocks'}`
+/** A source that matched more than one page says so: never a silent partial list. */
+const countText = (n, total) => (Number.isInteger(total) && total > n ? `${plural(n)} (the first ${n} of ${total})` : plural(n))
 
 /**
  * What a TRACKING list may claim, from what the source read returned. Pure.
@@ -101,11 +130,12 @@ export function trackState({ endpoint, data, error }) {
 }
 
 /** The one-line statement the widget makes about its subscription. Pure. */
-export function subscriptionLine(sub, { state, count, readAt } = {}) {
+export function subscriptionLine(sub, { state, count, readAt, total } = {}) {
   const label = sub?.label || sub?.value || 'this list'
   if (sub?.mode === SUB_MODE.FREEZE) {
-    return `Frozen copy of ${label} · taken ${fmtEt(sub.at)} · ${plural(count ?? (sub.symbols || []).length)} · does not update`
+    return `Frozen copy of ${label} · taken ${fmtEt(sub.at)} · ${countText(count ?? (sub.symbols || []).length, sub.total)} · does not update`
   }
+  const fresh = metaOf(sub?.source).fresh
   switch (state?.kind) {
     case 'unavailable':
       return `Tracking ${label} · SOURCE UNAVAILABLE: ${state.reason}. Nothing is shown because nothing could be read; this is not an empty list.`
@@ -117,8 +147,8 @@ export function subscriptionLine(sub, { state, count, readAt } = {}) {
       return `Tracking ${label} · the source is still building; nothing to show yet`
     default:
       return count === 0
-        ? `Tracking ${label} · live · the source holds no stocks right now`
-        : `Tracking ${label} · live · ${plural(count)} · read ${fmtEt(readAt)}`
+        ? `Tracking ${label} · ${fresh} · the source holds no stocks right now`
+        : `Tracking ${label} · ${fresh} · ${countText(count, total)} · read ${fmtEt(readAt)}`
   }
 }
 
@@ -127,7 +157,7 @@ export function subscriptionLine(sub, { state, count, readAt } = {}) {
  * it can subscribe to. Two buttons, no default. Freeze reads the source once and refuses
  * (by name) to freeze what it could not read or what holds nothing.
  */
-export function SubscribeOffer({ color, offered, onSubscribe }) {
+export function SubscribeOffer({ color, offered, onSubscribe, intro = null }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   const label = offered.label || offered.value
@@ -152,6 +182,7 @@ export function SubscribeOffer({ color, offered, onSubscribe }) {
       onSubscribe({
         mode: SUB_MODE.FREEZE, source: offered.source, value: offered.value, label,
         at: new Date().toISOString(), asOf: data.as_of || null, symbols,
+        ...(Number.isInteger(data.total) && data.total > symbols.length ? { total: data.total } : {}),
       })
     } catch (e) {
       setErr(`Could not freeze ${label}: the source could not be read (${e.message}). Nothing was saved.`)
@@ -160,14 +191,15 @@ export function SubscribeOffer({ color, offered, onSubscribe }) {
     }
   }, [busy, endpoint, label, offered, onSubscribe])
 
+  const meta = metaOf(offered.source)
   return (
-    <div className={styles.offer} role="group" aria-label={`Use group ${color}'s list here`}>
+    <div className={styles.offer} role="group" aria-label={intro ? `Use ${label} here` : `Use group ${color}'s list here`}>
       <div className={styles.offerText}>
-        Group {color} is showing the scan <strong>{label}</strong>. Use it in this list as:
+        {intro || `Group ${color} is showing ${meta.noun}`} <strong>{label}</strong>. Use it in this list as:
       </div>
       <div className={styles.offerBtns}>
         <button type="button" className={styles.offerBtn} onClick={track} disabled={busy}>
-          Track it <span className={styles.offerHint}>follows the scan live</span>
+          Track it <span className={styles.offerHint}>{meta.follows}</span>
         </button>
         <button type="button" className={styles.offerBtn} onClick={freeze} disabled={busy}>
           {busy ? 'Freezing…' : 'Freeze a copy'} <span className={styles.offerHint}>its stocks as of now, never changes</span>
@@ -200,7 +232,8 @@ export function SubscribedList({ sub, activeRef, widgetKey, scopedSymContext, se
 
   const trackedSyms = useMemo(() => symsOf(data), [data])
   const symbols = tracking ? trackedSyms : (Array.isArray(sub.symbols) ? sub.symbols : NO_SYMS)
-  const line = subscriptionLine(sub, { state, count: symbols.length, readAt })
+  const total = tracking && Number.isInteger(data?.total) ? data.total : undefined
+  const line = subscriptionLine(sub, { state, count: symbols.length, readAt, total })
   const unavailable = state?.kind === 'unavailable'
   const warn = unavailable || state?.kind === 'stale'
 
@@ -235,6 +268,72 @@ export function SubscribedList({ sub, activeRef, widgetKey, scopedSymContext, se
             />
           </ChartsSymContext.Provider>
         </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * COV-10 follow-up — offer one of the member's SAVED SCREENS as a list source. Collapsed to one
+ * button until asked (no request is made before that). Then the member's screens, and once one
+ * is chosen the same two-button SubscribeOffer, no default. A screens list that cannot be read
+ * says why, by name; it is never shown as "no screens".
+ */
+export function ScreenSourceOffer({ onSubscribe }) {
+  const [phase, setPhase] = useState('closed') // closed | loading | ready | error
+  const [screens, setScreens] = useState([])
+  const [why, setWhy] = useState('')
+  const [chosen, setChosen] = useState(null)
+
+  const open = useCallback(async () => {
+    setPhase('loading')
+    let res
+    try {
+      res = await fetch('/api/screener/saved-screens', { credentials: 'include' })
+    } catch {
+      setWhy('Your saved screens could not be read (network error).'); setPhase('error'); return
+    }
+    if (res.status === 402) { setWhy('Saved screens need a paid plan.'); setPhase('error'); return }
+    let body = null
+    try { body = await res.json() } catch { body = null }
+    if (!res.ok || !Array.isArray(body?.saved)) {
+      setWhy(`Your saved screens could not be read (${res.ok ? 'the answer was not a list' : `HTTP ${res.status}`}).`)
+      setPhase('error'); return
+    }
+    setScreens(body.saved); setPhase('ready')
+  }, [])
+
+  if (phase === 'closed') {
+    return (
+      <div className={styles.offer}>
+        <button type="button" className={styles.offerBtn} onClick={open}>
+          Track or freeze one of my saved screens…
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.offer} data-testid="screen-source-offer">
+      {phase === 'loading' && <div className={styles.offerText}>Reading your saved screens…</div>}
+      {phase === 'error' && <div className={styles.offerErr} role="alert">{why}</div>}
+      {phase === 'ready' && screens.length === 0 && (
+        <div className={styles.offerText}>You have no saved screens yet. Save one in the Screener first.</div>
+      )}
+      {phase === 'ready' && screens.length > 0 && (
+        <label className={styles.offerText}>
+          Saved screen{' '}
+          <select aria-label="Saved screen" value={chosen?.value || ''}
+            onChange={(e) => {
+              const s = screens.find(x => String(x.id) === e.target.value)
+              setChosen(s ? { source: 'screen', value: String(s.id), label: s.name } : null)
+            }}>
+            <option value="">Choose…</option>
+            {screens.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+          </select>
+        </label>
+      )}
+      {chosen && (
+        <SubscribeOffer key={chosen.value} offered={chosen} onSubscribe={onSubscribe} intro="Your saved screen" />
       )}
     </div>
   )

@@ -14,6 +14,7 @@ rows filed since 2023. No test here touches the network: `_sec_get` and
 """
 from __future__ import annotations
 
+import json
 import threading
 from pathlib import Path
 
@@ -263,13 +264,13 @@ class TestRequestPath:
     def test_request_path_never_touches_the_network(self, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
         scheduled = []
-        monkeypatch.setattr(fb, "_schedule", lambda sym: scheduled.append(sym) or True)
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": scheduled.append((sym, form)) or True)
         monkeypatch.setattr(fb, "_sec_get", lambda url: pytest.fail("request path reached SEC"))
         monkeypatch.setattr(fb, "_resolve_cik", lambda s: pytest.fail("request path resolved a CIK"))
         snap = fb.blackline_snapshot("aapl")
         assert snap == {"state": "pending", "sym": "AAPL", "vendor": "sec_edgar", "form": "10-K",
                         "queued": True}
-        assert scheduled == ["AAPL"]
+        assert scheduled == [("AAPL", "10-K")]
 
     def test_armed_worker_fills_the_cache_once(self, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
@@ -361,7 +362,7 @@ class TestRoute:
 
     def test_on_miss_is_pending(self, client, monkeypatch):
         monkeypatch.setenv(fb.ENABLED_ENV, "1")
-        monkeypatch.setattr(fb, "_schedule", lambda sym: True)
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": True)
         body = client.get("/api/research/blackline/aapl").json()
         assert body["state"] == "pending" and body["ticker"] == "AAPL" and "sections" not in body
 
@@ -375,3 +376,206 @@ class TestRoute:
         assert (body["newer"]["accession"], body["newer"]["filing_date"]) == (NEWER_ACC, NEWER_FILED)
         assert (body["older"]["accession"], body["older"]["filing_date"]) == (OLDER_ACC, OLDER_FILED)
         assert [s["key"] for s in body["sections"]] == ["risk_factors", "mdna"]
+
+    def test_form_10q_is_served_and_other_forms_are_400(self, client, monkeypatch):
+        monkeypatch.setenv(fb.ENABLED_ENV, "1")
+        seen = []
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": seen.append((sym, form)) or True)
+        body = client.get("/api/research/blackline/AAPL?form=10-Q").json()
+        assert body["state"] == "pending" and body["form"] == "10-Q" and seen == [("AAPL", "10-Q")]
+        assert "10-Q" in body["source"]
+        assert client.get("/api/research/blackline/AAPL?form=8-K").status_code == 400
+
+
+# ── slice 2: heading coverage, measured over 42 issuers ─────────────────────
+#
+# Each rail below pins a fix to the measured miss it closes (evidence:
+# docs/terminal-research/10-roadmap/evidence/2026-10-01-cov04-blackline-coverage).
+# The *_excerpt.htm fixtures are REAL SEC documents recorded 2026-10-01 through
+# sec_client, cut to byte windows around the headings that matter (the bodies
+# in between are dropped) with presentational attributes removed -- except an
+# inline `display:inline-block` style, which is the markup under test.
+
+CALM_K = _b("10k_calm_0001562762-25-000170_excerpt.htm")     # converter-made, one line per element
+GE_K = _b("10k_ge_0000040545-26-000008_excerpt.htm")         # cross-reference index, run-in titles
+AAPL_Q_NEW, AAPL_Q_NEW_ACC = _b("10q_aapl_0000320193-26-000020_excerpt.htm"), "0000320193-26-000020"
+AAPL_Q_OLD, AAPL_Q_OLD_ACC = _b("10q_aapl_0000320193-26-000013_excerpt.htm"), "0000320193-26-000013"
+JNJ_Q = _b("10q_jnj_0000200406-26-000153_excerpt.htm")       # Part II has no Item 1A at all
+CAVA_Q = _b("10q_cava_0001628280-26-055864_excerpt.htm")     # Item 1A: "no material changes"
+Q10 = {s["key"]: s for s in fb.FORM_SECTIONS["10-Q"]}
+
+
+class TestSplitLineLayouts:
+    """CALM: every printed line is its own absolutely-positioned <div>, and
+    words are spaced with <div style="display:inline-block">."""
+
+    @pytest.fixture(scope="class")
+    def blocks(self):
+        return fb.html_blocks(CALM_K)
+
+    def test_inline_block_spacers_do_not_split_a_line(self, blocks):
+        assert "ITEM 1A. RISK FACTORS" in blocks
+
+    def test_split_headings_are_located_and_the_text_is_reflowed(self, blocks):
+        rf = fb.locate_section(blocks, fb.SECTIONS[0])
+        assert rf["found"] and rf["heading"] == "ITEM 1A. RISK FACTORS"
+        assert rf["paragraphs"][0].startswith("Our business and results of operations are subject")
+        assert rf["fragmented"] is True and len(rf["paragraphs"]) == 13
+        md = fb.locate_section(blocks, fb.SECTIONS[1])
+        assert md["heading"] == ("ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL "
+                                 "CONDITION AND RESULTS OF OPERATIONS")
+
+    def test_a_cross_reference_inside_a_sentence_is_not_the_heading(self, blocks):
+        ref = "Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations - HPAI"
+        assert ref in blocks                       # "...and" | "Part II." | <this> | "."
+        md = fb.locate_section(blocks, fb.SECTIONS[1])
+        assert md["heading"].startswith("ITEM 7.") and len(md["paragraphs"]) == 9
+
+    def test_a_table_heavy_section_is_not_reflowed(self):
+        rf = fb.locate_section(fb.html_blocks(NEWER), fb.SECTIONS[0])
+        assert rf["fragmented"] is False
+
+
+class TestCrossReferenceIndexFiler:
+    """GE: Item headings exist only in a cross-reference index with page
+    numbers; the sections open with ALL-CAPS run-in titles."""
+
+    @pytest.fixture(scope="class")
+    def blocks(self):
+        return fb.html_blocks(GE_K)
+
+    def test_the_index_line_is_not_the_section(self, blocks):
+        assert "Item 1A. Risk Factors 24-31" in blocks
+        rf = fb.locate_section(blocks, fb.SECTIONS[0])
+        assert rf["found"] and rf["heading"] == "RISK FACTORS." and rf["heading_shape"] == "title"
+        assert rf["paragraphs"][0].startswith("The following discussion of the material factors")
+        assert len(rf["paragraphs"]) == 8
+
+    def test_run_in_mdna_runs_past_its_own_subheadings(self, blocks):
+        md = fb.locate_section(blocks, fb.SECTIONS[1])
+        assert md["heading"].startswith("MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION")
+        assert md["paragraphs"][0].startswith("The consolidated financial statements of GE Aerospace")
+        # a subheading that merely STARTS with an item word is not the next item
+        assert any(p.startswith("BUSINESS OVERVIEW AND ENVIRONMENT.") for p in md["paragraphs"])
+        assert len(md["paragraphs"]) == 14
+
+    def test_a_title_bounding_no_prose_is_not_trusted(self):
+        blocks = ["RISK FACTORS", "Strategic risks", "Operational risks", "LEGAL PROCEEDINGS"]
+        r = fb.locate_section(blocks, fb.SECTIONS[0])
+        assert r["found"] is False and "bounds no prose" in r["reason"]
+
+    def test_running_footer_variants_are_furniture(self):
+        for f in ("24 2025 FORM 10-K", "2025 FORM 10-K 23", "Goldman Sachs June 2026 Form 10-Q",
+                  "Apple Inc. | Q3 2026 Form 10-Q | 23", "Apple Inc. | 2025 Form 10-K | 7"):
+            assert fb._is_furniture(f), f
+        assert not fb._is_furniture("Our risks are described in our 2025 Form 10-K and elsewhere.")
+
+
+class TestTenQ:
+    def test_both_sections_located_in_both_apple_quarterlies(self):
+        for doc, (n_md, n_rf) in ((AAPL_Q_NEW, (23, 23)), (AAPL_Q_OLD, (30, 27))):
+            b = fb.html_blocks(doc)
+            md, rf = fb.locate_section(b, Q10["mdna"]), fb.locate_section(b, Q10["risk_factors"])
+            assert md["heading"].startswith("Item 2. Management's Discussion and Analysis")
+            assert rf["heading"] == "Item 1A. Risk Factors"
+            assert (len(md["paragraphs"]), len(rf["paragraphs"])) == (n_md, n_rf)
+
+    def test_fetch_compares_the_two_newest_10qs_and_cites_both(self, monkeypatch):
+        calls = []
+
+        def get(url):
+            calls.append(url)
+            if url.endswith(f"CIK{AAPL_CIK}.json"):
+                return SUBMISSIONS
+            if AAPL_Q_NEW_ACC.replace("-", "") in url:
+                return AAPL_Q_NEW
+            if AAPL_Q_OLD_ACC.replace("-", "") in url:
+                return AAPL_Q_OLD
+            raise SecError(url, 404, "not found")
+        monkeypatch.setattr(fb, "_sec_get", get)
+        monkeypatch.setattr(fb, "_resolve_cik", lambda s: AAPL_CIK)
+        snap = fb.fetch_blackline("AAPL", "10-Q")
+        assert snap["form"] == "10-Q" and snap["state"] == "ok" and len(calls) == 3
+        assert (snap["newer"]["accession"], snap["newer"]["filing_date"]) == (AAPL_Q_NEW_ACC, "2026-07-31")
+        assert (snap["older"]["accession"], snap["older"]["filing_date"]) == (AAPL_Q_OLD_ACC, "2026-05-01")
+        assert snap["newer"]["form"] == snap["older"]["form"] == "10-Q"
+        assert [s["key"] for s in snap["sections"]] == ["mdna", "risk_factors"]
+
+    def test_an_item_1a_neither_10q_includes_is_omitted_never_no_changes(self):
+        rf = _section(fb.blackline_sections(JNJ_Q, JNJ_Q, "10-Q"), "risk_factors")
+        assert rf["state"] == "omitted" and rf["counts"] is None and rf["paragraphs"] is None
+        assert rf["reason"].startswith("neither filing includes it: ")
+
+    def test_a_section_that_only_refers_back_has_no_counts(self):
+        rf = _section(fb.blackline_sections(CAVA_Q, CAVA_Q, "10-Q"), "risk_factors")
+        assert rf["state"] == "reference_only" and rf["counts"] is None and rf["paragraphs"] is None
+        assert rf["excerpt"]["newer"].startswith("There have been no material changes")
+
+    def test_a_cross_reference_index_filer_is_not_omitted(self):
+        """USB lists "2) Risk Factors (Item 1A)" in an index: the section exists
+        somewhere we cannot locate. That is not_found, never omitted."""
+        part2 = ["PART II. OTHER INFORMATION", "Item 1. Legal Proceedings", "See Note 12.",
+                 "Item 2. Unregistered Sales of Equity Securities and Use of Proceeds", "None."]
+        assert fb.locate_section(part2, Q10["risk_factors"]).get("omitted") is True
+        indexed = ["2) Risk Factors (Item 1A) 76"] + part2
+        r = fb.locate_section(indexed, Q10["risk_factors"])
+        assert r["found"] is False and not r.get("omitted")
+
+    def test_an_item_marked_not_applicable_is_omitted(self):
+        r = fb.locate_section(["Item 1A. Risk Factors Not applicable(a)",
+                               "Item 2. Unregistered Sales of Equity Securities Not applicable"],
+                              Q10["risk_factors"])
+        assert r.get("omitted") is True and "'Not applicable'" in r["reason"]
+
+
+class TestHeavyFilerIndexPages:
+    """JPM's `recent` block holds about a month of filings; its previous 10-K
+    is on an older index page. Recorded 2026-10-01, trimmed to 10-K/10-Q rows."""
+
+    MAIN = json.loads(_b("submissions_jpm_trimmed.json"))
+    PAGE = _b("submissions_jpm_page_007_trimmed.json")
+
+    def test_recent_block_alone_is_short(self):
+        listing = fb.list_filings(self.MAIN, "10-K")
+        assert len(listing["filings"]) == 1 and listing["index_short"] is True
+
+    def test_the_due_page_is_read_and_only_that_page(self):
+        calls = []
+
+        def get(url):
+            calls.append(url)
+            return self.PAGE
+        listing = fb.find_filings(self.MAIN, "10-K", get)
+        assert calls == ["https://data.sec.gov/submissions/CIK0000019617-submissions-007.json"]
+        assert [f["accession"] for f in listing["filings"]] == ["0001628280-26-008131", "0000019617-25-000270"]
+        assert listing["pages_read"] == 1 and listing["index_short"] is False
+
+    def test_pages_read_are_bounded_and_the_miss_says_so(self, monkeypatch):
+        calls = []
+
+        def get(url):
+            calls.append(url)
+            if "submissions-" in url:
+                return json.dumps({"form": [], "accessionNumber": [], "filingDate": []}).encode()
+            return json.dumps(self.MAIN).encode()
+        monkeypatch.setattr(fb, "_sec_get", get)
+        monkeypatch.setattr(fb, "_resolve_cik", lambda s: "0000019617")
+        snap = fb._refresh("JPM")
+        assert snap["state"] == "not_found"
+        assert f"{fb._MAX_OLDER_PAGES} older page(s)" in snap["detail"]
+        assert sum("submissions-" in u for u in calls) == fb._MAX_OLDER_PAGES
+
+
+class TestFormSelection:
+    def test_each_form_has_its_own_cache_entry_and_queue_slot(self, monkeypatch):
+        monkeypatch.setenv(fb.ENABLED_ENV, "1")
+        seen = []
+        monkeypatch.setattr(fb, "_schedule", lambda sym, form="10-K": seen.append((sym, form)) or True)
+        assert fb.blackline_snapshot("AAPL", "10-Q")["form"] == "10-Q"
+        assert seen == [("AAPL", "10-Q")]
+        assert fb._key("AAPL") == "filing_blackline::AAPL"            # the slice-1 10-K key, unchanged
+        assert fb._key("AAPL", "10-Q") == "filing_blackline::AAPL::10-Q"
+
+    def test_an_unsupported_form_is_refused(self):
+        with pytest.raises(ValueError):
+            fb.blackline_snapshot("AAPL", "8-K")

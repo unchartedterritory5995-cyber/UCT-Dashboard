@@ -90,8 +90,57 @@ No new route, no new table, no new bare `useSWR` poll (the tracking read uses `u
 
 ## 6. Open
 
-- **More sources**: theme holdings, saved screens (`/api/scans/run`), community lists on /charts. Each is one entry in `SOURCE_RESOLVERS` plus its publisher.
+- ~~**More sources**: theme holdings, saved screens.~~ Done in the follow-up lane, §7. Community lists on /charts remain (TERM-077's Save to My Lists covers them on the Watchlists surface).
 - **Watchlist → Watchlist on /charts** still goes through TERM-077's Save to My Lists (copy/link) on the /watchlists surface; the board offer deliberately covers only sources a Watchlist widget cannot already pick.
 - **Four groups, symbol-only colour groups**: unchanged (the `list-ref` channel key is already open-ended; the colour-group UI is not).
 - **Frozen → tracking conversion**: not offered, by TERM-077's rule (a list never changes mode); leave and re-subscribe.
 - **Arming** is an owner call; not browser-verified in a live board yet (unit rails only).
+- **A theme set's edits are not the source.** The Themes widget can show a member's theme SET
+  (per-theme added/removed stocks); the published source is the taxonomy theme's holdings from
+  `theme_db`, not the set's edited version. The offer names the theme, not the set.
+
+## 7. Follow-ups (branch `lane/cov-06-10-followups`, from `integrate/terminal-fixes` @ `c5b4091188`)
+
+Two more list sources, still dark behind `CHARTS_LIST_SUBSCRIBE_ENABLED`. The flag now also gates
+two routes (`api/routers/charts_list_sources.py`, plain `def`, 404 while unset), which answer the
+scan endpoints' shape `{results:[{sym}], as_of, label, total}`, so `readSource` has one parser:
+
+- **Theme holdings.** `GET /api/charts/list-sources/theme/{theme_id}` reads ONLY through
+  `theme_db`: `get_theme_holdings` (owner rows, engine `add` rows merged where the owner has none;
+  an engine re-tier never duplicates or overrides an owner row) plus a new read function
+  `theme_db.get_theme`. That one exists because `get_theme_holdings` answers `[]` for an unknown
+  id, which would render as "the source holds no stocks". Publisher: `ThemesWidget` publishes the
+  OPEN taxonomy theme (`ThemeTrackerPage` reports it through a new `onOpenThemeChange` prop,
+  passed only while the flag is on) and clears the channel when no theme, or a custom theme, is
+  open. Offer: "Group A is showing the theme **Quantum Computing**"; tracking line says
+  "current holdings", not "live".
+- **Saved screen (nightly results).** `GET /api/charts/list-sources/screen/{id}` runs one of MY
+  saved screens (`saved_screens.get`, owner-scoped, 402 for a free plan) through
+  `query.run_scan` on the nightly snapshot, one page of 500, symbols in board form (BRK.B →
+  BRK-B). No widget on the board shows a saved screen, so the empty Watchlist widget offers it
+  itself: one collapsed button ("Track or freeze one of my saved screens…") that reads
+  `/api/screener/saved-screens` only when pressed, then a picker, then the same two-button offer.
+  The tracking line says "nightly results". A screen that matched more than one page says so:
+  "2 stocks (the first 2 of 812)", on the tracking line and on a frozen copy (`total` is stored).
+- **Never a silent empty list**, extended: a gone theme or screen is 404 WITH its reason, and
+  `readSource` now carries the server's `detail`, so the member reads "SOURCE UNAVAILABLE: it
+  could not be read (HTTP 404 · That saved screen no longer exists)" and no table. A screen whose
+  spec no longer runs is a 400 with the scanner's reason. A screens list that cannot be read says
+  why ("Saved screens need a paid plan." / "… could not be read (HTTP 500)."), never "no screens".
+- The Market Map's guard already refuses any list-ref outside `flagged/watchlist/tag` by name, so
+  a theme ref is refused the same way a scan ref is.
+
+Tests: `tests/test_charts_list_sources.py` (6, real stores: the sandbox auth.db, a snapshot seeded
+through `snapshot_db.upsert_rows`, the engine overlay written through `theme_engine.store.upsert_add`),
+`WatchlistWidget.sources.test.jsx` (10), `ThemeTrackerPage.openThemeReport.test.jsx` (2, the real
+page). Totals are in cov-06.md §6 (same run): pytest 388 passed / 1 failed (the integrator's
+`artifact_versions` EXEMPT line); charts 1166/1166; other suites 595/595.
+
+Mutations (editor in, run, editor out):
+
+| # | Mutation | Red |
+|---|---|---|
+| F2 | theme route skips the existence check | `test_an_unknown_theme_is_404_never_an_empty_list` |
+| F6 | `ThemesWidget` publishes while dark | `dark: neither source exists on the board` |
+| F7 | `countText` drops "the first N of TOTAL" | `Freeze stores the nightly members and says when a page cut the list short` |
+| F8 | `ThemeTrackerPage` reports a theme with no taxonomy id (falls back to its ticker) | `a theme with no taxonomy id (or a custom one) reports null` |

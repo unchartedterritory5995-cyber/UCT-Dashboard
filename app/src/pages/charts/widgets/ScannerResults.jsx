@@ -14,7 +14,6 @@ import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from './ScannerResults.module.css'
-import { SCAN_ENDPOINTS } from './scanEndpoints'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
 
@@ -113,9 +112,6 @@ const SCAN_CRITERIA = {
   'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
 }
 
-// scanKey → endpoint: `./scanEndpoints.js` (COV-10's tracking list resolves through the
-// same map, so a new preset reaches both from one line).
-
 import useLivePrices from '../../../hooks/useLivePrices'
 // ─── Wave R (R-1a): the Screener's send-to-Journal door ───────────────────────
 // The shared capture flow + the shared toast + the destination picker — the same
@@ -134,6 +130,21 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { captureEnabled } from '../../../widgets/captureRelease'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
+
+// scanKey -> endpoint for the preset scans. ONE authority, two readers: this widget and
+// COV-10's tracking list (ListSubscription, which re-resolves a subscribed scan). It lives
+// HERE, in the module that renders the results, because TERM-047's result-surface census
+// finds a surface by the A9 route literals in its OWN module (helpers are not followed):
+// moved to a helper, this widget silently left the census. New presets add a line here
+// + one in ScannerPicker's PRESET_SCANS.
+export const SCAN_ENDPOINTS = {
+  'highest-volume-1y': '/api/scans/highest-volume-1y',
+  'highest-volume-ever': '/api/scans/highest-volume-ever',
+  'ipo-1y': '/api/scans/ipo-1y',
+  'top-gainers-30d': '/api/scans/top-gainers-30d',
+  'top-gainers-60d': '/api/scans/top-gainers-60d',
+  'top-gainers-90d': '/api/scans/top-gainers-90d',
+}
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef, listSubscribeEnabled } = useWorkspace() || {}

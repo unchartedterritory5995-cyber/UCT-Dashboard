@@ -228,9 +228,51 @@ def rename(layout_id: int, name: str) -> Optional[dict]:
 
 def delete(layout_id: int) -> bool:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        r = c.execute("SELECT * FROM charts_layouts WHERE id=?", (layout_id,)).fetchone()
         cur = c.execute("DELETE FROM charts_layouts WHERE id=?", (layout_id,))
         c.commit()
-        return cur.rowcount > 0
+        gone = cur.rowcount > 0
+    if gone and r is not None and r["scope"] == "user":
+        # COV-06: the history outlives a member's own layout (a tombstone), so a delete can be
+        # undone. Dark, ``record_delete`` returns before any I/O.
+        artifact_versions.record_delete(
+            r["user_id"], artifact_versions.KIND_LAYOUT, layout_id,
+            before={"layout_json": r["layout_json"], "groups_json": r["groups_json"]},
+            label=r["name"])
+    return gone
+
+
+def undelete_content(layout_id: int, user_id, payload: dict, *, name: str, restored_from: int):
+    """COV-06: bring a DELETED member layout back from one of its kept versions, under its OLD id
+    (so its history continues). The name is the one the version recorded; if the member has since
+    used it, " (restored)" is appended (names are UNIQUE per member). It comes back UNSHARED: a
+    share link that was live at the delete is revoked by an APPENDED revocation row first, so a
+    link the delete killed never comes back to life. ``None`` if the id exists."""
+    now = int(time.time())
+    base = (name or "Restored layout").strip() or "Restored layout"
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        if c.execute("SELECT 1 FROM charts_layouts WHERE id=?", (layout_id,)).fetchone():
+            return None
+        taken = {r[0] for r in c.execute(
+            "SELECT name FROM charts_layouts WHERE scope='user' AND user_id=?", (user_id,))}
+        final, n = base, 1
+        while final in taken:
+            final = f"{base} (restored)" if n == 1 else f"{base} (restored {n})"
+            n += 1
+        live = _newest_share(c, user_id, layout_id)
+        if live is not None and not live["revoked"]:
+            c.execute(
+                "INSERT INTO chart_layout_shares (token, user_id, layout_id, revoked, created_at)"
+                " VALUES (?,?,?,1,?)", (live["token"], user_id, layout_id, now))
+        c.execute(
+            "INSERT INTO charts_layouts (id, scope, user_id, name, layout_json, groups_json,"
+            " created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (layout_id, "user", user_id, final, payload["layout_json"], payload["groups_json"],
+             None, now, now))
+        c.commit()
+        r = c.execute("SELECT * FROM charts_layouts WHERE id=?", (layout_id,)).fetchone()
+    res = _version(user_id, r, before=None, source="restore", restored_from=restored_from)
+    return _row_to_dict(r), res
 
 
 # ═══ sharing (terminal-grade property 3) ═════════════════════════════════════

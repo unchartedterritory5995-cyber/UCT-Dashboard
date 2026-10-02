@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './FilingChangesTab.module.css'
 
-// COV-04 (roadmap RM-L12) — what changed between a company's two most recent 10-Ks,
-// section by section, from SEC EDGAR. DARK behind FILING_BLACKLINE_ENABLED.
+// COV-04 (roadmap RM-L12) — what changed between a company's two most recent 10-Ks
+// (or, selectable, its two most recent 10-Qs), section by section, from SEC EDGAR.
+// DARK behind FILING_BLACKLINE_ENABLED.
 //
 // ⛔ Every side names its accession number and filing date.
 // ⛔ A section we could not locate says so with the reason. It is never "no changes".
@@ -11,6 +13,10 @@ import styles from './FilingChangesTab.module.css'
 // ⛔ A failed or pending read is a gap in what we could read, not a finding.
 
 const KIND_LABEL = { added: 'Added', removed: 'Removed', changed: 'Changed', moved: 'Moved' }
+const FORMS = [
+  { form: '10-K', label: 'Annual (10-K)' },
+  { form: '10-Q', label: 'Quarterly (10-Q)' },
+]
 
 function Cite({ side, f }) {
   if (!f) return null
@@ -43,6 +49,28 @@ function Paragraph({ p }) {
 }
 
 function Section({ s }) {
+  if (s.state === 'reference_only') {
+    return (
+      <section className={styles.section} data-testid={`section-${s.key}`}>
+        <h3 className={styles.h}>{s.label}</h3>
+        <p className={styles.note} data-testid={`refonly-${s.key}`}>
+          Both filings only refer back to another filing for this section, so there is no section text to compare.
+          That is not a finding that nothing changed.
+        </p>
+        {s.excerpt?.newer ? <p className={styles.muted}>Newer filing says: “{s.excerpt.newer}”</p> : null}
+      </section>
+    )
+  }
+  if (s.state === 'omitted') {
+    return (
+      <section className={styles.section} data-testid={`section-${s.key}`}>
+        <h3 className={styles.h}>{s.label}</h3>
+        <p className={styles.note} data-testid={`omitted-${s.key}`}>
+          Not in either filing: {s.reason}. That is not a finding that nothing changed.
+        </p>
+      </section>
+    )
+  }
   if (s.state !== 'ok') {
     return (
       <section className={styles.section} data-testid={`section-${s.key}`}>
@@ -60,6 +88,16 @@ function Section({ s }) {
       <p className={styles.counts} data-testid={`counts-${s.key}`}>
         {c.added} added · {c.removed} removed · {c.changed} changed ({c.boilerplate_changed} only years, dates or figures) · {c.moved} moved · {c.unchanged} unchanged
       </p>
+      {s.reference_only && (s.reference_only.older || s.reference_only.newer)
+        ? <p className={styles.note} data-testid={`refside-${s.key}`}>
+            The {s.reference_only.older ? 'older' : 'newer'} filing only refers back to another filing here; the comparison is against that reference, not against the full section.
+          </p>
+        : null}
+      {s.reflowed && (s.reflowed.older || s.reflowed.newer)
+        ? <p className={styles.note} data-testid={`reflowed-${s.key}`}>
+            This filing's layout splits sentences across lines, so paragraphs were rebuilt before comparing. Paragraph boundaries may not match the original exactly.
+          </p>
+        : null}
       {s.paragraphs.length === 0
         ? <p className={styles.note}>Both filings located; every paragraph is identical.</p>
         : <ol className={styles.list}>{s.paragraphs.map((p, i) => <Paragraph key={i} p={p} />)}</ol>}
@@ -67,9 +105,30 @@ function Section({ s }) {
   )
 }
 
+function FormPicker({ form, onPick }) {
+  return (
+    <div className={styles.forms} role="group" aria-label="Filing type">
+      {FORMS.map((f) => (
+        <button key={f.form} type="button" className={styles.formBtn} aria-pressed={form === f.form}
+          data-testid={`form-${f.form}`} onClick={() => onPick(f.form)}>{f.label}</button>
+      ))}
+    </div>
+  )
+}
+
 export default function FilingChangesTab({ sym }) {
+  const [form, setForm] = useState('10-K')
+  return (
+    <div>
+      <FormPicker form={form} onPick={setForm} />
+      <FilingChanges sym={sym} form={form} />
+    </div>
+  )
+}
+
+function FilingChanges({ sym, form }) {
   const s = (sym || '').toUpperCase().trim()
-  const { data, error } = useSWR(s ? `/api/research/blackline/${encodeURIComponent(s)}` : null,
+  const { data, error } = useSWR(s ? `/api/research/blackline/${encodeURIComponent(s)}?form=${form}` : null,
     sectionFetcher, {
       revalidateOnFocus: false,
       refreshInterval: (d) => (d && d.state === 'pending' ? 5000 : 0),
@@ -84,7 +143,7 @@ export default function FilingChangesTab({ sym }) {
   if (data.paywalled) return <div className={styles.note}>Filing changes require a paid plan.</div>
   if (data.state === 'pending') {
     return <div className={styles.note} data-testid="blackline-pending">
-      Reading {s}'s two most recent 10-Ks from SEC EDGAR. This can take a minute; the page will update.
+      Reading {s}'s two most recent {form}s from SEC EDGAR. This can take a minute; the page will update.
     </div>
   }
   if (data.state === 'not_found' || data.state === 'unavailable') {
@@ -103,6 +162,7 @@ export default function FilingChangesTab({ sym }) {
       {(data.sections || []).map((sec) => <Section key={sec.key} s={sec} />)}
       <p className={styles.muted}>
         From SEC EDGAR. Compared paragraph by paragraph; unchanged paragraphs are counted, not shown.
+        {form === '10-Q' ? ' Each quarterly report is compared with the one before it, not with the same quarter a year earlier.' : ''}
         Running page footers are not part of a section.
       </p>
     </div>

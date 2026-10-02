@@ -14,6 +14,7 @@ import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 import Input from '../../components/ui/Input'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -434,6 +435,8 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
       return
     }
     setPendingDeleteScreen(pid => (pid === id ? null : pid))
+    // COV-06: the deleted screen now shows under Recently deleted.
+    setHistoryRev(n => n + 1)
     // The share panel is a claim ABOUT this screen too — close it on the same
     // success signal the scans lane retracts its detail pane and run on.
     setShareId(sid => (sid === id ? null : sid))
@@ -658,6 +661,11 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                 )}
               </div>
             ))}
+            {/* COV-06: a deleted screen's history outlives it; bring it back here. */}
+            {historyAvailable && (
+              <RecentlyDeleted kind="screen" noun="screen" refreshKey={historyRev}
+                onBroughtBack={() => refreshSaved()} />
+            )}
           </div>
 
           <div className={styles.saveMenuSection}>

@@ -21,7 +21,7 @@ import styles from './ArtifactHistory.module.css'
 
 export const ARTIFACT_VERSIONS_URL = '/api/artifact-versions'
 
-async function requestJson(url, init) {
+export async function requestJson(url, init) {
   if (typeof fetch !== 'function') return { status: 0, ok: false, body: null }
   try {
     const res = await fetch(url, { credentials: 'include', ...(init || {}) })
@@ -56,6 +56,7 @@ export function versionSourceLabel(v) {
   switch (v?.source) {
     case 'baseline': return 'As it was before this history began'
     case 'restore': return v.restored_from != null ? `Restored from version ${v.restored_from}` : 'Restored'
+    case 'delete': return 'Deleted (as it was when deleted)'
     default: return 'Saved'
   }
 }
@@ -69,6 +70,7 @@ export function formatVersionTime(epochSeconds) {
 const CONFLICT_COPY = 'This changed after the list was loaded, so nothing was restored. The list has been refreshed. Choose the version again.'
 const GONE_COPY = 'That version is no longer available. The list has been refreshed.'
 const FAILED_COPY = 'The restore did not go through. Try again in a moment.'
+const EXISTS_COPY = 'This is already back, so nothing was restored.'
 
 /**
  * The history list for one artefact. `kind` is 'screen' or 'layout'.
@@ -76,8 +78,13 @@ const FAILED_COPY = 'The restore did not go through. Try again in a moment.'
  * artefact as it now stands). `onUnavailable()` fires on a 404 (dark, or the
  * artefact is gone); the panel then renders nothing. `refreshKey` re-reads the
  * list when the host saved the artefact itself.
+ *
+ * `deleted` — the artefact was DELETED and its history outlived it. Every
+ * version (the newest is how it was when deleted) is offered as "Bring back",
+ * which POSTs `/undelete`: the artefact is recreated under its old id,
+ * unpublished, compare-and-set like a restore.
  */
-export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 0, onRestored, onUnavailable, children }) {
+export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 0, deleted = false, onRestored, onUnavailable, children }) {
   const [phase, setPhase] = useState('loading') // loading | ready | error | dark
   const [versions, setVersions] = useState([])
   const [note, setNote] = useState('')
@@ -105,13 +112,18 @@ export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 
     if (busy) return
     setBusy(true)
     setNote('')
-    const r = await requestJson(`${base}/restore`, {
+    const r = await requestJson(`${base}/${deleted ? 'undelete' : 'restore'}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ version, base_version: headVersion }),
     })
     if (!aliveRef.current) return
     setBusy(false)
+    if (r.ok && r.body && deleted) {
+      setNote(`Brought back from version ${version}.`)
+      onRestored?.(r.body)
+      return
+    }
     if (r.ok && r.body) {
       await load()
       if (!aliveRef.current) return
@@ -121,10 +133,11 @@ export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 
       onRestored?.(r.body)
       return
     }
+    if (r.status === 409 && r.body?.detail?.error === 'exists') { setNote(EXISTS_COPY); return }
     if (r.status === 409) { if (await load()) setNote(CONFLICT_COPY); return }
     if (r.status === 404) { if (await load()) setNote(GONE_COPY); return }
     setNote(FAILED_COPY)
-  }, [busy, base, headVersion, load, onRestored])
+  }, [busy, base, deleted, headVersion, load, onRestored])
 
   if (phase === 'dark') return null
 
@@ -132,8 +145,9 @@ export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 
     <section className={styles.panel} aria-label={title || 'Version history'} data-testid={`artifact-history-${kind}-${artifactId}`}>
       <div className={styles.head}>{title || 'Version history'}</div>
       <p className={styles.lede}>
-        The last 10 saves are kept. Restoring one saves it again as the newest
-        version, so nothing here is lost and a restore can be undone.
+        {deleted
+          ? 'This was deleted, and its last 10 saves were kept. Bringing one back recreates it as it was then, not shared.'
+          : 'The last 10 saves are kept. Restoring one saves it again as the newest version, so nothing here is lost and a restore can be undone.'}
       </p>
       {children}
       {note && <div className={styles.note} role="status">{note}</div>}
@@ -151,16 +165,16 @@ export default function ArtifactHistory({ kind, artifactId, title, refreshKey = 
                 <span className={styles.when}>{formatVersionTime(v.created_at)}</span>
                 <span className={styles.what}>{versionSourceLabel(v)}{v.label ? ` · ${v.label}` : ''}</span>
               </span>
-              {i === 0 ? (
+              {i === 0 && !deleted ? (
                 <span className={styles.current}>Current</span>
               ) : (
                 <button
                   type="button"
                   className={styles.restore}
                   disabled={busy}
-                  aria-label={`Restore version ${v.version}`}
+                  aria-label={`${deleted ? 'Bring back' : 'Restore'} version ${v.version}`}
                   onClick={() => restore(v.version)}
-                >Restore</button>
+                >{deleted ? 'Bring back' : 'Restore'}</button>
               )}
             </li>
           ))}
