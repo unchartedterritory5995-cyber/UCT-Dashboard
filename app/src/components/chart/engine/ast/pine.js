@@ -25922,6 +25922,7 @@ function resolvePaint(p, ctx) {
     // compiles it: btc-charlie's `transp=70`, witnessed); by POSITION only where
     // the version's signature places it.
     const known = sig.includes(name) || (a.name === 'transp' && p.kind === 'bgcolor')
+      || a.name === 'force_overlay'
     if (!name || !known || named.has(name)) {
       return withhold('paint:argument', `\`${p.kind}(…)\` has an argument this door does not read`
         + (a.name ? ` (\`${a.name}\`)` : ''))
@@ -25937,8 +25938,8 @@ function resolvePaint(p, ctx) {
       return withhold('paint:display', `a \`display\` other than \`display.all\` / \`display.none\` has no capture (${PAINT_PROBE})`)
     }
   }
-  for (const k of ['show_last', 'overlay']) {
-    if (named.has(k)) return withhold(`paint:${k.replace('_', '-')}`, `\`${k}\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+  for (const [k, code] of [['show_last', 'paint:show-last'], ['overlay', 'paint:overlay'], ['force_overlay', 'paint:overlay']]) {
+    if (named.has(k)) return withhold(code, `\`${k}\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
   }
   if (named.has('offset')) {
     const off = named.get('offset')

@@ -70,6 +70,7 @@ describe('what no capture witnesses is withheld BY NAME', () => {
     expect(code('bgcolor(color.red, show_last = 5)')).toBe('paint:show-last')
     expect(code('bgcolor(color.red, display = display.data_window)')).toBe('paint:display')
     expect(code('bgcolor(color.red, overlay = true)')).toBe('paint:overlay')
+    expect(code('bgcolor(color.red, force_overlay = true)')).toBe('paint:overlay')
   })
   it('an `offset` of 0 is no offset', () => {
     expect(paintsOf(host(v5('plot(close)\nbgcolor(color.red, offset = 0)')))[0].withheld).toBeUndefined()

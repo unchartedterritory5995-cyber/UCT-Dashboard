@@ -12757,6 +12757,9 @@ export default function StockChart({
         // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
         // they CHANGE; the candles are re-applied from their own remembered data
         // (one `update` of the last bar when only it changed). No React state.
+        // ⛔ NOT A SEVENTH DEVELOPING-BAR WRITER (`singleWriterIndex.test.js`): the
+        // re-apply writes back the LAST bar the writers themselves wrote (the wrap's
+        // raw copy tracks every `update`), recoloured — never a new price.
         setBarColours: (map) => {
           const prev = barColoursRef.current
           barColoursRef.current = map
