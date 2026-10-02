@@ -901,7 +901,9 @@ def main(argv=None) -> int:
     art.mkdir(parents=True, exist_ok=True)
     res.update({"tip": args.tip, "base": base, "data_dir": args.data_dir,
                 "instrument": os.path.relpath(__file__, REPO),
-                "walk_process_env": {"NOTEBOOK_TRADE_CANVAS_ENABLED": os.environ.get("NOTEBOOK_TRADE_CANVAS_ENABLED")}})
+                # ⛔ The gate is NOT read here (tests/test_notebook_flag_parse.py: one parse only).
+                # What the sandbox served is recorded from its own auth payload, row C0.
+                "gate_source": "the sandbox's auth payload (row C0 server_flags)"})
     refused = H.refuse_shared_root(args.data_dir)
     if not refused and H.port_busy(args.port):
         refused = f"port {args.port} already has a listener (never killed)"
