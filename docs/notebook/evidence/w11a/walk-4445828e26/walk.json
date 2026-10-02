@@ -1,0 +1,320 @@
+{
+ "wave": 11,
+ "lane": "11A",
+ "checks": {
+  "V0_gate_and_stub": {
+   "verdict": "PASS",
+   "flags": {
+    "notebook_voice_notes_enabled": true,
+    "paid_equiv": true
+   },
+   "status": {
+    "limits": {
+     "maxSeconds": 3600,
+     "maxBytes": 94371840,
+     "chunkSeconds": 300,
+     "extensions": [
+      ".m4a",
+      ".mp3",
+      ".wav",
+      ".webm",
+      ".ogg",
+      ".mp4",
+      ".aac"
+     ],
+     "jobTtlSeconds": 7200
+    },
+    "cap": {
+     "usedSeconds": 0,
+     "capSeconds": 3600,
+     "remainingSeconds": 3600,
+     "unlimited": false
+    },
+    "summariesLeft": 20
+   }
+  },
+  "V1_record_at_1280": {
+   "verdict": "PASS",
+   "start_from_audio_buttons": [
+    "Voice note",
+    "Upload recording",
+    "From a Desk session"
+   ],
+   "idle_timer": "0:00 / 1:00:00",
+   "timer_recording": "0:03 / 1:00:00",
+   "timer_paused": [
+    "0:03 / 1:00:00",
+    "0:03 / 1:00:00"
+   ],
+   "timer_resumed": "0:05 / 1:00:00",
+   "progress_seen": [
+    "Uploading the recording…",
+    "Writing the summary…"
+   ],
+   "ended_on": "preview",
+   "ai_label": true,
+   "chips": [
+    "$NVDA",
+    "$AMD",
+    "Set a stop on AMD below the 50-day",
+    "Review position size before the open"
+   ],
+   "tsla_shown": false,
+   "stub_transcript_in_body": true,
+   "note_id": "48ad3b6b38424fbca9af13cf4620a268",
+   "note_title": "W11A walk recording r220353",
+   "note_tags": [
+    "voice-note"
+   ],
+   "body_has": {
+    "voice_summary": true,
+    "taskList": true,
+    "toggle": true,
+    "/journal/notebook/research/NVDA": true,
+    "Full transcript": true
+   },
+   "used_seconds": [
+    0,
+    6
+   ]
+  },
+  "V2_upload_three_parts": {
+   "verdict": "PASS",
+   "progress_seen": [
+    "Uploading the recording…",
+    "Transcribing part 2 of 3…",
+    "Writing the summary…"
+   ],
+   "requests": [
+    "GET /status",
+    "POST /jobs",
+    "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+    "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+    "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+    "POST /jobs/Fo07zpiAFFma-wXb/summarize"
+   ],
+   "used_seconds": [
+    6,
+    726
+   ],
+   "note_id": "193618e90057414aa7ef08d7326a0478",
+   "part_positions_in_body": [
+    1901,
+    2121,
+    2341
+   ],
+   "parts_in_order": true
+  },
+  "V3_retry_keeps_the_recording": {
+   "verdict": "PASS",
+   "alert": "Transcription failed for part 2 of 2. Your recording is kept — choose Retry to continue from where it stopped.",
+   "kept_line": true,
+   "progress_before": [
+    "Uploading the recording…"
+   ],
+   "progress_after_retry": [
+    "Transcribing…"
+   ],
+   "requests": [
+    "GET /status",
+    "POST /jobs",
+    "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+    "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+    "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+    "POST /jobs/RiEMycPm9ynou-QO/summarize",
+    "DELETE /jobs/RiEMycPm9ynou-QO"
+   ]
+  },
+  "V4_cap_refused_up_front": {
+   "verdict": "PASS",
+   "cap_before": {
+    "usedSeconds": 1126,
+    "capSeconds": 3600,
+    "remainingSeconds": 2474,
+    "unlimited": false
+   },
+   "alert": "This recording is 55 minutes long, and you have 41 minutes of voice transcription left this month. Trim it, or wait until the 1st.",
+   "requests": [
+    "GET /status",
+    "POST /jobs"
+   ]
+  },
+  "V5_desk_session": {
+   "verdict": "FAIL",
+   "requests": [
+    "GET /status",
+    "GET /desk-sessions",
+    "POST /desk-sessions/238/summarize"
+   ],
+   "note_id": "b8060bc47aaa42bc9b6bcc6634289613"
+  },
+  "V6_slash_voice_append_by_keyboard": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Voice note summary\").first to be visible\n",
+   "traceback": "Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"Voice note summary\").first to be visible\n\n"
+  },
+  "V7_locked_note_refuses": {
+   "verdict": "PASS",
+   "lock_status": 200,
+   "contenteditable": "false",
+   "sentence_shown": true,
+   "dialog_opened": false
+  },
+  "V8_phone_390_touch": {
+   "verdict": "PASS",
+   "doc_scroll": 390,
+   "vw": 390,
+   "under_44": [],
+   "off_screen": [],
+   "sheet_buttons": [
+    {
+     "x": 17,
+     "y": 305.0732116699219,
+     "width": 115.78125,
+     "height": 44
+    },
+    {
+     "x": 140.78125,
+     "y": 260.06298828125,
+     "width": 158.625,
+     "height": 44
+    },
+    {
+     "x": 17,
+     "y": 265.2082214355469,
+     "width": 181.0625,
+     "height": 44
+    }
+   ],
+   "controls": 5
+  },
+  "V9_desk_player_save_to_notebook": {
+   "verdict": "PASS",
+   "ended_on": "preview"
+  },
+  "V10_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "voice_requests": [
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/nHI_-i9II9aQMJq7/transcribe",
+  "POST /jobs/nHI_-i9II9aQMJq7/summarize",
+  "DELETE /jobs/nHI_-i9II9aQMJq7",
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+  "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+  "POST /jobs/Fo07zpiAFFma-wXb/transcribe",
+  "POST /jobs/Fo07zpiAFFma-wXb/summarize",
+  "DELETE /jobs/Fo07zpiAFFma-wXb",
+  "GET /status",
+  "POST /jobs",
+  "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+  "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+  "POST /jobs/RiEMycPm9ynou-QO/transcribe",
+  "POST /jobs/RiEMycPm9ynou-QO/summarize",
+  "DELETE /jobs/RiEMycPm9ynou-QO",
+  "GET /status",
+  "POST /jobs",
+  "GET /status",
+  "GET /desk-sessions",
+  "POST /desk-sessions/238/summarize",
+  "GET /status",
+  "GET /desk-sessions",
+  "POST /desk-sessions/238/summarize",
+  "GET /status",
+  "POST /desk-sessions/238/summarize"
+ ],
+ "tip": "4445828e26",
+ "base": "http://127.0.0.1:8564",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11a-data2",
+ "instrument": "tools\\notebook_w11a_voice_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_VOICE_SANDBOX_STUB": "1"
+ },
+ "model_keys_set": {
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "ffmpeg": "C:\\Users\\Patrick\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.2-full_build\\bin\\ffmpeg.EXE",
+ "ffprobe": "C:\\Users\\Patrick\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.2-full_build\\bin\\ffprobe.EXE",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8564 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w11a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T22-02-51.md (identity f413c5114b60..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11a-data2)"
+ },
+ "run": "r220353",
+ "audio_files": {
+  "upload": {
+   "name": "morning-call.mp3",
+   "bytes": 1440369
+  },
+  "fail": {
+   "name": "sandbox-fail-once-call.mp3",
+   "bytes": 800433
+  },
+  "long": {
+   "name": "long-review.mp3",
+   "bytes": 6600393
+  }
+ },
+ "member": "w11a-r220353@local.dev",
+ "server_flags": {
+  "notebook_voice_notes_enabled": true,
+  "paid_equiv": true
+ },
+ "desk_video": {
+  "id": 238,
+  "insights_store": 200
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\w11a\\walk-4445828e26\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\w11a\\walk-4445828e26\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 22:03:00",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 22:03:52",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-01 22:05:47",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-01 22:06:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
