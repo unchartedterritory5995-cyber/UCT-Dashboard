@@ -147,11 +147,14 @@ def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dic
             i0 = bisect.bisect_left(pdays_sorted, ds)
             if i0 <= 0 or i0 >= len(pdays_sorted):
                 continue
-            a_, b_ = pdays_sorted[i0 - 1], pdays_sorted[i0]
-            if not (a_ in caps and b_ in caps and pclose.get(a_) and pclose.get(b_)):
+            b_ = pdays_sorted[i0]
+            # the LAST VALUED day before the new class (Google: C's first state 2014-04-25, a held day in between)
+            a_ = next((x for x in reversed(pdays_sorted[max(0, i0 - 30):i0]) if x in caps), None)
+            if not (a_ and b_ in caps and pclose.get(a_) and pclose.get(b_)):
                 continue
             cr, pr = caps[b_] / caps[a_], pclose[b_] / pclose[a_]
-            rr = cr if cr > 1 else 1 / cr
+            q = cr / pr                                  # the SHARE-implied step (the price moved over the held days)
+            rr = q if q > 1 else 1 / q
             k = round(rr)
             if abs(math.log(pr)) < math.log(1.5) and rr >= 1.9 and 2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.03:
                 prev_asof = max((date.fromisoformat(x[4]) for rs in runs_by_class.values() for x in rs if x[0] < r0[0]), default=ds)
@@ -268,8 +271,11 @@ def filing_key_maps(cov, cik: int) -> dict:
     for accn_, mem, lab in cov.execute(
             "SELECT DISTINCT accn, member, label FROM cover_fact WHERE cik=? AND concept IN "
             "('dei:EntityCommonStockSharesOutstanding','dei:TradingSymbol','dei:Security12bTitle')", (cik,)):
-        if not invalid_member(mem, lab):
-            rows[accn_].add((mem, lab))
+        # ⛔ a listings-exchange axis member or a DEBT / preferred row (TAK's "Ordinary shares | 0.750% Senior Notes due
+        # 2027" symbols) is not a share class: it turned TAK's ordinary shares into a second 'class' with no economics
+        if invalid_member(mem, lab) or (mem and "EntityListingsExchange" in mem) or NOT_COMMON_EQUITY.search(lab or ""):
+            continue
+        rows[accn_].add((mem, lab))
     return {a_: filing_keys(sorted(v, key=str)) for a_, v in rows.items()}
 
 
@@ -322,6 +328,8 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict, l
             for mem, lab, as_of, text, scale in rows:
                 v = cover_num(text)
                 if v is None or not as_of:
+                    continue
+                if mem and ("EntityListingsExchange" in mem or NOT_COMMON_EQUITY.search(lab or "")):
                     continue
                 if invalid_member(mem, lab):
                     # ⛔ a "$ / shares" column or an ADR-member row is not a share count of any class: never evidence
@@ -534,7 +542,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             "ORDER BY accn DESC", (cik,)).fetchall()                # the LATEST filing's class -> symbol mapping wins
         fk_by_accn = filing_key_maps(D.cov, cik)
         for accn_, mem, lab, concept, text in sym_rows:
-            if invalid_member(mem, lab):
+            if invalid_member(mem, lab) or (mem and "EntityListingsExchange" in mem) or NOT_COMMON_EQUITY.search(lab or ""):
                 continue
             k = fk_by_accn.get(accn_, {}).get((mem, lab)) or class_key(mem, lab)
             if concept == "dei:TradingSymbol":
@@ -728,8 +736,11 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     # ⛔ a ratio statement speaks for the ADS program of THIS listing (registered up to 120 days before
                     # it trades): LATAM's 2023 statements (1 ADS = 1 share, the pre-bankruptcy program, delisted 2020)
                     # were applied to the 2025 re-listed ADS of 2,000 shares -> cap 2,000x
+                    # the stale-title test compares RAW ordinary counts: a pass-through split (SONY 5:1, 2024) moves the
+                    # raw count by the ADS event's factor; a ratio change (SQNS) does not
+                    ord_raw = sorted((o.as_of, o.value) for o in cobs)
                     stmts = valid_statements([s_ for s_ in ratio_stmts if s_.as_of >= lst.start - timedelta(days=120)],
-                                             ledger, ord_points)
+                                             ledger, ord_raw)
                     conv = []
                     for o in cobs:
                         if not ads_at(o.known_from):

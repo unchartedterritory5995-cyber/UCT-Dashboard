@@ -124,3 +124,60 @@ Rollback = previous build. V5 hash checked before and after every build.
   - IPO prospectuses: new summary-table shapes. A count stated assuming the option is exercised is refused. The builder considers the last three registration statements, because a final amendment is often exhibits-only.
   - ADR ratios: also read from the depositary's F-6 / F-6EF, including the "five (5)" form.
 - **Audit and baseline.** `baseline.py` reproduces production Market Cap exactly. `universe_audit.py` measures BEFORE vs V1 on identity-safe intervals, with anomaly classes A–P and S and sub-reasons for internal stale gaps. `session_report.py` gives a session-level before/after for one security.
+
+## 12. 2026-10-02 correction pass (owner decisions A–D; the first shadow's 63 order-of-magnitude blockers)
+
+Owner decisions: (A) fix the 63, never weaken the scanner; (B) historical splits only from AUTHORITATIVE statements,
+price/share discontinuities detect and corroborate but never manufacture a factor; (C) successor lineage only where a
+pure reorganization is PROVEN, a boundary for mergers, hold otherwise; (D) the 15-month ceiling stays.
+
+- **Point-in-time validation (state.py).** Every decision about an observation uses only what was public by its own
+  known_from; when it needs corroboration it becomes usable only once the corroboration is public (`effective_from`).
+  The old outlier rule (rejected a value because the NEXT report reverted — lookahead) and basis decisions from a
+  later observation are retired. A refused count is a BLOCK: it proves the state in force is superseded, so older
+  states never carry across it. Same-as-of contradictions revoke the earlier count from the moment both are public.
+- **Discontinuity and scale.** A ≥3x move against the state in force (or, with none, inside its own filing) needs an
+  independent observation (another channel, or another report) within 1.5x and 200 days; uncorroborated →
+  SHARE_COUNT_SCALE_UNRESOLVED. An exact power-of-1,000 gap is a unit-error signature: corroboration must come from
+  ANOTHER filing, and a count 1,000x away from the filings on both sides is withheld (never rescaled).
+- **Suspicious counts.** A reported count below 10,000 shares needs corroboration from another channel (a repeated
+  placeholder is not evidence) → SUSPICIOUS_SHARE_COUNT.
+- **Units / members.** "$ / shares" columns, ADR/ADS members and depositary members are not share counts
+  (REJECTED_INVALID_UNIT). A dimensional generic common member beside other class members is a class ("CS"), never the
+  total; only generic members map to COMMON (UHAL's "NonvotingCommonStockMember" was being discarded).
+- **Split semantics.** The ledger applied to a ticker's shares holds only splits on/before its last bar (KUST). A split
+  between as-of and publication is decided by filing-text evidence or a decisive state in force, otherwise refused.
+  A count dated before a reverse split is not carried across it when equity issuance was registered between the count
+  and the split (REVERSE_SPLIT_RECOUNT_PENDING). A split-like price step is an event only when the counts on both
+  sides confirm it (MEASURED: 1,445 of 1,904 price-only steps were glitches).
+- **Historical split evidence (splitev.py).** Detected split-ledger gaps (per class, and company-level where a new
+  class first appears — Google's 2014 class C dividend) are lifted only by the issuer's own XBRL
+  StockholdersEquityNoteStockSplitConversionRatio(1) or filing-text statements with the same factor dated inside the
+  transition; a dated statement of another factor marks the candidate CONTRADICTED. Everything else stays
+  HISTORICAL_SPLIT_EVIDENCE_UNRESOLVED.
+- **ADR / ADS.** The listed security is an ADS only while the filings' 12(b) titles say so (RCEL, CD, MOB stopped being
+  ADSs); a ratio statement must belong to this listing (≤120 days before it), never crosses an ADS ledger event, a
+  trading break (> 90 days without bars: LATAM 2020→2025), or a ≥3x move in the ordinary count (DXF subdivision); a
+  later statement speaks back at most 400 days; a title UNCHANGED across ADS events without the ordinary count moving
+  by that factor is stale (SQNS) and dropped; inverse statements ("twenty ADSs representing one share") parse as 1/20.
+  An ADS over several ordinary classes → FOREIGN_MULTI_CLASS_UNRESOLVED.
+- **Class economics.** A conversion ratio is a per-share term ("each share … convertible into one"), never a
+  transaction narrative (VTIX "1,000,000 shares … converted into 1,000,000 shares" was read as ×1,000,000), and a
+  compound consideration (JBS: one share AND one Conversion Share) is not a ratio. Lower-case 2009–2012 entity trading
+  symbols tagged under every class are not class listings (anomaly G); the latest filing's mapping wins; two listed
+  classes priced by one ticker → MULTI_CLASS_UNRESOLVED.
+- **Offering documents (prospectus.py).** 424B1/4/5/7, S-1, F-1, S-3, F-3: ACTUAL counts at a stated date ≤ 60 days
+  before the filing, or "outstanding prior to this offering" (as of the document date); never pro-forma "after this
+  offering" figures, ADS counts or stale dilution-table counts. Source OFFERING_DOCUMENT_TEXT.
+- **Pre-listing.** A count dated before the priced security began trading is not used (only the IPO prospectus speaks
+  for the listing day): ELVR carried Sayona's pre-merger 11.5B shares onto the post-consolidation ADS.
+- **Successor lineage (lineage.py).** 8-K12B/8-K12G3: PURE_REORGANIZATION requires a reorganization marker, a 1:1
+  (class-for-class) conversion statement, an explicit same-assets / same-proportional-ownership statement, no merger
+  / acquisition / cash / exchange-ratio markers, and ONE predecessor registrant identified by its Exchange Act file
+  number in the SEC registry (never name, never ticker). Its evidence is carried up to the effective date.
+  MERGER/SPINOFF/NEW_ENTITY → PREDECESSOR_DIFFERENT_ECONOMIC_ENTITY for earlier days; anything else →
+  SUCCESSOR_ISSUER_RELATIONSHIP_UNRESOLVED. A successor whose own registrant record already has periodic filings
+  before the effective date (the holdco kept the CIK) needs no lineage.
+- **Scanners.** magnitude_scan.py (hard gate B: ≥10x vs Massive as a DETECTOR, classified V1-introduced / production-
+  same / shares-agree-price-basis / old last value; history-wide ≥10x vs production), report3.py (BEFORE → FIRST →
+  CORRECTED), stale15.py (information only).
