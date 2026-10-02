@@ -557,6 +557,13 @@
   },
   {
    "method": "GET",
+   "path": "/push-sw.js",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "BRK-04 Web Push service-worker script (push + notificationclick only, no fetch handler, no caching); the browser fetches it to register before any request carries a session."
+  },
+  {
+   "method": "GET",
    "path": "/sitemap.xml",
    "kind": "public",
    "requires_dist": true,

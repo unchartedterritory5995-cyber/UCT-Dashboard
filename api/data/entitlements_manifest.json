@@ -134,6 +134,7 @@
         "api/routers/theme_performance.py",
         "api/routers/user_playbook.py",
         "api/routers/waitlist.py",
+        "api/routers/what_else_open.py",
         "api/routers/wisdom_capture.py",
         "api/routers/wisdom_core.py",
         "api/routers/wisdom_evals.py",
@@ -175,6 +176,7 @@
         "api/routers/inbound_alerts.py",
         "api/routers/insider.py",
         "api/routers/intelligence.py",
+        "api/routers/iv_history.py",
         "api/routers/journal_two.py",
         "api/routers/market_indicators.py",
         "api/routers/member.py",
@@ -213,6 +215,7 @@
         "api/routers/traders.py",
         "api/routers/user_definitions.py",
         "api/routers/volume_scan.py",
+        "api/routers/web_push.py",
         "api/services/ai_search_briefings.py",
         "api/services/journal_two/inbound_email.py"
       ],
@@ -249,6 +252,7 @@
         "api/routers/indicator_vision.py",
         "api/routers/insider.py",
         "api/routers/intelligence.py",
+        "api/routers/iv_history.py",
         "api/routers/journal_two.py",
         "api/routers/market_indicators.py",
         "api/routers/member.py",
@@ -288,6 +292,7 @@
         "api/routers/traders.py",
         "api/routers/user_definitions.py",
         "api/routers/volume_scan.py",
+        "api/routers/web_push.py",
         "api/services/ai_doors.py",
         "api/services/skill_whitelist.py"
       ]
