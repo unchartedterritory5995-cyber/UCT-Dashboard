@@ -71,7 +71,8 @@ def _stored(screen_id, user_id):
 
 
 def _version(user_id, rec, *, before, source="save", restored_from=None):
-    """COV-06: snapshot a committed save. Returns before any I/O while dark; never raises."""
+    """COV-06: snapshot a committed save; never raises. The ``is_enabled()`` here only skips the
+    extra row read while dark — the write gate is ``artifact_versions.record_save``'s own."""
     if not rec or not artifact_versions.is_enabled():
         return None
     after = _stored(rec["id"], user_id)

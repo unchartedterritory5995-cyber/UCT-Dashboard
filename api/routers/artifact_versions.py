@@ -1,5 +1,6 @@
 """COV-06 — version history on a member's own saved screens and named layouts.
 
+  GET  /api/artifact-versions/status                              → 200 while armed (the UI's probe)
   GET  /api/artifact-versions/{kind}/{artifact_id}                → the history, newest first
   GET  /api/artifact-versions/{kind}/{artifact_id}/{version}      → one version, with its payload
   POST /api/artifact-versions/{kind}/{artifact_id}/restore        → restore {version, base_version}
@@ -60,6 +61,12 @@ def _owned(kind: str, artifact_id: int, user: dict) -> dict:
     if not row:
         raise HTTPException(status_code=404, detail="Not found")
     return row
+
+
+@router.get("/status", dependencies=[Depends(_armed)])
+def status(user: dict = Depends(get_current_user_with_plan)):
+    """The client's availability probe: 200 only while armed. Carries no member data."""
+    return {"enabled": True, "kinds": list(av.KINDS), "retain": av.RETAIN_VERSIONS}
 
 
 @router.get("/{kind}/{artifact_id}", dependencies=[Depends(_armed)])

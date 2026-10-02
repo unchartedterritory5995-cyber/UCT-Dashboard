@@ -13,6 +13,7 @@ import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
 import Input from '../../components/ui/Input'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -229,7 +230,7 @@ function scanName(row) {
 }
 
 export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
-  const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
+  const { saved, starters, create, update, remove, refresh: refreshSaved, error: savedError } = useSavedScreens()
   // ─── FAVORITES: pin the ones a member reaches for to the TOP ────────────────
   // Stored server-side as a set of namespaced keys — `starter:<id>` for a UCT
   // preset, `screen:<id>` for a saved screen — because a preset's string id and a
@@ -281,6 +282,17 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const [renameVal, setRenameVal] = useState('')
   const [shareId, setShareId] = useState(null)
   const [copied, setCopied] = useState(false)
+  // COV-06: which My-screens row has its version history open. The control is
+  // HIDDEN unless `ARTIFACT_VERSIONS_ENABLED` answers (probed only while the
+  // menu is open), and so is "Save current filters into it": overwriting a
+  // screen is offered only where the overwrite can be undone.
+  const [historyId, setHistoryId] = useState(null)
+  const [historyRev, setHistoryRev] = useState(0)
+  const historyAvailable = useArtifactVersionsAvailable(open)
+  const saveIntoScreen = async (id) => {
+    await update(id, { spec: currentSpec })
+    setHistoryRev(n => n + 1)
+  }
   // Definition detail (Task 6): which My-scans row is expanded, and the one
   // session control shared by whichever row is open — mirrors
   // `SavedScreensPanel`'s single selected-screen + single session state.
@@ -542,6 +554,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     </button>
                     <button type="button" aria-label={`Rename ${s.name}`}
                       onClick={() => { setRenameId(s.id); setRenameVal(s.name) }}>✎</button>
+                    {historyAvailable && (
+                      <button type="button" aria-label={`History of ${s.name}`}
+                        aria-expanded={historyId === s.id}
+                        onClick={() => setHistoryId(id => (id === s.id ? null : s.id))}>
+                        <UIcon name="clock" size={12} />
+                      </button>
+                    )}
                     {/* 🔴 IT ARMS A CONFIRM; IT DOES NOT DELETE — X26 / W9c.1,
                         the same idiom as the My-scans row below. Swapped out
                         once armed so one tap can never mean two things. */}
@@ -573,6 +592,20 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     style={deleteErrStyle}>
                     {deleteScreenError.message}
                   </p>
+                )}
+
+                {historyAvailable && historyId === s.id && (
+                  <ArtifactHistory kind="screen" artifactId={s.id} title={`History of “${s.name}”`}
+                    refreshKey={historyRev}
+                    onRestored={() => refreshSaved()}
+                    onUnavailable={() => setHistoryId(null)}>
+                    {currentSpec && (
+                      <button type="button" className={styles.shareUnpublish}
+                        onClick={() => saveIntoScreen(s.id)}>
+                        Save the current filters into “{s.name}”
+                      </button>
+                    )}
+                  </ArtifactHistory>
                 )}
 
                 {shareId === s.id && (

@@ -1879,7 +1879,7 @@ export default function ChartsWorkspace() {
   // ── Named layout templates (prebuilt + personal) ──
   const { user, addressSpaceEnabled } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, adoptRow: adoptLayoutRow, isLoading: templatesLoading } = useChartLayouts()
 
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
@@ -1968,9 +1968,12 @@ export default function ChartsWorkspace() {
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
   // so any older-shaped template is normalized to the current grid.
-  const applyTemplate = useCallback((tpl) => {
+  const applyTemplate = useCallback((tpl, { skipFlush = false } = {}) => {
     if (!tpl?.layout?.widgets) return
-    flushNamedSaveRef.current?.()
+    // COV-06: a version-history restore of the OPEN layout must not flush the
+    // board on screen into it first — that would save the replaced board over
+    // the restore it is about to show.
+    if (!skipFlush) flushNamedSaveRef.current?.()
     userRemovedRef.current = false
     suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
@@ -2683,6 +2686,16 @@ export default function ChartsWorkspace() {
     handleDeleteTemplate(entry.id)
   }, [handleDeleteTemplate])
 
+  // COV-06 — a named layout was restored from its version history. The library
+  // row is adopted from the route's answer; if it is the layout you are IN, the
+  // board takes the restored arrangement WITHOUT the switch flush, otherwise the
+  // next auto-save would write the replaced board straight back over it.
+  const handleDockRestored = useCallback((row) => {
+    if (!row || row.id == null) return
+    adoptLayoutRow(row)
+    if (row.id === dockActiveId) applyTemplate(row, { skipFlush: true })
+  }, [adoptLayoutRow, applyTemplate, dockActiveId])
+
   // Same contract as Open Layout: opening a workspace layout leaves grid mode.
   const handleDockOpen = useCallback((entry) => {
     if (gridMode) mc.exitGrid()
@@ -3213,6 +3226,7 @@ export default function ChartsWorkspace() {
           onDuplicate={handleDockDuplicate}
           onDelete={handleDockDelete}
           onRename={handleDockRename}
+          onRestored={handleDockRestored}
         />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

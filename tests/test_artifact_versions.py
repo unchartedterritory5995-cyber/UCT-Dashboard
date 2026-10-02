@@ -88,7 +88,8 @@ def test_dark_saves_never_open_the_version_store_and_routes_are_404(stores, monk
     assert opened == []
     assert not stores["versions_db"].exists()
     c = _client(user)
-    for method, path in (("get", f"/api/artifact-versions/screen/{rec['id']}"),
+    for method, path in (("get", "/api/artifact-versions/status"),
+                         ("get", f"/api/artifact-versions/screen/{rec['id']}"),
                          ("get", f"/api/artifact-versions/screen/{rec['id']}/1"),
                          ("post", f"/api/artifact-versions/screen/{rec['id']}/restore"),
                          ("get", f"/api/artifact-versions/layout/{row['id']}"),
@@ -96,6 +97,15 @@ def test_dark_saves_never_open_the_version_store_and_routes_are_404(stores, monk
         kw = {"json": {"version": 1, "base_version": 1}} if method == "post" else {}
         assert getattr(c, method)(path, **kw).status_code == 404, path
     assert not stores["versions_db"].exists()
+
+
+def test_dark_record_save_is_the_write_gate_and_opens_nothing(stores, monkeypatch):
+    opened = []
+    monkeypatch.setattr(av, "_connect", lambda: opened.append(1))
+    out = av.record_save("u1", av.KIND_LAYOUT, 1, before=None,
+                         after={"layout_json": "{}", "groups_json": None})
+    assert out is None and opened == []
+    assert av.stats()["hook_failures"]["record"] == 0
 
 
 # ═══ 2. saved screens ════════════════════════════════════════════════════════
@@ -108,6 +118,7 @@ def test_screen_every_save_is_a_version_and_restore_is_a_new_undoable_version(ar
     _tick(armed)
     saved_screens.update(rec["id"], user["id"], name="Leaders loose")
 
+    assert c.get("/api/artifact-versions/status").json()["enabled"] is True
     body = c.get(f"/api/artifact-versions/screen/{rec['id']}").json()
     assert body["head"] == 3 and body["retain"] == 10
     assert [(v["version"], v["source"]) for v in body["versions"]] == [(3, "save"), (2, "save"), (1, "save")]

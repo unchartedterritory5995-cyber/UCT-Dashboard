@@ -171,9 +171,9 @@ def upsert(scope: str, user_id, name: str, layout: dict,
 
 def _version(user_id, r, *, before, source="save", restored_from=None):
     """COV-06: snapshot a committed save of a member's OWN (user-scope) layout. Prebuilt
-    (global) rows are firm-curated, not a member's curation, and are not versioned. Returns
-    before any I/O while dark; never raises."""
-    if r is None or not artifact_versions.is_enabled():
+    (global) rows are firm-curated, not a member's curation, and are not versioned. Never
+    raises; the dark gate is ``artifact_versions.record_save``'s own (one gate, not two)."""
+    if r is None:
         return None
     return artifact_versions.record_save(
         user_id, artifact_versions.KIND_LAYOUT, r["id"], before=before,
