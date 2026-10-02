@@ -67,11 +67,14 @@ def run(build: str, data: str) -> dict:
     for (iss, ck), rs in runs.items():
         for p, n in zip(rs, rs[1:]):
             if p[2] and n[2] and (n[2] / p[2] > 1.5 or n[2] / p[2] < 1 / 1.5):
-                jumps.append({"issuer": iss, "class": ck, "at": n[0], "ratio": round(n[2] / p[2], 3), "from": p[3], "to": n[3],
-                              "from_src": p[5], "to_src": n[5]})
+                jumps.append({"issuer": iss, "class": ck, "at": n[0], "ratio": round(n[2] / p[2], 6), "from": p[3], "to": n[3],
+                              "from_src": p[5], "to_src": n[5], "_lr": abs(math.log(n[2] / p[2]))})
+    jumps.sort(key=lambda j: -j["_lr"])
+    for j in jumps:
+        del j["_lr"]
     out["state_jumps"] = {"count": len(jumps), "issuers": len({j["issuer"] for j in jumps}),
                           "by_source_pair": dict(Counter(f"{j['from_src']}->{j['to_src']}" for j in jumps)),
-                          "examples": sorted(jumps, key=lambda j: -abs(math.log(j["ratio"])))[:60]}
+                          "examples": jumps[:60]}
     cmp_rows = []
     for cik, (t, _ls) in cov.items():
         last =db.execute("SELECT d, cap FROM cap_daily WHERE cik=? ORDER BY d DESC LIMIT 1", (cik,)).fetchone()
