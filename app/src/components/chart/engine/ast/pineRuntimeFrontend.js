@@ -3333,9 +3333,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   /** ⭐⭐ RT3 — the refusal a frame name that bounds a dynamic offset raises,
    *  carrying its name so the CALL SITE can fix it (`simpleSpecialisation`). */
-  const frameBoundRefusal = (frameName, at) => {
+  const frameBoundRefusal = (frameName, at, what = 'bounds this offset') => {
     const r = new RuntimeRefusal('runtime:history-dynamic-offset',
-      `\`${frameName}\` bounds this offset, and is given a value by this script, `
+      `\`${frameName}\` ${what}, and is given a value by this script, `
       + 'but not one the engine can read before bar 0', at)
     r.frameName = frameName
     return r
@@ -4681,6 +4681,38 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (given.length !== 2) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` takes a source and a length, given ${given.length}`, at)
+          }
+          // ⭐⭐ RT3 — A SOURCE THE COLUMNAR LANE HOLDS, OVER A LENGTH THE CALL
+          // SITE FIXES. `f(int len) => ta.highest(high, len)` came here only
+          // because `len` is a frame slot; `high` is a price series, not "a
+          // mutable GLOBAL" (the sentence it used to get). With the length folded
+          // for this call site (C35's `frameConsts`, through `constValueOf`) the
+          // call is a pure window the columnar lane computes whole — exactly what
+          // the same call with the number pasted in computes. A length a call site
+          // may still fix refuses carrying its name so the call site specialises.
+          // ⛔ NOT inside a request's value: there the source gets its own committed
+          // series over the REQUESTED symbol's bars (below), and a column would be
+          // this chart's.
+          if (!inRequestValue && given[0] && !needsRuntime(given[0], scope) && !node.args.some((a) => a && a.name)) {
+            const len = constValueOf(given[1], scope)
+            if (len && typeof len.frameName === 'string') {
+              throw frameBoundRefusal(len.frameName, at, `sizes the window of \`${node.name}\``)
+            }
+            if (len && Number.isInteger(len.value) && len.value >= 1) {
+              return column(columnOf({
+                ...node,
+                args: [{ name: null, value: given[0], tok: node.tok },
+                  { name: null, value: { type: 'number', value: len.value, tok: node.tok }, tok: node.tok }],
+              }, at))
+            }
+            // ⛔ and a length only known while the bar runs over that source says
+            // so — never "a mutable GLOBAL" about a price series.
+            if (!len) {
+              note('runtime:history-dynamic-offset')
+              throw new RuntimeRefusal('runtime:history-dynamic-offset',
+                `the length of \`${node.name}\` is only known while the bar is running, `
+                + 'so the ring it needs cannot be sized before bar 0', at)
+            }
           }
           // ⛔ THE SOURCE MUST BE A NAME. A window needs a COMMITTED SERIES, and
           // only a variable has one — `sma(x + 1, 5)` needs its own series exactly
