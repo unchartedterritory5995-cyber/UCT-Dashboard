@@ -264,3 +264,8 @@ def test_a_deleted_watchlist_comes_back_private_with_its_members_and_notes(armed
     assert _syms(back) == ["CRWD", "NET"] and back["is_public"] == 0
     assert next(i for i in back["items"] if i["sym"] == "NET")["notes"] == "base 3"
     assert c.get(f"{BASE}/watchlist/deleted").json()["deleted"] == []
+    # Bringing back the tombstone's own content still records the return: a `delete` head is
+    # not "the current content", so the undelete appends a restore that names it.
+    assert r.json()["version"] == 5
+    head = _versions(c, "watchlist", wl["id"])[0]
+    assert (head["version"], head["source"], head["restored_from"]) == (5, "restore", 4)
