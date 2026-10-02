@@ -38,6 +38,15 @@ How a read stays bounded:
   (`formula_engine.compile_ast`, held to the same vectors as the tree walk). A
   rollup runs one windowed query per source. Results are memoised for the
   request, so the page and its total share one evaluation.
+- **The formula-value memo** (`note_computed._formula_value`). A formula's value
+  is a pure function of the member's definitions, the formula's id and the note's
+  properties JSON text. The process keeps a bounded in-memory map keyed by all
+  three: the definitions as a hash of every (id, type, expression), and the note as
+  its exact JSON text. Editing a note, a formula or an input changes the key, so an
+  entry can never be stale. It is never written to the database. Past
+  `NOTEBOOK_FORMULA_MEMO_MAX` entries (default 60,000, about 30 MB) the oldest
+  quarter is dropped. Rollup sets are memoised per request only, so two rollups
+  over the same links share one query.
 - **A filter** becomes a rowid-set clause on the list's own WHERE
   (`note_computed.filter_clauses`). The page's ORDER BY and LIMIT, and the total,
   stay single SQL statements over the same set, so they cannot disagree.

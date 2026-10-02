@@ -46,8 +46,11 @@ never one query per note.
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
+import os
 import sqlite3
+import threading
 from typing import Any
 
 from api.services.journal_two import formula_engine as fe
@@ -300,6 +303,63 @@ def _eval_formula(def_id: str, props: dict[str, Any], by_id: dict[str, dict], st
         return None, e.message, e.code
 
 
+# ── The formula-value memo: a cache of a PURE function, never of state ─────────
+#
+# A formula's value is a pure function of (the member's property definitions, the
+# formula's id, the note's properties_json TEXT). The key holds all three -- the
+# definitions as a hash of every (id, type, expression), the note as its exact JSON
+# text -- so an edit to a note, a formula or an input definition changes the key
+# and the old entry is simply never asked for again. It cannot be stale, and it
+# lives only in this process's memory: a read still writes nothing anywhere. It
+# turns a filter or sort over a large library from re-evaluating every formula on
+# every request into one dictionary lookup per note (lane 11B scale run 2).
+# Bounded: past NOTEBOOK_FORMULA_MEMO_MAX entries (default 60,000, about 30 MB)
+# the oldest quarter is dropped.
+
+_MISS = object()
+_FORMULA_MEMO: dict[tuple, Any] = {}
+_FORMULA_MEMO_LOCK = threading.Lock()
+
+
+def _formula_memo_max() -> int:
+    try:
+        return max(0, int(os.environ.get("NOTEBOOK_FORMULA_MEMO_MAX", "60000")))
+    except ValueError:
+        return 60000
+
+
+def defs_signature(by_id: dict[str, dict]) -> str:
+    """Every definition a formula's value can depend on, as one short string."""
+    parts = sorted(
+        (d["id"], d["type"], ((d.get("config") or {}).get("expression") or "") if d["type"] == "formula" else "")
+        for d in by_id.values()
+    )
+    return hashlib.sha1(json.dumps(parts).encode("utf-8")).hexdigest()
+
+
+def _formula_value(sig: str, def_id: str, raw: str | None, by_id: dict[str, dict]):
+    key = (sig, def_id, raw)
+    v = _FORMULA_MEMO.get(key, _MISS)
+    if v is not _MISS:
+        return v
+    v = _eval_formula(def_id, _props_of(raw), by_id)[0]
+    cap = _formula_memo_max()
+    if cap:
+        with _FORMULA_MEMO_LOCK:
+            if len(_FORMULA_MEMO) >= cap:
+                for old in list(_FORMULA_MEMO)[: max(1, cap // 4)]:
+                    _FORMULA_MEMO.pop(old, None)
+            _FORMULA_MEMO[key] = v
+    return v
+
+
+def _request_sig(memo: dict, by_id: dict[str, dict]) -> str:
+    sig = memo.get("sig")
+    if sig is None:
+        sig = memo["sig"] = defs_signature(by_id)
+    return sig
+
+
 def _props_of(raw: str | None) -> dict[str, Any]:
     try:
         parsed = json.loads(raw) if raw else {}
@@ -479,11 +539,10 @@ def _member_values(conn, user_id, prop: dict | None, member_ids: list[str], by_i
             f"SELECT id, properties_json FROM j2_notes{hint} WHERE {_PROPS_WHERE} AND id IN ({marks})",
             (user_id, *part),
         ):
-            props = _props_of(r["properties_json"])
             if prop["type"] == "formula":
-                cache[r["id"]] = _eval_formula(prop["id"], props, by_id)[0]
+                cache[r["id"]] = _formula_value(_request_sig(memo, by_id), prop["id"], r["properties_json"], by_id)
             else:
-                cache[r["id"]] = props.get(prop["id"])
+                cache[r["id"]] = _props_of(r["properties_json"]).get(prop["id"])
         for m in part:
             cache.setdefault(m, None)       # no properties at all: empty
     return cache
@@ -540,6 +599,20 @@ def _aggregate(config: dict, prop: dict | None, values: list[Any], set_size: int
     return total + 0.0, None
 
 
+def _memo_sets(memo: dict, kind: tuple, src_ids: list[str] | None, fetch):
+    """One set query per (source, field) per request: two rollups over the same
+    links share it, and a page whose library-wide sets were already read for a
+    sort is served from those rather than re-queried."""
+    whole = memo.get(("sets",) + kind + (None,))
+    if whole is not None and src_ids is not None:
+        return {s: whole[s] for s in src_ids if s in whole}
+    key = ("sets",) + kind + (None if src_ids is None else tuple(sorted(set(src_ids))),)
+    got = memo.get(key)
+    if got is None:
+        got = memo[key] = fetch(src_ids)
+    return got
+
+
 def _rollup_cells(conn, user_id, d, defs, src_ids: list[str] | None, memo: dict):
     """({src id: (value, reason, set size, used size)}, default for any other note).
     Bounded: one windowed query per source (chunked by src when `src_ids` is given),
@@ -561,12 +634,13 @@ def _rollup_cells(conn, user_id, d, defs, src_ids: list[str] | None, memo: dict)
     empty = (None, _EMPTY_SET.get(source, "Nothing to summarise yet"), 0, 0)
     out = {}
     if source == "trades":
-        sets = _trade_sets(conn, user_id, config.get("tradeField"), src_ids)
+        sets = _memo_sets(memo, ("trades", config.get("tradeField")), src_ids,
+                          lambda ids: _trade_sets(conn, user_id, config.get("tradeField"), ids))
         for sid, (total, vals) in sets.items():
             value, reason = _aggregate(config, None, vals, total, len(vals))
             out[sid] = (value, reason, total, len(vals))
         return out, empty
-    sets = _link_sets(conn, user_id, source, src_ids)
+    sets = _memo_sets(memo, ("links", source), src_ids, lambda ids: _link_sets(conn, user_id, source, ids))
     all_mids = [m for _, mids in sets.values() for m in mids]
     vals_by_id = _member_values(conn, user_id, prop, all_mids, by_id, memo)
     for sid, (total, mids) in sets.items():
@@ -638,11 +712,12 @@ def values_for_all(conn, user_id: str, d: dict, defs: list[dict] | None = None, 
     by_id = {x["id"]: x for x in defs}
     values: dict[int, float] = {}
     if d["type"] == "formula":
+        sig, did = _request_sig(memo, by_id), d["id"]
         for rid, raw in conn.execute(
             f"SELECT j2_notes.rowid, properties_json FROM j2_notes{_props_index(conn)} WHERE {_PROPS_WHERE}",
             (user_id,),
         ):
-            v = _eval_formula(d["id"], _props_of(raw), by_id)[0]
+            v = _formula_value(sig, did, raw, by_id)
             if v is not None:
                 values[rid] = v
         result = (values, None)

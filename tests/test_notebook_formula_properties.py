@@ -267,6 +267,40 @@ def test_a_sort_and_a_filter_together_page_and_count_the_same_set(client, trade_
     assert body["total"] == 3
 
 
+# ── the formula-value memo (a pure-function cache, keyed by content) ──────────
+
+def _filtered_values(client, trade_plan, cond):
+    f = json.dumps([{"propertyId": trade_plan["R"], **cond}])
+    body = client.get("/api/j2/notes", params={"propertyFilter": f}).json()
+    return sorted((r["computed"][trade_plan["R"]]["value"] for r in body["notes"]), key=lambda v: (v is None, v))
+
+
+def test_editing_a_formula_is_seen_by_the_next_filter_though_no_note_changed(client, trade_plan):
+    """The memo is keyed by the definitions as well as the note's text: a note whose
+    properties did not change must still get the NEW formula's value."""
+    _r_notes(client, trade_plan, [120, 90, 150])                     # R = 2, -1, 5
+    assert _filtered_values(client, trade_plan, {"op": "gt", "value": 1}) == [2.0, 5.0]
+    r = client.put(f"/api/j2/property-defs/{trade_plan['R']}", json={"config": {"expression": "{Exit} - {Entry}"}})
+    assert r.status_code == 200, r.text                                # now 20, -10, 50
+    assert _filtered_values(client, trade_plan, {"op": "gt", "value": 1}) == [20.0, 50.0]
+
+
+def test_deleting_an_input_is_seen_by_the_next_filter(client, trade_plan):
+    _r_notes(client, trade_plan, [120, 90])
+    assert _filtered_values(client, trade_plan, {"op": "is_not_empty"}) == [-1.0, 2.0]
+    assert client.delete(f"/api/j2/property-defs/{trade_plan['Stop']}").status_code == 200
+    assert _filtered_values(client, trade_plan, {"op": "is_not_empty"}) == []
+
+
+def test_the_formula_memo_is_bounded(client, trade_plan, monkeypatch):
+    from api.services.journal_two import note_computed
+    monkeypatch.setenv("NOTEBOOK_FORMULA_MEMO_MAX", "4")
+    note_computed._FORMULA_MEMO.clear()
+    _r_notes(client, trade_plan, [110, 120, 130, 140, 150, 160, 170])
+    assert _filtered_values(client, trade_plan, {"op": "gt", "value": 0}) == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+    assert 0 < len(note_computed._FORMULA_MEMO) <= 4
+
+
 def _scan_plan(conn):
     from api.services.journal_two import note_computed
     sql = (f"EXPLAIN QUERY PLAN SELECT j2_notes.rowid, properties_json FROM j2_notes"
