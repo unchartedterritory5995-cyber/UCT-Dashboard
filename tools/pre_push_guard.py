@@ -192,6 +192,36 @@ BYPASS_LOG = ROOT / "logs" / "pre-push-guard-bypass.log"
 
 OK, REFUSE, UNREADABLE = "OK", "REFUSE", "UNREADABLE"
 
+#: A FAILED / CRASHED row is TERMINAL: Railway will never move it again. It is
+#: "in flight" only while Railway may still be restarting the previous build onto
+#: the pod, so it passes once it is TERMINAL_SETTLE_SECONDS old AND the live site
+#: answers its health check (read in `main()`, handed to `decide()` as
+#: dep["live_health"] so `decide()` stays pure).
+#: ⚰️ 2026-10-02: three FAILED deploys (a boot hang) sat as the newest row. The
+#: site was healthy again on the restarted prior build, the fix for the hang was
+#: ready, and this guard refused every push because "FAILED" read as "a swap is
+#: in flight" -- a deadlock only a successful deploy could clear, and every deploy
+#: was refused. Same class as the R71 SKIPPED fix: a terminal row is not a swap.
+TERMINAL_FAILURE_STATUSES = ("FAILED", "CRASHED")
+TERMINAL_SETTLE_SECONDS = 600
+HEALTH_URL = os.environ.get("UCT_PREPUSH_HEALTH_URL", "https://uctintelligence.com/api/health")
+
+
+def live_health(url: str = HEALTH_URL, timeout: float = 10.0) -> dict:
+    """{"ok": bool, "why": str} -- does the LIVE site answer its health check now.
+    Never raises; an unreadable answer is ok=False (the guard refuses on it)."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (uct-pre-push-guard)", "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = json.loads(r.read().decode("utf-8", "replace") or "{}")
+            ok = r.status == 200 and str(body.get("status")).lower() == "ok"
+            return {"ok": ok, "why": "HTTP %s status=%s uptime=%ss" % (
+                r.status, body.get("status"), body.get("uptime_seconds"))}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "why": "%s: %s" % (type(e).__name__, str(e)[:80])}
+
 
 def _railway() -> str | None:
     """⛔ Resolved with `shutil.which`, never `shell=True`. On Windows the CLI is
@@ -317,6 +347,13 @@ def decide(dep: dict, *, now_age: float | None = None) -> tuple[str, str]:
                         % (SERVICE, dep.get("why")))
     status = (dep.get("status") or "").upper()
     age = now_age if now_age is not None else _age_seconds(dep.get("createdAt"))
+    if status in TERMINAL_FAILURE_STATUSES:
+        health = dep.get("live_health") or {}
+        if age is not None and age >= TERMINAL_SETTLE_SECONDS and health.get("ok") is True:
+            return OK, ("the newest %s deployment is %s (%s %s), %ds old: TERMINAL, not a "
+                        "swap, and the live site is healthy (%s) -- nothing is in flight."
+                        % (SERVICE, status, dep.get("commit"), dep.get("message"), int(age),
+                           health.get("why")))
     if status != "SUCCESS":
         return REFUSE, ("the newest %s deployment is %s (%s %s) — a swap is in flight; "
                         "pushing now marks it REMOVED mid-swap and members get a 502."
@@ -789,6 +826,8 @@ def main(argv=None) -> int:
 
 
     dep = latest_deployment()
+    if (dep.get("status") or "").upper() in TERMINAL_FAILURE_STATUSES:
+        dep["live_health"] = live_health()
     verdict, reason = decide(dep)
     cad = recent_deployments()
     kclause: dict = {}
