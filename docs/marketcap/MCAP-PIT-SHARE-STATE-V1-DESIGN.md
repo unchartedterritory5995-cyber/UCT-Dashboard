@@ -181,3 +181,30 @@ pure reorganization is PROVEN, a boundary for mergers, hold otherwise; (D) the 1
 - **Scanners.** magnitude_scan.py (hard gate B: ≥10x vs Massive as a DETECTOR, classified V1-introduced / production-
   same / shares-agree-price-basis / old last value; history-wide ≥10x vs production), report3.py (BEFORE → FIRST →
   CORRECTED), stale15.py (information only).
+
+### 12.1 Rules added by the corrected shadow's own validation (found by the scanners, fixed systemically)
+
+- **Unit-error LEVEL.** Two levels an exact power of 1,000 apart (±15%): the weaker — min(distinct filings, distinct
+  channels) agreeing within 200 days — is withheld, and validation re-runs without it (AMTX / SSYS / HNRG balance
+  sheets in thousands; BNTX / CLBK covers ×1000). An exact cover-vs-balance-sheet ×1000 disagreement for the same date
+  keeps the cover. Channel identity = source + concept (a rendered member suffix or a text rule's byte offset is not
+  another channel: EIG, PENN).
+- **Corroboration strength.** A ≥10x move needs another CHANNEL; a ×1000 move another channel AND another filing; a
+  reported count below 10,000 another filing AND another channel (pre-closing shells: FTI "1", RBBN / MLCI "1,000").
+- **Successor shells.** When lineage applies, the successor's own counts dated before the effective date are dropped
+  (ICE 2013 "5 shares"); own registrant history means periodic filings at least a year before it (ETN).
+- **ADS.** A Massive-ADR ticker never mixes unconverted ordinary counts (BSAC); a statement filed ≤120 days before an
+  ADS event that already states the post-event ratio speaks from the event (Rio Tinto 2010); the stale-title test uses
+  RAW ordinary counts (SONY 2024 pass-through 5:1).
+- **Ledger splits.** A ledger split is not applied when the last count dated and published before it and the first
+  count dated after it agree within 1.5x although the factor is ≥2x — unless the issuer restated a pre-split date by
+  exactly that factor after the split (INVA 2013 / VATE 2020 dropped; CTNT 2026 kept). Never for an ADS.
+- **Split-like gaps.** Clean factor within 5%; any adjacent share DROP ≥10x with continuous price (ATLX /183, GPUS
+  /300, BESS /140); company level where a new class first appears (Alphabet 2014, confirmed by Google's own XBRL ratio
+  2.0); price continuity searched up to 60 sessions past defective bars (IVT).
+- **Price basis.** A ≥3x share step and a ≥3x price step in the SAME direction on one transition → the days are
+  withheld until the price steps back (PRICE_BASIS_INCONSISTENT_WITH_CORPORATE_ACTION).
+- **Classes.** A common-only report between multi-class regimes is not a single class (ZDGE); listing-exchange-axis
+  and debt / preferred rows are never classes (TAK).
+- **Registered issuance.** A 424B / S-1 / F-1 / S-3 / F-3 cover registering ≥3x the share state in force withholds
+  that state (ZBAO 2026); never an estimate.

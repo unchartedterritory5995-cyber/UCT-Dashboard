@@ -767,7 +767,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                         # its 2025-12-31 balance sheet, 3,418,587 when first filed, re-filed as 17,096 after the 2026
                         # 1-for-200): the split happened; post-split issuance merely offset it
                         restated = any(x.as_of == y.as_of and x.as_of < s_.ex_date and x.known_from <= s_.ex_date < y.known_from
-                                       and x.value > 0 and abs(math.log(y.value / x.value) - math.log(s_.ratio)) < 0.05
+                                       and x.value > 0 and y.value > 0 and abs(math.log(y.value / x.value) - math.log(s_.ratio)) < 0.05
                                        for _k1, x, _m1 in obs for _k2, y, _m2 in obs if _k1 == _k2)
                         if not restated and abs(math.log(b0 / a0)) < math.log(1.5):
                             w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
