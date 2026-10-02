@@ -4420,9 +4420,13 @@ export default function NoteEditorPage({
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't
             being used as a thesis. */}
-        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
-                       anchorReviewId={reviewAnchor?.reviewId || null}
-                       onReviewAnchorConsumed={clearReviewParam} />
+        {/* Wave 11 11D: a trade-plan canvas is the PLAN, not the thesis (the thesis links
+            to it) -- its evidence and review blocks would push the board below the fold. */}
+        {!isCanvas && (
+          <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
+                         anchorReviewId={reviewAnchor?.reviewId || null}
+                         onReviewAnchorConsumed={clearReviewParam} />
+        )}
 
         {/* A locked note takes no captures: they wait in the inbox until Unlock. */}
         {!locked && (

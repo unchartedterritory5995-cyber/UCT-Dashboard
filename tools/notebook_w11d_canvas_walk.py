@@ -473,6 +473,7 @@ def run_walk(base: str, art: Path) -> None:
             check_focus("after move/resize")
             # T adds a text card (opens for writing), Escape commits and returns focus
             kb.press("t")
+            pg.get_by_role("textbox", name="Card text").wait_for(timeout=5000)   # a person sees the box, then types
             kb.type("Keyboard card")
             kb.press("Escape")
             b, typed = wait_board(nid, lambda b: any(i.get("text") == "Keyboard card" for i in b["items"]))
@@ -480,6 +481,7 @@ def run_walk(base: str, art: Path) -> None:
             check_focus("after T")
             # Enter edits it, Escape commits
             kb.press("Enter")
+            pg.get_by_role("textbox", name="Card text").wait_for(timeout=5000)
             kb.press("End")
             kb.type(" edited")
             kb.press("Escape")
@@ -539,6 +541,10 @@ def run_walk(base: str, art: Path) -> None:
             pg = new_page(phone)
             open_canvas(pg, nid)
             pg.wait_for_timeout(800)
+            shot(pg, "C5-phone-top")
+            # run 2: the board starts below the fold on a phone, and touches dispatched at its
+            # coordinates landed outside the screen. A member scrolls to it; so does the walk.
+            show_board(pg)
             shot(pg, "C5-phone")
             overflow = pg.evaluate("() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth")
             small = pg.evaluate("""() => [...document.querySelectorAll('[aria-label="Trade-plan canvas"] button')]
@@ -573,8 +579,7 @@ def run_walk(base: str, art: Path) -> None:
             n = len(board_of(nid)["levels"])
             added, level_error = False, None
             try:
-                pg.get_by_role("toolbar", name="Canvas tools").evaluate("el => el.scrollIntoView({block: 'center'})")
-                pg.wait_for_timeout(300)
+                show_board(pg)
                 pg.get_by_role("toolbar", name="Canvas tools").get_by_role("button", name=re.compile(r"^Levels$")).tap(timeout=10000)
                 dlg = pg.get_by_role("dialog", name="Add price levels")
                 dlg.get_by_label("Custom level (optional)").fill("Phone level")
@@ -612,7 +617,9 @@ def run_walk(base: str, art: Path) -> None:
                 time.sleep(0.4)
             elapsed_easy = round((time.time() - state.get("t_easy_start", time.time())) * 1000)
             open_canvas(pg, nid)
-            back = pg.get_by_role("list", name="Notes that link to this one")
+            # run 2: the note's own "Linked from (1)" section starts COLLAPSED; the board now
+            # shows its backlinks itself, open, above the toolbar.
+            back = pg.get_by_role("navigation", name="Linked from")
             try:
                 back.wait_for(timeout=15000)
                 back_titles = back.inner_text()

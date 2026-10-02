@@ -49,7 +49,14 @@ beforeAll(async () => {
   }
 })
 
-beforeEach(() => { renders.clear(); chartAttrs.clear() })
+beforeEach(() => {
+  renders.clear(); chartAttrs.clear()
+  global.fetch = vi.fn(async (url) => ({
+    ok: true, status: 200,
+    json: async () => (String(url).endsWith('/n1/backlinks') ? BACKLINKS : {}),
+  }))
+})
+let BACKLINKS = { count: 0, notes: [] }
 afterEach(() => {
   cleanup()
   editor?.destroy()
@@ -371,3 +378,23 @@ describe('the editor is the store', () => {
     expect(within(screen.getByRole('region', { name: 'Plan levels' })).getByText('Entry')).toBeTruthy()
   })
 })
+
+describe('walk run 2 — what the board must do', () => {
+  it('⛔ letters typed straight after T go to the new card, never to the shortcuts', () => {
+    const { viewport, board } = mount()
+    viewport.focus()
+    // T, then the next keys arrive BEFORE the text box can take focus (no act() between)
+    fireEvent.keyDown(viewport, { key: 't' })
+    for (const k of 'cal') fireEvent.keyDown(viewport, { key: k })
+    expect(screen.queryByRole('dialog')).toBeNull()        // no chart / level / arrow dialog
+    expect(board().items).toHaveLength(1)
+  })
+  it('the plan shows what links to it, on the board, as buttons', async () => {
+    BACKLINKS = { count: 1, notes: [{ id: 't9', title: 'NVDA thesis' }] }
+    mount(two())
+    const nav = await screen.findByRole('navigation', { name: 'Linked from' })
+    expect(within(nav).getByRole('button', { name: /NVDA thesis/ })).toBeTruthy()
+    BACKLINKS = { count: 0, notes: [] }
+  })
+})
+

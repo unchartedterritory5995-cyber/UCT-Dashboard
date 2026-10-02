@@ -18,6 +18,30 @@
   font-size: 13px;
 }
 
+.linkedFrom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.linkedFromLabel { color: var(--text-muted); font-size: 12px; }
+.linkedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.linkedChip:hover { border-color: var(--ut-gold); }
+.linkedChip:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -298,6 +322,7 @@
   .btnPrimary,
   .input { min-height: var(--tap-min); }
   .miniBtn { min-width: var(--tap-min); }
+  .linkedChip { min-height: var(--tap-min); }
   .tool { min-width: var(--tap-min); }
   .resize { width: 32px; height: 32px; }
 }

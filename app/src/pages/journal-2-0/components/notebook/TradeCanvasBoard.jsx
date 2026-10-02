@@ -2,6 +2,8 @@ import {
   memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import useNoteBacklinksList from '../../hooks/useNoteBacklinksList'
+import { useNoteNavigation } from '../../lib/splitView'
 import CanvasItem, { NO_LEVELS } from './TradeCanvasItem'
 import { ArrowDialog, ChartDialog, KeysDialog, LevelDialog, LinkThesisDialog } from './TradeCanvasDialogs'
 import {
@@ -118,6 +120,11 @@ export default function TradeCanvasBoard({
   const [visible, setVisible] = useState(() => new Set())
   const [zoomOk, setZoomOk] = useState(true)
   const dragStore = useMemo(createDragStore, [])
+  // "What links to this plan": shown ON the board, open (walk run 2: the note's own
+  // "Linked from" section starts collapsed, below a tall board -- the plan's thesis
+  // was there and out of sight).
+  const backlinks = useNoteBacklinksList(noteId)
+  const goToNote = useNoteNavigation()
 
   const viewportRef = useRef(null)
   const layerRef = useRef(null)
@@ -167,6 +174,8 @@ export default function TradeCanvasBoard({
       return changed ? next : prev
     })
     if (currentId && !ids.has(currentId)) setCurrentId(null)
+    // a card that was opening for writing and is gone (an undo, a reload) releases the keys
+    if (editingRef.current && !ids.has(editingRef.current)) { editingRef.current = null; setEditingId(null) }
   }, [board, currentId])
 
   const commit = useCallback((next, opts) => {
@@ -305,7 +314,10 @@ export default function TradeCanvasBoard({
     const pos = at || placeFor(boardRef.current, camRef.current, w, h, size)
     const item = kind === 'sticky' ? makeSticky(pos) : makeTextCard(pos)
     const id = addItem(item, kind === 'sticky' ? 'Sticky note' : 'Text card')
-    if (id) { setCurrentId(id); setEditingId(id) }
+    // editingRef is set NOW, not on the next render: a key pressed before the card's text
+    // box mounts must not reach the board's single-letter shortcuts (walk run 2: typing
+    // straight after T opened the chart and arrow dialogs from the letters of the words).
+    if (id) { editingRef.current = id; setCurrentId(id); setEditingId(id) }
   }, [addItem, editable])
 
   const openChartDialog = useCallback((item = null) => {
@@ -431,12 +443,15 @@ export default function TradeCanvasBoard({
     const item = boardRef.current.items.find((i) => i.id === id)
     if (!item || !editable) return
     if (item.kind === 'chart') openChartDialog(item)
-    else { setCurrentId(id); setEditingId(id) }
+    else { editingRef.current = id; setCurrentId(id); setEditingId(id) }
   }, [editable, openChartDialog])
 
   // ── keyboard ───────────────────────────────────────────────────────────────
   const onKeyDown = (e) => {
     if (isTyping(e.target)) return
+    // A card is opening for writing and its text box has not taken focus yet: no
+    // shortcut may fire from what the member is already typing.
+    if (editingRef.current && e.key !== 'Escape' && e.key !== 'Tab') { if (e.key.length === 1) e.preventDefault(); return }
     const mod = e.ctrlKey || e.metaKey
     const itemEl = e.target.closest?.('[data-canvas-item]')
     const onItem = itemEl ? itemEl.getAttribute('data-canvas-item') : null
@@ -722,6 +737,17 @@ export default function TradeCanvasBoard({
   return (
     <section className={styles.board} aria-label="Trade-plan canvas" data-trade-canvas={noteId}>
       {readOnlyReason && <p className={styles.readOnly} role="status">{readOnlyReason}</p>}
+      {backlinks.count > 0 && (
+        <nav className={styles.linkedFrom} aria-label="Linked from">
+          <span className={styles.linkedFromLabel}>Linked from</span>
+          {backlinks.notes.slice(0, 6).map((n) => (
+            <button key={n.id} type="button" className={styles.linkedChip} onClick={(e) => goToNote(n.id, e)}>
+              <UIcon name="link" size={12} gold={false} /> {n.title || 'Untitled'}
+            </button>
+          ))}
+          {backlinks.count > 6 && <span className={styles.linkedFromLabel}>+{backlinks.count - 6} more below</span>}
+        </nav>
+      )}
       <div className={styles.toolbar} role="toolbar" aria-label="Canvas tools" data-canvas-chrome>
         {editable && (
           <>
