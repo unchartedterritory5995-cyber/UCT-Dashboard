@@ -721,6 +721,9 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
           // document's own declaration is asked inside `objectReaderFor`.
           ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
+          // surface states it.
+          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
@@ -783,7 +786,7 @@ export function createBinder({ chart, LWC }) {
       // bars can draw a different picture once that statement arrives.
       // ⭐ C37 — and the chart's own colours: a theme change repaints the objects
       // that wear them, with the bars and the program unchanged.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}:${theme.fg || ''}/${theme.bg || ''}`
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}${ctx.barIndexFromFirstBar === true ? ':bar0' : ''}:${theme.fg || ''}/${theme.bg || ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -1282,6 +1285,7 @@ export function createBinder({ chart, LWC }) {
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
+        + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
@@ -1327,6 +1331,9 @@ export function createBinder({ chart, LWC }) {
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
+            // not the series the caller described.
+            ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the

@@ -1190,8 +1190,16 @@ describe('the interpreter is PURE', () => {
     // simply being admitted — the claim is about the closure of the import graph,
     // not about one file. `budget.js` imports only this module back (the declared
     // cycle), so scanning the two closes it.
+    // ⭐ C45 — `./barIndexShift.js` (how a value moves with where the series
+    // starts) is a FIFTH edge, admitted the way the others were: scanned below,
+    // with the same allowlist, and its own imports pinned to the table's parser.
     expect(got.imports.sort())
-      .toEqual(['../../indicators.js', './budget.js', './parse.js', './sentence.js'])
+      .toEqual(['../../indicators.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
+    const shiftSrc = fs.readFileSync(path.join(path.dirname(SELF), 'barIndexShift.js'), 'utf8')
+    expect(shiftSrc.length).toBeGreaterThan(2000)
+    const shiftScan = scan(acorn.parse(shiftSrc, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(shiftScan.findings, 'barIndexShift.js reached something outside pure arithmetic').toEqual([])
+    expect(shiftScan.imports.sort()).toEqual(['./parse.js'])
     const budgetSrc = fs.readFileSync(path.join(path.dirname(SELF), 'budget.js'), 'utf8')
     expect(budgetSrc.length).toBeGreaterThan(2000)
     const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))

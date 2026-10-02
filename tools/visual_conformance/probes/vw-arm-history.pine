@@ -1,0 +1,97 @@
+//@version=6
+indicator("UCTPROBE_VW_ARM_HISTORY", overlay = false, max_bars_back = 5000)
+
+// --- 2026-10-01 C45 - A ta.* CALL INSIDE A TERNARY ARM: WHOSE BARS DOES IT SEE? ---
+//
+// Witnessed in ONE place: heat-map-seasons-rddt-1d-2026-09-28. Its gauge colour is
+//
+//     color = level > 0 ? color.from_gradient(level, 0, ta.highest(level, n), ..)
+//                       : color.from_gradient(level, ta.lowest(level, n), 0, ..)
+//
+// and the vendor's per-bar colour is reproduced (632 / 632 bars, +-1 level) only
+// if each arm's ta.highest / ta.lowest runs on the bars ITS arm is taken, over a
+// window of those executions (partial until n of them have run, an `na` input
+// skipped). Evaluated on every bar the last bar reads #9fd974; TradingView draws
+// #f3e841.
+//
+// The object lane HOLDS such a colour by name (`fn:conditional-history`). The
+// PLOT lane still evaluates a ta.* arm on every bar - a value that is not
+// TradingView's wherever the two differ. This probe measures the rule directly,
+// as plotted numbers, so the plot lane can serve it or withhold it:
+//
+//   T*  a ta.* call in a ternary arm, test irregular (close > open)
+//   K*  the same, test periodic (bar_index % 2 == 0): a window over EXECUTIONS
+//       and a window over BARS differ on every bar
+//   I*  the same value computed in an `if` block (vw-call-site-history's C* rows
+//       ask this for blocks; repeated here so one capture holds both)
+//   E*  the every-bar answers, for comparison
+//   N*  an `na` on the way in: is it skipped, or does it poison the window?
+//
+// CAPTURE: NYSE:RDDT 1D from the listing (every execution is on a loaded bar),
+// inputs at defaults; AMEX:SPY 1D as a second witness.
+// NEVER COMPILED ON TRADINGVIEW. If a row does not compile (Pine warns that a
+// function "should be called on each calculation"; a warning is fine, an error is
+// not), the error names the line - split that row out and capture the rest.
+
+up = close > open
+even = bar_index % 2 == 0
+
+// ------------------------------------------------------------- E: every bar
+e_hi = ta.highest(high, 10)
+e_lo = ta.lowest(low, 10)
+e_sma = ta.sma(close, 5)
+e_ema = ta.ema(close, 5)
+e_chg = ta.change(close)
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(e_hi, "E01_highest_every_bar")
+plot(e_lo, "E02_lowest_every_bar")
+plot(e_sma, "E03_sma_every_bar")
+plot(e_ema, "E04_ema_every_bar")
+plot(e_chg, "E05_change_every_bar")
+
+// ------------------------------------------------------------- T: ternary, irregular
+t_hi = up ? ta.highest(high, 10) : na
+t_lo = up ? na : ta.lowest(low, 10)
+t_sma = up ? ta.sma(close, 5) : close
+t_ema = up ? ta.ema(close, 5) : close
+t_chg = up ? ta.change(close) : 0.0
+t_both = up ? ta.highest(high, 10) : ta.lowest(low, 10)
+plot(t_hi, "T01_highest_in_true_arm")
+plot(t_lo, "T02_lowest_in_false_arm")
+plot(t_sma, "T03_sma_in_true_arm")
+plot(t_ema, "T04_ema_in_true_arm")
+plot(t_chg, "T05_change_in_true_arm")
+plot(t_both, "T06_highest_or_lowest")
+plot(up ? 1 : 0, "T07_test_CONTROL")
+
+// ------------------------------------------------------------- K: ternary, every other bar
+k_hi = even ? ta.highest(high, 3) : na
+k_sma = even ? ta.sma(close, 3) : na
+k_chg = even ? ta.change(close) : na
+plot(k_hi, "K01_highest3_on_even_bars")
+plot(k_sma, "K02_sma3_on_even_bars")
+plot(k_chg, "K03_change_on_even_bars")
+
+// ------------------------------------------------------------- I: the same in an `if` block
+float i_hi = na
+float i_sma = na
+if up
+    i_hi := ta.highest(high, 10)
+    i_sma := ta.sma(close, 5)
+plot(i_hi, "I01_highest_in_if_block")
+plot(i_sma, "I02_sma_in_if_block")
+
+// ------------------------------------------------------------- N: an na input inside the arm
+src_na = even ? close : na
+n_hi = up ? ta.highest(src_na, 4) : na
+n_sma = up ? ta.sma(src_na, 4) : na
+plot(n_hi, "N01_highest_of_a_series_with_na")
+plot(n_sma, "N02_sma_of_a_series_with_na")
+
+// ------------------------------------------------------------- G: the witnessed shape itself
+level = close - ta.sma(close, 20)
+g = level > 0 ? color.from_gradient(level, 0, ta.highest(level, 50), color.yellow, color.red) : color.from_gradient(level, ta.lowest(level, 50), 0, color.aqua, color.yellow)
+plot(color.r(g), "G01_gauge_r")
+plot(color.g(g), "G02_gauge_g")
+plot(color.b(g), "G03_gauge_b")
+plot(level, "G04_level_CONTROL")

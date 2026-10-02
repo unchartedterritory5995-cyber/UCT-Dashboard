@@ -52,7 +52,7 @@ import os
 import re
 import sys
 import threading
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 _logger_name = __name__
 
@@ -82,6 +82,7 @@ GATES: tuple[str, ...] = (
     "cross-lane",     # the two lanes do not agree at 1e-9 on THESE bars
     "bars",           # there are no bars to prove anything on
     "plot",           # the document declares v2 and names no tree for THIS plot
+    "withheld",       # the lane answers "no number" for this plot on EVERY bar
 )
 
 
@@ -134,6 +135,12 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     "cross-lane": "the two lanes disagree at bar",
     "bars": "there are no bars to prove this formula on",
     "plot": "is a multi-tree document and carries no tree for this plot",
+    # ⭐ C45 (C36's decision 6). The lane would compute this plot and answer "no
+    # number" on every bar, forever: the alert would arm and never fire, with
+    # nothing to say why. The codes that follow the fragment are
+    # `ast_interpret.CHART_CLOCK_WHOLE`'s; the SENTENCES behind them have one
+    # owner (`interpret.js::CHART_CLOCK_WITHHELD`) and are not copied here.
+    "withheld": "is a value the alert lane cannot answer on any bar",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -333,6 +340,23 @@ def _trees_summary(trees: Any) -> str:
     return "names %s" % sorted(str(k) for k in trees)
 
 
+def _withheld_reason(codes: Sequence[str]) -> str:
+    """One short sentence for a whole-series withholding, by the code's FAMILY.
+
+    ⛔ NOT the member-facing sentence — `interpret.js::CHART_CLOCK_WITHHELD` owns
+    those, per code, and a copy here would be a second authority over the wording.
+    This says only which KIND of read the lane cannot answer, so the refusal is
+    actionable without the chart open."""
+    parts = []
+    if any(c.startswith("bar-index:") for c in codes):
+        parts.append("it depends on `bar_index` — the count of bars since the "
+                     "symbol's first, which a window of bars cannot know")
+    if any(c.startswith("time-") for c in codes):
+        parts.append("it reads `time(<timeframe>)` / `time_close(<timeframe>)`, a "
+                     "clock the bars this lane is handed do not carry")
+    return ("; ".join(parts) or "the lane withholds it on every bar") + "."
+
+
 def _make_value_fn(def_id: str, plot_key: str,
                    definition: Mapping[str, Any]) -> Callable[[list, dict], Optional[float]]:
     """One admitted (definition, plot) -> "what number is this formula at now".
@@ -411,6 +435,29 @@ def _make_value_fn(def_id: str, plot_key: str,
         tree = compute.get("ast")
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
+    # ⭐⭐ C45 — WHAT THE LANE ADDS FOR THIS DOCUMENT, DECIDED ONCE. A Pine
+    # translation's `barindex` is TradingView's `bar_index`, and this lane's bars
+    # are a window whose start it cannot place — so a value that depends on the
+    # count is withheld (`ast_interpret.bar_index_mask`), exactly as the member's
+    # chart withholds it off the listing. Empty for every other document, so their
+    # `interpret` call is the one it always was.
+    from api.services import ast_interpret as _lane
+    lane_opts = _lane.lane_opts_for(definition)
+    # ⛔ AND A PLOT THE LANE WITHHOLDS ON EVERY BAR IS REFUSED HERE, BY NAME
+    # (C36's decision 6). `time("W")` reads a clock this lane's date-keyed bars do
+    # not carry; `bar_index % 3` reads a count it cannot know. Both evaluated to
+    # "no number" on every bar, which every consumer files correctly — and which
+    # meant an alert that armed, said nothing, and never fired. Asked of THIS
+    # plot's tree with the SAME opts the column below evaluates with; no bars are
+    # needed (with no `tf` the decision reads none).
+    withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
+    if withheld:
+        raise AdmissionRefused(
+            "withheld",
+            f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(withheld)}): "
+            + _withheld_reason(withheld)
+            + " An alert on it would arm and never fire. It still draws on a "
+            "chart that can answer it.")
 
     def column(bars: list, params: dict) -> list:
         from api.services import ast_interpret
@@ -427,7 +474,7 @@ def _make_value_fn(def_id: str, plot_key: str,
             return [None] * len(bars)
         out = ast_interpret.interpret(tree, bars,
                                       inputs=_inputs_for(definition, params),
-                                      budget=budget)
+                                      budget=budget, opts=lane_opts)
         if len(out) != len(bars):
             raise AssertionError(
                 f"{address}: series is {len(out)} long for {len(bars)} bars. "
@@ -781,13 +828,26 @@ def admit_user_definition(user_id: Any, def_id: str,
     keys = [p.get("key") if isinstance(p, dict) else p for p in plots]
     keys = [str(k) for k in keys if k]
     addresses = []
+    # ⭐ C45 — ONE WITHHELD PLOT DOES NOT TAKE ITS SIBLINGS DOWN. A Pine indicator
+    # commonly carries a `plot(bar_index)` debugging row beside the signal a member
+    # actually alerts on; refusing the whole document for it would end alerts that
+    # are perfectly answerable. The withheld plot is NOT registered, its refusal is
+    # kept under its address, and `arm_for_alert` raises it when THAT plot is the
+    # one being armed. Every other gate still refuses the whole admission.
+    withheld: dict = {}
     with _REGISTRY_LOCK:
         for plot_key in keys:
             address = f"{def_id}.{plot_key}"
-            USER_FUNCS[scoped_key(user_id, address)] = _make_value_fn(
-                def_id, plot_key, definition)
+            try:
+                fn = _make_value_fn(def_id, plot_key, definition)
+            except AdmissionRefused as exc:
+                if exc.gate != "withheld":
+                    raise
+                withheld[address] = exc
+                continue
+            USER_FUNCS[scoped_key(user_id, address)] = fn
             addresses.append(address)
-    return {
+    admitted = {
         "def_id": def_id,
         "version": row.get("version"),
         "rev": row.get("rev"),
@@ -796,6 +856,9 @@ def admit_user_definition(user_id: Any, def_id: str,
         "compared": report.get("compared"),
         "rel_tol": report.get("rel_tol"),
     }
+    if withheld:
+        admitted["withheld"] = withheld
+    return admitted
 
 
 def user_value_function(user_id: Any, address: str
@@ -1156,4 +1219,12 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
         bars = ev._fetch_bars_for_alert(
             sym, tf, ev.bars_wanted(lookback_for_alert(
                 {"indicator": indicator, "user_id": user_id}) or 0))
-    return admit_user_definition(user_id, def_id, None, bars=bars)
+    admitted = admit_user_definition(user_id, def_id, None, bars=bars)
+    # ⭐ C45 — THE PLOT BEING ARMED IS THE ONE THAT MUST BE ANSWERABLE. The
+    # admission registered every plot the lane can answer and kept the refusal of
+    # any it cannot; an alert on one of those is refused here, BEFORE the row is
+    # inserted (`indicator_alert_service.create`) — there is nothing to go quiet.
+    refused = (admitted.get("withheld") or {}).get(f"{def_id}.{_plot}")
+    if refused is not None:
+        raise refused
+    return admitted

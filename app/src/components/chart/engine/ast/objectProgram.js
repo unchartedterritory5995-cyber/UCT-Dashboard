@@ -639,9 +639,150 @@ function assertColorNode(v, where, depth = 0) {
       assertColorNode(v.a, `${where}.a`, depth + 1)
       assertColorNode(v.b, `${where}.b`, depth + 1)
       return
+    // ⭐⭐ C45 — a colour the translator could READ and could not serve exactly
+    // (`pine.js::heldColour`): no value, only the reason. The object runtime
+    // marks it unknown, so what asked for it is held, never painted a guess.
+    case 'held':
+      if (typeof v.why !== 'string' || !v.why) throw new Error(`${where}: a held colour names its reason`)
+      return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
   }
+}
+
+/**
+ * ⭐⭐ C45 — THE OPS WHOSE DRAWING DEPENDS ON WHERE THE SERIES STARTS, MARKED.
+ *
+ * Off the listing a `bar_index` is this chart's count, lower than TradingView's by
+ * an unknown number of bars (`ast/barIndexShift.js`). For a drawing that splits
+ * every value an op reads in two:
+ *
+ *   a BAR COORDINATE (`BAR_COORD_PROPS`: x, x1, x2, left, right) names a bar. An
+ *   index there — `bar_index - 5`, the bar a pivot stood on — lands on the same
+ *   bar on both platforms. SERVED.
+ *   anything ELSE — a price, a text, a colour's test, a guard, a cell address — is
+ *   a VALUE, and an index there is `D` away from TradingView's. The op is HELD
+ *   (`op.indexHeld`), on every bar, and the object runtime marks what it would
+ *   have written unknown (C17).
+ *
+ * `classOfNode(node)` answers `'pos'` for a graph node `barIndexClass` proved to
+ * be an index (a node it could not prove is already unknown on every bar, through
+ * the column's own mask). A value built here from `{v:'bar'}`, arithmetic and
+ * comparisons is classified by the same three rules. ⛔ What this cannot follow —
+ * a getter, a scalar a getter fed, a list element, the loop counter — is left
+ * exactly as it was ('any'): it marks nothing, in either direction.
+ *
+ * `indexHeld` is `'guard'` when what decides WHETHER the op runs (or what it acts
+ * on) is the value, `'value'` when a property is: a guard that is known false is
+ * still a certain skip for the second and not for the first.
+ * ⚠️ `create` with `xloc = xloc.bar_time` reads its coordinates as TIMES, so an
+ * index there is a value like any other.
+ *
+ * @returns {{program: object, held: number}} the program (the SAME object when
+ *   nothing is held) and how many ops are.
+ */
+export function withBarIndexHeld(program, classOfNode) {
+  let held = 0
+  const moves = (c) => c === 'pos' || c === 'dep'
+  const cls = (v, depth = 0) => {
+    if (!isObj(v) || depth > 48) return 'inv'
+    if (v.r) return 'any'
+    switch (v.v) {
+      case 'const': case 'param': case 'time': return 'inv'
+      case 'graph': return classOfNode(v.node) === 'pos' ? 'pos' : 'inv'
+      case 'bar': return 'pos'
+      case 'at': {
+        const back = cls((v.args || [])[1], depth + 1)
+        return moves(back) ? 'dep' : cls((v.args || [])[0], depth + 1)
+      }
+      case 'op': {
+        const a = cls((v.args || [])[0], depth + 1)
+        if ((v.args || []).length === 1) return v.op === '-' ? (a === 'inv' || a === 'any' ? a : 'dep') : a
+        const b = cls(v.args[1], depth + 1)
+        if (a === 'dep' || b === 'dep') return 'dep'
+        if (a === 'any' || b === 'any') return 'any'
+        if (v.op === '+') return a === 'pos' && b === 'pos' ? 'dep' : (a === 'pos' || b === 'pos' ? 'pos' : 'inv')
+        if (v.op === '-') return a === b ? 'inv' : (a === 'pos' ? 'pos' : 'dep')
+        return a === 'inv' && b === 'inv' ? 'inv' : 'dep'
+      }
+      case 'cmp': case 'cross': {
+        const a = cls((v.args || [])[0], depth + 1)
+        const b = cls((v.args || [])[1], depth + 1)
+        if (a === 'dep' || b === 'dep') return 'dep'
+        return a === 'any' || b === 'any' || a === b ? 'inv' : 'dep'
+      }
+      case 'bool': return (v.args || []).some((a) => moves(cls(a, depth + 1))) ? 'dep' : 'inv'
+      case 'text': return textCls(v.node, depth + 1)
+      case 'color': return colourCls(v.node, depth + 1)
+      default: return 'any'
+    }
+  }
+  const asValue = (c) => (moves(c) ? 'dep' : 'inv')
+  const textCls = (t, depth) => {
+    if (!isObj(t) || depth > 48) return 'inv'
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.node)) return classOfNode(t.node) === 'pos' ? 'dep' : 'inv'
+    if (t.t === 'val') return asValue(cls(t.v, depth + 1))
+    if (t.t === 'cat') return (t.args || []).some((a) => textCls(a, depth + 1) === 'dep') ? 'dep' : 'inv'
+    if (t.t === 'if') {
+      return moves(cls(t.cond, depth + 1)) || textCls(t.then, depth + 1) === 'dep' || textCls(t.else, depth + 1) === 'dep'
+        ? 'dep' : 'inv'
+    }
+    return 'inv'
+  }
+  const colourCls = (c, depth) => {
+    if (!isObj(c) || depth > 48) return 'inv'
+    const any = (...vs) => (vs.some((x) => x === 'dep') ? 'dep' : 'inv')
+    if (c.c === 'if') return any(asValue(cls(c.cond, depth + 1)), colourCls(c.then, depth + 1), colourCls(c.else, depth + 1))
+    if (c.c === 'rt') return asValue(cls(c.v, depth + 1))
+    if (c.c === 'new') return any(colourCls(c.of, depth + 1), asValue(cls(c.t, depth + 1)))
+    if (c.c === 'grad') {
+      return any(asValue(cls(c.v, depth + 1)), asValue(cls(c.lo, depth + 1)), asValue(cls(c.hi, depth + 1)),
+        colourCls(c.a, depth + 1), colourCls(c.b, depth + 1))
+    }
+    return 'inv'
+  }
+  const LOOP_BOUNDS = ['from', 'to', 'step']
+  const heldWhy = (op) => {
+    for (const f of OP_VALUE_FIELDS) {
+      if (op[f] == null) continue
+      const c = cls(op[f])
+      // a loop's bounds may BE indices (`for i = bar_index - 10 to bar_index`)
+      if (LOOP_BOUNDS.includes(f) ? c === 'dep' : moves(c)) return 'guard'
+    }
+    for (const r of [op.target, op.value]) {
+      if (isObj(r) && r.r === 'coll' && moves(cls(r.index))) return 'guard'
+    }
+    if (op.k === 'setnum' && isObj(op.value) && !op.value.r && cls(op.value) === 'dep') return 'value'
+    const props = op.props || {}
+    const xloc = props.xloc
+    const timed = op.k === 'create' && isObj(xloc) && xloc.v === 'const' && xloc.value === 'bar_time'
+    for (const [k, v] of Object.entries(props)) {
+      if (isObj(v) && v.r) {
+        if (v.r === 'coll' && moves(cls(v.index))) return 'guard'
+        continue
+      }
+      const c = cls(v)
+      if (BAR_COORD_PROPS.includes(k) && !timed ? c === 'dep' : moves(c)) return 'value'
+    }
+    return null
+  }
+  const mapOps = (list) => {
+    let changed = false
+    const out = (list || []).map((op) => {
+      let next = op
+      if (op && op.k === 'loop' && Array.isArray(op.body)) {
+        const body = mapOps(op.body)
+        if (body !== op.body) next = { ...next, body }
+      }
+      const why = op ? heldWhy(op) : null
+      if (why) { held += 1; next = { ...next, indexHeld: why } }
+      if (next !== op) changed = true
+      return next
+    })
+    return changed ? out : list
+  }
+  const ops = mapOps(program && program.ops)
+  return { program: held && ops !== program.ops ? { ...program, ops } : program, held }
 }
 
 /** ⭐ C43 — is this a value operator with a getter (or a C14 scalar) beneath it?

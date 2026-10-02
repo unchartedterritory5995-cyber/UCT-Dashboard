@@ -409,6 +409,11 @@ export function bodyEffects(def, defs, objColls) {
   // ⭐ C16 — the drawing collections the body CHANGES, by name: a refused call
   // leaves each one diverged from TradingView's (`divergedColls` in pine.js).
   const colls = []
+  // ⭐ C45 — every `<family>.set_*` the body calls, `[family | null, method]`
+  // (`null`: the method form on a handle, `l.set_xy1(…)`): a refused body's
+  // setters never ran, so the objects they would have moved or re-captioned are
+  // not TradingView's (`pine.js`, `lostUnaddressed`).
+  const setters = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -431,6 +436,7 @@ export function bodyEffects(def, defs, objColls) {
         if (m === 'delete') { add('delete'); families.push(ns) } else if (ns === 'table' && m === 'clear') {
           add('clear'); families.push('table')
         } else if (m === 'new') creates.push(ns)
+        else if (m.startsWith('set_')) setters.push([ns, m])
         continue
       }
       if (ns === 'array') {
@@ -450,13 +456,13 @@ export function bodyEffects(def, defs, objColls) {
       // the method form on a handle, or a user METHOD whose body is read too
       if (m === 'delete') { add('delete'); families.push(null) } else if (m === 'clear') {
         add('clear'); families.push(null)
-      }
+      } else if (m.startsWith('set_')) setters.push([null, m])
       const method = defs.get(m)
       if (method && method.isMethod) visit(method)
     }
   }
   visit(def)
-  return { kinds, families, creates, colls }
+  return { kinds, families, creates, colls, ...(setters.length ? { setters } : {}) }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */

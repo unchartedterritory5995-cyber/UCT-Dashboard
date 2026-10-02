@@ -66,8 +66,15 @@ const CASES = [
   // `periodTextOf`). The 40 labels' text is the RUN's now (C20), so they are no
   // longer counted as lost — and, as for every C18/C20 read, they are served only
   // from the listing (R-W): drawn nothing elsewhere, graded unchanged on the 47.
+  // ⭐ C45 (2026-10-01): 2 of 246. Its two block lines are created at
+  // `bar_index, high` on the first bar and moved every bar by `line.set_xloc`,
+  // a setter this chart does not carry — so they were DRAWN at bar 0 (zero
+  // length, at the right price and the wrong place) while the sentence said only
+  // that `line.set_xloc` is not drawn. An object one of whose moves was lost is
+  // withheld now and counted in the one count; the reader name is still named.
   { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
-    objectsOnly: true, kind: 'partial', text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    objectsOnly: true, kind: 'partial', text: /^2 of 246 drawing elements in this script aren't supported yet, so what it draws is incomplete\./,
+    also: '`line.set_xloc`' },
   // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost
@@ -216,8 +223,11 @@ const CASES = [
       'var line l = line.new(bar_index, close, bar_index + 1, close)',
       'line.set_xloc(l, time, time + 1, xloc.bar_time)',
     ].join(String.fromCharCode(10)),
+    // ⭐ C45: the line this fixture creates is the one `line.set_xloc` moves, so
+    // it is withheld (1 of 1) rather than drawn where it was made.
     objectsOnly: false, kind: 'partial',
-    text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    text: /^1 of 1 drawing elements in this script aren't supported yet, so what it draws is incomplete\./,
+    also: '`line.set_xloc`' },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
   // ⚰️ 2026-09-30 (C34) — this row was trend-lines-supports-and-resistances, and
   // its "removal lost in a refused helper" was two readings the helper refusal

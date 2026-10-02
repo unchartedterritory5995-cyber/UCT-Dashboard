@@ -112,7 +112,7 @@ import { checkBudget } from './budget.js'
 // without Pine (the Builder-future-proofing rule this wave was given).
 import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
-  OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
+  OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES, SETTER_PROPS,
 } from './pineObjects.js'
 import {
   INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
@@ -2390,6 +2390,26 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // hole. `isfirst` names the OLDEST DELIVERED BAR, which moves every time the
   // fetch depth changes — so on a screen it is the `cum` defect exactly: a
   // finite, plausible number that is different tomorrow.
+  // ⭐⭐ C45 — the table's `valuewhenOccurrence`, tagged `occurrence_dependent`
+  // in the manifest (`_requirement_tags`): accepted by the pane, refused by the
+  // five comparability consumers. This sentence is the refusal a screen gets when
+  // a script spells the TABLE name itself — the pair `pineCumHostMode.test.js`
+  // holds for every host-admissible name.
+  // ⚠️ PINE'S OWN SPELLING, `ta.valuewhen(condition, source, occurrence)`, STILL
+  // TRANSLATES FOR A SCREEN (PR #166's capability, 14 rails and the door-coverage
+  // ratchet stand on it), and is contained one door later: the saved definition
+  // is stamped with the tag and every comparability consumer refuses it by name
+  // (`user_definitions.consumer_refusal`). Refusing it here too is the
+  // integrator's call (§ C45, decision 12).
+  // ⛔ NOT the period anchor `time("W" | "M" | "3M" | "12M")` translates to: that
+  // tree is bounded by its period and masked exactly by both interpreters.
+  valuewhenOccurrence: 'the value at the n-th most recent time a condition was '
+    + 'true, counted back over whatever history was loaded. Where that lies before '
+    + 'the first bar loaded there is no value, and on a screen the first comparison '
+    + 'above it would read the missing value as "no match" — so it would answer '
+    + 'differently for the same stock on the same day. A pane may draw '
+    + '`ta.valuewhen(condition, source, occurrence)`; the bar-window '
+    + '`valuewhen(condition, source, bars)` translates for a screen.',
   isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
     + 'reaches further back — so on a screen it would answer differently for the '
     + 'same stock on the same day. `barstate.islast` is the other end and IS '
@@ -11981,7 +12001,21 @@ export class Resolver {
     // cannot compute), and the manifest-derived set (the ruling covers THIS
     // name). Drop any one and the exemption stops being the ruling and starts
     // being a hole.
-    const hostOnly = hostAdmissible(this.table).has(bare)
+    // ⭐ C45 — THE NAME IS LOOKED UP UNDER THE TABLE'S OWN SPELLING TOO. `bare` is
+    // lower-cased, and until `valuewhenOccurrence` every name in both sets was
+    // lower-case already, so the two lookups below could not miss. A camel-case
+    // table name did: its `PINE_INEXPRESSIBLE` sentence and its host-admissible
+    // tag were both invisible here, and the directly written name fell through to
+    // `pine:role-order` — a sentence about argument order for a function whose
+    // real reason is the loaded history.
+    // ⛔ ONLY WHEN THE SCRIPT WROTE THE TABLE'S NAME. `ta.valuewhen` reaches the
+    // same `key` through the redirect above and is NOT refused here: its `bare`
+    // is `valuewhen`, which is neither set's member.
+    const wroteTableName = key && normaliseName(key) === bare ? key : null
+    const inexKey = own(PINE_INEXPRESSIBLE, bare) ? bare
+      : (wroteTableName && own(PINE_INEXPRESSIBLE, wroteTableName) ? wroteTableName : null)
+    const admissible = hostAdmissible(this.table)
+    const hostOnly = admissible.has(bare) || (wroteTableName !== null && admissible.has(wroteTableName))
     const hostServes = this.strict && key && hostOnly
     // ⚠️ C29 — `ta.cum(1)` IS LEFT THE HOST'S `cum` ON PURPOSE. From the listing it
     // is already TradingView's bar_index + 1 (measured, `vw-bar-counters-rddt-1d-
@@ -12004,7 +12038,7 @@ export class Resolver {
     // `_functions_cumulative` names BY PATH as the level that "must stay refused"
     // — started translating for a SCREEN. Caught by the corpus snapshot, not by
     // review.
-    if (own(PINE_INEXPRESSIBLE, bare) && !hostServes
+    if (inexKey !== null && !hostServes
         && ((pineName !== base || !key) || hostOnly)) {
       // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
       // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
@@ -12085,7 +12119,7 @@ export class Resolver {
       throw new PineRefusal('pine:function',
         anchorForm
           ? timeAnchorSentence(pineName)
-          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
+          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[inexKey]}`, locate(tok))
     }
     if (!key) {
       // ⭐⭐ A NAME THIS TABLE HAS ALREADY RULED ON GETS ITS RULING, not a list of
@@ -13185,12 +13219,27 @@ function reassignedNames(tokens) {
   return out
 }
 
+/** ⭐⭐ C45 — THE TYPE WORDS A SCRIPT MAY ALSO USE AS A VARIABLE'S NAME, each
+ *  witnessed on a capture. `color = color_level > 0 ? … : …` then
+ *  `table.cell(…, bgcolor = color)` and `barcolor(color)` is heat-map-seasons
+ *  (`heat-map-seasons-rddt-1d-2026-09-28`: TradingView compiled and ran it, and
+ *  drew the gauge cell in that variable's colour). `color.red` and `color(na)`
+ *  are other tokens (`color.red` lexes as one identifier, `color(` is a call), so
+ *  the namespace is untouched.
+ *  ⛔ ONLY what a capture shows. `line`, `label`, `box`, `table` as a variable
+ *  name are written in the corpus too (support-and-resistance's `box = box.new`)
+ *  and no capture runs one: they keep refusing, by `pine:statement`. */
+const TYPE_WORDS_BINDABLE = Object.freeze(new Set(['color']))
+
 /** The name a declaration binds — the identifier immediately before the `=`,
  *  unless that identifier is one of Pine's type words (`float x = 0.0`, where the
- *  walk-back has already passed `x`). */
+ *  walk-back has already passed `x`).
+ *  ⭐ C45 — a witnessed type word standing ALONE before the `=` is the variable's
+ *  name (`color = …`): nothing precedes it for it to be the type OF. */
 export function boundName(toks, eqIndex) {
   const tok = toks[eqIndex - 1]
-  if (!tok || tok.kind !== 'ident' || TYPE_WORDS.has(tok.value)) return null
+  if (!tok || tok.kind !== 'ident') return null
+  if (TYPE_WORDS.has(tok.value)) return eqIndex === 1 && TYPE_WORDS_BINDABLE.has(tok.value) ? tok : null
   return tok
 }
 
@@ -16448,6 +16497,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
       if (b.k === 'create') { lostCreate(b.family); lostInto(b) }
       if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
+      // ⭐ C45 — a setter lost with its loop: its object is not where (or what)
+      // TradingView draws. A target this program can name is withheld by its
+      // handle (C8 / C25's ledgers); one it cannot, by the list or the family.
+      if (b.k === 'update') lostUpdateInBody(b, via)
       if (b.k === 'loop') unconverted(b.body, via)
       // ⭐ C16 — a collection change lost with its loop diverges the collection;
       // a handle copied out of one leaves its name unknown.
@@ -17518,6 +17571,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ C10 — a test that is the same on every bar answers with its live
       // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
       const condTree = canonicalOf(node.test)
+      // ⭐⭐ C45 — AN ARM THAT CALLS `ta.*` UNDER A TEST THAT VARIES IS NOT THE
+      // EVERY-BAR NUMBER, so its colour is HELD by name (see `heldColour`).
+      // ⛔ The arms are read FIRST: `decidedTest` folds the test, and a colour
+      // with no `ta.*` in its arms must leave the program byte for byte as it was.
+      const armCall = armHistoryCall(node.yes) || armHistoryCall(node.no)
+      if (armCall && decidedTest(condTree) === null) return heldColour(node, armCall)
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
@@ -17570,6 +17629,48 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     return lateColourOf(node, scope, depth)
   }
   const litByBinding = new WeakMap()
+
+  /** ⭐⭐ C45 — A COLOUR WHOSE ARM CALLS `ta.*` UNDER A TEST THAT VARIES PER BAR.
+   *
+   *  heat-map-seasons colours its gauge point `color_level > 0
+   *  ? color.from_gradient(color_level, 0, ta.highest(color_level, 70), …)
+   *  : color.from_gradient(color_level, ta.lowest(color_level, 70), 0, …)`.
+   *  TradingView runs each arm's `ta.*` only on the bars that arm is taken, so
+   *  its window holds the last 70 values of THOSE bars (and fewer until there
+   *  are 70) — measured on `heat-map-seasons-rddt-1d-2026-09-28`: that reading
+   *  reproduces the capture's bar colours on every one of its 632 bars; the
+   *  every-bar window this lane computes differs on 16 of them, the last bar
+   *  among them (vendor `#f3e841`, every-bar `#9fd974`).
+   *
+   *  No tree says "the last N bars a condition held", so the colour cannot be
+   *  served exactly — and an object's colour is never guessed (C20 / C37): the
+   *  slot is carried as `{c:'held'}`, which the object runtime marks unknown, so
+   *  the object or cell that asked for it is HELD rather than painted. Named in
+   *  `objectDiagnostics.heldColours`.
+   *  ⛔ Only a `ta.*` written INSIDE the arm: a name bound above the ternary runs
+   *  on every bar and reads as it always has. A test that is the same on every
+   *  bar (`decidedTest`) runs one arm on every bar and is not this case. */
+  const armHistoryCall = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 48) return null
+    if (Array.isArray(n)) {
+      for (const x of n) { const c = armHistoryCall(x, depth + 1); if (c) return c }
+      return null
+    }
+    if (n.type === 'call' && typeof n.name === 'string' && n.name.startsWith('ta.')) return n
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const c = armHistoryCall(v, depth + 1)
+      if (c) return c
+    }
+    return null
+  }
+  const heldColour = (node, call) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `fn:conditional-history \`${call.name}\`@${at ? at.line : '?'}`
+    diagnostics.heldColours = diagnostics.heldColours || []
+    if (!diagnostics.heldColours.includes(entry)) diagnostics.heldColours.push(entry)
+    return { c: 'held', why: 'fn:conditional-history' }
+  }
 
   /** ⭐ C37 — a per-pass condition a COLOUR may carry: comparisons and boolean
    *  operators over the loop counter, constants, counter arithmetic and per-bar
@@ -18440,6 +18541,83 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const req = REQUIRED[family]
     if (req && (propNames || []).some((k) => req.has(k))) geometryLost.push({ r: 'coll', id: lostCopyColl.get(target.id) })
   }
+  /** ⭐⭐ C45 (C44's decision 2) — AN UPDATE WAS LOST AND NOTHING SAYS WHICH OBJECT
+   *  IT WOULD HAVE REACHED.
+   *
+   *  C22 marks a lost move on its TARGET, per bar; C25 withholds a list whose
+   *  slot a lost COPY read. Both need a handle. A setter whose target itself
+   *  cannot be read (`update:target`), one inside a loop or a helper that was
+   *  never converted, or one the reader never made an op of, has none — and until
+   *  now it simply vanished: the object stayed at the coordinates (or with the
+   *  caption) it was CREATED with, and was drawn there.
+   *  ⚰️ MEASURED (C44, the paired comparison): volume-profile keeps its 200
+   *  `line.new(bar_index, close, bar_index, close)` and loses the three setters of
+   *  `draw()` (`line.set_xy1(bars.get(i), x1, y)` …, `update:target`), so it held
+   *  200 lines at bar 0 / the first close. The COUNT agreed with TradingView's
+   *  203 to within three; not one line was where TradingView draws it.
+   *
+   *  THE RULE: an object whose create converts and one of whose later moves (a
+   *  REQUIRED coordinate) or captions (`CONTENT`) was lost is WITHHELD. With no
+   *  handle the reach is the widest thing the lost step names: the LIST its
+   *  target read (`bars.get(i)`), else every object of the FAMILY. Fed into the
+   *  same spread, the same prune and the same two drop keys C8 / C25 use
+   *  (`content:lost`, `geometry:lost`), so the member's "N of M drawing elements"
+   *  is still ONE count (`droppedOps`) and no second ledger decides what is drawn.
+   *  ⛔ A STYLE setter (colour, width) moves nothing and is not this: a style
+   *  Pine defaults is still Pine's (`REQUIRED`'s own rule).
+   *  ⛔ Host lane only, as C25 is (`hostPasses`). */
+  const unaddressed = []
+  /** The list a lost target expression READS, when it names one this program
+   *  knows: `array.get(bars, i)` / `bars.get(i)` / `bars.first()`. */
+  const collOfLostTarget = (argNode) => {
+    const v = argNode && argNode.value
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const first = Array.isArray(v.args) && v.args[0] && v.args[0].value
+    if (name.startsWith('array.') && first && first.type === 'name' && collId.has(first.name)) return collId.get(first.name)
+    const dot = name.lastIndexOf('.')
+    const receiver = dot > 0 ? name.slice(0, dot) : null
+    return receiver && collId.has(receiver) ? collId.get(receiver) : null
+  }
+  const noteUnaddressed = (entry) => {
+    unaddressed.push(entry)
+    if (!diagnostics.unaddressedUpdates) diagnostics.unaddressedUpdates = []
+    diagnostics.unaddressedUpdates.push(`${entry.via}@${entry.line === undefined || entry.line === null ? '?' : entry.line} `
+      + `${entry.family || '*'}.${entry.what} → ${entry.coll ? `list ${entry.coll}` : `every ${entry.family || 'object'}`}`
+      + `${entry.moves ? ' moved' : ''}${entry.writes ? ' captioned' : ''}`)
+  }
+  /** A lost `update` OP with no readable target. */
+  const lostUnaddressed = (op, via) => {
+    if (!hostPasses || !op || op.k !== 'update' || op.family === 'linefill') return
+    const req = REQUIRED[op.family]
+    const content = CONTENT[op.family]
+    const names = op.props || []
+    const moves = !!req && names.some((k) => req.has(k))
+    const writes = !!content && names.some((k) => content.has(k))
+    if (!moves && !writes) return
+    noteUnaddressed({ family: op.family || null, moves, writes, coll: collOfLostTarget(op.target), via, line: op.line, what: names.join(',') })
+  }
+  /** A setter that never became an op at all — named by the reader
+   *  (`loopBlocked`, `unsupported`) or by a refused body (`bodyEffects`'s
+   *  `setters`). `family` null: the method form on a handle; every family that
+   *  has a setter of that name is reached. A setter this table does not know
+   *  (`line.set_first_point`, `label.set_point`, `*.set_xloc`: Pine's point and
+   *  xloc setters) is judged by its NAME — it moves the object. */
+  const POINT_SETTER = /^set_(?:xloc|point|first_point|second_point|top_left_point|bottom_right_point)$/
+  const lostSetterName = (family, method, via, line) => {
+    if (!hostPasses || !/^set_/.test(String(method))) return
+    const families = family ? [family] : Object.keys(SETTER_PROPS).filter((f) => SETTER_PROPS[f][method])
+    for (const f of (families.length ? families : [null])) {
+      if (f === 'linefill' || f === 'table') continue
+      const props = f && SETTER_PROPS[f] ? SETTER_PROPS[f][method] : null
+      const req = f ? REQUIRED[f] : null
+      const content = f ? CONTENT[f] : null
+      const moves = props ? !!req && props.some((k) => req.has(k)) : POINT_SETTER.test(String(method))
+      const writes = props ? !!content && props.some((k) => content.has(k)) : false
+      if (!moves && !writes) continue
+      noteUnaddressed({ family: f, moves, writes, coll: null, via, line, what: String(method) })
+    }
+  }
   /** ⭐ C21 — list name → the FIRST change it lost, `<drop key>@<line>`
    *  (`objectDiagnostics.collsDivergedWhy`). `dual-view` withholds 39 reads of
    *  ten lists; the count alone named none of the pushes that made them diverge. */
@@ -18462,6 +18640,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   })
   for (const rc of (collected.diagnostics && collected.diagnostics.refusedCalls) || []) {
     for (const name of (rc.effects && rc.effects.colls) || []) lostColl(name, `fn:${rc.why}@${rc.line}`)
+    // ⭐ C45 — and the setters its body never ran (`lostSetterName`).
+    for (const [family, method] of (rc.effects && rc.effects.setters) || []) lostSetterName(family, method, `fn:${rc.why}`, rc.line)
+  }
+  // ⭐ C45 — a setter the READER never turned into an op (in a loop it could not
+  // run, or one it does not carry at all) is a lost update like any other.
+  for (const [list, via] of [[collected.diagnostics.loopBlocked, 'reader:loop'], [collected.diagnostics.unsupported, 'reader:unsupported']]) {
+    for (const name of list || []) {
+      const m = /^([a-z]+)\.(set_[a-z0-9_]+)$/.exec(String(name))
+      if (m) lostSetterName(m[1], m[2], via, null)
+    }
   }
 
   /** ⭐⭐ SITES THE CONVERSION ACTUALLY EMITTED — not the ones the reader named.
@@ -19703,6 +19891,32 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⭐ C25 — and its geometry, where the handle came out of a list by a lost copy.
     geometryLostBy(op.family, op.props, target)
   }
+  /** ⭐ C45 — an `update` inside a body that was never converted (`unconverted`). */
+  function lostUpdateInBody(b, via) {
+    // ⛔ The HANDLE only, read off the node — never `targetRef`, which resolves a
+    // slot's index and interns a tree for it: a step that was never converted
+    // must not leave a tree in the program (sector-rotation gained one).
+    const v = b.target && b.target.value
+    const site = b.target && b.target.createSite
+    const named = v && v.type === 'name' ? v.name : (v && v.type === 'offset' && v.arg && v.arg.type === 'name' ? v.arg.name : null)
+    // a slot of a list (`array.get(bars, i)`) names the LIST, not an object: that
+    // is `lostUnaddressed`'s case, and it is named in the diagnostics there
+    const target = site ? (emittedSites.has(site) ? { r: 'site', id: site } : null)
+      : named && regId.has(named) ? { r: 'reg', id: regId.get(named) } : null
+    if (!target) { lostUnaddressed(b, via); return }
+    contentLostBy(b, target)
+    lostMoveOf(b.family, b.props, target)
+  }
+  /** ⭐ C45 — a lost move whose target IS named but cannot take C22's per-bar
+   *  mark (the step was never converted, or its slot is unreadable): the HANDLE
+   *  is withheld, the way a lost caption withholds it (`contentLost`) — nothing
+   *  here says which of the objects it can hold the lost step would have reached. */
+  function lostMoveOf(family, propNames, target) {
+    if (!hostPasses || !target || family === 'linefill') return
+    const req = REQUIRED[family]
+    if (!req || !(propNames || []).some((k) => req.has(k))) return
+    geometryLost.push({ r: target.r, id: target.id })
+  }
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
   // Clearing them first, every bar, is exactly what Pine does.
@@ -19842,6 +20056,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
       if (op.k === 'update') { contentLostBy(op, targetRef(op.target)); stateLostBy(op, targetRef(op.target)) }
+      // ⭐ C45 — …and where its TARGET cannot be read either, there is no handle
+      // for C22's mark below or C8's ledger above: withheld by list or family.
+      if (op.k === 'update' && !targetRef(op.target)) lostUnaddressed(op, 'guard:update')
       if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
       if (op.k.startsWith('coll_')) lostColl(op.coll, `guard:${op.k}@${op.line === undefined ? '?' : op.line}`)
       if (op.k === 'copy') lostCopy(op)
@@ -20020,7 +20237,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }))
     } else if (op.k === 'update') {
       const target = targetRef(op.target)
-      if (!target) { stateLostFamilies.add(op.family || null); dropped('update:target'); continue }
+      // ⭐⭐ C45 — the setter is lost AND its object cannot be named: what it would
+      // have moved or captioned is withheld by list or family (`lostUnaddressed`),
+      // never left drawn where it was made. Counted where it always was.
+      if (!target) { stateLostFamilies.add(op.family || null); lostUnaddressed(op, 'update:target'); dropped('update:target'); continue }
       const props = {}
       let bad = false
       stateOk = !loopIds.length
@@ -20435,6 +20655,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           const asRead = { k: 'update', family, props: Object.keys(o.props || {}) }
           contentLostBy(asRead, o.target)
           stateLostBy(asRead, o.target)
+          // ⭐ C45 — and where it would have MOVED its object: C22's mark, every bar.
+          if (!isGeometryMark(o)) { const m = lostGeometryOp(asRead, o.target, undefined); if (m) kept.push(m) }
         }
         if (o.k === 'loop') unconverted(o.body, 'state:lost')
         if (o.k === 'push' || o.k === 'collset' || o.k === 'collremove' || o.k === 'collclear') divergedById(o.coll, 'state:lost')
@@ -20505,6 +20727,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (o.k === 'delete') lostRemoval('coll:diverged', { k: 'delete', family: famOf(o.target) })
       if (o.k === 'clearcells' || o.k === 'clear') lostRemoval('coll:diverged', { k: 'clear' })
       if (o.k === 'update') contentLostBy({ k: 'update', family: famOf(o.target), props: Object.keys(o.props || {}) }, o.target)
+      // ⭐ C45 — …and a move lost that way: the slot it would have reached is not
+      // readable (the list diverged), so every object the handle can hold is.
+      if (o.k === 'update' && !isGeometryMark(o)) lostMoveOf(famOf(o.target), Object.keys(o.props || {}), o.target)
       if (!isGeometryMark(o)) dropped('coll:diverged')
     }
     const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); if (o.k !== 'latch') lose(o) } }
@@ -20550,9 +20775,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // the lost step would have reached.
   statePass()
   const withholdContent = () => {
-  if (contentLost.length || geometryLost.length) {
+  if (contentLost.length || geometryLost.length || unaddressed.length) {
     const each = (list, fn) => {
       for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
+    }
+    /** ⭐ C45 — the handles an UNADDRESSED lost update reaches (`unaddressed`):
+     *  its list, else every create of its family that is in the program NOW
+     *  (recomputed each run, so a create a later pass removes is not named). */
+    const unaddressedSeeds = (which) => {
+      const seeds = []
+      for (const u of unaddressed) {
+        if (!u[which]) continue
+        if (u.coll) { seeds.push({ r: 'coll', id: u.coll }); continue }
+        each(ops, (o) => {
+          if (o.k !== 'create' || o.family === 'table' || o.family === 'linefill') return
+          if (u.family === null ? !!REQUIRED[o.family] : o.family === u.family) seeds.push({ r: 'site', id: o.site })
+        })
+      }
+      return seeds
     }
     /** The handles `seeds` can reach, through every register copy and list write
      *  in BOTH directions — the one spread both kinds of loss use. */
@@ -20589,10 +20829,61 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           : (o.k === 'push' || o.k === 'collset') ? hit(o.value) : false)
       return { regs, sites, colls, hit, withheld }
     }
-    const content = spread(contentLost)
+    const captioned = unaddressedSeeds('writes')
+    const moved = unaddressedSeeds('moves')
+    /** ⭐ C45 — AN OBJECT THAT CAN NEVER BE DRAWN IS NOT DRAWN WRONG. A create
+     *  one of whose REQUIRED coordinates is the literal `na` (`box.new(na, na, na,
+     *  na)`: a placeholder the script fills later) is drawn only once a setter
+     *  writes that coordinate. Where the program carries NO setter that writes it
+     *  to that family, the object stays undrawable for ever — held, never on
+     *  screen — and withholding it for a lost move would only take a count away
+     *  (and, when it is all the script creates, turn a pane that honestly draws
+     *  nothing into a refusal). ⚰️ MEASURED: multi-timeframe-supply-demand-zones
+     *  creates 504 such boxes and loses every setter with its loop. */
+    const isNaLiteral = (v) => {
+      const t = v && v.v === 'tree' && Number.isInteger(v.tree) ? trees[v.tree] : null
+      return !!t && t.type === 'op' && t.name === '/' && Array.isArray(t.args) && t.args.length === 2
+        && t.args.every((a) => a && a.type === 'num' && a.value === 0)
+    }
+    const written = new Set()                                    // `<family>.<prop>` a carried setter writes
+    {
+      const regFam = new Map(regs.map((r) => [r.id, r.family]))
+      const collFam = new Map(colls.map((c) => [c.id, c.family]))
+      const siteFam = new Map()
+      each(ops, (o) => { if (o.k === 'create') siteFam.set(o.site, o.family) })
+      each(ops, (o) => {
+        if (o.k !== 'update' || isGeometryMark(o) || !o.target) return
+        const fam = o.target.r === 'reg' ? regFam.get(o.target.id) : o.target.r === 'coll' ? collFam.get(o.target.id) : siteFam.get(o.target.id)
+        for (const k of Object.keys(o.props || {})) written.add(`${fam || '*'}.${k}`)
+      })
+    }
+    const neverDrawable = (o) => {
+      const req = REQUIRED[o.family]
+      if (!req || o.k !== 'create') return false
+      return [...req].some((k) => isNaLiteral(o.props && o.props[k])
+        && !written.has(`${o.family}.${k}`) && !written.has(`*.${k}`))
+    }
+    const content = spread([...contentLost, ...captioned])
     // ⭐ C25 — an object a lost step would have MOVED (`geometryLost`) is held
     // the same way, and counted under its own name.
-    const geometry = spread(geometryLost)
+    let geometry = spread([...geometryLost, ...moved])
+    // ⭐ C45 — …unless NOT ONE of the objects it reaches could ever be drawn
+    // (`neverDrawable`): then the lost move changes nothing on screen, and the
+    // program — its creates, the steps on them, the member's count — is left
+    // exactly as it was.
+    {
+      let reached = 0
+      let drawable = 0
+      each(ops, (o) => {
+        if (o.k !== 'create' || !geometry.withheld(o)) return
+        reached += 1
+        if (!neverDrawable(o)) drawable += 1
+      })
+      if (reached && !drawable) {
+        diagnostics.geometryNeverDrawable = reached
+        geometry = spread([])
+      }
+    }
     const hit = (r) => content.hit(r) || geometry.hit(r)
     const prune = (list) => {
       const out = []
@@ -20614,10 +20905,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return out
     }
     ops = prune(ops)
-    if (contentLost.length) {
+    if (contentLost.length || captioned.length) {
       diagnostics.contentWithheld = { regs: content.regs.size, sites: content.sites.size, colls: content.colls.size }
     }
-    if (geometryLost.length) {
+    if ((geometryLost.length || moved.length) && (geometry.regs.size || geometry.sites.size || geometry.colls.size)) {
       diagnostics.geometryWithheld = { regs: geometry.regs.size, sites: geometry.sites.size, colls: geometry.colls.size }
     }
   }
@@ -23849,11 +24140,23 @@ function naSelectorTakesElse(ast) {
  *  factored out rather than re-typed, so the branches of a conditional and a
  *  plain `color=` can never disagree about what counts as a colour. */
 /** ⭐ C23 — THE NODE `input.color(…)` DRAWS WITH until a member moves the picker:
- *  its first argument (`defval`, named or not). ONE reader, used by every colour
- *  reader in this file and by the runtime lane, which lowers the same node as the
- *  colour value at defaults (`input.color` mints no member parameter — the knob
- *  is not a Track F kind, `skippedInputs` reports it). */
-export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] || {}).value
+ *  `defval =` when the script NAMES it, else its first positional argument. ONE
+ *  reader, used by every colour reader in this file and by the runtime lane, which
+ *  lowers the same node as the colour value at defaults (`input.color` mints no
+ *  member parameter — the knob is not a Track F kind, `skippedInputs` reports it).
+ *
+ *  ⚰️ C45 — it read `args[0]` whatever that argument was NAMED, so
+ *  `input.color(title = "Table Color", defval = color.rgb(0, 175, 200, 20))`
+ *  (atr-bands, five live sites) answered the TITLE string as the colour: no
+ *  colour folded, and the pane's own default was drawn where TradingView draws
+ *  the author's. Named arguments may come in any order; a positional one is the
+ *  default only when it is FIRST (Pine's own rule, and `inputDefaultNode`'s). */
+export const inputColourDefaultNode = (node) => {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  if (named) return named.value
+  return args[0] && !args[0].name ? args[0].value : undefined
+}
 
 /** ⭐⭐ C38 — THE FOUR COMPONENT READS, and the sentence the unwitnessed ones
  *  refuse with. */

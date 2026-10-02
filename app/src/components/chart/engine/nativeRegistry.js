@@ -1756,6 +1756,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+            ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
             chartClockSink: (clock[key] = new Map()) })
@@ -1819,6 +1820,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: clock[keys[0]] })
@@ -1828,6 +1830,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
@@ -1961,6 +1964,35 @@ export const PINE_RECURRENCE_ORIGIN = 'pine'
 export function historyFromListingFor(def, ctx) {
   return !!(ctx && ctx.historyFromListing === true
     && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
+}
+
+/** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?
+ *
+ *  Pine's `bar_index` counts from the first bar of the symbol's history; the
+ *  engine's `barindex` leaf counts from the first bar it is handed. A document
+ *  the Pine member door built claims TradingView's number, so off the listing a
+ *  value that depends on the count is withheld (`interpret.js::barIndexMask`).
+ *  A formula a member typed in the formula language reads `barindex` by ITS
+ *  declared sentence ("the bar's position in the series") and is not touched.
+ *
+ *  ⛔ The same declaration `historyFromListingFor` reads, and for the same
+ *  reason: the tree cannot say which translator wrote it. A document that says
+ *  nothing (saved before C12w, or from another translator) is left as it was.
+ *
+ *  ⭐ ONE OTHER FACT ANSWERS IT, AND ONLY A CALLER CAN STATE IT:
+ *  `ctx.barIndexFromFirstBar === true` — the series' first bar IS the bar
+ *  TradingView counts as 0. The listing implies it on a daily chart
+ *  (`historyFromListing`, which `interpret` asks itself); nothing else a member
+ *  surface holds does — on an intraday chart TradingView's bar 0 is the first bar
+ *  ITS plan loaded, which this product cannot know. So no member surface states
+ *  it (`StockChart` does not, railed). The vendor harness does, for a capture
+ *  whose OWN `bar_index` control row reads 0..n-1 on its bars: there the fact is
+ *  the vendor's own print, and the count is graded instead of withheld.
+ *  ⛔ It says nothing about the listing: no seed is lifted, no history read is
+ *  served by it. Absent, `false`, or anything but `true` means NO. */
+export function barIndexAbsoluteFor(def, ctx) {
+  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
+    && !(ctx && ctx.barIndexFromFirstBar === true)
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */

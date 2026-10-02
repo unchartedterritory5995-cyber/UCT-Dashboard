@@ -74,7 +74,13 @@ def test_an_UNREADABLE_tree_is_tagged_rather_than_cleared():
     treated as though it were the tagged one.
     """
     d = {"compute": {"ast": {"type": "call", "name": None}}}
-    assert requirement_tags(d) == ["window_dependent"]
+    # C45 RE-PIN (was `== ["window_dependent"]`, when that was the only tag). An
+    # unreadable call is treated as though it were EVERY tagged one, so with a
+    # second tag declared (`occurrence_dependent`) it carries both -- read off
+    # the manifest, which is the fail-closed property this rail is about.
+    from api.services import user_definitions
+    assert requirement_tags(d) == user_definitions._all_declared_tags()
+    assert "window_dependent" in requirement_tags(d) and len(requirement_tags(d)) >= 2
 
 
 # ─── the contract ────────────────────────────────────────────────────────────

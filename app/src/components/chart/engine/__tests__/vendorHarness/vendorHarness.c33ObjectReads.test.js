@@ -397,7 +397,11 @@ describe('C33 — `last_bar_time` is the chart\'s last bar, as each capture stat
     expect(probe.ok).toBe(false)
     expect(probe.refusal.token).toBe('chart.left_visible_bar_time')
     const { run } = runObjects(cap)
-    expect(run.live.filter((o) => o.family === 'line').length).toBe(200)
+    // ⭐ C45 RE-PIN (was 200). The 200 profile lines are made at bar 0 / the first
+    // close and moved by `draw()`'s setters, which this chart loses
+    // (`update:target`, `bars.get(i)` in a loop) — TradingView holds 203 lines and
+    // none where ours sat. Withheld now (`vendorHarness.c45LostUpdates`).
+    expect(run.live.filter((o) => o.family === 'line').length).toBe(0)
     expect(run.withheld).toEqual({ line: 3 })
   })
 })

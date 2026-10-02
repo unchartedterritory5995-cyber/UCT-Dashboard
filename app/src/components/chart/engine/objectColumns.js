@@ -23,14 +23,16 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
-import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
+import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf,
+  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf, CHART_CLOCK_WITHHELD, historyBeforeFirstKnown,
 } from './ast/interpret'
+import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
 import {
-  resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, lowerTfFor, computeFor, runtimeErrorStopOf,
+  resolveInputs, bindConstsFor, historyFromListingFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
@@ -355,16 +357,58 @@ function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
   return out
 }
 
-/** ⭐⭐ C41 — A TREE THAT READS BELOW THE CHART AND COULD NOT BE COMPUTED IS
- *  UNKNOWN ON EVERY BAR. A node whose `interpret` throws (a budget, most often:
- *  the `ltf` child makes a condition a few nodes larger) has no column, so it
- *  reads `NaN` — and a `NaN` CONDITION is false, which picks the text's last arm
- *  and DRAWS it. For a tree holding an `ltf` that is a value drawn off a
- *  lower-timeframe read nobody made; `lowerTfMask`'s rule (unknown, never Pine's
- *  `na`) has to hold for the tree that failed as well as the one that ran.
- *  ⛔ Only a tree holding an `ltf`: every other failed node reads as it always has. */
-function withholdFailedLowerTf(unknown, node, tree, barCount) {
-  if (tree && treeReadsLowerTf(tree)) unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
+/** ⭐⭐ C45 — A TREE THAT COULD NOT BE COMPUTED IS UNKNOWN ON EVERY BAR.
+ *
+ *  A node whose `interpret` throws (most often `budget:nodes`: a condition a few
+ *  nodes over the 128-node cap) has no column, so `readNode` answers `NaN` for it
+ *  — and downstream a `NaN` is Pine's `na`. A `NaN` CONDITION is false, which
+ *  selects a conditional text's or colour's LAST arm, and the object was DRAWN
+ *  with it: a label reading "DOWN" on a bar where the script's own condition is
+ *  true and TradingView writes "UP". The engine did not evaluate `na`; it
+ *  declined to evaluate at all, and those are different facts (C12's rule for a
+ *  warm-up `NaN`, C30's for a withheld clock, C41's for a lower-timeframe read).
+ *
+ *  So a failed node is marked unknown on every bar, in BOTH document forms, and
+ *  the runtime's own rule does the rest (C17): an op that reads it does not run,
+ *  and what it would have written is unknown too. The refusal stays recorded
+ *  with its guard and sentence (`refusals`), so the gap has a name.
+ *  ⛔ NO BUDGET MOVES: the tree is still refused; only what is drawn off it changes. */
+function withholdFailed(unknown, node, barCount) {
+  unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
+}
+
+/** ⭐⭐ C45 — what the pass tells `interpret` about `bar_index`: off the listing, in
+ *  a document that means Pine's (`nativeRegistry.barIndexAbsoluteFor`), a tree
+ *  that IS a bar index keeps its column — a drawing's x-coordinate is exactly
+ *  that — and the runtime decides per property (`withBarIndexHeld`); anything the
+ *  tree alone cannot vouch for is unknown through the column's own mask. */
+const barIndexOpts = (opts) => (opts.barIndexAbsolute === true && opts.historyFromListing !== true
+  ? { barIndexAbsolute: true, barIndexUse: 'position' } : null)
+
+/** The ops a bar index reaches as a VALUE, held (`objectProgram.js::withBarIndexHeld`),
+ *  and the reason added to the pass's named withholdings. */
+function holdBarIndexOps(program, indexClass, chartClock, tf) {
+  if (!indexClass) return program
+  const { program: next, held } = withBarIndexHeld(program, (node) => indexClass.get(node))
+  if (held && !chartClock.has('bar-index:window')) {
+    chartClock.set('bar-index:window', CHART_CLOCK_WITHHELD['bar-index:window'](tf))
+  }
+  return next
+}
+
+/** ⭐⭐ C45 — `readUnknown(node, bar)`, for BOTH document forms.
+ *
+ *  A bar this lane holds answers from the node's own mask. A bar BEFORE the first
+ *  one held (`bar < 0` — a history read `x[e]` reaching past the window, asked by
+ *  `objectRuntime.js::atCheck`) is unknown unless the series starts at the listing:
+ *  the plot lane's rule (`interpret.js::historyBeforeFirstKnown`), not a second one.
+ *  ⚰️ The object lane answered `na` there, so `label.new(bar_index, close[k])` put
+ *  a label at `na` on 225 of `vw-mbb-auto`'s 300 bars where TradingView's own
+ *  column reads a price on every one. */
+const makeReadUnknown = (unknown, fromListing) => (node, bar) => {
+  if (bar < 0) return !historyBeforeFirstKnown(fromListing)
+  const m = unknown.get(node)
+  return !!m && m[bar] === 1
 }
 
 export function computeObjectColumns(graph, program, bars, opts = {}) {
@@ -396,14 +440,19 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   const chartClock = new Map()
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
+  // ⭐ C45 — the nodes that ARE a bar index (`'pos'`), for the per-property rule.
+  const bix = barIndexOpts(opts)
+  const indexClass = bix ? new Map() : null
   for (const node of wanted) {
     let tree = null
     try {
       tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(bix || {}),
         ...(opts.symbols ? { symbols: opts.symbols } : {}),
         ...(opts.lowerTf ? { lowerTf: opts.lowerTf } : {}) }
+      if (indexClass && barIndexClass(tree) === 'pos') indexClass.set(node, 'pos')
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
@@ -412,7 +461,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
-      withholdFailedLowerTf(unknown, node, tree, bars.length)
+      withholdFailed(unknown, node, Array.isArray(bars) ? bars.length : 0)
       // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
       // node index cannot tell a member that their dashboard is blank because
       // the engine declined to spend the steps. Every refusal is kept with its
@@ -432,8 +481,10 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
-  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock) }
+  const readUnknown = makeReadUnknown(unknown, opts.historyFromListing === true)
+  const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf)
+  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
+    program: held, indexClass }
 }
 
 /** ⭐ C36 — the pass's `time(<timeframe>)` withholdings as `[{code, reason}]`. */
@@ -560,6 +611,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // asks (`historyFromListingFor`), so an object and the plot beside it can
     // never read two different answers about where the series starts.
     historyFromListing: historyFromListingFor(definition, opts),
+    // ⭐⭐ C45 — whether this document's `barindex` is Pine's `bar_index`, by the
+    // SAME declaration the plot lane reads (`nativeRegistry.barIndexAbsoluteFor`).
+    barIndexAbsolute: barIndexAbsoluteFor(definition, opts),
     fold,
     // ⭐⭐ C26 — the other symbols this binding may read, decided by the SAME
     // function the plot lane asks (`nativeRegistry.otherSymbolsFor`), so an object
@@ -588,8 +642,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, readUnknown, failed, refusals, chartClock } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock }
+    const { readNode, readUnknown, failed, refusals, chartClock, program: held } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program: held, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock,
+      historyFromListing: evalOpts.historyFromListing === true }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -622,6 +677,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const probeMemos = new Map()
   const chartClock = new Map()
   const intern = makeInterner()
+  const bix = barIndexOpts(evalOpts)
+  const indexClass = bix ? new Map() : null
   for (const i of graphNodesReferenced(bound)) {
     // ⭐ C18 — a runtime placeholder is read off the run, never interpreted.
     const rk = runtimeAtIndex(trees[i])
@@ -641,15 +698,17 @@ export function objectReaderFor(definition, bars, opts = {}) {
       tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(bix || {}),
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
         ...(evalOpts.lowerTf ? { lowerTf: evalOpts.lowerTf } : {}) }
+      if (indexClass && barIndexClass(tree) === 'pos') indexClass.set(i, 'pos')
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
       const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
-      withholdFailedLowerTf(unknown, i, tree, barCount)
+      withholdFailed(unknown, i, barCount)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
       // and a member on a V1 document is owed the same reason as one on a V2.
       refusals.push({
@@ -679,9 +738,12 @@ export function objectReaderFor(definition, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
+  const readUnknown = makeReadUnknown(unknown, evalOpts.historyFromListing === true)
+  const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf)
   return {
-    program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
+    program: held, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
+    // ⭐ C45 — whether a read before the first bar is Pine's `na` (`objectRuntime.js::atCheck`).
+    historyFromListing: evalOpts.historyFromListing === true,
     // ⭐ C36 — why every bar of a tree reading `time(<timeframe>)` is withheld on
     // this chart (`interpret.js::CHART_CLOCK_WITHHELD`), `[]` when none is.
     chartClock: chartClockRows(chartClock),
