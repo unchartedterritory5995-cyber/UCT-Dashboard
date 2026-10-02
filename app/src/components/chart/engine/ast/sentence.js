@@ -361,6 +361,7 @@ export function yieldsOf(node, rules) {
       return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
     }
     case 'sym':
+    case 'ltf':
     case 'tf_live':
     case 'tf':
       // ⭐ NONE OF THEM CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
@@ -996,6 +997,25 @@ function renderTf(node, rules, inputs, depth, path, trace) {
     : `${inner} on the ${word} timeframe`
 }
 
+/** ⭐ C41 — A READ BELOW THE CHART'S TIMEFRAME, said the way `renderTf` says the
+ *  one above it: the child, then which bars it was read on. The code is a whole
+ *  number of minutes (`parse.js` writes no other), so the phrase is total. */
+function renderLtf(node, rules, inputs, depth, path, trace) {
+  if (!Array.isArray(node.args) || node.args.length !== 1) {
+    refuse('sentence:arity',
+      `at ${path}: a lower-timeframe read has exactly one child column, got `
+      + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
+  }
+  const code = String(node.value)
+  if (!/^[1-9][0-9]*$/.test(code)) {
+    refuse('sentence:window',
+      `at ${path}: a lower-timeframe read names a whole number of minutes, got ${JSON.stringify(node.value)}`)
+  }
+  trace.push({ path, rule: 'ltf' })
+  const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  return `${inner} on the ${code}-minute timeframe`
+}
+
 /** ⭐ A PREFIX, WHERE `renderTf` IS A SUFFIX — and the asymmetry is the point.
  *  A symbol read changes *WHOSE* value it is, which English puts in front:
  *  `SPY's (close > open)` reads the way it computes, whereas a trailing
@@ -1055,6 +1075,8 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderTf(node, rules, inputs, depth, path, trace)
     case 'sym':
       return renderSym(node, rules, inputs, depth, path, trace)
+    case 'ltf':
+      return renderLtf(node, rules, inputs, depth, path, trace)
     default:
       // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. A catch-all that returned
       // "the value" would produce English for a node type nobody wrote a rule

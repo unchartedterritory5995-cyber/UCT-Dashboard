@@ -688,6 +688,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐⭐ C41 — the lower timeframes the trees read (`translatePine`'s `lowerTf`,
+    // one code per `ltf` node). A chart fetches this symbol's intraday bars for
+    // them and the bind decides which are served (`engine/lowerTf.js`); absent
+    // for every script that reads none, so no other document changes and no
+    // other chart fetches anything.
+    ...(Array.isArray(t.lowerTf) && t.lowerTf.length ? { lowerTf: t.lowerTf } : {}),
     // ⭐⭐ C43 — the `runtime.error` calls the translation placed (each with the
     // conditions it stands under) and the ones it could not (by name). Absent for
     // every script that writes no `runtime.error`, so no other document changes.

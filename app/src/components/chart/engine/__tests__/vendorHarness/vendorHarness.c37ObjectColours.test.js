@@ -190,6 +190,10 @@ describe('C37 — `color.from_gradient` on the host object lane, per pass of a l
 
 describe('C37 — an uncoloured object wears the default of its script\'s Pine version', () => {
   it('⭐ v4: lines and labels in v4\'s `color.blue`, label text in `color.black` — rsi-swing, fibonacci-pivots', () => {
+    // ⭐ C44: rsi-swing's first line (#2) has no second point yet — `y2` is `na` on
+    // TradingView and `NaN` here. It PAIRS now (`objectColours.js::isNa`) and is
+    // filed `undrawn`: neither platform draws it, so its colour is not graded
+    // (integrator ruling). The count below is the ten lines a member sees.
     for (const [id, slot, n, hex] of [
       ['rsi-swing-indicator-rddt-1d-2026-09-28', 'line.color', 10, '#2196f3ff'],
       ['rsi-swing-indicator-rddt-1d-2026-09-28', 'label.textcolor', 11, '#363a45ff'],
@@ -231,6 +235,9 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     const stripped = pairObjects(c, { ...ours.objects, pineVersion: undefined })
     const notCarried = stripped.rows.filter((r) => r.state === 'notCarried')
     expect(notCarried.length).toBe(21) // 10 lines + 11 label texts: what the base drew
+    // ⭐ C44 — the eleventh line is held at an `na` point on both sides: `undrawn`,
+    // and its would-be state is kept, so the same difference is still on the books
+    expect(stripped.rows.filter((r) => r.state === 'undrawn').map((r) => [r.kind, r.slot, r.wouldBe])).toEqual([['line', 'color', 'notCarried']])
     const withVersion = pairObjects(c, ours.objects)
     expect(withVersion.rows.filter((r) => r.state === 'notCarried')).toEqual([])
   }, 60000)

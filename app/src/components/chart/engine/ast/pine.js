@@ -99,8 +99,8 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode } from './interpret.js'
-import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -161,7 +161,7 @@ import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
-import { isBindFoldableLength } from './parse.js'
+import { isBindFoldableLength, SERIES_LOOKBACK } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -4318,6 +4318,43 @@ function tickerCallPrefixOf(call) {
  *  every tree of the result, plot or object pass, has its spelling here. */
 let OTHER_SYMBOL_SINK = null
 
+/** ⭐⭐ C41 — the lower-timeframe codes of the translation IN FLIGHT: every code
+ *  an `ltf` node was emitted for (`securityAsNode`), plot or object pass. Opened
+ *  and closed by `translatePine` beside `OTHER_SYMBOL_SINK`; the result carries
+ *  it as `lowerTf` and the member door stamps `meta.lowerTf`, which is what a
+ *  chart fetches intraday bars for (`engine/lowerTf.js::lowerTfWindowsOf`). */
+let LOWER_TF_SINK = null
+
+/** ⭐ C41 — does this resolved operand hold an `ltf` read? Asked only of the side a
+ *  constant test may never take (the resolver's `ternary` and `and`/`or` cases),
+ *  and answered without a walk in every translation that has emitted none. */
+const deadLowerTfRead = (tree) => !!(LOWER_TF_SINK && LOWER_TF_SINK.size) && treeReadsLowerTf(tree)
+
+/** The codes of the `ltf` nodes a finished translation still HOLDS (plots and
+ *  object program). A read a constant test never takes is emitted and then
+ *  dropped (`deadLowerTfRead`); the chart must not fetch intraday bars for it. */
+function lowerTfCodesHeld(t) {
+  const held = new Set()
+  const seen = new Set()
+  const stack = [t.outputs, t.objects]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'ltf' && typeof n.value === 'string') held.add(n.value)
+    if (Array.isArray(n)) for (const x of n) stack.push(x)
+    else for (const k of Object.keys(n)) if (k !== 'tok' && k !== 'endTok') stack.push(n[k])
+  }
+  return held
+}
+
+/** The clock leaves a lower-timeframe child may NOT read: each answers from where
+ *  the loaded series starts or ends, or from the bar's realtime state — facts our
+ *  intraday supply does not share with TradingView's (`lowerTfChildRefusal`). */
+const LOWER_TF_EXTENT_LEAVES = new Set(['barindex', 'lastbarindex', 'lastbartime', 'lastbaryear',
+  'lastbarmonth', 'lastbardayofmonth', 'lastbarhour', 'lastbarminute', 'islast', 'isfirst',
+  'isrealtime', 'isconfirmed', 'ishistory', 'islastconfirmedhistory'])
+
 /** ⭐⭐ C29 — THE CHART-PERIOD VALUES A TRANSLATION FOLDED. The door translates
  *  once, at `basePeriodOf` (`D`), and folds `timeframe.period` text,
  *  `timeframe.multiplier` and `timeframe.in_seconds()` to that period's values.
@@ -5441,6 +5478,9 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'ltf':
+      // ⭐ C41 — the read BELOW the chart, in the spelling `parse.js` reads back.
+      return `ltf(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'str':
       // ⛔ SINGLE-QUOTED, AND ESCAPED THROUGH JSON. `tf` and `sym` hand-roll
       // `'${value}'` because a timeframe code and a ticker are both shape-checked
@@ -8752,6 +8792,9 @@ export class Resolver {
               && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
             throw err
           }
+          // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
+          // same way (`deadLowerTfRead`): the left has decided every bar.
+          if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
           return foldLogicalIdentity(mapped, decidedBy, right, this.table)
         }
         if (probed) {
@@ -8821,6 +8864,20 @@ export class Resolver {
             if (folded !== null && folded !== 0) return yes
           }
           throw err
+        }
+        // ⭐⭐ C41 — A DEAD ARM THAT READS BELOW THE CHART IS STILL A DEAD ARM.
+        // Until C41 a lower-timeframe `request.security` refused, so the rescue
+        // above took the live arm of every such test. Now the read RESOLVES (an
+        // `ltf` tree) — and kept in the tree it would withhold the value on every
+        // bar our intraday bars do not cover (`interpret.js::lowerTfMask` is a
+        // rule about the tree's nodes), for a read Pine never makes: artemis'
+        // `not valid or na(o) ? 0 : o > 50 ? 1 : …` with `valid` folded false is 0
+        // on every bar, and its `— n/a` cells are TradingView's. So a test that is
+        // the same on every bar still answers with its live arm when the dead one
+        // holds an `ltf` — exactly the tree this produced before C41.
+        if (deadLowerTfRead(yes) || deadLowerTfRead(no)) {
+          const folded = constantTestValue(test)
+          if (folded !== null && deadLowerTfRead(folded !== 0 ? no : yes)) return folded !== 0 ? yes : no
         }
         return cOp('?:', [test, yes, no])
       }
@@ -10774,7 +10831,15 @@ export class Resolver {
     if (this.ownTimeframeOf(tfNode) === null) {
       const raw = this.timeframeLiteralOf(tfNode)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
-      const lower = this.lowerTfDeclineOf(node)
+      // ⭐ C41 — a symbol built by `ticker.modify(…)` (or any other `ticker.*`
+      // modifier) never reached `requestTargetOf`'s timeframe read, so below the
+      // chart it is named here, from the code this function just read: an
+      // explicit session / modified ticker is not a series a lower read serves.
+      const lower = this.lowerTfDeclineOf(node) || (() => {
+        if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
+        const built = this.tickerModifierIn(positional[0])
+        return built ? lowerTfRefusal({ code, base: this.basePeriod, session: built }) : null
+      })()
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
@@ -10809,17 +10874,92 @@ export class Resolver {
     // ⛔ ONLY what `requestTargetOf` already read for this call (`requestCodes`):
     // nothing here resolves an argument again, so naming a refusal is free.
     if (!this.requestCodes || !this.requestCodes.has(node)) return null
-    const { code, other } = this.requestCodes.get(node)
+    const asked = this.requestCodes.get(node)
+    const { code, other } = asked
     if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
     const args = node.args || []
     const placed = positionaliseSecurityArgs(args)
     if (!placed) return null
-    return lowerTfRefusal({
+    // ⭐ C41 — the chart's own symbol written through a ticker-building CALL
+    // (`ticker.new(prefix, ticker, session.*)`) names a session; read once.
+    if (asked.session === undefined) {
+      const call = asked.symbolNode ? this.tickerCallIn(asked.symbolNode) : null
+      asked.session = call ? call.name : null
+    }
+    const shape = lowerTfRefusal({
       code,
       base: this.basePeriod,
       lookahead: this.requestLookaheadOf(args, placed) !== false,
       other,
+      session: asked.session,
+      screen: this.screen === true,
     })
+    // ⭐ C41 — a request `lowerTf.js` would serve whose EXPRESSION the intraday
+    // series cannot answer (recorded by `securityAsNode` when it resolved it).
+    return shape || asked.expression || null
+  }
+
+  /** ⭐ C41 — the name of the `ticker.*` call a symbol argument is built by
+   *  (`ticker.modify`, `ticker.heikinashi`, `ticker.new`, …), following a plain
+   *  binding, or null. ⚠️ Depth-bounded; no branch is folded, nothing resolved. */
+  tickerModifierIn(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'call' && typeof node.name === 'string'
+        && (node.name.startsWith('ticker.') || node.name === 'tickerid')) return node.name
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.tickerModifierIn(bound.node, depth + 1) : null
+    }
+    return null
+  }
+
+  /** ⭐⭐ C41 — THE CODE OF A LOWER-TIMEFRAME REQUEST THIS DOOR SERVES (an `ltf`
+   *  node), or null. For a lane that cannot read intraday bars (the runtime lane)
+   *  to refuse it by name instead of taking it for an ordinary request. */
+  lowerTfServedCodeOf(node) {
+    if (!this.requestCodes || !this.requestCodes.has(node)) return null
+    const { code } = this.requestCodes.get(node)
+    if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
+    return this.lowerTfDeclineOf(node) === null ? code : null
+  }
+
+  /** ⭐⭐ C41 — WHY AN `ltf` CHILD CANNOT BE READ OFF THE INTRADAY SERIES, or null.
+   *
+   *  The child runs on OUR intraday bars of the chart's symbol, and that series
+   *  starts where our store's depth ends — later than TradingView's. A value that
+   *  depends on WHERE THE SERIES STARTS or ENDS is therefore not TradingView's:
+   *  a bar counter, `barstate.*`, a running value (`var`, a self-reference). And a
+   *  request nested inside reads bars no capture shows TradingView reading.
+   *  Everything else — the series, the bar's own clock, any windowed function —
+   *  is what `vw-lower-tf` L04 shows: the child evaluated on the intraday series. */
+  lowerTfChildRefusal(tree, code) {
+    const stack = [tree]
+    const seen = new Set()
+    let what = null
+    while (stack.length && !what) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || seen.has(n)) continue
+      seen.add(n)
+      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'sym' || n.type === 'ltf') {
+        what = 'another request'
+      } else if (n.type === 'call' && own(RECURRENCES, n.name)) {
+        what = 'a running value (a `var` or a self-reference), whose value depends on where the series starts'
+      } else if (n.type === 'call' && own(TABLE.functions, n.name)
+          && TABLE.functions[n.name].lookback === SERIES_LOOKBACK) {
+        // ⛔ a `series`-lookback entry (`cum`, `valuewhenOccurrence`) reads the WHOLE
+        // loaded history and declares a reach of 0, so the coverage rule's reach
+        // could never see it: it is refused here, by what the manifest declares.
+        what = `\`${n.name}\`, which reads the whole loaded series, so its value depends on where the series starts`
+      } else if (n.type === 'series' && LOWER_TF_EXTENT_LEAVES.has(n.name)) {
+        what = `\`${n.name}\` (the bar's position in the loaded series, or its realtime state)`
+      }
+      if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    }
+    if (!what) return null
+    return { code: LOWER_TF_REFUSAL.EXPRESSION,
+      why: `${LOWER_TF_REFUSAL.EXPRESSION}: the expression read at \`${code}\`, below this chart's `
+        + `timeframe, holds ${what} — it would be evaluated on this symbol's intraday bars, which `
+        + 'start later than TradingView\'s, so it is not a value this chart can read' }
   }
 
   /** The `ticker.new(…)` / `tickerid(…)` call behind a symbol argument, however
@@ -11054,6 +11194,21 @@ export class Resolver {
     } finally {
       this.requestPeriod = outerPeriod
     }
+    if (code && target.lower === true) {
+      // ⭐⭐ C41 — THE READ BELOW THE CHART: the child, resolved in the requested
+      // timeframe's context above, is evaluated on the symbol's intraday series
+      // and each chart bar reads its last intrabar (`lowerTf.js`). An expression
+      // that series cannot answer declines here — recorded, so the refusal site
+      // names it (`lowerTfDeclineOf`) — and the code is recorded on EMISSION
+      // (`LOWER_TF_SINK`) for the chart's fetch and the bind.
+      const why = this.lowerTfChildRefusal(out, code)
+      if (why) {
+        this.requestCodes.get(node).expression = why
+        return null
+      }
+      if (LOWER_TF_SINK) LOWER_TF_SINK.add(code)
+      return { type: 'ltf', value: code, args: [out] }
+    }
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
@@ -11152,7 +11307,10 @@ export class Resolver {
       // a refusal never resolves the timeframe argument a second time (a second
       // read would charge the step budget for work already done).
       if (!this.requestCodes) this.requestCodes = new WeakMap()
-      this.requestCodes.set(node, { code, other })
+      // ⭐ C41 — and the symbol argument itself, so `lowerTfDeclineOf` can ask (for
+      // a lower-timeframe code only) whether the chart's own symbol was written
+      // through a ticker-building CALL — an explicit session.
+      this.requestCodes.set(node, { code, other, symbolNode: own !== null ? positional[0] : null })
       if (!code) return null
 
       // ⭐⭐ A LITERAL THAT NAMES THE ENGINE'S OWN BASE IS THE IDENTITY (ruling 3.5,
@@ -11185,6 +11343,15 @@ export class Resolver {
         })
         folded = code
         code = null
+      } else if (isLowerTfRequest(code, this.basePeriod)) {
+        // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
+        // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
+        // asked by both refusal sites): the chart's OWN symbol, written by name,
+        // look-ahead off, a code and a chart period a capture shows, on the host
+        // lane. A served one becomes an `ltf` node (`securityAsNode`).
+        // ⛔ `code` STAYS SET, so no reader can mistake it for the identity.
+        if (this.lowerTfDeclineOf(node) !== null) return null
+        return { own, other: null, venue: null, code, live: false, lower: true, positional }
       } else if (!TF_RESAMPLABLE.includes(code)) {
         return null
       }
@@ -20484,7 +20651,10 @@ function isHostLane(opts) {
 export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
   const outerPeriodSink = PERIOD_READ_SINK
+  const outerLowerSink = LOWER_TF_SINK
   const sink = new Map()
+  const lowerSink = new Set()
+  LOWER_TF_SINK = lowerSink
   const periodSink = { names: new Map(), count: 0, inOutput: false, outside: false, current: new Set() }
   OTHER_SYMBOL_SINK = sink
   PERIOD_READ_SINK = periodSink
@@ -20494,6 +20664,7 @@ export function translatePine(source, opts = {}) {
   } finally {
     OTHER_SYMBOL_SINK = outerSink
     PERIOD_READ_SINK = outerPeriodSink
+    LOWER_TF_SINK = outerLowerSink
   }
   if (!t || typeof t !== 'object') return t
   // ⭐⭐ C29 — THE CHART-PERIOD VALUES THIS TRANSLATION FOLDED, with each one's
@@ -20515,6 +20686,15 @@ export function translatePine(source, opts = {}) {
     t.otherSymbols = [...sink.keys()].sort().map((ticker) => ({
       ticker, spellings: [...sink.get(ticker)].sort(),
     }))
+  }
+  // ⭐⭐ C41 — WHICH LOWER TIMEFRAMES THE TREES READ (`ltf` nodes). Present only
+  // when one was emitted, so every other result is byte-identical to before.
+  // ⛔ Only the codes a tree still HOLDS: a read behind a test that is false on
+  // every bar is emitted and dropped, and stamping it would fetch for nothing.
+  if (lowerSink.size) {
+    const held = lowerTfCodesHeld(t)
+    const codes = [...lowerSink].filter((c) => held.has(c)).sort((a, b) => Number(a) - Number(b))
+    if (codes.length) t.lowerTf = codes
   }
   // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
   // literal that nothing else holds, so there is nothing to protect from
@@ -24922,6 +25102,7 @@ export function conditionKindOf(node, table = TABLE) {
       case 'sym':
       case 'tf':
       case 'tf_live':
+      case 'ltf':
         return Array.isArray(n.args) && n.args.length === 1 ? kindOf(n.args[0], depth + 1) : 'unknown'
       case 'textop':
         return 'bool'

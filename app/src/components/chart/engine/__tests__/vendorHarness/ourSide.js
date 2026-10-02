@@ -35,6 +35,7 @@ import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
+import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -54,6 +55,15 @@ import path from 'node:path'
 
 const OTHER_CAPTURE_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 let otherIndex = null
+// ⭐⭐ C41 — THE CHART SYMBOL'S OWN INTRADAY BARS, FROM COMMITTED CAPTURES ONLY: the
+// supply an `ltf` read (`request.security(syminfo.tickerid, "60", …)` on a daily
+// chart) needs. `TICKER|minutes` → the union of every capture of that listing at
+// that intraday timeframe, REGULAR session (`symbol.session` `0930-1600`) kept
+// apart from every other: a 60-minute bar of an extended-hours chart opens on the
+// clock hour, off the 09:30 grid, and mixing the two would mark its days
+// incomplete. Filled in the same pass as `otherIndex`.
+let intradayIndex = null
+const REGULAR_SESSION = '0930-1600'
 
 /** `TICKER|tf` → `{bars, exchange, file, last}` over the committed native
  *  captures (receipt-verified). Where two captures hold one listing at one
@@ -61,6 +71,7 @@ let otherIndex = null
 function otherCaptureIndex() {
   if (otherIndex) return otherIndex
   otherIndex = new Map()
+  intradayIndex = new Map()
   if (!fs.existsSync(OTHER_CAPTURE_DIR)) return otherIndex
   for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
     if (!name.endsWith('.json')) continue
@@ -73,6 +84,18 @@ function otherCaptureIndex() {
     const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
     const bars = toProductBars(cap)
     const last = bars.length ? String(bars[bars.length - 1].t) : ''
+    if (/^[0-9]+$/.test(tfCodeOf(cap.timeframe))) {
+      const session = cap.symbol && cap.symbol.session === REGULAR_SESSION ? 'regular' : 'other'
+      if (!intradayIndex.has(key)) intradayIndex.set(key, { regular: null, other: null })
+      const slot = intradayIndex.get(key)
+      if (!slot[session]) slot[session] = { byT: new Map(), files: [] }
+      // a bar two captures share keeps the one from the capture reaching later
+      for (const b of bars) {
+        const had = slot[session].byT.get(b.t)
+        if (!had || had.last < last) slot[session].byT.set(b.t, { b, last })
+      }
+      slot[session].files.push(name)
+    }
     // ⭐ C29 — the UNION of every capture of one listing at one timeframe, keyed by
     // the bar's own date: each is TradingView's own bars of the same series, so a
     // short recent capture (the 2026-09-30 SPY probes, 300 bars) EXTENDS a deeper
@@ -117,6 +140,57 @@ function storeExchangeOfCapture(cap, tvExchange) {
   const tv = typeof tvExchange === 'string' ? tvExchange : ''
   const own = confirmed[tv]
   return own && typeof own === 'object' && own.pine === tv ? tv : null
+}
+
+/** ⭐⭐ C41 — the lower-timeframe supply a capture's script asks for
+ *  (`ctx.lowerTf`), and the notes naming what was and was not supplied. Per code:
+ *  the committed captures of the CHART'S OWN listing at the store timeframe that
+ *  code is built from (`LOWER_TF_SOURCE`), else at the deepest other timeframe
+ *  the code's buckets can be built from. ⛔ Nothing is synthesised: a code with no
+ *  such capture is supplied nothing, its reads are UNKNOWN, and the note names
+ *  the capture that is missing. */
+function lowerTfSupply(def, capture) {
+  const codes = lowerTfCodesOf(def)
+  if (!codes.length) return { lowerTf: null, notes: [] }
+  otherCaptureIndex()
+  const { ticker } = symbolOf(capture)
+  const held = new Map() // minutes → {bars, files}
+  for (const [key, slot] of intradayIndex) {
+    const [t, tf] = key.split('|')
+    if (t !== String(ticker).toUpperCase()) continue
+    const pick = slot.regular || slot.other
+    if (!pick.bars) {
+      pick.bars = [...pick.byT.entries()].sort(([a], [b]) => a - b).map(([, v]) => v.b)
+    }
+    held.set(tf, pick)
+  }
+  const lowerTf = new Map()
+  const notes = []
+  for (const code of codes) {
+    const want = LOWER_TF_SOURCE[code]
+    const fits = [...held.keys()].filter((tf) => Number(code) % Number(tf) === 0)
+    // ⭐ C49 (wave-11 merge) — THE SUPPLY REACHING FURTHEST BACK, the store's own
+    // source timeframe winning a tie. This read `fits.includes(want) ? want : <the
+    // longest other>`. Capture round 3 (2026-10-01) then committed a 15-minute
+    // capture of SPY — 3,300 bars, 127 sessions — and `want` for 60 / 240 is 15, so
+    // the eleven-year 60-minute capture C41's rows are graded on was displaced by
+    // it: 2,950 graded sessions → 125. A shallower capture must not shadow a deeper
+    // one; where the store's source timeframe reaches as far back as any other (RDDT:
+    // 15-minute bars from the listing) it is still the one used, as the product builds it.
+    // compared by the first bar's DAY: two captures that both start on the listing
+    // day tie, whatever minute their first bucket opens
+    const firstT = (tf) => { const b = held.get(tf).bars; return b.length ? Math.floor(Number(b[0].t) / 86400) : Infinity }
+    const tf = fits.slice().sort((a, b) => (firstT(a) - firstT(b)) || ((b === want) - (a === want))
+      || (held.get(b).bars.length - held.get(a).bars.length))[0]
+    if (!tf) {
+      notes.push(`lower timeframe ${code}: no committed capture of ${ticker} at ${want} minutes `
+        + '(regular session) — the vendor bars this read would need')
+      continue
+    }
+    lowerTf.set(`code:${code}`, { bars: held.get(tf).bars, status: 'available', sourceCode: tf })
+    notes.push(`lower timeframe ${code}: built from the committed ${tf}-minute capture(s) ${held.get(tf).files.join(', ')}`)
+  }
+  return { lowerTf, notes }
 }
 
 /** The secondary supply a capture's script asks for, and the notes naming what
@@ -262,6 +336,7 @@ function drawnColours(def, bars, ctx) {
     historyFromListing: ctx.historyFromListing === true,
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
+    lowerTf: ctx.lowerTf || null,
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -318,6 +393,7 @@ function objectsOf(def, bars, ctx) {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
       secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
+      lowerTf: ctx.lowerTf || null,
     })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
@@ -364,9 +440,10 @@ function objectsOf(def, bars, ctx) {
       texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
       // ⭐ C37 — the objects themselves (the runtime's LIVE set, and the render
-      // state's tables), for the colour census (`colourCensus.measure.test.js`):
-      // a colour is compared on an object PAIRED by value, which a count cannot
-      // do. ⛔ Never read by `compareObjects` and never written to a verdict file.
+      // state's tables), for the colour column: a colour is compared on an object
+      // PAIRED by value, which a count cannot do. ⭐ C44 — `gradeCapture` pairs
+      // them (`objectColours.js`) and hands the slot rows to the verdict.
+      // ⛔ The objects themselves are never written to a verdict file.
       held: run.live || [],
       tables: state.tables || [],
       pineVersion: reader.program.pineVersion,
@@ -443,7 +520,16 @@ export function runOurSide(capture) {
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    // ⭐ C41 — the chart symbol's own intraday bars, from committed captures only.
+    const lower = lowerTfSupply(def, capture)
+    if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
+    notes.push(...lower.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    const lowerReport = registry.lowerTfReport(cols)
+    if (lowerReport) {
+      for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
+      for (const r of lowerReport.refused) notes.push(`lower timeframe ${r.code}: refused (${r.refusal}) — ${r.reason}`)
+    }
     const otherReport = registry.otherSymbolReport(cols)
     if (otherReport) {
       for (const t of otherReport.served) notes.push(`other symbol ${t}: served`)

@@ -47,6 +47,8 @@ import {
 import {
   computePeriodCalendar, PERIOD_CALENDAR_CODES, barOpenInstant,
 } from '../../../indicators.js'
+import { LOWER_TF_REFUSAL } from '../../lowerTf.js'
+import { lowerTfServingEnabled } from '../../lowerTfGate.js'
 import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES, tradingViewCloseMinute } from '../../../../../lib/marketClock/tradingViewSession.js'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -795,5 +797,72 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     const sink = new Map()
     expect(Array.from(interpret(tree, bars, {}, undefined, undefined, { tf: '60', chartClockSink: sink })).every(Number.isNaN)).toBe(true)
     expect([...sink.keys()]).toEqual(['request:other-timeframe'])
+  })
+})
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('C49 · 9 — ONE answer for `request.security(syminfo.tickerid, <tf>, close)`: every timeframe on every chart, lower-timeframe flag off', () => {
+  // ⭐ The member door translates ONCE, for a daily base, and binds that tree on
+  // every chart. Two lanes answer a request at another timeframe, and they must
+  // not overlap or leave a hole:
+  //   · C41 (`lowerTf.js`) — a timeframe BELOW the base the tree is translated for
+  //     (5 / 15 / 60 against `D`): refused at translation, by a `lower-tf:*` code,
+  //     while `VITE_PINE_LOWER_TF_ENABLED` is off. The same on every chart, because
+  //     the translation does not know the chart.
+  //   · C49 (`requestBaseNode`) — the base itself (`D`, the fold) or above it
+  //     (`W` / `M`, a resample): served on a 1D chart, withheld by
+  //     `request:other-timeframe` on every other chart the tree is bound on.
+  // ⚠️ so a `"60"` request on a 5-minute chart — ABOVE that chart — is C41's
+  // refusal, not C49's gate: the tree is the daily base's, where 60 is below.
+  const CHARTS = [['5', CAP.I5], ['60', CAP.I60], ['D', CAP.D900], ['W', CAP.W_T]]
+  const TFS = ['5', '15', '60', 'D', 'W', 'M']
+  const cell = (cap, tf, look) => {
+    const ours = on(cap, pine([`plot(request.security(syminfo.tickerid, "${tf}", close${look ? ', lookahead = barmerge.lookahead_on' : ''}), "r")`]))
+    if (!ours.ok) {
+      const text = JSON.stringify(ours.refusal)
+      const lower = /lower-tf:[a-z-]+/.exec(text)
+      return lower ? lower[0] : `refused:${(/\((pine:[a-z-]+)\)/.exec(text) || [])[1]}`
+    }
+    const codes = noteCodes(ours)
+    const col = column(ours)
+    if (codes.length) {
+      expect(col.every(Number.isNaN), `${tf}: a named withholding draws nothing`).toBe(true)
+      return codes.join(' + ')
+    }
+    return 'served'
+  }
+  const LOWER_OFF = LOWER_TF_REFUSAL.STORE_UNMEASURED   // the rule is witnessed, the store's intraday bars are not: refused while the flag is off
+  const LOWER_ON = LOWER_TF_REFUSAL.LOOKAHEAD
+  const GATE = 'request:other-timeframe'
+  // rows: the requested timeframe; columns: the chart (5, 60, D, W)
+  const TABLE = {
+    5: [LOWER_OFF, LOWER_OFF, LOWER_OFF, LOWER_OFF],
+    15: [LOWER_OFF, LOWER_OFF, LOWER_OFF, LOWER_OFF],
+    60: [LOWER_OFF, LOWER_OFF, LOWER_OFF, LOWER_OFF],
+    D: [GATE, GATE, 'served', GATE],
+    W: [GATE, GATE, 'served', GATE],
+    M: [GATE, GATE, 'served', GATE],
+  }
+
+  it('the lower-timeframe flag is off in this run (the table below is the flag-off table)', () => {
+    expect(lowerTfServingEnabled()).toBe(false)
+  })
+
+  for (const look of [false, true]) {
+    it(`⭐ look-ahead ${look ? 'ON' : 'off'}: 6 timeframes × 4 charts, one code per cell`, () => {
+      const got = {}
+      for (const tf of TFS) got[tf] = CHARTS.map(([, cap]) => cell(cap, tf, look))
+      const want = {}
+      for (const tf of TFS) want[tf] = TABLE[tf].map((c) => (look && c === LOWER_OFF ? LOWER_ON : c))
+      expect(got).toEqual(want)
+      // no cell is answered by both lanes, and none by neither
+      for (const tf of TFS) for (const c of got[tf]) expect(c === 'served' || c === GATE || /^lower-tf:[a-z-]+$/.test(c), `${tf}: ${c}`).toBe(true)
+    }, 600000)
+  }
+
+  it('the two codes are disjoint vocabularies: C41\'s are refusals at translation, C49\'s a withholding at evaluation', () => {
+    for (const code of Object.values(LOWER_TF_REFUSAL)) expect(Object.keys(CHART_CLOCK_WITHHELD), code).not.toContain(code)
+    expect(Object.values(LOWER_TF_REFUSAL)).not.toContain(GATE)
+    expect(CHART_CLOCK_WHOLE).toContain(GATE)
   })
 })

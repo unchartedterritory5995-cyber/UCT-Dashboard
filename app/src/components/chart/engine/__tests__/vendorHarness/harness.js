@@ -14,6 +14,7 @@ import { validateCapture } from '../../../../../../../tools/vendor_harness/schem
 import { compareCapture, renderSummary } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
+import { pairObjects } from './objectColours'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -52,13 +53,34 @@ export function loadCapture(file) {
   return { file: rel, format, reason }
 }
 
-/** Grade one capture object. */
-export function gradeCapture(capture) {
+/** ⭐⭐ C44 — OBJECT COLOUR IS PART OF THE VERDICT, ON BY DEFAULT.
+ *  An object family grades MATCH only when the colours of its paired objects
+ *  agree too (`compare.mjs::objectColourRows` states the rule; § C44 of the
+ *  triage doc has the numbers). The option exists so the verdict as it was
+ *  before can be reproduced exactly — `gradeCapture(c, {objectColour: false})`,
+ *  or `VENDOR_HARNESS_OBJECT_COLOUR=0` for a whole run — never to make a red
+ *  capture green: every graded verdict also carries `verdictWithoutColour`, so
+ *  the two numbers are read side by side from ONE run.
+ *  Read at call time, so a test may stub the variable. */
+export function objectColourGraded(opts = {}) {
+  if (opts.objectColour !== undefined) return !!opts.objectColour
+  return process.env.VENDOR_HARNESS_OBJECT_COLOUR !== '0'
+}
+
+/** Grade one capture object.
+ *  @param {{objectColour?: boolean}} [opts] */
+export function gradeCapture(capture, opts = {}) {
   const integrity = validateCapture(capture)
   // ⛔ AN INVALID CAPTURE IS NEVER RUN. Running our side on bars whose receipt
   // failed would grade our engine against numbers nobody can vouch for.
   const ours = integrity.ok ? runOurSide(capture) : null
-  const verdict = compareCapture(capture, ours, { integrity })
+  // The colour slots of every object PAIRED with the capture's own record — only
+  // where the capture recorded objects and our object lane ran.
+  const objectColours = objectColourGraded(opts) && capture.objects
+    && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
+    ? pairObjects(capture, ours.objects)
+    : null
+  const verdict = compareCapture(capture, ours, { integrity, objectColours })
   return { verdict, ours, integrity }
 }
 
@@ -66,7 +88,7 @@ export function gradeCapture(capture) {
  * @param {string[]} dirs
  * @returns {{results: object[], inventory: object[], table: string}}
  */
-export function runHarness(dirs = [VENDOR_DIR]) {
+export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
   const files = [...new Set(dirs.flatMap((d) => walk(d)))]
   const results = []
   const inventory = []
@@ -76,7 +98,7 @@ export function runHarness(dirs = [VENDOR_DIR]) {
       inventory.push({ file: loaded.file, format: loaded.format, reason: loaded.reason })
       continue
     }
-    const { verdict, ours } = gradeCapture(loaded.capture)
+    const { verdict, ours } = gradeCapture(loaded.capture, opts)
     results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [] })
   }
   return { results, inventory, table: renderSummary(results), files: files.length }
