@@ -70,8 +70,13 @@ EMAIL = "w11a@local.dev"
 PUSH = "hub-sandbox-local-only-not-the-real-secret"   # scripts/hub_sandbox_boot.py's own value
 LOCKED = "This note is locked — unlock it in the Notebook first"
 DESK_TITLE = "W11A Live Trading — Oct 1, 2026"
+# ⚰️ Run 2 seeded "[0:40] Watching AMD for a reclaim." -- and the stub's fixed summary
+# ("... a stop on AMD below the 50-day") was then, correctly, REFUSED: "50" is a number
+# the transcript never says. That run is the evidence for the dropped-summary case
+# (walk-4445828e26/V5-desk-preview.jpg). This transcript says it, so V5/V6 walk the
+# case where the summary survives.
 DESK_TRANSCRIPT = ("[0:05] Good morning, NVDA is holding the gap.\n"
-                   "[0:40] Watching AMD for a reclaim.\n"
+                   "[0:40] Watching AMD for a reclaim of the 50-day.\n"
                    "[1:20] Set alerts on both before lunch.")
 
 res: dict = {"wave": 11, "lane": "11A", "checks": {}, "errors": [], "voice_requests": []}
