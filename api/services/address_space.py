@@ -169,6 +169,8 @@ EXEMPT: dict[str, str] = {
                        "in the Notebook editor files (notebook workstream, slice 2 stopped by rule)",
     "j2_note_documents": "not-a-saved-object: an attached document belongs to its note",
     "j2_note_versions": "not-a-saved-object: a note version is history of the note, reached from the note",
+    "artifact_versions": "not-a-saved-object: a version is history of a layout or screen (COV-06), "
+                         "reached from that artifact's History menu",
     "j2_note_properties": "not-a-saved-object: a property definition, not a thing a member opens",
     "j2_accounts": "not-a-saved-object: a trading account is a setting, chosen inside the Journal",
     "trading_accounts": "not-a-saved-object: Journal 1.0 trading account setting",

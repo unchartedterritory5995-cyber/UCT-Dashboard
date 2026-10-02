@@ -59,6 +59,10 @@ function inertWorkspaceMembers() {
     startMarker: null,
     startMarkerStyle: 'line',
 
+    // COV-10 list subscription is a /charts board feature (Scanner -> Watchlist in one
+    // colour group); the drill's two widgets never subscribe.
+    listSubscribeEnabled: false,
+
     // The chart's right-click "Add widget ▸" submenu floats a NEW widget onto
     // the board. The drill's board is exactly two widgets by construction.
     floatNewWidget: () => {},

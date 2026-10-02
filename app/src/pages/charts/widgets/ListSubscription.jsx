@@ -22,7 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
-import { SCAN_ENDPOINTS } from './scanEndpoints'
+import { SCAN_ENDPOINTS } from './ScannerResults'
 import { ChartsSymContext } from '../ChartsSymContext'
 import styles from './ListSubscription.module.css'
 
