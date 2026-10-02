@@ -102,8 +102,9 @@ with both numbers). The original conclusion still holds: no scheduled job explai
 
 ### Caches with TTL 1500-2100 s on the web path (AST scan of `api/**`, not memory)
 
-Derived by `.scratch/ttl_scan.py` (evaluates constants, `a*b`, `timedelta`, and env defaults; 208 hits,
-filtered to cache/TTL uses):
+Derived by a throwaway AST scan of `api/**` (not committed). It evaluated numeric constants, `a*b`,
+`timedelta(...)`, and env-default literals in assignments, keywords, comparisons, and call arguments,
+found 208 hits in [1500, 2100], and was then filtered to cache/TTL uses:
 
 | Cache | Holds (per key) | Keys a burst can create | Worst-case resident |
 |---|---|---|---|
