@@ -199,3 +199,21 @@ Wave Q1 "ONE snapshot per keystroke" guarantee is unchanged. The remaining named
 task/scheduler overhead) are core framework machinery or consequences of a cost this lane
 already addresses; no safe, scoped application-level lever was found for them in this lane's
 time budget, consistent with TY5/TY7's own findings for the costs they left.
+
+## Tie-break run A4 (2026-10-02, 09:07-09:10 CT)
+
+Raw files first (`90abb032f3`, R-RAW): `ab/A4.json`, `ab/A4.integrity.md`, `ab/A4.sandbox.log`,
+`ab/A4.run.log`. Build A (`dist-A`), the same harness and flags as A1-A3.
+
+- **Box:** lock FREE and load QUIET at both ends (`ab/A4.run.log`: 09:07:51 and 09:10:16).
+- **Busy p95** at 1 / 1,000 / 2,000 paragraphs: **7.7 / 14.42 / 15.67 ms** (`ab/A4.json`, rows 6-8).
+  Under the 16 ms line, by 0.33 ms at 2,000.
+- **But every row of A4 is 1.5-2x slower than A3** on the same build (open p95 at 2,000: 177 vs
+  77.2 ms; busy p95 at 2,000: 15.67 vs 10.15 ms), while the lock tool marked the box QUIET.
+  Whatever slowed it is load the tool does not mark. That supports the earlier hypothesis for
+  the L15 q1 disagreement; it still does not measure what that load was.
+
+**Reading for clause 4d:** four quiet build-A runs today are all under 16 ms at 2,000 paragraphs
+(10.60, 10.93, 10.15, 15.67). L15 q1 (17.12 ms) is still over the line. A4 does not cleanly break
+the tie: its result sits within run-to-run drift of the line. 4d stays as the scorecard records
+it (NOT MET, both readings disclosed) until the quiet marker can see the load that moved A4.
