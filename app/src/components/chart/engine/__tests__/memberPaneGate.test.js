@@ -57,8 +57,16 @@ const RUNTIME = path.join(APP, 'src', 'components', 'chart', 'engine', 'ast', 'p
 const MEMBER_PANE = path.join(APP, 'src', 'components', 'chart', 'builder', 'memberPane', 'MemberPane.jsx')
 const rel = (f) => (path.isAbsolute(f) ? path.relative(APP, f).split(path.sep).join('/') : f)
 
-/** Does this module CALL the gate? Comments stripped — CODE, NEVER PROSE. */
-const consultsGate = (f) => stripComments(fs.readFileSync(f, 'utf8')).includes('memberPaneEnabled()')
+/** Does this module CALL the gate? Comments stripped — CODE, NEVER PROSE.
+ *  ⭐ RT1 (2026-10-02): the RUNTIME pane's own gate counts too. A SAVED runtime
+ *  document is drawn on a member's real chart the way an attached `ast` one is —
+ *  not behind the member-pane flag (T5b's ruling, below) — and the path that
+ *  loads its lane (`StockChart.jsx`'s loader) consults `runtimePaneEnabled()`
+ *  before the import. Either consult on the path is a gate on the path. */
+const consultsGate = (f) => {
+  const src = stripComments(fs.readFileSync(f, 'utf8'))
+  return src.includes('memberPaneEnabled()') || src.includes('runtimePaneEnabled()')
+}
 
 /** The non-test import graph of app/src: file → the app/src files it imports,
  *  statically, by re-export, for side effect, or through a dynamic `import()`

@@ -256,6 +256,14 @@ function _notify(key) {
   }
 }
 
+/** ⭐ RT1 — another lane whose columns arrive AFTER the paint that asked (the
+ *  runtime pane's off-thread run, `runtime/runtimeAsync.js`) says so through the
+ *  same notification, so the chart's one listener (`useServerColumns`) repaints
+ *  for it too. The message is still only "something landed, ask again". */
+export function notifyColumnsLanded(key) {
+  _notify(key)
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
