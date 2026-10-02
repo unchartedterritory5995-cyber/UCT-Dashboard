@@ -5,12 +5,15 @@ import styles from './OptionsChainTab.module.css'
 import PayoffPanel from './PayoffPanel'
 import VolSurfacePanel from './VolSurfacePanel'
 import IvHistoryPanel from './IvHistoryPanel'
+import BacktestPanel from './BacktestPanel'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
 // OPTIONS_CHAIN_ENABLED; the tab only exists while that flag rides the auth payload.
 //
-// ⛔ Read-only by charter: nothing here runs, sends or simulates a trade.
+// ⛔ Read-only by charter: nothing here runs, sends or stages a trade. The one exception to "no
+//    button" is increment 4's "Simulate", which starts a HISTORICAL study over past expirations
+//    (BacktestPanel) -- it reads the past, it never places, stages or sends an order.
 // ⛔ A failed request says so (sectionFetcher throws); it is never an empty chain presented as
 //    "no options trade here".
 // ⛔ IV RANK is not shown: it needs IV history, which is not licensed yet. The header shows the
@@ -40,7 +43,9 @@ export function atmStrike(rows, spot) {
 }
 
 // `volSurface`: BRK-01 increment 3's switch (options_vol_surface_enabled), passed by ResearchPage.
-export default function OptionsChainTab({ sym, volSurface = false }) {
+// `backtest`: BRK-01 increment 4's switch (options_backtest_enabled), passed by ResearchPage. Its
+// one button is "Simulate" -- a historical simulation, never an order.
+export default function OptionsChainTab({ sym, volSurface = false, backtest = false }) {
   const s = (sym || '').toUpperCase().trim()
   const [picked, setPicked] = useState('')
   const exps = useSWR(s ? `/api/research/options/${encodeURIComponent(s)}/expirations` : null, sectionFetcher,
@@ -111,6 +116,7 @@ export default function OptionsChainTab({ sym, volSurface = false }) {
       <PayoffPanel rows={rows} spot={Number(d.spot)} />
       {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <IvHistoryPanel sym={s} />
+      {backtest && <BacktestPanel sym={s} />}
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA), greeks and IV exchange-derived · refreshed every {d.cache_seconds || 60}s
         {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}

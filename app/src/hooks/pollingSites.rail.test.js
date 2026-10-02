@@ -400,6 +400,14 @@ const BARE_POLL_SITES = {
   //     not the clock that matters here -- the server's cache is.
   'app/src/pages/research/tabs/OptionsChainTab.jsx': 1,
   'app/src/pages/research/tabs/VolSurfacePanel.jsx': 1,
+  // ⭐ BRK-01 increment 4 (2026-10-02) -- the options backtester: a JOB-STATUS poll, the same
+  // decision as FilingChangesTab, not a background tick. The interval is a FUNCTION of the
+  // server's answer: 2 s only while the job says `queued`/`running`, 0 once it is `done` or
+  // `failed`, so a finished backtest makes no further request (BacktestPanel.test asserts it).
+  // `useMobileSWR` would double a member's wait for a result they just asked for, flip
+  // `revalidateOnFocus` back on (re-reading a terminal job on every focus), and its
+  // `useMarketOpen` timer is irrelevant: the job runs on the server's clock, open or closed.
+  'app/src/pages/research/tabs/BacktestPanel.jsx': 1,
 }
 
 function census() {
