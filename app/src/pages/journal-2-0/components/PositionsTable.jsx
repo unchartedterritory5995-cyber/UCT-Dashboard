@@ -607,6 +607,7 @@ export default function PositionsTable({
               onDelete={onDelete}
               onOptionClose={onOptionClose}
               onOptionDelete={onOptionDelete}
+              thesisChip={(!p.isOption && thesisOn) ? thesisChips[p.symbol] : null}
             />
           ))}
         </tbody>
