@@ -168,6 +168,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 66 | RT3 (lane brief, wave 15) the RUNTIME lane's next walls, measured against the RT2 tip (section RT3): **(1)** an `na` CONDITION reads as false from v4, one rule for both lanes (`interpret.js::pineBool`, `naConditionIsFalse`, lexed version), applied by the runtime lowering only from the listing; v4/v5 `or` / `not` over an `na` operand stay counted and declined (capture queued); **(2)** `x[i]` over a variable's ring under a bound proved before bar 0 (`offsetRange`, `READ_HIST_SLOT_DYN` implemented, VM refuses past the ring); **(3)** `iff`, `vwma`, `linreg`, `alma` over runtime state from the host lane's own expansions / `pine_alma`; **(4)** a window over a price series sized by a function parameter is the columnar lane's column; **(5)** `runtime:library` is content, not code (the runtime lane already links; rail at the door) | `91b3567731`, `c44e7d6667`, `90129016ba`, `691047caf4`, `0b8ed8f12d`, `4fb1b2f778` | harness dir, objects + runtime on: MATCH 53 -> **54** (vw-var-seed INCONCLUSIVE -> MATCH, every plot on 8,473 bars: it was declined `runtime:na-test`, 5 v5 `?:` tests), DIVERGE 32 -> 32, no other verdict changed | unchanged | member door, runtime on: 78 -> **81** (+delta-rsi-oscillator-strategy, +fibonacci-dolphintradebot, +trend-targets-algoalpha), 0 lost; runtime census compiled 19 -> 21 (bare), 31 -> 33 |
 | 67 | O1 (lane brief, wave 15) the drawing-only scripts: why each of the 33 `pine:no-output` and 6 `pine:object-removal-lost` scripts draws nothing (section O1). Triage: the first wall per script, read off `o1DrawingOnly.measure.test.js`; ten causes, largest G1 collections / UDTs 11, G2 loop-computed values 6, G4 data 5; the runtime fallback draws plot rows only, so it serves none of them. New read-only diagnostics `createDropWhy` / `guardRefusalWhy`. **G7:** `[x =] cond ? f(…) : na` with `f` a drawing helper and `x` read nowhere is `if cond` + `f(…)` (argued from Pine: `?:` runs only the arm it picks, C18's capture; `na` test → ELSE arm, RT1's). **G8:** `a := x, b := y` on one line splits as two lines (Pine's grammar). **G2b:** a getter read through a local (`top = box.get_top(b)` … `if x > top`) is the getter read at the `if` while nothing between can move the object. **G2a:** a first-match `for … if c(i): x := i; break` over literal bounds is the chained `?:` it computes | `69ec7f8963` (triage), `09a77a0fdb` (G7), `41561a52c7` (G8), `83422ea9c8` (G2b), `c82c14ad0c` (G2a) | 0 entries change in the committed harness dir (objects MATCH 73, overall 52 of 138, pane on), every step | translation census host 71 → 75, screener 64 → 65 (`fib-retracement`, `auto-trendline-dojiemoji`, `pa-zigzag-fibonacci-fan`, `sonarlab-order-blocks`) | member door on 75 → **79** / 266, off 52 → 54, on + runtime 78 → 82: `fib-retracement` (G7; 7 lines + 7 labels held to its Pine semantics on RDDT 1D vendor bars), `auto-trendline-dojiemoji` and `pa-zigzag-fibonacci-fan` (G8; each equals its two-line spelling, which attached at base; pa-zigzag host = runtime lane on every RDDT bar), `sonarlab-order-blocks` (G2a + G2b; every held box one its step-by-step Pine semantics keeps, on RDDT, AAPL and BRK.A vendor bars); no capture of any of the four (Q-O1a–d queued); 0 previously attached scripts lost |
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
+| 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5621,3 +5622,86 @@ removed (2).
 Open: a definition stored before `3a77b89423` that reads one of the nine leaves stays admitted under
 its old badge until direction B is decided for it (the relint pass names it). `pine:builtin` reads
 11 on this census, not RT2's 8 (counted off `runtimeDeclined.code`, runtime state).
+## H2 - the host translator's next three walls: a comma line of statements, and what the rest needs (2026-10-02, step 69)
+
+Lane H2 of the "import any TradingView Pine script" program, branch `pine/h2-host-state`, base
+`integrate/wave15-2026-10-02` (`7008853902`). Goal metric: the member-door census over the 266 committed scripts.
+
+### The walls, by shape (first refusal per script at base, objects pane on)
+
+Census at base (`memberDoorCensus.measure.test.js`, `VENDOR_BATCH_CENSUS_RUNTIME=1`): off 52 / on 75 / on + runtime
+78 of 266. The three walls hold **15 + 11 + 11 = 37** scripts. The exact construct below is read off each refusal's
+own locator (`translatePine(...).refusals[].line`), not from the message, which for `pine:state` is generic.
+
+| wall | shape | scripts (construct, line) | owner / outcome |
+|---|---|---|---|
+| `pine:reassign` | **R-a** a comma line `x = na , x := ...` inside a helper | 3-level-zigzag-semafor (`int _direction = na , _direction := switch`, 18, through `zigzag`); pa-zigzag-fibonacci-fan (`int _dir = na , _dir := ... nz(_dir[1])`, 16) | **served, commit 1** (`commaStatementSplit`) |
+| `pine:reassign` | **R-b** a name written by a running total in a counted `for` | machine-learning-moving-average-backquant (`currentCluster`, 138); moving-averages-as-support-resistance-mtf (`min_higher := array.get(...)`, 51); order-block-finder (`upcandles`, 47) | ruling R7 (loop totals belong to the runtime lane); not this lane |
+| `pine:reassign` | **R-c** a name written in a block after a `for` the fold steps over | delta-imbalance-map-joat (`newBullZone`, 209; `for`@173); smart-money-volume-activity-algoalpha (`retailBullBar`, 128; `for`@105); smt-divergence-ict-killzones (`alert_bear`, 346; `for`@329); supply-demand-mtf-flux-charts (`renderBreakLabelBuyside`, 447; `for`@431); support-and-resistance-logistic-regression-flux-charts (`_supportRetestDetected`, 236; `for`@233); volatility-coil-edge-bullbyte (`isContracted := isContracted or ...`, 382; `for`@378) | R7 / the loop's writes are the runtime lane's (C31 `loopWriteRefusal`); not this lane |
+| `pine:reassign` | **R-d** `varip` state with dynamic `[barIndex]` reads | bolingger-bands-inside-bar-boxes (`IBStatus := true`, 129; stopped at 98); inside-bar-boxes (`f := true`, 56; stopped at 34) | `varip` + `high[barIndex]` with a stateful index; refused (no exact shape) |
+| `pine:reassign` | **R-e** a UDT field written in a block | ict-turtle-soup-flux-charts (`sellAlertTick`, 176; stopped at `newTS.lastHourHigh`) | UDTs are H3's (`pine:type`); not this lane |
+| `pine:reassign` | **R-f** a tuple part reassigned through its own history | williams-fractal-trailing-stops (`isWilliamsHigh := isWilliamsHigh[1] ? false : isWilliamsHigh`, 59-62) | open (one script; its next wall is `var bool _flipShortNow` in `f_flip`, 122) |
+| `pine:state` | **S-a** a recurrence with no window (an IIR or a deadband) | adx-and-di-for-v4 (Wilder `x := nz(x[1]) - nz(x[1])/len + dm`, 19/22); smoothed-gaussian-trend-filter-algoalpha (`runningFilterValue` poles, 34); deadband-hysteresis-filter-backquant (`dbhf += response * (...)`, 48) | never exact from an unknown start; the runtime lane draws adx from the listing; refused here |
+| `pine:state` | **S-b** a counter whose reset test compares the state with a CONSTANT | fvg-trend (`if fvgCounter < 0 / fvgCounter := 0`, 14-25); trend-targets-algoalpha (`rejcount += 1` / `rejcount > 0` reset, 60-66) | H1 refused the constant on purpose (`switchedCounter.test.js`); see below |
+| `pine:state` | **S-c** coupled flags and latches across several `var`s | inside-bar-range-mother-candle-breakoutbreakdown (`breakoutOccurred`/`breakdownOccurred`, 44-45); wyckoff-accumulation-distribution (`scBarIndex`, 87; latch-once `is*Flag`); smc-structures-and-multi-timeframe-fvg-ma-py (`structureLow`, 554) | latch-once never forgets (C12); the runtime lane draws two from the listing; refused here |
+| `pine:state` | **S-d** a comma line of `:=` inside an `if` (a two-slot shift register) | auto-trendline-dojiemoji (`recent_dn2:=recent_dn1, i_recent_dn2 := i_recent_dn1`, 119/124) | **served, commit 1** (same split as R-a) |
+| `pine:state` | **S-e** `varip` | ema-92150-vwap-macd-rsi-pro-v6 (`varip vwap_value = ta.vwap(hlc3)`, 41) | intrabar persistence; refused by name in both lanes |
+| `pine:state` | **S-f** a stop's own previous value inside an `if` | neural-network-buy-and-sell-signals (`buy_signal_shortStopPrev = nz(buy_signal_shortStop[1], ...)`, 645/683) | block-local stop (H1's last shape); refused |
+| `pine:block` | **B-a** a counted `for` in a helper, summing over a window | atr-stepped-pdf-ma-loxx (`_pdfma`, 36); kalman-price-filter-backquant (`f_kalman`, 36); kernel-channel-backquant (`kernelMu`, 59); nadaraya-watson-rational-quadratic-kernel-non-repainting (`kernel_regression`, 24); nonlinear-regression-zero-lag-moving-average-loxx (`nonLinearRegression`, 41); one-sided-gaussian-support-resistance-rate-loxx (`_smthMA`, `matrix`, 70); trend-line-harrybot (`care`, 34); volume-divergence-by-mm (`pine_wma`, 10) | ruling R7: numeric accumulators in a counted `for` are the runtime lane's; not this lane |
+| `pine:block` | **B-b** a `for` over a drawing array in a helper | liquidity-levels-sonarlab (`remove_mitigated_lines`, 96) | object lane (O1); not this lane |
+| `pine:block` | **B-c** a block-valued REASSIGNMENT `x := if ...` | sessions (`londonLow := if londonSession`, 41, x8) | open; its next wall is the session clock on a daily chart |
+| `pine:block` | **B-d** `float maOut = switch maType` in a helper of a strategy | atr-god-strategy-by-tradesmart (`switch_ma`, 205); its first refusal is `pine:declaration-strategy` (6) | R1's strategy door first |
+
+So of 37, the host translator's own reassign/state/block handling owns **R-a, R-f, S-b, S-d, B-c** (7 scripts); the
+other 30 are rulings or other lanes (R7 x 17, UDT, objects, `varip`, latches, IIRs).
+
+### Served (steps 1-2), and the evidence
+
+1. **A comma line whose last segment opens a block** (`commaStatementSplit`, `pine.js`): every segment a binding or a bare-name
+   mutation, a block opener only in the LAST segment, which then owns the body. Pine runs comma-separated statements left to
+   right, so the split is the language's definition. Built before O1's G8 landed; on the merge O1's `isReassignSegment` takes
+   the no-block case (it runs first) and H2 keeps only the block case. Rail `ast/h2CommaStatements.test.js` (the comma form
+   translates byte-equal to the separate lines). Mutations (pre-merge): split disabled 8 red, segments reversed 6 red, body on
+   the first segment 1 red, continuation guard dropped 1 red.
+2. **A block-valued reassignment** `x := if ...` / subject-less `x := switch`, at the top level and in a helper. `if` folds
+   through `foldIfChain` (the `x = if` reader); the switch becomes `nz(c1) ? v1 : nz(c2) ? v2 : d` - first true arm wins, a
+   bare `=>` is the last else, no bare arm yields `na`, and a condition that is not a comparison is read through `nz` because
+   Pine treats an `na` condition as false while this engine's `?:` answers `na`. A subject switch in `:=`, an arm with a
+   block, a bare arm not last, and `+=` keep their refusal. Rail `ast/h2BlockReassign.test.js` (each form equals its
+   written-out ternary, trees compared whole). Mutations M1-M7 (each half off, `nz` reading dropped, bare arm anywhere,
+   no-default yields the last value) each red.
+
+Graded on real bars (`vendorHarness.h2CommaStatements`, RDDT 1D, 631 listing bars; no TradingView capture of any of these
+scripts exists): pa-zigzag-fibonacci-fan's 9 plots equal the runtime lane (`computeRuntimeColumns`) bar for bar, drawn and
+withheld alike; auto-trendline-dojiemoji equals a hand replay of the script (H1's TradingView pivot tie rule), as published and
+with every marker switched on, no replay mark withheld; 3-level-zigzag-semafor's `zigzag()` verbatim (its zigzag and its
+`_direction` state) equals the runtime lane on every drawn bar and withholds nothing it draws.
+
+### Measured
+
+| | O1 tip `633b9a7c54` (pine.js swapped in) | H2 tip (merge) |
+|---|---|---|
+| member door off / on / on + runtime | 54 / 79 / 82 | 54 / 79 / 82 (0 attach change, 0 lost) |
+| rows changed | - | 2 per state: 3-level-zigzag-semafor `pine:reassign` -> `pine:function`, sessions `pine:block` -> `pine:function` |
+| vendor harness, all 171 (on / off / runtime MATCH) | 60 / 47 / 61 | identical, 0 entries change |
+| harness dir 138 (on / off / runtime MATCH) | 52 / 39 / 53 | identical, 0 entries change |
+| translation census host / screener | 75 / 65 | 75 / 66 (3-level-zigzag on the screener) |
+
+Before O1 merged (base `7008853902`): 52 / 75 / 78 -> 54 / 77 / 80, with pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji
+attaching through step 1 - the same two O1's G8 attaches, so on the merge they count once, as O1's.
+
+### Next walls of the scripts H2 moved
+
+- 3-level-zigzag-semafor: `time(tf)` of a LOWER timeframe (`ta.change(time(tf2))`, lines 35-36) and `request.security`
+  with `lookahead_on` - the clock / lower-timeframe lanes.
+- sessions: `time(timeframe.period, sess)` with a session wrapping midnight on a daily chart - the clock lane.
+
+### Open, for the integrator
+
+- **S-b, a counter reset by a CONSTANT threshold** (fvg-trend, trend-targets-algoalpha). H1's `forgetsOnReset` refuses a
+  constant on purpose, and admitting it is not enough on its own: trend-targets' `rejcount > 0` reset never collapses the
+  range (the domain does not know the counter is >= 0), so it would be admitted and withheld on every bar. fvg-trend's sign
+  reset does collapse after the first opposite gap. Not loosened without a capture; a probe that grades a sign-reset counter
+  would settle it.
+- **R-f, a tuple part read through its own history** (williams-fractal-trailing-stops): one script, and its next wall is a
+  latch in `f_flip` (S-c). Not built.
