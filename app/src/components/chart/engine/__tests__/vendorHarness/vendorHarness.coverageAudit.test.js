@@ -267,20 +267,29 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: wyckoff — TradingView holds 12 (RDDT) / 22 (SPY) boxes and our run has no drawing program; the offset barcolor is withheld', () => {
-    for (const [id, n] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 12], ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', 22]]) {
+  it('control: wyckoff — TradingView holds 12 (RDDT) / 22 (SPY) boxes; the run that owns them (RT5) draws none, by name; the offset barcolor is withheld', () => {
+    // RT5 (step 72): the run now OWNS its drawings, so the objects verdict reads the
+    // run's own answer: RDDT stops on an engine error (the same one that leaves the
+    // 8 plots without a column), SPY on `calc_bars_count = 1000` against 1,800 bars.
+    for (const [id, why] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', /engine-error: array\.max of an empty array/],
+      ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', /runtime:calc-bars-count/]]) {
       const v = grade(id, 'runtime').v
-      expect(v.objects.reason, id).toMatch(new RegExp(`holds ${n} drawing object.*no drawing program`))
+      expect(v.objects.verdict, id).toBe('INCONCLUSIVE')
+      expect(v.objects.reason, id).toMatch(why)
       expect(v.paints.reason, id).toMatch(/offset/)
     }
   }, T)
-  it.fails('fibonacci-dolphintradebot RDDT (runtime pane): MATCH', () => {
-    expect(grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: fibonacci-dolphintradebot — the two char plots agree on RDDT; TradingView holds 14 drawings (the fib levels) and our run has none', () => {
+  it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
+    expect(v.verdict).toBe('MATCH')
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
     expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
-    expect(v.objects.reason).toMatch(/holds 14 drawing object.*no drawing program/)
+  }, T)
+  it('control: fibonacci-dolphintradebot SPY — the run declines a window not from the listing (runtime:history-start) and draws nothing', () => {
+    const v = grade('fibonacci-dolphintradebot-spy-1d-2026-10-02', 'runtime').v
+    expect(v.objects.verdict).toBe('INCONCLUSIVE')
+    expect(v.objects.reason).toMatch(/runtime:history-start/)
   }, T)
 })
 

@@ -34,6 +34,8 @@ import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
+// ⭐ RT5 — a runtime document's own drawings.
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
 import { maxLookback } from '../../ast/interpret'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -417,8 +419,57 @@ export function barIndexStartsAtZero(capture) {
   return true
 }
 
+/** ⭐⭐ RT5 — a runtime document's LIVE set at the last bar, made by its own run
+ *  (`runtime/runtimeObjects.js`), in the same shape the object lane reports. */
+function runtimeObjectsReport(def, bars, ctx, cols) {
+  const withheldRun = runtimeObjectsWithheldOf(cols)
+  if (withheldRun) {
+    return { drawsObjects: true, ok: false, lane: 'runtime', withheld: withheldRun.guard,
+      reason: `withheld by name (${withheldRun.guard}) — ${withheldRun.reason}` }
+  }
+  const payload = runtimeObjectsOf(cols)
+  if (!payload) {
+    const errs = registry.columnErrors ? registry.columnErrors(cols) : null
+    const first = errs ? Object.values(errs)[0] : null
+    return { drawsObjects: true, ok: false, lane: 'runtime',
+      reason: `the run drew nothing${first ? ` (${first.guard || ''}: ${first.message || ''})` : ''}` }
+  }
+  const run = { live: payload.live, pineVersion: payload.pineVersion }
+  const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: payload.pineVersion })
+  return { ...heldReport(run.live, state, payload.pineVersion), lane: 'runtime',
+    runStatus: payload.status, runReason: payload.reason || null, runWithheld: payload.withheld || {},
+    undrawnProps: payload.undrawnProps || {}, chartClock: [] }
+}
+
+/** Counts, texts and held objects off a LIVE set and its render state. */
+function heldReport(live, state, pineVersion) {
+  const cells = state.tables.flatMap((t) => t.cells || [])
+  const held = { line: 0, label: 0, box: 0 }
+  const heldTexts = { label: [], box: [] }
+  for (const o of live || []) {
+    if (!o || !Object.prototype.hasOwnProperty.call(held, o.family)) continue
+    held[o.family] += 1
+    if (heldTexts[o.family]) {
+      const t = o.props ? o.props.text : undefined
+      heldTexts[o.family].push(t === undefined || t === null ? '' : String(t))
+    }
+  }
+  return {
+    drawsObjects: true,
+    ok: true,
+    counts: { lines: held.line, labels: held.label, boxes: held.box, tables: state.tables.length, tableCells: cells.length },
+    drawn: { lines: state.lines.length, labels: state.labels.length, boxes: state.boxes.length },
+    texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
+    dropped: state.dropped || null,
+    held: live || [],
+    tables: state.tables || [],
+    pineVersion,
+  }
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
-function objectsOf(def, bars, ctx) {
+function objectsOf(def, bars, ctx, cols) {
+  if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
   try {
     const reader = objectReaderFor(def, bars, {
@@ -659,7 +710,7 @@ export function runOurSide(capture) {
     const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
     const objects = objectsWithheld
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
-      : objectsOf(def, bars, ctx)
+      : objectsOf(def, bars, ctx, cols)
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
