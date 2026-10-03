@@ -7,6 +7,7 @@ import {
   summaryFacts, excludedText, notRunText, ivText,
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
+import useDarkSection from '../../optionsAnalytics/useDarkSection'
 
 // BRK-01 increment 4 (roadmap RM-L01): the options strategy backtester, under the chain.
 //
@@ -43,6 +44,16 @@ export default function BacktestPanel({ sym }) {
   const [startError, setStartError] = useState(null)
   const [busy, setBusy] = useState(false)
 
+  // FT-011: the further structures and the earnings anchor. The catalog route answers 404 until
+  // OPTIONS_BACKTEST_MORE_ENABLED, and then this panel is exactly the first slice.
+  const cat = useDarkSection(sym ? `/api/research/options/${encodeURIComponent(sym)}/backtest-catalog` : null)
+  const more = Array.isArray(cat.data?.strategies) ? cat.data : null
+  const [anchor, setAnchor] = useState('monthly')
+  const earnings = Boolean(more) && anchor === 'earnings'
+  const choices = more
+    ? more.strategies.map((x) => [x.id, x.label, x.uses_width])
+    : Object.entries(STRATEGIES).map(([k, v]) => [k, v.label, v.strikes === 2])
+
   const job = started?.job
   const poll = useSWR(job ? `/api/research/options/${encodeURIComponent(sym)}/backtest/${job}` : null, sectionFetcher, {
     fallbackData: started || undefined,
@@ -50,14 +61,18 @@ export default function BacktestPanel({ sym }) {
     revalidateOnFocus: false,
   })
   const st = poll.data
-  const spread = STRATEGIES[kind]?.strikes === 2
+  const spread = Boolean(choices.find(([k]) => k === kind)?.[2])
 
   async function onSimulate() {
     setBusy(true)
     setStartError(null)
-    const body = { strategy: kind, dte, offset, width: spread ? width : 0 }
-    if (tp) body.take_profit_pct = Number(tp)
-    if (sl) body.stop_loss_pct = Number(sl)
+    const body = earnings
+      ? { strategy: kind, anchor: 'earnings', offset, width: spread ? width : 0 }
+      : { strategy: kind, dte, offset, width: spread ? width : 0 }
+    if (earnings) { /* one session in, one out: no exit rule */ } else {
+      if (tp) body.take_profit_pct = Number(tp)
+      if (sl) body.stop_loss_pct = Number(sl)
+    }
     try {
       const out = await startRun(sym, body)
       if (out.error) { setStartError(out.error); setStarted(null) } else setStarted(out.status)
@@ -71,18 +86,28 @@ export default function BacktestPanel({ sym }) {
   const r = st?.state === 'done' ? st.result : null
   return (
     <section className={styles.payoff} data-testid="backtest">
-      <div className={styles.volHead}>Backtest — a historical simulation over past monthly expirations</div>
+      <div className={styles.volHead}>
+        Backtest — a historical simulation over {earnings ? 'past earnings prints' : 'past monthly expirations'}
+      </div>
       <div className={styles.head}>
         <label>Strategy{' '}
           <select aria-label="Backtest strategy" value={kind} onChange={(e) => setKind(e.target.value)}>
-            {Object.entries(STRATEGIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            {choices.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
           </select>
         </label>
-        <label>Enter{' '}
+        {more && (
+          <label>Anchor{' '}
+            <select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
+              <option value="monthly">Monthly expirations</option>
+              <option value="earnings">Earnings prints (AMC / BMO)</option>
+            </select>
+          </label>
+        )}
+        {!earnings && <label>Enter{' '}
           <select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
             {ENTRY_DTES.map((d) => <option key={d} value={d}>{d} trading days before expiry</option>)}
           </select>
-        </label>
+        </label>}
         <label>Strike{' '}
           <select aria-label="Strike offset" value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
             {OFFSETS.map((k) => <option key={k} value={k}>{offsetLabel(k)}</option>)}
@@ -95,18 +120,18 @@ export default function BacktestPanel({ sym }) {
             </select>
           </label>
         )}
-        <label>Exit at profit{' '}
+        {!earnings && <label>Exit at profit{' '}
           <select aria-label="Take profit" value={tp} onChange={(e) => setTp(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>+{p}%</option>)}
           </select>
-        </label>
+        </label>}
         <label>Exit at loss{' '}
           <select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>-{p}%</option>)}
           </select>
-        </label>
+        </label>}
         <button type="button" onClick={onSimulate} disabled={busy || st?.state === 'queued' || st?.state === 'running'}
                 data-testid="backtest-simulate">
           Simulate
@@ -126,6 +151,7 @@ export default function BacktestPanel({ sym }) {
         <div data-testid="backtest-result">
           <p className={styles.muted} data-testid="backtest-basis">{r.basis}</p>
           <p className={styles.muted} data-testid="backtest-window">{r.window?.text}</p>
+          {r.anchor_text && <p className={styles.muted} data-testid="backtest-anchor">{r.anchor_text}</p>}
           {r.summary
             ? <p className={styles.payoffFacts} data-testid="backtest-summary">{summaryFacts(r.summary)}</p>
             : <p className={styles.payoffFacts} data-testid="backtest-small-sample">{r.summary_reason}</p>}
@@ -136,6 +162,7 @@ export default function BacktestPanel({ sym }) {
               <table className={styles.grid} data-testid="backtest-trades">
                 <thead>
                   <tr>
+                    {r.anchor === 'earnings' && <th>Report</th>}
                     <th>Entry</th><th>Expiry</th><th>Contracts</th><th>Debit</th>
                     <th title={r.iv_source_text}>IV (computed)</th><th>Exit</th><th>P&amp;L</th>
                   </tr>
@@ -143,6 +170,7 @@ export default function BacktestPanel({ sym }) {
                 <tbody>
                   {r.trades.map((t) => (
                     <tr key={`${t.expiry}-${t.entry_date}`}>
+                      {r.anchor === 'earnings' && <td>{t.report_date} {String(t.timing || '').toUpperCase()}</td>}
                       <td>{t.entry_date}</td>
                       <td>{t.expiry}</td>
                       <td>{legsLabel(t.legs)}</td>

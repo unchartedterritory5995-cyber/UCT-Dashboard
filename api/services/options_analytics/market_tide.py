@@ -184,20 +184,29 @@ _read: Callable[[str, Callable[[dict], None]], bool] = _default_read
 
 def build(scope: str = "all", *, now: Optional[_dt.datetime] = None) -> dict:
     """One full computation. Raises RuntimeError when no requested source could be read."""
+    from api.services.options_analytics.tide_extras import TideExtras
     wanted = list(SOURCES) if scope == "all" else ["stocks" if scope == "stocks" else "etfs"]
     acc = Tide()
+    ext = TideExtras()      # sector tide, per-minute prints, blocks: the SAME read (tide_extras.py)
     status = {}
     for name in wanted:
         # each source into its OWN accumulator first: a read that dies half-way must not leave
         # half a tape in the answer while the source is reported as failed
         part = Tide()
-        ok = _read(SOURCES[name], part.add)
+        part_ext = TideExtras()
+
+        def add(r, _t=part, _e=part_ext):
+            _t.add(r)
+            _e.add(r)
+        ok = _read(SOURCES[name], add)
         status[name] = "ok" if ok else "failed"
         if ok:
             _merge(acc, part)
+            ext.merge(part_ext)
     if all(v == "failed" for v in status.values()):
         raise RuntimeError("the flow tape could not be read")
     out = acc.result()
+    _EXTRAS[scope] = {**ext.result(out["session"]), "sources": dict(status)}
     reasons = [f"The {k} tape could not be read; this tide leaves it out."
                for k, v in status.items() if v == "failed"]
     if out["prints_unreadable"]:
@@ -212,13 +221,26 @@ def build(scope: str = "all", *, now: Optional[_dt.datetime] = None) -> dict:
 # ── cache: one build per TTL, shared; stale served while one thread refreshes ──
 
 _CACHE: dict = {}          # scope -> (monotonic_built_at, payload)
+_EXTRAS: dict = {}         # scope -> tide_extras result of the build that made _CACHE[scope]
 _LOCKS = {s: threading.Lock() for s in SCOPES}
 _REFRESHING: set = set()
 
 
 def clear_cache() -> None:
     _CACHE.clear()
+    _EXTRAS.clear()
     _REFRESHING.clear()
+
+
+def extras(scope: str = "all") -> dict:
+    """The sector / minute / block read of the same build `get(scope)` serves (built now if
+    absent, stale-refreshed like the tide). Raises what `get` raises."""
+    tide = get(scope)
+    ex = _EXTRAS.get(scope) or {"session": tide.get("session"), "sectors": [], "minutes": {},
+                                "blocks": [], "blocks_count": 0}
+    return {**ex, "scope": scope, "filters": TAPE_FILTERS, "partial": tide.get("partial"),
+            "partial_reasons": tide.get("partial_reasons"), "stale": tide.get("stale"),
+            "cache_age_s": tide.get("cache_age_s"), "computed_at": tide.get("computed_at")}
 
 
 def _refresh(scope: str) -> None:

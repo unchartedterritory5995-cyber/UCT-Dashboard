@@ -223,6 +223,90 @@
       "where": [],
       "note": "FT-072 / FT-073 (lane/gaps-options). GET /api/options-screener/strategies (catalog) and /api/options-screener/strategy/{covered_calls|cash_secured_puts|bull_put_spreads|bear_call_spreads|bull_call_spreads}?underlyings=&limit=: one screener per option strategy, SQL over COV-02's per-session screen file (lane/cov-02-03, api/services/research/options_screener.py: get_store().screen_db(latest session)), imported lazily - until COV-02 is merged the screens answer 503 'the COV-02 screen store is not on this build', never an empty screen. Every result names its session, says it is the end-of-day snapshot, states the fill (short legs at the logged bid, long at the ask) and the candidates read; yields, credits, debits and breakevens are computed. Panel on Options Flow > Market Read under Market Tide. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the panel renders nothing. Set (paid). Plain def routes. Arm only after COV-02 is merged and its options-screen job has built a session. Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_PAYOFF_TODAY_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-001 (lane/o-options-remainders). GET /api/research/options/{sym}/payoff-model (the switch + the model's assumptions). While on, Research > Options' payoff panel adds the 'today at IV' curve (Black-Scholes at each leg's VENDOR IV, today, zero rate, no dividends) beside the at-expiration line, the probability of profit at expiration (lognormal at the ATM vendor IV) and a price-slice table (P/L today, P/L at expiry, chance of finishing below). Every figure labelled computed with its assumptions. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_BACKTEST_MORE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-011 (lane/o-options-remainders). Rides on OPTIONS_CHAIN_ENABLED + OPTIONS_BACKTEST_ENABLED. GET /api/research/options/{sym}/backtest-catalog, and the existing POST /backtest then accepts anchor=earnings (enter the close before the print reaches the market, exit the first session that trades on it: AMC = report day -> next session, BMO = prior session -> report day; a print with no timing on file is EXCLUDED and counted) and 8 more structures (bear call / bull put credit spreads, long/short straddle, long/short strangle, iron condor, long call butterfly). Earnings prints come from the engine's FMP quarterly history (the IV-history reader); FMP often carries no report time, so on such names most prints are excluded and the panel says so. Recorded-fixture rails only; a live run against our key before arming is owed. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_EDGE_RANKING_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-012 (lane/o-options-remainders). GET /api/research/options/{sym}/edge?expiration=: each contract's Black-Scholes value at the stock's 20-session realized volatility (computed from daily bars) against its vendor quote mid; edge = theoretical - mid, ranked for buyers and for sellers, labelled computed with the method. History-thin: the win-rate ranking the register names needs outcome history the options log (from 2026-09-30) does not hold; the answer states n logged sessions and does not rank by win rate. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_STRATEGY_FINDER_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-014 (lane/o-options-remainders). GET /api/research/options/{sym}/strategy-finder (the switch + the finder's method). While on, Research > Options shows a per-underlying strategy finder: for a chosen view (bullish / bearish / neutral / volatile) it builds candidate structures off the chain the tab already shows (mid fill), with cost, max profit/loss, breakevens and a computed probability of profit at the ATM vendor IV. Candidates, not advice; nothing is placed. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_CHAIN_FULL_GREEKS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-015 (lane/o-options-remainders). GET /api/research/options/{sym}/chain-greeks (the switch + method). While on, the Research > Options chain adds Rho, Lambda and Epsilon columns (computed by Black-Scholes from the vendor IV, zero rate, no dividends; lambda against the quote mid) and a Calls / Puts / Both view mode. The streamed chain is NOT built: the only option-quote socket would be a new Massive connection (one per key), so the chain still refreshes every 60 s. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_VOL_RR_BF_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-018 (lane/o-options-remainders). GET /api/options/vol/{sym}/rr-bf: per sampled expiration, ATM IV and the 25-delta and 10-delta risk reversal (call IV - put IV) and butterfly ((call IV + put IV)/2 - ATM IV), each IV linearly interpolated in VENDOR delta between the two quoted strikes that bracket the target; a tenor whose quoted strikes do not reach the delta says so, never extrapolates. Reads the vol surface's cached chains (api/services/vol_surface.py). Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_VOL_SURFACE_3D_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-018 (lane/o-options-remainders). GET /api/options/vol/{sym}/surface-3d: the vol surface's strike x expiration grid (vendor IV, out-of-the-money side) as a mesh, drawn as an SVG projected 3D surface under the chain (no new chart dependency). A blank cell is no valid quote, never interpolated. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_DELTA_PRESSURE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-049 (lane/o-options-remainders). GET /api/options/positioning/{sym}/delta-heatmap?dte=: per expiration x strike, delta x open interest x 100 x spot (vendor delta and OI; customer-held delta notional, dealers hold the opposite under the naive convention). Async route awaiting the cached chain (positioning.chain). Forward projection and a 1-minute refresh are NOT built (60 s chain cache). SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_CHARM_HEATMAP_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-049 (lane/o-options-remainders). GET /api/options/positioning/{sym}/charm-heatmap?dte=: per expiration x strike, Black-Scholes charm (delta change per calendar day) x open interest x 100 x spot, with sigma x sqrt(t) recovered from the VENDOR delta and gamma (zero rate, no dividends) because the positioning chain carries no IV. Labelled computed with that derivation. Async route awaiting the cached chain. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_SECTOR_TIDE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-056 (lane/o-options-remainders). GET /api/options/market-tide/sectors?scope=all|stocks|etfs: the Market Tide signed-premium rule split by the tape's own Sector column (blank = 'Unclassified', named), per-sector totals and cumulative net by minute. Computed in the SAME tape read as Market Tide (one read per scope per 60 s, cached). The tape's filters (50+ contracts, $10K+) are stated. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_TIDE_CLICKTHROUGH_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-057 (lane/o-options-remainders). GET /api/options/market-tide/minute?scope=&t=HH:MM: the prints the tide counted in that minute (largest premium first, capped and counted), from the same cached tape read. While on, clicking the Market Tide chart opens that minute's prints under the chart. It lands in a minute view on the tide panel, NOT inside the Options Flow tape list (that list lives in OptionsFlow.jsx, partner-owned, and has no time anchor). Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_SPREAD_BOOK_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-072 (lane/o-options-remainders). GET/POST /api/options/spread-book and DELETE /api/options/spread-book/{id}: a member's saved spreads (legs, the screen's end-of-day session and the prices it showed, a label), at most 200 per member, in auth.db table options_spread_book (self-ensured; in account_purge's direct-user tables so it leaves with the account). A record of what was seen, never an order. Save buttons on the strategy-screen rows; the book under them on Options Flow > Market Read. Plain def routes. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_MORE_STRATEGY_SCREENS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-073 (lane/o-options-remainders). GET /api/options-screener/more-strategies and /api/options-screener/more/{call_butterflies|by_expiration|block_trades}: butterflies and an options-by-expiration summary over COV-02's end-of-day screen file (conservative fill: buy at ask, sell at bid), and block trades from today's flow tape (prints the tape types BLOCK, 50+ contracts / $10K+). Multi-leg trades are NOT built: the tape carries no multi-leg flag (condition codes live on flow-worker). Plain def routes. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_SIZZLE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-075 (lane/o-options-remainders). GET /api/options-screener/sizzle: COV-03's unusual-volume ranking on a 5-session window (today's option volume / the mean of the prior 5 logged sessions), ranked only with 5 prior sessions; below that each row says how many it has. The log began 2026-09-30, so it states n and the first session it becomes available. Shown under Screener > Options > Unusual volume. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",

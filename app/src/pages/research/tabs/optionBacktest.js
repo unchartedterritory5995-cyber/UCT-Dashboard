@@ -28,7 +28,7 @@ export function legsLabel(legs) {
   return legs.map((l) => `${l.side > 0 ? 'long' : 'short'} ${strikeTxt(l.strike)} ${l.type}`).join(' / ')
 }
 
-const EXIT_WORDS = { expiry: 'held to expiry', take_profit: 'take-profit', stop_loss: 'stop-loss' }
+const EXIT_WORDS = { expiry: 'held to expiry', take_profit: 'take-profit', stop_loss: 'stop-loss', after_print: 'closed after the print' }
 export function exitLabel(exit) {
   if (!exit) return '—'
   return `${exit.date} (${EXIT_WORDS[exit.kind] || exit.kind})`
@@ -51,14 +51,14 @@ export function summaryFacts(s) {
 export function excludedText(result) {
   const n = result?.excluded_count ?? 0
   if (!n) return 'No expiration was excluded.'
-  const parts = (result.excluded || []).map((e) => `${e.expiry}: ${e.reason}`)
+  const parts = (result.excluded || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${e.reason}`)
   return `${n} expiration${n === 1 ? ' was' : 's were'} excluded and not simulated — ${parts.join('; ')}.`
 }
 
 export function notRunText(result) {
   const n = result?.not_run_count ?? 0
   if (!n) return null
-  const parts = (result.not_run || []).map((e) => `${e.expiry}: ${e.reason}`)
+  const parts = (result.not_run || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${e.reason}`)
   return `${n} expiration${n === 1 ? ' was' : 's were'} not run — ${parts.join('; ')}.`
 }
 
