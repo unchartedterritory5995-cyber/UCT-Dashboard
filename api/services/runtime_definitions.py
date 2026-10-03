@@ -127,8 +127,14 @@ def validate(definition: dict) -> None:
         # a document that arrives with one was not minted by it.
         raise ValueError(f"compute.source: {repaint['why']}, so a runtime document cannot state "
                          "its repaint behaviour and is not accepted")
+    # ⭐ RT5 — `objects: true`: the run draws the document's objects itself, so a
+    # drawing-only script maps no plot (`defSchema.js::validateRuntimeCompute`).
+    own_objects = compute.get("objects")
+    if own_objects is not None and own_objects is not True:
+        raise ValueError("compute.objects: when present, true (the run draws the document's "
+                         f"objects), got {own_objects!r}")
     outputs = compute.get("outputs")
-    if not isinstance(outputs, dict) or not outputs:
+    if not isinstance(outputs, dict) or (not outputs and own_objects is not True):
         raise ValueError('compute.outputs: a "runtime" definition maps each plot key to a '
                          "runtime output index — required non-empty object")
     for key, index in outputs.items():

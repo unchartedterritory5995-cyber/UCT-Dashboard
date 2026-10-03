@@ -33,13 +33,14 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
-  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs,
+  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
+import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
@@ -48,7 +49,7 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, histSlotDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
-  clock, session, drawing, readGlobal,
+  clock, session, drawing, readGlobal, objectCall,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
@@ -62,6 +63,9 @@ import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collection
 // so a method-form call is admitted or refused by the same table, with the same
 // sentence, as the name form it is.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+// ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
+// over which drawing calls exist, what they take and what they return.
+import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf } from '../runtime/objectStore.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
@@ -1435,7 +1439,83 @@ function buildRuntimeIrLinked(source, opts, holder) {
       owner,
       ...(index === undefined ? {} : { index }),
     })
+    slotDepth.push(condDepth)
     return slots.length - 1
+  }
+
+  // ⭐⭐ RT5 — CONDITIONAL-CALL HISTORY (C34, capture `vw-fn-series-history`).
+  // Inside a block or function body that does not run on every bar, Pine keeps
+  // a PER-CALL-SITE history: a local's `[1]`, `bar_index[k]` and every `ta.*`
+  // see only the bars the block ran on (TradingView answers NaN / a one-bar
+  // window where this lane's column route would answer from every bar). The
+  // chart's own series (`close[k]`, `volume`, `hl2`…) stay the chart's.
+  // ⛔ ONLY UNDER `objectsInRun`: the drawing build is new, so refusing here can
+  // move nothing that already attached; the plot lane keeps its own behaviour
+  // and its own measurements. Refused by name, never approximated.
+  let condDepth = 0
+  const slotDepth = []
+  // The chart's own series keep the chart's history everywhere (S01-S07, B02,
+  // B03); `bar_index[k]` is the chart's in a global block (A13, C06) but the
+  // CALL SITE's inside a function body (S02, B01, H05).
+  const CHART_HISTORY = new Set(['open', 'high', 'low', 'close', 'volume', 'time', 'timeclose',
+    'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+  // A value made only of the chart's own series, constants and pointwise
+  // arithmetic has the chart's history wherever it is read.
+  const chartPure = (c, frame) => {
+    if (!c || typeof c !== 'object') return false
+    if (c.type === 'num') return true
+    if (c.type === 'series') return CHART_HISTORY.has(c.name) || (!frame && c.name === 'barindex')
+    if (c.type === 'op' || c.type === 'offset') return (c.args || []).every((a) => chartPure(a, frame))
+    if (c.type === 'call') {
+      const spec = TABLE.functions[c.name]
+      return !!(spec && isPointwise(spec)) && (c.args || []).every((a) => chartPure(a, frame))
+    }
+    return false
+  }
+  const statefulTree = (n, frame = owner !== null) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'offset') return !chartPure((n.args || [])[0], frame)
+
+    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live') return true
+    if (n.type === 'call') {
+      const spec = TABLE.functions[n.name]
+      if (!spec || !isPointwise(spec)) return true
+    }
+    return (n.args || []).some((a) => statefulTree(a, frame))
+  }
+  const conditionalHistoryGuard = (what, at) => {
+    if (!(objectsInRun && condDepth > 0)) return
+    note('runtime:conditional-history')
+    throw new RuntimeRefusal('runtime:conditional-history',
+      `${what} inside a block or function that does not run on every bar — Pine keeps that history per call site`, at)
+  }
+  let armDepth = 0
+  const lowerArm = (n, scope) => { armDepth += 1; try { return lowerExpr(n, scope) } finally { armDepth -= 1 } }
+  const topLevelHistory = (value) => {
+    if (!(objectsInRun && condDepth === 0)) return false
+    try { return statefulTree(makeResolver().resolve(value)) } catch { return false }
+  }
+  const readsFrameName = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name') { const b = env.get(n.name); return !!(b && b.frame) }
+    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(readsFrameName) : (v && typeof v === 'object' && v.type ? readsFrameName(v) : false)))
+  }
+  // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
+  // is a string the drawing layer reads, never a column.
+  const containsObjectEnum = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
+    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
+      : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  // The host object lane's own split, one authority: a top-level comma between
+  // statements with no block beneath (never a definition, never inside brackets).
+  const splitDrawingCommas = (list) => splitCommaStatements(list, { isPunct })
+  const slotHistoryGuard = (slot, at) => {
+    if (slot !== null && slot !== undefined
+      && (slots[slot].owner !== null || slotDepth[slot] > 0)) {
+      conditionalHistoryGuard(`\`${slots[slot].name}[…]\``, at)
+    }
   }
 
   /** Frame-relative counts for the owner currently being compiled. */
@@ -1454,6 +1534,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `pine:builtin` as a runtime gap would send an engineer to the wrong
       // subsystem and lose the real next dependency.
       throw e
+    }
+    if (statefulTree(canonical)) {
+      if (owner !== null) functions[owner].rt5History = true
+      conditionalHistoryGuard('a series with history', at)
     }
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
@@ -1662,6 +1746,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // a slot as text — `int n = str.length(s)` is an int, and calling it text
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
+    if (objectsInRun && isRunTostring(node)) return true
     if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
     // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
     // — a watchlist row, the single commonest per-row value in the corpus — reads
@@ -1958,6 +2043,177 @@ function buildRuntimeIrLinked(source, opts, holder) {
     drawingSites += 1
     return drawing(m[1], drawingSites - 1)
   }
+
+  // ── ⭐⭐ RT5 — THE RUN DRAWS ITS OWN OBJECTS (`runtime/objectStore.js`) ──────
+  //
+  // `opts.objectsInRun` asks this build to LOWER every drawing call instead of
+  // refusing it (`runtime:object-op`) or skipping it for the host object program
+  // (`objectTrees`). The two are exclusive: a build either hands its drawings to
+  // the object pass or draws them itself, never both — a drawing two lanes both
+  // made would be drawn twice.
+  //
+  // ⛔ EVERY ARGUMENT IS MAPPED ONTO THE STORE'S OWN PARAMETER LIST HERE, ONCE,
+  // and an argument this map cannot place is a refusal by name, never a drop: a
+  // `color` that silently fell off would draw the default blue where the author
+  // painted red.
+  const objectsInRun = opts.objectsInRun === true && !objectPassOwnsDrawing
+  let objectOpsLowered = 0
+  const RUN_DRAW_CALL = /^(line|label|box|table|linefill)\.([a-z_0-9]+)$/
+  const refuseObject = (what, why, tok) => {
+    note('runtime:object-op')
+    throw new RuntimeRefusal('runtime:object-op', `\`${what}\` — ${why}`, locate(tok))
+  }
+  /** The family a receiver NAME holds, when this lane can say. */
+  const drawingFamilyOfName = (name, scope) => {
+    const s = lookupReadable(String(name), scope)
+    if (s !== null && s !== undefined && slots[s] && slots[s].drawing) return slots[s].drawing
+    return drawingHandles.get(String(name)) || null
+  }
+  /** Is `name` (a dotted call name) a drawing call this lane can run? */
+  const isRunDrawCall = (name) => {
+    const m = RUN_DRAW_CALL.exec(String(name || ''))
+    return !!(m && Object.hasOwn(OBJECT_OPS, `${m[1]}.${m[2]}`))
+  }
+  /** What a run-dispatched `any.<method>` leaves on the stack. */
+  const anyReturns = (method) => {
+    const kinds = new Set((ANY_METHODS[method] || []).map((f) => OBJECT_OPS[`${f}.${method}`].returns))
+    return kinds.size === 1 ? [...kinds][0] : null
+  }
+  /**
+   * Lower ONE drawing call. `fn` is the store's name (`line.new`, `box.set_top`)
+   * or `any.<method>` (dispatched on the receiver's family at run time);
+   * `recvNode` (method form) is the object, prepended as the first argument.
+   */
+  const lowerObjectCall = (fn, argList, tok, scope, recvNode = null) => {
+    // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
+    // taken arm. A drawing made in an arm would be made on every bar.
+    if (armDepth > 0) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
+    if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
+      refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
+        + 'than drawn as something else', tok)
+    }
+    const method = fn.startsWith('any.') ? fn.slice(4) : null
+    const spec = method ? null : OBJECT_OPS[fn]
+    if (!method && !spec) refuseObject(fn, 'not a drawing operation this lane runs', tok)
+    const params = spec ? spec.params.map((p) => (p === 'table_id' ? 'id' : p)) : paramsOfAny(method)
+    if (!params) {
+      refuseObject(`.${method}()`, 'the drawings that define it take different arguments, and '
+        + 'this lane cannot tell which kind of drawing the receiver is', tok)
+    }
+    const returns = spec ? spec.returns : anyReturns(method)
+    if (!returns) {
+      refuseObject(`.${method}()`, 'what it returns depends on which kind of drawing the '
+        + 'receiver is, and this lane cannot tell', tok)
+    }
+    const given = []
+    if (recvNode) given.push({ name: null, value: recvNode })
+    for (const a of argList || []) given.push(a)
+    const slotsOf = new Array(params.length).fill(null)
+    let pos = 0
+    let namedSeen = false
+    for (const a of given) {
+      const v = a && a.value !== undefined ? a.value : a
+      const nm = a && a.name ? String(a.name) : null
+      let at
+      if (nm) {
+        namedSeen = true
+        // ⭐ Pine names a setter's value by what it is (`x`, `y`, `text`); the
+        // store's parameters are the properties written. A one-property setter
+        // takes its one value under any name; a name not in the list otherwise
+        // is a refusal.
+        at = params.indexOf(nm === 'table_id' ? 'id' : nm)
+        if (at < 0 && spec && spec.kind === 'set' && spec.props.length === 1 && nm !== 'id') at = 1
+        if (at < 0) refuseObject(fn.replace(/^any\./, '.'), `this lane does not read a named argument \`${nm}\` there`, tok)
+      } else {
+        if (namedSeen) refuseObject(fn, 'a positional argument after a named one', tok)
+        at = pos
+        pos += 1
+      }
+      if (at >= params.length) refuseObject(fn, `more arguments than the ${params.length} it takes`, tok)
+      if (slotsOf[at] !== null) refuseObject(fn, `\`${params[at]}\` is given twice`, tok)
+      if (v && v.type === 'call' && /^chart\.point\./.test(String(v.name || ''))) {
+        refuseObject(fn, 'a `chart.point` coordinate is not one this lane carries', tok)
+      }
+      slotsOf[at] = lowerExpr(v, scope)
+    }
+    objectOpsLowered += 1
+    return objectCall(fn, slotsOf, returns)
+  }
+  /** A drawing CALL node (name form, or a method form on a name) → the
+   *  canonical store name and the receiver, or null when it is not one. */
+  const objectCallTarget = (node, scope) => {
+    if (!objectsInRun || !node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    if (/^polyline\./.test(name)) return { fn: name, recv: null }
+    if (isRunDrawCall(name)) return { fn: name, recv: null }
+    const uf = splitMethodName(name)
+    if (!uf || definedNames.has(uf.method) || !Object.hasOwn(ANY_METHODS, uf.method)) return null
+    // ⛔ A COLLECTION RECEIVER IS AN ARRAY CALL (`a.copy()`, `a.clear()`), and a
+    // record receiver reaches its own field — neither is a drawing.
+    const rs = lookupReadable(uf.recv, scope)
+    if (rs !== null && rs !== undefined && slots[rs] && (slots[rs].collection || slots[rs].udt)) return null
+    if (/^(line|label|box|table|linefill|polyline|array|matrix|map|str|math|ta|request|color|chart)$/.test(uf.recv)) return null
+    const fam = drawingFamilyOfName(uf.recv, scope)
+    const recv = { type: 'name', name: uf.recv, tok: node.tok }
+    if (fam && Object.hasOwn(OBJECT_OPS, `${fam}.${uf.method}`)) return { fn: `${fam}.${uf.method}`, recv }
+    return { fn: `any.${uf.method}`, recv }
+  }
+  /** `recv.method(…)` on a NON-name receiver (a `method` node). */
+  const objectMethodTarget = (node) => {
+    if (!objectsInRun || !node || node.type !== 'method') return null
+    if (definedNames.has(node.name) || !Object.hasOwn(ANY_METHODS, node.name)) return null
+    return { fn: `any.${node.name}`, recv: node.recv }
+  }
+  /** A drawing call on a line of its own → the statement, or null. A call that
+   *  returns (`line.new(…)` unbound) has its one value dropped. */
+  const objectStmtOf = (node, scope) => {
+    if (!objectsInRun || !node) return null
+    const target = node.type === 'method' ? objectMethodTarget(node) : objectCallTarget(node, scope)
+    if (!target) return null
+    const v = lowerObjectCall(target.fn, node.args, node.tok, scope, target.recv)
+    return exprStmt(v, v.returns === 'void' ? 0 : 1)
+  }
+  /** Does this value hold a drawing call or a family's live list? Such a
+   *  binding is ALWAYS a slot: an `env` macro is substituted at each use, so
+   *  `b = box.new(…)` would make a fresh box at every mention of `b`. */
+  const holdsRunObject = (node, depth = 0) => {
+    if (!objectsInRun || !node || typeof node !== 'object' || depth > 24) return false
+    if (holdsObjectCall(node)) return true
+    if (objectAllName(node)) return true
+    if (node.type === 'method' && objectMethodTarget(node)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv']) {
+      if (holdsRunObject(node[k], depth + 1)) return true
+    }
+    for (const a of node.args || []) if (holdsRunObject(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+    return false
+  }
+  /** Mark a freshly declared slot with the drawing family it holds, from its
+   *  written type (`var line l = na`) or its initialiser (`l = line.new(…)`). */
+  const markDrawingSlot = (slot, value, toks, eq) => {
+    if (!objectsInRun) return
+    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
+    const fromAnnot = annot && annot.kind === 'ident' && /^(line|label|box|table|linefill)$/.test(annot.value)
+      ? annot.value : null
+    const m = value && value.type === 'call' ? /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || '')) : null
+    const fam = fromAnnot || (m ? m[1] : null)
+    if (fam && slots[slot]) slots[slot].drawing = fam
+  }
+  /** ⭐ RT5 — `str.tostring` / v4 `tostring`, a SCRIPT's own function of that
+   *  name excepted. */
+  const isRunTostring = (node) => !!(node && node.type === 'call'
+    && (node.name === 'str.tostring' || node.name === 'tostring') && !definedNames.has(node.name))
+  const containsRunTostring = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return false
+    if (isRunTostring(node)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv']) {
+      if (containsRunTostring(node[k], depth + 1)) return true
+    }
+    for (const a of node.args || []) if (containsRunTostring(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+    return false
+  }
+  /** `<family>.all` — the family's live objects, oldest first. */
+  const objectAllName = (node) => (objectsInRun && node && node.type === 'name'
+    && /^(line|label|box|table|linefill)\.all$/.test(String(node.name || '')) ? String(node.name) : null)
 
   /** Does this subtree evaluate to a COLLECTION?
    *
@@ -2904,7 +3160,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const saved = new Map(env)
     inliningNow.add(name)
     try {
-      inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at }))
+      inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at, frame: true }))
       // ⭐⭐ THE STATEMENT FORM — a body the substitution reader will not take.
       //
       // A `var` is frame state and an `if` is control flow; neither can become
@@ -2977,7 +3233,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       // ⛔ IN ORDER: a later binding may read an earlier one, exactly as the
       // author wrote them.
-      for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at })
+      for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at, frame: true })
       // ⭐ A `[a, b, …]` RESULT IS A TUPLE, and `lowerExpr` has no case for a
       // collection — that conversion lives in `lowerResult`, the FUNCTION-result
       // path this inlining replaces. Mirrored here rather than routed through
@@ -3960,6 +4216,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
         && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
+        // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
+        // this run prints (`str.tostring`), which the columnar lane refuses.
+        && !objectAllName(node)
+        && !(objectsInRun && containsRunTostring(node))
+        && !(objectsInRun && containsObjectEnum(node))
         // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
         // drawing enums one line up. Handling `order.*` in the name branch is
         // not enough on its own: the ROUTE decision runs FIRST, so without this
@@ -4042,6 +4303,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       case 'colour': return num(/^#[0-9a-f]{8}$/i.test(String(node.value))
         ? objectHexToPacked(node.value) : hexToPacked(node.value, 0))
       case 'name': {
+        // ⭐ RT5 — `label.all`: the family's live objects, oldest first.
+        if (objectAllName(node) && scope.lookup(node.name) === null) {
+          objectOpsLowered += 1
+          return objectCall(node.name, [], 'array')
+        }
         if (inRequestValue && PRICE.has(node.name)) return series(node.name)
         // ⭐⭐ AN ET CLOCK FIELD INSIDE A REQUEST. Outside one the columnar lane
         // owns these and answers them as columns; inside one that lane is barred
@@ -4341,10 +4607,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (holdsColour(node, scope)) {
           return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
-            lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+            lowerArm(node.yes, scope), lowerArm(node.no, scope))
         }
-        return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+        return ternary(lowerExpr(node.test, scope), lowerArm(node.yes, scope), lowerArm(node.no, scope))
       case 'offset': {
+        // RT5: a parameter's or a body local's `[k]` is the CALL SITE's history.
+        if (readsFrameName(node.arg)) conditionalHistoryGuard('the history of a parameter or a body local', locate(node.tok))
         // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS
         // BAR. The columnar lane owns price history everywhere else, but it
         // has no column of another symbol's bars — and building one would be
@@ -4390,6 +4658,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
+            slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
           const varSlot = scope.lookup(node.arg.name)
@@ -4409,6 +4678,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
+          slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
           // FRAME-RELATIVE, exactly like a persist slot: the runtime adds the call
@@ -4431,6 +4701,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const offAt = locate(node.tok)
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
         if (offExpr && needsRuntime(offExpr, scope)) {
+          // RT5: a run-time offset into a COLUMN reads that column's own history;
+          // only `bar_index` changes meaning inside a function body (S02, B01).
+          if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
+            functions[owner].rt5History = true
+          }
           return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
         }
         const back = Number(node.n)
@@ -4440,6 +4715,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
+        // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
+        // tick is the symbol's, settled at bind like every `syminfo.mintick`.
+        if (objectsInRun && node.name === 'math.round_to_mintick' && (node.args || []).length === 1
+          && !(node.args[0] && node.args[0].name)) {
+          const x = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
+          const tick = { type: 'name', name: 'syminfo.mintick', tok: node.tok }
+          return lowerExpr({ type: 'binary', op: '*', tok: node.tok, right: tick, left: {
+            type: 'call', name: 'math.round', tok: node.tok,
+            args: [{ type: 'binary', op: '/', tok: node.tok, left: x, right: tick }] } }, scope, opts)
+        }
         // ⭐⭐ `Foo.new(…)` — ONE INSTANCE OF A USER-DEFINED TYPE.
         //
         // ⛔ FIRST IN THIS ARM, BEFORE THE USER-FUNCTION TABLE AND BEFORE THE
@@ -4461,6 +4747,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         {
           const mc = methodCallOf(node)
           if (mc) return lowerExpr(mc, scope, opts)
+        }
+        // ⭐⭐ RT5 — A DRAWING CALL, RUN BY THIS LANE (`objectsInRun`): after a
+        // script's own method of the same name, before every builtin table.
+        {
+          const ot = objectCallTarget(node, scope)
+          if (ot) return lowerObjectCall(ot.fn, node.args, node.tok, scope, ot.recv)
         }
         // ⭐⭐ C23 — `input.color(<default>, …)` IS ITS DEFAULT COLOUR, the node the
         // host lane's every colour reader opens (`pine.js::inputColourDefaultNode`).
@@ -4639,6 +4931,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
               return lowerInlineCall(node.name, fn.inlineBody, node, scope, opts)
             } catch { /* fall through to the shared frame, and its refusal */ }
           }
+          if (fn.rt5History || (fn.historyLocals || []).length || (fn.windowLocals || []).length
+            || (fn.carriedLocals || []).length) {
+            conditionalHistoryGuard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
+          }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
           // ⭐ ARGUMENTS ARE LOWERED IN THE CALLER'S SCOPE, so a state-derived
@@ -4652,6 +4948,35 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // this lane now serves has to be taken out of its path rather than
         // carved out of its rule. Every unserved `str.*` keeps that refusal,
         // which is what the CONTROLs in `strBuiltins.test.js` pin.
+        // ⭐⭐ RT5 — `str.tostring` in a run that draws its own objects
+        // (`text.js::RUN_TEXT_FNS`): a number by the host lane's one formatter,
+        // a text as itself. ⛔ Only a literal `#`/`0` format; a condition (whose
+        // text is `true`/`false`, not a number) is refused by name.
+        if (objectsInRun && isRunTostring(node)) {
+          const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
+          if ((node.args || []).some((a) => a && a.name && a.name !== 'value' && a.name !== 'format')
+              || given.length < 1 || given.length > 2) {
+            throw new RuntimeRefusal('runtime:call-text-state', '`str.tostring` in a shape this lane does not read',
+              locate(node.tok))
+          }
+          const v0 = given[0]
+          if (v0 && ((v0.type === 'binary' && /^(==|!=|<|>|<=|>=|and|or|&&|\|\|)$/.test(v0.op))
+              || (v0.type === 'unary' && (v0.op === 'not' || v0.op === '!')))) {
+            throw new RuntimeRefusal('runtime:call-text-state',
+              '`str.tostring` of a condition prints `true`/`false`, and this lane holds a condition as a number',
+              locate(node.tok))
+          }
+          if (given.length === 2) {
+            const f = given[1]
+            if (!f || f.type !== 'string' || !/^[#0]*(\.[#0]*)?$/.test(String(f.value)) || String(f.value) === '') {
+              throw new RuntimeRefusal('runtime:call-text-state',
+                '`str.tostring` with a format other than a plain `#`/`0` pattern (`format.mintick`, a thousands '
+                + 'comma, words) is not one this lane prints exactly', locate(node.tok))
+            }
+            return textCall('str.tostring/fmt', [lowerExpr(v0, scope), str(String(f.value))])
+          }
+          return textCall('str.tostring', [lowerExpr(v0, scope)])
+        }
         if (Object.prototype.hasOwnProperty.call(TEXT_FNS, node.name)) {
           const spec = TEXT_FNS[node.name]
           for (const arg of node.args) {
@@ -4927,6 +5252,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             widx = windowsMain.length
             windowsMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           const call = windowCall(widx, read(varSlot))
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
@@ -5162,6 +5488,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             aidx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
         }
         // ⭐⭐ `ta.crossover` / `ta.crossunder` OVER RUNTIME STATE.
@@ -5206,6 +5533,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // and the pair is NOT symmetric. The VM hands them to the step in
           // this order; `crossFamily.test.js` asserts swapping them changes the
           // answer rather than merely the types.
+          conditionalHistoryGuard('a stateful built-in', null)
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         // ⭐⭐ PINE'S `ta.valuewhen` — THE Nth MOST RECENT FIRING.
@@ -5259,6 +5587,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const idx = carried2Main.length
           carried2Main.push({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
           // ⭐ CONDITION THEN SOURCE — the order `lowerIr` walks them in.
+          conditionalHistoryGuard('a stateful built-in', null)
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         // ⭐⭐ PINE'S `ta.barssince` — UNBOUNDED, AND ONE ARGUMENT.
@@ -5321,6 +5650,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             aidx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
@@ -5353,6 +5683,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             idx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(idx, lowerExpr(given[0], scope))
         }
                 // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
@@ -5383,6 +5714,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ THE GUARD IS `udtTypeOf`, NOT `node.type === 'member'`. Widening it
       // to every member would re-create the guard that could not fire, and
       // would answer for receivers this lane knows nothing about.
+      // ⭐⭐ RT5 — `array.get(lines, 0).delete()`: a drawing method on a value
+      // that is not a bare name, run by this lane when it draws.
+      case 'method': {
+        const mt = objectMethodTarget(node)
+        if (mt) return lowerObjectCall(mt.fn, node.args, node.tok, scope, mt.recv)
+        throw new RuntimeRefusal('runtime:statement', `a \`${node.type}\` beside a mutable value`, locate(node.tok))
+      }
       case 'member': {
         const recvType = udtTypeOf(node.recv, scope)
         if (recvType) {
@@ -6097,10 +6435,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  const lowerStmts = (list, scope, rootHoist = false) => {
+  const lowerStmts = (list0, scope, rootHoist = false) => {
+    // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
+    // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
+    const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
+    // RT5: every list but the root runs only on some bars (or per call).
+    if (!rootHoist) condDepth += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
@@ -6782,6 +7125,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `p.x` that nobody wrote.
         // ⛔ FROM THE DECLARED TYPE, never from the name. See `udtTypeOf`.
         markUdtSlot(slot, value, scope, toks, eq)
+        markDrawingSlot(slot, value, toks, eq)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -6947,11 +7291,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // every case green, because nothing can produce a record while reading
         // no slot. `frontend-needsRuntime-ctor` is the mutation that holds the
         // surviving half.
-        if (!mutable && !isCollection && !readsSlot(value, scope)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
+        // RT5: under `objectsInRun` a TOP-LEVEL binding that carries history is a
+        // SLOT, evaluated on every bar where it is written, never a macro that a
+        // block would expand (and so evaluate) only on the bars the block runs.
+        if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
+          && !topLevelHistory(value)) {
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
+        markDrawingSlot(slot, value, toks, eq)
         if (holdsText(value, scope)) slots[slot].text = true
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and
@@ -7028,6 +7377,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (`array.shift(a)` to drop the oldest element), its one value dropped.
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
           const callNode = parseWholeExpression(toks)
+          // ⭐ RT5 — `array.get(lines, 0).delete()`: a drawing method on an element.
+          if (objectsInRun && callNode && callNode.type === 'method') {
+            const os = objectStmtOf(callNode, scope)
+            if (os) { out.push(os); continue }
+          }
           if (!callNode || callNode.type !== 'call') {
             throw new RuntimeRefusal('runtime:statement',
               `\`${word}()\` is not a shape this front end reads`, locate(first))
@@ -7037,6 +7391,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const f = callFamily(word)
         if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
+        // ⭐⭐ RT5 — the drawing statement, run by this lane.
+        if (objectsInRun) {
+          const os = objectStmtOf(parseWholeExpression(toks), scope)
+          if (os) { out.push(os); continue }
+        }
         if (f) { note(f); throw new RuntimeRefusal(f, familyDetail(f, word), locate(first)) }
         // ── the METHOD FORM — `t.cell(…)` IS `table.cell(t, …)` ──────────
         //
@@ -7186,6 +7545,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     } finally {
       stmtHoistSink = outerStmtSink
+      if (!rootHoist) condDepth -= 1
     }
     return out
   }
@@ -7255,6 +7615,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const prevOwner = owner
     const prevGuard = guardOuter
     const prevFrameConsts = frameConsts
+    // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
+    const prevCondDepth = condDepth
+    condDepth = -1
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -7497,6 +7860,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       owner = prevOwner
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
+      condDepth = prevCondDepth
     }
   }
 
@@ -8183,9 +8547,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  if (!outputs.length) {
+  // ⭐ RT5 — a script whose only output is drawings is a program when this
+  // lane draws them.
+  if (!outputs.length && !(objectsInRun && objectOpsLowered > 0)) {
     return fail(new RuntimeRefusal('runtime:no-output', null, null), diagnostics)
   }
+  if (objectsInRun) diagnostics.objectOps = objectOpsLowered
 
   if (skippedFunctions.length) diagnostics.skippedFunctions = [...skippedFunctions]
   diagnostics.columns = columns.length
@@ -8223,6 +8590,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       carried,
       carried2: carried2Main,
       requests,
+      // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
+      ...(objectsInRun ? { objectCaps: declaredCapsOf(strippedForScan(source)) } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 

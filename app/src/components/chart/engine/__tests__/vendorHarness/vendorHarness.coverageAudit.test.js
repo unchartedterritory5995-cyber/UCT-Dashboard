@@ -60,6 +60,9 @@ describe('CAP2 coverage audit — MATCH', () => {
     ['tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02', 'on'],
     ['tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02', 'on'],
     ['twin-range-filter-spy-1d-2026-10-02', 'on'],
+    // ⭐ F3 (step 79) — the two swing labels now draw: `str.tostring(y, "Swing H  (#,###.####)")`
+    // reads literal words around a pattern (`pineTextFormat.js::formatPatternedNumber`).
+    ['swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02', 'on'],
   ])('%s (%s): MATCH', (id, state) => {
     const { cap, v } = grade(id, state)
     expect(cap.source.sha256).toMatch(/^[0-9a-f]{64}$/)
@@ -79,11 +82,15 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('atr-trailing-stop-by-ceyhun RDDT: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT plots and the barcolor agree; TradingView holds 1 drawing and our script has no drawing program', () => {
+  it('control: RDDT plots and the barcolor agree; TradingView holds 1 drawing and ours is WITHHELD BY NAME (its text reads an unbounded ta.barssince)', () => {
     const { v } = grade('atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02')
     expect(v.plots.every((p) => p.verdict === 'MATCH')).toBe(true)
     expect(v.paints.verdict).toBe('MATCH')
-    expect(v.objects.reason).toMatch(/holds 1 drawing object.*no drawing program/)
+    // ⭐ F3 — was "our script has no drawing program": the script DRAWS (one info
+    // label), and the door refused both of its creates by name (`create:label`,
+    // `pine:function` — `ta.barssince` is unbounded; its `x` is `timenow`).
+    expect(v.objects.withheld).toBe('pine:object-ops-refused')
+    expect(v.objects.reason).toMatch(/holds 1 drawing object.*withheld by name \(pine:object-ops-refused\).*create:label ×2; pine:function/)
   }, T)
   it.fails('atr-trailing-stop-by-ceyhun SPY: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
@@ -141,11 +148,20 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('multicator-table RDDT / SPY: MATCH', () => {
     expect(grade('multicator-table-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: every compared plot agrees on both symbols; TradingView holds 72 drawings (the tables) and our script has no drawing program', () => {
+  it('control: every compared plot agrees on both symbols; TradingView holds 72 drawings (2 tables, 60 cells, 5 HUD boxes, 5 HUD labels) and ours are WITHHELD BY NAME — the program lost a removal', () => {
     for (const id of ['multicator-table-rddt-1d-2026-10-02', 'multicator-table-spy-1d-2026-10-02']) {
       const { v } = grade(id)
       expect(v.plots.filter((p) => p.verdict === 'DIVERGE'), id).toEqual([])
-      expect(v.objects.reason, id).toMatch(/holds 72 drawing object.*no drawing program/)
+      // ⭐ F3 — was "our script has no drawing program". The door withholds the
+      // whole program (`pine:object-removal-lost`): its HUD lists lose pushes
+      // (`coll:push`, `coll:diverged` — `visibleRange` is a tuple function the
+      // lane cannot read) that a later `box.delete` / `label.delete` reads, and
+      // 43 of its 60 cell texts read `math.round_to_mintick`, `format.volume` or
+      // a `ThemePalette` UDT field. Drawing the rest would leave objects
+      // TradingView deleted; the member reads the door's "its drawings are not
+      // shown" sentence.
+      expect(v.objects.withheld, id).toBe('pine:object-removal-lost')
+      expect(v.objects.reason, id).toMatch(/holds 72 drawing object.*withheld by name \(pine:object-removal-lost\).*coll:diverged, coll:push/)
     }
   }, T)
 
@@ -173,7 +189,10 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const s = grade('pmax-explorer-spy-1d-2026-10-02').v
     expect(first(item(s, 'PMax'))).toMatchObject({ bar: 512, kind: 'na' })
     expect(item(s, 'PMax').stats.steady.divergent).toBe(1139)
-    expect(s.objects.reason).toMatch(/holds 1 drawing object.*no drawing program/)
+    // ⭐ F3 — the screener label lists 38 other symbols' PMax states
+    // (`request.security` per symbol): withheld by name, never drawn.
+    expect(s.objects.withheld).toBe('pine:object-ops-refused')
+    expect(s.objects.reason).toMatch(/holds 1 drawing object.*withheld by name \(pine:object-ops-refused\).*pine:request/)
     const r = grade('pmax-explorer-rddt-1d-2026-10-02').v
     expect(item(r, 'PMax').verdict).toBe('MATCH')
     expect(item(r, 'Moving Avg Line').verdict).toBe('MATCH')
@@ -223,16 +242,28 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // swing-highlow-zigzag-chartprime ---------------------------------------------
-  it.fails('swing-highlow-zigzag-chartprime RDDT: MATCH', () => {
-    expect(grade('swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
+  it.fails('swing-highlow-zigzag-chartprime SPY: MATCH', () => {
+    expect(grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: the two "Swing H / Swing L" labels are not drawn (RDDT and SPY); on SPY we hold 12 of TradingView\'s 52 zigzag lines', () => {
+  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 12 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
     const r = grade('swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02').v.objects
     expect(r.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 10, ours: 10 })
-    expect(r.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 0 })
-    const s = grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02').v.objects
+    expect(r.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
+    const { cap, v } = grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02')
+    const s = v.objects
+    expect(s.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
+    expect(s.texts.find((t) => t.family === 'labels text').agree).toBe(true)
     expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 12 })
-    expect(s.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 0 })
+    // ⭐ F3 — the 40 lines we do not hold were drawn on bars BEFORE the loaded
+    // window: TradingView ran the script over SPY's whole history (the capture is
+    // 1800 bars from 2019-08, not from the listing), and the zigzag segments it
+    // never deletes still carry 1993-2019 prices. 35 of them lie wholly below the
+    // window's lowest low — no bar we were given could have made them.
+    const lowAt = cap.bars.fields.indexOf('low')
+    const minLow = Math.min(...cap.bars.rows.map((row) => row[lowAt]))
+    expect(cap.history.startsAtBar0).toBe(false)
+    const before = cap.objects.records.lines.filter((l) => Math.max(l.y1 ?? -Infinity, l.y2 ?? -Infinity) < minLow)
+    expect(before.length).toBe(35)
   }, T)
 
   // twin-range-filter (RDDT only — SPY is a MATCH above) --------------------------
@@ -251,13 +282,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('trend-targets-algoalpha RDDT (runtime pane): MATCH', () => {
     expect(grade('trend-targets-algoalpha-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT label texts print full precision where TradingView rounds to the tick ("TP1 ▸ 177.53"); the barcolor is not drawn; plots agree', () => {
+  it('control: RDDT objects now MATCH (label texts rounded to the tick, "TP1 ▸ 177.53"); the barcolor is not drawn; plots agree', () => {
     const v = grade('trend-targets-algoalpha-rddt-1d-2026-10-02', 'runtime').v
-    const t = v.objects.texts.find((x) => x.family === 'labels text')
-    expect(t.agree).toBe(false)
-    expect(t.onlyVendor).toContain(' ✔ TP1 ▸ 177.53')
-    expect(t.onlyOurs).toContain(' ✔ TP1 ▸ 177.5276604489')
+    // ⭐ F3 — `str.tostring(x, format.mintick)` was read as "no format" and drew
+    // "177.5276604489"; it now rounds to the witnessed NYSE tick (0.01) and keeps
+    // the tick's decimals (`pineTextFormat.js::tickNumberText`).
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
+    expect(v.objects.texts.find((x) => x.family === 'labels text').agree).toBe(true)
+    // ⛔ What still diverges is the PAINT: a runtime-lane document carries no
+    // `paints`, so the barcolor TradingView draws on every bar is not drawn (F1/RT).
     expect(v.paints.reason).toMatch(/notDrawn/)
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE')).toEqual([])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
   it('trend-targets-algoalpha SPY (runtime pane): the run declines a window not from the listing (runtime:history-start) — draws nothing', () => {
@@ -267,20 +302,33 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: wyckoff — TradingView holds 12 (RDDT) / 22 (SPY) boxes and our run has no drawing program; the offset barcolor is withheld', () => {
-    for (const [id, n] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 12], ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', 22]]) {
+  it('control: wyckoff — TradingView holds 12 (RDDT) / 22 (SPY) boxes; the run that owns them (RT5) draws none, by name; the offset barcolor is withheld', () => {
+    // RT5 (step 72): the run now OWNS its drawings, so the objects verdict reads the
+    // run's own answer: RDDT stops on an engine error (the same one that leaves the
+    // 8 plots without a column), SPY on `calc_bars_count = 1000` against 1,800 bars.
+    // ⭐ WAVE 16: with H4 withholding wyckoff's offset markers, RDDT's run computes no
+    // column at all, so RT4's gate (`runtime:objects-without-run`: no drawings without a
+    // run that computed) answers first, as "the run drew nothing". Either named reason
+    // is a refusal; what this control pins is that nothing is DRAWN.
+    for (const [id, why] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', /engine-error: array\.max of an empty array|the run drew nothing/],
+      ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', /runtime:calc-bars-count|the run drew nothing/]]) {
       const v = grade(id, 'runtime').v
-      expect(v.objects.reason, id).toMatch(new RegExp(`holds ${n} drawing object.*no drawing program`))
+      expect(v.objects.verdict, id).toBe('INCONCLUSIVE')
+      expect(v.objects.reason, id).toMatch(why)
       expect(v.paints.reason, id).toMatch(/offset/)
     }
   }, T)
-  it.fails('fibonacci-dolphintradebot RDDT (runtime pane): MATCH', () => {
-    expect(grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: fibonacci-dolphintradebot — the two char plots agree on RDDT; TradingView holds 14 drawings (the fib levels) and our run has none', () => {
+  it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
+    expect(v.verdict).toBe('MATCH')
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
     expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
-    expect(v.objects.reason).toMatch(/holds 14 drawing object.*no drawing program/)
+  }, T)
+  it('control: fibonacci-dolphintradebot SPY — the run declines a window not from the listing (runtime:history-start) and draws nothing', () => {
+    const v = grade('fibonacci-dolphintradebot-spy-1d-2026-10-02', 'runtime').v
+    expect(v.objects.verdict).toBe('INCONCLUSIVE')
+    expect(v.objects.reason).toMatch(/runtime:history-start/)
   }, T)
 })
 

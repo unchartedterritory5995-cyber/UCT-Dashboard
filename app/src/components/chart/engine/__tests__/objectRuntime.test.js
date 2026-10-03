@@ -589,11 +589,15 @@ describe('⭐⭐ `#` is an OPTIONAL digit and `0` is a REQUIRED one', () => {
     })
   }
 
-  it('⛔ A THOUSANDS SEPARATOR IS NOT IMPLEMENTED, AND FALLS BACK RATHER THAN GUESSING', () => {
+  it('⛔ A THOUSANDS SEPARATOR THAT WOULD APPEAR IS WITHHELD, NEVER GUESSED (F3)', () => {
     // Ignoring the comma would print the right digits in the wrong grouping,
-    // which is a number the author did not ask for. Nothing in the reachable 27
-    // writes one; the day something does, this case is where it lands.
-    expect(cellText(1234.5, '#,###')).toBe('1234.5')
+    // which is a number the author did not ask for. ⚰️ This used to fall back to
+    // `String(n)` — '1234.5' — which no capture shows TradingView drawing either.
+    // F3 reads the pattern where the separator cannot appear (every captured
+    // value sits below the group size) and WITHHOLDS the text where it would.
+    expect(cellText(1234.5, '#,###')).toBeNull()
+    // CONTROL: below the group size the same pattern is drawn
+    expect(cellText(999, '#,###')).toBe('999')
   })
 
   it('⛔ CONTROL — an unformatted number still reads the Pine default, trimmed', () => {
