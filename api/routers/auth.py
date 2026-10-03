@@ -639,6 +639,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_options_screener_flag(),
         **_research_depth_flags(),
         **_charts_list_subscribe_flag(),
+        **_lane_r_client_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -669,6 +670,44 @@ def _charts_list_subscribe_flag() -> dict:
         return {"charts_list_subscribe_enabled": True} if charts_list_subscribe_enabled() else {}
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return {}
+
+
+# Lane R client-only surfaces: no route reads these flags, so the auth payload IS the
+# gate. (env var, payload key) -- each key is present ONLY when on (the TERM-077 form).
+#   CHARTS_EXTRA_GROUPS_ENABLED  COV-10 remainder: /charts colour groups E-H beyond A-D
+#   HOW_TO_CHECKLISTS_ENABLED    FT-046: per-surface "how to trade with this" checklists
+# ⛔ Each env read is a LITERAL (not a loop over names) so feature_flag_index's AST
+# scan sees both gates and the ledger rail holds them to a docs/feature_flags.json row.
+_TRUTHY = ("1", "true", "yes", "on")
+
+
+def charts_extra_groups_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("CHARTS_EXTRA_GROUPS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def how_to_checklists_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("HOW_TO_CHECKLISTS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+_LANE_R_CLIENT_SURFACES = (
+    ("charts_extra_groups_enabled", charts_extra_groups_enabled),
+    ("how_to_checklists_enabled", how_to_checklists_enabled),
+)
+
+
+def _lane_r_client_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON: every flag unset => this payload is
+    byte-identical to before. The client reads `=== true`. Never raises."""
+    out = {}
+    for key, reader in _LANE_R_CLIENT_SURFACES:
+        try:
+            if reader():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
 
 
 def _watchlist_copy_or_link_flag() -> dict:

@@ -6,6 +6,8 @@ import { useState, useCallback } from 'react'
 import PeriodSortResults from './widgets/PeriodSortResults'
 import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
+import { GROUP_HEX, nextGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 
 // Default size fits the default columns with no blank filler. Stocks (flag18 + sym96 +
 // periodchg84 + industry280 ≈ 478 + chrome) → 528, so full industry labels never clip.
@@ -13,8 +15,8 @@ import styles from './PeriodSortPanel.module.css'
 // → 450. MIN is tiny — the header (grab dots, colour dot, buttons) stays; the table clips.
 const DEF_H = 560, MIN_W = 150, MIN_H = 40
 const stockDefW = 528, groupDefW = 450
-const COLORS = ['A', 'B', 'C', 'D', 'N']
-const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
+// Colour cycle + dot colours from colorGroups.js (E-H only while CHARTS_EXTRA_GROUPS_ENABLED is on).
+const COLOR_HEX = GROUP_HEX
 
 export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [], group = null, symbolsFilter = null, titlePrefix = null, offset = 0 }) {
   // Group panels open wider so the theme/sector/industry names fit; stock panels stay snug.
@@ -25,6 +27,7 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
   const [size, setSize] = useState({ w: defW, h: DEF_H })
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [panelColor, setPanelColor] = useState('A')
+  const extraGroupsOn = useExtraGroupsEnabled()
 
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
@@ -68,7 +71,7 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
           data-no-drag
           className={styles.colorDot}
           style={{ background: COLOR_HEX[panelColor] }}
-          onClick={() => setPanelColor((c) => COLORS[(COLORS.indexOf(c) + 1) % COLORS.length])}
+          onClick={() => setPanelColor((c) => nextGroup(c, extraGroupsOn))}
           title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
           aria-label="Colour group"
         />
