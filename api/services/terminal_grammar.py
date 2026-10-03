@@ -46,6 +46,7 @@ def is_enabled() -> bool:
     (the routes answer 404 before identity is read, exactly like an unknown path)."""
     return os.getenv("TERMINAL_GRAMMAR_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS terminal_command_counts (
     user_id   TEXT NOT NULL,

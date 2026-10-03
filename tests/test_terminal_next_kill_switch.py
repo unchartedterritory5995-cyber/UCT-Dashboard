@@ -268,7 +268,10 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
     routes = _server_surfaces(real_app)
     tagged = [p for p in people if p["id"] in (TAGGED_MEMBER, TAGGED_ADMIN)]
 
-    # 1. ALIVE FIRST — every surface answers for every tagged person.
+    # 1. ALIVE FIRST — every surface answers for every tagged person. The T3 grammar
+    # routes also sit behind their OWN dark flag; it stays ON throughout, so the only
+    # variable this test moves is the master switch.
+    monkeypatch.setenv("TERMINAL_GRAMMAR_ENABLED", "1")
     monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
     for person in tagged:
         assert _alive_violations(client, state, routes, person) == [], (
