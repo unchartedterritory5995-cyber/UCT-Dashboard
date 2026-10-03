@@ -79,6 +79,7 @@ def main(argv=None) -> int:
     last = dt.date.fromisoformat(args.through)
     days = weekdays_through(last, 320)
     seeded = {}
+    bars_sqlite.init_db()                        # a fresh sandbox has no ohlcv table yet
     nvda = synthetic_bars(days, start=40.0, peak=120.0, base_len=30, base_depth=0.10, vol=4_000_000)
     spy = synthetic_bars(days, start=400.0, peak=560.0, base_len=30, base_depth=0.04, vol=60_000_000)
     seeded["NVDA"] = bars_sqlite.put_bars("NVDA", "D", nvda, date_tf=True)
