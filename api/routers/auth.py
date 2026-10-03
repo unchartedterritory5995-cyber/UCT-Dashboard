@@ -202,6 +202,11 @@ NOTEBOOK_FLAGS = {
     # are `notebook_transcript_capture_enabled` and `notebook_passed_setups_enabled`.
     "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": False,  # enablement — unset means OFF (transcript passage -> excerpt, lane 13G-1)
     "NOTEBOOK_PASSED_SETUPS_ENABLED": False,  # enablement — unset means OFF (passed-setups journal, lane 13G-1)
+    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (status + distance to
+    # invalidation, from 13D's j2_note_levels projection). The router's gate
+    # (journal_two/thesis_chips.enabled) reads the same variable through flag_on, per request; the
+    # payload key is `notebook_thesis_chips_enabled`.
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": False,  # enablement — unset means OFF (thesis chips, lane 13G-2)
     # Wave 13 lane 13I-2: the visual playbook grid, the setup-tag suggestion at insert and the
     # trade page's before/after. The router's gate (journal_two/visual_playbook.enabled) reads
     # the same variable through flag_on, per request; the payload key is

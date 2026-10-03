@@ -54,6 +54,8 @@ NOTEBOOK_KEYS = [
     # Wave 13 lane 13G-1: research capture -- two enablement gates.
     "notebook_transcript_capture_enabled",
     "notebook_passed_setups_enabled",
+    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows — an enablement gate.
+    "notebook_thesis_chips_enabled",
     # Wave 13 lane 13I-2: the visual playbook, tag suggestion and before/after — an enablement gate.
     "notebook_visual_playbook_enabled",
     # Wave 13 lane 13D: resurfacing (Awareness R7-R9 + the note door's sheet) — an enablement gate.
