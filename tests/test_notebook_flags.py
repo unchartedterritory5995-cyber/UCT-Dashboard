@@ -47,6 +47,9 @@ NOTEBOOK_KEYS = [
     "notebook_earnings_prep_enabled",
     # Wave 13 lane 13H-1: the chart plan (sizing + alerts at drawn levels) — an enablement gate.
     "notebook_chart_plan_enabled",
+    # Wave 13 lane 13G-1: research capture -- two enablement gates.
+    "notebook_transcript_capture_enabled",
+    "notebook_passed_setups_enabled",
 ]
 
 

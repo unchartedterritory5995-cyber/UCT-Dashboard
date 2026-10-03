@@ -188,6 +188,12 @@ NOTEBOOK_FLAGS = {
     # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
     "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
+    # Wave 13 lane 13G-1: research capture. Two gates, one per router in
+    # api/routers/notebook_research_capture.py (journal_two/transcript_capture.enabled and
+    # journal_two/passed_setups.enabled read these through flag_on, per request); the payload keys
+    # are `notebook_transcript_capture_enabled` and `notebook_passed_setups_enabled`.
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": False,  # enablement — unset means OFF (transcript passage -> excerpt, lane 13G-1)
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": False,  # enablement — unset means OFF (passed-setups journal, lane 13G-1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

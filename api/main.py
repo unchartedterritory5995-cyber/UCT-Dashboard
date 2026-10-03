@@ -127,6 +127,11 @@ from api.routers import notebook_earnings_prep as notebook_earnings_prep_router
 # (/api/j2/chart-plan/*), dark behind NOTEBOOK_CHART_PLAN_ENABLED.
 from api.routers import notebook_chart_alerts as notebook_chart_alerts_router
 
+# Wave 13 lane 13G-1: research capture -- a transcript passage into a note as a cited
+# excerpt, and the passed-setups journal (/api/j2/research-capture/*), dark behind
+# NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED and NOTEBOOK_PASSED_SETUPS_ENABLED (one gate per router).
+from api.routers import notebook_research_capture as notebook_research_capture_router
+
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8289,6 +8294,19 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
         except Exception as e:
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
+        # Wave 13 lane 13G-1 -- the passed-setups nightly refresh: every member with a row has
+        # new saves collected and open rows scored from the stored daily bars (no vendor call).
+        # A no-op while NOTEBOOK_PASSED_SETUPS_ENABLED is off; never raises. 17:40 ET weekdays,
+        # after the EOD bars; grace 3600 s like the digest above.
+        try:
+            from api.services.journal_two import passed_setups as _j2_passed_setups
+            _scheduler.add_job(_j2_passed_setups.nightly_job,
+                               trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=40, timezone=_ET),
+                               id="notebook_passed_setups_nightly", max_instances=1, coalesce=True,
+                               misfire_grace_time=3600, replace_existing=True)
+            print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays; dark unless NOTEBOOK_PASSED_SETUPS_ENABLED)")
+        except Exception as e:
+            print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -8930,6 +8948,11 @@ app.include_router(notebook_earnings_prep_router.router)
 # Wave 13 lane 13H-1 (router-level 404 while NOTEBOOK_CHART_PLAN_ENABLED is off). Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_chart_alerts_router.router)
+
+# Wave 13 lane 13G-1 (router-level 404 while each gate is off). Outside /api/j2/notes/...,
+# so mount order against journal_two does not matter.
+app.include_router(notebook_research_capture_router.transcripts_router)
+app.include_router(notebook_research_capture_router.passed_router)
 
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.

@@ -156,6 +156,11 @@ _DIRECT_USER_TABLES = (
     # this is a "no such table" no-op.
     "j2_chart_blocks",
     "j2_chart_fingerprints",
+    # Wave 13 (lane 13G-1, passed setups) -- the names the member saved and did not trade,
+    # with their frozen scores. Self-ensured by passed_setups.py (never db.py), so on a pod
+    # where the door never ran this is a "no such table" no-op. (13G-1 transcript passages
+    # are ordinary j2_note_documents / pages / excerpts rows, already purged above.)
+    "j2_passed_setups",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

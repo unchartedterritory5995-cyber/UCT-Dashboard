@@ -222,6 +222,11 @@ NOT_REHEARSED = {
     # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
     "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
                                    "levels (API only); no member surface until 13H-2",
+    # Wave 13 lane 13G-1.
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "dark (wave 13 13G-1): save a call-transcript passage "
+                                           "into a note as a cited excerpt; waits for its walk",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": "dark (wave 13 13G-1): the passed-setups journal on Research "
+                                      "Home; waits for its real-browser walk",
 }
 
 

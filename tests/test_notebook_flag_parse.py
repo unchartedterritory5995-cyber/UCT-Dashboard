@@ -50,6 +50,7 @@ from api.services.journal_two import note_shares
 from api.services.journal_two import ai_actions
 from api.services.journal_two import writing_help
 from api.services.journal_two import tech_fingerprint
+from api.services.journal_two import transcript_capture, passed_setups
 from api.services.journal_two import chart_plan
 
 REPO = Path(__file__).resolve().parents[1]
@@ -124,6 +125,9 @@ def _server_gates() -> dict:
         "NOTEBOOK_TA_FINGERPRINT_ENABLED": tech_fingerprint.enabled,
         # Wave 13 lane 13H-1: the chart-plan router's own gate function.
         "NOTEBOOK_CHART_PLAN_ENABLED": chart_plan.enabled,
+        # Wave 13 lane 13G-1: one gate function per research-capture router.
+        "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": transcript_capture.enabled,
+        "NOTEBOOK_PASSED_SETUPS_ENABLED": passed_setups.enabled,
     }
 
 
