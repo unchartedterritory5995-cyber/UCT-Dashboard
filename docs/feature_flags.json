@@ -76,6 +76,13 @@
       "owner": "TERMINAL-NEXT Lane P (TERM-014)",
       "note": "TERM-014 (FB-OBS-03), built dark. On WEB it makes the 60 s memwatch loop (api/main.py _web_memwatch) RETAIN each [mem] sample in /data/rss_series.db (api/services/rss_series.py: RSS, threads, deployment id, and a cheap per-subsystem census of TTLCache entries and live threads per name prefix); unset, record() returns before any I/O and no file is created. On TERMINAL-NEXT-MONITOR it arms the weekday 09:20 ET `memory` job, which reads tools/rss_slope_report.py through /api/terminal-next/report/memory-slope and posts the slope to the ADMIN channel (ALERT on an OBS-4 ceiling: RSS > 3,500 MB or threads > 200; INSUFFICIENT samples is not an alert). Retention OBS-5: newest 400 rows, nothing older than 90 days, declared in api/services/store_retention.py as rss_series; the prune asks may_prune first. Not armed: no owner decision yet, and the reading itself needs TERM-007's quiet window. Reversal: unset it on both services; the rows are LEFT IN PLACE and age out under their declared rule, never deleted to undo an arming."
     },
+    "WATCHLIST_ENTITY_KEYS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-03",
+      "where": ["web"],
+      "owner": "TERMINAL-NEXT Lane P (Entity Master UC-2)",
+      "note": "Entity Master UC-2, built dark (api/services/watchlist_entity_keys.py). Armed: a watchlist row added through watchlist_service.add_item / bulk_add_items is keyed ONCE, that day, to its Entity Master entity in a side store /data/watchlist_entity_keys.db (never auth.db: no schema change there), and get_watchlist / list_user_watchlists decorate member lists (never the prebuilt INDEX lists, at most 500 rows a call) with entity_id, display_sym and entity_marker ('renamed' / 'delisted'); `sym` and the COV-06 snapshot are untouched. An ambiguous or unknown ticker keys to NULL and renders as before. Unset: no I/O, no file created, rows byte-identical. Arming needs the Entity Master seeded on web (ENTITY_MASTER_* checkpoints) and a frontend that reads display_sym (not built: the Watchlists page is another lane's surface). Retention: declared in store_retention as member data, never swept. REVERSAL: unset it; key rows are LEFT IN PLACE, never deleted to undo an arming."
+    },
     "BREADTH_V2_PRODUCER_ENABLED": {
       "status": "dark",
       "where": ["breadth-v2-runner"],

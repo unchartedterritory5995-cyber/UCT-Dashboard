@@ -88,6 +88,10 @@ REGISTRY: tuple[Retention, ...] = (
               sweeps=("api.services.workspace_doc_store:prune_versions",
                       "api.services.artifact_versions:_prune"),
               path="api.services.workspace_doc_store:_DB_PATH"),
+    Retention("watchlist_entity_keys", "watchlist_entity_keys.db", MEMBER,
+              "Entity Master UC-2: one row per watchlist item ever keyed (item -> entity), "
+              "written once and kept; never swept, and a member's item delete leaves it inert",
+              path="api.services.watchlist_entity_keys:db_path"),
     Retention("auth", "auth.db", MEMBER,
               "kept indefinitely; sessions leave on logout/expiry by token, accounts only by admin "
               "action. Backed up every 6 h (authdb_backup.py)"),

@@ -44,10 +44,10 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | 4 BRK-01..10 | 10 | 1 | 3 | 4 | 2 | 0 |
 | 5 COV-01..12 | 12 | 3 | 3 | 2 | 4 | 0 |
 | 6 FT-001..080 | 80 | 13 | 34 | 21 | 11 | 1 |
-| 7 Untracked promises | 58 | 0 | 1 | 51 | 1 | 5 |
-| **total** | **279** | **76** | **56** | **97** | **39** | **11** |
+| 7 Untracked promises | 58 | 0 | 2 | 50 | 1 | 5 |
+| **total** | **279** | **76** | **57** | **96** | **39** | **11** |
 
-`building` by lane: O 17 · R 16 · S 13 · P 12 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
+`building` by lane: O 17 · R 16 · S 13 · P 11 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all in production.** X-06..X-09 are records and an env arming. Every TERM/FT/BRK/COV `live` row is on master.
@@ -357,7 +357,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `D-12` | Canonical UC-5: show when two computations of one metric disagree | `building (Lane R)` | |
 | `D-13` | FDA / PDUFA dates on the events calendar | `owner-blocked (a PDUFA date source; a new source under ADR-0015)` | |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `dark` | BUILT on `lane/p-platform` (branch-only): `api/services/store_retention.py` registers 15 stores (member flag, rule, pruned tables, sweep); `disk_watchdog` prints each top consumer's retention or `UNDECLARED`; `may_prune` fails closed and guards `artifact_versions._prune` and the RSS series prune. Declared for the first time: AI Search's per-user caps (100 threads / 200 saved) delete MEMBER rows. Rail `tests/test_store_retention.py`. |
-| `ENT-UC2` | Watchlist rows keyed by entity id | `building (Lane P)` | |
+| `ENT-UC2` | Watchlist rows keyed by entity id | `dark` | BUILT on `lane/p-platform` (branch-only), dark behind `WATCHLIST_ENTITY_KEYS_ENABLED` (pending): a row added through `watchlist_service` is keyed ONCE to its entity in a side store (`api/services/watchlist_entity_keys.py`, never auth.db), and member-list reads carry `entity_id` / `display_sym` / `entity_marker` (renamed / delisted); `sym` never rewritten. The PRD acceptance test passes against the real service (`tests/test_watchlist_entity_keys.py`, incl. a reissued ticker not capturing the old row). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. |
 | `CAP-A12` | Merge the two drag-and-drop libraries | `building (Lane P)` | |
 | `FB-A3` | Doc `file:line` citation resolver | `building (Lane P)` | |
 | `FB-A1` | Feature-backlog appendix A-1 | `moot (MOOT by the audit, §1b)` | |
