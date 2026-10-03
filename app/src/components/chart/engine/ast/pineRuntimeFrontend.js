@@ -381,6 +381,9 @@ export const RUNTIME_PINE_TWINS = Object.freeze({
   valuewhen: null,
   'ta.barssince': 1,
   barssince: 1,
+  // ⭐ RT7 — `fixnan(x)`, Pine's carry of the last non-na value (the columnar lane
+  // refuses it, `pine:na`). Arity 1: the only one Pine has.
+  fixnan: 1,
 })
 
 /** Does this lane own `name` called with `argc` arguments? */
@@ -5664,6 +5667,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(given[0], scope))
+        }
+        // ⭐⭐ RT7 — PINE'S `fixnan(x)`: the last non-`na` value of `x` (CARRIED
+        // `fixnanPine`, frame-relative like every carried member, so two call
+        // sites of one function keep two memories). The script's own definition wins.
+        if (node.name === 'fixnan' && runtimeOwnsPineTwin(node.name, node.args.length)
+          && !definedNames.has(node.name)) {
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (node.args.some((a) => a && a.name)) {
+            throw new RuntimeRefusal('runtime:statement', '`fixnan` takes one series, by position', locate(node.tok))
+          }
+          const entry = { fn: 'fixnanPine', n: 1, name: 'fixnan(…)' }
+          let fidx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            fidx = list.length
+            list.push(entry)
+          } else {
+            fidx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          conditionalHistoryGuard('a stateful built-in', null)
+          return carriedCall(fidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
         if (car) {
