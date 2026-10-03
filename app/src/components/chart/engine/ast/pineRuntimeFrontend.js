@@ -1786,6 +1786,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call' && node.name === 'input.color' && !definedNames.has(node.name)) {
       return holdsColour(inputColourDefaultNode(node), scope)
     }
+    // ⭐ RT6 — a v4 generic `input(defval = color.lime)` is a colour input too
+    // (parabolic-sar's `colup` / `coldn`): the kind is its default's.
+    if (node.type === 'call' && node.name === 'input' && !definedNames.has(node.name)) {
+      return holdsColour(inputColourDefaultNode(node), scope)
+    }
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
     // would send a price into a colour slot with no complaint.
@@ -4473,6 +4478,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           return lowerExpr(dflt, scope, opts)
         }
+        // ⭐ RT6 — a v4 generic `input(defval = <colour>)` is the same thing: its
+        // default colour (parabolic-sar's `colup` / `coldn`). Only when the default
+        // IS a colour; every other generic `input` keeps the path it had.
+        if (node.name === 'input' && !definedNames.has(node.name)
+          && holdsColour(inputColourDefaultNode(node), scope)) {
+          return lowerExpr(inputColourDefaultNode(node), scope, opts)
+        }
         // ⭐⭐ C18 — `int(x)` / `float(x)` OVER A VALUE THE RUN COMPUTES.
         // Pine documents `int` as "casts na or truncates float value to int" and
         // `float` as the identity on a number, so both are read exactly as
@@ -5442,6 +5454,107 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
   }
 
+  // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
+  //
+  // A runtime document computes each row's VALUE bar by bar; until RT6 it could
+  // carry a row's colour only as ONE static colour, so `plot(x, color = cond ?
+  // a : b)` was withheld by name (`runtimeRowPresentation`). The colour is a
+  // value this lane already computes — a packed `0xTTBBGGRR` integer, the same
+  // number `bgcolor` / `barcolor` / `fill` emit — so a plot's `color =` becomes
+  // one more output of the SAME run, read on the SAME bar as the value.
+  //
+  // ⛔ OPT-IN (`opts.plotColours`): only the runtime pane's two doors
+  // (`runtimeColumns.js` probe + compute) ask for it, so every other build — the
+  // object lane's values, every rail — keeps its exact output table.
+  // ⛔ APPENDED AFTER EVERY OTHER OUTPUT (`colourEmits`, fixed up before the
+  // program is made), so no existing output index moves: a stored document's
+  // `compute.outputs` and the object lane's tree outputs read what they always did.
+  // ⛔ FAIL-SOFT: a colour this lane cannot lower never refuses the script — the
+  // descriptor says why (`colour.refused`) and the door withholds THAT row by
+  // name, exactly as before RT6.
+  const wantColours = opts.plotColours === true
+  const PLOT_COLOUR_CALLS = new Set(['plot', 'plotshape', 'plotchar'])
+  /** Where a plot-family call places `color` / `transp` positionally (Pine's own
+   *  signatures; `transp` exists only through v4). */
+  const COLOUR_POSITION = Object.freeze({ plot: 2, plotshape: 4, plotchar: 4, bgcolor: 0, barcolor: 0 })
+  const TRANSP_POSITION_LEGACY = Object.freeze({ plot: 5, plotshape: 5, plotchar: 5, bgcolor: 1 })
+  const colourEmits = []
+  const argValue = (a) => (a && a.value !== undefined ? a.value : a)
+  const callArg = (args, name, position) => {
+    const named = args.find((a) => a && a.name === name)
+    if (named) return argValue(named)
+    if (!Number.isInteger(position)) return null
+    const positional = args.filter((a) => a && !a.name)
+    return positional[position] ? argValue(positional[position]) : null
+  }
+  /** `transp` as written: absent, a whole literal, or unreadable (`'unread'`). */
+  const transpOf = (callName, args) => {
+    const legacy = Number.isInteger(pineVersion) && pineVersion <= 4
+    const pos = legacy ? TRANSP_POSITION_LEGACY[callName] : undefined
+    const node = callArg(args, 'transp', pos)
+    if (!node) return null
+    if (node.type === 'number' && Number.isFinite(Number(node.value))) {
+      const v = Number(node.value)
+      return v >= 0 && v <= 100 ? v : 'unread'
+    }
+    return 'unread'
+  }
+  /** Is this colour expression OPAQUE on every bar, provably, from the source?
+   *  A style transparency (`transp =`, v4 `bgcolor`'s default 90) is folded into
+   *  an opaque colour only — a colour carrying its own transparency is a case no
+   *  capture pins, and the door withholds it rather than guess. `na` draws
+   *  nothing, so it never needs a transparency. */
+  const opaqueColour = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 16) return false
+    if (isBuiltinNa(node, scope)) return true
+    if (node.type === 'colour') return /^#[0-9a-f]{6}(ff)?$/i.test(String(node.value))
+    if (node.type === 'paren' && node.expr) return opaqueColour(node.expr, scope, depth + 1)
+    if (node.type === 'name') {
+      if (lookupReadable(node.name, scope) !== null) return false
+      const bound = env.get(node.name)
+      if (bound) return bound.kind === 'expr' && opaqueColour(bound.node, scope, depth + 1)
+      return colourHexByName(node.name, pineVersion) !== null
+    }
+    if (node.type === 'ternary') {
+      return opaqueColour(node.yes, scope, depth + 1) && opaqueColour(node.no, scope, depth + 1)
+    }
+    if (node.type === 'call' && node.name === 'color.rgb' && !definedNames.has(node.name)) {
+      return (node.args || []).length === 3
+    }
+    if (node.type === 'call' && (node.name === 'input.color' || node.name === 'input') && !definedNames.has(node.name)) {
+      return opaqueColour(inputColourDefaultNode(node), scope, depth + 1)
+    }
+    return false
+  }
+  /** RT6 — what a plot-family / paint call says about its colour, recorded on its
+   *  output descriptor; for a plot-family call with a `color =`, the colour is
+   *  lowered here, in the call's own statement position, into a deferred output. */
+  const describeColour = (callName, args, scope, out, desc) => {
+    const colourNode = callArg(args, 'color', COLOUR_POSITION[callName])
+    if (Object.hasOwn(COLOUR_POSITION, callName) && !PLOT_COLOUR_CALLS.has(callName)) {
+      // a paint: its colour IS the value already emitted
+      desc.transp = transpOf(callName, args)
+      desc.colourOpaque = opaqueColour(colourNode, scope)
+      return
+    }
+    if (!PLOT_COLOUR_CALLS.has(callName) || !colourNode) return
+    desc.transp = transpOf(callName, args)
+    desc.colourOpaque = opaqueColour(colourNode, scope)
+    if (!holdsColour(colourNode, scope)) {
+      desc.colour = { refused: 'its `color =` is not an expression this lane reads as a colour' }
+      return
+    }
+    let stmt
+    try {
+      stmt = emit(-1, lowerExpr(colourNode, scope))
+    } catch (err) {
+      desc.colour = { refused: String((err && err.message) || err).slice(0, 200) }
+      return
+    }
+    out.push(stmt)
+    colourEmits.push({ stmt, desc })
+  }
+
   /** Emit ONE output for an output call, and answer its index.
    *
    *  ⭐⭐ ONE EMITTER FOR BOTH SPELLINGS. `plot(close)` as a statement and
@@ -5505,6 +5618,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
     out.push(emit(index, lowerExpr(arg0, scope)))
+    if (wantColours) {
+      const desc = outputs[index]
+      if (at && Number.isInteger(at.line)) desc.line = at.line
+      describeColour(callName, args, scope, out, desc)
+    }
     return index
   }
 
@@ -8075,6 +8193,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   diagnostics.functions = functions.length
   diagnostics.callSites = callSites.length
   diagnostics.pureFunctions = functions.filter((f) => f.effects && f.effects.pure).length
+
+  // ⭐ RT6 — the plot colours take their output indices LAST, after every output
+  // the walk and the object pass minted, so no existing index moves.
+  for (const ce of colourEmits) {
+    const of = outputs.indexOf(ce.desc)
+    ce.stmt.output = outputs.length
+    ce.desc.colour = { output: outputs.length }
+    outputs.push({ call: 'colour', of })
+  }
 
   let ir
   try {

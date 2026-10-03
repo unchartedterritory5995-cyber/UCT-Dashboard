@@ -316,6 +316,22 @@ function withOpacity(hex, opacity) {
   return `${c.slice(0, 7)}${a}`
 }
 
+/** ⭐ RT6 — the paint records the pairing reads (`paintColours.gradePaints`).
+ *  For a host-lane document they are the translation's own. A RUNTIME document
+ *  draws a paint the host withheld for its colour (the run computes it): such a
+ *  paint, found on the document by its kind and line, is graded as drawn rather
+ *  than reported "withheld"; every other record is the translation's, verbatim. */
+function runtimeAwarePaints(built, def) {
+  const host = ((built.translation && built.translation.presentation) || {}).paints || []
+  if (built.lane !== 'runtime') return host
+  const drawn = new Set((def.paints || []).map((p) => `${p.kind}@${p.line}`))
+  return host.map((p) => {
+    if (!p || !drawn.has(`${p.kind}@${p.line}`)) return p
+    const { withheld: _w, na: _n, ...rest } = p
+    return rest
+  })
+}
+
 /** Drive the real binder over the recording double; per plot key, the colour
  *  the renderer was handed for every bar (point colour, else series colour). */
 function drawnColours(def, bars, ctx) {
@@ -681,7 +697,7 @@ export function runOurSide(capture) {
       // ⭐ B1 — what the door carried (every call, withheld ones included, in source
       // order), what the document draws, and what the binder handed the chart.
       paints,
-      translationPaints: ((built.translation && built.translation.presentation) || {}).paints || [],
+      translationPaints: runtimeAwarePaints(built, def),
       drawnPaints: colours && colours.paints ? colours.paints : null,
     }
   } finally {

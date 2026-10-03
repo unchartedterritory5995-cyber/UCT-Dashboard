@@ -226,10 +226,19 @@ describe('the binder draws paints', () => {
     expect(h.calls('attachPrimitive')).toEqual([])
   })
 
-  it('⛔ two barcolors that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+  it('⭐ RT6 — within ONE script the LATER barcolor wins (CAP round 4 P1/P2 screenshot)', () => {
     const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
     const h = harness(new Map([['u_d', def('u_d', [BAR, other])]]))
     const res = h.run([inst('u_d')])
+    // cond = [1,0,1,0]: the later paint's colour on every bar — red, blue, red, blue
+    expect([...h.handed[0].values()]).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff'])
+    expect(res.paints.conflicts).toBe(0)
+  })
+
+  it('⛔ two DIFFERENT scripts that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+    const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
+    const h = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [other])]]))
+    const res = h.run([inst('u_d'), inst('u_e')])
     // cond = [1,0,1,0]: bars 0 and 2 agree (red/red), bars 1 and 3 disagree (red/blue)
     expect([...h.handed[0].keys()]).toEqual([String(BARS[0].t), String(BARS[2].t)])
     expect(res.paints.conflicts).toBe(2)

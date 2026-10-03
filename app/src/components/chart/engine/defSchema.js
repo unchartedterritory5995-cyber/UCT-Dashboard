@@ -1571,6 +1571,20 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       errors.push(`${path}.colorGradient: a gradient is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
   }
+  // ⭐⭐ RT6 — A COLOUR THE RUNTIME LANE COMPUTED BAR BY BAR: the named column
+  // holds each bar's packed colour (`pool.packedPointColour`), `transparency` the
+  // STYLE transparency the call wrote, folded into an opaque colour only.
+  if (plot.colorPacked !== undefined) {
+    const p = plot.colorPacked
+    if (!isPlainObject(p)) {
+      errors.push(`${path}.colorPacked: expected an object, got ${fmt(p)}`)
+    } else if (p.transparency !== undefined
+      && !(Number.isInteger(p.transparency) && p.transparency >= 0 && p.transparency <= 100)) {
+      errors.push(`${path}.colorPacked.transparency: expected a whole number 0-100, got ${fmt(p.transparency)}`)
+    } else if (typeof plot.colorMode !== 'string' || !plot.colorMode.startsWith('column:')) {
+      errors.push(`${path}.colorPacked: a computed colour is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
+    }
+  }
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
     if (!isNonEmptyString(plot[field])) {
@@ -1817,6 +1831,17 @@ function validateColorModes(plots, columnKeys, errors) {
       if (plot.colorGradient !== undefined) {
         errors.push(`${path}: declare colorPalette OR colorGradient for ${fmt(mode)}, not both`)
       }
+      if (plot.colorPacked !== undefined) {
+        errors.push(`${path}: declare colorPalette OR colorPacked for ${fmt(mode)}, not both`)
+      }
+      return
+    }
+    // ⭐⭐ RT6 — OR A COMPUTED COLOUR: the column IS the colour. A fourth way to
+    // say what the column holds; a plot says exactly one.
+    if (plot.colorPacked !== undefined) {
+      if (plot.colorUp !== undefined || plot.colorDown !== undefined || plot.colorGradient !== undefined) {
+        errors.push(`${path}: declare colorPacked alone for ${fmt(mode)} (not with colorUp/colorDown or colorGradient)`)
+      }
       return
     }
     // ⭐⭐ C37 — OR A GRADIENT: the column then holds the bar's position between
@@ -2030,9 +2055,15 @@ function validatePaints(paints, columnKeys, errors) {
       isColour(p.colorUp) && isColour(p.colorDown),
       Array.isArray(p.colorPalette) && p.colorPalette.length >= 2 && p.colorPalette.every(isColour),
       isPlainObject(p.colorGradient) && isColour(p.colorGradient.from) && isColour(p.colorGradient.to),
+      // ⭐ RT6 — a colour the runtime lane computed bar by bar (`pool.packedPointColour`)
+      isPlainObject(p.colorPacked),
     ].filter(Boolean).length
     if (ways !== 1) {
-      errors.push(`${path}: colorMode ${fmt(p.colorMode)} needs exactly one of colorUp/colorDown, a colorPalette of two or more colours, or a colorGradient`)
+      errors.push(`${path}: colorMode ${fmt(p.colorMode)} needs exactly one of colorUp/colorDown, a colorPalette of two or more colours, a colorGradient, or a colorPacked`)
+    }
+    if (isPlainObject(p.colorPacked) && p.colorPacked.transparency !== undefined
+      && !(Number.isInteger(p.colorPacked.transparency) && p.colorPacked.transparency >= 0 && p.colorPacked.transparency <= 100)) {
+      errors.push(`${path}.colorPacked.transparency: expected a whole number 0-100, got ${fmt(p.colorPacked.transparency)}`)
     }
   })
 }
