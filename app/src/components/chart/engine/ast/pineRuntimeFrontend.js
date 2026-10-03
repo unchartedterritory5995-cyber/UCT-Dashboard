@@ -1390,30 +1390,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n.type === 'name') { const b = env.get(n.name); return !!(b && b.frame) }
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(readsFrameName) : (v && typeof v === 'object' && v.type ? readsFrameName(v) : false)))
   }
-  // A user function folded into a column (`f(x) => x[1]`) loses its frame in the
-  // canonical tree: `f(close)` reads as `close[1]`. Its history belongs to the
-  // CALL SITE, so the call is judged on what its body adds around its arguments.
-  const userCallHasHistory = (n) => {
-    if (!(objectsInRun && condDepth > 0) || !n || typeof n !== 'object') return false
-    if (n.type === 'call' && typeof n.name === 'string' && definedNames.has(n.name)) {
-      try {
-        const whole = makeResolver().resolve(n)
-        const argCanon = new Set()
-        for (const a of n.args || []) {
-          const an = a && a.type ? a : a && a.value
-          if (an) argCanon.add(JSON.stringify(makeResolver().resolve(an)))
-        }
-        const strip = (c) => {
-          if (!c || typeof c !== 'object') return c
-          if (argCanon.has(JSON.stringify(c))) return { type: 'num', value: 0 }
-          return c.args ? { ...c, args: c.args.map(strip) } : c
-        }
-        if (statefulTree(strip(whole), true)) return true
-      } catch { return true }
-    }
-    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(userCallHasHistory)
-      : (v && typeof v === 'object' && v.type ? userCallHasHistory(v) : false)))
-  }
   // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
   // is a string the drawing layer reads, never a column.
   const containsObjectEnum = (n) => {
@@ -1450,7 +1426,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null) functions[owner].rt5History = true
       conditionalHistoryGuard('a series with history', at)
     }
-    if (userCallHasHistory(node)) conditionalHistoryGuard('a function whose body keeps history', at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value

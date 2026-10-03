@@ -102,6 +102,11 @@ describe('RT5 — conditional-call history refuses by name', () => {
     expect(labels[5].props.y).toBeCloseTo(want, 9)
   })
 
+  it('control: bar_index[k] inside a global block is the chart\'s (A13, C06), and builds', () => {
+    const { fin } = run('if bar_index % 10 == 0\n    label.new(bar_index[3], close)\n')
+    expect(ofFamily(fin, 'label')[2].props.x).toBe(17)
+  })
+
   it('control: the chart\'s own history inside a block is the chart\'s, and builds', () => {
     const { fin } = run('if bar_index % 10 == 0\n    label.new(bar_index, close[1])\n')
     const labels = ofFamily(fin, 'label')
