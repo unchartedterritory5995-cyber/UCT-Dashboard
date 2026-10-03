@@ -40,14 +40,14 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 4 | 2 | 8 | 3 | 0 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 8 | 1 |
-| 3 TERM-001..093 | 93 | 55 | 11 | 13 | 10 | 4 |
+| 3 TERM-001..093 | 93 | 55 | 13 | 11 | 10 | 4 |
 | 4 BRK-01..10 | 10 | 1 | 3 | 4 | 2 | 0 |
 | 5 COV-01..12 | 12 | 3 | 3 | 2 | 4 | 0 |
 | 6 FT-001..080 | 80 | 13 | 34 | 21 | 11 | 1 |
 | 7 Untracked promises | 58 | 0 | 1 | 51 | 1 | 5 |
-| **total** | **279** | **76** | **54** | **99** | **39** | **11** |
+| **total** | **279** | **76** | **56** | **97** | **39** | **11** |
 
-`building` by lane: O 17 · R 16 · P 14 · S 13 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
+`building` by lane: O 17 · R 16 · S 13 · P 12 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all in production.** X-06..X-09 are records and an env arming. Every TERM/FT/BRK/COV `live` row is on master.
@@ -150,12 +150,12 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-056` | Command-string interchange | `building (Notebook)` | Note-address half in the Notebook editor (`api/services/address_space.py:387`). |
 | `TERM-057` | "Why isn't X here" receipt | `live` | `app/src/components/provenance/AbsenceReceipt.jsx:7`. |
 | `TERM-058` | Authoring-time live match count | `live` | `api/routers/screener.py:258`. |
-| `TERM-059` | Label stale / proxied values | `building (Lane P)` | NAAIM live (`app/src/pages/breadth/naaimAge.js:13`). AAII, CBOE P/C, CNN F/G and the H8 proxies remain. |
+| `TERM-059` | Label stale / proxied values | `dark` | NAAIM live (`app/src/pages/breadth/naaimAge.js`). BUILT on `lane/p-platform` (branch-only): AAII's four columns state their survey as-of (`breadth/sentimentAge.js`, weekly, undated labelled); CBOE P/C and CNN F/G label a print a heal CARRIED, because `breadth_self_heal` now stamps `<key>_asof` with the source session (a chain of carries names the original). Rails `sentimentAge.test.jsx`, `test_breadth_self_heal.py`. Not labelled, stated: a reconstructed pre-collector row's forward-filled daily value has no date; the H8 proxies (Macrotrends/Barchart/YCharts) have no consumer in `app/src`. |
 | `TERM-060` | Machine-checkable citation pointer | `live` | `api/services/canonical/claims.py:149`. |
 | `TERM-061` | Skill file, whitelist, MCP | `owner-blocked (rule to publish the skill file; MCP also needs RATE_LIMIT_POLICY at enforce)` | `api/services/skill_whitelist.py:52`. |
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
-| `TERM-064` | One ticker resolver | `building (Lane P)` | Resolver live (`api/services/ticker_resolver.py`). Tweet ingest and the frontend still need to delegate to it. |
+| `TERM-064` | One ticker resolver | `dark` | Resolver live. BUILT on `lane/p-platform` (branch-only): tweet ingest delegates (`CASHTAG_POST` context, so `$BRK.B` books BRK-B, not BRK); the frontend's free-text extractors (`floor2/Composer.jsx`, `AiSearchWidget.jsx`) delegate to `app/src/lib/tickerResolver.js`, the cashtag tier byte-equal to Python, one parity case file run on both sides. `tickerMention.js` (structured chips) and `parseSymbols` (a list splitter) resolve nothing from prose, so stay. |
 | `TERM-065` | DataGrid seed extraction | `building (Lane P)` | Seed live; ratchet of 14 grids to drain. |
 | `TERM-066` | One format module | `building (Lane P)` | Module live; 60 formatter sites to drain. |
 | `TERM-067` | Form-control layer | `building (Lane P)` | 33 unnamed controls + a `Radio` primitive (`app/src/components/ui/formControls.census.test.js:886`). |

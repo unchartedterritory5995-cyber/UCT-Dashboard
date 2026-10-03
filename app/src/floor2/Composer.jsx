@@ -5,13 +5,14 @@ import ChartAttach from './ChartAttach'
 import { buildDoc, uploadImage } from './hooks/useFloor'
 import Input from '../components/ui/Input'
 import Textarea from '../components/ui/Textarea'
+import { resolveCashtags } from '../lib/tickerResolver'
 
 const FLAIRS = ['Question', 'Discussion', 'Trade Idea', 'Lesson', 'Deep Dive']
 
+// TERM-064: the post's cashtags, through the one resolver's cashtag tier
+// ($BRK.B books BRK-B, $USD is not a ticker, $aapl is AAPL).
 function extractTickers(text) {
-  const set = new Set()
-  for (const m of String(text).matchAll(/\$([A-Z]{1,5})\b/g)) set.add(m[1])
-  return [...set]
+  return resolveCashtags(text)
 }
 
 export default function Composer({ onClose, onSubmit }) {

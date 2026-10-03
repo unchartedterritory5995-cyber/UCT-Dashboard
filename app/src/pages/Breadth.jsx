@@ -32,6 +32,7 @@ import useBreadthUrlState from './breadth/useBreadthUrlState'
 import useBreadthHubSection, { resolveBreadthTabs } from '../hub/sections/breadthSection'
 import FreshnessBadge from '../components/provenance/FreshnessBadge'
 import { naaimAge } from './breadth/naaimAge'
+import { aaiiAge, dailyCarryAge } from './breadth/sentimentAge'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -257,16 +258,19 @@ export const COLS = [
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
-    colorFn: v => v == null ? '' : v <= 15 ? 'g3' : v <= 25 ? 'g2' : v <= 40 ? 'g1' : v <= 60 ? 'a' : v <= 70 ? 'r1' : v <= 80 ? 'r2' : 'r3' },
-  { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
+    colorFn: v => v == null ? '' : v <= 15 ? 'g3' : v <= 25 ? 'g2' : v <= 40 ? 'g1' : v <= 60 ? 'a' : v <= 70 ? 'r1' : v <= 80 ? 'r2' : 'r3',
+    // TERM-059: a print a heal CARRIED from an earlier session says so (breadth/sentimentAge.js).
+    age: dailyCarryAge.cnn_fear_greed },
+  // TERM-059: the weekly AAII survey states its own as-of at the value, like NAAIM.
+  { key: 'aaii_bulls',    label: 'AAII Bulls', group: G.SENTIMENT, fmt: v => fmtDec(v, 1), age: aaiiAge.aaii_bulls },
+  { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1), age: aaiiAge.aaii_neutral },
+  { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1), age: aaiiAge.aaii_bears },
+  { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1), age: aaiiAge.aaii_spread },
   // TERM-059: the weekly survey states its own as-of AT THE VALUE. `age` hands
   // the cell TERM-006's verdict (freshnessAge.js) for this row; the cell only
   // renders it. See breadth/naaimAge.js for why "now" is the row's session.
   { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2), age: naaimAge },
-  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
+  { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2), age: dailyCarryAge.cboe_putcall },
 ]
 
 function getCellTier(col, row) {
@@ -1311,7 +1315,7 @@ export default function Breadth() {
                     const age = col.age ? col.age(row) : null
                     const ageTitle = age?.mustLabel
                       ? (age.asOfDate
-                        ? `${col.label}: ${age.cadence} survey dated ${age.asOfDate}`
+                        ? `${col.label}: ${age.cadence} ${age.dataClass === 'weekly' ? 'survey' : 'print'} dated ${age.asOfDate}`
                         : `${col.label}: ${age.cadence} reading with no survey date`)
                       : null
                     return (

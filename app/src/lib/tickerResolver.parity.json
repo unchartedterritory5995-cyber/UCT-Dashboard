@@ -1,0 +1,18 @@
+{
+  "_readme": "TERM-064 follow-up 3: one case file, run through the Python resolver's CASHTAG_POST context (tests/test_ticker_resolver_cashtag_parity.py) AND app/src/lib/tickerResolver.js (tickerResolver.test.js). A case that the two answer differently fails on both sides.",
+  "cases": [
+    {"text": "$AAPL just hit a new high", "want": ["AAPL"]},
+    {"text": "$AAPL and $MSFT both up, $AAPL again", "want": ["AAPL", "MSFT"]},
+    {"text": "$aapl beats", "want": ["AAPL"]},
+    {"text": "$USD weak, $EUR strong, $AAPL up", "want": ["AAPL"]},
+    {"text": "$BTC $ETH $SOL all green", "want": ["BTC", "ETH", "SOL"]},
+    {"text": "Earnings beat by $5 vs $0.10 est", "want": []},
+    {"text": "$ABCDEF some text", "want": []},
+    {"text": "$NVIDIA is not a ticker", "want": []},
+    {"text": "Apple just hit a new high (no cashtag) NVDA", "want": []},
+    {"text": "Class shares: $BRK.B and $BF-B", "want": ["BRK-B", "BF-B"]},
+    {"text": "link form [NVDA]($NVDA) then $AMD.", "want": ["NVDA", "AMD"]},
+    {"text": "Big day for $AAPL, $TSLA, and $NVDA!", "want": ["AAPL", "TSLA", "NVDA"]},
+    {"text": "", "want": []}
+  ]
+}
