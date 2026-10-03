@@ -270,7 +270,10 @@ def _build_fill_rows(target: date):
 
     df = pd.read_csv(io.BytesIO(gzip.decompress(gz)))
     df = df.sort_values("sip_timestamp", kind="stable").reset_index(drop=True)
-    events, agg_stats = batch_process(df, min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME)
+    # tick_side: each healed row carries its own tick-test side, computed on the
+    # exact event it describes (see TradeAggregator.tick_side).
+    events, agg_stats = batch_process(df, min_premium=MIN_PREMIUM, min_volume=MIN_VOLUME,
+                                      tick_side=True)
     del df, gz
 
     stocks = [e for e in events if not is_index_source(e.root)]
@@ -782,6 +785,91 @@ def run_fill_walkback(max_days: int = None, *, end_date: date = None,
             "by_status": by_status, "healed": healed, "results": results}
 
 
+# --- Re-side a completed fill ---------------------------------------------------
+
+def reside_run(run_id: int, *, dry_run: bool = False) -> dict:
+    """Recompute Side for the rows a completed fill inserted, from the raw tape,
+    with the per-event tick test (batch_process tick_side=True).
+
+    For fills made before 2026-10-03, whose sides came from the 60s greedy patch
+    match (a row could carry ANOTHER trade's side — 10/2 AVGO 355C 11/6's $3.06M
+    ask-side sweep stored as "BB"). Rows are matched EXACTLY by dedup_key (which
+    excludes Side) and only rows in this run's flow_fill_inserted ledger are
+    touched — live-captured (NBBO-sided) rows never are. dry_run counts changes
+    without writing."""
+    from api.flow_db import FlowDB
+    _init_schema()
+    with _conn() as c:
+        run = c.execute("SELECT target_date, status FROM flow_fill_runs WHERE run_id=?",
+                        (run_id,)).fetchone()
+    if run is None:
+        return {"status": "not_found"}
+    if run["status"] != "completed":
+        return {"status": "not_completed", "run_status": run["status"]}
+    m, d, y = (int(x) for x in run["target_date"].split("/"))
+    target = date(y, m, d)
+    if not _RUN_LOCK.acquire(blocking=False):
+        return {"status": "busy"}
+    tape = None
+    try:
+        fill_rows, ff_stats = _build_fill_rows(target)
+        tape = (ff_stats or {}).get("tape_path")
+        if fill_rows is None:
+            return {"status": "no_file"}
+        side_by_key = {}
+        for source, rows in fill_rows.items():
+            for _sec, row in rows:
+                side_by_key[FlowDB._make_dedup_key(row, source)] = row.get("Side") or ""
+        del fill_rows
+        changed, unchanged, unmatched = [], 0, 0
+        moves: dict = {}
+        with _conn() as c:
+            stored = c.execute(
+                "SELECT f.id, f.dedup_key, f.Side FROM flow f JOIN flow_fill_inserted i "
+                "ON i.flow_id = f.id WHERE i.run_id=?", (run_id,)).fetchall()
+            for fid, dkey, old in stored:
+                new = side_by_key.get(dkey)
+                if new is None:
+                    unmatched += 1
+                elif new != (old or ""):
+                    changed.append((new, fid))
+                    mv = f"{old or '-'}->{new or '-'}"
+                    moves[mv] = moves.get(mv, 0) + 1
+                else:
+                    unchanged += 1
+            undo_path = None
+            if changed and not dry_run:
+                # Undo file first: {flow id: old Side} for every row we rewrite.
+                old_by_id = {fid: (old or "") for fid, _dk, old in stored}
+                os.makedirs(BACKUP_DIR, exist_ok=True)
+                undo_path = os.path.join(BACKUP_DIR, f"reside-undo-run{run_id}-"
+                                         f"{int(time.time())}.json")
+                with open(undo_path, "w") as f:
+                    json.dump({str(fid): old_by_id[fid] for _new, fid in changed}, f)
+                c.execute("BEGIN IMMEDIATE")
+                c.executemany("UPDATE flow SET Side=? WHERE id=?", changed)
+                c.execute("COMMIT")
+        out = {"status": "dry_run" if dry_run else "completed", "run_id": run_id,
+               "undo_file": undo_path,
+               "target_date": run["target_date"], "changed": len(changed),
+               "unchanged": unchanged, "unmatched": unmatched,
+               "top_moves": dict(sorted(moves.items(), key=lambda kv: -kv[1])[:8])}
+        if changed and not dry_run:
+            _bump_version(run["target_date"])
+            _post_discord(f"\U0001F527 FLOW RE-SIDE run {run_id} ({run['target_date']}): "
+                          f"{len(changed):,} rows changed, {unchanged:,} unchanged, "
+                          f"{unmatched:,} unmatched · {out['top_moves']}")
+        logger.info("[gap-fill] reside run %s: %s", run_id, out)
+        return out
+    finally:
+        if tape:
+            try:
+                os.remove(tape)
+            except OSError:
+                pass
+        _RUN_LOCK.release()
+
+
 # --- Rollback --------------------------------------------------------------------
 
 def rollback_run(run_id: int) -> dict:
@@ -1020,6 +1108,36 @@ def trigger_rollback(run_id: int, _auth: dict = Depends(require_flow_admin)):
     if t.is_alive():
         return JSONResponse({"status": "running", "check": "/api/flow-gap-fill/status"})
     return JSONResponse(out)
+
+
+_LAST_RESIDE: dict = {}
+
+
+@router.post("/reside/{run_id}")
+def trigger_reside(run_id: int, dry_run: bool = True,
+                   _auth: dict = Depends(require_flow_admin)):
+    """Recompute Side for a completed fill's rows from the raw tape (see
+    reside_run). dry_run defaults TRUE — pass dry_run=false to write. Daemon
+    thread (downloads the day's tape); result at GET /reside-last + Discord."""
+
+    def _do():
+        _LAST_RESIDE.clear()
+        _LAST_RESIDE.update({"status": "running", "run_id": run_id, "dry_run": dry_run})
+        try:
+            res = reside_run(run_id, dry_run=dry_run)
+        except Exception as e:
+            logger.exception("[gap-fill] reside failed: %s", e)
+            res = {"status": "failed", "run_id": run_id, "error": str(e)[:300]}
+        _LAST_RESIDE.clear()
+        _LAST_RESIDE.update(res)
+
+    threading.Thread(target=_do, daemon=True, name="flow-gap-fill-reside").start()
+    return JSONResponse({"status": "started", "check": "/api/flow-gap-fill/reside-last"})
+
+
+@router.get("/reside-last")
+def reside_last(_auth: dict = Depends(require_flow_admin)):
+    return JSONResponse(dict(_LAST_RESIDE) or {"status": "never_run"})
 
 
 @router.get("/rest-backfill-probe")
