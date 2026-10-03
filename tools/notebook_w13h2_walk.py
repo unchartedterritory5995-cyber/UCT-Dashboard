@@ -328,19 +328,27 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
         if stuck:
             break
     w.raw[f"{tag}_draw_attempts"] = attempts
-    canvas_box = None
-    for _ in range(40):
+
+    def biggest_canvas_box():
+        """The biggest on-page canvas's CURRENT viewport-relative box, re-read fresh
+        -- never cached across taps. 13H-3: the embed grows TALLER than the viewport
+        while a touch tool is armed (the embed's own fix for taps lost behind the
+        floating drawing toolbar, measured in docs/notebook/evidence/wave13-13h3/),
+        so a box read once before arming can go stale the moment the layout grows."""
         boxes = frame.locator("canvas").evaluate_all(
             "cs => cs.map(c => { const r = c.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] })")
         big = [b for b in boxes if b[2] > 150 and b[3] > 120]
-        if big:
-            canvas_box = max(big, key=lambda b: b[2] * b[3])
+        return max(big, key=lambda b: b[2] * b[3]) if big else None
+
+    canvas_box = None
+    for _ in range(40):
+        canvas_box = biggest_canvas_box()
+        if canvas_box:
             break
         pg.wait_for_timeout(250)
     w.raw[f"{tag}_canvas_box"] = canvas_box
     if not canvas_box:
         return 0
-    x0, y0, cw, ch = canvas_box
     placed = 0
     for frac in (0.28, 0.5, 0.72):
         # The drawing toolbar is the chart's own (ChartToolbar); it may portal outside the embed
@@ -384,7 +392,42 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
             # produced exactly one stored line. Give the tool-armed state a moment to actually
             # reach the chart's touch handling before tapping the canvas.
             pg.wait_for_timeout(250)
+        # Re-measure fresh (see biggest_canvas_box's own comment): arming the tool
+        # can itself scroll the page (Playwright auto-scrolls a button into view
+        # before pressing it), which moves every VIEWPORT-relative coordinate taken
+        # before that press. Then, if the target point still would not land inside
+        # the viewport -- the embed can be taller than the viewport entirely while
+        # annotating -- scroll it there explicitly and re-measure once more. Raw
+        # coordinate dispatch (touchscreen.tap / mouse.click), not a locator's own
+        # click/tap: several canvases share this exact box (the chart's own
+        # candle-pane canvas UNDER the drawing overlay's canvas), and a locator's
+        # actionability check insists on ITS chosen one of them receiving the
+        # event -- which can name the wrong one and hang. Raw dispatch asks the
+        # BROWSER what is actually on top at that pixel, the same thing a real
+        # finger or mouse does.
+        box = biggest_canvas_box() or canvas_box
+        x0, y0, cw, ch = box
         x, y = x0 + cw * 0.45, y0 + ch * frac
+        vh = pg.evaluate("() => window.innerHeight")
+        if y < 0 or y > vh - 4:
+            # NOT window.scrollBy: this app scrolls the inner `.main` element, with
+            # `overflow-y: auto` -- the document/window itself does not scroll
+            # (CLAUDE.md, "Mobile layout gotcha"). window.scrollBy no-ops here, which
+            # is exactly how the first version of this fix silently failed to move
+            # anything and dispatched a tap past the bottom of the viewport. Walk UP
+            # from the embed's own element to the nearest ancestor that actually HAS
+            # overflow, and scroll THAT.
+            frame.evaluate(
+                "(el, dy) => { let n = el; while (n && n !== document.body) { "
+                "const cs = getComputedStyle(n); "
+                "if (n.scrollHeight > n.clientHeight + 2 && /(auto|scroll)/.test(cs.overflowY)) { n.scrollTop += dy; return true } "
+                "n = n.parentElement } window.scrollBy(0, dy); return false }",
+                y - vh / 2)
+            pg.wait_for_timeout(120)
+            box = biggest_canvas_box() or box
+            x0, y0, cw, ch = box
+            x, y = x0 + cw * 0.45, y0 + ch * frac
+        w.raw.setdefault(f"{tag}_tap_points", []).append({"frac": frac, "box": list(box), "x": round(x, 1), "y": round(y, 1)})
         if touch:
             pg.touchscreen.tap(x, y)
         else:
