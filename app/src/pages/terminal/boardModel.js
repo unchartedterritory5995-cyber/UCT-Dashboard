@@ -514,6 +514,12 @@ export function slugify(name) {
   return s || 'board'
 }
 
+/** Two board names are one board when they differ only in case, spacing or punctuation. */
+function sameBoardName(a, b) {
+  const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return norm(a) === norm(b)
+}
+
 function uniqueSlug(slug, boards, exceptId) {
   const taken = new Set(boards.filter((b) => b.id !== exceptId).map((b) => b.slug))
   if (!taken.has(slug)) return slug
@@ -571,7 +577,8 @@ export function readLibrary(raw) {
 export function saveBoard(library, name, layout, syms, now = Date.now()) {
   const n = String(name || '').trim().slice(0, 60)
   if (!n) return { library, ok: false, reason: 'name' }
-  const existing = library.boards.find((b) => b.name.toLowerCase() === n.toLowerCase())
+  // "The same name": case, spaces and punctuation do not make a new board.
+  const existing = library.boards.find((b) => sameBoardName(b.name, n))
   if (!existing && library.boards.length >= MAX_BOARDS) return { library, ok: false, reason: 'full' }
   const id = existing?.id || `b${now.toString(36)}${library.boards.length.toString(36)}`
   const board = {
@@ -588,7 +595,7 @@ export function saveBoard(library, name, layout, syms, now = Date.now()) {
 
 export function renameBoard(library, id, name) {
   const n = String(name || '').trim().slice(0, 60)
-  if (!n || library.boards.some((b) => b.id !== id && b.name.toLowerCase() === n.toLowerCase())) return library
+  if (!n || library.boards.some((b) => b.id !== id && sameBoardName(b.name, n))) return library
   return { ...library, boards: library.boards.map((b) => (b.id === id ? { ...b, name: n, slug: uniqueSlug(slugify(n), library.boards, id) } : b)) }
 }
 
