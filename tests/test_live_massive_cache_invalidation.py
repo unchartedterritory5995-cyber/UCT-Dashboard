@@ -105,3 +105,47 @@ def test_rth_capped_snapshot_recomputes_after_close(monkeypatch):
     monkeypatch.setattr(lmr, "_in_market_hours", lambda *a: False)
     _recent(lmr)                       # closed → full-day recompute
     assert len(calls) == 2
+
+
+# ── Past-day scan: one LIMIT per source (healed 10/2) ─────────────────────────
+
+def test_past_closed_scan_limits_each_source(monkeypatch, tmp_path):
+    """Healed 10/2: 42.5k stock rows then 69.3k index rows (higher ids). A shared
+    LIMIT starved stocks; past-closed must give each source its own LIMIT."""
+    import sqlite3
+    db = tmp_path / "flow.db"
+    c = sqlite3.connect(db)
+    c.execute("""CREATE TABLE flow (id INTEGER PRIMARY KEY, source TEXT,
+        CreatedDate TEXT, CreatedTime TEXT, Symbol TEXT, Type TEXT, Volume TEXT,
+        Price TEXT, Side TEXT, CallPut TEXT, Strike TEXT, Spot TEXT, Premium TEXT,
+        ExpirationDate TEXT, Color TEXT, Dte TEXT, ER TEXT, StockEtf TEXT,
+        Sector TEXT, Uoa TEXT, Weekly TEXT, MktCap TEXT, OI TEXT)""")
+    rows = [("stocks", f"10:{i:02d}:00 AM") for i in range(30)] + \
+           [("indexes", f"11:{i:02d}:00 AM") for i in range(50)]   # indexes inserted after
+    for src, t in rows:
+        c.execute("INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Color, "
+                  "Premium) VALUES (?, '10/2/2026', ?, 'X', 'YELLOW', '1000')", (src, t))
+    c.commit()
+    c.close()
+
+    seen = {}
+
+    def fake_row_to_alert(r, **k):
+        seen.setdefault(r["source"], 0)
+        seen[r["source"]] += 1
+        return None
+
+    monkeypatch.setattr(lmr, "DB_PATH", str(db))
+    monkeypatch.setattr(lmr, "_today_mdyyyy", lambda: "10/5/2026")
+    monkeypatch.setattr(lmr, "_in_market_hours", lambda *a: False)
+    monkeypatch.setattr(lmr, "_maybe_refresh_dormant", lambda: None)
+    monkeypatch.setattr(lmr, "_row_to_alert", fake_row_to_alert)
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {
+        "etf_enabled": True, "close_detector_enabled": False,
+        "alpha_leaps_enabled": False, "ask_accum_enabled": False,
+        "incremental_scan": False})
+    monkeypatch.setenv("MASSIVE_RECENT_SQL_CAP_WIDE", "40")
+
+    _, meta = lmr._compute_recent_core("10/2/2026", 500, "D", "recent", None, False)
+    assert seen == {"stocks": 30, "indexes": 40}   # shared LIMIT 40 would give stocks 0
+    assert meta["scan_capped"] is True and meta["scan_capped_rth"] is False

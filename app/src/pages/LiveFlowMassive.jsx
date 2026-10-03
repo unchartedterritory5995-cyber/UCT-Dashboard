@@ -4650,9 +4650,12 @@ export default function LiveFlowMassive() {
           than silently showing an afternoon-only tape. */}
       {targetDate && viewMode === "print" && status?.scan_capped && (
         <div style={{ margin: "0 0 12px", fontSize: 12, color: P.mt }}>
-          Showing the most recent {(status.rows_scanned || 0).toLocaleString()} prints of this day
-          while the market is open — the full day loads after 4:00 PM ET.
-          Options Flow has the complete tape now.
+          {status.scan_capped_rth
+            ? <>Showing the most recent {(status.rows_scanned || 0).toLocaleString()} prints of this day
+                while the market is open — the full day loads after 4:00 PM ET.</>
+            : <>Showing the most recent {(status.rows_scanned || 0).toLocaleString()} prints of this
+                day (scan limit reached).</>}
+          {" "}Options Flow has the complete tape.
         </div>
       )}
 
