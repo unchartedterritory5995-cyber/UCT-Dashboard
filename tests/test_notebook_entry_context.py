@@ -254,6 +254,27 @@ def test_a_second_freeze_open_or_resync_changes_nothing_and_recomputes_nothing(c
     assert again["context"]["fields"]["regime"]["value"] == "amber"
 
 
+def test_two_writers_racing_the_first_row_wins_and_the_second_writes_nothing(conn, src, monkeypatch):
+    """The early return covers a row that already exists; a SECOND writer landing between that
+    check and the insert (the sweep and the add's background task, say) is covered only by the
+    INSERT OR IGNORE itself."""
+    real = ectx.build_context
+
+    def racing(user_id, symbol, entry_day, **kw):
+        fields = real(user_id, symbol, entry_day, **kw)
+        conn.execute("INSERT INTO j2_entry_context (user_id, symbol, entry_day_et, capture_kind,"
+                     " capture_day_et, captured_at, trigger_source, version, context)"
+                     " VALUES ('u1','NVDA',?, 'at_entry', ?, 'first', 'sweep', 1, '{\"racer\":1}')",
+                     (TODAY, TODAY))
+        return fields
+    monkeypatch.setattr(ectx, "build_context", racing)
+    out = ectx.freeze("u1", "NVDA", TODAY, capture_kind="at_entry", trigger="manual_add", conn=conn,
+                      capture_day=TODAY)
+    assert out["frozen"] is False and out["context"]["trigger"] == "sweep"
+    assert [tuple(r) for r in conn.execute("SELECT captured_at, context FROM j2_entry_context")] == \
+        [("first", '{"racer":1}')]
+
+
 def _dump_ctx(c):
     return [tuple(r) for r in c.execute("SELECT * FROM j2_entry_context ORDER BY user_id, symbol")]
 
