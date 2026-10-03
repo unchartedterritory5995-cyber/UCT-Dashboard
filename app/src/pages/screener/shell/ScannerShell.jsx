@@ -20,11 +20,14 @@ import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
+import CriteriaBox from './CriteriaBox'
+import PromoteButton from './PromoteButton'
 import UniverseBar from './UniverseBar'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
+import { exportQuota, downloadExport } from '../../../lib/dataExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ScreenerReviewOverlay from './ScreenerReviewOverlay'
 import FlaggedActions from './FlaggedActions'
@@ -114,7 +117,7 @@ export default function ScannerShell({ embedded = false }) {
   // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
   // and faster preview count fed into FilterRail as a fast signal ahead of the
   // heavier scan above. Never replaces `result`/`isLoading` above.
-  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading } =
+  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading, asOf: matchCountAsOf } =
     useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
@@ -169,7 +172,32 @@ export default function ScannerShell({ embedded = false }) {
     return [...keys].map(k => ({ key: k, label: COLUMN_DEFS[k]?.label || k }))
   }, [meta])
 
+  // FT-041/042: the metered server export. `exportQuota()` is null while the
+  // server door is dark (404) or the plan is free (402) -- then the toolbar keeps
+  // today's in-browser CSV and shows no Excel button.
+  const [serverExport, setServerExport] = useState(null)
+  useEffect(() => {
+    let live = true
+    exportQuota().then(q => { if (live) setServerExport(q) })
+    return () => { live = false }
+  }, [])
+
+  const handleServerExport = async (format) => {
+    setExportState({ busy: true })
+    try {
+      const out = await downloadExport('/api/exports/screener', {
+        method: 'POST', format, body: { ...s.baseSpec, columns: visibleColumns } })
+      setExportState({ note: `Exported ${out.rows.toLocaleString()} rows (${format.toUpperCase()})` })
+      exportQuota().then(setServerExport)
+    } catch (e) {
+      setExportState({ error: `${e?.message || 'Export failed.'} Nothing was downloaded.` })
+    } finally {
+      setTimeout(() => setExportState({}), 6000)
+    }
+  }
+
   const handleExport = async () => {
+    if (serverExport) return handleServerExport('csv')
     setExportState({ busy: true })
     try {
       const labels = Object.fromEntries(visibleColumns.map(c => [c, COLUMN_DEFS[c]?.label || c]))
@@ -287,7 +315,8 @@ export default function ScannerShell({ embedded = false }) {
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
       matchCount={matchCount} matchCountEmpty={matchCountEmpty}
-      matchCountLoading={matchCountLoading} />
+      matchCountLoading={matchCountLoading} matchCountAsOf={matchCountAsOf}
+      criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
   )
 
   return (
@@ -331,6 +360,7 @@ export default function ScannerShell({ embedded = false }) {
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
+          onExportXlsx={serverExport ? () => handleServerExport('xlsx') : null}
           reviewBar={displayRows.length > 0 ? (
             /* ⛔ THE LOADED PAGE, NOT `total`. The toolbar can read "3,745
              * matches" while 100 rows have arrived; a review can only walk what
@@ -357,6 +387,7 @@ export default function ScannerShell({ embedded = false }) {
           saveBar={<>
             <SaveScanButton spec={s.baseSpec}
               hasFilters={Object.keys(s.filters).length > 0} />
+            <PromoteButton spec={s.baseSpec} disabled={!result || !total} />
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
               label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />
@@ -465,7 +496,8 @@ export default function ScannerShell({ embedded = false }) {
           <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
             onClear={s.clearFilters} variant="sheet"
             matchCount={matchCount} matchCountEmpty={matchCountEmpty}
-            matchCountLoading={matchCountLoading} />
+            matchCountLoading={matchCountLoading} matchCountAsOf={matchCountAsOf}
+            criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
         )}
       </FiltersSheet>
       {/* In-screener chart review — walks displayRows' tickers (the order shown)

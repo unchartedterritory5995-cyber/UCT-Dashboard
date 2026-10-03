@@ -74,6 +74,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/alerts/routing",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/alerts/taxonomy/cooldowns",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -89,6 +95,18 @@
       "path": "/api/alerts/taxonomy/fires",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks/{webhook_id}/deliveries",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2750,6 +2768,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/compile",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/grammar",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/meta",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -2775,6 +2805,12 @@
     {
       "method": "GET",
       "path": "/api/screener/structures",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/to-watchlist",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -3348,6 +3384,11 @@
     "/api/artifact-versions/{kind}/deleted",
     "/api/artifact-versions/{kind}/{artifact_id}",
     "/api/artifact-versions/{kind}/{artifact_id}/{version}",
+    "/api/exports/bars/{ticker}",
+    "/api/exports/news",
+    "/api/exports/options/{sym}/chain",
+    "/api/exports/quota",
+    "/api/exports/watchlists/{wl_id}",
     "/api/options-screener/iv-percentile",
     "/api/options-screener/screen",
     "/api/options-screener/strategies",

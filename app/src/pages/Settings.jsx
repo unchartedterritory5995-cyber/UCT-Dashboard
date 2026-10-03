@@ -31,6 +31,7 @@ import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedApps
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
 import PushNotificationsRow from '../components/settings/PushNotificationsRow'
+import AlertRoutingPanel from '../components/settings/AlertRoutingPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -2190,6 +2191,7 @@ export default function Settings() {
               </button>
             </div>
             <PushNotificationsRow />
+            <AlertRoutingPanel />
           </div>
         </TileCard>
   )

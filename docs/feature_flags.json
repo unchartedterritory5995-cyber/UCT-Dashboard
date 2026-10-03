@@ -1499,6 +1499,54 @@
       ],
       "note": "ARMED on web 2026-10-02 16:05Z (owner-run --set; deploy 94d46235 SUCCESS 16:08Z, fresh boot). Verified as the smoke account: auth filing_blackline_enabled=true; /api/research/blackline/AAPL 200 (10-K and ?form=10-Q, state pending, fetch queued). COV-04 (roadmap RM-L12) slice 1: the Research > Filing changes tab and GET /api/research/blackline/{sym}. The two most recent ORIGINAL 10-Ks of a symbol from SEC EDGAR (class A), Item 1A Risk Factors and Item 7 MD&A located in each and diffed paragraph by paragraph: added / removed / changed (word-level marks) / moved. Every side cites its accession number and filing date; a section not located is state not_found with the reason and no counts (never 'no changes'); a change of only years, dates or figures is marked boilerplate and counted, still listed. The request path reads the cache only: a miss answers state=pending and queues ONE refresh on api/services/filing_blackline.py's own single worker thread, which reaches SEC only through fundamentals_pit/sec_client.py (3 requests per ticker: submissions + two documents; cached 12h ok / 5min partial or failed / 1h not_found). ENABLEMENT GATE, default OFF, read per call (filing_blackline.is_enabled); the auth payload carries filing_blackline_enabled ONLY when on. Unset: the route 404s before identity, the auth payload is byte-identical, no worker thread is created and SEC is never called (tests/test_filing_blackline.py). Not decided yet: whether to arm, and whether 10-Q pairs come next. Arm: railway variables --service web --set FILING_BLACKLINE_ENABLED=1 (owner). Rollback = unset it; nothing is written anywhere but the in-memory cache."
     },
+    "DATA_EXPORTS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-041/042/043 (TERMINAL-NEXT owner ruling 2026-10-02): member CSV and Excel export for the screener (every matched row up to the page's own 5,000 ceiling, in the displayed columns), a watchlist (symbol/notes/added), the option chain (the chain page's columns; also 404 while OPTIONS_CHAIN_ENABLED is off), the news list (time/headline/source/category/tickers/link, never an article body) and chart bars (up to 20,000). ENABLEMENT GATE, default OFF, read per request in api/services/data_exports.is_enabled(); SERVICE: web. Off: every /api/exports/* route answers 404 and nothing is counted. On: require_paid (402), a 6/minute per-member burst limit and EXPORT_DAILY_CAP (default 25) files per member per ET day, durable in auth.db daily_usage_counters (429 with a sentence; a failed build gives its charge back). No new redistribution: each builder reads the same function the page's own route reads, and string cells are formula-escaped. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "SCREENER_LOGIC_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-026 + FT-029 + the typed half of FT-024/030 (TERMINAL-NEXT owner ruling 2026-10-02): grouped screener criteria (all-of / any-of / none-of, nestable to depth 4, at most 25 grouped criteria) as an optional 'logic' node on the screen spec, ANDed with the flat filter list; and the where-grammar (k/m/b/t/% shortcuts, and/or/not with parentheses, between, in/not in, contains, field-to-field) that compiles text to that node, with one plain sentence per criterion as the applied-criteria explanation. ENABLEMENT GATE, default OFF, read per request in api/services/screener/logic.is_enabled(); SERVICE: web. Off: GET /api/screener/grammar and POST /api/screener/grammar/parse answer 404, the screener's Criteria box does not render, and any spec carrying 'logic' is REFUSED (400 with a sentence) by /scan and /count, never silently ignored. Every leaf renders through query.build_where, so a grouped criterion cannot mean something different from the same filter in the flat list; scan/list/universe keys are refused inside a group. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "ALERT_WEBHOOKS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-033 (TERMINAL-NEXT owner ruling 2026-10-02): outbound alert webhooks -- an HTTP POST to the member's own https endpoint when one of their S7 alerts fires; the outbound twin of TERM-086. Owner-scoped (/api/alerts/webhooks*, require_paid, at most 3 live per member), HMAC-SHA256 signed (X-UCT-Signature t=,v1= over '<t>.<body>'; per-webhook secret shown once and stored with crypto_box, refused if the key is unset), SSRF-safe (https + port 443 only, no URL credentials, no host or IP literal resolving to a private/loopback/link-local/multicast/reserved address, checked at create AND again before every send; redirects never followed). A fire only ENQUEUES (alert_taxonomy.db alert_webhook_deliveries); the scheduler job alert_webhooks_drain (every minute, registered unconditionally) is the only code that sends: 3 s timeout, retries after 1/2/4/8/16 min, failed after 6 attempts; WEBHOOK_HOURLY_CAP (default 120) per member per hour, overflow recorded as dropped_rate. ENABLEMENT GATE, default OFF, read per call in outbound_webhooks.is_enabled(); SERVICE: web. Off: routes 404, nothing enqueued, the drain sends nothing. Revoke stamps revoked_at; nothing deletes member rows. Pending: needs an owner arm (and BROKER_ENCRYPTION_KEY present on web). Rollback: set 0."
+    },
+    "ALERT_ROUTING_RULE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-036 (TERMINAL-NEXT owner ruling 2026-10-02): one global routing rule per member for S7 alerts (Bloomberg MRUL) -- email on/off, push on/off, webhook on/off -- plus SUSPEND/RESUME of every alert without losing a definition (/api/alerts/routing*, require_paid). Applied in alert_taxonomy/delivery.deliver: suspended -> the fire is still RECORDED in alert_fires with delivery_channels {routing: suspended} and nothing is sent; otherwise deliver_alert_payload gets channels_allowed (new keyword-only arg, default None = unchanged for every other caller). The in-app record is never routable. ENABLEMENT GATE, default OFF, read per call in routing_rule.is_enabled(); SERVICE: web. Off: routes 404 and delivery is byte-identical to before (a stored rule is kept, never applied, never deleted). Not yet applied to the TERM-048 price-alert S7 bridge (_deliver_via_s7), which has its own fan-out. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "SCREENER_PROMOTE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-027 (TERMINAL-NEXT owner ruling 2026-10-02): scan -> watchlist promotion. POST /api/screener/to-watchlist takes the screen spec and puts the WHOLE result set, in screen order, up to 500 symbols, into a new list or one the member owns (a TERM-077 linked list is refused with that feature's sentence); the response says when the screen matched more than fit. Rows come from query.run_scan with the caller's id, the same function /api/screener/scan runs. Toolbar 'To watchlist' button renders only when GET /api/screener/to-watchlist answers. ENABLEMENT GATE, default OFF, read per request in api/routers/screen_promote.is_enabled(); SERVICE: web. Off: both routes 404. require_paid. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "SCREENER_PATTERN_PRESETS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-022 (TERMINAL-NEXT owner ruling 2026-10-02): 18 chart-pattern preset scans (Cup & Handle, triangles, flags, pennant, wedges, double/triple tops and bottoms, head & shoulders and inverse, rounded base, rectangle, channel) appended to saved_screens.starters(), each one pattern-engine detection matched as an EXACT token on pattern_engine_ids (delimiter-wrapped), Patterns view, strongest detection first. The preset rail checks every id against the detector registry. ENABLEMENT GATE, default OFF, read per call in saved_screens.pattern_presets_enabled(); SERVICE: web. Off: starters() is byte-identical to before. Pending: needs an owner arm after a live count of how many symbols each detection currently covers. Rollback: set 0."
+    },
+    "ALERT_LIFECYCLE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-035 (TERMINAL-NEXT owner ruling 2026-10-02): per-alert expiry for S7 alerts. PUT /api/alerts/predicates/{id}/expiry (owner-scoped, require_paid; future, at most a year out; null clears) stores alert_predicates.expires_at (migration add_alert_predicates_expires_at); the alert_lifecycle_expire scheduler job (every minute, registered unconditionally) SUSPENDS a predicate past its expiry (suspended_at) -- never deletes it. Remind and reverse-crossover are not built (see lifecycle.py's docstring). ENABLEMENT GATE, default OFF, read per call in lifecycle.is_enabled(); SERVICE: web. Off: the route 404s and the job expires nothing; a stored expiry is kept. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "SCREENER_NL_COMPILE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-024/FT-030 (TERMINAL-NEXT owner ruling 2026-10-02): plain English to a finished screen, compiled INTO the where-grammar. POST /api/screener/compile sends the member's description to the model (SCREENER_NL_MODEL, default the Concierge's claude-opus-5; shared client timeout, zero SDK retries, at most 2 calls) whose ONLY output is a criteria string; that string is parsed by the same grammar.parse a member's typed criteria go through (one repair call carrying the parser's sentence, then a refusal sentence -- never a guessed screen). Returns the editable criteria text, the logic tree, one sentence per criterion and the assumptions made. Metered: SCREENER_NL_DAILY_CAP (default 30) per member per ET day in daily_counters, then ai_population_cap door 'screener_nl'; refusals and failures charge nothing. ENABLEMENT GATE, default OFF, read per call in nl_compile.is_enabled(); SERVICE: web. 404 unless BOTH this and SCREENER_LOGIC_ENABLED are 1 (the output is a logic tree the screener refuses while that surface is dark). Pending: needs an owner arm after a live quality read. Rollback: set 0."
+    },
     "WEB_PUSH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

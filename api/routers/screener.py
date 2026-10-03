@@ -123,8 +123,44 @@ class ScanSpec(BaseModel):
     # page by top_n; it just never reached the query because the model dropped
     # the field. None = a plain sorted list, exactly as before.
     rank: dict | None = None
+    # FT-026: an optional all-of / any-of / none-of tree ANDed with `filters`
+    # (see services/screener/logic.py). Refused with a sentence while
+    # SCREENER_LOGIC_ENABLED is off -- never silently dropped.
+    logic: dict | None = None
     page: int = 1
     page_size: int = 50
+
+
+class GrammarIn(BaseModel):
+    text: str
+
+
+def _logic_armed() -> None:
+    from api.services.screener import logic as scr_logic
+    if not scr_logic.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/screener/grammar", dependencies=[Depends(_logic_armed)])
+def screener_grammar(_user=Depends(require_paid)):
+    """FT-029: the machine-readable `where` grammar -- operators, number
+    suffixes, field-to-field, and every field with its type and unit."""
+    from api.services.screener import grammar
+    return grammar.describe()
+
+
+@router.post("/api/screener/grammar/parse", dependencies=[Depends(_logic_armed)])
+def screener_grammar_parse(body: GrammarIn, _user=Depends(require_paid)):
+    """Text -> the `logic` tree a screen runs, plus one plain sentence per
+    criterion (the explanation panel). A malformed text is a 400 whose detail
+    says where and why -- never a guess."""
+    from api.services.screener import grammar, logic as scr_logic
+    try:
+        node = grammar.parse(body.text)
+        n = scr_logic.validate(node)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"logic": node, "criteria": n, "explanation": grammar.explain(node)}
 
 
 @router.get("/api/screener/meta")
