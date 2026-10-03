@@ -331,6 +331,24 @@ def test_a_note_written_after_entry_is_not_read(conn, client):
     assert findings_by_term(p)["FOMO"]["losses"] == {"k": 4, "n": 6}
 
 
+def test_a_notes_own_created_at_gates_it_even_when_updated_at_predates_entry(conn, client):
+    """An importer sets created_at/updated_at independently from external source metadata
+    (notes.py's `_import_date` on `n.get("createdAt")` / `n.get("updatedAt")`), so the two can
+    disagree with each other. A note whose OWN created_at lands after entry is not a before-note
+    even when its updated_at (also external, possibly stale or just wrong) sits before cutoff --
+    `_note_state_at` alone cannot catch this (it reads updated_at first and would read the
+    current body as the pre-entry state), so the created_at check in notes_before_trade is the
+    only guard standing between this row and a fabricated "before" note."""
+    seed_patterns(conn)
+    tid = add_trade(conn, r=-1.0, setup="Breakout")
+    entry = trade_entry(conn, tid)
+    nid = add_note(conn, text="FOMO FOMO", created=after(entry), updated=before(entry))
+    link(conn, nid, tid)
+    p = client.get("/api/j2/my-playbook").json()
+    assert p["patterns"]["noted"]["losses"] == 6
+    assert findings_by_term(p)["FOMO"]["losses"] == {"k": 4, "n": 6}
+
+
 def test_a_note_edited_after_entry_is_read_as_it_stood_at_entry(conn, client):
     seed_patterns(conn)
     tid = add_trade(conn, r=-1.0, setup="Breakout")
