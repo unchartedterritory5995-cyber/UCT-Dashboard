@@ -289,19 +289,20 @@ const AWAITING_A_DECISION = {
   //
   // Lane 13H-1 is the foundation and mounts nothing BY PLAN (WAVE-13-PLAN.md,
   // A.13H: "13H-1 schema, 13H-2 features"). `chartPlan.js` is the pure writer
-  // and sizing library the 13H-2 plan panel (`ChartPlanPanel.jsx`) imports, and
-  // `planLevels.js` is 13A-1's client half of the plan-level write interface,
-  // which chartPlan.js imports. Their consumers today are their own rails
-  // (chartPlan.test.js, exportFormats.roundtrip.test.js, and the Node-run
-  // tests/test_notebook_chart_plan.py). Expiry: 13H-2 lands the panel (or 13A-2
-  // imports planLevels.js); then drop the entry that became reachable.
-  // ⚠️ If 13A parks planLevels.js in its own block, keep ONE entry, not two.
+  // and sizing library the 13H-2 plan panel (`ChartPlanPanel.jsx`) imports. Its
+  // consumers today are its own rails (chartPlan.test.js,
+  // exportFormats.roundtrip.test.js, and the Node-run
+  // tests/test_notebook_chart_plan.py). Expiry: 13H-2 lands the panel; then
+  // drop this entry.
+  // ✅ `planLevels.js` is WIRED and its own entry here was dropped (2026-10-02,
+  // lane 13J): 13A-2 (`ca7424eb02`, merged ahead of this branch's tip) already
+  // imports `PLAN_ROLES` from it via `notebookTemplates.js`, which
+  // `NotebookTab.jsx` mounts — the OR half of this block's own stated expiry.
+  // chartPlan.js imports it too, but that path is parked, not what makes it
+  // reachable.
   'app/src/pages/journal-2-0/lib/chartPlan.js':
     'WAVE 13 13H-1 chart-plan library (ta shape, role writer, starter sizing): '
     + 'the 13H-2 plan panel mounts it. Mount it or delete it; then drop this entry.',
-  'app/src/pages/journal-2-0/lib/planLevels.js':
-    'WAVE 13 13A-1 plan-level write builders, reached via chartPlan.js: the '
-    + '13H-2 panel (or 13A-2) mounts it. Mount it or delete it; then drop this entry.',
   // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
   //
   // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
