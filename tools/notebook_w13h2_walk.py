@@ -226,16 +226,17 @@ def frame_of(pg, nth: int = 0):
 
 
 def toolbar_button(pg, frame, name, touch):
-    # The toolbar is CSS hover-reveal (`.frame:hover .toolbar`), which keys off the OS cursor's
-    # CURRENT viewport-relative position, not the element it last hovered. By the time the Plan
-    # panel is open the page is much taller, so a plain .hover() lands the cursor, and the SAME
-    # click's own scrollIntoViewIfNeeded() then scrolls the page under that now-stationary
-    # cursor -- the toolbar un-hovers mid-click and whatever is really underneath (the page
-    # header, the chart's own canvas) "intercepts pointer events" until the click times out
-    # (measured: docs/notebook/evidence/wave13-13h2/walk-4512d76-run9, the Replay click). Scroll
-    # to the final resting position FIRST, so hovering afterward is the position the click will
-    # actually use and nothing moves under the cursor in between.
-    frame.scroll_into_view_if_needed()
+    # NoteEditorPage's header chrome is `position: sticky; top: 0; z-index: 40` -- deliberately
+    # ABOVE an in-content embed's own controls (comment in that CSS: "above in-content embed
+    # controls, draw-mode Done = 30"). A plain scrollIntoViewIfNeeded() scrolls the MINIMUM
+    # distance, which can land the embed's toolbar flush against the viewport top -- directly
+    # under that sticky header, which then (correctly, by design) wins the click. Measured on
+    # the Replay button: docs/notebook/evidence/wave13-13h2/walk-run10-rounding-fixed, the
+    # interceptor is `_headerSelect_d4m6u_289` (the note's own Folder picker) on the FIRST
+    # attempt, not a mid-click scroll drift -- this is the sticky header doing exactly what its
+    # z-index says, and a real member scrolling by hand never stops with a control flush against
+    # it. Scroll the frame to the viewport's CENTER instead, so the toolbar always has headroom.
+    frame.evaluate("el => el.scrollIntoView({block: 'center', inline: 'nearest'})")
     if not touch:
         frame.hover()
     btn = frame.get_by_role("button", name=name, exact=True)
