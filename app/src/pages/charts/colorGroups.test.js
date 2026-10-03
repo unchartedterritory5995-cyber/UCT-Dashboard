@@ -57,3 +57,18 @@ describe('a stored E-H while OFF: kept, not linked, never remapped', () => {
     expect(nextGroup('F', false, { includeNone: false })).toBe('A')
   })
 })
+
+// The terminal rail (pages/terminal/functions.rail.test.js, not this lane's file) still
+// reads literals in WidgetHeader / PeriodSortPanel. They must equal this module's OFF
+// values, or the shell and /charts would disagree while both rails stayed green.
+describe('the literals the terminal rail reads are this module, not a second authority', () => {
+  test('WidgetHeader COLORS is the OFF cycle', async () => {
+    const { COLORS } = await import('./WidgetHeader')
+    expect(COLORS).toEqual(groupCycle(false))
+  })
+  test('PeriodSortPanel COLOR_HEX is GROUP_HEX for A-D and N', async () => {
+    const { COLOR_HEX } = await import('./PeriodSortPanel')
+    const base = Object.fromEntries(groupCycle(false).map((g) => [g, GROUP_HEX[g]]))
+    expect(COLOR_HEX).toEqual(base)
+  })
+})

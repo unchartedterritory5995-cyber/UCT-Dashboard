@@ -6,6 +6,7 @@ import MentionSeriesPanel from './MentionSeriesPanel'
 import BrokerEstimatesPanel from './BrokerEstimatesPanel'
 import NewsDeskPanel from './NewsDeskPanel'
 import { NEWS_DESK_KEYS } from './researchDepthFlags'
+import CallReplayPanel from './CallReplayPanel'
 import styles from './Depth.module.css'
 import HowToChecklist from '../../../components/howTo/HowToChecklist'
 import { DEPTH_HOW_TO_SURFACES } from '../../../components/howTo/howToChecklists'
@@ -28,6 +29,7 @@ export default function DepthTab({ sym, flags }) {
       {f.mention_series_enabled === true && <MentionSeriesPanel sym={sym} />}
       {f.filing_search_enabled === true && <FilingSearchPanel sym={sym} />}
       {NEWS_DESK_KEYS.some(k => f[k] === true) && <NewsDeskPanel sym={sym} />}
+      {f.call_replay_enabled === true && <CallReplayPanel sym={sym} />}
     </div>
   )
 }

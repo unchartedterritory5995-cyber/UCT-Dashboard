@@ -16,7 +16,12 @@ import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 const DEF_H = 560, MIN_W = 150, MIN_H = 40
 const stockDefW = 528, groupDefW = 450
 // Colour cycle + dot colours from colorGroups.js (E-H only while CHARTS_EXTRA_GROUPS_ENABLED is on).
-const COLOR_HEX = GROUP_HEX
+// The A-D + N dot colours as a literal: app/src/pages/terminal/functions.rail.test.js
+// reads THIS declaration (a file this lane may not edit); colorGroups.test.js proves it
+// equals GROUP_HEX's base entries. HANDOFF (Lane T2, audit V10): retarget that rail at
+// colorGroups.js, then delete this literal.
+export const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
+const DOT_HEX = { ...COLOR_HEX, ...GROUP_HEX }
 
 export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [], group = null, symbolsFilter = null, titlePrefix = null, offset = 0 }) {
   // Group panels open wider so the theme/sector/industry names fit; stock panels stay snug.
@@ -70,7 +75,7 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
           type="button"
           data-no-drag
           className={styles.colorDot}
-          style={{ background: COLOR_HEX[panelColor] }}
+          style={{ background: DOT_HEX[panelColor] }}
           onClick={() => setPanelColor((c) => nextGroup(c, extraGroupsOn))}
           title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
           aria-label="Colour group"

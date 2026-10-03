@@ -1,0 +1,33 @@
+.chapters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  border-left: 2px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  padding-left: 8px;
+}
+.group { display: flex; flex-direction: column; gap: 2px; }
+.top,
+.child {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  padding: 2px 0;
+}
+.top { font-weight: 600; }
+.child { opacity: 0.85; font-size: 0.92em; }
+.top:hover,
+.child:hover { text-decoration: underline; }
+.children { list-style: none; margin: 0; padding-left: 12px; }
+.meta { font-weight: 400; opacity: 0.6; font-size: 0.9em; }
+.note { margin: 4px 0 0; font-size: 0.88em; opacity: 0.75; }
+
+@media (max-width: 1024px) {
+  .top,
+  .child { min-height: var(--tap-min, 44px); }
+}

@@ -275,9 +275,19 @@ _RESEARCH_DEPTH_SURFACES = (
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
     ("broker_estimates_enabled", "broker_estimates"),
+)
+
+# Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.
+# They are real Depth panels (same payload form, same tab), kept in their OWN tuple only
+# because adding a function code is Lane T1's file (app/src/pages/terminal/functions.js,
+# audit V1b) and the terminal rail requires a code for every key of the tuple above.
+# ⛔ HANDOFF, not a resting place: when T1 adds NEWS / REPLAY codes, move these rows up
+# and delete this tuple. The client mirror is RESEARCH_DEPTH_AWAITING_CODE_KEYS.
+_RESEARCH_DEPTH_AWAITING_CODE_SURFACES = (
     ("news_story_versions_enabled", "news_versions"),
     ("news_importance_enabled", "news_importance"),
     ("news_read_state_enabled", "news_read_state"),
+    ("call_replay_enabled", "call_replay"),
 )
 
 
@@ -287,7 +297,7 @@ def _research_depth_flags() -> dict:
     Never raises; a surface whose module cannot be read is simply absent."""
     import importlib
     out = {}
-    for key, mod in _RESEARCH_DEPTH_SURFACES:
+    for key, mod in _RESEARCH_DEPTH_SURFACES + _RESEARCH_DEPTH_AWAITING_CODE_SURFACES:
         try:
             if importlib.import_module(f"api.services.{mod}").is_enabled():
                 out[key] = True
