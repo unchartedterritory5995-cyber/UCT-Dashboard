@@ -376,11 +376,13 @@
       },
       "observed_by": [
         "tests/test_term018_wire_coverage_guards.py::test_a_gap_that_survives_the_heal_pages_critical",
-        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity"
+        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity",
+        "tests/test_term018_wire_coverage_guards.py::test_CONTROL_a_gap_the_heal_closes_never_pages",
+        "tests/test_term018_wire_coverage_guards.py::test_CONTROL_a_complete_feed_emits_nothing"
       ],
       "proof": {
-        "commit": "21e1467c5d",
-        "quote": "the incomplete page demoted to warning (2 red)"
+        "commit": "fd4465140b",
+        "quote": "critical demoted to warning (2 red: gap_survives, never_share)"
       },
       "wire": {
         "kind": "chain",
@@ -413,11 +415,12 @@
       },
       "observed_by": [
         "tests/test_term018_wire_coverage_guards.py::test_unmeasured_is_a_warning_and_never_a_page",
-        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity"
+        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity",
+        "tests/test_term018_wire_coverage_guards.py::test_the_unmeasured_warning_names_its_session_and_skips_the_heal"
       ],
       "proof": {
-        "commit": "21e1467c5d",
-        "quote": "the unmeasured warning promoted to critical (2 red)"
+        "commit": "fd4465140b",
+        "quote": "warning promoted to critical (3 red: unmeasured_warning, never_share, names_its_session)"
       },
       "wire": {
         "kind": "chain",
