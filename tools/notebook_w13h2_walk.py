@@ -333,6 +333,18 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
                 "() => [...document.querySelectorAll('button')].map(b => [(b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 50), !!b.offsetParent, Math.round(b.getBoundingClientRect().width)])")
             w.shot(pg, f"{tag}-2-draw-mode-no-tool")
             raise
+        # V390 runs 9-17: exactly the LAST of the 3 taps ever places a line, every run, always
+        # the same price (frac=0.72's position) -- not a race (a 10s settle-wait on attempts 1-2
+        # found nothing; run 9, before any settle-wait existed, shows the identical price). If
+        # `tool` resolves to a DIFFERENT element than the real clickable button on the earlier
+        # iterations (two nodes both matching "^Horizontal Line" -- an icon title, a tooltip, the
+        # real button -- and `.first` landing on a decoy), that would be exactly this
+        # deterministic, non-timing shape. Name every match.
+        w.raw.setdefault(f"{tag}_tool_matches", []).append(
+            tool.evaluate_all("els => els.map(e => ({tag: e.tagName, label: e.getAttribute('aria-label'), "
+                               "text: (e.textContent||'').slice(0,40), rect: (() => { const r = e.getBoundingClientRect(); "
+                               "return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)] })(), "
+                               "visible: !!e.offsetParent}))"))
         press(tool.first, touch)
         if touch:
             # Tool-select and the placement tap were back-to-back (0ms apart) -- fine on
