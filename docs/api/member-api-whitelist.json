@@ -272,6 +272,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/calendar/date-status",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/calendar/day-metrics",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -303,6 +309,12 @@
     {
       "method": "GET",
       "path": "/api/calendar/implied-moves",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calendar/index-events",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2318,6 +2330,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/call-replay/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/company-news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2420,6 +2438,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/metric-disagreement/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/story/{news_id}/versions",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2444,6 +2480,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/backtest-catalog",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/options/{sym}/backtest/{job}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2462,7 +2504,19 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/chain-greeks",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/options/{sym}/contract/{occ}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/edge",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2480,6 +2534,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/payoff-model",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/options/{sym}/probability",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2487,6 +2547,12 @@
     {
       "method": "GET",
       "path": "/api/research/options/{sym}/stance",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/strategy-finder",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2517,6 +2583,12 @@
     {
       "method": "GET",
       "path": "/api/research/ratings/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/rename-notice/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2792,6 +2864,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/save-fork",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/saved-screens",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -2799,6 +2877,12 @@
     {
       "method": "GET",
       "path": "/api/screener/snapshot-status",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/spec-alerts",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -3075,6 +3159,12 @@
     {
       "method": "GET",
       "path": "/api/user-definitions/library",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user-definitions/runtime-kill",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -3390,24 +3480,38 @@
     "/api/exports/quota",
     "/api/exports/watchlists/{wl_id}",
     "/api/options-screener/iv-percentile",
+    "/api/options-screener/more-strategies",
+    "/api/options-screener/more/{name}",
     "/api/options-screener/screen",
+    "/api/options-screener/sizzle",
     "/api/options-screener/strategies",
     "/api/options-screener/strategy/{name}",
     "/api/options-screener/unusual-volume",
     "/api/options/market-tide",
+    "/api/options/market-tide/minute",
+    "/api/options/market-tide/sectors",
     "/api/options/positioning/vocabulary",
+    "/api/options/positioning/{sym}/charm-heatmap",
     "/api/options/positioning/{sym}/dealer-short",
+    "/api/options/positioning/{sym}/delta-heatmap",
     "/api/options/positioning/{sym}/heatmap",
     "/api/options/positioning/{sym}/impact",
     "/api/options/positioning/{sym}/levels",
     "/api/options/positioning/{sym}/max-pain",
     "/api/options/positioning/{sym}/nope",
+    "/api/options/spread-book",
     "/api/options/vol/{sym}/interpolated-iv",
     "/api/options/vol/{sym}/iv-rank",
     "/api/options/vol/{sym}/realized",
+    "/api/options/vol/{sym}/rr-bf",
+    "/api/options/vol/{sym}/surface-3d",
     "/api/options/vol/{sym}/term-structure",
     "/api/options/vol/{sym}/vrp",
     "/api/pine/libraries",
-    "/api/pine/libraries/{author}/{name}/{version}"
+    "/api/pine/libraries/{author}/{name}/{version}",
+    "/api/terminal/aliases",
+    "/api/terminal/commands/stats",
+    "/api/terminal/compare-target",
+    "/api/terminal/move/{sym}"
   ]
 }

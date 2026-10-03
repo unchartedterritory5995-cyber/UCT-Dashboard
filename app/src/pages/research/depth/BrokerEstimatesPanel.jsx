@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
 // high/low and dispersion, and the firms acting on the stock by name.
@@ -13,8 +14,7 @@ import styles from './Depth.module.css'
 const n2 = (v) => (v == null ? '—' : Number(v).toFixed(2))
 const big = (v) => {
   if (v == null) return '—'
-  const a = Math.abs(v)
-  return a >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : a >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : String(Math.round(v))
+  return formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] })
 }
 
 export default function BrokerEstimatesPanel({ sym }) {

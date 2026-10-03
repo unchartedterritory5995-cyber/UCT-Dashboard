@@ -45,6 +45,9 @@ describe('ChartRender ?preset=', () => {
 
   it('ignores an unknown preset', () => {
     mount('sym=NVDA&tf=D&preset=neon')
-    expect(override()).toBeNull()
+    // Only the render house look remains (2026-10-02) - no preset applied.
+    const o = override()
+    expect(o.preset).toBeUndefined()
+    expect(o.chartType).toBe('hollow')
   })
 })

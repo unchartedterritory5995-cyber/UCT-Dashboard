@@ -236,6 +236,10 @@ def upsert(item: dict[str, Any], tickers: Iterable[dict[str, str]]) -> int:
     upd = ",".join(f"{c}=excluded.{c}" for c in _ITEM_COLS
                    if c not in ("provider", "provider_id", "ingested_at"))
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        # D-6: keep the PRIOR text of a story whose provider re-sent it changed
+        # (a no-op unless NEWS_STORY_VERSIONS_ENABLED; never raises).
+        from api.services import news_versions
+        news_versions.record_if_changed(c, row)
         cur = c.execute(
             f"INSERT INTO news_items ({cols}) VALUES ({ph}) "
             f"ON CONFLICT(provider, provider_id) DO UPDATE SET {upd}",

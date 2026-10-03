@@ -21,8 +21,8 @@
 // on, the other arm is the one lowered, and this script refuses by name.
 //
 // ⛔ WHAT IT DOES NOT MOVE. volume-profile stops on its NEXT wall, by name, and the
-// run still does not start: `runtime:statement@154` — `ta.highest(lookback_bars)`,
-// the one-argument form, over a length held in a `var`. Behind that stand
+// run still does not start: `runtime:history-dynamic-offset@154` (R1; was `runtime:statement`) —
+// `ta.highest(lookback_bars)`, the one-argument form, over a length held in a `var`. Behind that stand
 // `array.fill` (`runtime:array`), a line array updated in a function
 // (`runtime:object-op`) — and the ceiling itself: the profile's own double loop
 // (200 bars x 200 rows, on the last bar) costs 1,674,010 VM instructions against
@@ -156,9 +156,12 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
       bars: toProductBars(cap), inputs: {}, pane: true, basePeriod: 'D', tf: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
     })
     expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('runtime:statement')
+    // ⚰️ R1 (2026-10-02): this was `runtime:statement` — "`ta.highest` takes a source and a
+    // length, given 1". The one-argument form now fills `high` (`PINE_SHORT_FORM`, the
+    // columnar lane's measured default) and gets the explicit spelling's answer: the
+    // length is a `var`, so the ring cannot be sized before bar 0. Same line, true wall.
+    expect(built.refusal.guard).toBe('runtime:history-dynamic-offset')
     expect(built.refusal.line).toBe(154)
-    expect(String(built.refusal.message)).toContain('`ta.highest` takes a source and a length, given 1')
   }, 60000)
 
   it('⛔ with the member\'s knob ON it is `pine:builtin`@146 again — the arm they asked for', () => {
@@ -184,7 +187,7 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     expect(verdict.objects.verdict).toBe('DIVERGE')
     const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c47_vp', name: 'c47' })
     expect(d.ok, d.reason).toBe(true)
-    expect(d.translation.objectDiagnostics.runtimeRefused).toBe('runtime:statement')
+    expect(d.translation.objectDiagnostics.runtimeRefused).toBe('runtime:history-dynamic-offset')
     expect(d.definition.objects.runtime).toBeFalsy()
   }, 60000)
 

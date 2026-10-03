@@ -539,9 +539,15 @@ plot(anchor)
     // again, at the same guard the 08-11 version named.
     // ⭐ The history is kept rather than rewritten: a test that swung to a wrong answer
     // and back is worth more as a record than as a clean assertion.
-    expect(guards.every((g) => g === 'pine:state')).toBe(true)
-    expect(guards).toHaveLength(9)
-    expect(out.ok).toBe(false)
+    // ⭐⭐ 2026-10-02 (H1) — IT TRANSLATES AGAIN, AND THIS TIME ON THE RIGHT ANSWER. The
+    // stops reset on a test that reads the stop (price closing through it); H1 admits
+    // that test and `interpret.js` decides it with the RANGE window (`RANGE_TOP`),
+    // publishing a bar only where every earlier history gives one value — never R-F's
+    // 250-bar rolling min. Held to the listing run (`ratchetServedScripts.test.js`).
+    expect(guards).toHaveLength(0)
+    expect(out.ok).toBe(true)
+    const recurrences = JSON.stringify(out.outputs.find((o) => o.ast).ast).match(/"accum"/g) || []
+    expect(recurrences.length).toBeGreaterThan(0)
     // ⭐ 5 → 9 ON 2026-08-27, and the four that arrived are `plotshape` — the
     // script's own BUY/SELL markers, which this door ignored until `plotshape`
     // became an output-producing call. A marked bar is a column: the tree is the
@@ -552,13 +558,17 @@ plot(anchor)
     // is kept as a comment rather than deleted, because it records what this script
     // produced while it was producing a wrong number — which is the thing to compare
     // against on the day the bounded rewrite lands.
+    // ⭐ 0 → 9 (H1): the nine kinds listed below are back, on the ratchet window.
     const usable = out.outputs.filter((o) => o.formula && !o.hidden)
-    expect(usable).toHaveLength(0)
+    expect(usable).toHaveLength(9)
     // ⚰ THE KINDS THIS SCRIPT PRODUCED WHILE IT WAS PRODUCING A WRONG NUMBER, kept
     // as the comparison for the day a bounded rewrite lands:
     //   plot, plotshape, plotshape, plot, plotshape, plotshape,
     //   alertcondition, alertcondition, alertcondition   (+1 hidden)
-    expect(usable.map((o) => o.kind)).toEqual([])
+    // ⭐ …AND THAT DAY CAME (H1, 2026-10-02) — not a bounded rewrite but an exact one:
+    // the same nine kinds, on the ratchet window.
+    expect(usable.map((o) => o.kind)).toEqual(['plot', 'plotshape', 'plotshape', 'plot', 'plotshape',
+      'plotshape', 'alertcondition', 'alertcondition', 'alertcondition'])
 
     // ⭐ ONE FORMULA SURVIVES, AND IT IS THE 2026-08-10 COLUMN CUT BACK TO ITS REAL
     // SIZE: `plot(ohlc4, display = display.none)`, the hidden edge the author added so
@@ -571,9 +581,15 @@ plot(anchor)
     expect(hidden).toHaveLength(1)
     expect(hidden[0].formula).toBe('(open + high + low + close) / 4')
 
-    // ⛔ AND NOTHING IS SELECTED. A door with no offerable column answers -1; it does
-    // not quietly fall back to the hidden one. Measured 2026-09-12.
-    expect(out.selected).toBe(-1)
+    // ⛔ AND THE HIDDEN ONE IS NEVER SELECTED. Until H1 nothing was (-1, measured
+    // 2026-09-12); now a real column is, and it is never the hidden edge.
+    expect(out.selected).toBeGreaterThanOrEqual(0)
+    expect(out.outputs[out.selected].hidden).toBeFalsy()
+    // ⭐ and the old assertion below holds again: the selected column carries the
+    // direction and both stops as SEPARATE accumulators, each owning its own `self`
+    const sel = out.outputs[out.selected].formula
+    expect(sel.startsWith('accum(')).toBe(true)
+    expect(sel.split('accum(').length - 1).toBeGreaterThanOrEqual(3)
 
     // ⚰ WHAT THIS BLOCK USED TO ASSERT, kept because the REASON outlives the script it
     // was written against:

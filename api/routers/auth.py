@@ -277,6 +277,19 @@ _RESEARCH_DEPTH_SURFACES = (
     ("broker_estimates_enabled", "broker_estimates"),
 )
 
+# Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.
+# They are real Depth panels (same payload form, same tab), kept in their OWN tuple only
+# because adding a function code is Lane T1's file (app/src/pages/terminal/functions.js,
+# audit V1b) and the terminal rail requires a code for every key of the tuple above.
+# ⛔ HANDOFF, not a resting place: when T1 adds NEWS / REPLAY codes, move these rows up
+# and delete this tuple. The client mirror is RESEARCH_DEPTH_AWAITING_CODE_KEYS.
+_RESEARCH_DEPTH_AWAITING_CODE_SURFACES = (
+    ("news_story_versions_enabled", "news_versions"),
+    ("news_importance_enabled", "news_importance"),
+    ("news_read_state_enabled", "news_read_state"),
+    ("call_replay_enabled", "call_replay"),
+)
+
 
 def _research_depth_flags() -> dict:
     """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
@@ -284,7 +297,56 @@ def _research_depth_flags() -> dict:
     Never raises; a surface whose module cannot be read is simply absent."""
     import importlib
     out = {}
-    for key, mod in _RESEARCH_DEPTH_SURFACES:
+    for key, mod in _RESEARCH_DEPTH_SURFACES + _RESEARCH_DEPTH_AWAITING_CODE_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
+# Lane R: the Research page notices under the header (D-9 member-interest line,
+# D-11 rename notice, D-12 metric disagreement). NOT Depth panels: these keys never
+# open the Depth tab. Mirrored in app/src/pages/research/notices/researchNoticeFlags.js.
+_RESEARCH_NOTICE_SURFACES = (
+    ("member_interest_line_enabled", "member_interest_line"),
+    ("entity_rename_notice_enabled", "entity_rename_notice"),
+    ("metric_disagreement_enabled", "metric_disagreement"),
+)
+
+
+def _research_notice_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
+    this payload is byte-identical to before the lane. The client reads `=== true`.
+    Never raises; a surface whose module cannot be read is simply absent."""
+    import importlib
+    out = {}
+    for key, mod in _RESEARCH_NOTICE_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
+# Calendar depth (Lane R): payload key -> the service module whose `is_enabled()` is
+# that surface's ONE gate. ⛔ Mirrored by `app/src/pages/calendar/depth/calendarDepthFlags.js`,
+# whose rail reads THIS tuple rather than restating it.
+_CALENDAR_DEPTH_SURFACES = (
+    ("earnings_date_status_enabled", "earnings_date_status"),
+    ("index_rebalance_events_enabled", "index_rebalance_calendar"),
+    ("calendar_order_explain_enabled", "calendar_order_explain"),
+)
+
+
+def _calendar_depth_flags() -> dict:
+    """Same form as `_research_depth_flags`: keys present ONLY when on, so every surface
+    unset => the payload is byte-identical to before. Never raises."""
+    import importlib
+    out = {}
+    for key, mod in _CALENDAR_DEPTH_SURFACES:
         try:
             if importlib.import_module(f"api.services.{mod}").is_enabled():
                 out[key] = True
@@ -635,7 +697,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_filing_blackline_flag(),
         **_options_screener_flag(),
         **_research_depth_flags(),
+        **_research_notice_flags(),
+        **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
+        **_lane_r_client_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -666,6 +731,44 @@ def _charts_list_subscribe_flag() -> dict:
         return {"charts_list_subscribe_enabled": True} if charts_list_subscribe_enabled() else {}
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return {}
+
+
+# Lane R client-only surfaces: no route reads these flags, so the auth payload IS the
+# gate. (env var, payload key) -- each key is present ONLY when on (the TERM-077 form).
+#   CHARTS_EXTRA_GROUPS_ENABLED  COV-10 remainder: /charts colour groups E-H beyond A-D
+#   HOW_TO_CHECKLISTS_ENABLED    FT-046: per-surface "how to trade with this" checklists
+# ⛔ Each env read is a LITERAL (not a loop over names) so feature_flag_index's AST
+# scan sees both gates and the ledger rail holds them to a docs/feature_flags.json row.
+_TRUTHY = ("1", "true", "yes", "on")
+
+
+def charts_extra_groups_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("CHARTS_EXTRA_GROUPS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def how_to_checklists_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("HOW_TO_CHECKLISTS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+_LANE_R_CLIENT_SURFACES = (
+    ("charts_extra_groups_enabled", charts_extra_groups_enabled),
+    ("how_to_checklists_enabled", how_to_checklists_enabled),
+)
+
+
+def _lane_r_client_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON: every flag unset => this payload is
+    byte-identical to before. The client reads `=== true`. Never raises."""
+    out = {}
+    for key, reader in _LANE_R_CLIENT_SURFACES:
+        try:
+            if reader():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
 
 
 def _watchlist_copy_or_link_flag() -> dict:
@@ -2511,7 +2614,13 @@ _PREFERENCE_KEYS = {
     # per-panel {code, group, sym, args} (`app/src/pages/terminal/useTerminalLayout.js`).
     # ADDITIONS-ONLY: a new key, no existing key renamed (coexistence MG-4); the panels'
     # linked security rides the EXISTING `charts_workspace_groups`, not a copy here.
+    # Lane T2: v2 adds channel records, density, the closed-panel undo stack and pop-outs
+    # INSIDE the same key; v1 blobs are read by the client's shim (`boardModel.js`).
     "terminal_layout": _PREF_OPAQUE,
+    # Lane T2 (2026-10-02): the member's named terminal boards (`B:<slug>` addresses),
+    # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
+    # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
+    "terminal_boards": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
@@ -2653,11 +2762,22 @@ def get_preferences(response: Response, user: dict = Depends(get_current_user)):
     # header is set: the response is byte-for-byte what it was. Armed, the board's keys come from
     # the document head (falling back to this store, never to a default) and the header says
     # which answered.
-    prefs, stamp = workspace_doc_store.read_prefs(user["id"], get_user_preferences(user["id"]),
-                                                  set_user_preference)
-    if stamp is not None:
-        response.headers["X-Workspace-Doc"] = stamp
+    # Lane T2: every board is read the same way, in turn; each touches only its own keys. The
+    # Charts board keeps its header byte-for-byte; the terminal board answers in its own.
+    prefs = get_user_preferences(user["id"])
+    for board in workspace_doc_store.BOARDS:
+        prefs, stamp = workspace_doc_store.read_prefs(user["id"], prefs, set_user_preference, board)
+        if stamp is not None:
+            response.headers[_WORKSPACE_DOC_HEADERS[board]] = stamp
     return prefs
+
+
+#: The response header each board's read-new stamp rides (`X-Workspace-Doc` is the Charts
+#: board's, unchanged, and is what `app/src/lib/workspaceDoc.js` reads).
+_WORKSPACE_DOC_HEADERS = {
+    workspace_doc_store.BOARD_CHARTS: "X-Workspace-Doc",
+    workspace_doc_store.BOARD_TERMINAL: "X-Workspace-Doc-Terminal",
+}
 
 
 @router.post("/preferences")

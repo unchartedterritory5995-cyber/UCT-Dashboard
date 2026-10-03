@@ -50,12 +50,15 @@ function Levels({ sym }) {
   )
 }
 
-function Heatmap({ sym }) {
-  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/heatmap?dte=month`)
+// One strike x expiry grid. FT-049's gamma heatmap, and (lane/o-options-remainders) its delta-pressure
+// and charm siblings: each its OWN route and switch (OPTIONS_DELTA_PRESSURE_ENABLED /
+// OPTIONS_CHARM_HEATMAP_ENABLED), same chain, same cell rule (blank = no computable contract, never 0).
+function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and expiry', testid = 'posn-heatmap', what = 'The gamma heatmap' }) {
+  const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/${path}?dte=month`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.cells))) return null
   const max = data?.max_abs || 1
   return (
-    <Block title="Gamma exposure by strike and expiry" testid="posn-heatmap" failed={failed} what="The gamma heatmap">
+    <Block title={title} testid={testid} failed={failed} what={what}>
       {data && (
         <>
           <div className={styles.scroll}>
@@ -77,6 +80,12 @@ function Heatmap({ sym }) {
             </table>
           </div>
           <p className={styles.muted}>Unit: {data.unit}. {data.note} {data.method}</p>
+          {data.contracts_without_defined_charm > 0 && (
+            <p className={styles.muted} data-testid={`${testid}-undefined`}>
+              {data.contracts_without_defined_charm} contract{data.contracts_without_defined_charm === 1 ? '' : 's'} had no defined charm (expiring today, delta pinned at 0/1, or no gamma) and are left out.
+            </p>
+          )}
+          {data.not_built && <p className={styles.muted}>{data.not_built}</p>}
         </>
       )}
     </Block>
@@ -180,6 +189,8 @@ export default function PositioningPanel({ sym }) {
     <div data-testid="positioning">
       <Levels sym={s} />
       <Heatmap sym={s} />
+      <Heatmap sym={s} path="delta-heatmap" title="Delta pressure by strike and expiry" testid="posn-delta-heatmap" what="The delta-pressure heatmap" />
+      <Heatmap sym={s} path="charm-heatmap" title="Charm by strike and expiry" testid="posn-charm-heatmap" what="The charm heatmap" />
       <MaxPain sym={s} />
       <Nope sym={s} />
       <Impact sym={s} />

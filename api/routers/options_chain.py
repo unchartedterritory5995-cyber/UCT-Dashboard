@@ -127,6 +127,21 @@ def submit_option_backtest(sym: str, body: dict = Body(...), user: dict = Depend
     return JSONResponse(status_code=202, content=ob.job_status(job, str(user["id"])))
 
 
+def _backtest_more_armed() -> None:
+    """FT-011 rides on the backtester's switches AND its own (OPTIONS_BACKTEST_MORE_ENABLED)."""
+    from api.services import options_backtest as ob
+    if not (is_backtest_enabled() and ob.more_enabled()):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/options/{sym}/backtest-catalog", dependencies=[Depends(_backtest_more_armed)])
+def option_backtest_catalog(sym: str, _user: dict = Depends(require_paid)):
+    """FT-011: the structures and entry anchors the backtester will run while the switch is on.
+    Plain `def`: it returns a constant table."""
+    from api.services import options_backtest as ob
+    return ob.catalog()
+
+
 @router.get("/api/research/options/{sym}/backtest/{job}", dependencies=[Depends(_backtest_armed)])
 def read_option_backtest(sym: str, job: str, user: dict = Depends(require_paid)):
     """One job's state -- the caller's own, or 404 (not-there and not-yours read the same). A

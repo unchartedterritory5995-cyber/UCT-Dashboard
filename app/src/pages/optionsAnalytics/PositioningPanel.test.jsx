@@ -48,7 +48,8 @@ describe('PositioningPanel (FT-047/049/050/052/055)', () => {
   it('every block is dark on its own: all switches off renders no block', async () => {
     stub([])
     mount()
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(6))
+    // 6 blocks + lane O's delta-pressure and charm heatmaps (each its own dark route)
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(8))
     await new Promise((r) => setTimeout(r, 20))
     expect(screen.getByTestId('positioning').children.length).toBe(0)
   })

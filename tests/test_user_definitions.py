@@ -1334,7 +1334,11 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: returns only definitions whose owners asked for that specifically, and
 #: `tests/test_definition_library.py::test_a_SHARED_definition_is_NOT_in_the_
 #: library_until_it_is_also_LISTED` is the rail that keeps the two apart.
-EXPECTED_ROUTE_COUNT = 16
+#: 2026-10-02 (RT1): ONE MORE — `GET /runtime-kill`, the runtime lane's per-script
+#: kill list and whether the store takes runtime documents, read by the member
+#: door's preview. Paid-gated like every other route here; it returns no member's
+#: data, only two values off the server's own env.
+EXPECTED_ROUTE_COUNT = 17
 
 
 def _routes():

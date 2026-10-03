@@ -15,6 +15,8 @@ import {
 } from '../pages/journal-2-0/lib/noteSwitcher'
 import jsonFetcher from '../utils/jsonFetcher'
 import { registerShortcuts } from '../pages/command/shortcutRegistry'
+import useTerminalNext, { TERMINAL_PATH } from '../pages/terminal/terminalGate'
+import { terminalCommandRow } from '../pages/terminal/paletteGrammar'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
 import styles from './CommandPalette.module.css'
 
@@ -73,6 +75,7 @@ function rowAriaLabel(r) {
   if (r._typed) return undefined // the visible "Go to NVDA" text is the name
   if (r.kind === 'saved') return `${r.kindLabel}: ${r.name}. Enter to open.`
   if (r.kind === 'command') return r.label
+  if (r.kind === 'terminal') return `Run in UCT Terminal: ${r.command}. ${r.label}.`
   if (r.kind === 'note') {
     const where = r.context ? `, in ${r.context}` : ''
     const badge = r.badge ? ` (${r.badge})` : ''
@@ -135,6 +138,15 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const [savedError, setSavedError] = useState(false)
   const savedAbortRef = useRef(null)
 
+  // Lane T3 (V4): the palette is a second front end of the TERMINAL grammar. Only while
+  // the shell is released to this member (the server's cohort answer) — a closed shell
+  // would bounce `/terminal?cmd=` back to /calendar, so the palette never offers it.
+  const terminalOpen = useTerminalNext()
+  const terminalOpenRef = useRef(terminalOpen)
+  terminalOpenRef.current = terminalOpen
+  const locationRef = useRef(location)
+  locationRef.current = location
+
   const inputRef = useRef(null)
   const openerRef = useRef(null)
   const openRef = useRef(false)
@@ -176,6 +188,22 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         openerRef.current = document.activeElement
         setOpen(true)
       }
+    },
+    // V4: backtick is the GLOBAL terminal focus key. In the shell it focuses the command
+    // line; anywhere else it opens the shell. Never inside a text field (declared), and a
+    // member the shell is not released to keeps an ordinary backtick.
+    'terminal.focus': (e) => {
+      const onShell = String(locationRef.current?.pathname || '').startsWith(TERMINAL_PATH)
+      if (onShell) {
+        const el = document.querySelector('[data-testid="terminal-command"]')
+        if (!el) return
+        e.preventDefault()
+        el.focus()
+        return
+      }
+      if (!terminalOpenRef.current) return
+      e.preventDefault()
+      navigate(TERMINAL_PATH)
     },
   }), [])
 
@@ -417,11 +445,21 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   // TERM-038: saved rows go LAST, and only for the query as typed -- they never sit above
   // a ticker or a note, so what a bare Enter opens is decided exactly as before.
   const savedFresh = !isHelp && savedFor === trimmedQuery ? savedRows : []
-  const displayRows = useMemo(() => [...orderedRows, ...savedFresh], [orderedRows, savedFresh])
+  // V4: one terminal-command row from the shell's own parser (paletteGrammar.js says where).
+  const terminalRow = useMemo(
+    () => (terminalOpen && !isHelp ? terminalCommandRow(trimmedQuery) : null),
+    [terminalOpen, isHelp, trimmedQuery],
+  )
+  const displayRows = useMemo(() => {
+    if (terminalRow?.placement === 'lead') return [terminalRow.row, ...orderedRows, ...savedFresh]
+    if (terminalRow) return [...orderedRows, ...savedFresh, terminalRow.row]
+    return [...orderedRows, ...savedFresh]
+  }, [orderedRows, savedFresh, terminalRow])
   // R1-N2 / R23-N4: does an Enter on the top row have to wait for the answers
   // first? For a ticker-led query, for BOTH of them.
   const mustWait = enterMustWait({
-    hasFixedLeaders: notebookCommandRows.length > 0 || notebookNoteRows.length > 0,
+    hasFixedLeaders: notebookCommandRows.length > 0 || notebookNoteRows.length > 0
+      || terminalRow?.placement === 'lead',
     tickerLead: tickerLeads(qUpper, TICKER_LIKE),
     notesSettled,
     tickersSettled,
@@ -456,7 +494,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         return
       }
       navigate(row.to)
-    } else if (row.kind === 'saved') {
+    } else if (row.kind === 'saved' || row.kind === 'terminal') {
       navigate(row.to)
     } else if (row.kind === 'note') {
       // Wave 10 (10D, R-16, study task T4): `switcher_used` — declared in wave 6, fired from
@@ -624,6 +662,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
+                {terminalOpen && <li>Terminal commands work here too: <kbd>NVDA GP</kbd>, <kbd>@B AAPL</kbd>, <kbd>ASK why is SMH down</kbd>. <kbd>`</kbd> jumps to the Terminal command line.</li>}
               </ul>
             </div>
           )}
@@ -677,6 +716,15 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
                     </span>
                   )}
                   {r.badge && <span className={styles.resultExch}>{r.badge}</span>}
+                </>
+              ) : r.kind === 'terminal' ? (
+                <>
+                  <span className={styles.resultLogo}><UIcon name="board" size={15} /></span>
+                  <span className={styles.resultMain}>
+                    <span className={styles.resultSym}>{r.command}</span>
+                    <span className={styles.resultName}>{r.label}</span>
+                  </span>
+                  <span className={styles.resultExch}>Terminal</span>
                 </>
               ) : r.kind === 'saved' ? (
                 <>

@@ -102,10 +102,17 @@ function productDocument(name) {
   })
 }
 
-const BLOCKED = []
-
-/** ⚰ The other DOCUMENT_SIZE_BLOCKED script, which R-F made too small to block. */
-const NO_LONGER_OVERSIZED = 'high_engagement__03-supertrend-kivancozbilgic'
+/** ⭐ WAVE 15 (H1, 2026-10-02): `…03-supertrend` IS BACK, AND IT IS BLOCKED AGAIN.
+ *  R-F had refused its band (a 250-bar rolling min wearing a running band's name), so
+ *  it carried nothing and there was no document to size. H1 admits the ratchet and
+ *  decides it with the RANGE window, published only where every earlier history gives
+ *  one value; the same shape is TradingView's on `pivot-point-supertrend`
+ *  (`vendorHarness.h1Ratchet`), and the host and runtime lanes agree on all six rows of
+ *  this script, bar for bar, on RDDT's 631 listing bars (wave-15 integration note,
+ *  `objects-triage-2026-09-28.md` § wave 15). Measured: 383,178 B -> 6,751 B (x56.8),
+ *  every parameter placed, reads back. So the demonstration this file had lost has a
+ *  real document again. */
+const BLOCKED = ['high_engagement__03-supertrend-kivancozbilgic']
 
 /** ⚰️⚰️ THE LAST SURVIVING `BLOCKED` EXAMPLE, RETIRED THE OPPOSITE DIRECTION
  *  (2026-09-20). `ta.valuewhen` joining the engine grammar (six real calls in
@@ -167,23 +174,6 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
         + ` -> graph locators ${Object.values(sent.compute.graph.parameters).reduce((n, e) => n + e.locators.length, 0)}`)
     })
   }
-
-  it(`⚰ ${NO_LONGER_OVERSIZED} produces NO DOCUMENT AT ALL now`, () => {
-    // ⚰⚰ TWO RULINGS, TWO STEPS DOWN, AND THIS RECORDS BOTH SO NEITHER READS AS AN
-    // ACHIEVEMENT. The original measurement was real: ~70,000 bytes with a 666-locator
-    // manifest, reduced 48-fold by the graph form. R-F then refused nine of the ten
-    // columns and left the author's `ohlc4` fill edge, which briefly made this a
-    // 1,041-byte one-tree document. Ruling 1.2 refuses that edge too — a helper the
-    // author hid is not a column — so the script now carries nothing at all and there
-    // is no document to size.
-    // ⛔ "It fits now" must never read as the representation having solved something.
-    const rows = productRows(NO_LONGER_OVERSIZED)
-    expect(rows).toHaveLength(0)
-    const t = translation(NO_LONGER_OVERSIZED)
-    expect([...new Set((t.outputs || []).filter((o) => o.refusal).map((o) => o.refusal.guard))])
-      .toEqual(['pine:state'])
-    expect(t.selected).toBe(-1)
-  })
 
   it(`⚰️⚰️ ${NOW_EXCEEDS_EXPANSION_CEILING} REDUCES but no longer READS BACK`, () => {
     const doc = productDocument(NOW_EXCEEDS_EXPANSION_CEILING)

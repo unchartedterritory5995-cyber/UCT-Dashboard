@@ -114,8 +114,12 @@ const REFUSES = Object.freeze({
   // one. ⛔ Both are TRAILING STOPS — UT Bot is a trailing-stop alert and Chandelier
   // Exit is a trailing stop — so the wrong window put a member's STOP in the wrong
   // place. They refuse now, and the refusal names the bounded form.
-  '04-ut-bot-alerts.pine': ['pine:state', 15, '['],
-  '05-chandelier-exit.pine': ['pine:state', 27, '['],
+  // ⚰️⚰️ BOTH LEFT THIS MAP 2026-10-02 (H1) AND THEY TRANSLATE — and R-F's point
+  // stands: neither is a 250-bar window now. Each stop resets on a test that
+  // reads the stop (price closing through it), which the RANGE window decides
+  // (`interpret.js::RANGE_TOP`): the state is SWITCHED and a bar is published
+  // only where every earlier history gives one value. Held to the listing run
+  // over AGEN and RDDT (`ratchetServedScripts.test.js`): 0 bars disagree.
   // ⭐⭐ MOVER, 2026-09-14 — THE GUARD ADVANCED. This was
   // ['pine:collection', 132, 'array.get']: the script stopped at the first array
   // READ. Wave 2 item (a) makes a sized array a plan-time vector, so that read

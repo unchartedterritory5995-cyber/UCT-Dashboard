@@ -1904,6 +1904,23 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_screen_alerts", max_instances=1, replace_existing=True)
 
+    # -- FT-027: standing alerts on FILTER-LIST screens (membership snapshot).
+    # Registered unconditionally; `spec_alerts.run_nightly` asks
+    # SCREENER_SPEC_ALERTS_ENABLED each run and does nothing while it is off.
+    # 06:30 ET reads the 03:00 snapshot build; a second run on the same build
+    # stores nothing and diffs nothing (the session is the snapshot's date).
+    def _run_spec_alerts():
+        try:
+            from api.services.screener import spec_alerts
+            print(f"[scheduler] spec screen alerts: {spec_alerts.run_nightly()}")
+        except Exception as e:
+            print(f"[scheduler] spec screen alerts error: {e}")
+
+    scheduler.add_job(
+        _run_spec_alerts,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+        id="screener_spec_alerts", max_instances=1, replace_existing=True)
+
     # -- Wave 2 nightly source jobs: finviz universe, earnings dates, insider
     # capture, analyst pass. Each wraps its runner in try/except and logs the
     # RECEIPT dict on success -- Task 14's verification greps this line, and
@@ -9215,6 +9232,8 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
+app.include_router(terminal_grammar_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
 from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)
@@ -9225,6 +9244,14 @@ from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-
 app.include_router(research_cov_router.router)
 from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
 app.include_router(research_depth_router.router)
+from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
+app.include_router(news_depth_router.router)
+from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)
+app.include_router(research_notices_router.router)
+from api.routers import research_calls_depth as research_calls_depth_router  # noqa: E402  (Lane R D-5, dark per surface)
+app.include_router(research_calls_depth_router.router)
+from api.routers import calendar_depth as calendar_depth_router  # noqa: E402  (Lane R D-1/D-2/D-3, dark per surface)
+app.include_router(calendar_depth_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)
