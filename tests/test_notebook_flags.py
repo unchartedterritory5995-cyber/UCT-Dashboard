@@ -45,6 +45,8 @@ NOTEBOOK_KEYS = [
     "notebook_ta_fingerprint_enabled",
     # Wave 13 lane 13C: earnings prep (Reporting soon) — an enablement gate.
     "notebook_earnings_prep_enabled",
+    # Wave 13 lane 13E-1: the market context frozen at the fill — an enablement gate.
+    "notebook_entry_context_enabled",
 ]
 
 

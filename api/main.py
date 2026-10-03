@@ -123,6 +123,10 @@ from api.routers import notebook_fingerprint as notebook_fingerprint_router
 # Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), dark behind
 # NOTEBOOK_EARNINGS_PREP_ENABLED (router-level 404); mounted with the other Notebook routers.
 from api.routers import notebook_earnings_prep as notebook_earnings_prep_router
+
+# Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), dark
+# behind NOTEBOOK_ENTRY_CONTEXT_ENABLED (router-level 404).
+from api.routers import notebook_entry_context as notebook_entry_context_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -6379,6 +6383,15 @@ async def lifespan(app: FastAPI):
             print("[startup] Note-connector sync scheduler ON (due tick hourly :23, "
                   "full nightly 01:47 ET)")
 
+        # Wave 13 lane 13E-1: freeze the market context at the fill. A sweep every 10 minutes
+        # in market hours, plus a listener that queues one capture AFTER each broker-sync job
+        # finishes (no broker code is edited; the hook only reads j2_positions / j2_trades and
+        # never raises). Both read NOTEBOOK_ENTRY_CONTEXT_ENABLED per run: inert while dark.
+        from api.services.journal_two import entry_context as _entry_context
+        if _entry_context.install_scheduler_hooks(_scheduler, CronTrigger, _ET):
+            print("[startup] Entry-context capture hooks registered (inert unless "
+                  "NOTEBOOK_ENTRY_CONTEXT_ENABLED)")
+
         def _cot_daily_catchup():
             try:
                 from datetime import date as _dt
@@ -8923,6 +8936,9 @@ app.include_router(notebook_fingerprint_router.router)
 
 # Wave 13 lane 13C: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_earnings_prep_router.router)
+
+# Wave 13 lane 13E-1: outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_entry_context_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

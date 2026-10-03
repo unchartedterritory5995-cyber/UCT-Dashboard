@@ -54,6 +54,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_template_gallery_enabled: false, // wave 12 lane 12A: the community template gallery — absent ⇒ OFF
   notebook_ta_fingerprint_enabled: false, // wave 13 lane 13I-1: the technical fingerprint — absent ⇒ OFF
   notebook_earnings_prep_enabled: false, // wave 13 lane 13C: Reporting soon + earnings prep notes — absent ⇒ OFF
+  notebook_entry_context_enabled: false, // wave 13 lane 13E-1: the market context frozen at the fill — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

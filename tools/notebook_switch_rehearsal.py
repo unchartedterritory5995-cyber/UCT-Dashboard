@@ -219,6 +219,9 @@ NOT_REHEARSED = {
     # Wave 13 lane 13C.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
                                       "one-click earnings prep note; waits for its real-browser walk",
+    # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "dark (wave 13 13E-1): the market context frozen at the "
+                                      "fill (API + capture hooks); no member surface until 13E-2",
 }
 
 

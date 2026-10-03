@@ -45,6 +45,7 @@ _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
     "j2_broker_accounts": {"status": "active"},
     "j2_broker_dup_flags": {"status": "pending"},
     "j2_note_publications": {"kind": "note"},
+    "j2_entry_context": {"capture_kind": "at_entry"},
 }
 
 
@@ -151,6 +152,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # them on the first fingerprint read (wave 13 lane 13I-1).
     from api.services.journal_two import chart_blocks as cblk
     cblk.ensure_schema(conn)
+    # j2_entry_context, likewise: entry_context.py self-ensures it on the first capture or
+    # read (wave 13 lane 13E-1).
+    from api.services.journal_two import entry_context as ectx
+    ectx.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

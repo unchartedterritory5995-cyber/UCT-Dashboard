@@ -184,6 +184,10 @@ NOTEBOOK_FLAGS = {
     # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_earnings_prep_enabled`.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
+    # Wave 13 lane 13E-1: the market context frozen at the fill. The router's gate
+    # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
+    # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
