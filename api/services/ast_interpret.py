@@ -4855,8 +4855,10 @@ def period_anchor_mask(tree: Any, bars: List[dict],
             if calendar is None:
                 return [1] * n
             # ruling 2026-10-01: a period whose first session has no bar is the
-            # calendar's answer too; only the bar before the series is unknown
-            spread(unknown, a, True)
+            # calendar's answer too; only the bar before the series is unknown --
+            # and not even that from the listing (H5, ruling R-W: there is no
+            # earlier bar, a read there is Pine's ``na``)
+            spread(unknown, a, (opts or {}).get("historyFromListing") is not True)
             continue
         # every day of the week (C36): the literal tree, the period's CALENDAR
         # first day, and one clock regime

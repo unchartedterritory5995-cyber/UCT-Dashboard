@@ -4952,7 +4952,14 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
       // ⛔ `calendar` is null only when a bar's instant is unreadable, which the
       // regime already answered `unreadable` for: fail closed rather than trust it.
       if (!calendar) { mask.fill(1); return mask }
-      spread(unknown, a, true)
+      // ⭐ H5 — "the bar before the series is unknown" holds only when the series
+      // does NOT start at the symbol's first bar. From the listing (ruling R-W,
+      // `opts.historyFromListing`) there IS no earlier bar: a read there is Pine's
+      // `na`, which is what this lane answers — the exception `historyReadMask`
+      // already makes. Graded: `vw-library-import-rddt-1d-2026-10-02` L03/L04
+      // (`var` maxima reset at `ta.change(time("M"|"W"))`, RDDT from the listing)
+      // were withheld for 251 bars here and are TradingView's from bar 0.
+      spread(unknown, a, !historyBeforeFirstKnown(opts && opts.historyFromListing))
       continue
     }
     // every day of the week (C36): the literal tree, its period's CALENDAR first day, one clock regime
