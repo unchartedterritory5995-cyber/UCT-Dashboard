@@ -11137,12 +11137,14 @@ export class Resolver {
       // (average-day-range-adr-pivots) asks for the timeframe the call site
       // passed; read through the frame the resolver is inside, exactly as
       // `stringValueOf` reads a parameter (`throughBinding`), never guessed.
-      // ⛔ THE OBJECT PASS ONLY. On the plot lane a request that newly resolves is a
-      // newly served OUTPUT, and its inputs mint member parameters ahead of the ones
-      // a saved definition already addresses (`paramIds.test.js`: measured on
-      // advanced-custom-multi-ma-signals, whose `f_mtf_ma(…, _tf)` plots moved ten
-      // ids). A drawing's coordinate is not an output and mints nothing new there.
-      if (this.objectPass && bound && bound.kind === 'param') {
+      // ⭐ H5 (step 84) — AND ON THE PLOT LANE. C33 confined this to the object pass
+      // because a newly served plot minted member parameters ahead of saved ones
+      // (measured then on advanced-custom-multi-ma-signals: ten ids moved). Since
+      // C46 an id is the input call's place in the SOURCE (`paramIdSource.js`), so
+      // a newly served output only appends; `paramIds.test.js` stays green across
+      // the corpus with this rule on. The request is the one the member gets by
+      // writing the caller's argument at the call (`c33ObjectReads`, H5 block).
+      if (bound && bound.kind === 'param') {
         return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
       }
       return null
