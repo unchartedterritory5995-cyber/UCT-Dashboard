@@ -1131,7 +1131,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const colourKeyByOutput = new Map()
   const colourKeyOf = (outputIndex) => {
     if (colourKeyByOutput.has(outputIndex)) return colourKeyByOutput.get(outputIndex)
-    const key = keyAt(drawnRows.length + colourRows.length)
+    // ⭐ F1 — a document with NO drawn row keeps `value` for the RT5 anchor row
+    // (below), so its colour columns start one slot later. Reached once F1 carried a
+    // paint's `offset`: wyckoff's only output is an offset `barcolor`, and its colour
+    // column took `value` beside the anchor — a duplicate key the install door refuses.
+    const key = keyAt(Math.max(drawnRows.length, 1) + colourRows.length)
     outputs[key] = outputIndex
     colourKeyByOutput.set(outputIndex, key)
     colourRows.push({
@@ -1181,8 +1185,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // Paired by kind and source order, the rule the host and the vendor harness
   // use (Pine allows these calls only at global scope); a count that disagrees
   // carries none of that kind. A paint the host withheld for a reason OTHER than
-  // its colour (an offset, `show_last`, an argument it cannot read, …) stays
-  // withheld here: the run computes a colour, not where TradingView draws it.
+  // its colour (an argument it cannot read, …) stays withheld here.
+  // ⭐ F1 — a whole-number `offset` / `show_last` is render-time only (CAP round 4,
+  // `vw-bgcolor-barcolor-spy-1d-2026-10-02`): the host record carries the two numbers
+  // and they ride here unchanged, so the binder places the run's colour exactly as it
+  // places the host lane's (`binder.js::paintRenderColours`).
   const docPaints = []
   const paintWithheld = []
   {
@@ -1214,6 +1221,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
           ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
           colorMode: `column:${colourKeyOf(rk[i])}`,
           colorPacked: c.colorPacked,
+          ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+          ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
         })
       })
     }

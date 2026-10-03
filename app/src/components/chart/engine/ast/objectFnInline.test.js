@@ -319,10 +319,11 @@ describe('⭐⭐ a conditional call under a BAR-INVARIANT guard inlines', () => 
   })
 
   // ⭐ C48 re-pin — `ta.lowest(low, 10)` stood here; capture `vw-call-site-history`
-  // (rows A02 / B04) witnesses it now, so the control is a `ta.*` with no row
-  // (`ta.wma`) and one whose row is in a BLOCK only (`ta.rsi`, A05).
+  // (rows A02 / B04) witnesses it now. ⭐ F1 re-pin — `ta.wma` and `ta.rsi` stood
+  // here too; CAP round 4's `once-ta-helper-{rddt,spy}-1d-2026-10-02` shows both
+  // inside a helper called once, so the control is `ta.vwma`, which no capture shows.
   it('⛔ CONTROL — under `barstate.islast` a `ta.*` no capture shows on its first run still refuses', () => {
-    for (const call of ['ta.wma(close, 10)', 'ta.rsi(close, 14)']) {
+    for (const call of ['ta.vwma(close, 10)']) {
       const t = host(src('f() =>', `    label.new(bar_index, ${call}, "x")`, 'if barstate.islast', '    f()'))
       expect(diag(t).dropReasons['fn:conditional-history'], call).toBe(1)
       expect(diag(t).oneExecutionCalls, call).toBeUndefined()
@@ -364,8 +365,9 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
 
   it('⛔ CONTROL — `ta.*` in the same body is the call\'s own state, still refused', () => {
     // ⭐ C42 — `ta.ema`: the one-run answer of `ta.sma` / `ta.highest` is witnessed now
-    // ⭐ C48 re-pin — and `ta.ema`'s (rows A04 / B05); `ta.wma` has no row
-    expect(refused(underLast('    label.new(bar_index, low[k] + ta.wma(close, 3), "x")'))).toBe(1)
+    // ⭐ C48 re-pin — and `ta.ema`'s (rows A04 / B05); ⭐ F1 — and `ta.wma`'s
+    // (`once-ta-helper`), so the control is `ta.vwma`, which has no row
+    expect(refused(underLast('    label.new(bar_index, low[k] + ta.vwma(close, 3), "x")'))).toBe(1)
     const varies = host(src('f(int k) =>', '    label.new(bar_index, low[k] + ta.sma(close, 3), "x")',
       'if close > open', '    f(5)'))
     expect(refused(varies)).toBe(1)
@@ -530,10 +532,10 @@ describe('⭐⭐ C42 — tokens as they read on ONE execution', () => {
     expect(once('x = ta.atr(1)').why).toMatch(/whose length is not a whole number above 1/)
     // the one-argument `ta.highest(len)` reads the CHART's `high` — only where no script name shadows it
     expect(once('x = ta.highest(10)').why).toMatch(/reads the chart's `high`, a name this script binds itself/)
-    const r = once('x = ta.wma(low, 10) + ta.highest(high, 10)')
+    const r = once('x = ta.vwma(low, 10) + ta.highest(high, 10)')
     expect(r.why).toBeNull()
-    expect(String(r.left.value)).toBe('ta.wma')
-    expect(show(r.toks)).toBe('x = ta.wma ( low , 10 ) + ( high )')
+    expect(String(r.left.value)).toBe('ta.vwma')
+    expect(show(r.toks)).toBe('x = ta.vwma ( low , 10 ) + ( high )')
   })
 
   // capture `vw-call-site-history-{rddt,spy}-1d-2026-10-01`, rows A01–A11 / B04–B10
@@ -555,21 +557,29 @@ describe('⭐⭐ C42 — tokens as they read on ONE execution', () => {
     }
   })
 
-  it('⛔ C48 — a row asked only in a BLOCK stays refused inside a helper called once', () => {
-    for (const text of ['x = ta.rsi(close, 14)', 'x = ta.stdev(close, 5)', 'x = ta.atr(14)', 'x = ta.change(close)', 'x = ta.cum(volume)']) {
+  // ⭐ F1 re-pin — C48 left these five refused inside a helper (their rows were asked
+  // only in a BLOCK). CAP round 4's `once-ta-helper-{rddt,spy}-1d-2026-10-02` asks
+  // them inside a function called once, and TradingView answers exactly as in the
+  // block: served in both places now, with the same first-run reading.
+  it('⭐ F1 — a row C48 asked only in a BLOCK is served inside a helper called once too', () => {
+    for (const [text, want] of [['x = ta.rsi(close, 14)', 'x = na'], ['x = ta.stdev(close, 5)', 'x = na'],
+      ['x = ta.atr(14)', 'x = na'], ['x = ta.change(close)', 'x = na'], ['x = ta.cum(volume)', 'x = ( volume )'],
+      ['x = ta.wma(close, 10)', 'x = na']]) {
       const r = once(text, { helper: true })
-      expect(r.why, text).toMatch(/witnessed in a block that runs once, not inside a function called once/)
-      expect(taCallIn(r.toks), text).not.toBeNull()
+      expect(r.why, text).toBeNull()
+      expect(show(r.toks), text).toBe(want)
     }
     // …and the rows asked in both places are served in both
     for (const [text, want] of [['x = ta.lowest(low, 10)', 'x = ( low )'], ['x = ta.ema(close, 3)', 'x = na'], ['x = ta.sma(close, 1)', 'x = ( close )']]) {
       expect(show(once(text, { helper: true }).toks), text).toBe(want)
     }
+    // ⛔ control: a `ta.*` no capture shows is still refused inside a helper
+    expect(taCallIn(once('x = ta.vwma(close, 10)', { helper: true }).toks)).not.toBeNull()
   })
 
   it('⭐ `flagRest` marks every `ta.*` call left standing — and nothing else', () => {
-    const r = once('x = ta.wma(low, 10) + ta.highest(high, 10) + math.max(a, b)', { flagRest: true })
-    expect(r.toks.filter((tk) => tk.onceUnwitnessed).map((tk) => tk.value)).toEqual(['ta.wma'])
+    const r = once('x = ta.vwma(low, 10) + ta.highest(high, 10) + math.max(a, b)', { flagRest: true })
+    expect(r.toks.filter((tk) => tk.onceUnwitnessed).map((tk) => tk.value)).toEqual(['ta.vwma'])
     expect(once('x = ta.highest(high, 10)', { flagRest: true }).toks.some((tk) => tk.onceUnwitnessed)).toBe(false)
   })
 
