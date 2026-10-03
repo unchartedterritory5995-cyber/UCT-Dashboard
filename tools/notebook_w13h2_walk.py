@@ -250,8 +250,16 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
     x0, y0, cw, ch = canvas_box
     placed = 0
     for frac in (0.28, 0.5, 0.72):
-        tool = frame.get_by_role("button", name=re.compile(r"^Horizontal Line"))
-        tool.first.wait_for(state="visible", timeout=15000)
+        # The drawing toolbar is the chart's own (ChartToolbar); it may portal outside the embed
+        # frame, so it is looked for on the page. Run 1 found nothing inside the frame.
+        tool = pg.get_by_role("button", name=re.compile(r"^Horizontal Line"))
+        try:
+            tool.first.wait_for(state="visible", timeout=15000)
+        except Exception:
+            w.raw[f"{tag}_buttons_when_tool_missing"] = pg.evaluate(
+                "() => [...document.querySelectorAll('button')].map(b => [(b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 50), !!b.offsetParent, Math.round(b.getBoundingClientRect().width)])")
+            w.shot(pg, f"{tag}-2-draw-mode-no-tool")
+            raise
         press(tool.first, touch)
         x, y = x0 + cw * 0.45, y0 + ch * frac
         if touch:
