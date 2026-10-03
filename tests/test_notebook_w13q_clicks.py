@@ -314,6 +314,16 @@ def test_tab_to_cap_is_exact_one_short_of_found_still_caps():
 # against the real sandbox (never these fakes): without bring_to_front() two attempts still
 # fail; with it, one extra attempt succeeds -- neither alone is sufficient. Evidence:
 # docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
+#
+# RE-VERIFIED AND STRENGTHENED by lane 13Q-Q1check, which doubted this compensation was
+# masking the real product behaviour -- it tried TWO different product-side fixes (a second
+# `editor.commands.focus()` call; a synchronous, un-deferred `editor.view.dom.focus()` call)
+# and BOTH measured to fail in the real product flow, every time, across 40+ repetitions.
+# The isolating finding: on the SAME page/element, back-to-back, the product's own effect
+# (page-native JS, any shape tried) never lands it, while the IDENTICAL call injected a moment
+# later via Playwright's `.focus()` (DevTools-protocol-level, never page script) lands it
+# immediately. A page's own code cannot reach that privileged context -- this compensation
+# stays. Evidence: docs/notebook/evidence/wave13-q1check/, write-up docs/notebook/wave13-q1check.md.
 
 class FakeBodyLocator:
     """The `.ProseMirror` locator `focus_editor_body` holds as `pm` -- tracks whether ITS OWN

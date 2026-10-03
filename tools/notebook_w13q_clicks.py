@@ -520,25 +520,36 @@ def focus_editor_body(m: Meter):
         m.steps.append({"do": "already in body (free)", "on": "note body"})
         return
     if m.mode == "keys":
-        # 13Q-3: a SECOND, deeper layer of 13Q-2's Q1 foreground diagnosis. bring_to_front()
-        # (run_one) makes the page genuinely foreground -- document.hasFocus()===true,
-        # visibilityState==='visible', both measured -- but a FRESH editor's first
-        # script-triggered .focus() call still silently fails in this harness even so; a
-        # SECOND attempt on the SAME editor instance succeeds. Measured BOTH ways, with the
-        # real product code, never a reimplementation: without bring_to_front() two attempts
-        # still fail; with it, one extra attempt succeeds. Neither alone is sufficient.
-        # Evidence: docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
+        # 13Q-3, RE-VERIFIED AND STRENGTHENED by 13Q-Q1check (do not remove this again without
+        # new evidence -- a product-side fix was tried twice and BOTH measured to fail against
+        # the real product, see docs/notebook/wave13-q1check.md). bring_to_front() (run_one)
+        # makes the page genuinely foreground -- document.hasFocus()===true,
+        # visibilityState==='visible', both measured -- but a freshly-mounted editor's FIRST
+        # script-triggered .focus() call still silently fails in this harness even so.
         #
-        # A real member's tab has no "first attempt" to retry -- theirs is the only one, and
-        # 13Q-2 already proved it succeeds (jsdom unit tests + a direct real-browser check,
-        # section 2 of that report). Playwright's OWN `.focus()` -- never a product-internals
-        # reach-in, never counted as a step -- is the SAME CATEGORY of instrument-only
-        # environment compensation as bring_to_front() itself (CLAUDE.md/13Q-2: "there is no
-        # DOM API ... only the host automating it can do that"). It is used here ONLY to tell
-        # the two cases apart: if it resolves the focus, this was the known harness artifact
-        # and the member pays nothing for it; if it does NOT, this is a genuine reachability
-        # defect and the real Tab walk below is what measures it honestly -- the fallback is
-        # never skipped, so a true regression is still caught.
+        # 13Q-Q1check isolated the actual variable with a same-page, same-element, back-to-back
+        # A/B: the product's own effect (page-native JS, however it calls .focus() -- the
+        # original single call, a retried call, or a direct synchronous DOM call were ALL
+        # tried) leaves `document.activeElement` on BODY every time measured (40+ real reps
+        # across headed/headless, fresh/persistent context, with/without bring_to_front -- see
+        # docs/notebook/evidence/wave13-q1check/); the IDENTICAL `.focus()` call, injected a
+        # moment later via Playwright's OWN `.focus()` (a DevTools-protocol-level action, never
+        # page script), lands it immediately and reliably. A page's own code can only ever run
+        # in the natural (page-script) context -- there is no way for the PRODUCT to reach the
+        # CDP-privileged one this compensation uses. This is not a genuine reachability defect;
+        # it is an artifact of the page being CDP-automated at all, which a real member's
+        # browser never is. Evidence:
+        # docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/ (13Q-3's original) and
+        # docs/notebook/evidence/wave13-q1check/ (this lane's re-verification + isolation).
+        #
+        # A real member's tab has no "first attempt" to retry -- theirs is the only one, and it
+        # runs in the same (and only) execution context their page ever has, which is the one
+        # proved to work (jsdom unit tests + 13Q-2's own direct real-browser check). Playwright's
+        # OWN `.focus()` -- never a product-internals reach-in, never counted as a step -- is
+        # used here ONLY to tell the two cases apart: if it resolves the focus, this is the known
+        # harness/automation artifact and the member pays nothing for it; if it does NOT, this is
+        # a genuine reachability defect and the real Tab walk below is what measures it honestly
+        # -- the fallback is never skipped, so a true regression is still caught.
         pm.focus()
         if focus_in_editor(pg):
             m.steps.append({"do": "already in body (free -- instrument foreground compensation "

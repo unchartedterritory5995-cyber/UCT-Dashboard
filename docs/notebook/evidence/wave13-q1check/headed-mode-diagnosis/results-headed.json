@@ -1,0 +1,167 @@
+{
+  "meta": {
+    "port": 8629,
+    "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\q1check-headed-data",
+    "member": "w13q1check@local.dev",
+    "headless": false,
+    "read_at_ms": [
+      100,
+      500,
+      2000
+    ],
+    "sandbox_healthy": true,
+    "stop_how": "graceful to the shutdown checkpoint, then forced exit"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "901bd216069f4030ae51aefd1d91c97b",
+      "click_to_url_ms": 137.9,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 190.7,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 510.5,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2019.8,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R1",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "6026f7e316604786b43074e6b673e1da",
+      "click_to_url_ms": 4051.6,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 4116.4,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 4172.2,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 4177.5,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R2",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "dba746f2c311488aa318e7ecd099ce63",
+      "click_to_url_ms": 641.2,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 712.3,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 725.7,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2008.3,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R3",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r3.png"
+    }
+  ]
+}

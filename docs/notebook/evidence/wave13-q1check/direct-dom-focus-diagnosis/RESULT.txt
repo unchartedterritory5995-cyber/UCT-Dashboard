@@ -1,0 +1,7 @@
+rep 1: before=False direct_dom_focus={'ok': True, 'hasFocusAfter': True} after=True
+rep 2: before=False direct_dom_focus={'ok': True, 'hasFocusAfter': True} after=True
+rep 3: before=False direct_dom_focus={'ok': True, 'hasFocusAfter': True} after=True
+stop_how: graceful to the shutdown checkpoint, then forced exit
+WROTE-DOM-DONE
+
+[exited with code 0]
