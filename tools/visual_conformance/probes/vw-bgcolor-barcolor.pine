@@ -27,7 +27,9 @@ bgcolor(up ? color.new(color.red, 70) : na, offset = -1, title = "O2")
 barcolor(up ? #00e5ff : na, offset = -2, title = "O3")
 barcolor(up ? #ff00ff : na, offset = na, title = "O4")
 bgcolor(color.new(color.blue, 80), show_last = 5, title = "S1")
-bgcolor(color.new(color.orange, 80), display = display.data_window, title = "D1")
+// D1 removed 2026-10-02 (CAP round 4): TradingView refuses it at compile time -
+// "Invalid argument 'display' in 'bgcolor' call. Possible values: [display.none, display.all]" (30:48).
+// So a `bgcolor` with any other `display` never runs on TradingView.
 barcolor(#ffeb3b, title = "P1")
 barcolor(up ? #000080 : na, title = "P2")
 plot(close, "control")

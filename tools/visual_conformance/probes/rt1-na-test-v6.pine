@@ -1,0 +1,28 @@
+//@version=6
+indicator("UCTPROBE_RT1_NA_TEST_V6", overlay = false)
+
+// RT1 (2026-10-02): what does `?:` answer when its TEST is na? The shared
+// TERNARY (interpret.js) answers na; two committed captures (qqe-signals and
+// pivot-point-supertrend, NYSE:RDDT 1D) show TradingView taking the OTHER
+// branch. The member door's runtime fallback refuses such a script by name
+// (`runtime:na-test`) until this probe settles the rule for every test shape.
+//
+// Capture on NYSE:RDDT 1D, full history, market closed; then the same file with
+// line 1 changed to //@version=4 and `indicator(` to `study(` (Q-NA-b), and with
+// line 1 changed to //@version=6 (Q-NA-c).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+warm = ta.sma(close, 20)            // na on bars 0..18
+x = close > open ? 1.0 : 0.0
+// a comparison against na as the test (a bool test that is false, not na, on v4/v5)
+plot(warm > close ? 1 : 2, "A01_cmp_na_test")
+// a cross whose operand is na (this engine's cross answers na there)
+plot(ta.cross(close, warm) ? 1 : 2, "A02_cross_na_test")
+// a float used as the condition (v4 truthiness); kept as a v5 bool via != 0
+plot(nz(warm) != 0 ? 1 : 2, "A03_float_nonzero_control")
+// a series bool read from history before bar 0
+plot(x[1] > 0 ? 1 : 2, "A04_history_na_test")
+// A05 removed for v6: TradingView refuses `bool b = na` at compile time
+// ("Cannot assign a value of the \"simple na\" type to the \"b\" variable.
+// The variable is declared with the \"const bool\" type.", 27:1, 2026-10-02).

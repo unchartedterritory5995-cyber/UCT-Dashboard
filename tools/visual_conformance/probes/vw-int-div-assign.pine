@@ -1,0 +1,29 @@
+//@version=5
+indicator("UCTPROBE_VW_INT_DIV_ASSIGN", overlay = false)
+
+// CAP round 4 (2026-10-02), for lane O1's Q-O1c: sonarlab-order-blocks writes
+//     sens = input.int(28, minval=1, ...)
+//     sens /= 100
+// and reads `sens` as a ROC threshold. Is it 0.28 (the division is fractional and the
+// variable widens) or 0 (integer division, the variable stays int)? On NYSE:RDDT the
+// picture is the same either way; on AAPL and BRK.A it is not.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. Every row is constant; read any bar.
+
+plot(bar_index, "D00_bar_index_CONTROL")
+
+sens = input.int(28, minval = 1, title = "Sensitivity")
+sens /= 100
+plot(sens, "D01_input_int_div_assign")
+
+a = 28
+a /= 100
+plot(a, "D02_int_literal_div_assign")
+
+plot(28 / 100, "D03_int_literal_over_int")
+
+b = input.int(28, title = "B")
+plot(b / 100, "D04_input_int_over_int")
+
+c = 28
+c := c / 100
+plot(c, "D05_int_reassigned_quotient")

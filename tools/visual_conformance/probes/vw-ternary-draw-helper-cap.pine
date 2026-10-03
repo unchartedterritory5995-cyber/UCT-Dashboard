@@ -1,0 +1,34 @@
+//@version=5
+indicator("UCTPROBE_VW_TERNARY_DRAW_HELPER", overlay = true, max_labels_count = 500, max_lines_count = 500)
+
+// vw-ternary-draw-helper — O1 (step 67, G7): a drawing HELPER as the THEN arm of `?:`
+// whose ELSE arm is `na`. Pine runs only the arm `?:` picks, so the helper draws on
+// exactly the bars where the test is true, the same bars `if test` runs its body on.
+// Queue: docs/pine/vendor-harness/capture-queue-2026-10-02-o1-drawing-only.md (Q-O1a).
+
+// R00 — the bar-index control the harness reads to prove where the series starts
+plot(bar_index, "R00", display = display.data_window)
+
+mark(y, txt) =>
+    label.new(bar_index, y, txt, style = label.style_label_down)
+
+// T01 — the ternary spelling: a label on every UP bar, bound to a name nothing reads
+T01 = close > open ? mark(high, "T01") : na
+
+// I01 — the `if` spelling of the same thing on DOWN bars, for the side-by-side count
+if close < open
+    mark(low, "I01")
+
+// T02 — a helper that deletes and redraws ONE `var` line, called every third bar
+lvl(x) =>
+    var line ln = na
+    line.delete(ln)
+    ln := line.new(bar_index - 5, x, bar_index, x, color = color.orange)
+
+T02 = bar_index % 3 == 0 ? lvl(close) : na
+
+// T03 — a bare ternary statement, no binding, under a test that can be `na`
+// (`close[1]` is na on bar 0): Pine takes the ELSE arm there, so no label on bar 0
+// CAP round 4 (2026-10-02): the line above was `close > close[1] ? mark(low, "T03") : na`.
+// TradingView refuses it at compile time ("Syntax error at input '>'", 32:7): a bare ternary
+// is not a statement on v5, so T03 is not a vendor question. Removed here; the rest is unchanged.
