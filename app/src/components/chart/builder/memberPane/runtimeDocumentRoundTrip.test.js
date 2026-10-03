@@ -121,3 +121,23 @@ describe('RF — a reloaded document (as the store serves it back) installs and 
     for (const key of Object.keys(base)) expect(edited[key]).toEqual(base[key])
   }, 60000)
 })
+
+describe('RF — what a runtime document does not draw is named, paints included', () => {
+  it('⛔ inside-bar-range writes two `barcolor`s TradingView paints; the runtime document draws none and SAYS so', () => {
+    flagsOn()
+    const k = RUNTIME_ONLY.indexOf('inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat')
+    const { built } = mint(RUNTIME_ONLY[k], k)
+    const paints = (built.translation.presentation || {}).paints || []
+    expect(paints.filter((p) => p.kind === 'barcolor').length).toBe(2) // non-vacuity: the paints exist
+    expect(built.definition.paints).toBeUndefined() // the runtime document carries no paint
+    const note = built.definition.meta.disclosures.find((d) => d.name === 'Not drawn by this pane')
+    expect(note && note.note).toMatch(/a bar colour/)
+  })
+
+  it('⭐ CONTROL — a runtime document whose script paints nothing carries no such note', () => {
+    flagsOn()
+    const { built } = mint(RUNTIME_ONLY[0], 0) // adx-and-di-for-v4
+    expect(((built.translation.presentation || {}).paints || []).length).toBe(0)
+    expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
+  })
+})

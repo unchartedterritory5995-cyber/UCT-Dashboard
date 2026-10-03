@@ -817,6 +817,10 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+      },
+      {
+       "name": "Not drawn by this pane",
+       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
       }
      ],
      "requirementTags": []
@@ -11213,6 +11217,10 @@
       {
        "name": "Baseline",
        "note": "`Baseline` is not drawn: its colour changes from bar to bar, which a script drawn bar by bar does not carry yet. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "Not drawn by this pane",
+       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
       }
      ],
      "requirementTags": []
@@ -11458,6 +11466,10 @@
       {
        "name": "The Buying Climax",
        "note": "`The Buying Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "Not drawn by this pane",
+       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
       }
      ],
      "requirementTags": []
