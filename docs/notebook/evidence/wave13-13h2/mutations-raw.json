@@ -78,5 +78,21 @@
     "restored_matches_HEAD_blob": true,
     "git_diff_quiet_after_restore": true,
     "at": "2026-10-02T21:30:30.768627"
+  },
+  {
+    "mutation": "M6-chart-body-click-reaches-prosemirror",
+    "file": "app/src/pages/journal-2-0/lib/widgetEmbedNode.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  2 failed | 7 passed (9)"
+    ],
+    "failed_tests": [
+      "stops a mousedown that lands on the chart body — the fix itself",
+      "stops a mousedown on an SVG drawing handle inside the body (the exact evidence shape)"
+    ],
+    "restored_matches_pre_mutation_bytes": true,
+    "at": "2026-10-02T23:06:06.804704"
   }
 ]

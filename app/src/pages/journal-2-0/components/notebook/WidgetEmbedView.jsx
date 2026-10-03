@@ -747,7 +747,13 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* Explicit pixel height + inline-size containment: every workspace
           widget root is height:100% and several use @container queries — a
           content-sized notebook parent collapses them to zero without this. */}
-      <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
+      {/* data-widget-embed-body: the ONE marker widgetEmbedNode.jsx's stopEvent
+          reads to tell ProseMirror "this click is mine" (see that file's
+          comment for the full mechanism — the 13H-2 draw-mode focus-steal
+          fix). Keep this attribute on whatever element wraps the live
+          chart/drawing surface; moving the ref without moving the marker
+          reopens the bug silently. */}
+      <div ref={bodyRef} data-widget-embed-body="" className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
       {planDoors && inView && (
