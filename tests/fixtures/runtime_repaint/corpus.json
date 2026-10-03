@@ -1,0 +1,3252 @@
+{
+ "generatedBy": "app/src/components/chart/engine/runtime/__tests__/runtimeRepaint.test.js",
+ "rows": [
+  {
+   "file": "corpus/committed/3-level-zigzag-semafor__3078.pine",
+   "sha256": "209d0939c46a5ded0e21a489f78ae49275ed7211ee45bd8ba595ea679c8140a5",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/4c-nyse-market-breadth-ratio__722410befd.pine",
+   "sha256": "c2621b47d52b60a074a40db12c8cf728a73ef1c8484a4c718fe18f1a3fff0aee",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+   "sha256": "a2f4730c2972bec97a29254b851966888fce67096e5c55461276d8430331c638",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ad-line-of-sp-sectors__af306a4359.pine",
+   "sha256": "384d6ee2e9098d3fa2b669a8ec1096aed1f97fe7d576fbff17a0503a850a4f99",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/adaptive-trend-following-suite-alpha-extract__d615e5a027.pine",
+   "sha256": "3e6fb2898c8efa4635c69a0d44c36a765403147dec7b7d469c8519e7e4e32866",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+   "sha256": "d8504953783816d4008864a5ae376302412761ca0ab22561ed84f4be4c0f6404",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/adx-and-di-for-v4__932.pine",
+   "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+   "sha256": "3fb6c720dd448404c2ffcf58cfee16ff61b2e1fee2d0a66d9748fc13f09481fd",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+   "sha256": "a5adaae8f6c2a80c548e5ff698a5acaf4b349d661d516a49098b2cf1d8ce3c25",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+   "sha256": "7a3b146a3f93540325188eec01623bce08a88a600847dc0883c087dddc029a14",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+   "sha256": "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine",
+   "sha256": "2697e087d11417ea07d936789804d195453015404618753549375051ccffbfe7",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/atr-bands__ad60b125e6.pine",
+   "sha256": "42ef9b8a7ab4b836d692c3ca48a55ded9ff1734fa9980334b2121d5effb62bbc",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-god-strategy-by-tradesmart__4369755a29.pine",
+   "sha256": "a26b7b7cce85296dcfdc5937776cea8c44e488e50f3c041200989a90944a0c8e",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+   "sha256": "25a1edaacc7adb843e9bf401e9c892a08f14d4203af51b8c8b17649d21e80168",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-stop-loss-indicator__LOfv1FvRhL.pine",
+   "sha256": "aa22d7e62d423f343e7c3d0e92b4ff12639dc6c87821483cc20a3d0b5ecda8c3",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
+   "sha256": "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+   "sha256": "7ce4458ad42c3f1d3cec9462475e4f251c29c55f2192a23704d139ebb0e0be93",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+   "sha256": "bfd0feb634ad8269213673fc3397b44e75631426f6730f294e4fbb06f9fa2698",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
+   "sha256": "026ce841faa6cac276d119ea0cbad0ca3c8217b6efa05bcb0eff133c766606c6",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/atr-trend-bands-misu__a34d44410a.pine",
+   "sha256": "d24f3468e4f96d99dac8c66f10b574affdbdf33ca07a3a7f8d1da33414aa1cfc",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/auto-harmonic-patterns-open-source__ca6022754b.pine",
+   "sha256": "b37d33266c101272233e9cc759cece7e76573858a6982355daa35b9e7f3b8235",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+   "sha256": "9a27bc71b30b1d89a3a806932d75fde460ba28415c5b32ba3b0b0bf691faaac6",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+   "sha256": "cd8c7577ed60bfec6e2ebc4e07d10b06bbb320151cb7e653622a92aaedc456de",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+   "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/banknifty-mcclellan-oscillator__A2qCyYWwcs.pine",
+   "sha256": "89b1fd692ab16d98d93478fb5cde3e76c3d573e2d461c8cf29022282c2db247a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/bigbeluga-smart-money-concepts__e41b7abd03.pine",
+   "sha256": "10d426d5d3dbdb1fb8d8a376ea7923f4836d2809fc4e22c6d17b9835150fa189",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+   "sha256": "0851b97b8012d0f6781cdac6236e570bb83cb7b749f4b52981e6e255d6f160ea",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.dividends",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/blackflag-fts__GdkmXaTINI.pine",
+   "sha256": "a72f89f1b3c57814354317dffc51884bd42680764977b5747b4e7785b883ca4a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+   "sha256": "14757530cf5574ddf57f04c8ad5ef950b437c816ccf09b91786e02cf790ab6eb",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "varip",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/bollinger-band-width-percentile__03JuGF728K.pine",
+   "sha256": "8c2d311c2ac3e380405b82029d4a166b21934b686f7dc283eee4127eb6cca86e",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/boom-hunter-entry-point-screener-alerts__0fc5982548.pine",
+   "sha256": "6d2b774e4181c2d61141f89efdd1a06b37da54685e6716984d15e2fc3d076acf",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/breaks-and-retests-hg__ddba061af8.pine",
+   "sha256": "ab681bc10a54911ae9feafb63866aab838e3edecc189d839dcc8441166f69466",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+   "sha256": "1da5b935b215b7149af9cf8119f34e3773434c8dfd60244a514e6831ddb3a410",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine",
+   "sha256": "f2417c7655f5d80e443589232555dc3670e2afcb69b28dfabb50b750d417d0aa",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/buy-monday-exit-tuesday__8f2f69cc99.pine",
+   "sha256": "12c893b61e9d2a7223ade035ee97555c5e326b68ea92146541649669d6556bc5",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/camarilla-screener__UsBJPF3MkA.pine",
+   "sha256": "04c54a1aa69de35ac6e5caf2049c0c4fb536cc997f6cb93c5f3f970243f27e23",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/camarilla__jw9faob08r.pine",
+   "sha256": "22342c5a2446e14c6d8e87853b056eb79ec40cdc14a940a1de156a44541f903b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/candelacharts-equal-highslows-eqheql__4485a6c447.pine",
+   "sha256": "8e1b85f52778498fc3ee29fbcb8d75735bb7c0c6cc9c828f6370b6b68ce15bd3",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
+   "sha256": "b597f17ba9faabad09b9c26d3307390c292d0f2066374a78e3ebdf83557c113d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/candlestick-patterns-on-backtest__c85b9d3ec6.pine",
+   "sha256": "2d6f141bc96302fa0f85e542138b315d5a99bbae3e88bb0799496cd50c3c2b7d",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cc-yata__bd898a1af0.pine",
+   "sha256": "fffc63eb46320890789c24dae6a871eb257a9b1e7d7c035f841212e8a76f7702",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine",
+   "sha256": "2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+   "sha256": "1c714330db12f6010f7154315e9aa8d5f4e79d9faefc016723146662421e8580",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/chart-vwap__804099ca2f.pine",
+   "sha256": "b3948dc3fe7464a7f2d921b417c787e73a01cdb4d2d5062936ba0be15f364293",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/correlation-matrix__dzN3DMCFJL.pine",
+   "sha256": "41bb03a19eae387e22a20f2dcb0b30a334c4223c92e887f21219d4419453dda3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+   "sha256": "0aa8f3901af86ce6c400f6bb900afa980b6f8cac2f19ed917bc3fc12dd9287ec",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+   "sha256": "794c58389b22d92b4c5f31cdce9724c0a826e487b3a3070b529965cfc592d5fc",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
+   "sha256": "bd087164e90c3524dc42192217f87770704fa9e824166b74fe239939931298f3",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/cumulative-volume-delta__c772250751.pine",
+   "sha256": "6ba9ad54e28ebcf081c00409207c2f11441d3d8b7e998c8dfcaca471131d19c9",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cvd-cumulative-volume-delta-candles__fb6471a4d9.pine",
+   "sha256": "7293cc1bbbffa83eb3fedd24a5a82ec09810a6dc335ffa75d5bf094b2f737d76",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+   "sha256": "82e164fc60b05b9fd102f146784b621b3cdbc67a1d6149f7d07ae7858e10a218",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+   "sha256": "3facc3fa0e36027e8eb35cd7995f68f2c65dd79a6b2bca4dbd1cdc5498aa7d88",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/delta-imbalance-map-joat__b80f337fb3.pine",
+   "sha256": "3b149853a0925db2fceb449a8790fd3e223a55c75e061e84845d9e5b2bdcf1ad",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+   "sha256": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/delta-volume-candles-lucf__qADnaAfCPp.pine",
+   "sha256": "bfe5cbe0232714bdbb4adfb20c165892f2223d0132796194caf00d9cde4bf2e6",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/delta-volume-v21-by-kernel-phi__uP24atP4R0.pine",
+   "sha256": "84adbd1bacd8ca442635a791ad0e2e482e279c4fa2cba0f7a867a767395f10cc",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine",
+   "sha256": "85b2c7c52b3f6d7851eb806d89ed6fb4401aaf06f7825d75239097089876e20a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/donchian-channels__5df15aaa23.pine",
+   "sha256": "fb4cfe8389cd754e6449381afeafa599fd625b0f92e324c1910355e5193000b3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/double-topbottom-ultimate-os__bd013ff4f5.pine",
+   "sha256": "a1a7166d79f247446e86efcc6f92bc6b259ffb1f1df222eabd662bdfce60f3ec",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+   "sha256": "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/elliot-wave-detector-pro__ce1cc9553e.pine",
+   "sha256": "674aa91ab13db4f43fdfd1f18007108faef9c5feb6e1db4d05bda93428f2c060",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
+   "sha256": "4d2ef4ccc6976beac23b022ac025223efae6018d8b4d5d83d9d9c464e67f0b6d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+   "sha256": "2ae6fcd93ed7b52b4eccd0a2b6906835dca42d56bea2fbed9dd9cb18d0f1925b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "varip",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+   "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/engulfingcandle__0df91dc775.pine",
+   "sha256": "d1029be95d143943241396640909f5d75964f51794d7ad3c5a57267811651f60",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
+   "sha256": "9f5cc1c93e49c4a3b1d0ae621e4ddacdeae564729d63e1c70626459ffe520291",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/fair-value-gap__1048fa103a.pine",
+   "sha256": "1239897afcb4387cda046a0422636231d3db6d7f4f5d4d8f8d7ef0186db83a84",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/fib-retracement__8XcLscnekw.pine",
+   "sha256": "48b1cdfed809a7d06737f52fc8682200233fa75ee441998fbb8ce044db37ebb6",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine",
+   "sha256": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+   "sha256": "e901bfe72a798163798ff304c9f792a9964fd9fcba3148f456248e8788716f21",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/fibonacci-retracement-mtflog__54a8dbfa8e.pine",
+   "sha256": "3cda29815a7523c2c13f4e5fc9195c93af4968ec304dcbd128d759ecbe0bde2a",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/fibonacci-retracement-statistics-by-volprofex__999c924fce.pine",
+   "sha256": "7e204569929d9b38c82d19ac2b0ad7882fed9ee46192cb4ab8c0a5a377bd8841",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/flawless-victory-strategy__1BVZuaaWOU.pine",
+   "sha256": "ef31aa6edfeb4201e99325dadcdb4d3623284f085cc5da75678c0b213a110b29",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/footprint-iq-pro-tradingiq__3b96428a77.pine",
+   "sha256": "bafd441641cdaefbdfa8fda7c5f952825a8aa508231cd604db45220e042a9dff",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine",
+   "sha256": "c3b3e97846fe9bbc459f9acfacb513ec8b9d474d2f0aff16d872fd9d1ba00347",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/fvg-trend__21e364f2ed.pine",
+   "sha256": "cd7a39db9b7656340bb637ab39c0d17427bdb4a36442a068be3969e43df8343d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/fx-market-sessions__3KZoMPYziy.pine",
+   "sha256": "c63b0ad52dab7317c8dd5729e5b07b18e4caa7be71ffb284d990d68ed3244531",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+   "sha256": "eac7328544bd4ac89d4df75df5cd391a4ef5ccf38f4d1fd9868a63bee16f2a18",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/heikin-ashi-supertrend__2fb7267210.pine",
+   "sha256": "1a7f38aa51382477857a78ba43193ddd7efe1de2fdac30ca42afd0cba69d2550",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+   "sha256": "1e2bb93d50c034245473fabd684712c348b3d7f3a8f44493838616d89c3b84d1",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
+   "sha256": "aaa1bc101cb4081027f10118ef3850a5bbec648605edec2dfcfcbfe38ee7971b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8.pine",
+   "sha256": "e86b879cde02458d88bae7f0182a435cd9f3fe6701968a5d06fe2d1aeb97f3af",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/highlow-channel-swing__e3692e253c.pine",
+   "sha256": "06db2c976cef82125097ba3dc9736409750e6625e9cbce3c9631afdd42a29cc0",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+   "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+   "sha256": "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/ict-institutional-order-flow-fadi__25d4834579.pine",
+   "sha256": "076a507200dae1630c5ea8ff248aa986e329ce5b794a273b32f6335ba5df4883",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
+   "sha256": "c30fc4c35c07be1a6fb57ddbb4e093b804317abf1655f384efae8c936fe7e15b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/ict-killzone-index-version__28962c02dd.pine",
+   "sha256": "0eb4506f758e1319d41b811b38c4ffbb7496c777e3379e020fca67c484959f89",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+   "sha256": "16ffd9a1a66cbdfc0e3e2bc85a5da02374752139f7ba4ed79cecf8c7642899d0",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/ict-turtle-soup-flux-charts__053c3e6056.pine",
+   "sha256": "db8f4fc5df5f0311d7d5a4cbbd26a6294f20c0d6211256716382a3a4f8262f48",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine",
+   "sha256": "2d4fcd7524b6b073991b1e70c54f9e2871a9b3d1e274661fdc0314c6b03e421f",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
+   "sha256": "ed2f65351c836e1656d3a521d9d8f0c60da9e426cf3c6305439e1a5278ef43c9",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
+   "sha256": "002addd0a86ebfd2813793b8eb11e9513972950ac0b6a11e61616ab76a5f6f47",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "varip",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/inside-bar-strategy-w-sl__b39f395d5d.pine",
+   "sha256": "208fd41211c143ddff750cb737396aa0ccda9fdeb18aab7b53c61873e0c1bcd8",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+   "sha256": "9d1d8bd738709ed4efe17f37d6dacfa131cad44efb93def754a363ec94fa449b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine",
+   "sha256": "77fce641033802bb67c0681369be1fd7daf80158e8c56d340c1e37ae9e3aa21a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/k-clustering__8e82f5aa4b.pine",
+   "sha256": "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine",
+   "sha256": "a876da5957144370c4ae53783d8f3598bca07da60967717ea5b9241f63d5aacc",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/kalman-psar-backquant__0a389f529b.pine",
+   "sha256": "b8e4a504a5314605ae620a60e32a795b8bea7533e5c004e3649de3787692e8ad",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+   "sha256": "f3b2c178ef3a7099ca623a10baaf392e24ac7e0f00d4d206c791848e4c17dee2",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
+   "sha256": "3052580e7a4ceac240bb4da2adf80c34829ac51c1ce4433017684cfd9467b472",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+   "sha256": "4a89d2ed988f5a92b0fa8e377143fce3836fc17d96ec94d0a6fde2b6fbe025f0",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/linear-regression-channel-200__243d67c804.pine",
+   "sha256": "3c5331a16586a94f1d7eb97f6ccfcb709fa0dc3c3846e1c9d392849caba061b4",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+   "sha256": "f0841b341e4c94c5620410c90b6dde9ca087224a0066a9dd49adad63aaa2172c",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+   "sha256": "c771be052a7f90bf57fe0723b430e9ff463ac1c7be1478c3dc012ae25097a84e",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/linear-regression-channel__jiDgL4o6Qx.pine",
+   "sha256": "c4bbef7c340e4b90537728f1abb88af606a4a66f0fa719a853e4c713243f820f",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
+   "sha256": "ecc6f023f5fb7b67a65aa1904ed53491c5e0b7279ab2cc35966ab710df0af8f0",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+   "sha256": "01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/liquidity-engulfing-displacement-msf__58824c94f0.pine",
+   "sha256": "ebb1afaf038969b8389a41cbd54945bea6a64853ac85b95095fad78463b3fa79",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.isnew",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+   "sha256": "b9230ef3d87aba96c9694deb8d96f8562d6443dd6e262d8e2b80a1bb7a2b6ffb",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/liquidity-levels-sonarlab__bba13c46c4.pine",
+   "sha256": "6e364ba297bbb89baf145d0d75d5df72186fee593aec76d9f69b086d7b576877",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/liquidity-pools__fa7b28e733.pine",
+   "sha256": "716e442d118c2f359e29bd060479dc2abb80b68ff512b90f2776d9b919db82b3",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+   "sha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+   "sha256": "f02e75e8fa3a7066330ad8019a92d5e8c27a6a57c48b2ac410338319e83137d8",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+   "sha256": "0266aea9412cad1edec32fafa193308f0f791212dfc7c57e2b9c0615abe600b6",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/machine-learning-logistic-regression-v3__TDlqz0q9TN.pine",
+   "sha256": "326c5e1f865634cc9482878efb63c42e0164319e9ede301339200ec4e505c1db",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/machine-learning-lorentzian-classification__21f5ec5277.pine",
+   "sha256": "549658208ed1a753259cab0023f0f54ee34c7c4e1139ba4d91dd2be55b9520b8",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/machine-learning-lorentzian-classification__5c7960db26.pine",
+   "sha256": "a4cf7d8f0e9b68c57fcc659281f7cfc7d338113e79e1d1bbac038f92411d3ff1",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "calc_on_every_tick",
+     "unbounded"
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/machine-learning-moving-average-backquant__4d7ff59e68.pine",
+   "sha256": "f4de349fe90823ee24e5d964680dc256436dc70d824da5dbd12a660cec4e56a3",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/machine-learning-rsi-bullvision__50b4566edd.pine",
+   "sha256": "b3939627e076989e126979b693326be7fe6cc9d0d30a75a5ce9d4b84470b386b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
+   "sha256": "c4ab9ee0c5b3cb46dc8eaefc7915af49a09e9e1607ae07d856b8ecd168968527",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+   "sha256": "33b558860653375ab29f3e81c1ba58864b50664c4e1ed48eddf9a63af7d87519",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/market-profile-with-tpo__b2b119d8ab.pine",
+   "sha256": "adf15f52abb4d1266d0bf4cb6ababdb26ac30289f639d51e4e3c764319258ab4",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine",
+   "sha256": "cd12f1e45cd84a094388493fe0b7c61de5227d8ac7123c6272f4a3104f1feab7",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/market-structure-break-order-block__3a1fb6197f.pine",
+   "sha256": "579e5d0bbbee5ba8fd15cc0e425c9e68a34841c0fea88afab6feaa77997b08ad",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine",
+   "sha256": "e0cc46632b134c1f7951e0810613d13cbb8bbd1b7efcf8351fe64c7bbe82e2d5",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine",
+   "sha256": "2ff357b7d18a26aeae0d73b9cd0a36ec6653956945255352990efbc15387c540",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/market-structure-trend-targets-chartprime__d3c06abad6.pine",
+   "sha256": "bf691eef7d819aa5002931d5a7d56693d22070bf8eeea286e76d7c3ebdc75302",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
+   "sha256": "d463f0a9215329f375eb62944fb6f0ac11ecb9bf289c57b4f7f728f399aa2db5",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/mgi-levels-suite__285168ddfb.pine",
+   "sha256": "df1af724e9f64e6619e5eca6b18d032c5b713343d74796ab4eeeae4f9ef426d8",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/momentum-based-zigzag__38d39d2d6c.pine",
+   "sha256": "54a46de5f63e6e9652e93054ebceb1784708fed9227eb37339e086a90f369c13",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
+   "sha256": "10bf64d914aece77e24d6f392fb849db1783c196cf019339d869451e2dbfc6f9",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine",
+   "sha256": "b23dd910be14b5694baa07c727584ef6b2acec00559f2f9ca53a56fd5eab25ac",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+   "sha256": "a5f1d6fac195a183f2861f4c105744c437c17cc98ee35152f1f510ecfdfc50df",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
+   "sha256": "efede30e465ae8830025a864dbbe228722d1fd4548916f1abdcc83413edd0ea5",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/mtf-watchlist-charts-anan__3453680ea1.pine",
+   "sha256": "652bf916e6a1df2e57e190be16e7fe1891977d96e55b563f36f694d8d84ee7b8",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multi-timeframe-fvg-tfo__adbed9f590.pine",
+   "sha256": "420d344055e8c9895398322015e9109687de61b53d30e2d23ea88fecd9477cbd",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine",
+   "sha256": "4d4da7e08b5cd63b97858b7965cf4eff5efb435acc82f65492a7b06a1dc74856",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+   "sha256": "2e388f11d718f68cbc4ab026b63a1b14d33b9788eab4e4f06f4f9dad1a2280c0",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine",
+   "sha256": "a45b057a05e86612bd60275f34d86825f69b4b24bc78f4f3f1dd62f60533fae0",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multicator-table__486858895c.pine",
+   "sha256": "1d39ab50b74c2194ef276fadcdc1abef9ea4057f68bdeb4ec7349614533b2f18",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
+   "sha256": "86d222d68468f7ef37976429692abbf4f38959ebfb79830825653b629f789ea1",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+   "sha256": "b5b8f79ba25b58d36aa2e23291fa9ba203c312e1320bd213dc904d03f7e88b3f",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+   "sha256": "343024eadd2579499df5ae71bceea77f42824fca285c7913be2a10422a5ebcdf",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+   "sha256": "99ac8ac19ed825c3f5fca337a7e4baa9bdb77815277ccd9f2df3caf9c5a585d0",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine",
+   "sha256": "565ccb96c86e1a050614853c16d6282abfa5ee0f24ad3a9d16dd172e1438e61a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine",
+   "sha256": "43574e74da5feaf4bbf17407624f2791d08e9d14278f85a504a71a9b3b746fe3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine",
+   "sha256": "ba2f770b0a7a860ca44275462ceb4cdbfb6954856ec178c78010ca315d407d2a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/open-interest-profile-fixed-range-by-leviathan__875691ab51.pine",
+   "sha256": "6afdbf049629011b1954fed6c5870e9f7872151c8c2754cc39b3953f520c3f87",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/open-interest-suite-aggregated-by-leviathan__44b150b3df.pine",
+   "sha256": "22bb546d9390ecccf6cacd1f8871ddfb4b14b7073577203bd49b375ce397ca14",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
+   "sha256": "aca5bf3c04743738c8a95ce8cecce5bc34f6bec85e89a59e0de52e50f148b2fe",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+   "sha256": "2395e1caa875d21a825bfd49f48b7e4c12c3db28d005287ddbabbc5c2bd91fa2",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/optimized-trend-tracker__ZhWiFvtpwE.pine",
+   "sha256": "0a83b164e0cad33732cf399764a21f31ee7bb7a68fd33a5754521e37ae713ce0",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
+   "sha256": "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+   "sha256": "0b82c87a3d9b614fb2ba2337e628f9c9c9c53cd77a5a245ded26623cb0b12430",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/order-blocks__b324078711.pine",
+   "sha256": "4343444156452b4cb39d7251ce49e3e3a809dca1e989d41192da258036747ab8",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
+   "sha256": "eac077d8667390748224f9d4f084d828cfc1455c8d451740b14cef22678bc04b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
+   "sha256": "d9f41d606251ebc06a80fad1ffa7aa048245e065fcc65e2f1d04142217d3287b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
+   "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine",
+   "sha256": "f823c5f340480d476ebaecb3afaf593018a8f2d4650f53c43ef4bcdd9fb1ddc6",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
+   "sha256": "c7b78e37eab722979b4cd78ede30e0000edce42d61b77f5a0b3e100431cb924d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+   "sha256": "4d19cd30686373aef6a3f501260b92f43a60fdb0bb255fe16f8bc1645d4c6a69",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+   "sha256": "85b2dd7ca093b474bf2aa422dbcdd61eb4859407f55ba1611bb4e11ecd57090e",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/position-size-calc__a42db1a620.pine",
+   "sha256": "eaeec551cca2cea99029592a57a9687c0b1c58a635e512183a57ba353c20fe1e",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
+   "sha256": "1873095ef9c012e5ed806e7c13932515fceb6dccafe711932388840787e4b41d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine",
+   "sha256": "2fab0b93eab35a3eccd1ef4dce0276657d91414c8292b2b06158cd7e231057cc",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine",
+   "sha256": "2a9289f3243add434329cb06bc559e148d4bac69845118c74ceccc12f71c1c76",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/previous-n-daysweeksmonths-high-low__78f5b05522.pine",
+   "sha256": "c80ef91db03dee833c1a0049a2ee46d7009c6430432026b65e9e022c73e49df1",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+   "sha256": "a4949210fb93f914886dc9b9051284d42a76c9ba2dfd8e7ea661926a09d35d4a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+   "sha256": "996b909e23b875814ac84e1af491e8c0913b59e45a974fc495fa6f07b388c3b4",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/qqe-signals__EhBrwQPjZ1.pine",
+   "sha256": "4cc5374407052b75649054aa0ba2016a6e1542220713a01ad589ce65cb29769c",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+   "sha256": "fba03112eb8f97598c345d18086604ce68699e0d0e14602227208f435eea0388",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/range-filter-dw__pshyCmQSql.pine",
+   "sha256": "2ada1e6b54506e5f281e4c549eb62480871052279409d0af3bc07360b30a042a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/rate-of-change__5efd12f955.pine",
+   "sha256": "8bb39248091cc3ec55975f113cfab384abf8cff57322baf73f100946ed79172e",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/relative-volume-at-time__gei8CBKbc5.pine",
+   "sha256": "e0f725cf255aa1220dbf0eafff2a2450d2bedf00733241c5a403b4f2687892bc",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
+   "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+   "sha256": "f1ccce646011120567301c357082571d20c062c1d0c3a3c5170c5733c05a3f48",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/renko-candles-overlay__d76a18d49e.pine",
+   "sha256": "b41903eaef3cdd27e29411a6d1a102ab8927e22b474e459b3086b4dab3b1da40",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+   "sha256": "fdb41f5145dca63c347276e0d802641648916824cc498e7497c4af1dfb172ccd",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/rolling-vwap__043320bb57.pine",
+   "sha256": "232f76befd87476a05ced1cf39efc7c5b4cd4600ffb30e2baf0f67079a3bb73a",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/rsi-horizontal-resistance-levels__a3f8454f81.pine",
+   "sha256": "eabf8db5f2cd2f72b9266124f48a536e20be760b22a83639eb5d7a7dfb04791f",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
+   "sha256": "b0ea6cc01291279e26b36c4c8dd8ef0b2889be7949fe358242d976ff46b40f6b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/rsi-trendlines-with-breakouts-hg__033f4cab46.pine",
+   "sha256": "b9ff1ab23fbe7dfc71f9e002a38ea13b6a68acd0ab1d0b25be0a6ce88befadf0",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/rsi-vwap-indicator__pTI5ZVw9n4.pine",
+   "sha256": "1770c5f91d6e2bc23b302da8d9aca98a97737a1fcfe2787f13e2049f42448f55",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/rvol__05fcd9e160.pine",
+   "sha256": "7dc8fd5ee8816dd7a326c53cf3617d4eef51f79b5f2a98ed06d3d9e9745263fd",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
+   "sha256": "166b61b134f86a12be38e056cbc5b210e7dc727b2ea6e764a82345deda5ae007",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/screener-mean-reversion-channel__nTK2sHWDlB.pine",
+   "sha256": "6da202a48628f2e4aee1e9187ca133a826b9896fa9cdb1deb1317e4306f0d024",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/sector-rotation__0fca060bf4.pine",
+   "sha256": "cdae0510d9c38b51dd860039ba0d983e409de4ed6f0a7a18359011b4e681c277",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+   "sha256": "9d9ef18357506d24991d4adaedce7cb705ceff791f1b254fb582a58a656f7a13",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/session-hilo__WM2g5GtC4h.pine",
+   "sha256": "40d6c9771dc9f638dc24bb4c723d48ba0c2d35af9423ef190313cc3f0549312b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/session-tpo-profile__41088ef96d.pine",
+   "sha256": "48d10e692a8447a5490670b1567a274b9eedfd4e110a97520adcac0f4ed4d0cc",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/sessions__2677.pine",
+   "sha256": "73c2cc29a76bf99dd2530271f439be66443a5d362a529c4b52140b5261539aee",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/smart-money-breakout-channels-algoalpha__8c2d234156.pine",
+   "sha256": "7c39dba45fcc6ece5e37e8c4e61ac6ba0bfeecbfe4b0a3162f174eae4e4968dd",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smart-money-breakouts-chartprime__ea79c79a67.pine",
+   "sha256": "cbcb47ba377d1e46f79526bbd3c6ed5fb31d24850504b0fee0406e30b2034b62",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+   "sha256": "72a6e98e7b795b677bb24dcaccd3b6ee5f556d1c7c8db71b0ea079957345c952",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+   "sha256": "363218f4b9a4b819bcc269bc8bc9a419ddf257dc493aba52c46545d50cb6fc1d",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
+   "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/smart-money-volume-activity-algoalpha__699c36ad31.pine",
+   "sha256": "bcf2e3d96b3d348a9103e8f3ffd7ad92e7196b3d243f74fd960a4b42f02c33b9",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "barstate.isnew",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
+   "sha256": "585e61e2d8c81156a4b716edba4415a5ae6d6b51d41aaf2a75aaff03673bcd83",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/smarter-snr__ac98ab25d5.pine",
+   "sha256": "201e7443844a9bf5b1fad8adf8fc534e870a5341e5500f6806d826c83eb8b857",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+   "sha256": "8c7d47a7e245b358747672f8157d36af9caf3e273d655a539f51246662b5545c",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+   "sha256": "dad63d41a537248531fc674e3500bc00d0804412571c26c7b424e66969b652c2",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+   "sha256": "e19d3aeaf994f204b01f2b80f82ba3581472f7af6baf5e044e70bc86c10018c7",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/smt-divergence-ict-killzones__c932d56665.pine",
+   "sha256": "9f84c6e4dd58875f4d9b5a843eb2bc55ced7664fe644bdf6292d84def0798424",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine",
+   "sha256": "a9206097b4ef73a17a00cc49caba533209f337b5c3f30ff212835c36505b4fc5",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine",
+   "sha256": "19b668b85ce7dc537d348fee41e3933632f129164164d6646d1249e88e9edca7",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/stop-loss-and-take-profit-in-example__YlblCbts4x.pine",
+   "sha256": "b92e66f7f2688e19d572b6459153a30dbd65c59e978f96acd1a66e031b3ecd38",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine",
+   "sha256": "ee848e8e1de892c088648980a0d8e422d93800d131d235ff2dc3b79d4c7ebf11",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine",
+   "sha256": "d2bc3e93a61709509767a88ff1a3225386e3c908128f6d296f28e3d1d7513c5e",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine",
+   "sha256": "43023052b40eb5b27aaa42fcd5f8381aae72d2c7ef9bdf3c9a696c5d43574ab5",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/sub__1xYROVYMlX.pine",
+   "sha256": "852daaa0489b828a0567db54b155fefd29e4bd43a3b5cd603d6e1a4dfa7a3bfe",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine",
+   "sha256": "60da22900b14fe6bdfe90264ca159890e7c3fa16b69d401bd85bcb0608441ffd",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
+   "sha256": "58c1912325d14b8c96c1e3b2c937cf51992b343bce947ee3a24a8e4a8b7d0853",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/supertrend-strategy__rcRbtoBiKG.pine",
+   "sha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/supply-demand-mtf-flux-charts__7fb4bff229.pine",
+   "sha256": "9c1e3c51e8879e6ef8631ae09cb275e7eefb70fc278818d0c664e426e7b2c1aa",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine",
+   "sha256": "73bbc7ff7f832a0e50f866de514c5f4b40467b2cd4c9c7d6e0beb83d0fa01707",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+   "sha256": "3d6a2d8e4e9c3d187b0217cc77fde75218d8aa706e544a87ff20b517fd004c6d",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/support-and-resistance__1505.pine",
+   "sha256": "5f95e90f1714bc164b2982b9ce1eb447218c8b830dbcb5e0374ec3f4d0416a84",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/support-and-resistance__UgNPprOr8h.pine",
+   "sha256": "978b8a87e6c733509cf28754fd68eedf52c3394eff2e730b603277a76281d1ec",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/support-and-resistance__c4792aabd0.pine",
+   "sha256": "7538ddd8f9d022614d175ec5cf7ed74ce6e078d0e10d290e92ecaa63813ae51b",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/support-resistance-mtf-flux-charts__dd04862677.pine",
+   "sha256": "7f2f62c5dc347c7610e66c3b405ba314b9e5067f68e88fb38029e976f1ab2425",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+   "sha256": "c8cda9379b7ff3fe413146ece400b0c3bff109490f67ccaa1b779236c33cd363",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine",
+   "sha256": "219d069e03903f4e9ccd0a7e042f96adc37714efcfc12706645db482df092822",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/take-profit-multi-timeframe__8c16588ae9.pine",
+   "sha256": "a9f0c82830d98411181d79c3de379a381729c12caac1c35097d65f11c1f3f46e",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine",
+   "sha256": "c040a08a4eacec179a16606e928027578095d694ce496b597464a8123f6e800d",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+   "sha256": "555d1419e61005199bb2d5181a5f56fdff6ac37759b0f6420f7171c84eee4fe2",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+   "sha256": "11c64ced01d4a7b2503502094ed78c1e702d34ad32bc991baf4221f9a1a21c99",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine",
+   "sha256": "6776127cdecc4ea8fc87ab5a63572a9f708a9439db03241f1c23b70dd666f221",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
+   "sha256": "69e764501cd7197881b9d84f1a03be32c040501fc3eff1419c6c757c6a26ae8f",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/trend-levels-chartprime__90a5bf4ab1.pine",
+   "sha256": "ec72a7052015bbc5697efe59dcb7c7af03fe12e9dbca69228c82ad53efb1aad8",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/trend-line-harrybot__vMv5yOQxcA.pine",
+   "sha256": "901297d7957fb4f9a342a1f67324e4733e1170dc3a65f698408265187ebf7161",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+   "sha256": "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
+   "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/trendline-pivots-quantvue__3dc9be8b73.pine",
+   "sha256": "8e8ee2aba7c95332035825f8db5644783ddc764f9e7fa328226d1fd32d9f2367",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/trendlines__43QQg9nDN0.pine",
+   "sha256": "286fe4d52b232727d70419a43494d9d0141908790ded73f6ca7247da35d78a3b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/trendlinesample__61d59f90bc.pine",
+   "sha256": "0d620d6818bd7ab5bc8d8c2a4e15108bc9460a0f3d5a730fb0903d5b2963d3c3",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/twin-range-filter__xF3L2PeXm7.pine",
+   "sha256": "66414b9d934f0c4171cdf20bcb960f11104cd51c7b2a7cbb583a8a6b16da7063",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
+   "sha256": "b010cfc4a8e01a0d421915fa087d58ca8557ecf0dc408442d112671fb7f5e873",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+   "sha256": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/visualizing-displacement-tfo__5b861441c2.pine",
+   "sha256": "3e21f7f6b7e7cb99139449d93a259127dcf6fc10b1f6ee52fab4a024f6919737",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+   "sha256": "e8c92f7b76aa240c5be0bd39e61150812eb64bf599ac52d616965bc04bea9fba",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volatility-stop-mtf__K5XG42uHV9.pine",
+   "sha256": "6d39db6df0526b5b9764861e2d6e3ae64721b36d16f371719a5953388b0335af",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "barstate.islastconfirmedhistory",
+     1
+    ],
+    [
+     "lookahead",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
+   "sha256": "4e9bfe49eae73901099940bff375df97b323e0d497490be8034b61298830c154",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+   "sha256": "278394d0336ccbacbc8df6c84e1ea428c2a1c892db77cea238d5848cc69cafde",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-delta-hapharmonic__d5748870fd.pine",
+   "sha256": "c72538d0f04f957cb937a07dc2c38e6793fd37f952de8c943598037832f6035a",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine",
+   "sha256": "2fc8364db521bf6b980545dd580c4a163a8c62d72de21ed57823359163d291f4",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
+   "sha256": "beaf1636f0bd417b9c4ac2cfe059645e2b2ea74a36c705663e2edd14c5692ad2",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+   "sha256": "f5a5d012c431b26f22292a26e6af23f325fd9b0b41825324dc7ca6dd73a8b7c3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.footprint",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine",
+   "sha256": "47b3e84cdeb416d1f9efa529c7f54b50ce51b9ab7b0ad2d46bbfd9918282912a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "chart.right_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-profile-auto-line-v2__b0e947fd20.pine",
+   "sha256": "02d7afbba807d4069e700981a8821ebfdf7e017ccea73693506fda4f6e4f3085",
+   "mode": "preview-repaints",
+   "forward": 1,
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine",
+   "sha256": "7f98768dc94399bdc66bd6f4d3931a0514f0aefe37096b1af0795399aeb133ec",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-profile-plus__91ff446fe0.pine",
+   "sha256": "f5d9fcd90557abd66cae5f146ff8cc50caa3d5958e5ce4ea3c42aea2092e9718",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ],
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-profile-v054beta__PNSKf75832.pine",
+   "sha256": "5782c2554dfccaebca4a9153600df5f1388e292b674c86021e3f905728e4cda1",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
+   "sha256": "d9f11992bf6e03a6bd6a1cb663070ba3bc597d5ff7694feec128c53f138fcee3",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "chart.left_visible_bar_time",
+     "unbounded"
+    ],
+    [
+     "last_bar_time",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine",
+   "sha256": "9384945152d25d1b54be3fb791e1ee91e1ea49dbd5d3d3f3df85ae81c24b44b7",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volume-suite-by-leviathan__48da793360.pine",
+   "sha256": "b07876acacfa32f8ea3d5db7ea91cf44dbb1e9ff0cd408c163c5513e6844c958",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "request.security_lower_tf",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/volumized-order-blocks-flux-charts__1675b2b8e3.pine",
+   "sha256": "d24b7e470f707320ab6e15b174f96ff8977e59f111cf212cd248cf2483a2600a",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "last_bar_index",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+   "sha256": "59bae39ebfdb25b46f43b57d50f8dfc5f9c2cbdd4a4e04983a0a5a7d2ac4fd77",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+   "sha256": "c8fea2dc5ec4f05307a123c55e56754b760fd238ad8b7aafc33bd2b4a097948e",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine",
+   "sha256": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+   "sha256": "11fe3b96e098f7bc83c159ba37a55109981deb02255332ee2aa318eeb923b26d",
+   "mode": "non-repainting",
+   "forward": 0,
+   "reads": []
+  },
+  {
+   "file": "corpus/committed/zigzag-ma-pattern-recognition__1302.pine",
+   "sha256": "1d8181fe1fb5480f7a2ff355d07d1bdbf6a739cc2349443777cfc689ece7b3fc",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barmerge.lookahead_on",
+     "unbounded"
+    ],
+    [
+     "request.security",
+     "unbounded"
+    ]
+   ]
+  },
+  {
+   "file": "corpus/committed/zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine",
+   "sha256": "4e94f5fddb872f8fe56f9746363e10b90884783ce6be4b43eceed2ddd48a8a6d",
+   "mode": "repaints",
+   "forward": "unbounded",
+   "reads": [
+    [
+     "barstate.islast",
+     1
+    ],
+    [
+     "timenow",
+     "unbounded"
+    ]
+   ]
+  }
+ ]
+}

@@ -150,7 +150,8 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
-import { serverColumnsFor } from './serverCompute'
+import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
+import { runtimeKillOf } from './runtimeKill'
 import { runtimePaneEnabled } from './runtimePaneGate'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
@@ -2773,11 +2774,36 @@ export function registerRuntimeLane(fn) {
   _runtimeLane = typeof fn === 'function' ? fn : null
 }
 
+/** ⭐ RT1 — a SAVED runtime document on a chart that never opened the member
+ *  door: the lane is loaded on demand by a LOADER the app registers
+ *  (`hooks/useUserDefinitions.js` → `runtime/runtimeAsync.js`, its own chunk), and
+ *  the chart repaints when it is in. In flight, the definition draws nothing this
+ *  paint — the same `{}` the server lane answers with.
+ *
+ *  ⛔ A REGISTERED LOADER, NOT AN `import()` HERE: this module is reachable from
+ *  the runtime lane's own worker bundle, and a dynamic import inside a worker
+ *  makes it a code-splitting build the worker format cannot take. */
+let _runtimeLoader = null
+let _runtimeLoading = null
+export function registerRuntimeLaneLoader(fn) {
+  _runtimeLoader = typeof fn === 'function' ? fn : null
+}
+function loadRuntimeLane() {
+  if (_runtimeLoading) return true
+  if (!_runtimeLoader) return false
+  _runtimeLoading = Promise.resolve()
+    .then(() => _runtimeLoader())
+    .then(() => { _runtimeLoading = null; notifyColumnsLanded('runtime:lane') })
+    .catch(() => { _runtimeLoading = null })
+  return true
+}
+
 function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   const keys = Object.keys((def.compute && def.compute.outputs) || {})
   const reasonFor = (guard, message) => withColumnErrors({},
     Object.fromEntries(keys.map((k) => [k, { guard, message }])))
   if (!_runtimeLane) {
+    if (runtimePaneEnabled() && loadRuntimeLane()) return {}
     return reasonFor('runtime:unregistered',
       'the per-bar runtime lane is not loaded in this client, so this definition computes nothing')
   }
@@ -3402,6 +3428,17 @@ export function validateUserDefinitions(rawDefs) {
     // partition and the shipped-definition contract — so the admission is its
     // own clause, asked of the ONE gate the member pane's router also asks.
     if (kind === 'runtime' && runtimePaneEnabled()) {
+      // ⛔ RT1 — THE KILL SWITCH, AT THE INSTALL DOOR. A runtime document the
+      // server lists (`PINE_RUNTIME_KILL_LIST`: stamped on the row it serves as
+      // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
+      // refused with the reason, and left in the store untouched.
+      const meta = def.meta || {}
+      const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
+        || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+      if (killed) {
+        errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        continue
+      }
       defs.push(def)
       continue
     }

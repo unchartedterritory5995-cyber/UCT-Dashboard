@@ -187,7 +187,10 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     }
     expect(measured['72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine'])
       .toEqual({ fills: 1, carried: 1 })
-    expect(measured['atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine']).toEqual({ fills: 0, carried: 0 })
+    // ⭐ 0 → 1 fill ON 2026-10-02 (H1): its two trails translate now (a ratchet the
+    // RANGE window decides), so the fill between them reaches `presentation.fills`.
+    // Its colour is not carried — 0, which is what this case is about.
+    expect(measured['atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine']).toEqual({ fills: 1, carried: 0 })
     expect(measured['cumulative-volume-delta__c772250751.pine']).toEqual({ fills: 0, carried: 0 })
     expect(measured['order-block-finder__fVSb3j0I87.pine']).toEqual({ fills: 0, carried: 0 })
     // keltner's fills are STATIC and must stay static — the alpha-only decline and

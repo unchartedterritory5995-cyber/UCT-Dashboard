@@ -42,7 +42,8 @@ describe('ChartRender ?compare=', () => {
     expect(o.comparisonSymbols.map(x => x.sym)).toEqual(['SPY'])
     cleanup()
     mount('sym=NVDA&tf=D')
-    expect(override()).toBeNull()
+    // Only the render house look remains (2026-10-02) - no comparison carried over.
+    expect(override().comparisonSymbols).toBeUndefined()
     expect(screen.queryByTestId('compare-tag')).toBeNull()
   })
 })

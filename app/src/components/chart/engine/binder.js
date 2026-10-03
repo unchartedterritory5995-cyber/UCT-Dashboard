@@ -62,6 +62,7 @@ import {
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
+import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
@@ -371,6 +372,17 @@ function pointColour(colColors, condColumn, i) {
  * in this pass is stored under, so a fill's colour rule can only ever name a
  * column of its OWN instance.
  */
+/** ⭐ B1 — one paint's colour on every bar (a css colour, or null for none): its
+ *  condition column read through `columnColorsForPlot` exactly as a fill's is, or
+ *  its static colour with the opacity folded in. Exported so the vendor harness
+ *  grades the very function the chart draws with. */
+export function paintColoursFor(paint, instanceId, columns, n) {
+  if (!paint) return null
+  if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
+  const c = staticPaintColour(paint)
+  return c ? new Array(n).fill(c) : null
+}
+
 function fillColours(fillSpec, instanceId, columns, n) {
   const cc = columnColorsForPlot(fillSpec)
   if (!cc) return null
@@ -681,6 +693,118 @@ export function createBinder({ chart, LWC }) {
   /** instanceId → the live object layer for that indicator, if it draws any. */
   const objectLayers = new Map()
 
+  /** ⭐ B1 — `${instanceId}#${paintIndex}` → `{host, handle, sig}`: one background
+   *  primitive per `bgcolor` paint, attached to a series in the script's pane. */
+  const paintLayers = new Map()
+  /** ⭐ B1 — the candle-colour overrides last handed to the host (`barcolor`), as a
+   *  signature, and the capability they were handed to, so a release clears them. */
+  let barColourSig = null
+  let barColourSink = null
+
+  const clearPaints = () => {
+    for (const [, L] of paintLayers) attempt(() => L.host.detachPrimitive(L.handle.primitive))
+    paintLayers.clear()
+    if (barColourSig !== null && barColourSink) attempt(() => barColourSink(null))
+    barColourSig = null
+  }
+
+  /** ⭐⭐ B1 — PINE'S `bgcolor` AND `barcolor`, DRAWN.
+   *
+   *  A paint's colour is a column the compute already produced (the condition,
+   *  palette index or gradient position `memberPaneDefinition` minted) or a static
+   *  colour; `fillColours` reads it through `pool.columnColorsForPlot`, the reader
+   *  a plot's per-point colour uses, so a paint cannot disagree with a plot coloured
+   *  by the same rule.
+   *
+   *  `bgcolor` → one background primitive per call, on the instance's first bound
+   *  series (its pane), or — for an overlay script that binds no series — on the
+   *  chart's own price series (`ctx.priceSeries()`), i.e. the price pane.
+   *  `barcolor` → one map `time → colour` over every instance, handed to the host
+   *  (`ctx.setBarColours`), which owns the candles. Two visible `barcolor`s that
+   *  colour one bar DIFFERENTLY are not resolved here — which one TradingView shows
+   *  has no capture — so that bar keeps its own colour (counted, `conflicts`).
+   *
+   *  ⛔ It never touches React: every write is a primitive's `setOptions` or one
+   *  call to the host's capability, and the capability is called only when the
+   *  overrides CHANGE (`barColourSig`), so a poll that moves nothing costs nothing. */
+  const syncPaints = (ctx, instances, columns, bars, adjustTime, bound) => {
+    const registry = ctx.registry
+    const n = bars.length
+    let times = null
+    const timesOf = () => (times || (times = bars.map((bar) => adjustTime(bar.t))))
+    const alive = new Set()
+    const overrides = new Map()
+    const conflicts = new Set()
+    const hide = ctx.indicatorsHidden === true
+    let any = false
+    for (const inst of instances) {
+      if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true || hide) continue
+      const def = registry && attempt(() => registry.getDefinition(inst.defId)).value
+      const paints = def && Array.isArray(def.paints) ? def.paints : null
+      if (!paints || !paints.length) continue
+      any = true
+      const own = bound.find((b) => b && b.instanceId === inst.instanceId && b.series)
+      const target = (typeof ctx.targetOf === 'function' && attempt(() => ctx.targetOf(inst)).value)
+        || (inst.placement && inst.placement.target) || (def.placement && def.placement.target)
+      const priceHost = target === 'price' && typeof ctx.priceSeries === 'function'
+        ? attempt(() => ctx.priceSeries()).value : null
+      const host = own ? own.series : priceHost
+      paints.forEach((p, i) => {
+        if (!p) return
+        const colours = paintColoursFor(p, inst.instanceId, columns, n)
+        if (!colours) return
+        if (p.kind === 'bgcolor') {
+          if (!host || typeof host.attachPrimitive !== 'function') return
+          const key = `${inst.instanceId}#${i}`
+          alive.add(key)
+          let L = paintLayers.get(key)
+          if (L && L.host !== host) {
+            attempt(() => L.host.detachPrimitive(L.handle.primitive))
+            L = null
+          }
+          if (!L) {
+            const handle = createBackgroundPrimitive({})
+            attempt(() => host.attachPrimitive(handle.primitive))
+            L = { host, handle, sig: null }
+            paintLayers.set(key, L)
+          }
+          const sig = colours.join('|') + '#' + n + ':' + (n ? bars[n - 1].t : '')
+          if (L.sig !== sig) {
+            L.sig = sig
+            L.handle.setOptions({ times: timesOf(), colors: colours })
+          }
+          return
+        }
+        if (p.kind !== 'barcolor') return
+        const tt = timesOf()
+        for (let j = 0; j < n; j += 1) {
+          const c = colours[j]
+          if (c == null || isNaColour(c)) continue
+          const k = String(tt[j])
+          if (conflicts.has(k)) continue
+          const had = overrides.get(k)
+          if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
+          overrides.set(k, c)
+        }
+      })
+    }
+    for (const [key, L] of paintLayers) {
+      if (alive.has(key)) continue
+      attempt(() => L.host.detachPrimitive(L.handle.primitive))
+      paintLayers.delete(key)
+    }
+    if (typeof ctx.setBarColours === 'function') {
+      barColourSink = ctx.setBarColours
+      const sig = overrides.size ? [...overrides].map(([k, v]) => `${k}=${v}`).join('|') : ''
+      if (sig !== (barColourSig || '')) {
+        barColourSig = sig || null
+        attempt(() => ctx.setBarColours(overrides.size ? overrides : null, { conflicts: conflicts.size }))
+      }
+    }
+    return any || barColourSig !== null || paintLayers.size
+      ? { backgrounds: alive.size, barOverrides: overrides.size, conflicts: conflicts.size } : null
+  }
+
   /** ⭐ C36 — the (instance, lane) pairs THIS binder has published a
    *  `time(<timeframe>)` withholding for (`chartClockNotice.js`), so an instance
    *  that leaves the chart takes its sentence with it. */
@@ -978,6 +1102,9 @@ export function createBinder({ chart, LWC }) {
     // to prevent, one surface newer.
     for (const [, layer] of objectLayers) attempt(() => layer.clear())
     objectLayers.clear()
+    // ⭐ B1 — and the paints: a background left attached, or candles left
+    // recoloured, would read as "the indicator is still on".
+    clearPaints()
     pruneClock('plots', null)
     pruneClock('objects', null)
     held = []
@@ -1081,6 +1208,9 @@ export function createBinder({ chart, LWC }) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.
       if (held.length) releaseAll()
+      // ⭐ B1 — a paint-only instance binds no series, so `held` can be empty while
+      // its background or its candle colours are still on the chart.
+      else if (paintLayers.size || barColourSig !== null) clearPaints()
       // ⭐ C36 — and its `time(<timeframe>)` sentences, held or not: an indicator
       // whose every bar is withheld binds NO series, so `held` is empty exactly
       // when there is a sentence to take down. Zero calls when none was published.
@@ -2114,6 +2244,10 @@ export function createBinder({ chart, LWC }) {
     // `chart.panes()` describes the stack the layout is talking about.
     if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
 
+    // ── ⭐⭐ B1: the paints (`bgcolor` / `barcolor`), after every series exists ──
+    // ⛔ A failure here costs the shading and nothing else.
+    const paintsDrawn = attempt(() => syncPaints(ctx, instances, columns, bars, adjustTime, next)).value || null
+
     // ── ⭐⭐ THE NOTES CHANNEL: A FILL WITH NO VISIBLE HOST IS SAID, NOT DROPPED ──
     //
     // ⛔ SILENCE IS A DEFECT, and this is the one place the binder was silent. A
@@ -2157,7 +2291,7 @@ export function createBinder({ chart, LWC }) {
       }
     }
 
-    return { ok: true, bound: next.length, released: release.length, notes }
+    return { ok: true, bound: next.length, released: release.length, notes, ...(paintsDrawn ? { paints: paintsDrawn } : {}) }
   }
 
   /**

@@ -317,3 +317,27 @@ def test_zoom_maps_to_visible_bars_per_timeframe():
     assert set(p.zoom_choices("D")) == {"auto", "1m", "3m", "6m", "1y", "2y"} and set(p.zoom_choices("15")) == {"auto", "1d", "2d", "5d", "10d"}
     with pytest.raises(ValueError):
         p.set_prefs("z", zoom="9y")
+
+
+def test_filled_style_forces_solid_candles_over_the_hollow_house_look():
+    """Owner 2026-10-02: the render page's house look is HOLLOW candles, so the
+    default "candles" style sends nothing and inherits hollow; "filled" is the
+    one way back to solid bodies and must send chartType explicitly, or the
+    house look would win and the option would silently do nothing."""
+    from api.services import discord_chart_prefs as p
+    assert "filled" in p.STYLE_CHOICES
+    assert p.render_options({**p.DEFAULTS, "style": "filled"})["indicators"] == {"chartType": "candles"}
+    assert p.render_options(dict(p.DEFAULTS))["indicators"] is None        # house look, untouched
+    assert p.render_options({**p.DEFAULTS, "style": "hollow"})["indicators"] == {"chartType": "hollow"}
+    assert p.style_signature({**p.DEFAULTS, "style": "filled"}) != p.style_signature(dict(p.DEFAULTS))
+    p.set_prefs("filled-1", style="filled")
+    assert p.get_prefs("filled-1")["style"] == "filled"
+    assert "Filled candles" in p.describe(p.get_prefs("filled-1"))
+
+
+def test_the_look_dropdown_still_fits_discords_25_option_limit_with_filled():
+    from api.services import discord_interactions as di
+    from api.services import discord_chart_prefs as p
+    worst = max(len(p.zoom_choices(tf)) for tf in ("D", "W", "5", "60"))
+    n = worst + len(p.INDICATOR_CHOICES) + len(p.STYLE_CHOICES) + len(p.THEME_CHOICES) + 2
+    assert n <= 25, n

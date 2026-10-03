@@ -118,7 +118,12 @@ const expandOrCeiling = (d) => {
 // ⛔ A SCRIPT THAT CARRIES NOTHING IS NOT A MEMO CASE, and it must not be skipped
 // silently either: `NO_TREES` below asserts that this is exactly why it is gone, so the
 // day it translates again the roster gains it back by failing here.
+// ⭐ BACK ON THE ROSTER 2026-10-02 (H1), exactly as the note above asked: its trailing
+// stops are ratchets the RANGE window decides (`interpret.js::RANGE_TOP`), so its nine
+// columns translate on the right answer and the fill edge sits beside them (branch B of
+// ruling 1.2).
 const SCRIPTS = [
+  'high_engagement__03-supertrend-kivancozbilgic',
   'mid_engagement__22-rsi-levels-regime-map',
   'mid_engagement__14-master-line-lite',
   'high_engagement__12-cm-ultimate-rsi-mtf-chrismoody',
@@ -131,15 +136,13 @@ const NO_TREES = 'high_engagement__03-supertrend-kivancozbilgic'
  *  case for why this is not `mid_engagement__22` any more. */
 const SPECIMEN = 'mid_engagement__14-master-line-lite'
 
-describe('⚰ the script that left the roster, asserted rather than forgotten', () => {
-  it(`${NO_TREES} carries no trees at all`, () => {
-    // ⛔ THE POINT IS THE DAY THIS GOES RED. If the fold or the hidden rule is ever
-    // narrowed, this script produces columns again and belongs back in SCRIPTS — it is
-    // the only case in the frozen set where ten plots share one band, which is the
-    // shape the shared memo exists for.
+describe('⚰ the script that left the roster — and came back', () => {
+  it(`${NO_TREES} carries its nine columns again (H1), never the ohlc4 edge alone`, () => {
+    // ⛔ THIS WAS "carries no trees at all", and it went red the day the script
+    // translated again — which is what it was for. It is back in SCRIPTS above.
     const d = document(NO_TREES)
-    expect(Object.keys(d.trees)).toEqual([])
-    expect(() => buildGraph(d.trees)).toThrow(/empty trees map/)
+    expect(Object.keys(d.trees).length).toBeGreaterThanOrEqual(9)
+    expect(SCRIPTS).toContain(NO_TREES)
   })
 })
 

@@ -46,8 +46,11 @@ import * as engineRegistry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
+import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
+import { setRuntimeKillList, RUNTIME_KILL_PATH } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import { usePineLibraries } from '../usePineLibraries'
 import styles from './MemberPane.module.css'
 
 const noop = () => {}
@@ -93,12 +96,37 @@ export default function MemberPane({
     setDrawnBars((prev) => (Number.isFinite(n) && n !== prev ? n : prev))
   }, [])
 
+  // ⭐⭐ RT1 — THE RUNTIME LANE'S PER-SCRIPT KILL LIST, fetched once per mount and
+  // only while the runtime pane is switched on (`engine/runtimeKill.js`). The
+  // build below re-runs when it lands, so a script the server lists falls back
+  // to the host lane's answer on this preview too. A failed read leaves the list
+  // as it was: the store's own door refuses a listed script's SAVE regardless.
+  const runtimeOn = live && runtimePaneEnabled()
+  const [killVersion, setKillVersion] = useState(0)
+  useEffect(() => {
+    if (!runtimeOn) return undefined
+    let alive = true
+    fetch(RUNTIME_KILL_PATH, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d) return
+        setRuntimeKillList(d.kill)
+        setKillVersion((n) => n + 1)
+      })
+      .catch(() => { /* the list stays as it was; the save door still checks */ })
+    return () => { alive = false }
+  }, [runtimeOn])
+
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
   // frame budget.
+  // ⭐ L1 — an `import`ed library arrives from the server's store; the build
+  // re-runs once it is in the registry (`revision`).
+  const libRevision = usePineLibraries(live ? source : '')
   const built = useMemo(
     () => (live ? memberPaneDefinition({ source, id: defId }) : null),
-    [live, source, defId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- libRevision: rebuild when a library lands; killVersion: rebuild when the kill list lands
+    [live, source, defId, libRevision, killVersion],
   )
   const [installed, setInstalled] = useState(null)
 
@@ -230,9 +258,10 @@ export default function MemberPane({
       {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a
           caller supplied a place to put the result; absent on a default build,
           because this whole component already returned `null` above. */}
-      {/* ⛔ A RUNTIME-LANE PREVIEW IS NOT OFFERED AS A SAVE (`saveable: false`):
-          the store takes `compute.kind: 'ast'` alone, so the button's only outcome
-          would be a refusal. The disclosure above already says so in words. */}
+      {/* ⭐ RT1 — A RUNTIME-LANE DOCUMENT IS OFFERED AS A SAVE TOO: the store has a
+          door for it (`api/services/runtime_definitions.py`), and while that door
+          is switched off its refusal sentence is rendered verbatim below.
+          `saveable: false` still hides the button for any document that says so. */}
       {onAttach && built && built.saveable !== false && (
         <div data-testid="pine-member-pane-attach">
           <button

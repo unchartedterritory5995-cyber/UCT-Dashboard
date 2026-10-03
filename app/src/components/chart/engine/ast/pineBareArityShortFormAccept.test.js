@@ -148,13 +148,16 @@ describe('⭐⭐ the real corpus: both blockers move, neither fully unlocks (sam
     expect(t.refusal.message).not.toMatch(/highestbars|lowestbars/)
   })
 
-  it('pivot-point-supertrend clears pivothigh/pivotlow, converges on an unrelated unfoldable `var`', () => {
+  // ⭐⭐ 2026-10-02 (H1) — AND THEN THE `var` FELL TOO. The "unrelated unfoldable" wall
+  // was `TUp`/`TDown`, trailing stops whose reset test reads the stop; the RANGE window
+  // decides that test, so the script translates whole (and matches TradingView —
+  // `vendorHarness.h1Ratchet.test.js`).
+  it('pivot-point-supertrend clears pivothigh/pivotlow — and, since H1, its trailing stops too', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'pivot-point-supertrend__HN4w1eNW3B.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
-    expect(t.ok).toBe(false)
-    expect(t.refusal.guard).toBe('pine:state')
-    expect(t.refusal.message).not.toMatch(/pivothigh|pivotlow/)
+    expect(t.ok).toBe(true)
+    expect(JSON.stringify(t.refusals || [])).not.toMatch(/pivothigh|pivotlow/)
   })
 
   // ⛔⛔ `vwap` IS DELIBERATELY OUT OF SCOPE — CONFIRMED STILL REFUSING,

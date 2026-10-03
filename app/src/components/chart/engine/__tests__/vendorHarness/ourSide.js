@@ -27,7 +27,8 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder, drawShiftOf } from '../../binder'
+import { createBinder, drawShiftOf, paintColoursFor } from '../../binder'
+import { bindingKey } from '../../pool'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -324,7 +325,13 @@ function drawnColours(def, bars, ctx) {
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const out = new Map()
   if (!instances.length) return { ok: false, reason: 'addInstance produced no instance', byKey: out }
+  // ⭐ B1 — the chart's own candles (an overlay `bgcolor` with no series of its own is
+  // drawn through them) and the `barcolor` overrides, exactly as StockChart hands them.
+  const candles = fake.chart.addSeries(fake.LWC.CandlestickSeries || 'CandlestickSeries', {}, 0)
+  let barColours = null
   const res = binder.sync({
+    priceSeries: () => candles,
+    setBarColours: (map) => { barColours = map },
     enabled: true,
     cs,
     instances,
@@ -382,8 +389,14 @@ function drawnColours(def, bars, ctx) {
     })
     out.set(b.plotKey, colors)
   }
+  // ⭐ B1 — every background the binder attached, and what each was told to draw.
+  const backgrounds = fake.calls
+    .filter((c) => c.method === 'attachPrimitive' && c.args[0] && typeof c.args[0].options === 'function')
+    .map((c) => ({ seriesId: c.id, colors: c.args[0].options().colors || null }))
+  // ⛔ read BEFORE the teardown: releasing the binder clears the overrides it handed.
+  const handed = barColours
   binder.teardown()
-  return { ok: true, reason: null, byKey: out, sync: res }
+  return { ok: true, reason: null, byKey: out, sync: res, paints: { backgrounds, barColours: handed } }
 }
 
 /** ⭐ C45 — does the capture's OWN `bar_index` control row print 0, 1, 2 … on
@@ -553,6 +566,13 @@ export function runOurSide(capture) {
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
     notes.push(...lower.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
+    // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
+    const paintCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
+    const paints = (def.paints || []).map((p) => ({
+      kind: p.kind, line: p.line ?? null, title: p.title ?? null,
+      colors: paintColoursFor(p, 'harness', paintCols, bars.length),
+    }))
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -653,6 +673,11 @@ export function runOurSide(capture) {
       ctx,
       notes,
       bars,
+      // ⭐ B1 — what the door carried (every call, withheld ones included, in source
+      // order), what the document draws, and what the binder handed the chart.
+      paints,
+      translationPaints: ((built.translation && built.translation.presentation) || {}).paints || [],
+      drawnPaints: colours && colours.paints ? colours.paints : null,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
