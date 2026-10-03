@@ -324,7 +324,26 @@ def _deliver_via_s7(alert: dict, current_price: float, level: float,
         _logger.info("price alert %s: S7 fire already recorded/claimed -- "
                      "not delivered again", alert.get("id"))
         return None
-    report = _deliver_alert(alert, current_price)
+    # FT-036: the member's one routing rule, applied on THIS bridge too (it has
+    # its own fan-out, so `alert_taxonomy.delivery.deliver` never sees it).
+    # None while ALERT_ROUTING_RULE_ENABLED is off -> byte-identical to before.
+    rule = _routing_rule_for(alert.get("user_id"))
+    if rule is not None and rule.suspended:
+        # ⛔ Suspended: the fire is RECORDED in alert_fires (above), its lease is
+        # held, and its outcome says why nothing went out. The row stays where
+        # it is -- suspend never deletes.
+        report = {"claimed": True, "channels": {"routing": "suspended"},
+                  "channels_ok": 0, "channels_failed": 0, "errors": {},
+                  "suspended": True}
+        try:
+            _wpa.close_fire(fire_id, report)
+        except Exception as e:
+            _logger.warning("S7 receipt %s: could not record the suspended outcome (%s: %s)",
+                            fire_id, type(e).__name__, e)
+        return report
+    report = _deliver_alert(alert, current_price,
+                            **({"channels_allowed": rule.channels_allowed()}
+                               if rule is not None else {}))
     try:
         _wpa.close_fire(fire_id, report)
     except Exception as e:
@@ -333,7 +352,20 @@ def _deliver_via_s7(alert: dict, current_price: float, level: float,
     return report
 
 
-def _deliver_alert(alert: dict, current_price: float) -> dict:
+def _routing_rule_for(user_id):
+    """FT-036's effective rule for this member, or None (dark, or unreadable --
+    a routing lookup that fails must never cost the member the alert)."""
+    try:
+        from api.services.alert_taxonomy import routing_rule as _routing
+        return _routing.effective(user_id)
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("FT-036 routing rule unreadable (%s: %s) -- unrouted delivery",
+                        type(e).__name__, e)
+        return None
+
+
+def _deliver_alert(alert: dict, current_price: float, *,
+                   channels_allowed: frozenset | set | None = None) -> dict:
     """Multi-channel delivery: AlertBell + Email + Discord. **Reports per channel.**
 
     🔴 THE OTHER LANE OF THE SAME DEFECT `deliver_alert_payload` CLOSED IN
@@ -412,7 +444,11 @@ def _deliver_alert(alert: dict, current_price: float) -> dict:
     # 2. Email
     try:
         email = _get_user_email(alert["user_id"])
-        if not email:
+        if channels_allowed is not None and "email" not in channels_allowed:
+            # FT-036: the member's routing rule turned email off. Skipped, not failed.
+            channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
+            email = None
+        elif not email:
             # No address on file. Nothing was attempted and nothing failed.
             channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
         if email:
@@ -464,6 +500,8 @@ def _deliver_alert(alert: dict, current_price: float) -> dict:
     # an operator or the whole audience should see, not one member's alert.
 
     # 4. Web Push (BRK-04, dark) — last, off-thread, never raises.
+    if channels_allowed is not None and "push" not in channels_allowed:
+        return _delivery_report(True, channels, errors)
     _push_channel(alert["user_id"], f"Alert: {sym} ${current_price:.2f}", msg,
                   f"/research/{sym.upper()}", tag=f"price-{alert.get('id')}")
     return _delivery_report(True, channels, errors)
