@@ -99,7 +99,12 @@ def test_ON_a_saved_runtime_document_reloads_identically_with_its_class_rederive
     # RT2: the class is re-derived from the source, and equals what the door stated
     derived = runtime_repaint.runtime_repaint_of(d["compute"]["source"])["mode"]
     assert derived == d["meta"]["repaint"]
-    assert set(row["repaint"].values()) == {derived}
+    if d["compute"]["outputs"]:
+        assert set(row["repaint"].values()) == {derived}
+    else:
+        # RT5: a document that draws ONLY its own objects carries no row to label;
+        # the class still rides meta.repaint (asserted above), and it must draw.
+        assert d["compute"].get("objects") is True
     assert set(row["repaint"]) == set(d["compute"]["outputs"])
     # reload: byte-for-byte the document that was saved
     assert svc.get(USER, d["id"])["definition"] == d
