@@ -220,20 +220,25 @@ describe('RT1 — R-W for the runtime lane: a fallback document needs a listing-
 })
 
 describe('RT1 — what a runtime row cannot carry is withheld by name, never drawn as a guess', () => {
-  it('a shifted plot and a per-bar colour are withheld, named in the disclosures; the rest draws', () => {
+  it('a shifted plot and a per-bar SHAPE colour are withheld, named in the disclosures; the rest draws (RT6: a per-bar plot colour draws)', () => {
     const cap = capture(ADX)
     vi.stubEnv(FLAG, '1')
     const src = `${cap.source.text}
 plot(close, title="Shifted", offset=3)
 plot(close, title="Tinted", color = close > open ? color.green : color.red)
+plotshape(close > open, title="Marked", color = close > open ? color.green : color.red)
 `
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(built.ok, built.reason).toBe(true)
-    expect(built.withheld).toEqual(['Shifted', 'Tinted'])
-    expect(built.rows.map((r) => r.label)).toEqual(cap.study.plots.map((p) => p.title))
+    expect(built.withheld).toEqual(['Shifted', 'Marked'])
+    expect(built.rows.map((r) => r.label)).toEqual([...cap.study.plots.map((p) => p.title), 'Tinted'])
+    // ⭐ RT6 — the per-bar plot colour rides a colour column of the run
+    const tinted = built.definition.plots.find((p) => p.label === 'Tinted')
+    expect(tinted.colorMode).toMatch(/^column:/)
+    expect(tinted.colorPacked).toEqual({})
     const notes = built.notes.map((n) => n.note).join(' | ')
     expect(notes).toMatch(/`Shifted` is not drawn: .*offset/)
-    expect(notes).toMatch(/`Tinted` is not drawn: .*colour changes/)
+    expect(notes).toMatch(/`Marked` is not drawn: .*colour changes.*shape/)
   })
 })
 

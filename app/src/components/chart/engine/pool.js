@@ -815,7 +815,43 @@ export function columnColorsForPlot(plot) {
   if (palette) return { key, up: null, down: null, palette }
   // ⭐⭐ C37 — A GRADIENT: the named column holds the bar's position.
   const gradient = gradientOf(plot)
-  return gradient ? { key, up: null, down: null, gradient } : null
+  if (gradient) return { key, up: null, down: null, gradient }
+  // ⭐⭐ RT6 — A COLOUR COMPUTED BAR BY BAR: the named column holds the colour.
+  const packed = packedOf(plot)
+  return packed ? { key, up: null, down: null, packed } : null
+}
+
+/** ⭐⭐ RT6 — a plot's (or paint's / fill's) `colorPacked` as the renderer reads
+ *  it: the named column holds each bar's colour as the runtime lane computed it —
+ *  a packed `0xTTBBGGRR` integer (`runtime/colours.js`, the one byte order), `NaN`
+ *  where the colour is Pine's `na`. `transparency` is the STYLE transparency the
+ *  call wrote (`transp =`, or a v4 `bgcolor`'s default 90), folded into an OPAQUE
+ *  colour only — the vendor's own rule (`compare.mjs::withStyleTransparency`); the
+ *  door admits a style transparency only over a colour provably opaque on every
+ *  bar, so the "opaque only" clause is never the one deciding. `sig` is the memo key. */
+function packedOf(plot) {
+  const p = plot && plot.colorPacked
+  if (!p || typeof p !== 'object') return null
+  const transparency = Number.isInteger(p.transparency) && p.transparency > 0 && p.transparency <= 100
+    ? p.transparency : null
+  return { transparency, sig: `packed|${transparency}` }
+}
+
+/** ⭐⭐ RT6 — ONE BAR'S COLOUR FROM A PACKED COLUMN, or null where the run holds
+ *  the `na` colour (a NaN, or anything that is not a packed integer). The caller
+ *  decides what "no colour" draws: a plot draws NOTHING there (TradingView hides a
+ *  plot point whose colour is `na`), a fill and a paint leave the bar unpainted. */
+export function packedPointColour(packed, c) {
+  if (!packed || typeof c !== 'number' || !Number.isFinite(c)) return null
+  const hex = packedToObjectHex(c)
+  if (!hex) return null
+  if (packed.transparency === null || hex.length !== 7) return hex
+  // ⛔ EXACT INTEGER ARITHMETIC, the vendor fold's own (`compare.mjs::
+  // withStyleTransparency`: round((100 − t) / 100 × 255)). `withObjectTransparency`
+  // computes 1 − t/100 in floating point first, and 1 − 0.9 is 0.0999…, so a
+  // `transp=90` came out alpha 25 where the vendor's fold reads 26 (25.5 rounds up).
+  const alpha = Math.round(((100 - packed.transparency) * 255) / 100)
+  return hex + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
 
 /** ⭐⭐ C37 — a plot's `colorGradient` as the renderer reads it: the two

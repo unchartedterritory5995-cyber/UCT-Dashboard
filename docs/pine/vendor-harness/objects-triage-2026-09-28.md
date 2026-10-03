@@ -179,6 +179,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 79 | F3 drawing divergences on the host object lane (section F3): `str.tostring(x, format.mintick)` rounds to the witnessed tick and keeps its decimals; words around a pattern (`"Swing H  (#,###.####)"`) are read; a non-literal format is carried named (`na` prints `NaN`, a finite value withheld); a drawing the door withholds is graded as a named gap (`withheld`), not "no drawing program". trend-targets RDDT objects MATCH, swing-highlow-zigzag RDDT MATCH; multicator / atr-trailing / pmax labels withheld by name; zigzag SPY lines are a window (35 of 52 below the window) | F3 commits on `pine/f3-drawing-divergences` | `pineTextFormat.js`, `pine.js` text reader, `objectProgram.js` binding, `objectRuntime.js` formatter; harness `ourSide.js` + `compare.mjs` | object MATCH 117/133 -> 118/135 (on/runtime), capture MATCH 73/79 -> 74/80, census 55/80/86 unchanged, 0 MATCH -> DIVERGE | table in section F3 |
 | 80 | GT (lane brief, wave 16) the owner's switch-on rulings for the runtime pane (section GT, `docs/pine/runtime-pane-switch-on-plan.md` *GT operator steps*): D1 a per-member stage `PINE_RUNTIME_STAGE` (off / admins / all; per request; default off pinned) on the auth payload (`pine_runtime_pane_enabled`), latched per tab, required WITH the build flag, and asked of the saving member at the store; D2 runtime documents capped at 128 KiB (formulas 64 KiB; trend-targets saves); D6 the starter allowlist (`api/data/pine_runtime_allowlist.json` + `PINE_RUNTIME_ALLOWLIST`; adx-and-di-for-v4 only; others decline `runtime:not-yet-graded` with the host sentence; empty = none; stored rows served stamped); RT4 follow-up: a direction-B row is served with `repaint_notice` and the Builder shows it, the stored label never flipped. D3/D4/D5 unchanged. Nothing flipped | `40c82dc9ec`, `50e7b8b76c`, docs | not re-graded (no routing change for a permitted member with the list open) | unchanged | with the stage on, the runtime-only 6 attach 1 (adx-and-di-for-v4) until more are graded; 0 for every member while the stage is off |
 | 81 | CAP3 standing capture lane (section CAP3): Q-L2a rolling-vwap (RDDT plots 7/7 MATCH with the store, table cell DIVERGE), Q-RT5a (vendor rows pinned; still refused), Q-H4a (RDDT MATCH 4/4), Q-RT5b renko (RDDT MATCH); 36 of 71 SPY 1D gap captures: MATCH 11 / DIVERGE 24 / INCONCLUSIVE 1, pinned by signature | `b2794f9f34`, `0e083dd37a`, `296a085e9f`, `7eb130a8f5` | 36 + 7 new harness files | - | census (libraries loaded) 55 / 82 / 89 |
+| 82 | RT6 per-bar colour on the RUNTIME lane (section RT6): a plot's `color =` is an output of the same run (opt-in `plotColours`, appended after every other output), carried as a hidden packed-colour column (`colorPacked`) and drawn by the host renderer (`pool.columnColorsForPlot` -> `packedPointColour`; an `na` colour draws nothing); `bgcolor` / `barcolor` ride the runtime document as paints coloured by the run, with `transp =` or the v4 `bgcolor` default 90 (CAP round 4) folded into a provably opaque colour only; within one script the later `barcolor` wins (CAP round 4 P1/P2); `color.new` / `color.rgb` over `na` are `na` | `98cab84278`, `b8983a327c`, `10cadf56d2` | harness dir 295 (runtime pane permitted): MATCH 86 -> 87, DIVERGE 94 -> 91; inside-bar-range RDDT DIVERGE -> MATCH, vw-deadband-ticks AAPL / SPY DIVERGE -> INCONCLUSIVE (DBHF MATCH, the barcolor agrees); 0 MATCH -> DIVERGE | census on + runtime 87 -> 93 (atr-stepped-pdf-ma, deadband-hysteresis-filter, fvg-trend, kalman-price-filter, nadaraya-watson, parabolic-sar); off / on 0 rows changed |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -6509,3 +6510,104 @@ count reds it).
 **Left.** Gap-list indices 37-70 (33 scripts: liquidity-pools ... zero-lag-ma-trend-levels; `supertrend-explorer` is
 refused by TradingView itself, CAP2) - stopped when the rig tab of the new session read `hidden`. F1 / F2 / F3 / GT
 pushed no capture queue.
+
+## RT6 - per-bar colour on the runtime lane: plot colours, bar colours and backgrounds from the same run (2026-10-03, step 82)
+
+Branch `pine/rt6-runtime-colour`, base `integrate/wave16-2026-10-02` (`fa5cc79f99`, merged forward to `8fbdc5b561`).
+Target: H4's measured wall - a runtime row could carry only ONE static colour, so a per-bar colour (`plot(x, color =
+cond ? a : b)`, `color.new(<var colour>, t)`, a `bgcolor` / `barcolor` the host could not fold) was withheld, and RF
+disclosed runtime bar colours as "not drawn".
+
+### What is carried, and how
+
+1. **The colour is computed by the run that computes the value.** `pineRuntimeFrontend.js::describeColour`: for
+   `plot` / `plotshape` / `plotchar` with a `color =` (named, or `plot`'s positional third), the colour expression is
+   lowered in the call's own statement position into an output `{call: 'colour', of}`; the plot's descriptor carries
+   `colour: {output}` (or `colour: {refused}` - fail-soft, the script still builds). OPT-IN (`opts.plotColours`, asked
+   only by `runtimeColumns.js`' probe and compute), and the colour outputs take their indices AFTER every other output,
+   so no stored `compute.outputs` index moves. Paint outputs (`bgcolor` / `barcolor`) already were the colour; their
+   descriptors now carry `line`, `transp` and `colourOpaque`.
+2. **The document names a colour column.** `memberPaneDefinition.js::runtimeRowPresentation` / `runtimeRowColour`: a row
+   the host marks per-bar (`colorDynamic`, two-colour, palette, gradient) gets `colorMode: 'column:<k>'` +
+   `colorPacked: {transparency?}`, where `<k>` is a hidden row mapped to the colour output. Paints: each host paint
+   record (`t.presentation.paints`) is paired with the run's paint output of its kind by source order; drawn paints ride
+   `definition.paints` with the same `colorPacked`. `defSchema` admits `colorPacked` (plot, fill and paint) and refuses
+   a malformed one by name.
+3. **Drawn by the host renderer.** `pool.columnColorsForPlot` answers `{packed}`; `binder.pointColour` ->
+   `pool.packedPointColour` turns the packed `0xTTBBGGRR` into `#RRGGBB(AA)` through the one byte order
+   (`packedToObjectHex`). A run `na` colour: no colour for a paint or fill (unpainted), a transparent point for a plot
+   (TradingView hides a plot point whose colour is `na`; the host palette's `na` entry draws the same).
+4. **Transparency rules, each from a witness.** A style transparency folds into an OPAQUE colour only - the vendor fold
+   (`compare.mjs::withStyleTransparency`), alpha `round((100 - t) * 255 / 100)` in integers (floating point gave 25 for
+   `transp=90` where the fold reads 26). `transp =` as written; a v3/v4 `bgcolor` with none takes **90** (CAP round 4,
+   `vw-bgcolor-v4-default-spy-1d-2026-10-02`, `styleState` T1/T3). A transparency is applied only over a colour PROVABLY
+   opaque on every bar (`opaqueColour`: a 6-digit literal, a named colour, `color.rgb` of three, an `input.color` / v4
+   `input` default of one, a ternary of such or `na`); otherwise the row / paint is withheld by name.
+5. **The later `barcolor` wins within one script** (`binder.syncPaints`): CAP round 4's P1/P2 screenshot
+   (`docs/pine/vendor-harness/cap-round4/vw-bgcolor-barcolor-spy-1d-2026-10-02.png`) shows P2 painting over P1. Two
+   different scripts that disagree on a bar still leave it its own colour (`conflicts`) - no capture says which wins.
+6. **`color.new` / `color.rgb` over `na` are `na`** (`runtime/colours.js`). They answered transparent black at the
+   requested transparency - a visible shade where Pine holds the `na` colour. Unwitnessed; queued (Q-RT6a C03-C05).
+7. A v4 generic `input(defval = <colour>)` is a colour on the runtime lane (parabolic-sar's `colup` / `coldn`), lowered
+   to its default as `input.color` already was.
+
+**Withheld by name:** a `plotshape` / `plotchar` whose colour changes per bar (the marker layer reads two colours, not a
+column); a script below v4 (no capture of its colour rules); an unread `transp`; a transparency over a colour that may
+carry its own; a colour this lane could not compute; every paint the host withheld for a reason other than its colour
+(`offset`, `show_last`, `display`, an argument it cannot read) - the run computes a colour, not where TradingView draws it.
+
+### Graded
+
+| capture | before (integrate, runtime pane permitted) | RT6 |
+|---|---|---|
+| fvg-trend RDDT 1D (listing) | refused | `fvgCounter` MATCH with colour compared; `bgcolor(..., transp=90)` **agree**; overall INCONCLUSIVE only for `plot(0, color=color.black)` (a constant, hidden by the host on both lanes) |
+| inside-bar-range RDDT 1D (listing) | DIVERGE (paints notDrawn / withheld) | **MATCH**: both barcolors agree on 632 / 632 (83 / 76 painted) |
+| inside-bar-range SPY 1D (not from the listing, CAP3) | DIVERGE | DIVERGE: each barcolor differs on **1** of 1,800 bars (bars 0 and 2: TradingView paints, ours `na`), the seed bar where the routed document's plot already reads `na` against TradingView's 1 |
+| trend-targets-algoalpha RDDT 1D (listing) | DIVERGE (barcolor notDrawn) | barcolor **agree**; `Baseline` now drawn: colour 0 mismatches of 414 compared, its VALUE diverges on 82 bars (`na` at bar 140, converging to 1e-9 by bar 221, maxRel 3e-4) - a seed defect of the run, pinned in `vendorHarness.coverageAudit` |
+| vw-deadband-ticks AAPL / SPY 1D | DIVERGE | INCONCLUSIVE: `DBHF` MATCH (11,534 / 8,473 bars), barcolor agree; left only `D01_mintick` (not carried) |
+| vw-deadband-ticks BRK.A 1D | DIVERGE (barcolor withheld) | DIVERGE (barcolor notDrawn): the run computes no column on this window, so neither plots nor paint draw |
+
+Harness dir (295 captures, runtime pane PERMITTED - see the instrument note): **MATCH 86 -> 87, DIVERGE 94 -> 91,
+INCONCLUSIVE 115 -> 117; 0 MATCH -> DIVERGE.** The five loop scripts with no capture are held to HAND REPLAYS of their
+colour rule over the run's own value column on NYSE:RDDT's 631 listing bars (`vendorHarness.rt6RuntimeColour`):
+kalman (`color.new(barColour, 40)` and its barcolor, every bar), deadband (same shape from `input.color`s),
+nadaraya-watson (the rate rule, `smoothColors` off), atr-stepped (`contSwitch` replayed from the stepped line;
+`colorbars` off so no paint), parabolic-sar (the SAR replayed whole - value and colour - v4 palette). Each replay shows
+both colours on more than 20 bars. Captures queued for CAP3: `docs/pine/capture-queue-2026-10-03-rt6-colour.md` (Q-RT6a
+probe `tools/visual_conformance/probes/vw-rt6-runtime-colour.pine`, Q-RT6b-f the five scripts).
+
+### Measured
+
+| | integrate (`a572cdd7af`, RT6 files at their bytes) | RT6 tip |
+|---|---|---|
+| member door off / on / on + runtime | 55 / 80 / 87 | 55 / 80 / **93** |
+| rows moved | - | attach: atr-stepped-pdf-ma-loxx, deadband-hysteresis-filter-backquant, fvg-trend, kalman-price-filter-backquant, nadaraya-watson-rational-quadratic-kernel-non-repainting, parabolic-sar (each `runtime:withheld-all` -> attached, 1 plot); trend-targets plots 4 -> 5; auto-harmonic-patterns and linear-regression-channel stay declined at their next wall (`pine:colour-value` -> `pine:builtin` / `runtime:na-test`); off and on: 0 rows; 0 attaches lost |
+
+Mutations (bytes captured, restored, sha verified; `git status` clean after): colour output never emitted, door ignores
+the run colour, `na` colour drawn as the series colour, style transparency ignored, v4 default 90 dropped, the opacity
+guard removed (plot, and paint), `color.new` over `na` a colour again, later barcolor no longer winning, paints not
+carried, colour outputs not appended last, schema accepting any transparency: **14 of 14 red** (three survived the first
+pass and got rails: `paintRender`'s packed `na` point, and fvg-trend source variants in `vendorHarness.rt6RuntimeColour`).
+
+**Fixture:** `tests/fixtures/runtime_documents/documents.json` re-minted from the door (RT6 changes inside-bar and
+trend-targets; wyckoff is now an objects-only runtime document with an EMPTY `compute.outputs` - its 8 markers are
+withheld for `offset` (H4) and RT5 draws its objects). The server's `test_runtime_document_round_trip` reds on that
+wyckoff entry (`repaint_stamp` of no outputs); `runtime_definitions.validate` would refuse it too ("required non-empty
+object"). Not RT6's - H4 x RT5 - but surfaced by this re-mint.
+
+### Instrument note (GT)
+
+Since GT, `src/test-setup.js` permits the runtime pane in a `beforeEach`. `vendorHarness.corpus.test.js` grades the
+whole directory at COLLECTION time (`const run = runHarness(dirs)` in the `describe` body), before any `beforeEach`, so
+the harness CLI now grades with the runtime pane NOT permitted whatever `VITE_PINE_RUNTIME_PANE_ENABLED` says (measured:
+295 captures, identical MATCH 77 / DIVERGE 84 / INCONCLUSIVE 134 at tip and base). The numbers above come from the same
+`runHarness` called inside an `it`.
+
+### Open
+
+- GT: the harness CLI grades without the runtime permission (above).
+- H4 x RT5: wyckoff's runtime document has no drawn row; the store and its round-trip rail refuse it.
+- RT: the run's seed on trend-targets' `Baseline` (bar 140 `na`, converging prefix) and on inside-bar-range SPY bar 2.
+- A per-bar colour on a `plotshape` / `plotchar` (needs a per-point colour in `markerPrimitive.markersFor`), and a fill's
+  colour on a runtime document (the runtime lane emits it; the document carries no runtime fill yet).
+- CAP3: Q-RT6a-f.
