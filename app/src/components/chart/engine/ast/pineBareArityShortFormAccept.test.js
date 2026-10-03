@@ -160,15 +160,17 @@ describe('⭐⭐ the real corpus: both blockers move, neither fully unlocks (sam
     expect(JSON.stringify(t.refusals || [])).not.toMatch(/pivothigh|pivotlow/)
   })
 
-  // ⛔⛔ `vwap` IS DELIBERATELY OUT OF SCOPE — CONFIRMED STILL REFUSING,
-  // UNCHANGED, EXACTLY AS `requests.md` DOCUMENTS IT.
-  it('⛔ cpr-with-mas-super-trend-vwap (bare vwap(source)) is UNCHANGED — still refuses pine:arity on vwap', () => {
+  // ⭐ `vwap(source)` WAS OUT OF THIS SLICE's SCOPE, AND H3 (2026-10-02) SERVED IT
+  // SEPARATELY: a bar price is `vwapOf(source)`, the same session accumulator,
+  // graded on `vw-clock-vwap-spy-5-ext-2026-09-28` (`vendorHarness.h3VwapSource`).
+  // The script's `VWAPSource` input defaults to `close`, so its vwap line is now
+  // `vwapOf(close)` and no refusal names `vwap` any more.
+  it('cpr-with-mas-super-trend-vwap (bare vwap(source)) no longer refuses on vwap (H3)', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
-    expect(t.ok).toBe(false)
-    expect(t.refusal.guard).toBe('pine:arity')
-    expect(t.refusal.message).toMatch(/vwap/)
+    expect(JSON.stringify((t.refusals || []).map((r) => r.message))).not.toMatch(/was given a source/)
+    expect((t.outputs || []).some((o) => /vwapOf\(close\)/.test(String(o.formula || '')))).toBe(true)
   })
 
   it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {

@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 32 clock, 15 operators, 78 functions and 137 scalars — 267 names, one grammar', () => {
+  it('declares 5 series, 32 clock, 15 operators, 79 functions and 137 scalars — 268 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -591,7 +591,12 @@ describe('the manifest', () => {
     // (`lookback: "arg2"`), so `maxLookback` is still a tree sum. Reached only
     // through the Pine door's `x[e]` on the host lane. No new node type,
     // argument kind or lookback form; `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(78)
+    // ⭐ 78 -> 79 (2026-10-02, H3): `vwapOf(source)`, Pine's `ta.vwap(source)`
+    // for a bar price — the SAME session accumulator as `vwap()` (one
+    // `computeVWAP`), weighting `source`. Reached only through the `vwap` key's
+    // one-argument branch in `pine.js`. Same `reads: bars` / `lookback: session`
+    // as `vwap`; no new node type, argument kind or lookback form.
+    expect(Object.keys(TABLE.functions)).toHaveLength(79)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -709,9 +714,10 @@ describe('the manifest', () => {
     // (2026-09-28, C8) -- see the clock-count note above. Scalar half untouched
     // at 137, which is what makes the total 266.
     // ⭐ 129 -> 130 IS `barsAgo` (2026-09-30, C38) -- see the functions-count note above.
-    expect(bar.size).toBe(130)
+    // ⭐ 130 -> 131 IS `vwapOf` (2026-10-02, H3) -- see the functions-count note above.
+    expect(bar.size).toBe(131)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(267)
+    expect(declared.size).toBe(268)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
