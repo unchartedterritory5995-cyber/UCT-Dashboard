@@ -63,13 +63,23 @@ describe('ta.vwap(hlc3) is the zero-argument vwap — vendor-pinned', () => {
     }
   })
 
-  it('any other source still refuses, by name, and says which spelling works', () => {
-    for (const src of [`${V6}plot(ta.vwap(close))`, `${V4}plot(vwap(high))`]) {
+  // ⭐ H3 (2026-10-02): a BAR PRICE is served as `vwapOf(source)`, graded on
+  // `vw-clock-vwap-spy-5-ext-2026-09-28` (`vendorHarness.h3VwapSource`).
+  it('another bar price is vwapOf(source), the same session accumulator', () => {
+    for (const [src, want] of [[`${V6}plot(ta.vwap(close))`, 'vwapOf(close)'], [`${V4}plot(vwap(high))`, 'vwapOf(high)']]) {
+      const got = formulaOf(src)
+      expect(got.t.ok, src).toBe(true)
+      expect(got.formula, src).toBe(want)
+    }
+  })
+
+  it('a computed source still refuses, by name, and says which spelling works', () => {
+    for (const src of [`${V6}plot(ta.vwap(ta.sma(close, 5)))`, `${V4}plot(vwap(close * 2))`]) {
       const t = tr(src)
       expect(t.ok, src).toBe(false)
       expect(t.refusal.guard, src).toBe('pine:arity')
       expect(t.refusal.message, src).toMatch(/was given a source/)
-      expect(t.refusal.message, src).toMatch(/ta\.vwap\(hlc3\)/)
+      expect(t.refusal.message, src).toMatch(/ta\.vwap\(close\)/)
     }
   })
 

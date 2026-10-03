@@ -89,8 +89,11 @@ describe('the typical-price adapters', () => {
     // ⭐ 2026-09-27: HELD AT THE KEY, NOT AS A SHAPE — so the bare variable above
     // keeps working AND the hlc3 form now translates to the same column
     // (vendor-measured identical, `groupb-round-max-vwap-spy-1d-2026-09-10.json`).
-    // Every other source still refuses: that is the trade this case guards now.
+    // ⭐ 2026-10-02 (H3): another BAR PRICE is `vwapOf(source)` — the same
+    // accumulator, graded on `vw-clock-vwap-spy-5-ext-2026-09-28`
+    // (`vendorHarness.h3VwapSource`). A COMPUTED source still refuses.
     expect(formulaOf(screen('close > ta.vwap(hlc3)'))).toBe('close > vwap() ? 1 : 0')
-    expect(screen('close > ta.vwap(close)').ok).toBe(false)
+    expect(formulaOf(screen('close > ta.vwap(close)'))).toBe('close > vwapOf(close) ? 1 : 0')
+    expect(screen('close > ta.vwap(ta.sma(close, 5))').ok).toBe(false)
   })
 })

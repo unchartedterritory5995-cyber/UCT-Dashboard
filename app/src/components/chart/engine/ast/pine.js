@@ -11932,6 +11932,15 @@ export class Resolver {
       for (let k = given; k < bound.params.length; k += 1) frame.push({ kind: 'expr', node: defaults[k], env: callerEnv })
     }
     this.frames.push(frame)
+    // ⭐⭐ H3 — EACH CALL RESOLVES ITS BODY ON ITS OWN CYCLE STACK. Before, one
+    // stack ran through every call, so a body that is a BINDING (a `switch`, or an
+    // `if` with a value) was still on it when an argument called the same helper
+    // again, and `ma1(ma1(src, 25, t), 13, t)` - two calls, legal Pine - refused
+    // as "`ma1` is defined in terms of itself" (heikin-ashi-tsi-ott's
+    // `double_smooth`; `ast/pineH3HelperCycle.test.js`). A real self-call is still
+    // caught: Pine forbids recursion and `MAX_CALL_DEPTH` above refuses it.
+    const prevStack = this.stack
+    this.stack = new Set()
     const prevEnv = this.env
     this.env = bound.value.env || prevEnv
     // ⛔ THROUGH `resolveBinding`, NOT `resolve(bound.value.node)`. A function's
@@ -11956,7 +11965,7 @@ export class Resolver {
       return bound.value.kind === 'expr'
         ? this.resolve(bound.value.node)
         : this.resolveBinding(bound.value, node.tok, name)
-    } finally { this.frames.pop(); this.env = prevEnv }
+    } finally { this.frames.pop(); this.env = prevEnv; this.stack = prevStack }
   }
 
   /** ⭐⭐ R2 STEP 2 — RESOLVE A NODE *INSIDE* A USER FUNCTION'S CALL FRAME.
@@ -12595,14 +12604,29 @@ export class Resolver {
         const want = derivedSeriesTree('hlc3', this.table)
         const got = this.resolve(args[0].value !== undefined ? args[0].value : args[0])
         if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          // ⭐⭐ H3 (2026-10-02) — ANOTHER BAR PRICE IS `vwapOf(source)`: the same
+          // session accumulator (`computeVWAP`, its boundary and all) weighting that
+          // price. Witnessed: `ta.vwap(close)` is `V08 + V09` of
+          // `vw-clock-vwap-spy-5-ext-2026-09-28` on every 5-minute bar (sessions
+          // reset across extended hours) and `N14 + N12` of the 1D group-B capture
+          // (one bar, one session: the close itself) — `vendorHarness.h3VwapSource`.
+          // ⛔ ONLY A PRICE THE BAR ITSELF CARRIES: `open` / `high` / `low` / `close`
+          // or one of their means. A computed source can be `na`, and what Pine's
+          // session sum does with an `na` term is unwitnessed, so it keeps the
+          // refusal below rather than a guess.
+          const barPrice = ['open', 'high', 'low', 'close'].filter((n) => own(this.table.series || {}, n))
+            .map((n) => cSeries(n))
+            .concat(['hl2', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, this.table)).filter(Boolean))
+            .some((t) => JSON.stringify(t) === JSON.stringify(got))
+          if (barPrice && own(this.table.functions, 'vwapOf')) return cCall('vwapOf', [got])
           throw new PineRefusal('pine:arity',
             REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
-            + 'source, and this table carries ONE volume-weighted average price: '
-            + 'the typical price `hlc3`, reset each session — ' + signatureOf(key, spec)
-            + '. Measured on TradingView, `ta.vwap(hlc3)` is that same column and '
-            + 'any other source is a different one (`ta.vwap(close)` moved −4.29 to '
-            + '+2.91 away from it over 40 SPY daily bars). TO UNBLOCK: write '
-            + '`ta.vwap` or `ta.vwap(hlc3)`',
+            + 'source this table cannot weigh: the session VWAP is carried for a price '
+            + 'the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, `hlc3`, '
+            + '`ohlc4`, `hlcc4`) — ' + signatureOf(key, spec) + ' / vwapOf(series). '
+            + 'A computed source can be `na` on a bar, and what TradingView\'s session '
+            + 'sum does with an `na` term has not been measured. TO UNBLOCK: weigh a '
+            + 'bar price, e.g. `ta.vwap(close)`',
             locate(tok))
         }
         plan = []
@@ -15382,6 +15406,17 @@ function tupleRefusalTail(call, names, env) {
       + 'missing tuple form, it is a missing primitive'
   }
   const callee = env.get(call.name)
+  // ⭐ H3 (2026-10-02) — A HELPER THIS ENGINE REFUSED NAMES ITS OWN WALL. The
+  // destructure of `[a, b] = helper(...)` used to fall through to "this engine has
+  // no tuple form for `helper` — the ones it can take apart are `ta.bb`, ..." — a
+  // sentence about builtins, said about the member's own function, whose real wall
+  // (a `for` running total, a reassignment) was already recorded on the opaque
+  // binding. Measured on the corpus: linear-regression-channel(-200),
+  // delta-rsi-oscillator-strategy, anchored-vwap-pinch-handoff and four more.
+  if (callee && callee.kind === 'opaque' && callee.isFunction) {
+    return '`' + shown + '`' + ' is a function this script defines and this engine could '
+      + 'not read, so none of its values can be handed out — ' + String(callee.message || '')
+  }
   if (callee && callee.kind === 'fn') {
     const v = callee.value
     if (!v || v.kind !== 'tuple') {
