@@ -120,7 +120,6 @@ function killWorker(reasonOf) {
 
 function workerOf(factory) {
   if (_worker || _workerBroken) return _worker
-  if (_starts >= RUNTIME_WORKER_MAX_STARTS) { _workerBroken = true; return null }
   _starts += 1
   try {
     _worker = factory()
