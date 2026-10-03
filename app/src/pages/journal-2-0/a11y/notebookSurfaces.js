@@ -191,3 +191,17 @@ export const OTHER_LANES_OUTSIDE_POPULATION = Object.freeze({
   'components/notebook/onboarding/NotebookTour.jsx': { lane: '8C', railFile: 'components/notebook/onboarding/NotebookTour.a11y.test.jsx' },
   '../Support.jsx': { lane: '8C', railFile: '../Support.a11y.test.jsx' },
 })
+
+/** Wave 13: surfaces OUTSIDE the derived Notebook population (they live on the Journal side:
+ *  the trade page, Insights, the Trade Journal table) that carry an axe recipe of their own.
+ *  Each maps to `{ recipe: '<surface id>', railFile }`; the owning lane's rail asserts that every
+ *  entry's file exists and its recipe is registered (`axeSurface('<id>'`) in a rail file, so an
+ *  entry here can never be decorative. Paths are relative to app/src/pages/journal-2-0/. */
+export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
+  // Wave 13 lane 13A: plan vs execution grading (dark behind notebook_plan_grading_enabled);
+  // rail a11y/planGrading.a11y.test.jsx.
+  'components/trade/PlanGradeCard.jsx': { recipe: 'plan-grade-card', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  'components/insights/DisciplineRecord.jsx': { recipe: 'discipline-record', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  // The Unplanned chip lives in the Trade Journal table; the recipe renders the table with it.
+  'components/TradesTable.jsx': { recipe: 'trades-table-unplanned', railFile: 'a11y/planGrading.a11y.test.jsx' },
+})

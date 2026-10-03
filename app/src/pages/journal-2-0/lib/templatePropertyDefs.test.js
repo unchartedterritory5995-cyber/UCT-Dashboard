@@ -71,8 +71,12 @@ describe('12B-2 -- the Position Tracker declares its definitions as data', () =>
     }
   })
 
-  it('only the Position Tracker declares definitions, and no template declares property VALUES', () => {
-    expect(TEMPLATES.filter((t) => t.propertyDefinitions).map((t) => t.key)).toEqual(['position-tracker'])
+  // Wave 13 lane 13A: the Trade Plan declares its four plan levels too (Entry/Stop/Target/Shares,
+  // numbers), so the grader reads a plan without parsing prose.
+  it('only the Trade Plan and the Position Tracker declare definitions, and no template declares property VALUES', () => {
+    expect(TEMPLATES.filter((t) => t.propertyDefinitions).map((t) => t.key)).toEqual(['trade-plan', 'position-tracker'])
+    expect(getTemplate('trade-plan').propertyDefinitions.map((d) => [d.name, d.type])).toEqual(
+      [['Entry', 'number'], ['Stop', 'number'], ['Target', 'number'], ['Shares', 'number']])
     expect(TEMPLATES.filter((t) => t.properties)).toEqual([])
   })
 })
@@ -207,7 +211,7 @@ describe('⛔ 12B-2 -- flag OFF: the formulas are left out BEFORE any request', 
 describe('12B-2 -- templates without definitions, and the reveal', () => {
   it('a template that declares none makes no request at all', async () => {
     const s = store()
-    const out = await ensureTemplatePropertyDefs(getTemplate('trade-plan'), { listDefs: s.listDefs, createDef: s.createDef })
+    const out = await ensureTemplatePropertyDefs(getTemplate('daily-prep'), { listDefs: s.listDefs, createDef: s.createDef })
     expect(s.listDefs).not.toHaveBeenCalled()
     expect(out).toEqual({ resolved: {}, revealIds: [], skipped: [] })
   })

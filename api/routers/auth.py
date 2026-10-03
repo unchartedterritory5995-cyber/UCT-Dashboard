@@ -188,6 +188,10 @@ NOTEBOOK_FLAGS = {
     # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
     "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
+    # Wave 13 lane 13A: plan vs execution grading. The router's gate
+    # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_plan_grading_enabled`.
+    "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
