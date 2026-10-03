@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // COV-05 (roadmap RM-L19) — who runs this company: officers and key executives,
 // the proxy's compensation table, and the role each insider declares on Form 4.
@@ -13,8 +14,7 @@ import styles from './ResearchCov.module.css'
 
 const money = (v, cur) => {
   if (v == null) return null
-  const n = Number(v)
-  const s = n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : String(n)
+  const s = formatCompact(Number(v), { tiers: [{ at: 1e6, suffix: 'M', decimals: 2 }, { at: 1e3, suffix: 'K', decimals: 0 }] })
   return `${cur && cur !== 'USD' ? `${cur} ` : '$'}${s}`
 }
 

@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import { useState } from 'react'
 import { depthFetcher } from '../depth/depthFetch'
 import styles from './Notices.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // Research notices under the header (lane R). A container only: each notice is its
 // own surface behind its own server flag (researchNoticeFlags.js); a notice whose
@@ -108,11 +109,10 @@ function RenameNotice({ sym }) {
 function fmtVal(key, v) {
   if (v === null || v === undefined) return '—'
   if (key === 'market_cap') {
-    const a = Math.abs(v)
-    if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-    if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-    if (a >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
-    return `$${v.toFixed(0)}`
+    return formatCompact(Number(v), {
+      prefix: '$',
+      tiers: [{ at: 1e12, suffix: 'T', decimals: 2 }, { at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 0 }],
+    })
   }
   return Number(v).toFixed(2)
 }

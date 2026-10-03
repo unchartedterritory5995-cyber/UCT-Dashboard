@@ -597,6 +597,14 @@ ACKNOWLEDGED_FRONTEND_GATES = {
         "MVP trial withdrawal block: hides the drill chart for a TAGGED user while the switch is off",
     "app/src/context/AuthContext.jsx":
         "PLUMBING, not a gate: carries `cohorts_withdrawn` off the auth payload into context",
+    "app/src/pages/terminal/terminalGate.js":
+        "THE TERMINAL-NEXT GATE: admits a member only when `cohorts` on the auth payload names "
+        "the cohort, so the master switch (which empties `cohorts`) closes it",
+    # Test files: each builds a fake auth payload with or without the cohort to drive the gate.
+    "app/src/pages/terminal/TerminalShell.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalBoards.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
+        "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }
 
 
@@ -606,7 +614,12 @@ def _js_gate(rel: str, src: str) -> tuple[bool, list[str]]:
     reads_field = (bool(_FIELD_READ.search(code)) or FIELD in strings
                    or bool(_WITHDRAWN_READ.search(code)))
     names_cohort = any(s in COHORT_VALUES for s in strings)
-    names_flag = FLAG_NEEDLE in code or any(FLAG_NEEDLE in s for s in strings)
+    # A FLAG is any identifier or string spelling TERMINAL_NEXT... EXCEPT the cohort-name
+    # constant (`..._COHORT`): that names the cohort, which the `names_cohort` check below
+    # already holds to the payload rule. Counting it as a flag read reddened the real gate
+    # (terminalGate.js) for exporting the name it compares `cohorts` against.
+    flag_tokens = re.findall(r"\w*" + FLAG_NEEDLE + r"\w*", code + "\n" + "\n".join(strings))
+    names_flag = any(t != FLAG_NEEDLE + "_COHORT" for t in flag_tokens)
     bad = []
     if names_flag:
         bad.append(f"{rel}: reads a Terminal-Next FLAG in the client — a bundle "
@@ -667,6 +680,12 @@ def test_CONTROL_the_frontend_hunt_separates_code_from_prose():
             (f"fetch('/api/{COHORT_NEEDLE}/report/x')\n", (False, [])),
         "build_flag.jsx":
             (f"const on = import.meta.env.VITE_{FLAG_NAME} === '1'\n", None),
+        "cohort_const.jsx":
+            (f"export const {FLAG_NEEDLE}_COHORT = '{COHORT_NEEDLE}'\n"
+             f"export const on = (u) => (u?.{FIELD} || []).includes({FLAG_NEEDLE}_COHORT)\n",
+             (True, [])),
+        "flag_beside_const.jsx":
+            (f"const c = '{FLAG_NEEDLE}_COHORT'\nconst on = import.meta.env.VITE_{FLAG_NAME}\n", None),
         "latched.jsx":
             (f"const on = localStorage.getItem('{COHORT_NEEDLE}') === '1'\n", None),
     }

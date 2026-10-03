@@ -95,7 +95,8 @@ export function BoardsMenu({
       {shared && (
         <div className={styles.menuShare} role="status" data-testid="terminal-share-link">
           <span className={styles.menuHint}>Share link for {shared.label} (copied when your browser allows):</span>
-          <input className={styles.menuInput} readOnly value={shared.url} onFocus={(e) => e.target.select()} />
+          <input className={styles.menuInput} readOnly value={shared.url} aria-label="Share link"
+            onFocus={(e) => e.target.select()} />
         </div>
       )}
 

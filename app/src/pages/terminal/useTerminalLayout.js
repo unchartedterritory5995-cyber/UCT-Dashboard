@@ -63,7 +63,7 @@ export default function useTerminalLayout() {
     if (loadingRef.current) return false
     const normalized = normalizeLayout(next)
     if (guardedRef.current) { setSession(normalized); return false }
-    setPref(TERMINAL_LAYOUT_PREF, serializeLayout(normalized))
+    setPref('terminal_layout', serializeLayout(normalized))
     return true
   }, [setPref])
 
@@ -71,13 +71,13 @@ export default function useTerminalLayout() {
    *  The blob it replaces is kept by the versioned store as the version before (when armed). */
   const replaceStoredLayout = useCallback(() => {
     if (loadingRef.current) return
-    setPref(TERMINAL_LAYOUT_PREF, serializeLayout(session || read.layout))
+    setPref('terminal_layout', serializeLayout(session || read.layout))
     setSession(null)
   }, [read.layout, session, setPref])
 
   const saveLibrary = useCallback((next) => {
     if (loadingRef.current || isGuardedStatus(libRead.status)) return false
-    setPref(TERMINAL_BOARDS_PREF, JSON.stringify(normalizeLibrary(next)))
+    setPref('terminal_boards', JSON.stringify(normalizeLibrary(next)))
     return true
   }, [libRead.status, setPref])
 
