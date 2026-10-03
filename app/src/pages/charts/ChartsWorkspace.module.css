@@ -1686,3 +1686,9 @@
 @media (max-width: 640px) {
   .adjustmentLabel { display: none; }
 }
+/* COV-10 remainder: colour groups E-H (only offered while CHARTS_EXTRA_GROUPS_ENABLED is on;
+   a stored E-H while off renders as colorDotN — colorGroups.effectiveGroup). */
+.colorDotE { background: radial-gradient(circle at center, #f87171 4.5px, transparent 5px); }
+.colorDotF { background: radial-gradient(circle at center, #2dd4bf 4.5px, transparent 5px); }
+.colorDotG { background: radial-gradient(circle at center, #fb923c 4.5px, transparent 5px); }
+.colorDotH { background: radial-gradient(circle at center, #f472b6 4.5px, transparent 5px); }

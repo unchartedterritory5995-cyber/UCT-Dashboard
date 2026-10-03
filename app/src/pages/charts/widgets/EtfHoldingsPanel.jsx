@@ -6,10 +6,12 @@ import { useState, useCallback } from 'react'
 import EtfHoldingsResults from './EtfHoldingsResults'
 import UIcon from '../../../components/ui/UIcon'
 import styles from '../PeriodSortPanel.module.css'
+import { GROUP_HEX, nextGroup } from '../colorGroups'
+import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 const DEF_W = 520, DEF_H = 560, MIN_W = 180, MIN_H = 40
-const COLORS = ['A', 'B', 'C', 'D', 'N']
-const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
+// Colour cycle + dot colours from colorGroups.js (E-H only while CHARTS_EXTRA_GROUPS_ENABLED is on).
+const COLOR_HEX = GROUP_HEX
 
 export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeVars = null, wlOverride = null }) {
   const [pos, setPos] = useState(() => {
@@ -23,6 +25,7 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeV
   })
   const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
   const [panelColor, setPanelColor] = useState('A')
+  const extraGroupsOn = useExtraGroupsEnabled()
 
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
@@ -65,7 +68,7 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeV
           data-no-drag
           className={styles.colorDot}
           style={{ background: COLOR_HEX[panelColor] }}
-          onClick={() => setPanelColor((c) => COLORS[(COLORS.indexOf(c) + 1) % COLORS.length])}
+          onClick={() => setPanelColor((c) => nextGroup(c, extraGroupsOn))}
           title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
           aria-label="Colour group"
         />
