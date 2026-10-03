@@ -177,6 +177,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 77 | RF (lane brief, wave 16) the runtime pane made ready to switch on, and the switch-on plan (section RF, `docs/pine/runtime-pane-switch-on-plan.md`): every stop of a run is named (`runtime:limit`, `runtime:failed`, `runtime:worker-unresponsive` / `-failed`, `runtime:load-failed`) and said on the disclosure strip (no surface rendered a column error before); a dead or hung worker answers its jobs by name and is never re-run on the main thread (watchdog 20 s, 3 starts per tab, newest-run coalescing); a kill takes the installed copy off an open tab; a runtime document names the bar colours it does not draw (3 of 6 omitted them silently since B1). Off-main-thread proved in real Chromium (worst frame gap 17 ms, control 383 ms). Store round trip on the six real documents. No flag, budget or limit moved | `caa526cd31`, `54c5e82ea7`, `828dc181b8`, `f64f9cfdf0`, docs | not re-graded (no routing change); runtime on: adx-and-di MATCH, inside-bar DIVERGE on paints only (plots + objects MATCH) | unchanged | member door 55 / 80 / **86**, 0 rows changed by RF (no routing change); runtime-only 6: 1 graded MATCH, 1 paints-DIVERGE, 4 no capture |
 | 79 | F3 drawing divergences on the host object lane (section F3): `str.tostring(x, format.mintick)` rounds to the witnessed tick and keeps its decimals; words around a pattern (`"Swing H  (#,###.####)"`) are read; a non-literal format is carried named (`na` prints `NaN`, a finite value withheld); a drawing the door withholds is graded as a named gap (`withheld`), not "no drawing program". trend-targets RDDT objects MATCH, swing-highlow-zigzag RDDT MATCH; multicator / atr-trailing / pmax labels withheld by name; zigzag SPY lines are a window (35 of 52 below the window) | F3 commits on `pine/f3-drawing-divergences` | `pineTextFormat.js`, `pine.js` text reader, `objectProgram.js` binding, `objectRuntime.js` formatter; harness `ourSide.js` + `compare.mjs` | object MATCH 117/133 -> 118/135 (on/runtime), capture MATCH 73/79 -> 74/80, census 55/80/86 unchanged, 0 MATCH -> DIVERGE | table in section F3 |
 | 80 | GT (lane brief, wave 16) the owner's switch-on rulings for the runtime pane (section GT, `docs/pine/runtime-pane-switch-on-plan.md` *GT operator steps*): D1 a per-member stage `PINE_RUNTIME_STAGE` (off / admins / all; per request; default off pinned) on the auth payload (`pine_runtime_pane_enabled`), latched per tab, required WITH the build flag, and asked of the saving member at the store; D2 runtime documents capped at 128 KiB (formulas 64 KiB; trend-targets saves); D6 the starter allowlist (`api/data/pine_runtime_allowlist.json` + `PINE_RUNTIME_ALLOWLIST`; adx-and-di-for-v4 only; others decline `runtime:not-yet-graded` with the host sentence; empty = none; stored rows served stamped); RT4 follow-up: a direction-B row is served with `repaint_notice` and the Builder shows it, the stored label never flipped. D3/D4/D5 unchanged. Nothing flipped | `40c82dc9ec`, `50e7b8b76c`, docs | not re-graded (no routing change for a permitted member with the list open) | unchanged | with the stage on, the runtime-only 6 attach 1 (adx-and-di-for-v4) until more are graded; 0 for every member while the stage is off |
+| 81 | CAP3 standing capture lane (section CAP3): Q-L2a rolling-vwap (RDDT plots 7/7 MATCH with the store, table cell DIVERGE), Q-RT5a (vendor rows pinned; still refused), Q-H4a (RDDT MATCH 4/4), Q-RT5b renko (RDDT MATCH); 36 of 71 SPY 1D gap captures: MATCH 11 / DIVERGE 24 / INCONCLUSIVE 1, pinned by signature | `b2794f9f34`, `0e083dd37a`, `296a085e9f`, `7eb130a8f5` | 36 + 7 new harness files | - | census (libraries loaded) 55 / 82 / 89 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -6395,3 +6396,54 @@ whole for this lane (373 entries; jsdom suites ran).
 - How many production definitions carry a direction-B label (and so the new notice): not measured.
 - A runtime document saved by an admin at stage `admins` stays in the store when the stage returns
   to `off`; it is not drawn (the client gate) and not deleted, by design.
+## CAP3 - standing capture lane: the queue captured, and 36 SPY 1D gap captures graded (2026-10-03, step 81)
+
+Lane CAP3, branch `pine/cap3-captures`, base `integrate/wave16-2026-10-02` (`0dffcab3f0`), merged with the wave-16
+tip `b65e247685` (H4 + RT5) at `cc50d7d809`.
+
+**Visibility gate.** The first attempt was blocked: the extension's tab group sat in a Chrome window whose active tab
+was a plain New Tab, so the rig read `visibilityState "hidden"`; nothing was captured until the owner made the rig
+tab active (gate then `visible`, window bottom 7 px over the work area, as recorded before). After a session restart
+the new tab group's rig tab read `hidden` again and the lane stopped there (below).
+
+**Route.** Each script went onto the rig (`01f1AcIj`) as an unsaved draft: the editor buffer reset to the untouched
+`Create new > Indicator` template and the menu used, source moved in through the OS clipboard into an injected
+textarea and written into the editor only when its sha256 equalled the committed file's (read back equal every time;
+one wrong expected sha was refused and nothing was written), binding gate (one `Add to chart`, no `Update on
+chart`) checked in the same evaluation as the click. Read with `tv_capture.js`; out through the clipboard with the
+page receipt (chars + FNV-1a) re-checked on the shell; `verify_capture.mjs --assemble` VERDICT: PASS for every file.
+Each study removed after its capture; the rig was left with 0 studies.
+
+**Queue.**
+
+| item | capture(s) | vendor fact | our door |
+|---|---|---|---|
+| Q-L2a `rolling-vwap` | RDDT 1D (636, listing), SPY 1D (1800) | 7 plots + 1 info table cell ("1M") | runtime + 50-library store: RDDT plots 7/7 MATCH on 636 bars, objects DIVERGE (table drawn with no cell); SPY declined (`runtime:history-start`); empty registry refuses on the import |
+| Q-RT5a `vw-rt5-arm-draw-block-history` | RDDT 1D (636) | 308 labels = 308 UP bars; T02 present exactly on UP bars; B01 = previous UP bar's `bar_index`, `na` on non-UP bars and the first UP bar | still refused `pine:drawing` after the RT5 merge (the ternary-arm label) |
+| Q-H4a `vw-h4-loops` | RDDT 1D (636), SPY 1D (1800) | L1/L2/L3 equal a hand replay on all 636 RDDT bars (L1 from bar 12, L3 from 2) | runtime (H4 merged): RDDT MATCH 4/4 rows; SPY no column; objects pane alone `pine:block` |
+| Q-RT5b `renko-candles-overlay` | RDDT 1D (636), SPY 1D (1800) | 142 / 141 boxes, 2 lines, 2 labels | runtime (RT5 merged): RDDT MATCH (counts, texts, colours on 290 slots, paint); SPY paint MATCH, the run draws nothing (INCONCLUSIVE); objects pane alone `pine:collection` |
+| Q-L2b | - | not a capture (v5 library under v6) | - |
+
+**SPY 1D gap list** (`cap3-spy-1d-gap-list-2026-10-03.json`: 71 runtime-state attaches without a SPY 1D capture over
+1,000 bars, census with the libraries loaded 55 / 82 / 89). 36 captured (all 1800 bars from 2019-08-06), graded in
+the state each attaches in, signatures in `app/.../vendorHarness/cap3-spy-gap-verdicts.json` (written by
+`cap3SpyGaps.measure.test.js`, read by `vendorHarness.coverageAudit.test.js` through one `cap3Signature`):
+**MATCH 11** - average-day-range-adr-pivots, candlestick-patterns-identified, donchian-channels, engulfingcandle,
+extrapolated-pivot-connector, fib-retracement, ict-ipda-look-back, ict-killzones-pivots-tfo,
+linear-regression-channel-tradingfinder, liquidation-levels, liquidity-engulfing-candles. **DIVERGE 24**, by family:
+converging prefixes (the window does not start at SPY's listing: artemis, atr-bands, atr-trailing-stoploss,
+btc-charlie, cumulative-volume-delta, elliott-wave-3, ema-ribbon, keltner-cog, keltner-channels-bands); na-vs-value
+(atr-support-and-resistance RSI mid lines, inside-bar Shapes bar 2); barcolor (atr-s&r, atr-trailing-stoploss,
+btc-charlie, elliott-wave-3, ema-ribbon, fibonacci-pivot-points, heat-map-seasons, inside-bar notDrawn); objects not
+drawn or short (atr-s&r lines 306/0 boxes 54/0, liquidity-heatmap labels 421/0, institutional-smc lines 198/34 labels
+449/81, all-chart-patterns lines 100/42 labels 56/22, artemis lines 171/33 labels 198/38, htf-candle-footprint
+lines 6/0 labels 3/0 boxes 11/3, k-clustering lines 9/0, contraction-box lines 204/178 boxes 53/54,
+high-low-open-mid labels 504/502, auto-trendline 2 drawings with no drawing program); table cells (htf-liquidity
+30/3, black-scholes 22/8 - time-dependent expiry, ema-ribbon 48/37, heat-map 31/30, k-clustering 8/5, artemis
+21/15); dual-view object texts/colours. **INCONCLUSIVE 1** - adx-and-di-for-v4 (runtime run computes no column on
+SPY). Coverage audit with the library store: 125 / 125 green; the signature control was mutation-checked (a changed
+count reds it).
+
+**Left.** Gap-list indices 37-70 (33 scripts: liquidity-pools ... zero-lag-ma-trend-levels; `supertrend-explorer` is
+refused by TradingView itself, CAP2) - stopped when the rig tab of the new session read `hidden`. F1 / F2 / F3 / GT
+pushed no capture queue.

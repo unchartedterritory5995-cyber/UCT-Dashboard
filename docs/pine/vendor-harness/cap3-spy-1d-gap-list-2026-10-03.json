@@ -1,0 +1,643 @@
+{
+ "generatedBy": "CAP3 (step 81): memberDoorCensus.measure.test.js, VENDOR_BATCH_CENSUS_RUNTIME=1, PINE_LIBRARY_STORE (50 libraries), tree 0dffcab3f0",
+ "attached": {
+  "off": 55,
+  "on": 82,
+  "runtime": 89
+ },
+ "withSpy1dOver1000": 18,
+ "needSpy1d": 71,
+ "scripts": [
+  {
+   "slug": "adx-and-di-for-v4",
+   "file": "corpus/committed/adx-and-di-for-v4__932.pine",
+   "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+   "lane": "runtime-only",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "all-chart-patterns-theeccentrictrader",
+   "file": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+   "sha256": "a5adaae8f6c2a80c548e5ff698a5acaf4b349d661d516a49098b2cf1d8ce3c25",
+   "lane": "objects-on",
+   "captures": []
+  },
+  {
+   "slug": "artemis-oscillator-pro",
+   "file": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+   "sha256": "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "atr-bands",
+   "file": "corpus/committed/atr-bands__ad60b125e6.pine",
+   "sha256": "42ef9b8a7ab4b836d692c3ca48a55ded9ff1734fa9980334b2121d5effb62bbc",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "atr-support-and-resistance",
+   "file": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
+   "sha256": "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "atr-trailing-stoploss",
+   "file": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
+   "sha256": "026ce841faa6cac276d119ea0cbad0ca3c8217b6efa05bcb0eff133c766606c6",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "auto-trendline-dojiemoji",
+   "file": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+   "sha256": "9a27bc71b30b1d89a3a806932d75fde460ba28415c5b32ba3b0b0bf691faaac6",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "average-day-range-adr-pivots",
+   "file": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+   "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "black-scholes-option-pricing-model-w-greeks-loxx",
+   "file": "corpus/committed/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+   "sha256": "0851b97b8012d0f6781cdac6236e570bb83cb7b749f4b52981e6e255d6f160ea",
+   "lane": "objects-on",
+   "captures": []
+  },
+  {
+   "slug": "btc-charlie-trader-xo-macro-trend-scanner",
+   "file": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+   "sha256": "1da5b935b215b7149af9cf8119f34e3773434c8dfd60244a514e6831ddb3a410",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 634"
+   ]
+  },
+  {
+   "slug": "candlestick-patterns-identified-update-1-17-26",
+   "file": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
+   "sha256": "b597f17ba9faabad09b9c26d3307390c292d0f2066374a78e3ebdf83557c113d",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "contraction-box-doji-lines",
+   "file": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "cumulative-volume-delta",
+   "file": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
+   "sha256": "bd087164e90c3524dc42192217f87770704fa9e824166b74fe239939931298f3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "donchian-channels",
+   "file": "corpus/committed/donchian-channels__5df15aaa23.pine",
+   "sha256": "fb4cfe8389cd754e6449381afeafa599fd625b0f92e324c1910355e5193000b3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "dual-view-htf-candlestick-patterns-theultimator5",
+   "file": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+   "sha256": "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "elliott-wave-3-finder-v2",
+   "file": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
+   "sha256": "4d2ef4ccc6976beac23b022ac025223efae6018d8b4d5d83d9d9c464e67f0b6d",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "ema-ribbon-trend-filter-strixedge",
+   "file": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+   "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "engulfingcandle",
+   "file": "corpus/committed/engulfingcandle__0df91dc775.pine",
+   "sha256": "d1029be95d143943241396640909f5d75964f51794d7ad3c5a57267811651f60",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "extrapolated-pivot-connector",
+   "file": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
+   "sha256": "9f5cc1c93e49c4a3b1d0ae621e4ddacdeae564729d63e1c70626459ffe520291",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "fib-retracement",
+   "file": "corpus/committed/fib-retracement__8XcLscnekw.pine",
+   "sha256": "48b1cdfed809a7d06737f52fc8682200233fa75ee441998fbb8ce044db37ebb6",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "fibonacci-pivot-points-cc",
+   "file": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+   "sha256": "e901bfe72a798163798ff304c9f792a9964fd9fcba3148f456248e8788716f21",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "heat-map-seasons",
+   "file": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+   "sha256": "eac7328544bd4ac89d4df75df5cd391a4ef5ccf38f4d1fd9868a63bee16f2a18",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "high-low-open-mid-ranges",
+   "file": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
+   "sha256": "aaa1bc101cb4081027f10118ef3850a5bbec648605edec2dfcfcbfe38ee7971b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "htf-candle-footprint-cartel-console",
+   "file": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+   "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "htf-liquidity-dashboard-tfo",
+   "file": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+   "sha256": "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "ict-ipda-look-back",
+   "file": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
+   "sha256": "c30fc4c35c07be1a6fb57ddbb4e093b804317abf1655f384efae8c936fe7e15b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "ict-killzones-pivots-tfo",
+   "file": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+   "sha256": "16ffd9a1a66cbdfc0e3e2bc85a5da02374752139f7ba4ed79cecf8c7642899d0",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+   "lane": "runtime-only",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "institutional-smc-order-flow-matrix-pro",
+   "file": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+   "sha256": "9d1d8bd738709ed4efe17f37d6dacfa131cad44efb93def754a363ec94fa449b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "k-clustering",
+   "file": "corpus/committed/k-clustering__8e82f5aa4b.pine",
+   "sha256": "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "keltner-center-of-gravity-channel",
+   "file": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+   "sha256": "f3b2c178ef3a7099ca623a10baaf392e24ac7e0f00d4d206c791848e4c17dee2",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 634"
+   ]
+  },
+  {
+   "slug": "keltner-channels-bands",
+   "file": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
+   "sha256": "3052580e7a4ceac240bb4da2adf80c34829ac51c1ce4433017684cfd9467b472",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "linear-regression-channel-tradingfinder-existing-trend-lines",
+   "file": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+   "sha256": "c771be052a7f90bf57fe0723b430e9ff463ac1c7be1478c3dc012ae25097a84e",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "liquidation-levels",
+   "file": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
+   "sha256": "ecc6f023f5fb7b67a65aa1904ed53491c5e0b7279ab2cc35966ab710df0af8f0",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "liquidity-engulfing-candles-upslidedown",
+   "file": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+   "sha256": "01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "liquidity-heatmap-nephew-sam",
+   "file": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+   "sha256": "b9230ef3d87aba96c9694deb8d96f8562d6443dd6e262d8e2b80a1bb7a2b6ffb",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "liquidity-pools",
+   "file": "corpus/committed/liquidity-pools__fa7b28e733.pine",
+   "sha256": "716e442d118c2f359e29bd060479dc2abb80b68ff512b90f2776d9b919db82b3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "macd-shortlong-strategy-for-tradingview-input-optimizer",
+   "file": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+   "sha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "madrid-moving-average-ribbon",
+   "file": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
+   "sha256": "c4ab9ee0c5b3cb46dc8eaefc7915af49a09e9e1607ae07d856b8ecd168968527",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "makuchaku039s-trade-tools-fair-value-gaps",
+   "file": "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+   "sha256": "33b558860653375ab29f3e81c1ba58864b50664c4e1ed48eddf9a63af7d87519",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "market-structure-by-leviathan",
+   "file": "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine",
+   "sha256": "e0cc46632b134c1f7951e0810613d13cbb8bbd1b7efcf8351fe64c7bbe82e2d5",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "mcclellan-indicators",
+   "file": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
+   "sha256": "d463f0a9215329f375eb62944fb6f0ac11ecb9bf289c57b4f7f728f399aa2db5",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "momentum-volatility-scanner",
+   "file": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
+   "sha256": "10bf64d914aece77e24d6f392fb849db1783c196cf019339d869451e2dbfc6f9",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "multi-timeframe-supply-demand-zones",
+   "file": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+   "sha256": "2e388f11d718f68cbc4ab026b63a1b14d33b9788eab4e4f06f4f9dad1a2280c0",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "opening-range-initial-balance-opening-price",
+   "file": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
+   "sha256": "aca5bf3c04743738c8a95ce8cecce5bc34f6bec85e89a59e0de52e50f148b2fe",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "options-max-pain-calculator-backquant",
+   "file": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
+   "sha256": "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "pa-zigzag-fibonacci-fan",
+   "file": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
+   "sha256": "eac077d8667390748224f9d4f084d828cfc1455c8d451740b14cef22678bc04b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "pivot-point-supertrend",
+   "file": "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine",
+   "sha256": "f823c5f340480d476ebaecb3afaf593018a8f2d4650f53c43ef4bcdd9fb1ddc6",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "poor-man039s-volume-profile",
+   "file": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+   "sha256": "85b2dd7ca093b474bf2aa422dbcdd61eb4859407f55ba1611bb4e11ecd57090e",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "position-size-calc",
+   "file": "corpus/committed/position-size-calc__a42db1a620.pine",
+   "sha256": "eaeec551cca2cea99029592a57a9687c0b1c58a635e512183a57ba353c20fe1e",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "position-size-calculator",
+   "file": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
+   "sha256": "1873095ef9c012e5ed806e7c13932515fceb6dccafe711932388840787e4b41d",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "price-action-as-in-book-fibonacci-supportresistant-trendline",
+   "file": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+   "sha256": "a4949210fb93f914886dc9b9051284d42a76c9ba2dfd8e7ea661926a09d35d4a",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "pro-trading-art-double-top-bottom-with-alert",
+   "file": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+   "sha256": "996b909e23b875814ac84e1af491e8c0913b59e45a974fc495fa6f07b388c3b4",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "qqe-signals",
+   "file": "corpus/committed/qqe-signals__EhBrwQPjZ1.pine",
+   "sha256": "4cc5374407052b75649054aa0ba2016a6e1542220713a01ad589ce65cb29769c",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "reverse-stochastic-momentum-index-on-chart",
+   "file": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+   "sha256": "fdb41f5145dca63c347276e0d802641648916824cc498e7497c4af1dfb172ccd",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "rolling-vwap",
+   "file": "corpus/committed/rolling-vwap__043320bb57.pine",
+   "sha256": "232f76befd87476a05ced1cf39efc7c5b4cd4600ffb30e2baf0f67079a3bb73a",
+   "lane": "runtime-only",
+   "captures": []
+  },
+  {
+   "slug": "rsi-swing-indicator",
+   "file": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
+   "sha256": "b0ea6cc01291279e26b36c4c8dd8ef0b2889be7949fe358242d976ff46b40f6b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "rvol",
+   "file": "corpus/committed/rvol__05fcd9e160.pine",
+   "sha256": "7dc8fd5ee8816dd7a326c53cf3617d4eef51f79b5f2a98ed06d3d9e9745263fd",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "sector-rotation",
+   "file": "corpus/committed/sector-rotation__0fca060bf4.pine",
+   "sha256": "cdae0510d9c38b51dd860039ba0d983e409de4ed6f0a7a18359011b4e681c277",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "smt-divergence-ict-01-tradingfinder-smart-money-technique",
+   "file": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+   "sha256": "e19d3aeaf994f204b01f2b80f82ba3581472f7af6baf5e044e70bc86c10018c7",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "supertrend-explorer",
+   "file": "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine",
+   "sha256": "60da22900b14fe6bdfe90264ca159890e7c3fa16b69d401bd85bcb0608441ffd",
+   "lane": "objects-on",
+   "captures": []
+  },
+  {
+   "slug": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto",
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+   "sha256": "555d1419e61005199bb2d5181a5f56fdff6ac37759b0f6420f7171c84eee4fe2",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "tradingview-alerts-to-mt4-mt5-strategy-example",
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+   "sha256": "11c64ced01d4a7b2503502094ed78c1e702d34ad32bc991baf4221f9a1a21c99",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 636"
+   ]
+  },
+  {
+   "slug": "trend-duration-forecast-chartprime",
+   "file": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
+   "sha256": "69e764501cd7197881b9d84f1a03be32c040501fc3eff1419c6c757c6a26ae8f",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "trend-lines-supports-and-resistances",
+   "file": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+   "sha256": "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "trendlines",
+   "file": "corpus/committed/trendlines__43QQg9nDN0.pine",
+   "sha256": "286fe4d52b232727d70419a43494d9d0141908790ded73f6ca7247da35d78a3b",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  },
+  {
+   "slug": "ultimate-pivot-points",
+   "file": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
+   "sha256": "b010cfc4a8e01a0d421915fa087d58ca8557ecf0dc408442d112671fb7f5e873",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "vdubus-pattern-gen-v2-restored-refined",
+   "file": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+   "sha256": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "vold-market-breadth",
+   "file": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+   "sha256": "278394d0336ccbacbc8df6c84e1ea428c2a1c892db77cea238d5848cc69cafde",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "volume-profile",
+   "file": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
+   "sha256": "d9f11992bf6e03a6bd6a1cb663070ba3bc597d5ff7694feec128c53f138fcee3",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT 1D 632"
+   ]
+  },
+  {
+   "slug": "zero-lag-ma-trend-levels-chartprime",
+   "file": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+   "sha256": "11fe3b96e098f7bc83c159ba37a55109981deb02255332ee2aa318eeb923b26d",
+   "lane": "objects-on",
+   "captures": [
+    "NYSE:RDDT D 631"
+   ]
+  }
+ ]
+}
