@@ -271,6 +271,11 @@ SCHEDULE = (
     # day. Weekdays 16:30 ET (after the 16:15 options close), INSIDE the existing cron
     # (20:30 UTC in EDT, 21:30 UTC in EST). ~13 min measured; holidays skip themselves.
     ("options-log", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET
+    # COV-02/03: derive the screen + volume files from the day's contracts file.
+    # ⭐ SAME MINUTE, LISTED AFTER `options-log` ON PURPOSE: `main` runs due jobs in
+    # this table's order, one after another, so this starts once the log has landed.
+    # It also catches up any logged session that has no derived files yet.
+    ("options-screen", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET, after options-log
 )
 
 #: The Railway cron that must cover every row above, in UTC, both halves of the
@@ -297,6 +302,16 @@ def job_options_log():
         return ("Options log: FAILED", f"{type(e).__name__}: {e}", True)
 
 
+def job_options_screen():
+    """COV-02/03: build the screener's per-session files from the options log (see
+    api/services/research/options_screener.py). A failure is an ALERT post."""
+    from api.services.research import options_screener as screen
+    try:
+        return screen.receipt_text(screen.run_catch_up())
+    except Exception as e:  # noqa: BLE001 -- surfaced as an alert, by name
+        return ("Options screen: FAILED", f"{type(e).__name__}: {e}", True)
+
+
 JOBS = {
     "ticking": job_ticking,
     "catalyst": job_catalyst_receipt,
@@ -304,6 +319,7 @@ JOBS = {
     "weekly": job_weekly,
     "cadence": job_cadence_rollup,
     "options-log": job_options_log,
+    "options-screen": job_options_screen,
 }
 
 #: Jobs behind their own flag. A dark job reads nothing and posts nothing.
@@ -312,7 +328,13 @@ def _options_log_enabled() -> bool:
     return options_universe_log.is_enabled()
 
 
-JOB_GATES = {"cadence": rollup_enabled, "options-log": _options_log_enabled}
+def _options_screen_enabled() -> bool:
+    from api.services.research import options_screener
+    return options_screener.is_enabled()
+
+
+JOB_GATES = {"cadence": rollup_enabled, "options-log": _options_log_enabled,
+             "options-screen": _options_screen_enabled}
 #: Jobs whose channel is the TERM-011 OPS destination rather than the admin read.
 OPS_ROUTED_JOBS = frozenset({"cadence"})
 
