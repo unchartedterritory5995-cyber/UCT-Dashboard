@@ -134,6 +134,10 @@ from api.routers import notebook_plan_grades as notebook_plan_grades_router
 # Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), dark
 # behind NOTEBOOK_ENTRY_CONTEXT_ENABLED (router-level 404).
 from api.routers import notebook_entry_context as notebook_entry_context_router
+
+# Wave 13 lane 13J: the active setups board (/api/j2/setups-board) and find more like this
+# (/api/j2/similar-names/*), each dark behind its own gate (router-level 404).
+from api.routers import notebook_setups_board as notebook_setups_board_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -6399,6 +6403,14 @@ async def lifespan(app: FastAPI):
             print("[startup] Entry-context capture hooks registered (inert unless "
                   "NOTEBOOK_ENTRY_CONTEXT_ENABLED)")
 
+        # Wave 13 lane 13J: find more like this, precomputed NIGHTLY (mon-fri 05:45 ET, after the
+        # 03:00 snapshot and the 05:00 scan sweep) on a worker thread, off the event loop. Reads
+        # NOTEBOOK_FIND_SIMILAR_ENABLED per run: inert while dark. The request path only reads.
+        from api.services.journal_two import similar_matches as _similar_matches
+        if _similar_matches.install_scheduler_hook(_scheduler, CronTrigger, _ET):
+            print("[startup] Similar-matches nightly job registered (inert unless "
+                  "NOTEBOOK_FIND_SIMILAR_ENABLED)")
+
         def _cot_daily_catchup():
             try:
                 from datetime import date as _dt
@@ -8953,6 +8965,10 @@ app.include_router(notebook_plan_grades_router.router)
 
 # Wave 13 lane 13E-1: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_entry_context_router.router)
+
+# Wave 13 lane 13J: outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_setups_board_router.router)
+app.include_router(notebook_setups_board_router.similar_router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

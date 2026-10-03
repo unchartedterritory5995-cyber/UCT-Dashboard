@@ -196,6 +196,12 @@ NOTEBOOK_FLAGS = {
     # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
     # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
     "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
+    # Wave 13 lane 13J: the active setups board, and find more like this. Each router's gate
+    # (journal_two/setups_board.enabled, journal_two/similar_matches.enabled) reads its variable
+    # through flag_on, per request, and so does the nightly matches job; the payload keys are
+    # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

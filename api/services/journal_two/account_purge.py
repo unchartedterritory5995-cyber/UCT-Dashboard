@@ -163,6 +163,10 @@ _DIRECT_USER_TABLES = (
     # symbol, entry day), with the member's "why did you take it" note. Self-ensured by
     # entry_context.py (never db.py), so on a pod where it never ran this is a no-op.
     "j2_entry_context",
+    # Wave 13 (lane 13J, find more like this) -- the nightly matches for the member's tagged
+    # chart blocks. Self-ensured by similar_matches.py (never db.py), so on a pod where the
+    # job never ran this is a "no such table" no-op.
+    "j2_similar_matches",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

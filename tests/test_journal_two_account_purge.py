@@ -156,6 +156,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # read (wave 13 lane 13E-1).
     from api.services.journal_two import entry_context as ectx
     ectx.ensure_schema(conn)
+    # j2_similar_matches, likewise: similar_matches.py self-ensures it on the first nightly
+    # run or read (wave 13 lane 13J).
+    from api.services.journal_two import similar_matches as smat
+    smat.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

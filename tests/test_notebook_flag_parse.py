@@ -52,6 +52,8 @@ from api.services.journal_two import writing_help
 from api.services.journal_two import tech_fingerprint
 from api.services.journal_two import chart_plan
 from api.services.journal_two import entry_context
+from api.services.journal_two import setups_board
+from api.services.journal_two import similar_matches
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -127,6 +129,9 @@ def _server_gates() -> dict:
         "NOTEBOOK_CHART_PLAN_ENABLED": chart_plan.enabled,
         # Wave 13 lane 13E-1: the entry-context router's (and hooks') own gate function.
         "NOTEBOOK_ENTRY_CONTEXT_ENABLED": entry_context.enabled,
+        # Wave 13 lane 13J: the setups-board and similar-names routers' own gate functions.
+        "NOTEBOOK_SETUPS_BOARD_ENABLED": setups_board.enabled,
+        "NOTEBOOK_FIND_SIMILAR_ENABLED": similar_matches.enabled,
     }
 
 

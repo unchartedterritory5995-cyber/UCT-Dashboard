@@ -51,6 +51,9 @@ NOTEBOOK_KEYS = [
     "notebook_plan_grading_enabled",
     # Wave 13 lane 13E-1: the market context frozen at the fill — an enablement gate.
     "notebook_entry_context_enabled",
+    # Wave 13 lane 13J: the active setups board, and find more like this — enablement gates.
+    "notebook_setups_board_enabled",
+    "notebook_find_similar_enabled",
 ]
 
 
