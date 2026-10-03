@@ -244,6 +244,10 @@ NOT_REHEARSED = {
                                      "the owner to arm it after its real-browser walk",
     "NOTEBOOK_FIND_SIMILAR_ENABLED": "dark (wave 13 13J): find more like this (nightly precompute + "
                                      "read-only routes); waits for the owner to arm it",
+    # Wave 13 lane 13B.
+    "NOTEBOOK_PLAYBOOK_ENABLED": "dark (wave 13 13B): My Playbook -- per-setup stats with R3 ranges "
+                                 "and the before-losses-vs-wins patterns; waits for the wave-13 PR "
+                                 "and the owner's arming order (P6)",
 }
 
 

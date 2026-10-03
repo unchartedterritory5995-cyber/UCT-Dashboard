@@ -219,6 +219,10 @@ NOTEBOOK_FLAGS = {
     # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
     "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
     "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
+    # Wave 13 lane 13B: My Playbook. The router's gate (routers/notebook_playbook.enabled)
+    # reads the same variable through flag_on, per request; the payload key is
+    # `notebook_playbook_enabled`.
+    "NOTEBOOK_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (My Playbook, lane 13B)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

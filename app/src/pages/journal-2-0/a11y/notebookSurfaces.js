@@ -226,4 +226,8 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // Wave 13 lane 13I-2: before and after on the trade page (dark behind
   // notebook_visual_playbook_enabled); rail a11y/visualPlaybook.a11y.test.jsx.
   'components/trade/TradeBeforeAfter.jsx': { recipe: 'trade-before-after', railFile: 'a11y/visualPlaybook.a11y.test.jsx' },
+  // Wave 13 lane 13B: My Playbook and its door in Insights > Playbook (dark behind
+  // notebook_playbook_enabled); rail a11y/myPlaybook.a11y.test.jsx.
+  'components/insights/MyPlaybook.jsx': { recipe: 'my-playbook', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
+  'components/insights/PlaybookSection.jsx': { recipe: 'playbook-section-door', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
 })

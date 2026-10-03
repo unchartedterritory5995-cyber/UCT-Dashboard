@@ -61,6 +61,8 @@ NOTEBOOK_KEYS = [
     # Wave 13 lane 13J: the active setups board, and find more like this — enablement gates.
     "notebook_setups_board_enabled",
     "notebook_find_similar_enabled",
+    # Wave 13 lane 13B: My Playbook — an enablement gate.
+    "notebook_playbook_enabled",
 ]
 
 

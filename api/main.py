@@ -146,6 +146,9 @@ from api.routers import notebook_visual_playbook as notebook_visual_playbook_rou
 # Wave 13 lane 13J: the active setups board (/api/j2/setups-board) and find more like this
 # (/api/j2/similar-names/*), each dark behind its own gate (router-level 404).
 from api.routers import notebook_setups_board as notebook_setups_board_router
+# Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), dark behind
+# NOTEBOOK_PLAYBOOK_ENABLED (router-level 404).
+from api.routers import notebook_playbook as notebook_playbook_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8998,6 +9001,8 @@ app.include_router(notebook_visual_playbook_router.router)
 # Wave 13 lane 13J: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_setups_board_router.router)
 app.include_router(notebook_setups_board_router.similar_router)
+# Wave 13 lane 13B: outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_playbook_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

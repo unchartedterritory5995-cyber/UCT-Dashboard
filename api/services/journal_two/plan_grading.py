@@ -46,7 +46,10 @@ from types import MappingProxyType
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from api.services.journal_two import plan_extract
+from api.services.journal_two import plan_extract, sample_size
+# R3 lives in ONE place (lane 13B took it over from this file, 13A's decision 6). The names stay
+# importable from here for this file's own callers and tests.
+from api.services.journal_two.sample_size import band as sample_band, rate_stat, wilson  # noqa: F401
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.notebook_flags import flag_on
 
@@ -66,12 +69,13 @@ CONSTANTS = MappingProxyType({
     # Matching: a verdict or an unlinked plan note counts only from this far before entry.
     "MATCH_WINDOW_DAYS": 30,
     # R3: n < 10 "too few to judge"; 10-24 "thin sample" with a range; 25+ normal.
-    "SAMPLE_TOO_FEW_BELOW": 10,
-    "SAMPLE_NORMAL_FROM": 25,
+    # READ from sample_size (the one home); shown here so the payload carries them.
+    "SAMPLE_TOO_FEW_BELOW": sample_size.TOO_FEW_BELOW,
+    "SAMPLE_NORMAL_FROM": sample_size.NORMAL_FROM,
     # The discipline record's two windows (last N closed trades).
     "DISCIPLINE_WINDOWS": (20, 60),
-    # The Wilson interval's z for the thin-sample range (95%).
-    "RANGE_Z": 1.96,
+    # The Wilson interval's z for the thin-sample range (95%), from sample_size.
+    "RANGE_Z": sample_size.RANGE_Z,
 })
 
 #: Comparisons are made on values rounded to this many decimals, so a boundary that is exactly
@@ -93,7 +97,7 @@ SOURCE_LABELS = {
     "text": "Plan note", "verdict": "Compass verdict",
 }
 
-SAMPLE_WORDING = {"too_few": "too few to judge", "thin": "thin sample", "normal": None}
+SAMPLE_WORDING = sample_size.WORDING
 
 
 def enabled() -> bool:
@@ -550,33 +554,7 @@ def grade_checks(plan: dict[str, Any], trade: dict[str, Any], *, mfe_price: floa
     return out
 
 
-# ── sample-size wording (R3) ────────────────────────────────────────────────────────────────
-
-def sample_band(n: int) -> str:
-    if n < CONSTANTS["SAMPLE_TOO_FEW_BELOW"]:
-        return "too_few"
-    if n < CONSTANTS["SAMPLE_NORMAL_FROM"]:
-        return "thin"
-    return "normal"
-
-
-def wilson(k: int, n: int, z: float | None = None) -> tuple[float, float] | None:
-    if n <= 0:
-        return None
-    z = CONSTANTS["RANGE_Z"] if z is None else z
-    p = k / n
-    denom = 1 + z * z / n
-    center = (p + z * z / (2 * n)) / denom
-    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-    return (round(max(0.0, center - half), 3), round(min(1.0, center + half), 3))
-
-
-def rate_stat(k: int, n: int) -> dict[str, Any]:
-    """A rate with its R3 wording: under 10 "too few to judge" (the rate rides along for a
-    reveal), 10-24 "thin sample" with a range, 25+ normal."""
-    band = sample_band(n)
-    return {"k": k, "n": n, "rate": round(k / n, 4) if n else None, "band": band,
-            "wording": SAMPLE_WORDING[band], "range": list(wilson(k, n)) if band == "thin" else None}
+# ── sample-size wording (R3): `sample_size.py`, imported above ────────────────────────────
 
 
 # ── per-trade payloads ──────────────────────────────────────────────────────────────────────

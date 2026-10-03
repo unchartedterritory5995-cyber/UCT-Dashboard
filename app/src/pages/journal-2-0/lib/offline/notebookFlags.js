@@ -63,6 +63,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   awareness_note_resurface_enabled: false, // wave 13 lane 13D: resurfacing ("what you wrote then" sheet) — absent ⇒ OFF
   notebook_setups_board_enabled: false, // wave 13 lane 13J: the active setups board — absent ⇒ OFF
   notebook_find_similar_enabled: false, // wave 13 lane 13J: find more like this — absent ⇒ OFF
+  notebook_playbook_enabled: false, // wave 13 lane 13B: My Playbook — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 
