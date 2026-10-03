@@ -26,6 +26,8 @@ import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
+import { nextGroup, isSuspendedGroup } from '../colorGroups'
+import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
@@ -66,7 +68,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const { tabs: extraTabs, active: activeTabIdx } = sanitizeChartTabs(opts)
   const isMainTab = activeTabIdx === 0
   const activeExtra = isMainTab ? null : (extraTabs[activeTabIdx - 1] || null)
-  const activeColor = isMainTab ? color : (activeExtra?.color || color)
+  // COV-10 remainder: an extra tab stored on group E-H while extra groups are off is
+  // NOT LINKED (its own key, like the widget-level N), never a silent unnamed group.
+  // The stored tab colour is untouched (colorGroups.effectiveGroup).
+  const extraGroupsOn = useExtraGroupsEnabled()
+  const activeColor = isMainTab
+    ? color
+    : (activeExtra?.color && isSuspendedGroup(activeExtra.color, extraGroupsOn)
+      ? `N:tab:${chartId || ''}:${activeExtra.id}`
+      : (activeExtra?.color || color))
   // Declared HERE, beside the other tab-derived values, because the symbol
   // handoff below needs it and `sym` is read only a few lines further down.
   const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
@@ -338,10 +348,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const handleCycleTabColor = useCallback((id) => {
     const t = extraTabs.find(x => x.id === id)
     if (!t) return
-    const order = ['A', 'B', 'C', 'D']
-    const next = order[(order.indexOf(t.color) + 1) % order.length]
+    // Tab colours cycle the linkable groups only (no N), A-D or A-H by the flag.
+    const next = nextGroup(t.color, extraGroupsOn, { includeNone: false })
     onOptsChange?.(patchChartTab(opts, id, { color: next }))
-  }, [opts, extraTabs, onOptsChange])
+  }, [opts, extraTabs, onOptsChange, extraGroupsOn])
 
   // ── Right-click context menu (charts-workspace only) ──
   // Providing onBarContextMenu makes StockChart route the right-click HERE instead

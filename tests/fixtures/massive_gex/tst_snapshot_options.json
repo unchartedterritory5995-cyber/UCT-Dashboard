@@ -1,0 +1,58 @@
+{
+ "_provenance": "HAND-AUTHORED in the Massive v3 /v3/snapshot/options/{underlying} response schema (the field names polygon_options._normalize_contract and gex_service.to_schwab_shape read), NOT a live recording: recording needs MASSIVE_API_KEY, which this lane could not read (2026-10-02). Values are chosen so every GEX number is hand-computable; see tests/test_gex_massive_lcq02.py. Two pages joined by next_url; one contract with no `greeks` (Massive omits it on contracts it cannot price), one with no `open_interest`, one with open_interest 0 (a TRUE zero, not a missing value).",
+ "pages": [
+  {
+   "request_id": "fixture-p1",
+   "status": "OK",
+   "results": [
+    {"break_even_price": 93.9, "day": {"close": 1.1, "volume": 120, "vwap": 1.1},
+     "details": {"contract_type": "put", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 95, "ticker": "O:TST261009P00095000"},
+     "greeks": {"delta": -0.40, "gamma": 0.04, "theta": -0.05, "vega": 0.1}, "implied_volatility": 0.21,
+     "last_quote": {"ask": 1.15, "bid": 1.05, "midpoint": 1.1, "timeframe": "REAL-TIME"},
+     "open_interest": 400,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}},
+    {"break_even_price": 101.2, "day": {"close": 6.2, "volume": 3, "vwap": 6.2},
+     "details": {"contract_type": "call", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 95, "ticker": "O:TST261009C00095000"},
+     "greeks": {"delta": 0.80, "gamma": 0.02, "theta": -0.05, "vega": 0.1}, "implied_volatility": 0.24,
+     "last_quote": {"ask": 6.3, "bid": 6.1, "midpoint": 6.2, "timeframe": "REAL-TIME"},
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}},
+    {"break_even_price": 101.1, "day": {"close": 1.1, "volume": 900, "vwap": 1.1},
+     "details": {"contract_type": "call", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 100, "ticker": "O:TST261009C00100000"},
+     "greeks": {"delta": 0.55, "gamma": 0.05, "theta": -0.05, "vega": 0.1}, "implied_volatility": 0.20,
+     "last_quote": {"ask": 1.15, "bid": 1.05, "midpoint": 1.1, "timeframe": "REAL-TIME"},
+     "open_interest": 500,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}},
+    {"break_even_price": 99.1, "day": {"close": 0.9, "volume": 400, "vwap": 0.9},
+     "details": {"contract_type": "put", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 100, "ticker": "O:TST261009P00100000"},
+     "greeks": {"delta": -0.45, "gamma": 0.05, "theta": -0.05, "vega": 0.1}, "implied_volatility": 0.20,
+     "last_quote": {"ask": 0.95, "bid": 0.85, "midpoint": 0.9, "timeframe": "REAL-TIME"},
+     "open_interest": 200,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}}
+   ],
+   "next_url": "https://api.massive.com/v3/snapshot/options/TST?cursor=FIXTURECURSOR"
+  },
+  {
+   "request_id": "fixture-p2",
+   "status": "OK",
+   "results": [
+    {"break_even_price": 105.4, "day": {"close": 0.4, "volume": 250, "vwap": 0.4},
+     "details": {"contract_type": "call", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 105, "ticker": "O:TST261009C00105000"},
+     "greeks": {"delta": 0.30, "gamma": 0.03, "theta": -0.05, "vega": 0.1}, "implied_volatility": 0.19,
+     "last_quote": {"ask": 0.45, "bid": 0.35, "midpoint": 0.4, "timeframe": "REAL-TIME"},
+     "open_interest": 300,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}},
+    {"break_even_price": 110.01, "day": {},
+     "details": {"contract_type": "call", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 110, "ticker": "O:TST261009C00110000"},
+     "last_quote": {"ask": 0.02, "bid": 0.0, "midpoint": 0.01, "timeframe": "REAL-TIME"},
+     "open_interest": 1000,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}},
+    {"break_even_price": 89.9, "day": {},
+     "details": {"contract_type": "put", "exercise_style": "american", "expiration_date": "2026-10-09", "shares_per_contract": 100, "strike_price": 90, "ticker": "O:TST261009P00090000"},
+     "greeks": {"delta": -0.10, "gamma": 0.01, "theta": -0.02, "vega": 0.05}, "implied_volatility": 0.26,
+     "last_quote": {"ask": 0.15, "bid": 0.05, "midpoint": 0.1, "timeframe": "REAL-TIME"},
+     "open_interest": 0,
+     "underlying_asset": {"price": 101.0, "ticker": "TST", "timeframe": "REAL-TIME"}}
+   ]
+  }
+ ]
+}

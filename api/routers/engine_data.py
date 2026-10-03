@@ -6,21 +6,16 @@ STOPS, full trade history), `/api/uct20/backtest` **31,464 bytes**,
 `/api/leadership` the Leadership 20 itself. This is the firm's product, not a
 market-data relay — it is what the morning wire run produces — so it is PAID.
 
-✋ TWO ROUTES ARE DELIBERATELY *NOT* PAID: `/api/rundown` and
-`/api/rundown/speech-text`.
+⭐ EVERY ROUTE HERE IS PAID, the rundown included (owner ruling 2026-10-02,
+TERM-081 / OI-12: "Everything is paywall").
 
-`FREE_PAGES = ['/morning-wire']` (AuthGuard.jsx / NavBar.jsx / MoreSheet.jsx, all
-three in sync) — the Morning Wire is the free tier, by owner decision, and it is
-the top of the funnel. These two routes ARE that page's content. Gating them on
-`require_paid` would refuse every free member the one thing they were invited in
-to read, so it would not be a paywall fix; it would be a funnel outage.
-
-They are gated on `get_current_user` instead — which is exactly the boundary the
-page already has, since `AuthGuard` renders nothing without a session, and it is
-what every OTHER route on that page already uses (`/api/tweets/feed`,
-`/api/catalysts/today`, `/api/wire-feedback/*` are all `get_current_user`). The
-rundown was the odd one out: the only anonymous route on a logged-in-only page.
-So this closes the crawler hole and changes nothing a member experiences.
+⚰️ Until that ruling `/api/rundown` and `/api/rundown/speech-text` were
+deliberately session-only (`get_current_user`): the Morning Wire was the free
+tier (`FREE_PAGES = ['/morning-wire']`) and these two routes ARE that page's
+content. The ruling emptied `FREE_PAGES` (app/src/constants/freePages.js), so a
+free member no longer reaches the page (AuthGuard sends them to /subscribe) and
+the content refuses them the same way the rest of this router does: 402, "The
+daily wire surface requires a paid plan". Rail: tests/test_wire_paywall.py.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
@@ -172,7 +167,7 @@ def leadership(_user: dict = Depends(require_paid)):
 
 @router.get("/api/rundown")
 def rundown(type: Optional[str] = Query(None),
-            _user: dict = Depends(get_current_user)):
+            _user: dict = Depends(require_paid)):
     try:
         if type == "post_market":
             return {"html": "", "date": ""}  # post-market not yet implemented
@@ -182,7 +177,7 @@ def rundown(type: Optional[str] = Query(None),
 
 
 @router.get("/api/rundown/speech-text")
-def rundown_speech_text(_user: dict = Depends(get_current_user)):
+def rundown_speech_text(_user: dict = Depends(require_paid)):
     """Canonical Read-Aloud text for today's rundown: the briefing (Today's
     Focus + narrative), widgets stripped. The frontend speaks THIS so it matches
     the pre-warmed audio exactly; the `sentences` list drives follow-along
@@ -205,8 +200,8 @@ def rundown_speech_text(_user: dict = Depends(get_current_user)):
 def wire_archive_index(_user: dict = Depends(require_paid)):
     """TERM-089: the dates the Morning Wire archive holds, newest first, with
     the coverage it can honestly claim (held vs weekdays in range, and the
-    weekdays it does NOT hold, by name). PAID: today's wire is the free tier
-    (`/api/rundown`); past mornings are the paid product."""
+    weekdays it does NOT hold, by name). PAID, like today's wire (`/api/rundown`)
+    since the 2026-10-02 "everything is paywall" ruling."""
     from api.services import wire_archive
     return wire_archive.index()
 

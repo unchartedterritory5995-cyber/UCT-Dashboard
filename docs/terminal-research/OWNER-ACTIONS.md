@@ -7,11 +7,18 @@ role: the owner's own action list. Every open item an agent cannot close, why, a
 
 # What needs you — 2026-09-26
 
+> ⟳ **STATUS 2026-10-03 (lane/d-records). This page is a 2026-09-26 snapshot, and parts of it are stale.**
+> - **Item 1 is CLOSED (2026-09-30).** You named **Ravi** as the subject, and the trial is pre-registered: `10-roadmap/2026-09-30-mvp-preregistration-ravi.md`, with Patrick as adjudicator. Phase A has not started yet.
+> - **The Massive ask** (RM-N02) was **sent 2026-09-29** and **answered 2026-09-30**. There is no chain or IV history for sale; a second OPRA connection costs $75/mo. See `10-roadmap/2026-09-26-massive-vendor-ask.md`.
+> - **The 2026-10-02 rulings are recorded** in `00-program-control/OWNER_DECISIONS.md` (D-005..D-014).
+> - **The current list of what only you can do** is the **owner-blocked** section of `COMPLETION-LEDGER.md`. Read that, not the table below.
+> - **Item 2 (OI-04)** is still open: one sentence on whether Bullflow, UW, Polygon-direct and TheFly are still paid. **Item 3** is unchanged.
+
 ✅✅ **THREE THINGS. None urgent.** (Price was the fourth — ✅ **you closed it 2026-09-26**; see the closed list.)
 
 | # | item | why it is yours | cost |
 |---|---|---|---|
-| 1 | **Name a non-builder who will actually use the terminal** | ⭐ from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name — ✅ **and you just told me the pool is 750 paying Discord members, so "there isn't one" is no longer the likely answer** |
+| 1 | ✅ **CLOSED 2026-09-30: Ravi named; trial pre-registered.** ~~**Name a non-builder who will actually use the terminal**~~ | ⭐ from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name — ✅ **and you just told me the pool is 750 paying Discord members, so "there isn't one" is no longer the likely answer** |
 | 2 | **OI-04 — a billing-statement check** | ⚰️ this row said *"it comes from outside the company"* and that was **wrong**; and ✅ your licensing clearance may have closed it outright | minutes, or nothing — see below |
 | 3 | **Watch yourself work one trading morning** | an observation, not a decision | one morning, nothing waits on it |
 

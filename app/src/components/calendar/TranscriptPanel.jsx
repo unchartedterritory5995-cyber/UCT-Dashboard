@@ -25,6 +25,7 @@ import { escapeLiteral, findMatches, segmentsWithMatches, stepIndex } from './tr
 import styles from './CallRecapSection.module.css'
 import PlayableTranscript from './PlayableTranscript'
 import TranscriptSearchAll from './TranscriptSearchAll'
+import TranscriptChapters from './TranscriptChapters'
 import search from './TranscriptSearch.module.css'
 import { SaveTranscriptButton } from '../../pages/journal-2-0/components/notebook/TranscriptDoors' // 13G-1 mount (P2)
 
@@ -341,6 +342,9 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
                   </button>
                 )}
               </div>
+
+              {/* D-4: chapters (present only while TRANSCRIPT_CHAPTERS_ENABLED is on). */}
+              <TranscriptChapters tree={transcript.chapters} onJump={jumpTo} />
 
               {/* Search over the transcript itself — count, step, filter.
                   Highlighting alone (the old behaviour) reads as "nothing

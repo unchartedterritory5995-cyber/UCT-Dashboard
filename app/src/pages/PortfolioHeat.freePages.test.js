@@ -13,9 +13,12 @@ describe('portfolio heat is paid-gated the normal way', () => {
     expect(FREE_PAGES).not.toContain('/portfolio-heat')
   })
 
-  it('FREE_PAGES is still exactly the one page it was before this checkpoint', () => {
-    // Non-vacuity: proves the assertion above isn't trivially true because
-    // FREE_PAGES is empty or unreadable.
-    expect(FREE_PAGES).toEqual(['/morning-wire'])
+  it('FREE_PAGES is exactly the measured value (empty since 2026-10-02)', () => {
+    // Owner ruling 2026-10-02 (TERM-081 / OI-12), "everything is paywall":
+    // the Morning Wire left FREE_PAGES and nothing replaced it. The assertion
+    // above is now trivially true BY DESIGN; this pins that it is empty because
+    // the ruling emptied it, not because the module stopped exporting an array.
+    expect(Array.isArray(FREE_PAGES)).toBe(true)
+    expect(FREE_PAGES).toEqual([])
   })
 })

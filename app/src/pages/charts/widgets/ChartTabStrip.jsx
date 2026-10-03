@@ -7,8 +7,12 @@
 import { useEffect, useRef, useState } from 'react'
 import styles from '../ChartsWorkspace.module.css'
 import Input from '../../../components/ui/Input'
+import { GROUP_HEX, effectiveGroup, isSuspendedGroup } from '../colorGroups'
+import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
-const GROUP_DOT = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc' }
+// A tab's dot: its group's colour from colorGroups.js. A stored E-H while extra
+// groups are off is grey (not linked) and says so; it is never hidden, because a
+// hidden dot could not be clicked back onto a group.
 
 export default function ChartTabStrip({
   tabs,           // [{id, isMain, label, tf}] from chartTabList()
@@ -20,6 +24,7 @@ export default function ChartTabStrip({
   onRename,       // (tabId, name) => void
   onCycleColor,   // (tabId) => void — click an extra tab's dot to cycle its color group
 }) {
+  const extraGroupsOn = useExtraGroupsEnabled()
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState('')
   const [confirmingId, setConfirmingId] = useState(null)  // close-x armed on this tab
@@ -63,7 +68,10 @@ export default function ChartTabStrip({
         // its own dot made the strip read as a row of status lights; the group
         // color only matters for the chart you're looking at, and the cycle
         // affordance is one click away (clicking a tab selects it).
-        const dot = active && !tab.isMain ? GROUP_DOT[tabColors?.[tab.id]] : null
+        const tabColor = tabColors?.[tab.id]
+        const suspendedTab = isSuspendedGroup(tabColor, extraGroupsOn)
+        // 'N' is excluded: tab colours never cycle to N, exactly as before.
+        const dot = active && !tab.isMain && tabColor !== 'N' ? GROUP_HEX[effectiveGroup(tabColor, extraGroupsOn)] : null
         return (
           <div
             key={tab.id}
@@ -80,7 +88,8 @@ export default function ChartTabStrip({
                 style={{ background: dot, cursor: 'pointer' }}
                 role="button"
                 aria-label="Change tab's linked color group"
-                title="Click to change symbol-link color group"
+                title={suspendedTab ? `Group ${tabColor} is switched off: not linked. Click to pick a color group.` : 'Click to change symbol-link color group'}
+                data-group-suspended={suspendedTab ? tabColor : undefined}
                 onClick={(e) => { e.stopPropagation(); onCycleColor?.(tab.id) }}
               />
             )}

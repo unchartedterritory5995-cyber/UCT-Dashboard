@@ -167,6 +167,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # run or read (wave 13 lane 13J).
     from api.services.journal_two import similar_matches as smat
     smat.ensure_schema(conn)
+    # options_spread_book, likewise: spread_book.py self-ensures it on the first
+    # list / save (FT-072, lane/o-options-remainders).
+    from api.services.options_analytics import spread_book as sbk
+    sbk.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

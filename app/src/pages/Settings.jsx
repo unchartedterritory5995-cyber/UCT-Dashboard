@@ -30,6 +30,8 @@ import SharingCard from './journal-2-0/components/SharingCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
+import PushNotificationsRow from '../components/settings/PushNotificationsRow'
+import AlertRoutingPanel from '../components/settings/AlertRoutingPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -1659,7 +1661,7 @@ const SEARCH_INDEX = [
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
   { card: 'joystick',       section: 'charts',      title: 'Joystick',                   keywords: 'joystick hub pad thumb touch gesture fan wheel hide hidden restore turn off disable enable mobile phone' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
-  { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
+  { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification push phone mobile device' },
   { card: 'indicatorAlerts', section: 'preferences', title: 'Indicator Alerts',          keywords: 'indicator alert rsi macd chart alerts armed not firing needs attention manager list all symbols' },
   { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
   { card: 'tags',           section: 'preferences', title: 'Color Tags',                 keywords: 'tag color label ticker right click rename' },
@@ -2188,6 +2190,8 @@ export default function Settings() {
                 {typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'Enabled' : 'Enable'}
               </button>
             </div>
+            <PushNotificationsRow />
+            <AlertRoutingPanel />
           </div>
         </TileCard>
   )

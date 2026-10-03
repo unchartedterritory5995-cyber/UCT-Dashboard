@@ -25,11 +25,6 @@
       "reason": "Maps an app ticker to Massive's vendor symbol (entity-master vendor_symbol, else to_polygon_symbol); the dual-class REST boundary itself, which must stay separate from resolution."
     },
     {
-      "path": "api/services/tweet_ticker_extract.py",
-      "name": "extract_tickers",
-      "reason": "Tweet ingest: M5's cashtag-only grammar, owned by A8 (TERM-075, a8Taxonomy.json, shared with JS). Converging M5 with the resolver's cashtag tier is a follow-up, not this ticket."
-    },
-    {
       "path": "api/services/wisdom/publish/adapters/badges.py",
       "name": "parse_tickers",
       "reason": "Splits an explicit comma-separated ?tickers= query parameter; the caller already named the symbols, nothing is resolved from prose. Wisdom program scope."

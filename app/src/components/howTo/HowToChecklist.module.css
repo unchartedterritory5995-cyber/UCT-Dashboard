@@ -1,0 +1,21 @@
+/* FT-046: per-surface "how to trade with this" checklist. */
+.howTo {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-surface, transparent);
+  max-width: 100%;
+}
+.summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.steps {
+  margin: 4px 0 2px;
+  padding-left: 20px;
+  line-height: 1.5;
+}

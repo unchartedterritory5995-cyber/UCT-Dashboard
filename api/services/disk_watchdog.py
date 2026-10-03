@@ -122,8 +122,20 @@ def snapshot() -> dict:
         "free_bytes": usage.free,
         "used_pct": round(pct, 1),
         "level": _level_for(pct),
-        "top_consumers": [{"name": n, "bytes": b, "human": _human(b)} for n, b in consumers],
+        "top_consumers": [{"name": n, "bytes": b, "human": _human(b),
+                           "retention": _retention(n)} for n, b in consumers],
     }
+
+
+def _retention(name: str) -> str:
+    """Arch 5-B.8: what the store retention registry declares for this consumer, so
+    a disk alert says whether anything is supposed to shrink it. Read-only, never
+    raises: a registry that fails to import reads as UNKNOWN, never as declared."""
+    try:
+        from api.services.store_retention import annotate
+        return annotate(name)
+    except Exception:
+        return "retention: UNKNOWN"
 
 
 def _level_for(pct: float) -> str:
@@ -191,7 +203,8 @@ def check_once() -> dict:
         return snap
 
     listing = "\n".join(
-        f"  {c['human']:>8}  {c['name']}" for c in snap["top_consumers"])
+        f"  {c['human']:>8}  {c['name']}  [{c.get('retention', 'retention: UNKNOWN')}]"
+        for c in snap["top_consumers"])
     head = (f"{_human(snap['used_bytes'])} / {_human(snap['total_bytes'])} used "
             f"({snap['used_pct']}%), {_human(snap['free_bytes'])} free")
 

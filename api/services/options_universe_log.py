@@ -16,6 +16,10 @@ WHAT ONE RUN DOES
      to 30 days out within 7-90 days, the strike closest to the underlying; mean of
      call and put IV), with the days-to-expiry it was read at.
      That summary is what an IV rank will read once history exists.
+     It also carries the FRONT straddle: the first expiry strictly after the session,
+     at the strike closest to the underlying that has a two-sided quote on both legs,
+     priced off bid/ask MIDS (the method `implied_move` uses live). Straddle / price
+     at a print's pre-print close IS that print's implied move (BRK-10).
   4. Uploads both files plus a manifest to R2 (the DATA_SYNC_* bucket the store
      backups use) under `options_log/<YYYY>/<YYYY-MM-DD>.*`.
 
@@ -58,7 +62,8 @@ CONTRACT_FIELDS = ("contract", "underlying", "expiration", "strike", "type",
                    "open_interest", "iv", "delta", "gamma", "theta", "vega",
                    "bid", "ask", "last", "volume", "vwap", "underlying_price")
 UNDERLYING_FIELDS = ("underlying", "contracts", "call_oi", "put_oi", "underlying_price",
-                     "atm_iv", "atm_expiration", "atm_strike", "atm_dte")
+                     "atm_iv", "atm_expiration", "atm_strike", "atm_dte",
+                     "front_expiration", "front_dte", "front_strike", "front_straddle")
 
 
 def is_enabled() -> bool:
@@ -67,6 +72,13 @@ def is_enabled() -> bool:
 
 def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _mid(bid, ask):
+    """Bid/ask mid, or None unless the quote is two-sided (bid > 0, ask >= bid)."""
+    if bid is None or ask is None or bid <= 0 or ask < bid:
+        return None
+    return (bid + ask) / 2.0
 
 
 def contract_row(x: dict) -> Optional[dict]:
@@ -104,7 +116,8 @@ class _Summary:
         if not und:
             return
         s = self.by.setdefault(und, {"contracts": 0, "call_oi": 0, "put_oi": 0,
-                                     "underlying_price": None, "_atm": {}})
+                                     "underlying_price": None, "_atm": {},
+                                     "_front_exp": None, "_front": {}})
         s["contracts"] += 1
         oi = row.get("open_interest") or 0
         if row.get("type") == "call":
@@ -113,14 +126,43 @@ class _Summary:
             s["put_oi"] += oi
         if row.get("underlying_price") is not None:
             s["underlying_price"] = row["underlying_price"]
-        if row.get("iv") is None or row.get("strike") is None or not row.get("expiration"):
+        if row.get("strike") is None or not row.get("expiration"):
             return
         try:
             dte = (_dt.date.fromisoformat(row["expiration"]) - self.session).days
         except ValueError:
             return
+        self._add_front(s, row, dte)
+        if row.get("iv") is None:
+            return
         if ATM_DTE_MIN <= dte <= ATM_DTE_MAX:
             s["_atm"].setdefault((row["expiration"], row["strike"]), []).append(row["iv"])
+
+    @staticmethod
+    def _add_front(s: dict, row: dict, dte: int) -> None:
+        """Keep only the FRONT expiry's legs (first expiry strictly after the session)."""
+        if dte < 1 or row.get("type") not in ("call", "put"):
+            return
+        exp = row["expiration"]
+        if s["_front_exp"] is None or exp < s["_front_exp"]:
+            s["_front_exp"], s["_front"] = exp, {}
+        if exp != s["_front_exp"]:
+            return
+        m = _mid(row.get("bid"), row.get("ask"))
+        if m is not None:
+            s["_front"].setdefault(row["strike"], {})[row["type"]] = m
+
+    def _front_row(self, s: dict, px) -> dict:
+        out = {"front_expiration": s["_front_exp"], "front_dte": None,
+               "front_strike": None, "front_straddle": None}
+        if s["_front_exp"] is not None:
+            out["front_dte"] = (_dt.date.fromisoformat(s["_front_exp"]) - self.session).days
+        both = [k for k, legs in s["_front"].items() if "call" in legs and "put" in legs]
+        if px is not None and both:
+            k = min(both, key=lambda k: (abs(k - px), k))
+            out["front_strike"] = k
+            out["front_straddle"] = round(s["_front"][k]["call"] + s["_front"][k]["put"], 4)
+        return out
 
     def rows(self) -> Iterable[dict]:
         for und in sorted(self.by):
@@ -138,7 +180,8 @@ class _Summary:
                 atm_iv, atm_exp, atm_dte = round(sum(ivs) / len(ivs), 6), chosen, dte_of[chosen]
             yield {"underlying": und, "contracts": s["contracts"], "call_oi": s["call_oi"],
                    "put_oi": s["put_oi"], "underlying_price": px, "atm_iv": atm_iv,
-                   "atm_expiration": atm_exp, "atm_strike": atm_strike, "atm_dte": atm_dte}
+                   "atm_expiration": atm_exp, "atm_strike": atm_strike, "atm_dte": atm_dte,
+                   **self._front_row(s, px)}
 
 
 def walk(get: Callable[[str], dict], api_key: str, *, budget_s: float = TIME_BUDGET_S,
@@ -178,7 +221,7 @@ def resummarize(contracts_gz_path: str, session: _dt.date, out_gz_path: str) -> 
     record is the authority, so a summary rule can change without losing a day.
     Returns the number of underlyings written."""
     summary = _Summary(session)
-    num = ("strike", "open_interest", "iv", "underlying_price")
+    num = ("strike", "open_interest", "iv", "underlying_price", "bid", "ask")
     with gzip.open(contracts_gz_path, "rt", newline="", encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
             for k in num:

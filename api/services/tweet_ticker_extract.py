@@ -1,12 +1,15 @@
-"""Cashtag-based ticker extraction. v1: regex only, no universe validation.
-Source accounts are professional and rarely post fake cashtags; false
-positives surface nothing (no join target in UI), so cost of a miss is zero.
+"""Cashtag-based ticker extraction for the tweet ingest.
 
-The grammar and the forex exclusions are M5's cashtag vocabulary, declared ONCE
-in A8's authority (TERM-075, api/services/a8_taxonomy.py); this module only
-names the ingest's entry point."""
-from api.services.a8_taxonomy import cashtags
+TERM-064 follow-up 1: this DELEGATES to the one ticker resolver
+(`api/services/ticker_resolver.py`, context `CASHTAG_POST`): cashtags only, A8's
+forex exclusions (TERM-075 stays the authority over that vocabulary), and the
+resolver's canonical spelling. Before this the ingest ran M5's own grammar, which
+booked `$BRK.B` as `BRK`, a symbol that does not exist, so a class-share tweet
+joined to nothing. Source accounts are professional, so there is no universe
+check: a cashtag is the author's explicit claim.
+"""
+from api.services import ticker_resolver
 
 
 def extract_tickers(text: str) -> set[str]:
-    return cashtags(text)
+    return set(ticker_resolver.resolve_tickers(text, ticker_resolver.CASHTAG_POST))

@@ -1,0 +1,61 @@
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { SWRConfig } from 'swr'
+import OptionsHistoryPanel from './OptionsHistoryPanel'
+
+// Shapes from api/services/options_analytics/log_history.py (tests/test_options_log_history.py).
+const STRADDLE = { label: 'computed from vendor quotes', method: 'S.', n: 2, logging_began: '2026-09-30', missing_sessions: [],
+  points: [{ date: '2026-09-30', straddle: 4, straddle_pct: 4, underlying_price: 100, front_expiration: '2026-10-02', front_dte: 2 },
+    { date: '2026-10-01', straddle: 4, straddle_pct: 5, underlying_price: 80, front_expiration: '2026-10-02', front_dte: 1 }] }
+const DAILY = { label: 'computed', method: 'D.', n: 2, logging_began: '2026-09-30', missing_sessions: [], summary: null,
+  summary_note: '2 pairs so far; how often the move stayed inside the implied move needs 20 (first possible 2026-10-28).',
+  pairs: [{ date: '2026-09-30', next: '2026-10-01', implied_move_pct: 2, actual_move_pct: 1, ratio: 0.5, inside: true }] }
+const CRUSH = { label: 'computed', method: 'C.', offsets: [-1, 0, 1], complete_prints: 0, summary: null,
+  summary_note: '0 prints with all 11 sessions logged; average/max/min rows need 4. Logging began 2026-09-30; prints before it cannot be read.',
+  prints: [{ report_date: '2026-10-08', iv: { '-1': 0.5, 0: 0.6, 1: null }, crush_pct: null }] }
+
+function stub(map) {
+  vi.stubGlobal('fetch', vi.fn((u) => {
+    const hit = Object.entries(map).find(([k]) => u.includes(k))
+    const [status, body] = hit ? hit[1] : [404, {}]
+    return Promise.resolve({ status, ok: status === 200, json: () => Promise.resolve(body) })
+  }))
+}
+const mount = () => render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><OptionsHistoryPanel sym="tst" /></SWRConfig>)
+
+describe('OptionsHistoryPanel (FT-007/009/010)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('all switches off: nothing', async () => {
+    stub({})
+    mount()
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(screen.getByTestId('options-history').children.length).toBe(0)
+  })
+
+  it('shows the straddle in dollars and percent, with n and when the log began', async () => {
+    stub({ '/straddle': [200, STRADDLE] })
+    mount()
+    const s = await screen.findByTestId('straddle-history')
+    expect(s.textContent).toContain('2026-10-01: $4.00 = 5.00% of 80.00')
+    expect(s.textContent).toContain('Our options log began 2026-09-30 · n = 2')
+  })
+
+  it('the daily-move summary below 20 pairs is the server sentence, not a percentage', async () => {
+    stub({ '/daily-move': [200, DAILY] })
+    mount()
+    const sum = await screen.findByTestId('daily-move-summary')
+    expect(sum.textContent).toBe(DAILY.summary_note)
+    expect(sum.textContent).not.toMatch(/inside the implied move \d+%/)
+  })
+
+  it('the IV-crush table leaves an unlogged session blank and states why no average exists', async () => {
+    stub({ '/iv-crush': [200, CRUSH] })
+    mount()
+    const t = await screen.findByTestId('iv-crush')
+    const cells = t.querySelectorAll('tbody td')
+    expect([cells[0].textContent, cells[1].textContent, cells[2].textContent]).toEqual(['50.0%', '60.0%', ''])
+    expect(screen.getByTestId('iv-crush-note').textContent).toContain('need 4')
+  })
+})

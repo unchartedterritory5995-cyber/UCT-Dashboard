@@ -22,10 +22,10 @@ def _massive_rows():
 def _schwab_equivalent():
     key = f"{EXP}:3"
     return {"underlyingPrice": 101.0,
-            "callExpDateMap": {key: {"100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.55}],
-                                     "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.30}]}},
-            "putExpDateMap": {key: {"95.0": [{"openInterest": 400, "gamma": 0.04, "delta": -0.40}],
-                                    "100.0": [{"openInterest": 200, "gamma": 0.05, "delta": -0.45}]}}}
+            "callExpDateMap": {key: {"100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.55, "totalVolume": None}],
+                                     "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.30, "totalVolume": None}]}},
+            "putExpDateMap": {key: {"95.0": [{"openInterest": 400, "gamma": 0.04, "delta": -0.40, "totalVolume": None}],
+                                    "100.0": [{"openInterest": 200, "gamma": 0.05, "delta": -0.45, "totalVolume": None}]}}}
 
 
 def test_the_default_source_is_schwab_and_unknown_values_fall_back(monkeypatch):
@@ -40,6 +40,17 @@ def test_the_default_source_is_schwab_and_unknown_values_fall_back(monkeypatch):
 def test_massive_rows_become_schwabs_shape():
     shaped = g.to_schwab_shape(_massive_rows(), 101.0, TODAY)
     assert shaped == _schwab_equivalent()
+
+
+def test_the_sessions_contract_volume_rides_under_schwabs_key():
+    """NOPE (api/services/options_analytics/positioning.py) reads `totalVolume`; a contract the
+    snapshot sent no `day` block for stays None, never 0."""
+    rows = _massive_rows()
+    rows[0]["day"] = {"volume": 1234}
+    shaped = g.to_schwab_shape(rows, 101.0, TODAY)
+    call100 = shaped["callExpDateMap"][f"{EXP}:3"]["100.0"][0]
+    put95 = shaped["putExpDateMap"][f"{EXP}:3"]["95.0"][0]
+    assert call100["totalVolume"] == 1234 and put95["totalVolume"] is None
 
 
 def test_the_same_contracts_give_the_same_gex_from_either_source(monkeypatch):

@@ -135,6 +135,11 @@ const BASELINE_KEYS = {
   notebook_sample: 'structured',
   notebook_tour: 'structured',
   tag_labels: 'structured',
+  // ⭐ TERMINAL-NEXT T2 (2026-10-03): the shell's versioned board layout and the named-board
+  // library. Both were opaque (TERMINAL_LAYOUT_PREF / TERMINAL_BOARDS_PREF) and are now
+  // literal at the call site in pages/terminal/useTerminalLayout.js. Both store a JSON object.
+  terminal_boards: 'structured',
+  terminal_layout: 'structured',
   theme: 'scalar',
   theme_tracker_settings: 'structured',
   volume_scan_lists: 'structured',
