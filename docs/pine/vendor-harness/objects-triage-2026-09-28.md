@@ -165,6 +165,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 62 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
 | 64 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
 | 65 | RT2 (lane brief, wave 12) the runtime document STATES its repaint class instead of declining (section RT2): `engine/runtime/runtimeRepaint.js` gives the host linter's three classes by the host's `modeFromReach`, as the worst reach over the reads the program makes (lexed code, never comments/strings), from ONE table (`runtimeRepaint.json`) read by the JS door and the Python save door (`api/services/runtime_repaint.py`), held to one answer per corpus script (`tests/fixtures/runtime_repaint/corpus.json`). A clock leaf's reach is the HOST linter's (`astReach` over `closedTable.json`) joined with a right-edge finding (islast / islastconfirmedhistory 1; lastbarindex / lastbartime / lastbar* unbounded), proved by moving the fetch through `computeClock`. Every drawn row carries the class as `mode` and `forward`; the store refuses a declared class that disagrees. A request the lowering does not fold is declined by name (`runtime:request`) at the door and at the run. No budget or flag moved | `0b2f2a809b`, `b31eae3ec8`, `a210db44dd` (wave 10 `e4e24524ef` already an ancestor) | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall, unchanged | translation census unchanged | 0 entries change on the 47 (all three states) and the harness dir (pane on / off). Harness dir, runtime on: 2 entries change (the two `vw-int-array-avg` probes, INCONCLUSIVE -> DIVERGE on OBJECTS only: they now route to the runtime document and the host objects it carries are graded; no plot compared, no plot drawn). Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71 -> 71**: of the 127 `repaint-unstated`, **0** attach - each now names its real wall (library 27, call-undeclared-builtin-state 11, pine:request 9, ...); repaint-unstated 127 -> 0 |
+| 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5214,3 +5215,92 @@ hard-coded `non-repainting` (2), `forward` not stamped (3), door request decline
 request refusal removed (1), server `meta.repaint` check removed (2), server stamp hard-coded (1),
 server `forward` check removed (1), identity timeframe loses `""` (JS 1, Py 1), `pineClockKeyOf`
 answers null (1).
+
+## RT4 - the shared clock table tells the truth, drawings go with their run, and the walls behind the walls (2026-10-02, step 68)
+
+Branch `pine/rt4-runtime-truth`, base `integrate/wave15-2026-10-02` (`7008853902`). Runtime pane still
+behind `VITE_PINE_RUNTIME_PANE_ENABLED` (OFF). Measurements: member-door census (all three states),
+runtime corpus census, the vendor harness over the committed dir and the 47, each pane off / on /
+on + runtime, before and after every commit; numbers read from each run's `census.json` /
+`verdicts.json`.
+
+### 1. RULED: the shared clock table declares the right edge (`3a77b89423`)
+
+`closedTable.json::clock` now carries `forward: 1` on `islast` and `islastconfirmedhistory` and
+`forward: "unbounded"` on `lastbarindex`, `lastbartime` and the five `lastbar*` date parts, edited
+as text (one note, `_clock_right_edge`, classified DROP in `manifestProse.js`). The reaches are the
+ones `runtimeRepaintEdge.test.js` measures through `indicators.js::computeClock`; that rail now
+derives the declaring set from the SHARED table and holds it to the measurement (stable control:
+`isconfirmed`, `barindex`). Both linters (`lint.js`, `ast_lint.py`) name a clock leaf's forward
+reach the way they name a call's. `runtimeRepaint.json::clockEdge` and its join are gone in JS and
+Python; a rail proves that deleting the shared declaration leaves nothing answering 1.
+
+| consumer | before | after | evidence |
+|---|---|---|---|
+| host badge (`lintRepaint`) on a tree reading a leaf | non-repainting | `islast`/`islastconfirmedhistory` preview-repaints; the seven broadcasts repaints | `runtimeRepaintEdge.test.js` (RT4 block) |
+| `canSaveFormula` | saves | `islast` needs the acknowledgement; `lastbarindex - barindex < 10` refused even acknowledged; `isconfirmed` saves (control) | same file |
+| alert repaint gate (`_gate_repaint`), fresh save | admitted | `islast` refused without an ack; `lastbarindex` refused | `tests/test_user_definition_relint.py::test_RT4_...` |
+| relint pass, rows saved before | - | stored `non-repainting` vs current preview-repaints / repaints: reported as direction B (STORED_LOOSER), never flipped; a stable-leaf row produces no finding | same test |
+| corpus host translation | - | 0 output trees of the 266 read any of the nine leaves (they are read in object programs only: max-pain, price-action-fibonacci, tradingview-alerts-to-mt4), so 0 host badges moved | lane badge census, base vs after identical |
+| member-door census off / on / on + runtime | 52 / 75 / 78 | 52 / 75 / 78, 0 rows changed | census.json |
+| harness dir and the 47, all three states | - | 0 entries changed | verdicts.json |
+| runtime corpus census, runtime repaint corpus fixture | - | identical (the reaches did not change, only their authority) | runtimeCorpusCensus log; `runtimeRepaint.test.js` |
+
+Not measured: how many definitions saved in production read these leaves (the relint pass names
+them when run; it was not run against production).
+
+### 2. RULED: a runtime document's drawings go with its run (`169eae248a`)
+
+`nativeRegistry.runtimeObjectsWithheld(def, cols)` is the one gate: a `compute.kind: 'runtime'`
+document carrying an object program whose run produced none of its columns on this chart
+(history-start, time budget, request, a reached `runtime.error`, or in flight) draws none of it,
+named `runtime:objects-without-run` with the run's own guard. The binder records what step 1
+computed per instance and clears the object layer; the harness asks the same function.
+
+Harness dir, pane on + runtime: `vw-int-array-avg` and `vw-int-array-avg-neg` overall DIVERGE ->
+INCONCLUSIVE, objects row DIVERGE -> INCONCLUSIVE ("withheld by name (runtime:objects-without-run)
+... (runtime:history-start)"). DIVERGE 32 -> 30, INCONCLUSIVE 53 -> 55, 0 other entries; the 47
+and the other states unchanged; census 0 rows. Neither became MATCH: the capture does not start at
+the listing, so the run computes nothing and nothing is drawn. Control (railed): the same document
+over the same bars with the listing fact stated computes its columns and draws its labels, through
+the registry gate and through the real binder.
+
+### 3. The runtime walls: measured, none loosened (`3157905b21`)
+
+`rt4WallsBehind.measure.test.js` (opt-in `RT4_WALLS=1`) rewrites each wall's construct in memory to
+the nearest spelling the lanes hold and runs the real member door: **0 of 23 attach**.
+
+| wall (count on this census, runtime state) | next wall after the rewrite |
+|---|---|
+| `runtime:varip` (3) | function-global-state; install door (vwap lookback 1210 > 960); runtime:colour |
+| `pine:input-kind` (6) | pine:function (`timestamp`); pine:builtin (`chart.right_visible_bar_time`); runtime:statement; function-global-state; runtime:function; runtime:array |
+| `pine:builtin` (11) | request-with-state; block-value; pine:function (`time_close` with 2 args); text-value x2; a second builtin x3 (`str.tostring`, `chart.right_visible_bar_time`); pine:type |
+| `runtime:history-expression` (4) | pine:request (logistic-regression's `security('', reso, ...)`); function-global-state (strong-start); the other two read `request.security` of other symbols |
+| `runtime:request` (3) | unchanged, below |
+
+`runtime:request`: the brief asked to hand the run the bars the host lane serves (C26 other symbols
+from committed captures, C41 weekly/monthly from daily). None of the three is in that set:
+`4c-nyse-market-breadth-ratio` reads `USI:UVOL` / `USI:DVOL` / `USI:ADD` ... (no `symbolScope.json`
+row; the host refuses it `pine:request`), `multi-timeframe-trend-indicator` passes the timeframe as
+a function parameter, `tehthomas-aligned-timeframe-fair-value-gaps` computes it
+(`getAlignedTimeframe()`) and asks `lookahead_on` (and is drawing-only, O1's lane). The decline
+stays: plumbing with no corpus script or capture to grade it would be an ungraded path.
+
+`varip` was not admitted although Pine runs it as `var` on historical bars: 0 of 3 would attach, and
+on the forming bar it differs by tick count, which this lane cannot reproduce.
+
+### Rails and mutations
+
+`runtime/__tests__/runtimeRepaintEdge.test.js` (11), `runtimeRepaint.test.js`, `ast/lint.test.js`,
+`closedTable.test.js`, `manifestFormatting.test.js`, `manifestProse.test.js`;
+`tests/test_ast_clock_parity.py`, `tests/test_ast_lint.py`, `tests/test_runtime_repaint.py`,
+`tests/test_user_definition_relint.py` (RT4 case); `vendorHarness.rt4ObjectsWithRun.test.js` (8).
+Mutations, each red on its own, bytes restored and sha verified: `islast`'s `forward` deleted (JS 11
+red, Py 5 red); `lastbarminute` `unbounded` -> 1 (2); JS linter's clock reason removed (1); runtime
+`clockLeafReach` -> 0 (8); Python clock reason removed (2); Python `clock_leaf_reach` -> 0 (6);
+binder gate removed (1); harness gate removed (2); gate always null (4); computed-columns check
+removed (2).
+
+Open: a definition stored before `3a77b89423` that reads one of the nine leaves stays admitted under
+its old badge until direction B is decided for it (the relint pass names it). `pine:builtin` reads
+11 on this census, not RT2's 8 (counted off `runtimeDeclined.code`, runtime state).
