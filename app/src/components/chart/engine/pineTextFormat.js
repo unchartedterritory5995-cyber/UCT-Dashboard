@@ -149,3 +149,164 @@ export function formatMessageNumber(n, fmt) {
   if (fmt === '#.##') return trimmedFixed(n, 2)
   return null
 }
+
+// ─── ⭐⭐ F3 (2026-10-02) — `str.tostring(n, format)`: ONE GRAMMAR, ONE RENDERING ─
+//
+// The object lane (host program, and the runtime pane's values drawn through
+// it) prints a number into a label, box or cell through `str.tostring`. Its
+// format rules live HERE, beside `str.format`'s, for the same reason: the
+// translator decides what it admits from the grammar below and the runtime
+// renders with the functions below, so the two cannot drift.
+//
+//   no format          ten decimals, trailing zeros trimmed (C43,
+//                      `objectRuntime.js::defaultNumberText`)
+//   `#`/`0` pattern    `formatPlainNumber` — the C13 implementation, moved here
+//                      unchanged from `objectRuntime.js::formatNumber`
+//   `format.mintick`   `tickNumberText` — rounds to the symbol's tick and prints
+//                      that tick's decimals, trailing zeros KEPT. MEASURED:
+//                      trend-targets-algoalpha RDDT (tick 0.01)
+//                      `" ✔ TP3 ▸ 222.80"`, `"✘ SL ▸ 109.61"`;
+//                      trend-lines-supports-and-resistances RDDT
+//                      `"Resistance : 263.50"`. ⚰️ Read as "no format" it
+//                      printed `177.5276604489` beside TradingView's `177.53`.
+//   literal text       `formatPatternedNumber` — Java DecimalFormat's prefix /
+//   around a pattern   suffix: `"Swing H  (#,###.####)"` draws
+//                      `"Swing H  (282.95)"` (swing-highlow-zigzag-chartprime
+//                      RDDT 282.95 / 119.27, SPY 697.84 / 629.28).
+//
+// ⛔ WHAT IS WITHHELD (null), each because no capture shows it:
+//   * a grouping separator that would APPEAR — every captured value sits below
+//     the group size, so "1,234.5" vs "1234.5" is unpinned;
+//   * a `format.mintick` magnitude of 1000 or more (grouping, same reason);
+//   * a negative value under a literal prefix (Java puts the minus BEFORE the
+//     prefix; no capture shows TradingView doing so);
+//   * a value that rounds to a negative zero;
+//   * an exact tie at the tick (`format.mintick`'s "ties round up" is the
+//     reference's sentence, not a capture);
+//   * `%`, `‰`, `¤`, a quote or `;` anywhere — each changes what the number is.
+
+/** Characters Java's DecimalFormat gives a meaning in a prefix or suffix; a
+ *  pattern carrying one is refused rather than read as literal text. */
+const FORMAT_SPECIAL_AFFIX = /[%‰¤';#0-9.,]/
+
+/** `#`/`0` digits, optional grouping commas, optional `.` and fraction. */
+const FORMAT_CORE = /^([#0,]*)(?:\.([#0]*))?$/
+
+/** The largest magnitude a grouped or tick-formatted capture reached. */
+export const TOSTRING_GROUPING_LIMIT = 1000
+
+/**
+ * Read a `str.tostring` format string into its parts, or `null` when this
+ * grammar does not cover it (the caller refuses or withholds by name).
+ *
+ * @param {string} fmt
+ * @returns {{prefix: string, suffix: string, core: string, grouping: number}|null}
+ *   `core` is a plain `#`/`0` pattern (commas removed) `formatPlainNumber` reads;
+ *   `grouping` is the group size, 0 for none.
+ */
+export function tostringPatternOf(fmt) {
+  if (typeof fmt !== 'string' || !fmt) return null
+  const first = fmt.search(/[#0]/)
+  if (first < 0) return null
+  // the core runs to the last `#`/`0`
+  let last = -1
+  for (let i = fmt.length - 1; i >= 0; i -= 1) if (fmt[i] === '#' || fmt[i] === '0') { last = i; break }
+  // a leading `.` or `,` belongs to the core (`.##`)
+  let start = first
+  while (start > 0 && (fmt[start - 1] === '.' || fmt[start - 1] === ',')) start -= 1
+  const prefix = fmt.slice(0, start)
+  const suffix = fmt.slice(last + 1)
+  const body = fmt.slice(start, last + 1)
+  if (FORMAT_SPECIAL_AFFIX.test(prefix) || FORMAT_SPECIAL_AFFIX.test(suffix)) return null
+  const m = FORMAT_CORE.exec(body)
+  if (!m) return null
+  const intPart = m[1]
+  // ⛔ a comma in the fraction, a doubled comma or a trailing one is not a
+  // grouping any capture shows
+  if (/,,|,$/.test(intPart)) return null
+  const lastComma = intPart.lastIndexOf(',')
+  const grouping = lastComma < 0 ? 0 : intPart.length - lastComma - 1
+  if (lastComma >= 0 && grouping === 0) return null
+  const core = intPart.replace(/,/g, '') + (m[2] !== undefined ? `.${m[2]}` : '')
+  if (!/^[#0]*(\.[#0]*)?$/.test(core) || !/[#0]/.test(core)) return null
+  return { prefix, suffix, core, grouping }
+}
+
+/** Is this a pattern `formatPlainNumber` reads WHOLE (no affix, no grouping)? */
+export const isPlainNumberPattern = (fmt) => typeof fmt === 'string' && fmt !== ''
+  && /^[#0]*(\.[#0]*)?$/.test(fmt)
+
+/** `#`/`0` patterns: required decimals are the `0`s, optional the `#`s, up to
+ *  ten; a leading `00` pads the integer part. MOVED here unchanged from
+ *  `objectRuntime.js::formatNumber` (C13), so `str.tostring`'s renderings live
+ *  in one module. `null` for a pattern it does not read whole. */
+export function formatPlainNumber(n, fmt) {
+  if (!isPlainNumberPattern(fmt)) return null
+  const dot = fmt.indexOf('.')
+  const frac = dot < 0 ? '' : fmt.slice(dot + 1)
+  const intPart = dot < 0 ? fmt : fmt.slice(0, dot)
+  const max = Math.max(0, Math.min(10, frac.length))
+  const min = Math.min(max, (frac.match(/0/g) || []).length)
+  let out = n.toFixed(max)
+  if (max > min) {
+    out = out.replace(/0+$/, (z) => z.slice(0, Math.max(0, min - (max - z.length))))
+    out = out.replace(/\.$/, '')
+  }
+  const wantInt = (intPart.match(/0/g) || []).length
+  if (wantInt > 1) {
+    const neg = out.startsWith('-')
+    const body = neg ? out.slice(1) : out
+    const head = body.split('.')[0]
+    if (head.length < wantInt) {
+      out = (neg ? '-' : '') + '0'.repeat(wantInt - head.length) + body
+    }
+  }
+  return out
+}
+
+/**
+ * ⭐⭐ `str.tostring(n, fmt)` for a pattern with literal text around it and/or
+ * grouping commas — or `null` (WITHHELD) where no capture pins the rendering.
+ * A plain pattern is `formatPlainNumber`'s; this is the rest of the grammar.
+ */
+export function formatPatternedNumber(n, fmt) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return null
+  const p = tostringPatternOf(fmt)
+  if (!p) return null
+  const body = formatPlainNumber(n, p.core)
+  if (body === null) return null
+  if (/^-0(\.0*)?$/.test(body)) return null
+  if (body.startsWith('-') && p.prefix) return null
+  if (p.grouping > 0) {
+    const head = body.replace(/^-/, '').split('.')[0]
+    if (head.length > p.grouping) return null
+  }
+  return `${p.prefix}${body}${p.suffix}`
+}
+
+/**
+ * ⭐⭐ `str.tostring(n, format.mintick)` given the symbol's tick as its decimal
+ * text (`"0.01"`, `"0.25"`) — rounded to a multiple of the tick and printed with
+ * the tick's decimals, trailing zeros kept. `null` (WITHHELD) with no settled
+ * tick, at 1000 or more, at an exact tie, or for a negative zero. `na` prints
+ * `NaN`, as every other `str.tostring` does.
+ */
+export function tickNumberText(n, tickText) {
+  if (typeof tickText !== 'string' || !/^\d+(\.\d+)?$/.test(tickText)) return null
+  const tick = Number(tickText)
+  if (!(tick > 0)) return null
+  if (typeof n !== 'number') return null
+  if (!Number.isFinite(n)) return 'NaN'
+  if (Math.abs(n) >= TOSTRING_GROUPING_LIMIT) return null
+  const dot = tickText.indexOf('.')
+  const decimals = dot < 0 ? 0 : tickText.length - dot - 1
+  const q = n / tick
+  const frac = Math.abs(q - Math.trunc(q))
+  // a tie at the tick: exact for a power-of-ten tick, to 1e-9 for any other
+  const powerOfTen = /^(1|0\.0*1)$/.test(tickText)
+  if (powerOfTen ? exactTieAt(n, decimals) : Math.abs(frac - 0.5) < 1e-9) return null
+  const k = Math.round(q)
+  // a negative value that rounds to zero: "-0.00" or "0.00" — no capture says
+  if (k === 0 && n < 0) return null
+  return (k * tick).toFixed(Math.min(decimals, 20))
+}
