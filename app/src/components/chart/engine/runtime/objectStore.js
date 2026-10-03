@@ -237,6 +237,12 @@ export function declaredCapsOf(stripped) {
   return caps
 }
 
+/** The declared `calc_bars_count` of a source (same stripped scan), or null. */
+export function declaredCalcBarsOf(stripped) {
+  const m = /calc_bars_count\s*=\s*(\d+)/.exec(String(stripped || ''))
+  return m ? Number(m[1]) : null
+}
+
 export class ObjectRunError extends Error {
   constructor(message) { super(message); this.name = 'ObjectRunError' }
 }

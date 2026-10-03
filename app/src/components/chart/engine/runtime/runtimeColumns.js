@@ -29,6 +29,8 @@ import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
 import { withRuntimeObjects } from './runtimeObjects.js'
+import { declaredCalcBarsOf } from './objectStore.js'
+import { strippedForScan } from '../ast/pine.js'
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
  *  door in this module: a runtime pane's columns and an object pass's values are
@@ -176,6 +178,17 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
   // (`objectsInRun`); every other runtime document keeps the host lane's.
   const ownObjects = compute.objects === true
+  // ⛔ RT5 — `calc_bars_count = N` makes TradingView run the script on the LAST N
+  // bars only; a run from this chart's first bar would make other drawings. No
+  // lane honours it yet, so a run that owns its drawings refuses by name.
+  if (ownObjects) {
+    const calcBars = declaredCalcBarsOf(strippedForScan(String(compute.source || '')))
+    if (calcBars !== null && rows.length > calcBars) {
+      throw refusal('runtime:calc-bars-count', `this script runs on its last ${calcBars} bars only `
+        + `(\`calc_bars_count = ${calcBars}\`), and this chart holds ${rows.length}; its drawings from a run over `
+        + 'every bar would be a different picture. Nothing is drawn rather than a guess.')
+    }
+  }
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
     inputs: {},
