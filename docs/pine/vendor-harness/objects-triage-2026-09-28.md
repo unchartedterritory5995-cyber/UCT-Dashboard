@@ -170,6 +170,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
+| 77 | RF (lane brief, wave 16) the runtime pane made ready to switch on, and the switch-on plan (section RF, `docs/pine/runtime-pane-switch-on-plan.md`): every stop of a run is named (`runtime:limit`, `runtime:failed`, `runtime:worker-unresponsive` / `-failed`, `runtime:load-failed`) and said on the disclosure strip (no surface rendered a column error before); a dead or hung worker answers its jobs by name and is never re-run on the main thread (watchdog 20 s, 3 starts per tab, newest-run coalescing); a kill takes the installed copy off an open tab; a runtime document names the bar colours it does not draw (3 of 6 omitted them silently since B1). Off-main-thread proved in real Chromium (worst frame gap 17 ms, control 383 ms). Store round trip on the six real documents. No flag, budget or limit moved | `caa526cd31`, `54c5e82ea7`, `828dc181b8`, `f64f9cfdf0`, docs | not re-graded (no routing change); runtime on: adx-and-di MATCH, inside-bar DIVERGE on paints only (plots + objects MATCH) | unchanged | member door 55 / 80 / **86**, 0 rows changed by RF (no routing change); runtime-only 6: 1 graded MATCH, 1 paints-DIVERGE, 4 no capture |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5803,3 +5804,99 @@ sentence, pine.derived, h3VwapSource) Tests 195 passed (195); pytest test_ast_in
 2. **The nested-helper cost** (first row above): keep the correct `pine:state` at ~3 s of translation for that one
    script, or revert `d0a85007e0` and keep the fast, wrongly worded `pine:cycle`.
 3. **`alma` in v4** and **`fixnan`**: rulings, with Q-H3c queued for the first.
+
+## RF - the runtime pane made ready to switch on, and the plan for it (2026-10-02, step 77)
+
+Branch `pine/rf-runtime-readiness`, base `integrate/wave16-2026-10-02` (`666ea1c854`). Nothing
+flipped: `VITE_PINE_RUNTIME_PANE_ENABLED`, `PINE_RUNTIME_SAVE_ENABLED` and `PINE_RUNTIME_KILL_LIST`
+are exactly as they were. The plan is `docs/pine/runtime-pane-switch-on-plan.md`; raw evidence is
+`docs/pine/evidence/rf-runtime-readiness-2026-10-02/` (committed before this section was written).
+
+### What switching on adds
+
+Member-door census (`memberDoorCensus.measure.test.js`, `VENDOR_BATCH_CENSUS_RUNTIME=1`) on this
+tree: 55 / 80 / **86** (off / on / on + runtime). Six scripts attach only through the runtime lane:
+adx-and-di-for-v4 (capture: **MATCH**), inside-bar-range (capture: plots and objects MATCH, paints
+**DIVERGE**: its two `barcolor`s are not drawn by a runtime document), and four with **no capture**:
+delta-rsi-oscillator-strategy, fibonacci-dolphintradebot, trend-targets-algoalpha,
+wyckoff-accumulation-distribution. Ruling R-RT names wyckoff as graded MATCH; no wyckoff capture
+exists (RT1 already called it ungraded).
+
+### Performance, measured (`runtimePaneReadiness.measure.test.js`, `tools/runtime_pane_worker_probe.py`)
+
+| script | door (main thread, cold / warm; of which the runtime probe) | 5,000 D, real browser worker | 11,534 D, node | 20,208 / 32,000 x 5m |
+|---|---|---|---|---|
+| adx-and-di-for-v4 | 20 / 15 ms (4 ms) | 99-136 ms | 432 ms | `runtime:limit` |
+| delta-rsi-oscillator-strategy | 39 / 47 ms (14 ms) | `runtime:failed` (array.sum over na) | same | `runtime:limit` |
+| fibonacci-dolphintradebot | 137 / 156 ms (20 ms) | 1,191-1,241 ms, **`runtime:time-budget`** | 4,397 ms | `runtime:limit` |
+| inside-bar-range | 26 / 20 ms (3 ms) | 84-114 ms | 534 ms | `runtime:limit` |
+| trend-targets-algoalpha | **1,124 / 1,019 ms** (10 ms: the host translator is the cost) | 172-184 ms | 2,468 ms, budget | `runtime:limit` |
+| wyckoff-accumulation-distribution | 62 / 74 ms (11 ms) | `runtime:failed` (array.max of empty) | same | `runtime:limit` |
+
+Node peak heap during a run 6-64 MB (fibonacci highest). Browser: worst main-thread frame gap during
+any run **17 ms** (control: a 400 ms deliberate block read 383 ms; headless Chromium reports no
+`longtask` entries at all, so that instrument cannot clear anything); `postMessage` 1-2 ms at 5,000
+bars, 13-17 ms at 32,000. Worker bundle 1,303,711 B / 380,686 B gzip (standalone, the app's prose
+stripping applied; the in-app chunk not measured, the full build is blocked, below). Every intraday
+series past 20,000 bars stops `runtime:limit` (`limits.js` `HISTORY`); a fallback document is refused
+`runtime:history-start` on every intraday chart before that (R-W).
+
+### Fixed (each measured first, each mutation-proved)
+
+1. **Named stops.** A VM limit and any other run throw reached the registry as `engine:error` with
+   text like `HISTORY_EXCEEDED - ceiling 20000, reached 20208`. Now `runtime:limit` / `runtime:failed`
+   name the limit or the failing call and the bar (`runtimeColumns.js`). Mutation: 3 red.
+2. **The member reads why.** No surface rendered a column error (`columnErrors` is "not UX", C2A.8),
+   so a runtime pane refused on a chart drew an empty pane with no sentence: every intraday chart and
+   every daily chart not reaching the listing. `nativeRegistry.runtimeRunStopOf` words it; the binder
+   publishes it on the same strip as C43's `runtime.error` and clears it on release and on disable.
+   Mutations: binder publish 2 red, disable clear 1 red.
+3. **Worker failure.** RT1 re-ran a dead worker's jobs on the main thread (a full budget of frames
+   each, per update on a live chart); a hung worker left the pane in flight forever. Now: watchdog
+   (`RUNTIME_WORKER_WATCHDOG_MS` 20 s, `runtime:worker-unresponsive`), death answered
+   `runtime:worker-failed`, at most `RUNTIME_WORKER_MAX_STARTS` (3) workers per tab, and only a browser
+   that cannot construct a worker runs on its own thread. A live chart's flood of new bars arrays
+   keeps only the newest waiting run per pane. Mutations: watchdog 1, coalescing 1, re-run-here 3,
+   start cap 1 red (its duplicate copy in `workerOf` was inert, the mutation survived, so it is gone).
+4. **Lane chunk load failure** was retried on every paint and said nothing: now remembered for the
+   tab, named `runtime:load-failed`, the loader called once. Mutation: 1 red.
+5. **The kill list on an open tab.** `installUserDefinitions` only added: a re-read serving a listed
+   runtime document (stamp or latched list) was refused while the copy installed before the kill kept
+   drawing until reload. The install door now uninstalls a killed id. Mutation: 3 red.
+6. **Bar colours were undisclosed.** RT1's "Not drawn by this pane" read `t.outputs`; B1 moved
+   `bgcolor` / `barcolor` to `t.presentation.paints`, so 3 of the 6 documents (inside-bar,
+   trend-targets, wyckoff) silently omitted bar colours TradingView paints. Now named. Mutation: 2 red.
+
+H14: a runtime landing re-renders the chart through `useServerColumns`; the rail renders a real pane
+under that hook and asserts a bounded, quiescent render count with one worker run, and that a host
+handing new bars every render keeps at most one run waiting.
+
+### Save / load and the kill list (with `PINE_RUNTIME_SAVE_ENABLED` on in a test)
+
+`tests/fixtures/runtime_documents/documents.json` is the six documents as the door mints them (held
+to the door by `runtimeDocumentRoundTrip.test.js`, which also re-installs each from JSON and compares
+its columns on 5,000 daily bars). `tests/test_runtime_document_round_trip.py`: five reload
+byte-identical with the repaint class re-derived server side (RT2) and equal to the door's; a
+misstated class is refused both ways; a source edit is a new version and rev; **trend-targets
+(~84 KB) is refused by the 64 KiB cap**, by name; off, every one is refused with the store's
+sentence; a kill by source hash stamps the served row, leaves the stored row byte-identical, and
+unlisting restores it.
+
+### Tests
+
+vitest (repo config, jsdom, before the shared install broke): 9 files, 85 passed (incl.
+`runtimePaneSafety.test.jsx` 19). vitest (node environment, scratch config): 11 files, 94 passed.
+pytest `test_runtime_document_round_trip.py`, `test_runtime_definitions.py`,
+`test_runtime_repaint.py`: 53 passed. `runtimePaneSafety.test.jsx` was not re-run after `54c5e82ea7`
+(the shared jsdom stopped loading); the commits after it change the install door and the paint
+disclosure, which that file exercises only with no kill list and a paint-free script.
+
+### Open (owners in the plan)
+
+D1 a staged cohort gate (the server half exists in `rollout_gate`; the client consumes no cohorts);
+D2 the 64 KiB cap vs trend-targets; D3 fibonacci at the budget; D4 carry host paints on a runtime
+document; D5 intraday `HISTORY`; D6 restate R-RT's allowlist (only adx-and-di qualifies today).
+Captures for delta-rsi, fibonacci-dolphintradebot, trend-targets and wyckoff go to CAP2.
+**Environment:** the shared `node_modules` lost `@asamuzakjp/css-color`, `@adobe/css-tools` and
+`@discord/embedded-app-sdk` mid-session; jsdom tests and `vite build` cannot run until it is
+reinstalled.
