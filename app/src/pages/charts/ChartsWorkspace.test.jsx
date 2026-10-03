@@ -16,7 +16,8 @@ vi.mock('./WidgetHost', () => ({
   // existing test reads only `data-testid` and is unaffected by the addition.
   // `data-watchkey` surfaces a watchlist widget's opts.watchKey for the A12 CP2
   // ?openWatchlist= tests below; every other test still reads only `data-testid`.
-  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''}>{widget.type}</div>,
+  // `data-themeset` surfaces a themes widget's opts.themeSetId for the TERM-038 ?openThemeSet= tests.
+  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div>,
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -63,8 +64,9 @@ vi.mock('../../hooks/useMediaQuery', () => ({
 
 // Mock useAuth — ChartsWorkspace reads user.role for the admin-only bits.
 let mockUser = { id: 1, role: 'user' }
+let mockAddressSpace = false   // TERM-038: the address-space flag the auth payload carries
 vi.mock('../../context/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, addressSpaceEnabled: mockAddressSpace }),
 }))
 
 // Mock useChartLayouts — named layout templates (prebuilt + personal). The
@@ -82,6 +84,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 }))
 
 import ChartsWorkspace, { uctDefaultChartSettings } from './ChartsWorkspace'
+import { MAX_BOARD_WIDGETS } from './boardBound'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../components/chart/chartDefaults'
 import { withoutAdopted } from '../../components/chart/__fixtures__/adoptedAverages'
 
@@ -890,6 +893,48 @@ test('?openWatchlist with a key outside the registry\'s forms degrades — no cr
   expect(window.location.search).not.toContain('openWatchlist')
 })
 
+// ── TERM-038 slice 2 (2026-10-01): ?openThemeSet=<id> — a theme set is an address ──
+
+test('?openThemeSet= on a board with no themes widget ADDS one carrying the set, and strips its param', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  expect(screen.getByTestId('body-themes')).toHaveAttribute('data-themeset', 'ts_abc')
+  expect(window.location.search).not.toContain('openThemeSet')
+  mockAddressSpace = false
+})
+
+test('?openThemeSet= on a board that already has a themes widget RETARGETS it instead of adding a second', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [{ id: 't1', type: 'themes', color: 'B', x: 0, y: 0, w: 4, h: 8, opts: { todayBasis: 'open' } }], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  const all = document.querySelectorAll('[data-testid="body-themes"]')
+  expect(all.length).toBe(1)
+  expect(all[0]).toHaveAttribute('data-themeset', 'ts_abc')
+  mockAddressSpace = false
+})
+
+test('⛔ CONTROL — ?openThemeSet= while the address space is dark: no widget, param left alone', () => {
+  mockAddressSpace = false
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(0)
+  expect(window.location.search).toContain('openThemeSet=ts_abc')
+})
+
+test('?openThemeSet= with a malformed id degrades — no widget, param still stripped', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=%3Cscript%3E')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(0)
+  expect(window.location.search).not.toContain('openThemeSet')
+  mockAddressSpace = false
+})
+
 test('⛔ CONTROL — without the param the same board gets no watchlist widget (the door, not the default, added it above)', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   goTo('/charts')
@@ -1099,4 +1144,107 @@ test('auto-save still persists a board that grew', () => {
   expect(mockLayouts.saveLayout).toHaveBeenCalledWith(expect.objectContaining({ name: 'Calendar' }))
   const saved = mockLayouts.saveLayout.mock.calls.at(-1)[0]
   expect(saved.layout.widgets.map(w => w.id).sort()).toEqual(['w1', 'w2'])
+})
+
+// ── TERM-001 — the board-size bound ─────────────────────────────────────────
+// The number is boardBound.json's (read through boardBound.js); these tests read it from
+// there and never type it, so moving the bound moves every expectation below.
+function boardOf(n) {
+  const widgets = Array.from({ length: n }, (_, i) => ({
+    id: `b${i}`, type: 'chart', color: 'A', x: (i % 6) * 4, y: Math.floor(i / 6) * 4, w: 4, h: 4, opts: {},
+  }))
+  return { widgets, cols: 24, version: 1 }
+}
+const widgetsOnBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
+
+test('TERM-001: a board with room still takes a widget, up to the bound and no further', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify(boardOf(MAX_BOARD_WIDGETS - 1)) }
+  renderWS()
+  expect(widgetsOnBoard()).toBe(MAX_BOARD_WIDGETS - 1)
+  expect(screen.queryByTestId('board-bound-note')).toBeNull()
+  const chips = openWidgetChips()
+  expect(chips.every(c => !c.disabled), 'a board with room offers every widget').toBe(true)
+  // A ghost may be offered (the board is crowded); place it if so.
+  act(() => { chips[0].click() })
+  const place = [...document.querySelectorAll('button')].find(b => b.textContent === 'Place')
+  if (place) act(() => { place.click() })
+  expect(widgetsOnBoard(), 'the last free slot under the bound is usable').toBe(MAX_BOARD_WIDGETS)
+})
+
+test('TERM-001: a full board says why in words, and its chips add nothing', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify(boardOf(MAX_BOARD_WIDGETS)) }
+  renderWS()
+  const chips = openWidgetChips()
+  const note = screen.getByTestId('board-bound-note')
+  expect(note.textContent).toContain(`at most ${MAX_BOARD_WIDGETS} widgets`)
+  expect(note.textContent).toContain(`would hold ${MAX_BOARD_WIDGETS + 1}`)
+  expect(chips.length).toBeGreaterThan(0)
+  expect(chips.every(c => c.disabled), 'every add chip is disabled on a full board').toBe(true)
+  act(() => { chips[0].click() })
+  act(() => { vi.advanceTimersByTime(600) })
+  expect(widgetsOnBoard()).toBe(MAX_BOARD_WIDGETS)
+  expect(setPref.mock.calls.some(([k]) => k === 'charts_workspace_layout'),
+    'a refused add writes nothing').toBe(false)
+})
+
+test('TERM-001: the ?ensure= door is refused by the same gate, in words', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify(boardOf(MAX_BOARD_WIDGETS)) }
+  window.history.pushState({}, '', '/charts?ensure=watchlist')
+  render(
+    <MemoryRouter initialEntries={['/charts?ensure=watchlist']}>
+      <ChartsWorkspace />
+    </MemoryRouter>,
+  )
+  act(() => { vi.advanceTimersByTime(600) })
+  expect(widgetsOnBoard()).toBe(MAX_BOARD_WIDGETS)
+  expect(screen.queryByTestId('body-watchlist')).toBeNull()
+  expect(screen.getByTestId('board-bound-status').textContent).toContain(`at most ${MAX_BOARD_WIDGETS} widgets`)
+})
+
+test('TERM-001: a board ALREADY over the bound loads whole, says so, and still saves its edits', () => {
+  const over = MAX_BOARD_WIDGETS + 2
+  mockPrefs = { charts_workspace_layout: JSON.stringify(boardOf(over)) }
+  renderWS()
+  expect(widgetsOnBoard(), 'nothing is truncated on read').toBe(over)
+  const status = screen.getByTestId('board-bound-status').textContent
+  expect(status).toContain(`holds ${over} widgets`)
+  expect(status).toContain('Nothing was removed')
+  act(() => { vi.advanceTimersByTime(600) })
+  expect(setPref.mock.calls.some(([k]) => k === 'charts_workspace_layout'),
+    'loading an over-bound board never re-saves it').toBe(false)
+  // An edit (a layout change from the grid) still saves, with every widget in it.
+  act(() => { screen.getByTestId('rgl-fire-change').click() })
+  act(() => { vi.advanceTimersByTime(600) })
+  const saves = setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout')
+  expect(saves.length, 'an over-bound board stays editable').toBeGreaterThan(0)
+  expect(JSON.parse(saves.at(-1)[1]).widgets).toHaveLength(over)
+  // ...but it cannot grow.
+  const chips = openWidgetChips()
+  expect(chips.every(c => c.disabled)).toBe(true)
+})
+
+test('TERM-001: a saved layout over the bound does not replace a smaller board, and says why', () => {
+  const big = boardOf(MAX_BOARD_WIDGETS + 1)
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(boardOf(2)),
+    charts_active_template: JSON.stringify({ id: 2, name: 'Small', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Huge', scope: 'user', layout: big },
+      { id: 2, name: 'Small', scope: 'user', layout: boardOf(2) },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Huge').click() })
+  act(() => { vi.advanceTimersByTime(600) })
+  expect(widgetsOnBoard()).toBe(2)
+  expect(screen.getByTestId('board-bound-status').textContent)
+    .toContain(`That layout holds ${MAX_BOARD_WIDGETS + 1} widgets`)
+  expect(setPref.mock.calls.some(([k, v]) => k === 'charts_workspace_layout'
+    && JSON.parse(v).widgets.length > MAX_BOARD_WIDGETS)).toBe(false)
 })

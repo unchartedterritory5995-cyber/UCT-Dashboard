@@ -62,12 +62,12 @@ length = input.int(14, "Length")
 plot(sma(close, length))
 `)
     expect(out.inputParams).toEqual([{
-      id: '__uct_param_1', sourceName: 'length', title: 'Length', type: 'int',
+      id: '__uct_param_1001', sourceName: 'length', title: 'Length', type: 'int',
       default: 14, min: null, max: null, step: null, options: null,
     }])
     const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
     expect(manifest).toEqual({
-      __uct_param_1: {
+      __uct_param_1001: {
         sourceName: 'length', title: 'Length', type: 'int', default: 14,
         min: null, max: null, step: null, options: null,
         locators: [{ treeIndex: null, astPath: ['args', 1] }],
@@ -109,7 +109,7 @@ length = input.int(14, "Length")
 plot(close + length * 2)
 `)
     const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
-    expect(manifest.__uct_param_1.locators).toEqual([
+    expect(manifest.__uct_param_1001.locators).toEqual([
       { treeIndex: null, astPath: ['args', 1, 'args', 0] },
     ])
   })
@@ -136,12 +136,12 @@ useLong = input.bool(true, "Use Long Length")
 plot(sma(close, useLong))
 `)
     expect(out.inputParams).toEqual([{
-      id: '__uct_param_1', sourceName: 'useLong', title: 'Use Long Length', type: 'bool',
+      id: '__uct_param_1001', sourceName: 'useLong', title: 'Use Long Length', type: 'bool',
       default: 1, min: null, max: null, step: null, options: null,
     }])
     const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
     expect(manifest).toEqual({
-      __uct_param_1: {
+      __uct_param_1001: {
         sourceName: 'useLong', title: 'Use Long Length', type: 'bool', default: 1,
         min: null, max: null, step: null, options: null,
         locators: [{ treeIndex: null, astPath: ['args', 1] }],
@@ -178,13 +178,13 @@ plot(close + length * 2)
       .map((o, i) => ({ treeIndex: i === 0 ? 'scan' : 'plot2', ast: o.ast }))
     expect(kept).toHaveLength(2)
     const manifest = buildParamManifest(out.inputParams, kept)
-    expect(manifest.__uct_param_1.locators).toEqual(
+    expect(manifest.__uct_param_1001.locators).toEqual(
       expect.arrayContaining([
         { treeIndex: 'scan', astPath: ['args', 1] },
         { treeIndex: 'plot2', astPath: ['args', 1, 'args', 0] },
       ]),
     )
-    expect(manifest.__uct_param_1.locators).toHaveLength(2)
+    expect(manifest.__uct_param_1001.locators).toHaveLength(2)
   })
 })
 
@@ -216,7 +216,7 @@ showIt = input.bool(true, "Show")
 plot(showIt ? close : 0)
 `)
     expect(out.inputParams).toEqual([{
-      id: '__uct_param_1', sourceName: 'showIt', title: 'Show', type: 'bool',
+      id: '__uct_param_1001', sourceName: 'showIt', title: 'Show', type: 'bool',
       default: 1, min: null, max: null, step: null, options: null,
     }])
     const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
@@ -281,7 +281,7 @@ plot(sma(close, length))
 describe('buildParamManifest never advertises a control with nowhere to point', () => {
   it('⛔ an id absent from every kept tree is dropped entirely, not shown detached', () => {
     const inputParams = [{
-      id: '__uct_param_1', sourceName: 'len', title: 'Len', type: 'int',
+      id: '__uct_param_1001', sourceName: 'len', title: 'Len', type: 'int',
       default: 14, min: null, max: null, step: null, options: null,
     }]
     const manifest = buildParamManifest(inputParams, [
@@ -292,15 +292,15 @@ describe('buildParamManifest never advertises a control with nowhere to point', 
 
   it('⭐ one surviving locator out of two candidate trees is still ATTACHED-shaped', () => {
     const tagged = { type: 'num', value: 14 }
-    Object.defineProperty(tagged, '__uctParamId', { value: '__uct_param_1', enumerable: false })
+    Object.defineProperty(tagged, '__uctParamId', { value: '__uct_param_1001', enumerable: false })
     const inputParams = [{
-      id: '__uct_param_1', sourceName: 'len', title: 'Len', type: 'int',
+      id: '__uct_param_1001', sourceName: 'len', title: 'Len', type: 'int',
       default: 14, min: 1, max: 200, step: 1, options: null,
     }]
     const manifest = buildParamManifest(inputParams, [
       { treeIndex: 'a', ast: { type: 'num', value: 99 } },
       { treeIndex: 'b', ast: { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, tagged] } },
     ])
-    expect(manifest.__uct_param_1.locators).toEqual([{ treeIndex: 'b', astPath: ['args', 1] }])
+    expect(manifest.__uct_param_1001.locators).toEqual([{ treeIndex: 'b', astPath: ['args', 1] }])
   })
 })

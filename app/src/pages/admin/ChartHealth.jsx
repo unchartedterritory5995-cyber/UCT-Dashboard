@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { formatETFull } from '../../utils/timeAgo'
 import styles from './ChartHealth.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 /** Severity → row treatment. A TABLE, looked up against the DECLARED vocabulary.
  *
@@ -353,13 +355,13 @@ export default function ChartHealth() {
         <h2 className={styles.subheading}>Provenance Lookup</h2>
         <p className={styles.muted}>Find the source that produced a specific cached bar.</p>
         <form onSubmit={lookupProvenance} className={styles.provForm}>
-          <input
+          <Input aria-label="Ticker"
             type="text"
             placeholder="Ticker"
             value={provLookup.ticker}
             onChange={e => setProvLookup({...provLookup, ticker: e.target.value.toUpperCase()})}
           />
-          <select value={provLookup.tf} onChange={e => setProvLookup({...provLookup, tf: e.target.value})}>
+          <Select aria-label="Timeframe" value={provLookup.tf} onChange={e => setProvLookup({...provLookup, tf: e.target.value})}>
             <option value="1">1m</option>
             <option value="5">5m</option>
             <option value="15">15m</option>
@@ -368,8 +370,8 @@ export default function ChartHealth() {
             <option value="D">D</option>
             <option value="W">W</option>
             <option value="M">M</option>
-          </select>
-          <input
+          </Select>
+          <Input aria-label="Bar time (epoch seconds)"
             type="number"
             placeholder="Bar time (epoch s)"
             value={provLookup.barTime}

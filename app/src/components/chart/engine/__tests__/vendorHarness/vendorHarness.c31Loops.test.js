@@ -172,7 +172,7 @@ describe('C31 — ema-ribbon: a text loop folds, and a conditional call is refus
       'float top = ta.highest(close, 50)',
       'var table d = table.new(position.top_right, 3, 1)',
       'if barstate.islast',
-      '    float inner = ta.lowest(close, 50)',
+      '    float inner = ta.wma(close, 50)',
       '    float once = ta.highest(close, 50)',
       '    table.cell(d, 0, 0, str.tostring(top))',
       '    table.cell(d, 1, 0, str.tostring(inner))',
@@ -184,7 +184,8 @@ describe('C31 — ema-ribbon: a text loop folds, and a conditional call is refus
     const { bars, cells, state } = run(c, src)
     const closes = bars.map((b) => b.c)
     expect(Number(cells.get('top_right|0|0'))).toBeCloseTo(Math.max(...closes.slice(-50)), 6)
-    // `ta.lowest` on its first run is in no capture: refused
+    // ⭐ C48 re-pin — `ta.lowest` stood here; `vw-call-site-history` (A02) witnesses
+    // its first run now. `ta.wma` on its first run is in no capture: refused
     expect(cells.has('top_right|1|0')).toBe(false)
     // ⭐ C42 — `ta.highest` on its ONE run is its source (witnessed), not the 50-bar maximum
     expect(Number(cells.get('top_right|2|0'))).toBe(closes[closes.length - 1])
@@ -278,7 +279,16 @@ describe('C31 — poor-man\'s volume profile: its row texts stay withheld', () =
     expect(live.filter((o) => o.family === 'label')).toHaveLength(0)
     // the colours below each text loop are bound now (they were `pine:undefined`)
     expect(d.translation.objectDiagnostics.unboundLocalNames || []).toEqual([])
-    // CONTROL — its two range lines are drawn, so the run is not empty
-    expect(live.filter((o) => o.family === 'line')).toHaveLength(2)
+    // ⭐ C45 RE-PIN (was: "its two range lines are drawn, so the run is not
+    // empty"). Those two lines are made at `bar_index, high` on the first bar and
+    // moved every bar by `line.set_xloc`, a setter this chart does not carry — so
+    // they were drawn at bar 0, zero length. An object one of whose moves was lost
+    // is withheld (`vendorHarness.c45LostUpdates`).
+    expect(live.filter((o) => o.family === 'line')).toHaveLength(0)
+    expect(d.translation.objectDiagnostics.dropReasons).toEqual({ 'geometry:lost': 2 })
+    // CONTROL — the run is not empty for want of a program: the 40 row labels'
+    // steps are all in it (244 carried of 246 attempted)
+    expect(d.translation.objectDiagnostics.attemptedOps).toBe(246)
+    expect(d.definition.objects.ops.length).toBeGreaterThan(200)
   })
 })

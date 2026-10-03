@@ -143,7 +143,7 @@ def restore(req: RestoreRequest, user: dict = Depends(get_current_user)):
     if res["appended"] and not failed:
         wds.mark_writeback_done(uid, board, [res["version"]])
     current = auth_service.get_user_preferences(uid)
-    untouched = sorted(k for k in current if k in wds.WORKSPACE_PREF_KEYS and k not in restored)
+    untouched = sorted(k for k in current if k in wds.board_keys(board) and k not in restored)
     return {
         "board": board,
         "version": res["version"],
@@ -165,14 +165,16 @@ def apply(req: ApplyRequest, user: dict = Depends(get_current_user)):
     NOTHING is written, to either store — the client re-reads and reports, never retries. On a
     200 the version is already the member's board (read-new serves it); ``prefs_failed`` names
     any ``user_preferences`` key that did not follow, and the next read completes it."""
-    from api.routers.auth import _validate_preference   # the old endpoint's own allow-list + schemas
+    # the old endpoint's own allow-list + schemas, and TERM-001's board-size bound
+    from api.routers.auth import _validate_preference, enforce_board_bound
 
     board = _board(req.board)
     if not req.prefs:
         raise HTTPException(status_code=400, detail="Nothing to apply.")
+    uid = user["id"]
     for key, value in req.prefs.items():
         _validate_preference(key, value if value is not None else "")
-    uid = user["id"]
+        enforce_board_bound(uid, key, value)
     try:
         res = wds.apply_patch(uid, board, req.prefs, base_version=req.base_version,
                               prefs_reader=auth_service.get_user_preferences)

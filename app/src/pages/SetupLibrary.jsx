@@ -4,6 +4,7 @@ import TileCard from '../components/TileCard'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import { useIsPhone } from '../hooks/useBreakpoint'
 import styles from './SetupLibrary.module.css'
+import Input from '../components/ui/Input'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -204,7 +205,7 @@ export default function SetupLibrary() {
         <div className={styles.listPanel}>
           {/* Filters */}
           <div className={styles.filters}>
-            <input
+            <Input aria-label="Search setups"
               className={styles.searchInput}
               type="text"
               placeholder="Search setups..."

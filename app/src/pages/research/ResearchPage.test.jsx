@@ -121,9 +121,11 @@ vi.mock('./hooks/useDecisionRecord', () => ({
 // (falsy) -- A13 Wave B's Flow tab ships DARK, so the baseline shape here
 // must be "not released" unless a test explicitly opts in.
 const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
-vi.mock('../../context/AuthContext', () => ({
+vi.mock('../../context/AuthContext', async () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
+  // FT-046 HowToChecklist reads useContext(AuthContext) (it tolerates no provider).
+  AuthContext: (await import('react')).createContext(null),
 }))
 
 // S7 filing-watch — controlled mock so the header action's tests are
@@ -466,5 +468,76 @@ describe('Decision Record tab (TERM-088, dark)', () => {
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=decision-record' })
     expect(screen.getByTestId('decision-record-not-considered')).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+})
+
+// COV-04 -- the Filing changes tab ships DARK behind FILING_BLACKLINE_ENABLED
+// (filing_blackline_enabled rides the auth payload only when on).
+describe('Filing changes tab (COV-04, dark)', () => {
+  beforeEach(() => { auth.isPaid = true; auth.filingBlacklineEnabled = false })
+  afterEach(() => { auth.filingBlacklineEnabled = false })
+
+  it('is ABSENT from the strip when the flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: 'Filing changes' })).not.toBeInTheDocument()
+  })
+
+  it('?section=filing-changes falls through to Overview when the flag is off', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=filing-changes' })
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and opens when the flag is on', () => {
+    auth.filingBlacklineEnabled = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filing changes' }))
+    expect(screen.getByText(/Loading filing changes/)).toBeInTheDocument()
+  })
+})
+
+// COV-05 / COV-07 / COV-09 (RM-L19) -- three tabs, each DARK behind its own flag.
+describe.each([
+  ['People', 'researchPeopleEnabled', 'people', /Loading people/],
+  ['Estimate history', 'estimateHistoryEnabled', 'estimate-history', /Loading estimate history/],
+  ['Filings feed', 'filingsFeedEnabled', 'filings-feed', /Loading filings/],
+])('%s tab (RM-L19, dark)', (label, flag, section, loading) => {
+  beforeEach(() => { auth.isPaid = true; auth[flag] = false })
+  afterEach(() => { auth[flag] = false })
+
+  it('is ABSENT from the strip when its flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument()
+  })
+
+  it('its ?section= deep link falls through to Overview when off', () => {
+    renderWithProviders(<ResearchPage />, { route: `/research/AAPL?section=${section}` })
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and opens when its flag is on', () => {
+    auth[flag] = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByText(loading)).toBeInTheDocument()
+  })
+})
+
+// lane gaps-research -- the Depth tab exists only while one of its panels' flags is on
+// (each key rides the auth payload only when on; researchDepthFlags.js).
+describe('Depth tab (lane gaps-research, dark per panel)', () => {
+  beforeEach(() => { auth.isPaid = true; auth.researchDepth = undefined })
+  afterEach(() => { auth.researchDepth = undefined })
+
+  it('is ABSENT from the strip when every panel flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=depth' })
+    expect(screen.queryByRole('button', { name: 'Depth' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and shows only the armed panel when one flag is on', () => {
+    auth.researchDepth = { filing_search_enabled: true }
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Depth' }))
+    expect(screen.getByTestId('filing-search')).toBeInTheDocument()
   })
 })

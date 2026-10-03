@@ -46,6 +46,9 @@ import {
   ageThresholdMs,
   explainMustShowAge,
   mustShowAge,
+  FRESHNESS_CLASSES,
+  freshnessClass,
+  maxSilentAgeMs,
 } from './freshnessAge'
 
 // ── FIXED INSTANTS ──────────────────────────────────────────────────────────
@@ -550,8 +553,13 @@ describe('the age authority has named consumers, and only those', () => {
       .filter((abs) => abs !== OWNER && abs !== SELF)
       .filter((abs) => /from\s+['"][^'"]*freshnessAge['"]/.test(stripComments(read(abs))))
       .map(key)
-    expect(importers, 'a panel adopted (or dropped) the age ruling; name it here by path')
-      .toEqual(['app/src/pages/breadth/naaimAge.js'])
+    // TERM-006 (2026-10-02): `FreshnessBadge.jsx` reads a named class's cadence WORDS from the
+    // authority — it is the renderer, not a panel, and still decides nothing.
+    // TERM-059 follow-ups 2-4 (2026-10-03): the Monitor's AAII, CBOE P/C and CNN F/G
+    // columns ask too, through `pages/breadth/sentimentAge.js`.
+    expect(importers.sort(), 'a panel adopted (or dropped) the age ruling; name it here by path')
+      .toEqual(['app/src/components/provenance/FreshnessBadge.jsx', 'app/src/pages/breadth/naaimAge.js',
+                'app/src/pages/breadth/sentimentAge.js'])
   })
 
   it('and the adopter is itself rendered by a page, not a helper nobody calls', () => {
@@ -766,5 +774,98 @@ describe('RM-N03: the ceiling the card NAMES is the ceiling this module CLAMPS t
     const beyondCoverage = new Date('2031-03-05T15:00:00Z') // a Wednesday, years past the calendar
     expect(oneTradingSessionMs(beyondCoverage)).toBe(oneTradingSessionMs(REGULAR_RTH))
     expect(ageThresholdMs({ cadenceMs: CADENCE_DAILY, now: beyondCoverage }).capMs).not.toBeNull()
+  })
+})
+
+// ─── 9. TERM-006 — THE PER-CLASS CONTRACT (decided 2026-10-02) ──────────────
+//
+// The ONE statement of the decision is `FRESHNESS_CLASSES` (a cadence per class). The numbers
+// below are its CONSEQUENCES, pinned here so a change to the table, the multiple, the floor or
+// the S11 cap that moves what a member sees goes red by class name. The decision record is
+// docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md, and
+// its class table is read below so the record and the code cannot list different classes.
+
+const DECISION = path.join(ROOT, 'docs', 'terminal-research', '12-decisions',
+  '2026-10-02-term-001-006-board-bound-and-freshness.md')
+
+describe('TERM-006: the maximum silent age, per data class', () => {
+  it('intraday-live: 60 seconds — the floor', () => {
+    expect(maxSilentAgeMs('intraday_live', { now: REGULAR_RTH })).toBe(60 * 1000)
+    expect(maxSilentAgeMs('intraday_live', { now: REGULAR_RTH })).toBe(AGE_FLOOR_MS)
+  })
+
+  it('end-of-day: one trading session as S11 measures it — 6.5 h, and 3.5 h on a half-day eve', () => {
+    expect(maxSilentAgeMs('end_of_day', { now: REGULAR_RTH })).toBe(REGULAR_SESSION_MS)
+    expect(maxSilentAgeMs('end_of_day', { now: HALF_DAY_EVE_RTH })).toBe(HALF_SESSION_MS)
+  })
+
+  it('weekly and quarterly: one trading session, after which they state their cadence', () => {
+    expect(maxSilentAgeMs('weekly', { now: REGULAR_RTH })).toBe(REGULAR_SESSION_MS)
+    expect(maxSilentAgeMs('quarterly', { now: REGULAR_RTH })).toBe(REGULAR_SESSION_MS)
+    expect(freshnessClass('weekly').cadence).toBe('weekly')
+    expect(freshnessClass('quarterly').cadence).toBe('quarterly')
+  })
+
+  it('every live cadence the shell actually polls at lands on the same 60 s (2 s, 4 s, 15 s, 30 s)', () => {
+    // livePriceStore polls 2 s desktop / 4 s mobile; StockChart's intraday SWR is 30 s.
+    for (const cadenceMs of [2000, 4000, 15000, freshnessClass('intraday_live').cadenceMs]) {
+      expect(ageThresholdMs({ cadenceMs, now: REGULAR_RTH }).thresholdMs, `${cadenceMs} ms`)
+        .toBe(maxSilentAgeMs('intraday_live', { now: REGULAR_RTH }))
+    }
+  })
+
+  it('a class verdict IS the cadence verdict — one derivation, never a second rule', () => {
+    for (const id of Object.keys(FRESHNESS_CLASSES)) {
+      for (const age of [30 * 1000, 61 * 1000, 7 * HOUR, 3 * CADENCE_DAILY]) {
+        const asOf = asOfAged(age)
+        const byClass = explainMustShowAge({ asOf, dataClass: id, now: REGULAR_RTH })
+        const byCadence = explainMustShowAge({ asOf, cadenceMs: FRESHNESS_CLASSES[id].cadenceMs, now: REGULAR_RTH })
+        expect(byClass, `${id} at ${age} ms`).toEqual(byCadence)
+      }
+    }
+  })
+
+  it('FB-S8-02 acceptance: the verdict is TIME-derived — a value that received no tick for 61 s says its age', () => {
+    // A hidden-then-restored tab delivers no ticks; nothing here reads a tick. Only the clock moves.
+    const asOf = REGULAR_RTH
+    expect(mustShowAge({ asOf, dataClass: 'intraday_live', now: new Date(asOf.getTime() + 59 * 1000) })).toBe(false)
+    expect(mustShowAge({ asOf, dataClass: 'intraday_live', now: new Date(asOf.getTime() + 61 * 1000) })).toBe(true)
+  })
+
+  it('an unknown class throws, and a class plus a raw cadence throws — never a default age', () => {
+    expect(() => freshnessClass('intraday')).toThrow(/Unknown freshness class/)
+    expect(() => maxSilentAgeMs('toString')).toThrow(/Unknown freshness class/)
+    expect(() => explainMustShowAge({ asOf: REGULAR_RTH, dataClass: 'weekly', cadenceMs: 1000 })).toThrow(/not both/)
+  })
+
+  it('the table is frozen, so no consumer can retune a class at runtime', () => {
+    expect(Object.isFrozen(FRESHNESS_CLASSES)).toBe(true)
+    for (const cls of Object.values(FRESHNESS_CLASSES)) expect(Object.isFrozen(cls)).toBe(true)
+  })
+
+  it('the decision record lists exactly the classes the table holds', () => {
+    const doc = read(DECISION)
+    const listed = [...doc.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1]).sort()
+    expect(listed.length, 'NON-VACUITY: the record\'s class table was found').toBeGreaterThan(0)
+    expect(listed).toEqual(Object.keys(FRESHNESS_CLASSES).sort())
+  })
+})
+
+// An adopter NAMES a class; it never passes or declares a cadence number. (naaimAge.js declared
+// `7 * 24 * 60 * 60 * 1000` until 2026-10-02 — the one second statement of a class cadence.)
+const NUMERIC_CADENCE = /(?:\bcadenceMs\s*:\s*[\d(]|(?:const|let|var)\s+[A-Z0-9_]*CADENCE[A-Z0-9_]*\s*=\s*[\d(])/
+describe('TERM-006: adopters name a class, never a cadence number', () => {
+  it('no importer of the authority states a numeric cadence', () => {
+    const importers = walkJs(SRC)
+      .filter((abs) => abs !== OWNER && abs !== SELF && !/\.test\./.test(abs))
+      .filter((abs) => /from\s+['"][^'"]*freshnessAge['"]/.test(stripComments(read(abs))))
+    expect(importers.length, 'NON-VACUITY').toBeGreaterThan(0)
+    const offenders = importers.filter((abs) => NUMERIC_CADENCE.test(stripComments(read(abs)))).map(key)
+    expect(offenders).toEqual([])
+  })
+  it('CONTROL: the check sees the literal naaimAge.js used to carry, and a raw cadenceMs', () => {
+    expect(NUMERIC_CADENCE.test('export const NAAIM_CADENCE_MS = 7 * 24 * 60 * 60 * 1000')).toBe(true)
+    expect(NUMERIC_CADENCE.test('explainMustShowAge({ asOf, cadenceMs: 604800000 })')).toBe(true)
+    expect(NUMERIC_CADENCE.test('export const NAAIM_CADENCE_MS = freshnessClass(NAAIM_DATA_CLASS).cadenceMs')).toBe(false)
   })
 })

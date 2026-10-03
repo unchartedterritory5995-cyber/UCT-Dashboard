@@ -1,0 +1,92 @@
+login 200
+{
+ "read_at_utc": "2026-10-02T00:48:59Z",
+ "as": "smoke@uctintelligence.internal",
+ "rows": [
+  {
+   "path": "/api/flow/data?days=1",
+   "status": 200,
+   "ms": 399,
+   "cf-cache-status": "EXPIRED",
+   "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+   "vary": "Accept-Encoding",
+   "cf-ray": "a43fb41c4fb3eafb-ORD",
+   "content-type": "text/csv; charset=utf-8",
+   "last-modified": "Fri, 02 Oct 2026 00:48:48 GMT"
+  },
+  {
+   "path": "/api/flow/data?days=1",
+   "status": 200,
+   "ms": 284,
+   "cf-cache-status": "HIT",
+   "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+   "age": "1",
+   "vary": "Accept-Encoding",
+   "cf-ray": "a43fb429ba5c863e-ORD",
+   "content-type": "text/csv; charset=utf-8",
+   "last-modified": "Fri, 02 Oct 2026 00:48:48 GMT"
+  },
+  {
+   "path": "/api/flow/data?days=20",
+   "status": 200,
+   "ms": 656,
+   "cf-cache-status": "EXPIRED",
+   "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+   "vary": "Accept-Encoding",
+   "cf-ray": "a43fb4354f97edc5-ORD",
+   "content-type": "text/csv; charset=utf-8",
+   "last-modified": "Fri, 02 Oct 2026 00:48:52 GMT"
+  },
+  {
+   "path": "/api/health",
+   "status": 200,
+   "ms": 826,
+   "cf-cache-status": "DYNAMIC",
+   "vary": "Accept-Encoding",
+   "cf-ray": "a43fb4428d4e1b04-ORD",
+   "content-type": "application/json"
+  },
+  {
+   "path": "/api/bars/SPY?tf=D&bars=200",
+   "status": 200,
+   "ms": 620,
+   "cf-cache-status": "DYNAMIC",
+   "cache-control": "no-store, must-revalidate",
+   "vary": "accept-encoding",
+   "cf-ray": "a43fb4513c9422ff-ORD",
+   "content-type": "application/json"
+  },
+  {
+   "path": "/",
+   "status": 200,
+   "ms": 382,
+   "cf-cache-status": "DYNAMIC",
+   "cache-control": "no-cache, no-store, must-revalidate",
+   "vary": "Accept-Encoding",
+   "cf-ray": "a43fb45e4c70f859-ORD",
+   "content-type": "text/html; charset=utf-8",
+   "last-modified": "Fri, 02 Oct 2026 00:47:07 GMT"
+  },
+  {
+   "path": "/assets/index-DEbVVdLG.js",
+   "status": 200,
+   "cf-cache-status": "MISS",
+   "cache-control": "public, max-age=31536000, immutable, no-transform",
+   "cf-ray": "a43fb46af88a60b2-ORD",
+   "content-type": "text/javascript; charset=utf-8",
+   "etag": "\"8d7e10e89298e283e9ca0fb14a14a05c\"",
+   "last-modified": "Fri, 02 Oct 2026 00:47:07 GMT"
+  },
+  {
+   "path": "/assets/index-DEbVVdLG.js",
+   "status": 200,
+   "cf-cache-status": "HIT",
+   "cache-control": "public, max-age=31536000, immutable, no-transform",
+   "age": "0",
+   "cf-ray": "a43fb46dea874138-ORD",
+   "content-type": "text/javascript; charset=utf-8",
+   "etag": "\"8d7e10e89298e283e9ca0fb14a14a05c\"",
+   "last-modified": "Fri, 02 Oct 2026 00:47:07 GMT"
+  }
+ ]
+}

@@ -31,6 +31,14 @@ NOTEBOOK_KEYS = [
     "j2_share_links_enabled",
     "notebook_publish_enabled",
     "notebook_onboarding_enabled",
+    # Wave 11 lane 11A: voice and meeting notes — an enablement gate.
+    "notebook_voice_notes_enabled",
+    # Wave 11 lane 11C: "Ask Notebook to do something" — an enablement gate.
+    "notebook_ai_actions_enabled",
+    # Wave 11 lane 11B: formula and rollup properties — an enablement gate.
+    "notebook_formulas_enabled",
+    # Wave 11 lane 11D: the trade-plan canvas — an enablement gate.
+    "notebook_trade_canvas_enabled",
 ]
 
 

@@ -90,8 +90,13 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
     const built = memberPaneDefinition({ source: SOURCE, id: DEF_ID })
     expect(built.ok, built.reason).toBe(true)
     expect(built.lane).toBe('runtime')
-    // ⛔ A PREVIEW: the server's store takes `ast` alone, so it is not offered as a save.
-    expect(built.saveable).toBe(false)
+    // ⭐ RT1 — offered as a save: the store has a runtime door now
+    // (`api/services/runtime_definitions.py`), switched off by default, whose
+    // refusal the pane renders verbatim while it is off.
+    expect(built.saveable).toBe(true)
+    // ⭐ RT1 — the ROUTED case keeps its measured behaviour: no listing-history
+    // requirement (that is the general fallback's, `runtimeHistory`).
+    expect(built.definition.meta.runtimeHistory).toBeUndefined()
     expect(built.definition.compute.kind).toBe('runtime')
     expect(built.definition.compute.source).toBe(SOURCE)
     expect(built.rows.map((r) => r.output)).toEqual([0, 1])
@@ -121,10 +126,11 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
 
   it('⛔ GATE ON: a script the runtime lane cannot build keeps the host refusal, with the reason it was not routed', () => {
     vi.stubEnv(FLAG, '1')
-    // Coupled latches plus a read of another timeframe: the host refusal is the
-    // coupled one, the route is declined because the repaint verdict cannot be
-    // stated without the linter.
-    const src = `${SOURCE}\nhtf = request.security(syminfo.tickerid, "W", close)\n`
+    // Coupled latches plus a `varip`: the host refusal is the coupled one, the
+    // route is declined because the runtime lane refuses `varip` by name.
+    // (⚰️ RT2: this appended an unused weekly read, declined as an unstated
+    // repaint class; the class is now stated and an unused read stops nothing.)
+    const src = `${SOURCE}\nvarip int rt2Ticks = 0\n`
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(built.ok).toBe(false)
     expect(built.reason).toMatch(/declined/)

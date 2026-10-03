@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import { captureChartPng } from '../../utils/chartCapture'
 import styles from './PatternReview.module.css'
+import Textarea from '../../components/ui/Textarea'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => r.json())
 
@@ -185,7 +186,7 @@ export default function PatternReview() {
                 {saving === 'error' && <span className={styles.err}>Capture failed — try again.</span>}
               </div>
 
-              <textarea
+              <Textarea aria-label="Note"
                 className={styles.note}
                 placeholder="Note / insight (saved with feedback and the ideal example)…"
                 value={note}

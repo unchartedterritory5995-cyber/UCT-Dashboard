@@ -137,6 +137,10 @@
 // survey's reading must state its as-of, and the cell renders the answer with
 // `<FreshnessBadge age={...}>`. The parking entry came out in the same commit.
 //
+// TERM-006 (2026-10-02): adopters now NAME a data class (`FRESHNESS_CLASSES`) instead of
+// passing a cadence; the NAAIM column names `weekly`. `FreshnessBadge.jsx` reads a named class's
+// cadence WORDS from here for the age clause — it is the renderer, and still decides nothing.
+//
 // ⚠️ ONE PANEL IS NOT ADOPTION. The provenance census
 // (`panelAdoption.measure.test.js`) measures hundreds of non-adopting panels
 // under `pages/**`; each further adopter is its own scoped decision, and
@@ -160,6 +164,39 @@ import { coerceAsOf } from './sessionStale'
  *  copy either number into a consumer — import it. */
 export const AGE_CADENCE_MULTIPLE = 2
 export const AGE_FLOOR_MS = 60_000
+
+const _DAY_MS = 24 * 60 * 60 * 1000
+
+/** ⭐ TERM-006 — THE DATA CLASSES, decided 2026-10-02 under the owner's delegation
+ *  (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md`).
+ *
+ *  ⛔ A CLASS DECLARES ITS CADENCE, NEVER ITS MAXIMUM AGE. The maximum age a panel of a class
+ *  may display without saying so is DERIVED by `maxSilentAgeMs` from this table and the two
+ *  constants above, so the decision has one statement — this table — and the numbers a member
+ *  meets are its consequence:
+ *
+ *    intraday_live  ->  60 seconds       (2 x 30 s = the floor; every live cadence in the shell
+ *                                         is 30 s or faster, so all of them land on it)
+ *    end_of_day     ->  one trading session, measured by S11 (6.5 h; 3.5 h on a half-day)
+ *    weekly         ->  one trading session, then it states its cadence ("weekly · as of …")
+ *    quarterly      ->  one trading session, then it states its cadence
+ *
+ *  `cadence` is the words the age clause prints (FreshnessBadge reads them from here). A panel
+ *  names its class; it never passes a number. `freshnessAge.test.js` §9 is the contract. */
+export const FRESHNESS_CLASSES = Object.freeze({
+  intraday_live: Object.freeze({ id: 'intraday_live', cadence: 'live', cadenceMs: 30_000 }),
+  end_of_day: Object.freeze({ id: 'end_of_day', cadence: 'daily', cadenceMs: _DAY_MS }),
+  weekly: Object.freeze({ id: 'weekly', cadence: 'weekly', cadenceMs: 7 * _DAY_MS }),
+  quarterly: Object.freeze({ id: 'quarterly', cadence: 'quarterly', cadenceMs: 91 * _DAY_MS }),
+})
+
+/** The class entry for `id`. ⛔ THROWS on an unknown id, like `mapD1Freshness` on a sixth D1
+ *  value: a misspelled class must fail where it is written, never fall to some default age. */
+export function freshnessClass(id) {
+  const cls = Object.prototype.hasOwnProperty.call(FRESHNESS_CLASSES, id) ? FRESHNESS_CLASSES[id] : null
+  if (!cls) throw new Error(`Unknown freshness class "${id}" — add it to FRESHNESS_CLASSES deliberately`)
+  return cls
+}
 
 /** How far to walk S11's boundary stream looking for one complete
  *  open -> close pair. A trading day emits four boundary events, and NYSE's
@@ -232,6 +269,23 @@ export function ageThresholdMs({ cadenceMs = null, now = new Date() } = {}) {
   })
 }
 
+/** A panel names its class OR passes a raw cadence, never both: two statements of one input
+ *  would be a second authority at the call site. */
+function resolveCadence(cadenceMs, dataClass) {
+  if (dataClass == null) return cadenceMs
+  if (cadenceMs != null) throw new Error('Pass a dataClass or a cadenceMs, not both')
+  return freshnessClass(dataClass).cadenceMs
+}
+
+/**
+ * ⭐ TERM-006's ANSWER, per class: the maximum age a panel of class `id` may display without
+ * saying so, in milliseconds, at `now` (the session cap is S11's, so a half-day is shorter).
+ * Derived through `ageThresholdMs` — the same derivation every verdict uses — never stored.
+ */
+export function maxSilentAgeMs(id, { now = new Date() } = {}) {
+  return ageThresholdMs({ cadenceMs: freshnessClass(id).cadenceMs, now }).thresholdMs
+}
+
 /**
  * ⭐ THE AUTHORITY. "Must this value display its age?", with its whole
  * derivation attached: `{ mustShow, reason, ageMs, thresholdMs, bound,
@@ -256,9 +310,9 @@ export function ageThresholdMs({ cadenceMs = null, now = new Date() } = {}) {
  * A future-dated `asOf` yields a negative age and therefore `false`: a clock
  * skew is not evidence of staleness.
  */
-export function explainMustShowAge({ asOf = null, cadenceMs = null, now = new Date() } = {}) {
+export function explainMustShowAge({ asOf = null, cadenceMs = null, dataClass = null, now = new Date() } = {}) {
   const nowDate = coerceAsOf(now) || new Date()
-  const threshold = ageThresholdMs({ cadenceMs, now: nowDate })
+  const threshold = ageThresholdMs({ cadenceMs: resolveCadence(cadenceMs, dataClass), now: nowDate })
   const asOfDate = coerceAsOf(asOf)
   if (!asOfDate) {
     return Object.freeze({ ...threshold, mustShow: false, reason: 'no_timestamp', ageMs: null })

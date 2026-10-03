@@ -1,5 +1,5 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
@@ -29,6 +29,7 @@ import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
+import { AuthContext } from '../context/AuthContext'
 import { chordById, matchesChord } from './command/chords.js'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -206,7 +207,7 @@ const ThemeSearchBox = memo(function ThemeSearchBox({ onDebounced }) {
   }, [val, onDebounced])
   return (
     <div className={styles.searchBar}>
-      <input
+      <input aria-label="Search themes or tickers"
         className={styles.searchInput}
         placeholder="Search themes or tickers…"
         value={val}
@@ -235,7 +236,7 @@ function AddStockRow({ onAdd, autoFocus = false }) {
   }
   return (
     <div className={`${styles.stockRow} ${styles.addStockRow}`} onClick={e => e.stopPropagation()}>
-      <input
+      <input aria-label="Add a ticker"
         ref={inputRef}
         className={styles.addStockInput}
         placeholder="＋ Add ticker…  (Enter)"
@@ -429,7 +430,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
                   <button className={styles.setConfirmNo} onClick={() => setConfirmDel(null)}>Cancel</button>
                 </div>
               ) : renamingId === s.id ? (
-                <input autoFocus className={styles.setInline} value={renameVal}
+                <input aria-label="Rename theme set" autoFocus className={styles.setInline} value={renameVal}
                   onChange={e => setRenameVal(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
@@ -470,7 +471,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
       <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
       {open && (
         <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up}>
-          <input autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
+          <input aria-label="Search themes" autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
           <div className={styles.addThemeList}>
             {list.map(t => {
               const has = inSet.has(t.slug)
@@ -486,7 +487,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
           </div>
           <div className={styles.setMenuSep} />
           <div className={styles.setNewRow}>
-            <input className={styles.setInline} placeholder="Create custom theme…" value={cname}
+            <input aria-label="New custom theme name" className={styles.setInline} placeholder="Create custom theme…" value={cname}
               onChange={e => setCname(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && cname.trim()) { onCreateCustom(cname.trim()); close() } }} />
             <button className={styles.setNewGo} disabled={!cname.trim()} onClick={() => { if (cname.trim()) { onCreateCustom(cname.trim()); close() } }}>Create</button>
@@ -497,7 +498,7 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
   )
 }
 
-export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null }) {
+export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null, onOpenThemeChange = null }) {
   // Per-widget persistence (opts) — the Close/Open basis and the chosen theme set stick
   // per widget instance via the workspace's debounced layout save.
   const patchOpts = useCallback((patch) => {
@@ -583,6 +584,21 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       setThemeSetId(null); patchOpts({ themeSetId: null })
     }
   }, [themeSetId, themeSetsEnabled, sets, patchOpts])
+  // TERM-038 slice 2: the T:<id> address door (ChartsWorkspace ?openThemeSet=) retargets
+  // THIS widget by writing opts.themeSetId from outside. `themeSetId` is seeded from opts
+  // once, so follow an outside change of opts.themeSetId -- only while the address space
+  // rides the auth payload (unset = this widget behaves exactly as before). A change we
+  // made ourselves (selectSet -> patchOpts) arrives equal to the state and is a no-op.
+  const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  const optsSetId = opts?.themeSetId || null
+  const seenOptsSetIdRef = useRef(optsSetId)
+  useEffect(() => {
+    if (seenOptsSetIdRef.current === optsSetId) return
+    seenOptsSetIdRef.current = optsSetId
+    if (!addressSpaceEnabled || optsSetId === themeSetId) return
+    setThemeSetId(optsSetId); setEditing(false); setPendingCustomize(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optsSetId, addressSpaceEnabled])
   const activeSet = themeSetId ? sets.find(s => s.id === themeSetId) : null
   const selectSet = useCallback((id) => {
     setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false); setPendingCustomize(false)
@@ -1009,6 +1025,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     return sortedThemes.filter(theme => themeMatches(theme, q))
   }, [sortedThemes, debouncedSearch, themeMatches])
 
+  // COV-10 follow-up: report the OPEN taxonomy theme (its theme_db id + name) to a host that
+  // asked (the /charts Themes widget publishes it as a list SOURCE). A custom theme, or a row
+  // with no taxonomy id, reports null: there is no server-side list to track. No host => no-op.
+  const openTaxonomyTheme = useMemo(() => {
+    if (!openTheme) return null
+    const t = sortedThemes.find(x => x.ticker === openTheme)
+    return t && !t.is_custom && t.theme_id ? { id: t.theme_id, name: t.name } : null
+  }, [openTheme, sortedThemes])
+  const openThemeId = openTaxonomyTheme?.id || null
+  const openThemeName = openTaxonomyTheme?.name || null
+  useEffect(() => {
+    if (onOpenThemeChange) onOpenThemeChange(openThemeId ? { id: openThemeId, name: openThemeName } : null)
+  }, [onOpenThemeChange, openThemeId, openThemeName])
+
   // What actually renders: edit mode uses the locally-built, FIXED-ORDER list (no re-sort on
   // edit, so adding a stock never reorders the tracker); view mode uses the sorted leaderboard.
   const renderThemes = useMemo(() => {
@@ -1356,7 +1386,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             ) : activeSet ? (
               <div className={styles.editBarStatus}>
                 {barRenaming ? (
-                  <input autoFocus className={styles.editBarNameInput} value={barRenameText}
+                  <input aria-label="Rename this preset" autoFocus className={styles.editBarNameInput} value={barRenameText}
                     onChange={e => setBarRenameText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') commitBarRename(); if (e.key === 'Escape') setBarRenaming(false) }}
                     onBlur={commitBarRename} />

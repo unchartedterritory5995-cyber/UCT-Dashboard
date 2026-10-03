@@ -152,7 +152,13 @@ export function paneGate(t, opts = {}) {
   // whenever any output was chosen, so a plotting script that also draws objects
   // takes the ordinary path below, unchanged.
   const drawsObjects = !!(t.objects && Array.isArray(t.objects.ops) && t.objects.ops.length > 0)
+  // ⭐ B1 — a carried paint (`bgcolor` / `barcolor`) is a drawing too, admitted on
+  // the same gate and the same flag as an objects-only script: it offers no column
+  // to screen on either. `ok: true` here already means every paint was carried.
+  const drawsPaints = !!(t.presentation && Array.isArray(t.presentation.paints)
+    && t.presentation.paints.some((p) => p && !p.withheld && !p.hidden && !p.na))
   if (!Number.isInteger(t.selected) || t.selected < 0) {
+    if (opts.allowObjectsOnly === true && drawsPaints && !drawsObjects) return { ok: true, reason: null, guard: null }
     if (opts.allowObjectsOnly === true && drawsObjects) {
       // ⛔ "CLEAN" HERE MEANS `droppedOps === 0`, AND THAT IS NOT THE SAME AS
       // LOSING NOTHING: the READER counts `box.delete` inside a loop it cannot run
@@ -193,6 +199,29 @@ export function runtimeRouteOf(t) {
   if (t.refusal && !refusals.includes(t.refusal)) refusals.push(t.refusal)
   if (!refusals.length) return false
   return refusals.every((r) => !!r && r.route === 'runtime')
+}
+
+/** ⭐⭐ RT1 (2026-10-02) — MAY THE RUNTIME LANE BE ASKED, AS THE MEMBER DOOR'S
+ *  GENERAL FALLBACK? (integrator ruling: the per-bar runtime lane is the member
+ *  door's fallback for whatever the host lane refuses.)
+ *
+ *  True when the HOST TRANSLATION refused — at least one refusal and `ok` not
+ *  true — whatever the refusal's kind. It decides only that the runtime lane is
+ *  ASKED; whether it builds, and whether what it would draw is exact, is the
+ *  runtime lane's own answer (its refusals and budgets) and the door's
+ *  (`memberPaneDefinition::runtimeLaneDefinition`). A script the host lane
+ *  translates but `paneGate` still refuses (nothing drawable, a lost removal) is
+ *  NOT a fallback case: the runtime lane would be asked the same question.
+ *
+ *  ⛔ A PURE DECISION; the switch is `runtimePaneGate.runtimePaneEnabled()`, read
+ *  by the caller. `runtimeRouteOf` stays the narrower question (every refusal
+ *  NAMES the runtime lane), because a routed refusal is worded differently when
+ *  the runtime lane then declines.
+ *
+ *  @returns {boolean} */
+export function runtimeFallbackOf(t) {
+  if (!t || typeof t !== 'object' || t.mode !== PANE_LANE || t.ok === true) return false
+  return (Array.isArray(t.refusals) && t.refusals.length > 0) || !!t.refusal
 }
 
 /** ⭐ The same decision as a predicate, for a call site that only branches.

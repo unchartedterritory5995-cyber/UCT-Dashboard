@@ -62,9 +62,11 @@ def test_the_python_lane_reproduces_the_js_lane(case):
 
 def test_the_fixture_is_not_vacuous():
     cases = {c["name"]: c for c in _doc()["cases"]}
+    # C49 -- a session chart is answered from the vendor's calendar on EVERY bar,
+    # the first partial period included (C30 withheld its 2 bars)
     served = cases["W · weekdays · D"]["expected"]
-    assert sum(1 for v in served if v is None) == 2
-    assert sum(1 for v in served if v is not None) == 298
+    assert sum(1 for v in served if v is None) == 0
+    assert sum(1 for v in served if v is not None) == 300
     event = cases["change(W) · weekdays · D"]["expected"]
     assert {0, 1} <= set(v for v in event if v is not None) and None in event
     # every day of the week is SERVED (BITSTAMP:BTCUSD 1D), less the bars across a
@@ -73,15 +75,34 @@ def test_the_fixture_is_not_vacuous():
     assert sum(1 for v in every["expected"] if v is not None) > 130
     assert every["codes"] == ["time-anchor:utc-day-clock"]
     assert cases["W · saturdays · D"]["codes"] == ["time-anchor:weekend-bars"]
-    assert cases["own · hourly · 5 (unmeasured)"]["codes"] == ["time-own:chart-unwitnessed"]
+    assert cases["own · hourly · 30 (unmeasured)"]["codes"] == ["time-own:chart-unwitnessed"]
+    # C49 -- before 2000 a holiday is a session the calendar holds: served, nothing named
+    for key in ("W", "M", "Q", "Y", "closeW", "closeM"):
+        old = cases[f"{key} · 1999 holidays · D"]
+        assert all(v is not None for v in old["expected"]) and old["codes"] == [], key
+    # ...on the charts below and above daily the captures cover, and not with a
+    # pre-market bar or on a timeframe nobody measured
+    assert all(v is not None for v in cases["W · rth 15m · 15"]["expected"])
+    assert cases["W · 15m with a pre-market bar · 15"]["codes"] == ["time-clock:outside-session"]
+    assert cases["W · rth 15m · 30 (unmeasured)"]["codes"] == ["time-anchor:not-daily"]
+    assert all(v is not None for v in cases["M · weekly · W"]["expected"])
+    sixty, own = cases["sixty · rth 15m · 15"]["expected"], cases["own · rth 15m · 15"]["expected"]
+    assert sixty != own and sixty[:5] == [own[0]] * 4 + [own[4]]
     # time_close("W"): every session bar served; a weekend-bar chart withheld whole
     assert all(v is not None for v in cases["closeW · weekdays · D"]["expected"])
     assert cases["closeW · every day · D"]["codes"] == ["time-close:weekend-bars"]
-    assert cases["closeW · a Friday missing · D"]["codes"] == ["time-close:period-end-missing"]
+    # ruling 2026-10-01: a week whose last session has no bar reads the calendar's close (was withheld)
+    assert cases["closeW · a Friday missing · D"]["codes"] == []
+    assert all(v is not None for v in cases["closeW · a Friday missing · D"]["expected"])
     named = {code for c in cases.values() for code in c["codes"]}
     assert named <= set(ai.CHART_CLOCK_WITHHELD_CODES)
-    # every code but the nested one (a tree the translator will not write) is exercised
-    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - named == {"time-anchor:other-bars"}
+    # every code but the nested one (a tree the translator will not write) is exercised.
+    # C45: the two `bar-index:` codes ride the same channel and are exercised by their
+    # OWN fixture (tests/test_ast_bar_index_shift_parity.py) -- this one has no Pine
+    # document reading `bar_index`, so they are set aside here by prefix, not by name.
+    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES if not c.startswith("bar-index:")}
+    assert clock - named == {"time-anchor:other-bars"}
+    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():
@@ -108,6 +129,18 @@ def test_the_builders_are_the_fixtures_own_trees():
         assert ai.period_anchor_period(found[0]) == period, key
     assert ai.is_chart_own_time(cases["own · weekdays · D"]["ast"])
     assert cases["own · weekdays · D"]["ast"] == ai.chart_own_time_node(True)
+    assert ai.chart_own_time_tfs(cases["own · weekdays · D"]["ast"]) == ai.OWN_TIME_WITNESSED_TF
+    # C49 -- the gated anchor, the `time("60")` tree, and the tree C36 saved
+    for key, period in (("W", "W"), ("M", "M"), ("Q", "3M"), ("Y", "12M")):
+        tree = cases[f"{key} · weekdays · D"]["ast"]
+        assert tree == ai.period_anchor_node(period, True), key
+        assert ai.period_anchor_gate_period(tree) == period, key
+    assert cases["sixty · weekdays · D"]["ast"] == ai.chart_sixty_time_node(True)
+    assert ai.is_chart_sixty_time(cases["sixty · weekdays · D"]["ast"])
+    assert not ai.is_chart_own_time(cases["sixty · weekdays · D"]["ast"])
+    saved = cases["own (C36 tree) · weekdays · D"]["ast"]
+    assert saved == ai.chart_own_time_node(True, ai.OWN_TIME_WITNESSED_TF_C36)
+    assert ai.chart_own_time_tfs(saved) == ("D", "60")
     assert ai.period_first_condition("2W") is None and ai.period_calendar_first("2W") is None
     for key, code in (("closeW", "W"), ("closeM", "M")):
         tree = cases[f"{key} · weekdays · D"]["ast"]
@@ -182,10 +215,10 @@ def test_a_read_of_other_bars_is_withheld_whole_and_named():
                                          None, None, {"tf": "D", "chartClockSink": sink})
             assert mask == [1] * len(bars), kind
             assert sorted(sink) == ["time-anchor:other-bars"], kind
-    # CONTROL -- the same anchor on the chart's own bars: 16 weekdays to November, nothing named
+    # CONTROL -- the same anchor on the chart's own bars: every bar served, nothing named
     sink = {}
     mask = ai.period_anchor_mask(anchor, bars, {}, None, None, {"tf": "D", "chartClockSink": sink})
-    assert sum(mask) == 16 and not sink
+    assert sum(mask) == 0 and not sink
 
 
 @pytest.mark.parametrize("weekend_day", [5, 6], ids=["a Saturday alone", "a Sunday alone"])

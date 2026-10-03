@@ -104,6 +104,31 @@ def _notebook_writing_help(user: dict) -> dict | None:
                   note_ask.writing_help_peruser_cap())
 
 
+def _notebook_voice_notes(user: dict) -> dict | None:
+    """Wave 11 lane 11A: voice-note summaries (their own durable daily count)."""
+    from api.services import note_ask
+    from api.services.journal_two import voice_notes
+    if not voice_notes.enabled():
+        return None
+    return _meter("notebook_voice_notes", "Notebook voice-note summaries",
+                  "api/services/journal_two/voice_notes.py", "summaries", "day",
+                  note_ask.SCOPE_VOICE_NOTE,
+                  _notebook_counter(note_ask.SCOPE_VOICE_NOTE, user),
+                  note_ask.voice_note_peruser_cap())
+def _notebook_ai_actions(user: dict) -> dict | None:
+    """Wave 11 lane 11C: "Ask Notebook to do something" plans -- shown only
+    while the door is on, like writing help's meter."""
+    from api.services import note_ask
+    from api.services.journal_two import ai_actions
+    if not ai_actions.enabled():
+        return None
+    return _meter("notebook_ai_actions", "Notebook AI change plans",
+                  "api/services/journal_two/ai_actions.py", "plans", "day",
+                  note_ask.SCOPE_AI_ACTIONS,
+                  _notebook_counter(note_ask.SCOPE_AI_ACTIONS, user),
+                  note_ask.ai_actions_peruser_cap())
+
+
 # ── Options Flow "explain this print" (flow_explain.db, per ET day) ─────────
 
 def _flow_explain(user: dict) -> dict | None:
@@ -204,6 +229,8 @@ METERS: dict[str, Callable[[dict], dict | list | None]] = {
     "ai_search_personal": _ai_search_personal,
     "notebook_ask": _notebook_ask,
     "notebook_writing_help": _notebook_writing_help,
+    "notebook_voice_notes": _notebook_voice_notes,
+    "notebook_ai_actions": _notebook_ai_actions,
     "flow_explain": _flow_explain,
     "compass_chat": _compass_chat,
     "voice": _voice,

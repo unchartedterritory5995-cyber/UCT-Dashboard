@@ -727,6 +727,15 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
         {"compute": {"kind": "ast", "ast": _ast_sma(), "trees": {},
                      "treesHash": "sha256:" + "0" * 64, "scanPlot": "value"}}))
     capture("bars", lambda: aus.admit_user_definition(USER_A, DEF_ID, bars=[]))
+    # ⭐ C45 — DRIVEN DIRECTLY, like `plot` above: the refusal is raised where one
+    # plot's tree is resolved. A Pine translation's plotted `bar_index` is a count
+    # this lane's window of bars cannot know, so the alert lane withholds it on
+    # every bar; the product-path drives (admission keeps a sibling plot alive, arm
+    # refuses the withheld one) are in `tests/test_c45_withheld_doors.py`.
+    capture("withheld", lambda: aus._make_value_fn(
+        DEF_ID, "value",
+        {"meta": {"recurrenceOrigin": "pine"},
+         "compute": {"kind": "ast", "ast": {"type": "series", "name": "barindex"}}}))
 
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))

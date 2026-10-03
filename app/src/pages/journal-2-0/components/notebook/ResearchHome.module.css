@@ -246,3 +246,9 @@
   justify-content: flex-end;
   margin-bottom: 4px;
 }
+
+/* Wave 11 lane 11C: the "Ask Notebook to do something" slot, ONE position for the quiet and
+   the full home (ResearchHome.jsx) and the home column's own width. */
+.aiSlot {
+  max-width: 820px;
+}

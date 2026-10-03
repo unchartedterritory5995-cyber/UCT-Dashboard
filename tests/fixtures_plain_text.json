@@ -713,6 +713,50 @@
         ]
       },
       "expected": "Due 2026-10-02 review"
+    },
+    {
+      "name": "a trade-plan canvas reads as its searchText, a block leaf on its own line (wave 11, lane 11D)",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "tradeCanvas",
+            "attrs": {
+              "board": {
+                "v": 1,
+                "items": [],
+                "edges": [],
+                "levels": []
+              },
+              "searchText": "Trade-plan canvas $NVDA Daily chart Entry 182.50"
+            }
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "after"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Trade-plan canvas $NVDA Daily chart Entry 182.50 after"
+    },
+    {
+      "name": "a trade-plan canvas with no searchText reads as its placeholder (wave 11, lane 11D)",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "tradeCanvas"
+          }
+        ]
+      },
+      "expected": "[trade-plan canvas]"
     }
   ]
 }

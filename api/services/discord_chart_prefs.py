@@ -39,8 +39,12 @@ THEME_CHOICES = {
     "light": "Light",
 }
 STYLE_CHOICES = {
+    # "candles" = the house look, which is HOLLOW since 2026-10-02 (ChartRender's
+    # render house look); "filled" is the explicit solid-body option the owner
+    # asked to keep available.
     "candles": "Candles",
     "hollow": "Hollow candles",
+    "filled": "Filled candles",
     "bars": "OHLC bars",
     "line": "Line",
     "area": "Area",
@@ -229,6 +233,8 @@ def render_options(prefs: dict, tf: str = "D") -> dict:
         ind["volume"] = {"visible": False}
     if p["style"] == "heikin":
         ind["heikinAshi"] = True
+    elif p["style"] == "filled":
+        ind["chartType"] = "candles"     # over the render page's hollow house look
     elif p["style"] != "candles":
         ind["chartType"] = p["style"]
     if p["scale"] == "log":

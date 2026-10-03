@@ -65,6 +65,69 @@ describe('HistoryTab', () => {
     expect(screen.queryByTestId('history-lane-partial')).toBeNull()
   })
 
+  it('renders a flow row as a print count with its source and a link, never premium', async () => {
+    const flowRow = { date: '2026-09-27', lane: 'flow', prints: 1234, text: '1,234 options prints on the tape', source: 'flow_tape', as_of: '2026-09-27', ref: '/options-flow', symbol: 'NVDA' }
+    await renderWith({ ok: true, body: { ...BODY, timeline: [flowRow, ...BODY.timeline] } })
+    const row = screen.getAllByTestId('history-row')[0]
+    expect(row.textContent).toMatch(/2026-09-27 · Options flow · 1,234 options prints on the tape/)
+    expect(row.textContent).toMatch(/Options flow tape \(print counts\), as of 2026-09-27/)
+    expect(row.querySelector('a').getAttribute('href')).toBe('/options-flow')
+    expect(row.textContent).not.toMatch(/\$|premium/i)
+  })
+
+  it('renders setup publication and outcome rows from the setup ledger', async () => {
+    const rows = [
+      { date: '2026-09-29', lane: 'setups', event: 'outcome', text: 'VCP setup from 2026-09-25: won (+0.42R)', source: 'setup_triggers', as_of: '2026-09-29', ref: 'x' },
+      { date: '2026-09-25', lane: 'setups', event: 'published', text: 'Published as a VCP setup (leadership list)', source: 'setup_triggers', as_of: '2026-09-25', ref: 'x' },
+    ]
+    await renderWith({ ok: true, body: { ...BODY, timeline: rows } })
+    const text = screen.getByTestId('history-rows').textContent
+    expect(text).toMatch(/Setups · VCP setup from 2026-09-25: won \(\+0\.42R\) — UCT setup ledger, as of 2026-09-29/)
+    expect(text).toMatch(/Published as a VCP setup \(leadership list\) — UCT setup ledger, as of 2026-09-25/)
+  })
+
+  it('names how far a nightly lane reaches, and an unreadable flow lane as missing', async () => {
+    const lanes = { ...BODY.lanes,
+      setups: { status: 'ok', count: 0, covers_from: '2026-07-30', covers_to: '2026-09-30', partial: true },
+      flow: { status: 'unavailable', count: null } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    expect(screen.getByTestId('history-lane-partial').textContent).toMatch(/Setups since 2026-07-30 \(through 2026-09-30\)/)
+    expect(screen.getByTestId('history-lane-unavailable').textContent).toMatch(/Options flow/)
+  })
+
+  it('while the slice-2 lanes are dark, names only the lanes it read and says flow is missing', async () => {
+    await renderWith({ ok: true, body: { ...BODY, not_rendered: { flow: 'built, dark', setups: 'built, dark' } } })
+    const intro = screen.getByTestId('history-tab').querySelector('p').textContent
+    expect(intro).toMatch(/what Morning Wire, UCT 20, Catalysts, Community room recorded/)
+    expect(intro).toMatch(/Options flow is not included yet/)
+    expect(intro).not.toMatch(/Setups/)
+  })
+
+  it('says which earlier name a row was recorded under', async () => {
+    const body = { ...BODY, ticker: 'META',
+      entity: { status: 'resolved', entity_id: 'E1', aliases: [
+        { alias: 'FB', valid_from: '2012-05-18', valid_to: '2022-06-09' },
+        { alias: 'META', valid_from: '2022-06-09', valid_to: null }] },
+      timeline: [{ date: '2022-06-01', lane: 'catalysts', text: 'FB era.', source: 'catalysts', as_of: '2022-06-01', ref: 'x', symbol: 'FB' }] }
+    await renderWith({ ok: true, body })
+    expect(screen.getByTestId('history-entity').textContent).toMatch(/Joined across renames: FB \(until 2022-06-09\)/)
+    expect(screen.getByTestId('history-row').textContent).toMatch(/FB era\. \(as FB\)/)
+  })
+
+  it('renders the member\'s own journal rows, labelled as theirs alone', async () => {
+    const body = { ...BODY, lanes: { ...BODY.lanes, journal: { status: 'ok', count: 2, covers_from: '2026-05-01', partial: false } },
+      timeline: [
+        { date: '2026-09-23', lane: 'journal', event: 'closed', text: 'You closed your long from 2026-09-20: win (+2.00R)', source: 'j2_trades', as_of: '2026-09-23', ref: 'j2_trades#id:1' },
+        { date: '2026-09-22', lane: 'journal', event: 'opened', text: 'You opened a long position, still open (your journal)', source: 'j2_positions', as_of: '2026-09-22', ref: 'j2_positions#p1' },
+      ] }
+    await renderWith({ ok: true, body })
+    const rows = screen.getAllByTestId('history-row').map((r) => r.textContent)
+    expect(rows[0]).toMatch(/2026-09-23 · Your journal · You closed your long from 2026-09-20: win \(\+2\.00R\)/)
+    expect(rows[0]).toMatch(/Your Journal 2\.0 trades \(only you see these\), as of 2026-09-23/)
+    expect(rows[1]).toMatch(/Your Journal 2\.0 open positions \(only you see these\)/)
+    expect(screen.getByTestId('history-tab').querySelector('p').textContent).toMatch(/Your journal recorded/)
+  })
+
   it('an empty history says so in words', async () => {
     await renderWith({ ok: true, body: { ...BODY, timeline: [] } })
     expect(screen.getByTestId('history-empty').textContent).toMatch(/No recorded mentions of NVDA/)

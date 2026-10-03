@@ -30,6 +30,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import UIcon from '../../components/ui/UIcon'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 import {
   DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock,
   movePin, removePin, addPin,
@@ -38,7 +40,7 @@ import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
   entries, activeId, loading = false, merged = false, isAdmin = false,
-  onOpen, onCreate, onSave, onDuplicate, onDelete, onRename,
+  onOpen, onCreate, onSave, onDuplicate, onDelete, onRename, onRestored,
 }) {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const stored = useMemo(() => readDockPref(prefs?.[DOCK_PREF]), [prefs])
@@ -137,6 +139,13 @@ export default function LayoutDock({
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [menu, setMenu] = useState(null)          // { slot, x }
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  // COV-06: the layout whose version history is open. The menu entry exists
+  // only while ARTIFACT_VERSIONS_ENABLED answers, and only for YOUR OWN layouts
+  // (a prebuilt is firm-curated and has no member history).
+  const [historyEntry, setHistoryEntry] = useState(null)
+  const historyAvailable = useArtifactVersionsAvailable(!!menu || !!historyEntry || libraryOpen)
+  // COV-06: bumped on a library delete so Recently deleted re-reads.
+  const [deletedRev, setDeletedRev] = useState(0)
   const dockRef = useRef(null)
 
   const closePopovers = useCallback(() => {
@@ -144,16 +153,17 @@ export default function LayoutDock({
     setOverflowOpen(false)
     setMenu(null)
     setConfirmDeleteId(null)
+    setHistoryEntry(null)
   }, [])
 
   useEffect(() => {
-    if (!libraryOpen && !overflowOpen && !menu) return
+    if (!libraryOpen && !overflowOpen && !menu && !historyEntry) return
     const onDown = (e) => { if (!dockRef.current?.contains(e.target)) closePopovers() }
     const onKey = (e) => { if (e.key === 'Escape') closePopovers() }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
-  }, [libraryOpen, overflowOpen, menu, closePopovers])
+  }, [libraryOpen, overflowOpen, menu, historyEntry, closePopovers])
 
   // ── new layout ──────────────────────────────────────────────────────────
   // Named INLINE, in the slot it will occupy, so the thing you just made is
@@ -364,7 +374,10 @@ export default function LayoutDock({
               {confirmDeleteId === e.id ? (
                 <button
                   type="button" className={styles.libraryDelConfirm}
-                  onClick={() => { onDelete?.(e); setConfirmDeleteId(null) }}
+                  onClick={() => {
+                    setConfirmDeleteId(null)
+                    Promise.resolve(onDelete?.(e)).finally(() => setDeletedRev(n => n + 1))
+                  }}
                 >Delete?</button>
               ) : (
                 <button
@@ -388,6 +401,12 @@ export default function LayoutDock({
               </div>
             ))}
           </>)}
+          {/* COV-06: a deleted layout's history outlives it; bring it back here.
+              Hidden unless ARTIFACT_VERSIONS_ENABLED answers and something was deleted. */}
+          {historyAvailable && (
+            <RecentlyDeleted kind="layout" noun="layout" refreshKey={deletedRev}
+              onBroughtBack={(res) => onRestored?.(res?.artifact)} />
+          )}
         </div>
       )}
 
@@ -443,11 +462,31 @@ export default function LayoutDock({
             type="button" role="menuitem" className={styles.menuItem}
             onClick={() => { onDuplicate?.(menuEntry); setMenu(null) }}
           >Duplicate layout</button>
+          {historyAvailable && menuEntry.scope === 'user' && menuEntry.id !== UCT_DEFAULT_ID && (
+            <button
+              type="button" role="menuitem" className={styles.menuItem}
+              data-testid="layout-history-open"
+              onClick={() => { setHistoryEntry(menuEntry); setMenu(null) }}
+            >Version history</button>
+          )}
           <div className={styles.menuDiv} />
           <button
             type="button" role="menuitem" className={styles.menuItem}
             onClick={() => closeSlot(menu.slot.index)}
           >Close</button>
+        </div>
+      )}
+
+      {/* ── COV-06: one layout's version history. Restore is the only write. ── */}
+      {historyEntry && historyAvailable && (
+        <div className={styles.library} role="dialog" aria-label={`${historyEntry.name} version history`}>
+          <ArtifactHistory
+            kind="layout"
+            artifactId={historyEntry.id}
+            title={`Version history · ${historyEntry.name}`}
+            onRestored={(res) => onRestored?.(res?.artifact)}
+            onUnavailable={() => setHistoryEntry(null)}
+          />
         </div>
       )}
     </div>

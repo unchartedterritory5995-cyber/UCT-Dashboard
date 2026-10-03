@@ -1,0 +1,264 @@
+{
+ "_readme": "RECORDED from api/services/options_backtest.py over tests/fixtures/options_backtest/spy_earnings_replay.json (synthetic vendor; see record_earnings.py). FT-011.",
+ "catalog": {
+  "anchors": [
+   "monthly",
+   "earnings"
+  ],
+  "earnings_lookback": 8,
+  "earnings_rule": "Earnings anchor: enter at the close of the last session before the report reaches the market and exit at the close of the first session that trades on it. A report after the close (AMC) enters on the report day and exits the next session; a report before the open (BMO) enters the session before and exits on the report day. A print whose timing is not on file is EXCLUDED and counted, because its entry close would be a guess. The options are the first listed expiration on or after the exit session; both ends are priced at the quote mid.",
+  "entry_dtes": [
+   7,
+   14,
+   30,
+   45
+  ],
+  "strategies": [
+   {
+    "id": "long_call",
+    "label": "Long call",
+    "legs": 1,
+    "uses_width": false
+   },
+   {
+    "id": "long_put",
+    "label": "Long put",
+    "legs": 1,
+    "uses_width": false
+   },
+   {
+    "id": "bull_call",
+    "label": "Bull call spread",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "bear_put",
+    "label": "Bear put spread",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "bear_call",
+    "label": "Bear call spread (credit)",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "bull_put",
+    "label": "Bull put spread (credit)",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "long_straddle",
+    "label": "Long straddle",
+    "legs": 2,
+    "uses_width": false
+   },
+   {
+    "id": "short_straddle",
+    "label": "Short straddle",
+    "legs": 2,
+    "uses_width": false
+   },
+   {
+    "id": "long_strangle",
+    "label": "Long strangle",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "short_strangle",
+    "label": "Short strangle",
+    "legs": 2,
+    "uses_width": true
+   },
+   {
+    "id": "iron_condor",
+    "label": "Iron condor (credit)",
+    "legs": 4,
+    "uses_width": true
+   },
+   {
+    "id": "call_butterfly",
+    "label": "Long call butterfly",
+    "legs": 3,
+    "uses_width": true
+   }
+  ]
+ },
+ "earnings": {
+  "anchor": "earnings",
+  "anchor_text": "Earnings anchor: enter at the close of the last session before the report reaches the market and exit at the close of the first session that trades on it. A report after the close (AMC) enters on the report day and exits the next session; a report before the open (BMO) enters the session before and exits on the report day. A print whose timing is not on file is EXCLUDED and counted, because its entry close would be a guess. The options are the first listed expiration on or after the exit session; both ends are priced at the quote mid.",
+  "basis": "A historical simulation, not advice. One contract per leg, every fill at the mid of the bid and ask, before commissions and fees. Entry prices are option QUOTES at the entry close, never trade prints; the expiry value is intrinsic from the underlying's close.",
+  "computed_at": "2026-10-03T02:59:19+00:00",
+  "excluded": [
+   {
+    "entry": null,
+    "expiry": null,
+    "reason": "the report time (before the open or after the close) is not on file",
+    "report_date": "2026-01-28",
+    "timing": "unknown"
+   }
+  ],
+  "excluded_count": 1,
+  "expirations_considered": 4,
+  "iv_source": "computed",
+  "iv_source_text": "IV is COMPUTED here, not the vendor's: a Black-Scholes inversion of the entry mid (European exercise, no dividends, a flat 4.0% rate, calendar days to expiry). Massive keeps no historical IV.",
+  "not_run": [],
+  "not_run_count": 0,
+  "params": {
+   "anchor": "earnings",
+   "dte": 0,
+   "offset": 0,
+   "stop_loss_pct": null,
+   "strategy": "long_straddle",
+   "sym": "SPY",
+   "take_profit_pct": null,
+   "width": 0
+  },
+  "risk_free_rate": 0.04,
+  "strategy_label": "Long straddle",
+  "summary": null,
+  "summary_reason": "Only 3 trades could be simulated; a sample under 6 is too small to summarise.",
+  "sym": "SPY",
+  "trades": [
+   {
+    "debit": 698.0,
+    "entry_close": 578.13,
+    "entry_date": "2025-10-22",
+    "exit": {
+     "date": "2025-10-23",
+     "kind": "after_print",
+     "underlying_close": 576.03,
+     "value": 580.0
+    },
+    "expiry": "2025-10-24",
+    "legs": [
+     {
+      "ask": 2.67,
+      "bid": 2.57,
+      "iv_computed": 0.2001,
+      "mid": 2.62,
+      "quote_time": "2025-10-22T19:59:58Z",
+      "side": 1,
+      "strike": 580.0,
+      "ticker": "O:SPY251024C00580000",
+      "type": "call"
+     },
+     {
+      "ask": 4.41,
+      "bid": 4.31,
+      "iv_computed": 0.1999,
+      "mid": 4.36,
+      "quote_time": "2025-10-22T19:59:58Z",
+      "side": 1,
+      "strike": 580.0,
+      "ticker": "O:SPY251024P00580000",
+      "type": "put"
+     }
+    ],
+    "pnl": -118.0,
+    "pnl_pct": -16.9,
+    "report_date": "2025-10-22",
+    "timing": "amc",
+    "underlying_move_pct": -0.36
+   },
+   {
+    "debit": 742.0,
+    "entry_close": 611.99,
+    "entry_date": "2026-04-22",
+    "exit": {
+     "date": "2026-04-23",
+     "kind": "after_print",
+     "underlying_close": 611.92,
+     "value": 535.0
+    },
+    "expiry": "2026-04-24",
+    "legs": [
+     {
+      "ask": 4.82,
+      "bid": 4.72,
+      "iv_computed": 0.2001,
+      "mid": 4.77,
+      "quote_time": "2026-04-22T19:59:58Z",
+      "side": 1,
+      "strike": 610.0,
+      "ticker": "O:SPY260424C00610000",
+      "type": "call"
+     },
+     {
+      "ask": 2.7,
+      "bid": 2.6,
+      "iv_computed": 0.2003,
+      "mid": 2.65,
+      "quote_time": "2026-04-22T19:59:58Z",
+      "side": 1,
+      "strike": 610.0,
+      "ticker": "O:SPY260424P00610000",
+      "type": "put"
+     }
+    ],
+    "pnl": -207.0,
+    "pnl_pct": -27.9,
+    "report_date": "2026-04-23",
+    "timing": "bmo",
+    "underlying_move_pct": -0.01
+   },
+   {
+    "debit": 726.0,
+    "entry_close": 614.89,
+    "entry_date": "2026-07-22",
+    "exit": {
+     "date": "2026-07-23",
+     "kind": "after_print",
+     "underlying_close": 616.23,
+     "value": 524.0
+    },
+    "expiry": "2026-07-24",
+    "legs": [
+     {
+      "ask": 3.69,
+      "bid": 3.59,
+      "iv_computed": 0.1998,
+      "mid": 3.64,
+      "quote_time": "2026-07-22T19:59:58Z",
+      "side": 1,
+      "strike": 615.0,
+      "ticker": "O:SPY260724C00615000",
+      "type": "call"
+     },
+     {
+      "ask": 3.67,
+      "bid": 3.57,
+      "iv_computed": 0.2,
+      "mid": 3.62,
+      "quote_time": "2026-07-22T19:59:58Z",
+      "side": 1,
+      "strike": 615.0,
+      "ticker": "O:SPY260724P00615000",
+      "type": "put"
+     }
+    ],
+    "pnl": -202.0,
+    "pnl_pct": -27.8,
+    "report_date": "2026-07-22",
+    "timing": "amc",
+    "underlying_move_pct": 0.22
+   }
+  ],
+  "unmarked_exit_checks": 0,
+  "vendor_requests": {
+   "budget": 400,
+   "used": 19
+  },
+  "window": {
+   "ends": "2026-07-22",
+   "first_entry": "2025-10-22",
+   "prints_read": 4,
+   "starts": "2025-10-22",
+   "text": "The 4 most recent past earnings prints on file (at most 8). The first simulated entry is 2025-10-22."
+  }
+ }
+}

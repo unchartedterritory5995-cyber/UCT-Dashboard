@@ -82,7 +82,12 @@ describe('⭐⭐ C22 — the gate: a reset whose condition reads another accumul
   it('translates (was `pine:state`), and its seed carries the switched mark', () => {
     const acc = outerAccum(treeOf(SRC))
     expect(acc).not.toBeNull()
-    expect(switchedSeedOf(acc.args[0])).toEqual({ type: 'num', value: 0 })
+    // ⭐ C47 — the real seed carries C29's `update` reading (`1 * (1 * 0)`): a
+    // `var` read only bare runs its update on bar 0. ⚰️ The bare `0` until C47.
+    expect(switchedSeedOf(acc.args[0])).toEqual({
+      type: 'op', name: '*', args: [{ type: 'num', value: 1 },
+        { type: 'op', name: '*', args: [{ type: 'num', value: 1 }, { type: 'num', value: 0 }] }],
+    })
     // the reset condition holds the OTHER accumulator, whose body reads its own `self`
     const cond = acc.args[1].args[0]
     expect(JSON.stringify(cond)).toContain('"name":"accum"')

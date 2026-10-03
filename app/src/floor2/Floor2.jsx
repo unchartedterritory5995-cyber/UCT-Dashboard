@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import './styles.css'
 import { useAuth } from '../context/AuthContext'
+import useDoorParam from '../hooks/useDoorParam'
 import { CATEGORIES } from './data'
 import {
   useFeed, useSearch, useFloorThread, useNotifications, useActivity,
@@ -44,14 +45,36 @@ const patchThreadPost = (m, pid, patch) =>
 
 const catFlair = (key) => CATEGORIES.find((c) => c.key === key)?.flair || null
 
+// TERM-038 slice 2: the F:<id> address door. `/community?thread=<id>` opens that post on
+// arrival, the same detail view a click on a feed card opens. Read from window.location
+// (the standalone floor2.html entry has no router). Honoured only while the address space
+// rides the auth payload; unset, the param is ignored and the Floor opens on its feed.
+const THREAD_PARAM = 'thread'
+function threadFromUrl() {
+  try {
+    const v = new URLSearchParams(window.location.search).get(THREAD_PARAM) || ''
+    return /^\d{1,12}$/.test(v) ? Number(v) : null
+  } catch { return null }
+}
+
 export default function Floor2({ embedded = false }) {
-  const { user } = useAuth()
+  const { user, addressSpaceEnabled } = useAuth()
   const myId = user?.id
   const isMentor = user?.role === 'admin'
   const me = { id: myId, name: user?.display_name || (user?.email || 'You').split('@')[0], is_mentor: isMentor }
 
-  const [view, setView] = useState('feed')       // 'feed' | 'detail'
-  const [activeId, setActiveId] = useState(null)
+  const [arrival] = useState(() => (addressSpaceEnabled === true ? threadFromUrl() : null))
+  const [view, setView] = useState(arrival ? 'detail' : 'feed')       // 'feed' | 'detail'
+  const [activeId, setActiveId] = useState(arrival)
+  // The door, through useDoorParam: strips the instruction (so a refresh after "back"
+  // shows the feed) and, because it re-reads on every router location, a palette pick
+  // made while the Floor is ALREADY open opens that post too. The arrival above only
+  // saves the first paint a flash of the feed; re-applying the same id here is a no-op.
+  useDoorParam(THREAD_PARAM, (v) => {
+    if (!/^\d{1,12}$/.test(v)) return
+    setActiveId(Number(v))
+    setView('detail')
+  }, { ready: addressSpaceEnabled === true })
   const [category, setCategory] = useState('all') // category key | myposts | bookmarks | notifications
   const [sort, setSort] = useState('hot')
   const [query, setQuery] = useState('')

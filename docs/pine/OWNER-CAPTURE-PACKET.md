@@ -466,3 +466,321 @@ saved again. They are the owner's to delete.
 | why `ticker.modify(…, session.extended)` reads regular-session intrabars on a 1D chart, and 71 a week on 1W | not asked by any probe |
 | `bar_index[k]` in a conditional call reading `na` | measured, surprising; a second probe (e.g. `bar_index[k]` beside `bar_index - k`, and `time_close[k]` / `hlcc4[k]`) would bound it |
 | a negative `x1 + avg + 1` | truncation and floor not told apart |
+
+---
+
+## Results — capture session 2026-10-01
+
+Owner-authorised round 3, account `TSDR_TRADING`, rig layout `01f1AcIj`, the tab the
+owner brought to the front (reused, not opened by this lane, and left open).
+15:52–16:13 ET (19:52–20:13 UTC). Found on **NYSE:F · 1D · 0 studies**, editor on a
+fresh *Untitled script*; left the same way, no `__uct*` global and no injected node.
+
+⚰️ **Two earlier attempts the same day took nothing**: 13:46 ET the extension was not
+connected (`list_connected_browsers` `[]`); 15:49 ET it was connected and signed in but
+the tab this lane opened read `visibilityState "hidden"` with canvases at 300×150 — a
+tab opened by the extension is a background tab. ⚰️ The note written then, *"the chart
+is now on the dark theme"*, was WRONG: `theme-dark` is the class of TradingView's app
+chrome; the CHART is solid white (see § 5c).
+
+Every capture: `tv_capture.js` and the probe sources reached the page byte-exact (sha256
+checked in the page); source written through the Monaco handle into a fresh
+**Create new ▸ Indicator** buffer, sha256 re-checked before the add; `visible`, the
+binding gate, zero studies and the fresh-template check asserted in the same evaluation
+as each write; `status().type === 2` before reading; one chunk per capture by clipboard,
+the capture id inside the chunk checked against the file name, then
+`verify_capture.mjs --assemble`.
+
+Result: **21/21 `VERDICT: PASS`**, every `source.sha256` equal to the committed probe's.
+All eight never-compiled probes compiled first time; no probe needed an edit.
+
+⚠️ **Procedure notes.**
+
+1. **Packet #3 WAS taken.** The brief said the market had closed; the chart's own clock
+   read 15:52 ET and the newest SPY 5m bar (15:50) was still forming, so the realtime
+   capture went first, at 15:53:09 and again at 15:55:13 ET.
+2. `visibilityState` read `visible` on every write. `document.hasFocus()` was false until
+   a click on the chart; the clipboard write needs it and got it each time.
+3. One clipboard read came back EMPTY (the owner was working on the same machine): the
+   id check refused it, nothing was written, and that capture
+   (`vw-time-close-tf-fx-eurusd-1d`) was re-taken. The clipboard is a shared resource.
+4. Harness warnings: the 1D captures taken after 16:00 carry "the newest D/W/M bar
+   closed less than 5 h before this capture"; the two FX captures carry
+   "newestBarIsForming not derived" (session `1700-1700` is overnight; recorded `null`).
+5. The harness was NOT run on these fixtures (no engine in this lane).
+
+### 0 — packet #3, the realtime half of request alignment (`request-realtime-alignment-spy-5-2026-10-01.json`, `…-spy-5-b-…`)
+
+AMEX:SPY 5m, regular hours, newest bar forming (`newestBarIsForming: true`, derived).
+R1 = `request.security(tickerid, "D", close, lookahead_on)`, R2 the same with
+`lookahead_off`, R7 = `…"D", close[1], lookahead_off`.
+
+| bars | look-ahead ON (R1) | look-ahead OFF (R2) | R7 `close[1]`, off |
+|---|---|---|---|
+| HISTORICAL bars of a completed day (09-28, 09-29, 09-30) | that day's own daily close on every bar from 09:30 (765.61 / 764.2 / 762.63) | the PREVIOUS day's close on every bar except the day's last (15:55), where it becomes that day's close | the close two days back, switching at 15:55 likewise |
+| HISTORICAL bars of today (09:30–15:45, loaded before the capture) | 765.08 on all 76 — today's daily close as it stood when the chart loaded | 762.63 — yesterday's close | 764.2 |
+| **the REALTIME bar** (15:50, `isrealtime` 1, `islast` 1), read at 15:53:09 | **765.03** | **765.03** | 762.63 (yesterday's close) |
+
+**On the forming bar look-ahead ON and OFF return the same number — the forming daily
+bar's current close — and the delta is exactly 0.** It was 2.45 on every historical bar
+of the same day (296 of 300 rows are non-zero). R6, the chart's own close, was 765.03 at
+that instant. The second capture, two minutes later: the 15:50 bar, now closed, keeps
+`isrealtime` 1 and reads 764.52 / 764.52 (its final close); the new 15:55 bar reads
+764.13 / 764.13 while the chart's 5m close is 764.2 — ⚠️ the daily request and the 5m
+bar are separate feeds and can differ by a tick, so "ON equals the chart close" holds
+only approximately. R7 on a realtime bar is yesterday's close; on today's historical
+bars it is the day before's.
+
+### 1 — Q-T5, calendar or bars before 2000 (`vw-time-tf-spy-1d-full-2026-10-01.json`, `vw-time-close-tf-spy-1d-full-2026-10-01.json`)
+
+8,476 daily bars each, 1993-01-29 → 2026-10-01, `startsAtBar0: true`.
+
+**Before 2000 TradingView answers the CALENDAR; from 2000 it answers the BARS.**
+
+| question | measured |
+|---|---|
+| `time("W")` in a week whose Monday has no bar | before 2000: the calendar Monday 09:30 on **30 / 30** weeks (Tue 1999-01-19 reads −1 day). From 2000: the week's first bar on 133 / 134; the one exception is the Hurricane Sandy week (2012-10-29), which reads the Monday |
+| `time_close("W")` in a week whose Friday has no bar | before 2000: the calendar Friday 16:00 on **13 / 13** (Thu 1999-04-01 reads 1.2708 days → Fri 04-02 16:00, Good Friday; Thu 1998-12-31 → Fri 1999-01-01). From 2000: the last bar's close on 46 / 47; the exception is the week of 2001-09-10, which reads Fri 09-14 16:00 |
+| `time("12M")` on the year's first bar | the calendar's first weekday for 1995–1999 (Mon 1999-01-04 reads −3 days → Fri 01-01; 1995 → Mon 01-02); the first bar itself in the other 28 years |
+| `time("M")` on the month's first bar | not that bar in 8 months, all before 2000 (1994-04, 1995-01, 1996-01, 1996-09, 1997-01, 1997-09, 1998-01, 1999-01); the first bar in the other 397 |
+| `time_close("M")` | not the last bar's close in 2 months: 1993-05 and 1999-05, both reading Mon 05-31 16:00 (Memorial Day) |
+| `time_close("12M")` | the last bar's close in every year |
+| the first partial period | bar 0 (Fri 1993-01-29) reads −4 / −28 / −28 / −28 days: the real calendar opens before the listing |
+
+So `session-open-missing` / `period-end-missing` are answered by the session calendar,
+which keeps every pre-2000 holiday open, and by the bars from 2000 — with the two known
+post-2000 exceptions (Sandy, 9/11) on the calendar side. ⚠️ 1994-04-26..28 (the Nixon
+funeral closure, Wed 04-27) was looked at and shows nothing unusual for the week or
+month rows.
+
+### 2 — C42, a call site past one execution (`vw-call-site-history-rddt-1d-2026-10-01.json`, `…-spy-1d-…`)
+
+RDDT 635 bars from the listing; SPY 1,800 bars as the second witness. The two agree on
+every row below. `A*` = a block under `barstate.islast`, `B*` = a helper called once,
+`C*` / `H*` = a block / a helper under `close > open`, `D*` = a block on even bars.
+
+**One execution (labels):**
+
+| row | TradingView's answer |
+|---|---|
+| A01, B10 `ta.highest(high, 10)` (controls) | the last bar's own high |
+| A02, B04 `ta.lowest(low, 10)` | the last bar's own low |
+| A08, B08 `ta.highest(10)` | the last bar's own high |
+| A09, B09 `ta.sma(close, 1)` | the bar's close — a length of 1 is NOT `na` |
+| A03 `ta.sma(close, 3)`, A04 / B05 `ta.ema(close, 3)`, A05 `ta.rsi(close, 14)`, A06 `ta.atr(14)`, A07 `ta.change(close)`, A10 `ta.stdev(close, 5)` | `NaN` |
+| A11 `ta.cum(volume)` | the last bar's volume alone (RDDT 3,540,778; the whole chart sums to 3,811,975,774) |
+| A12 block local `bx[1]` | **`NaN`** — a block local's history is the block's |
+| A13 `bar_index[5]` in a BLOCK | **the chart's** (629 = `bar_index - 5`) |
+| B01 `bar_index[k]` in a HELPER | `NaN` (with `bar_index - k` = 629 printed beside it) |
+| A14 `volume[5]` in a block | the chart's (3,262,609) |
+| B02 `time_close[k]`, B03 `hlcc4[k]` in a helper | the chart's (1790280000000; 152.38) |
+| B06 local `x[0]`, B07 parameter `src[0]` | the current value (299.06; 149.53) |
+
+**Many executions (plot rows on the bars the code runs; `na` on every other bar):**
+
+| row | reads | RDDT | SPY |
+|---|---|---|---|
+| C03, H03 `ta.sma(close, 3)` | the mean over the last 3 EXECUTIONS | 280 / 280 | 941 / 941 |
+| C04 `ta.ema(close, 3)` | the EMA over executions (equal to the every-bar EMA on 0 bars) | 280 / 280 | 941 / 941 |
+| C05 block local `cx[1]`, H02 helper local `x[1]`, H01 parameter `src[1]` | the value at the PREVIOUS EXECUTION | 280 / 280 | 941 / 941 |
+| C06 `bar_index[1]` in a block | `bar_index - 1` (the chart's) | 280 / 280 | 941 / 941 |
+| H05 `bar_index[1]` in a helper | the PREVIOUS EXECUTION's `bar_index` | 280 / 280 | 941 / 941 |
+| H06 `volume[1]` in a helper | the previous BAR's volume (the chart's) | 280 / 280 | 941 / 941 |
+| D02 `ta.sma(close, 3)`, even bars | the mean of `close`, `close[2]`, `close[4]` | 287 / 287 | 869 / 869 |
+| D03 `dy[1]`, even bars | `2 × close[2]` | 287 / 287 | 869 / 869 |
+
+So a window of `ta.sma` / `ta.ema` counts executions, a local's or a parameter's `[1]`
+is the previous execution, and `bar_index` at an offset is the chart's in a block but
+the call's own (per execution) in a helper, while `volume` stays the chart's in both.
+
+⛔ **AMBIGUOUS — `ta.highest` / `ta.lowest` over many executions fit NEITHER reading.**
+
+| row | last N executions | last N bars | last N bars, skipped bars left out |
+|---|---|---|---|
+| C01 `ta.highest(high, 10)` under `close > open` | RDDT 168 / 280, SPY 675 / 941 | 90 / 280, 447 / 941 | 141 / 271, 632 / 930 |
+| C02 `ta.lowest(low, 10)` | 96 / 280, 301 / 941 | 55 / 280, 179 / 941 | 91 / 271, 307 / 930 |
+| H04 helper `ta.highest(src, 10)` | 171 / 280, 687 / 941 | 144 / 280, 605 / 941 | 145 / 271, 634 / 930 |
+| D01 `ta.highest(high, 3)` on even bars | 191 / 287, 615 / 869 | 222 / 287, 657 / 869 | **278 / 278, 860 / 860** — exactly `max(high, high[2])` |
+
+On the every-other-bar guard the answer is the executions inside the last 3 BARS; on
+the irregular guard no rule tried here reproduces it (the vendor's value is sometimes
+older than ten bars and sometimes newer than ten executions). The rule is not derived.
+Nothing should be served for a conditional `ta.highest` / `ta.lowest` from this capture.
+
+### 3 — C40, `for … in`, `.all`, the cap `while`, a sized list (`vw-forin-collections-rddt-1d-2026-10-01.json`)
+
+635 bars from the listing; no runtime error. 24 lines, 3 boxes, 5 labels held.
+
+| row | TradingView's answer | means |
+|---|---|---|
+| F01 | 5 passes; the five lines' `x2` are `bar_index + 1 + i` with `i = 0` for the oldest (ranks 1…5 on y = 10…14) | control read |
+| F02 | 0 passes over an empty list | control read |
+| F03 body shifts the list | **3 passes; y = 23 and 24 left** | the walk is over the LIVE list |
+| F04 body pushes onto the list | **13 passes** (3 + the 10 pushed) | live |
+| F05 body replaces a later slot | the y = 59 line was moved (`x2` + 5); y = 52 was not | each slot is read when the walk gets there |
+| A01 / A03 `array.size(box.all)` | 5, then 4 after one delete | control read |
+| A02 the HELD array after that delete | **5** | the array `box.all` returns is a snapshot |
+| A04 / A05 `for b in box.all → box.delete(b)` over four boxes | **4 passes, 0 left** | a walk over the entry snapshot: every box deleted |
+| A06 position in `box.all` | texts `0`, `1`, `2` on y = 70, 71, 72 — oldest first | |
+| W01 the cap `while` | 2 passes; `W2`, `W3` left | control read |
+| Z01–Z03 `array.new_label(3)` | size 3 on all 635 bars; exactly 3 labels held (`Z0`–`Z2`); slot 0's x is the current bar on every bar | a sized list is three `na` slots that the replace-in-place idiom fills |
+
+`for … in` over a script's own array is live (F03–F05); over `<family>.all` it is a
+snapshot (A02, A04) — both are now read.
+
+### 4 — Q-T2 / Q-T4 / Q-T3
+
+**FX:EURUSD 1D** (`vw-time-tf-fx-eurusd-1d-2026-10-01.json`, `vw-time-close-tf-fx-eurusd-1d-2026-10-01.json`;
+14,329 bars from 1971; session `1700-1700`, timezone America/New_York; counts below are
+the last 3,000 bars, 2015 →).
+
+- **Which weekend bar exists:** the SUNDAY one. Bars open at 17:00 New York on Sun, Mon,
+  Tue, Wed, Thu (598–602 each); none on Friday or Saturday evening. Each spans exactly
+  1 day (`time_close - time` = 1.0000 on 3,000 / 3,000).
+- **`dayofweek`** on the Sunday-17:00 bar is **1 (Sunday)** — the bar's opening day in the
+  exchange timezone, not the trading day it belongs to.
+- **`time("W")`** is that Sunday 17:00 bar (2,992 / 3,000; Monday 17:00 on 8 bars of
+  weeks with no Sunday bar). The new-week idiom fires on the Sunday bar (598, + 5 Mondays).
+- **`time_close("W")`** is Friday 17:00 (2,996; Thursday 17:00 on 4).
+- **`time("M")` / `time_close("M")` follow the TRADING day, not the bar's open date:** the
+  bar opening Mon 2026-08-31 17:00 is September's first (`time("M")` = that bar), and the
+  bar opening Wed 09-30 17:00 opens October; `time_close("M")` for September is
+  Wed 09-30 17:00. The new-month idiom fires on bars dated the 30th / 31st (87 of 139).
+- `time(timeframe.period)` and `time("60")` equal `time` on every bar.
+
+**AMEX:SPY 1W and 1M** (`vw-time-tf-spy-{1w,1m}-2026-10-01.json`, `vw-time-close-tf-spy-{1w,1m}-2026-10-01.json`; 1,758 and 406 bars, from the listing).
+
+| row | on 1W | on 1M |
+|---|---|---|
+| `time(timeframe.period)`, `time("60")` | equal `time` on every bar | equal `time` on every bar |
+| `time("W")` | equals `time` (1,758 / 1,758) | the first session of the week CONTAINING the bar's open — up to 4 days BEFORE the bar (bar Fri 2026-05-01 → Mon 04-27) |
+| `time("M")` | the first session of the month containing the bar's OPEN (week of Mon 08-31 → Mon 08-03) | equals `time` |
+| `time("3M")` / `time("12M")` | the quarter's / year's first session, by the bar's open | the same |
+| bare `time_close` | the week's last session close (Fri 16:00 ×1,706, Thu 16:00 ×45, 13:00 ×7) | the month's last session close |
+| `time_close("W")` | equals `time_close` | the close of the week containing the bar's open (bar Fri 05-01 → Fri 05-01 16:00) |
+| `time_close("M")` | the close of the month containing the bar's open (week of Mon 08-31 → Mon 08-31 16:00, the SAME day) | equals `time_close` |
+| `time_close(timeframe.period)` | equals `time_close` | equals `time_close` |
+| `time_close("D")` | the close of the bar's FIRST day (`time_close("D") - time_close` = −4 days on 1,572 bars) | the close of the bar's first day (−25 … −30 days) |
+| new-period idiom | `ta.change(time("W"))` fires on every bar | `ta.change(time("M"))` fires on every bar |
+
+So on a chart above daily a period request is keyed on the bar's OPENING instant: the
+period that contains it, never the bar's whole span.
+
+**AMEX:SPY 15 and 5** (`vw-time-tf-spy-15-2026-10-01.json`, `vw-time-tf-spy-5-2026-10-01.json`; 3,300 bars each, regular session).
+
+- T05 `time(timeframe.period) - time` is 0 on 3,300 / 3,300 on both.
+- **T06 `time("60")` is NOT `time`:** it is the open of the 60-minute bucket the bar sits
+  in, bucketed from 09:30 — 09:30 for the 09:30–10:25 bars, 10:30, 11:30 … 15:30 (every
+  one of 26 / 78 bar slots, 42–127 days each). A real higher-timeframe anchor.
+- `time("W")` is the week's first regular-session open — Monday 09:30, or Tuesday 09:30
+  in the Labor Day week (the new-week idiom fires on Tue 2026-09-08 09:30). `time("M")`,
+  `("3M")`, `("12M")` are the first session open of the month / quarter / year (09-01,
+  07-01 and 10-01, Fri 2026-01-02), all at 09:30.
+
+### 5a — C33 (`vw-input-tf-text-v5-spy-1d-2026-10-01.json`, `vw-input-tf-text-v6-…`, `vw-getter-history-spy-1d-2026-10-01.json`)
+
+**`input.timeframe` text.** Under v5 AND v6 the label prints the default VERBATIM:
+`D`, `W`, `M`, `60`, `240`, `1D`, and an empty string for `""` (length 0 — it is not
+replaced by the chart's period; `tfE == timeframe.period` is false). `"D" == "1D"` is
+false in both directions. The only version difference is the control: `timeframe.period`
+prints `D` under v5 and `1D` under v6. A bare `label.new(bar_index, high, tfD)` prints
+`D`, `tfW` prints `W`.
+
+**A getter on a live handle.**
+
+| row | TradingView's answer |
+|---|---|
+| `line.get_y1(a)`, line moved every bar | the current y1 (= `close`, 299 / 299); in a text: `763.99`, and `763.99` through `"#.00"` |
+| `ya[1]` (a top-level variable holding the getter) and `line.get_y1(a)[1]` written directly | **the value the getter returned one bar AGO** (= `close[1]`, 299 / 299 each) — never the line's current y1 |
+| the same `[1]` inside an `if barstate.islast` block | `NaN` (the block's own history, as in § 2) |
+| a line never moved | its creation y1 on every bar, and the same through `[1]` |
+| a line replaced every 5 bars | the new line's y1; `[1]` is the previous bar's reading |
+| `line.get_y1(c[1])` — the previous bar's HANDLE | `na` on the 60 bars where that line was deleted, the line's y1 otherwise |
+| `line.get_x1(a)` and its `[1]` | `bar_index` and `bar_index - 1` (299 / 299) |
+
+### 5b — C43, a negative sum (`vw-int-array-avg-neg-spy-1d-2026-10-01.json`)
+
+No runtime error: a line may be anchored at a negative bar index.
+
+| row | `x1 + mean + 1` | reads | truncation / floor would read |
+|---|---|---|---|
+| Z01 (mean −1.5, x1 = 0) | −0.5 | **0** | 0 / −1 |
+| Z02 (mean −2.5) | −1.5 | **−1** | −1 / −2 |
+| Z04 (mean −3.5) | −2.5 | **−2** | −2 / −3 |
+| Z03 control (mean −0.5) | 0.5 | 0 | 0 / 0 |
+| Y01–Y03 `l.set_x2(a.avg())`, means −1.5 / −2.5 / −0.5 | — | **−1, −2, 0** | −1, −2, 0 / −2, −3, −1 |
+| N01–N03, x1 far from 0 (positive sum) | — | −1, −2, 0 | the same either way |
+| P01 control (mean 1.5, x1 = 0) | 2.5 | 2 | 2 / 2 |
+
+**Truncation toward zero, not floor** — the same answer as `int(-1.5)` = −1 (control;
+`math.floor(-1.5)` = −2, `math.round(-1.5)` = −2). `str.tostring(mean, "##")` prints
+`-2`, `-3`, `-1` for −1.5, −2.5, −0.5: half away from zero.
+
+### 5c — C37 Q-T1, the theme colours (`vw-theme-colours-spy-1d-2026-10-01.json`)
+
+⚠️ **This is another LIGHT witness.** Read off the chart at capture time: pane
+`backgroundType` `solid`, `background` `rgba(255, 255, 255, 1)`, scale text `#0F0F0F` —
+while the page's `<html>` class is `theme-dark` (TradingView's app chrome only). Nothing
+was changed.
+
+- `chart.fg_color` = (15, 15, 15), transparency 0; `chart.bg_color` = (255, 255, 255),
+  transparency 0 — constant on 300 bars. `color.new(chart.fg_color, 40)` keeps the
+  channels and reads transparency 40. `chart.is_standard` = 1.
+- Drawn: a label with `color = chart.bg_color, textcolor = chart.fg_color` holds body
+  `#ffffff` and text `#0f0f0f` (and the reverse for the reversed label); the 40 %
+  transparent text is stored with alpha 0x99. Table cells likewise; a cell with no
+  `bgcolor` holds none (`null`), and a cell with no colours at all has text `#363A45`.
+
+A solid DARK chart and a GRADIENT background are still owed (they need the owner's
+chart settings changed, which this lane does not do).
+
+### 5d — C38, colour components (`vw-colour-components-spy-1d-2026-10-01.json`)
+
+| form | TradingView's answer |
+|---|---|
+| 8-digit literal `#0064C84D` | (0, 100, 200), transparency **70**; `#FF323280` → r 255, transparency **50** |
+| `input.color(#FF3232)` | (255, 50, ·), transparency 0; `input.color(color.new(#0064C8, 35))` → b 200, transparency 35 |
+| a per-bar transparency `color.new(color.red, bar_index % 101)` | transparency = that number on 300 / 300 (r stays 242 — `color.red` is `#F23645`); `color.new(#0064C84D, v * 100)` REPLACES the literal's 70 with `v * 100` on 300 / 300 |
+| a ternary of two colours | the taken arm's four components on 300 / 300 |
+| a user helper `f(c, t) => color.new(c, t)` | (12, ·, ·), transparency 25 — as written |
+| ⛔ a gradient whose endpoints differ in transparency | **NOT linear per channel — weighted by each endpoint's opacity.** Over per-bar bounds (`low`…`high` at `close`, endpoints t 70 and t 10) the channels are within 1 unit of the opacity-weighted mean on 254 / 300 bars (worst 1.25) and of the plain linear value on 2 / 300; transparency itself is linear. The two inner gradients (t 0 → 80, t 100 → 0): 300 / 300 against 6 / 300 and 3 / 300 |
+| a gradient between two gradients | the same weighting applied again: within 1.5 units on 265 / 300 (plain linear: 6 / 300) |
+| top == bottom (`from_gradient(v, 0.5, 0.5, …)`) | r 0, b 0, transparency 100 on every bar, whatever `v` |
+| an `na` bound, an `na` value | r 0, transparency 100 on every bar — a number, never `na` |
+| reversed bounds (bottom 1, top 0) | the bottom colour at every `v` (r 0, transparency 70) |
+
+⚠️ **This corrects the 2026-09-30 reading of `vw-gradient`** ("linear per channel, then
+truncated"): that probe's graded endpoints shared one transparency, where the weighted
+mean IS the linear one. Its own row G16 already showed the weighting — blue (t 0) → red
+(t 100) keeps r = 41, blue's, at every `v`. ⚠️ **AMBIGUOUS:** the exact rounding of a
+weighted channel is not derived — the best rule tried (channels truncated, transparency
+rounded) reproduces 226 / 300 of the per-bar rows and 241 / 300 + 300 / 300 of the inner
+gradients exactly.
+
+### Saved private scripts (account `TSDR_TRADING`, none published)
+
+| script | id |
+|---|---|
+| `UCTPROBE_VW_CALL_SITE_HISTORY` | `USER;7b3815a241a444429b01ae17767ed4fc` |
+| `UCTPROBE_VW_FORIN_COLLECTIONS` | `USER;69fc1057bfe449cd893c4bc52c15e1eb` |
+| `UCTPROBE_VW_INPUT_TF_TEXT_V5` | `USER;fa050b8cb5d4495a97f17e889949324e` |
+| `UCTPROBE_VW_INPUT_TF_TEXT_V6` | `USER;7ab0dd3b0a04484fa22f987fb4b7aa5b` |
+| `UCTPROBE_VW_GETTER_HISTORY` | `USER;d9c1f83da05e436d86488e823f75f5af` |
+| `UCTPROBE_VW_INT_ARRAY_AVG_NEG` | `USER;3a15218371f248f28cbec651c6b6ff25` |
+| `UCTPROBE_VW_THEME_COLOURS` | `USER;9fe180eff0364daca11c2c426249842a` |
+| `UCTPROBE_VW_COLOUR_COMPONENTS` | `USER;c62c4b6ac26d46e8ab664ecd56f3b11b` |
+
+Each is version 1.0, read back from the account's saved list (33 scripts in all). Each
+was saved AFTER its capture, from the unsaved buffer the capture ran from.
+`request-realtime-alignment.pine`, `vw-time-tf.pine` and `vw-time-close-tf.pine` were
+added from unsaved buffers and not saved again. They are the owner's to delete.
+
+### Still owed
+
+| what | why |
+|---|---|
+| the rule for `ta.highest` / `ta.lowest` in conditional code | measured, fits no rule tried (§ 2); needs its own probe — e.g. the same call under a guard that runs on a fixed pattern (2 on, 3 off) with the window's source plotted |
+| `chart.fg_color` / `chart.bg_color` on a dark and on a gradient chart background | the owner's chart settings are not changed by this lane |
+| the exact rounding of an opacity-weighted gradient channel | § 5d |
+| RDDT 5m bars before 2025-09-22 | the account's intraday depth |
+| Q-C31b (a descending and an empty-range `for`) | not asked by any probe on disk |

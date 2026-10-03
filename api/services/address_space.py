@@ -18,6 +18,16 @@ Doors are the SHIPPED one-shot URL instructions, never new ones:
   layout    → /charts?openLayout=<id>          (ChartsWorkspace, own + prebuilt)
   watchlist → /charts?openWatchlist=user:<id>  (ChartsWorkspace, WATCH_KEY_RE)
   note      → /journal/notebook?note=<id>      (NotebookTab)
+  screen    → /screener?savedScreen=<id>       (useScreenSpec)
+  ai_thread → /ai-search?thread=<id>           (AiSearchPage)
+  theme_set → /charts?openThemeSet=<id>        (ChartsWorkspace -> ThemeTrackerPage opts)
+  floor     → /community?thread=<id>           (Floor2)
+  playbook  → /model-book?view=builder&playbookEntry=<id>  (BuilderView, My Playbook)
+
+Every kind but ``floor`` is OWNER-scoped. A Floor post is PUBLIC, so its lister is
+VIEWER-scoped instead: every live (not deleted) post in the Floor space, for any member
+the Floor's own gate (``community.require_community``) admits, and nothing for anyone
+else. That is the visibility rule the Floor already enforces, called, not restated.
 
 DARK behind ``ADDRESS_SPACE_ENABLED`` (read per call; unset = off): the routes 404
 and the palette shows no address rows.
@@ -86,6 +96,48 @@ def _ai_threads(user_id: str) -> list[dict]:
             for r in svc.list_threads(user_id, limit=100)]
 
 
+def _theme_sets(user_id: str) -> list[dict]:
+    from api.services import theme_sets as svc
+    if not svc.enabled():          # the widget shows no sets while THEME_SETS_ENABLED is off
+        return []
+    return [{"id": str(r["id"]), "name": r["name"]} for r in svc.list_sets(user_id)]
+
+
+def _floor_reader(user_id: str) -> bool:
+    """True iff the Floor's OWN gate admits this member (flag-or-admin, then paid)."""
+    from fastapi import HTTPException
+    from api.routers import community
+    from api.services import auth_service
+    user = auth_service.get_user_by_id(user_id)
+    if not user:
+        return False
+    user["plan"] = auth_service.get_user_plan(user_id)
+    try:
+        community.require_community(user)
+    except HTTPException:
+        return False
+    return True
+
+
+def _floor_threads(user_id: str) -> list[dict]:
+    from api.services import community_store as store
+    if not _floor_reader(user_id):
+        return []
+    return [{"id": str(r["id"]), "name": (r["title"] or "").strip() or "Untitled post"}
+            for r in store.list_floor_titles()]
+
+
+def _playbook_entries(user_id: str) -> list[dict]:
+    # Through the playbook's own owner-scoped reads: the member's sections, then each
+    # section's entries (list_entries returns None for a section that is not theirs).
+    from api.services.user_playbook import service as svc
+    out = []
+    for sec in svc.overview(user_id).get("sections") or []:
+        for r in svc.list_entries(user_id, sec["id"]) or []:
+            out.append({"id": str(r["id"]), "name": (r.get("title") or "").strip() or "Untitled entry"})
+    return out
+
+
 KINDS: dict[str, Kind] = {
     "layout": Kind("L", "Chart layout", "charts_layouts", _layouts,
                    lambda i: f"/charts?openLayout={quote(i)}"),
@@ -101,6 +153,20 @@ KINDS: dict[str, Kind] = {
     # the page's own `openThread` -- the same reopen a click on a past conversation does.
     "ai_thread": Kind("A", "AI conversation", "ais_threads", _ai_threads,
                       lambda i: f"/ai-search?thread={quote(i)}"),
+    # 2026-10-01 (TERM-038 slice 2). The door is ChartsWorkspace's `openThemeSet=`
+    # arrival: it points the board's Themes widget at the set (adding one if the board
+    # has none), and ThemeTrackerPage follows its opts. Empty while THEME_SETS_ENABLED is off.
+    "theme_set": Kind("T", "Theme set", "theme_sets", _theme_sets,
+                      lambda i: f"/charts?openThemeSet={quote(i)}"),
+    # 2026-10-01 (TERM-038 slice 2). PUBLIC, so viewer-scoped (see the module docstring).
+    # The door is Floor2's `thread=` arrival, the same open a click on a feed card does.
+    "floor": Kind("F", "Floor post", "threads", _floor_threads,
+                  lambda i: f"/community?thread={quote(i)}"),
+    # 2026-10-01 (TERM-038 tail). Owner-scoped. The door is BuilderView's `playbookEntry=`
+    # arrival (useDoorParam), the same open a click on an entry card does; `view=builder`
+    # is the Model Book's existing view param, so the page lands on My Playbook first.
+    "playbook": Kind("P", "Playbook entry", "upb_entries", _playbook_entries,
+                     lambda i: f"/model-book?view=builder&playbookEntry={quote(i)}"),
 }
 _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 
@@ -108,18 +174,21 @@ _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 # each line is a reason, with its kind first. `no-door` means a real saved object that
 # has no URL instruction to open it yet -- the next thing to build, not a wontfix.
 EXEMPT: dict[str, str] = {
-    "theme_sets": "no-door: a theme set is a Themes-widget option on the /charts board "
-                  "(opts.themeSetId), not a page; a door needs ChartsWorkspace to find or "
-                  "add that widget first (build D, 2026-09-30, stopped here by choice)",
+    "terminal_aliases": "not-a-saved-object: a member's command-alias map (a setting the parser reads), not a thing anyone opens",
+    "options_spread_book": "no-door: FT-072 Spread Book is dark and no route opens one saved spread by id; give it a kind when one does",
     "playbooks": "no-door: Journal 1.0 playbooks, a retired surface with no route that opens one",
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
-    "upb_entries": "no-door: user playbook entries have no URL instruction yet",
     "upb_sections": "not-a-saved-object: a section groups playbook entries; the entry is the object",
-    "j2_note_saved_views": "no-door: a saved notebook view has no URL instruction yet",
+    "j2_note_saved_views": "no-door: a saved notebook view has no URL instruction yet, and that door "
+                           "belongs in the Notebook editor files, owned by the notebook workstream "
+                           "(TERM-038 slice 2 stopped here by rule)",
     "j2_note_templates": "no-door: a note template is applied from the editor, never opened by URL",
-    "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet",
+    "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet; that door belongs "
+                       "in the Notebook editor files (notebook workstream, slice 2 stopped by rule)",
     "j2_note_documents": "not-a-saved-object: an attached document belongs to its note",
     "j2_note_versions": "not-a-saved-object: a note version is history of the note, reached from the note",
+    "artifact_versions": "not-a-saved-object: a version is history of a layout or screen (COV-06), "
+                         "reached from that artifact's History menu",
     "j2_note_properties": "not-a-saved-object: a property definition, not a thing a member opens",
     "j2_accounts": "not-a-saved-object: a trading account is a setting, chosen inside the Journal",
     "trading_accounts": "not-a-saved-object: Journal 1.0 trading account setting",
@@ -130,12 +199,11 @@ EXEMPT: dict[str, str] = {
     "j2_verdicts": "not-a-saved-object: a generated verdict record, not member-named work",
     "journal_screenshots": "not-a-saved-object: a screenshot belongs to its trade",
     "screen_alert_subs": "not-a-saved-object: an alert subscription, managed from its screen",
+    "spec_alert_subs": "not-a-saved-object: a standing alert on a screen, managed from that screen",
     "user_alerts": "not-a-saved-object: a delivered alert (bell row), not saved work",
     "voice_documents": "not-a-saved-object: a voice-assistant document, not opened by URL",
     "floor_attachments": "not-a-saved-object: an attachment belongs to its Floor post",
     "client_errors": "not-a-saved-object: an error report, not member work",
-    "threads": "deferred: a Floor thread has a door (/community/<id>) but is PUBLIC; its address "
-               "needs the community's visibility rule, not an owner filter (FB-S2-04 territory)",
 }
 
 
@@ -213,7 +281,7 @@ def resolve(user_id: str, address: str) -> Optional[dict]:
 #   private -> {address, kind, kind_label, shared: False}            (NO name: a private title is
 #                                                                      not the Floor's to publish)
 #   not the author's / unknown -> omitted, so ordinary text ("W:3 in a row") never gets a chip.
-_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSA]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
+_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSATFP]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
 MAX_TEXT_ADDRESSES = 8
 
 
@@ -288,9 +356,35 @@ def _shared_ai_thread(author_id: str, obj_id: str) -> Optional[dict]:
     return {"shared": False} if svc.get_thread(author_id, obj_id) else None
 
 
+def _shared_theme_set(author_id: str, obj_id: str) -> Optional[dict]:
+    # A theme set has no share: the author's own reads "private", anyone else's nothing.
+    from api.services import theme_sets as svc
+    return {"shared": False} if svc.get_set(author_id, obj_id) else None
+
+
+def _shared_floor(author_id: str, obj_id: str) -> Optional[dict]:
+    # A live Floor post is PUBLIC: it links for every reader, whoever wrote it. A deleted
+    # post (a moderator "hide" is the same soft delete) gets no chip at all.
+    from api.services import community_store as store
+    if not obj_id.isdigit():
+        return None
+    row = store.floor_title(int(obj_id))
+    if not row:
+        return None
+    return {"name": (row["title"] or "").strip() or "Untitled post",
+            "to": f"/community?thread={row['id']}", "shared": True}
+
+
+def _shared_playbook(author_id: str, obj_id: str) -> Optional[dict]:
+    # A playbook entry has no share: the author's own reads "private", anyone else's nothing.
+    from api.services.user_playbook import service as svc
+    return {"shared": False} if svc.get_entry_detail(author_id, obj_id) else None
+
+
 _SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist,
                      "note": _shared_note, "screen": _shared_screen,
-                     "ai_thread": _shared_ai_thread}
+                     "ai_thread": _shared_ai_thread, "theme_set": _shared_theme_set,
+                     "floor": _shared_floor, "playbook": _shared_playbook}
 
 
 def shared_links(author_id: Optional[str], text: str) -> list[dict]:

@@ -302,6 +302,15 @@ const SERVER_LEDGER = {
     + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
     + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
     + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
+  // Wave 11 lane 11C ("Ask Notebook to do something"): a member-APPROVED batch, applied server-side change by
+  // change through the member's own writers, each against the revision the member reviewed.
+  'api/services/journal_two/ai_actions.py':
+    'apply/undo of a reviewed AI change set: patch_note_tags(expected_updated_at), update_note(expected_updated_at) for '
+    + 'a property or a folder, note_personal_api.append_nodes(expected_updated_at) for a text/task block, '
+    + 'append_financial_fact inside a BEGIN IMMEDIATE that checked the revision, create_note for a new note, and delete_note '
+    + '(Trash) only to UNDO a note the set itself created; its client (AiActionsPanel / lib/aiActions.js) lands every '
+    + 'revision the apply and undo routes return with settleNoteWrites, and holds back a body block on a note with unsent '
+    + 'words on this device',
 }
 
 describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions', () => {
@@ -686,6 +695,14 @@ const DOOR_CLASSIFICATION = {
     why: 'create-if-missing is a new note nobody holds; the personal API\'s append-to-daily appends '
       + 'paragraphs into a note a tab may hold dirty, which forks (the same D-G1(b) shape).',
     evidence: ['tests/test_journal_two_daily_note_router.py', 'tests/test_notebook_personal_api.py'],
+  },
+  'api/services/journal_two/ai_actions.py': {
+    class: FORK,
+    why: 'tags, properties and moves are metadata (rebased, never forked); a text/task block is appended through '
+      + 'append_nodes, which is not a SERVER_APPENDED_TYPE, so ANOTHER tab holding unsent words forks -- a conflicted '
+      + 'copy, never a clobber. Every write is a compare-and-set on the revision the member reviewed (conflict skipped), '
+      + 'and this device holds back a body block on a note with unsent words before sending.',
+    evidence: ['tests/test_notebook_ai_actions.py'],
   },
   'api/services/journal_two/sample_notebook.py': {
     class: NONE,

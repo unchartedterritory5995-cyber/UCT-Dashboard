@@ -1775,10 +1775,18 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # falls back to this module's single clock -- and answers `False`
             # correctly there, because last session's close is behind that
             # instant by derivation rather than by assertion.
+            # ⭐ C45 — `barIndexAbsolute` IS THE DOCUMENT'S OWN DECLARATION, read by
+            # the function `assert_scannable` read it with when it admitted this tree:
+            # a Pine translation's `bar_index` is TradingView's count, which a window
+            # of bars cannot know, so a value that depends on it is withheld
+            # (`ast_interpret.bar_index_mask`). False for every other document, and
+            # `interpret` asks `is True` — their evaluation is the one it always was.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
                                              opts={"tf": tf_code,
                                                    "symbols": symbol_series,
-                                                   "now": _eval_now})
+                                                   "now": _eval_now,
+                                                   "barIndexAbsolute":
+                                                       ast_interpret.bar_index_absolute_for(definition)})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))

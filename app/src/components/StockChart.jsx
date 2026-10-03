@@ -83,6 +83,7 @@ import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
+import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
@@ -505,6 +506,8 @@ const engineLwc = () => (_engineLwc || (_engineLwc = {
   // literal resolves to `undefined`, `addSeries(undefined, …)` throws, `attempt`
   // swallows it, and the plot plans, computes and then silently does not exist.
   CandlestickSeries,
+  // ⭐ A secondary series' "Bars" presentation (`binder.SERIES_CTOR.bar`).
+  BarSeries,
 }))
 
 // "Same % scale" comparison → transform the comparison's raw closes into the base's
@@ -814,7 +817,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
-import { useSecondarySources, useOtherSymbolExchanges } from './chart/engine/useSecondarySources'
+import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
@@ -830,6 +833,22 @@ import useEconomicSources from './chart/engine/useEconomicSources'
 import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from './chart/engine/economicPrimary'
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
+import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+
+// ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
+// opened the member door. The registry asks this loader only when it meets a
+// runtime document with the runtime pane switched on
+// (`nativeRegistry.runtimeColumnsOrReasons`), and the lane arrives in its own
+// chunk. ⛔ REGISTERED HERE, in the chart's module: the lane imports modules
+// this chunk already holds (`objectColumns`), so loading it from here splits
+// nothing out of the chart's chunk — registered from a shared hook it did, and
+// every route's preload list grew by a chunk.
+// ⛔ AND THE LOADER CONSULTS THE RUNTIME GATE ITSELF, on the path that reaches the
+// lane (`memberPaneGate.test.js` walks it): the registry only calls it with the
+// gate on, and this says so where the import is.
+engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
+  ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
+  : Promise.reject(new Error('the runtime pane is switched off'))))
 
 const NOOP = () => {}
 
@@ -4236,6 +4255,10 @@ export default function StockChart({
   // destroying+recreating the price series (that recreation re-fit the price scale =
   // the "chart shakes up/down when I change a color" bug). Type/theme still recreate.
   const netColorsRef = useRef({})
+  // ⭐ B1 — Pine `barcolor` overrides (`time → colour`) the engine computed, read
+  // LIVE by the price series' wrap (`engine/barColours.js`). A ref, never state:
+  // a recolour must not re-render this component.
+  const barColoursRef = useRef(null)
   // {high,low} of the last bar + the bar before it — for the Sunrise inside-bar check
   // on the developing (live) bar (setData tracks these inline for historical bars).
   const lastNetBarRef = useRef(null)
@@ -6549,6 +6572,11 @@ export default function StockChart({
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, csView)
+  // ⭐ C41 — this symbol's intraday bars, for a Pine document that reads BELOW the
+  // chart (`request.security(syminfo.tickerid, "60", …)` → an `ltf` node). A chart
+  // with no such indicator makes NO request (`useLowerTfSources`).
+  const lowerTfSources = useLowerTfSources(
+    _storedInstances, _defOf, sym, resolvedTf, barCount, instFetcher, userDefsGeneration)
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
@@ -11283,6 +11311,10 @@ export default function StockChart({
         }
         priceSeries.__uctNetWrap = true
       }
+      // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
+      // from `barColoursRef` (time → colour). Installed once per series, AFTER the
+      // net-change wrap so it runs first and the net wrap keeps its colour.
+      if (isOhlcType(cs.chartType)) wrapSeriesForBarColours(priceSeries, () => barColoursRef.current)
       prevChartTypeRef.current = _priceStyleKey
     }
 
@@ -12668,6 +12700,7 @@ export default function StockChart({
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
         exchangeOf: otherSymbolExchangeOf,
+        lowerTf: lowerTfSources,
         // ⭐⭐ CALCULATION-TIMEFRAME FRAMES — the higher-timeframe canonical bars an
         // instance with `calculationTimeframe` computes over (`useCalcFrames`), the
         // chart's session rule for an intraday frame, and the door a frame the chart
@@ -12734,6 +12767,20 @@ export default function StockChart({
         historyFromListing,
         adjustTime,
         applyData: _applyData,
+        // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
+        // own is drawn on the price pane, through the candles' series.
+        priceSeries: () => candleSeriesRef.current,
+        // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
+        // they CHANGE; the candles are re-applied from their own remembered data
+        // (one `update` of the last bar when only it changed). No React state.
+        // ⛔ NOT A SEVENTH DEVELOPING-BAR WRITER (`singleWriterIndex.test.js`): the
+        // re-apply writes back the LAST bar the writers themselves wrote (the wrap's
+        // raw copy tracks every `update`), recoloured — never a new price.
+        setBarColours: (map) => {
+          const prev = barColoursRef.current
+          barColoursRef.current = map
+          try { reapplyBarColours(candleSeriesRef.current, prev, map) } catch { /* series mid-swap */ }
+        },
         // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
         // other chart-library capability the binder uses: a host that cannot
         // provide it draws no lines, labels or boxes and everything else — the
@@ -13752,7 +13799,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, csView, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

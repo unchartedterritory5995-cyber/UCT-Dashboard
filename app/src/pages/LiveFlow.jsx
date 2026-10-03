@@ -485,7 +485,7 @@ function UserBlocklistPanel({ visible, onSaved }) {
       </div>
       {expanded && (
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <textarea
+          <textarea aria-label="Tickers"
             value={draftText}
             onChange={e => setDraftText(e.target.value)}
             placeholder="SPCX, RKLB, ABCD ..."
@@ -1828,7 +1828,7 @@ export default function LiveFlow() {
                 fontSize: 9, color: isBacktest ? P.bl : P.mt, fontWeight: 700,
                 letterSpacing: 0.5, textTransform: "uppercase",
               }}>{isBacktest ? "replay" : "backtest"}</span>
-              <input
+              <input aria-label="Backtest date"
                 type="date"
                 value={isBacktest ? backtestDate : mostRecentMarketDay()}
                 min={thirtyDaysAgo()}
@@ -2100,7 +2100,7 @@ export default function LiveFlow() {
               {simulateMode && (
                 <>
                   <label style={{ color: P.dm, fontSize: 10 }}>min grade:</label>
-                  <select
+                  <select aria-label="Minimum grade"
                     value={simMinGrade}
                     onChange={(e) => {
                       const next = new URLSearchParams(searchParams);

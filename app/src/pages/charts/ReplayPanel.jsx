@@ -5,6 +5,8 @@
 // none of that feature's files.
 import { useState } from 'react'
 import styles from './PeriodSortPanel.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 const isoToday = () => {
   const d = new Date()
@@ -34,7 +36,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
         <div className={styles.cfgBody}>
           <div className={styles.cfgRow}>
             <span className={styles.cfgLabel}>Replay to</span>
-            <input
+            <Input aria-label="Replay to"
               type="date"
               className={styles.cfgDate}
               value={date}
@@ -56,9 +58,9 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
           )}
           <div className={styles.cfgRow}>
             <span className={styles.cfgLabel}>Timeframe</span>
-            <select className={styles.cfgSelect} value={tf} onChange={(e) => setTf(e.target.value)}>
+            <Select aria-label="Timeframe" className={styles.cfgSelect} value={tf} onChange={(e) => setTf(e.target.value)}>
               {TF_OPTS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div className={styles.cfgReplayHint} style={{ marginTop: 2 }}>
             Hides every bar after this date on the active chart, then lets you switch

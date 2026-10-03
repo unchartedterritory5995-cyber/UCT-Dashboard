@@ -5,7 +5,7 @@ import BrandSplash from './BrandSplash'
 // Reuses the calendar's OWN deep-link ticker validator (§13 below) rather
 // than a second, drifting regex.
 import { normalizeSym } from '../pages/calendar/useEarningsModalRoute'
-import { FREE_PAGES } from '../constants/freePages'
+import { FREE_PAGES, UPGRADE_PATH } from '../constants/freePages'
 
 function MaintenancePage() {
   return (
@@ -107,12 +107,12 @@ export default function AuthGuard() {
     return <Navigate to="/verify-pending" replace />
   }
 
-  // Free tier: ONLY Morning Wire is accessible without a paid plan (owner
-  // decision 2026-07-19 — everything else is behind the paywall).
-  // FREE_PAGES itself lives in constants/freePages.js (S9 CP1 follow-up —
-  // was hand-typed identically in this file + NavBar.jsx + MoreSheet.jsx).
-  // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
-  const FREE_HOME = '/morning-wire'
+  // Everything is paywall (owner ruling 2026-10-02, TERM-081 / OI-12): there
+  // are no free member pages. FREE_PAGES (constants/freePages.js) is empty and
+  // stays the one authority; the Morning Wire is paid like everything else.
+  // A non-paid member is bounced to the existing upgrade screen, UPGRADE_PATH,
+  // which lives OUTSIDE this guard, so the bounce cannot loop back through it.
+  const FREE_HOME = UPGRADE_PATH
 
   // Admin-only pages. `/alert-tester` is admin tooling that does not live under
   // the /admin prefix (it is a full-page simulator, outside <Layout/>) — every
@@ -121,7 +121,8 @@ export default function AuthGuard() {
   const isAdminOnly = location.pathname.startsWith('/admin')
     || location.pathname === '/alert-tester'
   if (isAdminOnly && user.role !== 'admin') {
-    return <Navigate to={FREE_HOME} replace />
+    // A PAID non-admin is not sent to the upgrade screen: they already paid.
+    return <Navigate to={isPaid ? '/dashboard' : FREE_HOME} replace />
   }
 
   // Settings is paid/admin-only too (2026-07-19). Free users upgrade via

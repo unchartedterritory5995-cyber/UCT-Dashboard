@@ -2,6 +2,62 @@
 
 ---
 
+## READ THIS FIRST — 2026-10-02 morning: BATCH 2 DEPLOYED
+
+`0a995e50fb` on master (owner-run push) and PROMOTED to production 08:01 CT; web new boot; `hub_nav_smoke --auth` PASS
+(19 routes / 32 nav entries, busiest /charts 14.2%). Batch 2 = everything in the block below plus the tail lane: TERM-038
+`P:` playbook entries (door `/model-book?view=builder&playbookEntry=`), COV-06 phone door (MobileLayoutsSheet), TERM-049
+journal lane (caller's own trades only, behind LANES2). Re-gate (2,429 files): 5 NEW = 2 master's (entryExcludesChartEngine),
+1 load-sensitive (ArticlesSection, passes alone), 2 ours fixed at cause: rule 12 (a joystick change set may not edit
+Notebook files: COV-10's gate now read per widget via `pages/charts/useListSubscribeEnabled.js`, never the workspace
+context) and TERM-047 (ListSubscription exempt as not-a-result-set). Not re-gated after those fixes; the charts dir,
+the rails and every importing test file were (138 files green). TERM-067 census baseline now 33.
+**The buildable Terminal scope is shipped.** What remains is the owner-decision list in the block below.
+
+## READ THIS FIRST — 2026-10-01 late night: BATCH 2 (session patrick-4e)
+
+**Batch 2 on `integrate/terminal-fixes`, NOT on master at write time** (gate queued behind the Pine session's box lock):
+TERM-038 in-page doors (`useDoorParam`, live via armed ADDRESS_SPACE_ENABLED) · BRK-01 inc 3 vol surface (dark
+`OPTIONS_VOL_SURFACE_ENABLED`; vendor IV field, nothing computed; read `quote_time` coverage live before arming) · TERM-067
+to 35 unnamed sites (all Notebook/chart/harness-owned; partner flow pages done) · flow-credential fix (Signature + AI Search
+sent no credential to `require_flow_user` since 08-09; code-derived, not seen on the wire) · COV-10 + follow-ups (dark
+`CHARTS_LIST_SUBSCRIBE_ENABLED`: scan / saved-screen / theme sources, track or freeze) · COV-06 + follow-ups (dark
+`ARTIFACT_VERSIONS_ENABLED`: last-10 history for layouts, screens, watchlists; tombstoned undelete) · COV-04 slice 2
+(10-K 1A/7 found 39/40, 10-Q MD&A 37/40, n=42 tickers; `evidence/2026-10-01-cov04-blackline-coverage/`).
+Integrator gate 1 (`c5b4091188`): 9 NEW; 4 ours, fixed at cause (`SCAN_ENDPOINTS` back in ScannerResults so TERM-047's census
+sees it; `listSubscribeEnabled` added to both workspace mirrors; `artifact_versions` EXEMPT); 5 are master's and touch no
+file this branch changes (`entryExcludesChartEngine` x2, three chart-engine measure rails, `symbolLinkChannels`/paneHarness
+-- the last fixed on the Pine side in wave 12).
+
+**OWNER DECISIONS OPEN (agents cannot clear these):** arm `FILING_BLACKLINE_ENABLED` (lane recommends yes; Citi + xref-index
+bank 10-Qs say not_found with a reason) · arm `TICKER_HISTORY_LANES2_ENABLED` (shows the firm's per-ticker setup record) ·
+arm the three dark COV/BRK flags above after a browser look · TERM-001 board-size number · TERM-004 Discord earnings path ·
+TERM-005 screener purchase · TERM-006 freshness sentence · TERM-093 capture subject · TERM-081 OI-03/OI-12 · BRK-04 push
+wanted? · TERM-002/RM-N02: which of the four Massive items were approved (gates BRK-01 inc 4 backtester, BRK-10, COV-02/03)
+· TERM-008 Cloudflare read (edge serves the paid flow tape to anonymous callers) · TERM-007 a single-pod >=104 min window
+over the open + a heavy job for TERM-014/017 · RM-L16 end of coexistence (needs NEXT's exit gate).
+**Not Terminal's to build:** COV-11 indicator templates + TERM-055 raw view (chart engine, Pine) · TERM-050 Notebook Ask,
+TERM-056 note half (Notebook) · RM-L19 feeds we do not hold.
+
+---
+
+## READ THIS FIRST — 2026-10-01 night (session patrick-4e)
+
+**DEPLOYED 2026-10-02 01:40Z:** `a7878c5867` on master + production (owner-run push; web new boot; `hub_nav_smoke --auth`
+PASS, 19 routes / 37 nav entries, busiest /desk 7% blocked). Carried: BRK-01 inc 2 (payoff), COV-01 seasonality (dark
+`SEASONALITY_ENABLED`), TERM-067 batches, TERM-038 slice 2 (T: theme sets, F: Floor posts; LIVE because
+`ADDRESS_SPACE_ENABLED` is armed), TERM-049 slice 2 (flow + setup lanes, dark `TICKER_HISTORY_LANES2_ENABLED`; arming
+shows the firm's per-ticker setup record: owner call), COV-04 slice 1 (Filing changes, dark `FILING_BLACKLINE_ENABLED`;
+measure not_found rate across tickers before arming). Integrator gate: backend 331 passed; frontend 147/147 files.
+The integrator gate caught two `pollingSites.rail` reds the lanes never ran (OptionsChainTab, FilingChangesTab) — both
+allow-listed with reasons. ⚠️ That rail's first test has a hard 30 s timeout and times out under `--maxWorkers=3` load;
+it passes alone. Not fixed.
+
+**In flight (lanes, isolated worktrees):** `lane/term-067-batch`, `lane/brk01-inc3` (vol surface, dark
+`OPTIONS_VOL_SURFACE_ENABLED`), `lane/term-038-inpage` (doors react while the page is mounted — live defect: picking an
+address while already on /charts or /community did nothing). Report from TERM-049 lane, unverified: `signature.py` and
+`ai_search.py` may call the flow route without a credential (401).
+
 ## READ THIS FIRST — 2026-09-30 evening (21:00–23:00 CT)
 
 **Backlog, from its own status column (re-verified vs master 2026-09-30 by the afternoon session):** 93 tickets;

@@ -38,6 +38,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import indicator_telemetry as telemetry
+from api.services import runtime_definitions
 from api.services import scan_definition
 from api.services import user_definitions as svc
 from api.services.entitlements import Limits, limits_dependency
@@ -226,7 +227,14 @@ def _stamped(row: dict) -> dict:
     (`lesson_an_over_refusal_is_invisible`). The sentence is shipped so a surface
     can show it. `gate` is a closed set (`scan_definition.GATES`) -- branch on the
     gate, never on the prose.
+
+    ⭐ RT1 — a RUNTIME-LANE row is served with the kill switch stamped on it
+    (`runtime_definitions.stamp_served`: `meta.runtimeKilled` when the script is
+    on `PINE_RUNTIME_KILL_LIST`), so every client's install door refuses to draw
+    it. The stored row is not touched. It is never scannable — the `kind` gate
+    below says so, by name.
     """
+    row = runtime_definitions.stamp_served(row)
     out = dict(row)
     # ⭐ THE CONSUMER CONTRACT RUNS BEFORE THE SCANNABILITY CHECK, and the order is
     # the attribution. A `window_dependent` script can be a perfectly well-formed
@@ -392,6 +400,19 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     return svc.public_library(limit=limit, after=after)
 
 
+@router.get("/runtime-kill")
+def runtime_kill(user: dict = Depends(require_paid)):
+    """RT1 — the runtime lane's per-script kill list and whether the store takes
+    runtime documents, for the member door's PREVIEW (`engine/runtimeKill.js`).
+
+    ⛔ DECLARED BEFORE `/{def_id}`, or that route would read `runtime-kill` as an
+    id. Read per request from the env (`PINE_RUNTIME_KILL_LIST`,
+    `PINE_RUNTIME_SAVE_ENABLED`), so changing either needs no deploy.
+    """
+    return {"kill": runtime_definitions.kill_list(),
+            "save_enabled": runtime_definitions.save_enabled()}
+
+
 @router.get("/{def_id}")
 def get_definition(def_id: str,
                    version: Optional[int] = Query(None, ge=1),
@@ -403,6 +424,7 @@ def get_definition(def_id: str,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
+    row = runtime_definitions.stamp_served(row)
     return svc.compact_row(row) if graph else row
 
 
@@ -528,6 +550,7 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # version of a document that stores as a graph would otherwise arrive as a
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
+    rows = [runtime_definitions.stamp_served(r) for r in rows]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 

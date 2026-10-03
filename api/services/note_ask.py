@@ -70,6 +70,8 @@ _APPROX_COST = 0.02  # Ask's per-call USD estimate, used ONLY for the cost gate
 SCOPE_SPEND = "notebook_llm_spend_usd"        # subject daily_counters.GLOBAL
 SCOPE_ASK = "notebook_ask"                    # subject: the member's id
 SCOPE_WRITING_HELP = "notebook_writing_help"  # subject: the member's id
+SCOPE_VOICE_NOTE = "notebook_voice_note"        # subject: the member's id (wave 11, 11A)
+SCOPE_AI_ACTIONS = "notebook_ai_actions"      # subject: the member's id (wave 11 lane 11C)
 
 # Concurrent streams per member. The daily cap bounds SPEND over a day; this
 # bounds what one member can hold open at an INSTANT, which is a different
@@ -100,6 +102,42 @@ def writing_help_peruser_cap() -> int:
     except (TypeError, ValueError):
         return _WRITING_HELP_DEFAULT_CAP
     return cap if cap >= 0 else _WRITING_HELP_DEFAULT_CAP
+
+
+# Wave 11 lane 11A: voice-note summaries have their OWN per-member daily count,
+# beside Ask's and writing help's (a member who saves a dozen calls a day must not
+# spend their drafts doing it). They SHARE the global dollar cap and the stream
+# slots, exactly as writing help does.
+_VOICE_NOTE_DEFAULT_CAP = 20
+
+
+def voice_note_peruser_cap() -> int:
+    """Voice-note summaries a member may make per ET day, read PER CALL from
+    NOTEBOOK_VOICE_NOTES_PERUSER_CAP. Unparseable or negative falls back to 20;
+    `0` means no summaries (the transcript can still be saved)."""
+    raw = os.environ.get("NOTEBOOK_VOICE_NOTES_PERUSER_CAP", str(_VOICE_NOTE_DEFAULT_CAP))
+    try:
+        cap = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return _VOICE_NOTE_DEFAULT_CAP
+    return cap if cap >= 0 else _VOICE_NOTE_DEFAULT_CAP
+# Wave 11 lane 11C: "Ask Notebook to do something" plans have their OWN per-member
+# daily count (one plan is ONE model call over many notes, so a much smaller
+# number than writing help's 60), and SHARE the global dollar cap and the
+# concurrent slots -- writing help's shape (ruling D-H2), not a new one.
+_AI_ACTIONS_DEFAULT_CAP = 20
+
+
+def ai_actions_peruser_cap() -> int:
+    """The AI change plans a member may make per ET day, read PER CALL from
+    NOTEBOOK_AI_ACTIONS_PERUSER_CAP. Unparseable or negative falls back to 20;
+    `0` means none (a closed door, never an unlimited one)."""
+    raw = os.environ.get("NOTEBOOK_AI_ACTIONS_PERUSER_CAP", "20")
+    try:
+        cap = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return _AI_ACTIONS_DEFAULT_CAP
+    return cap if cap >= 0 else _AI_ACTIONS_DEFAULT_CAP
 
 
 _synth_lock = threading.Lock()
@@ -232,6 +270,38 @@ def refund_writing_help(user_id, *, cost: Optional[float] = None,
     draft that failed or produced nothing never costs the member one of their
     60, nor the shared cap a cent."""
     _refund(SCOPE_WRITING_HELP, user_id, _APPROX_COST if cost is None else cost, day)
+
+
+def reserve_voice_note(user_id, *, cost: float, day: Optional[str] = None) -> bool:
+    """A voice-note summary's reservation (wave 11, 11A): its OWN per-member
+    daily count against the SHARED global dollar cap, charged `cost` (the
+    route's estimate for the transcript actually sent). Atomic, like
+    `reserve_writing_help`. False => a cap refused => nothing was counted."""
+    return _reserve(SCOPE_VOICE_NOTE, user_id, voice_note_peruser_cap(), cost, day)
+
+
+def refund_voice_note(user_id, *, cost: float, day: Optional[str] = None) -> None:
+    """Inverse of `reserve_voice_note`, with the SAME cost: a summary that failed
+    never costs the member one of their day's summaries, nor the shared cap."""
+    _refund(SCOPE_VOICE_NOTE, user_id, cost, day)
+
+
+def voice_note_used(user_id, *, day: Optional[str] = None) -> int:
+    """Voice-note summaries charged to this member on `day` (today)."""
+    drain_background()
+    return int(daily_counters.value(day or _et_day(), SCOPE_VOICE_NOTE, str(user_id)))
+def reserve_ai_actions(user_id, *, cost: float, day: Optional[str] = None) -> bool:
+    """One AI change plan's reservation (wave 11 lane 11C): its OWN per-member
+    count (`ai_actions_peruser_cap()`) against the SHARED dollar cap, charged the
+    plan's own estimate. Atomic and durable like every reservation here; a
+    counter that cannot be read FAILS OPEN (the counter module's rule)."""
+    return _reserve(SCOPE_AI_ACTIONS, user_id, ai_actions_peruser_cap(), cost, day)
+
+
+def refund_ai_actions(user_id, *, cost: float, day: Optional[str] = None) -> None:
+    """Inverse of `reserve_ai_actions`, with the SAME cost: a plan that failed
+    never costs the member one of their plans, nor the shared cap a cent."""
+    _refund(SCOPE_AI_ACTIONS, user_id, cost, day)
 
 
 def ask_used(user_id, *, day: Optional[str] = None) -> int:

@@ -1,0 +1,5 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 525 passed (526)
+      Tests  1 failed | 6580 passed | 1 skipped (6582)
+
+The one failure is lib/iteratorGlobalFloor.test.js: "app/dist/assets missing - run npm run build" (this worktree had no build yet). After npm run build it passed alone: 9 passed (9). Run taken at 834fc3bd0 working tree, before the ResearchHome fix; the final full run is recorded beside it.

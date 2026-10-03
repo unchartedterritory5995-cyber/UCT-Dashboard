@@ -265,3 +265,8 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* Wave 11 (lane 11B): formula + rollup values on the card. */
+.computed {
+  flex-basis: 100%;
+}

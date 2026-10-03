@@ -3,13 +3,16 @@ import { IconClose, IconTop, IconImage } from './icons'
 import ChartCard from './ChartCard'
 import ChartAttach from './ChartAttach'
 import { buildDoc, uploadImage } from './hooks/useFloor'
+import Input from '../components/ui/Input'
+import Textarea from '../components/ui/Textarea'
+import { resolveCashtags } from '../lib/tickerResolver'
 
 const FLAIRS = ['Question', 'Discussion', 'Trade Idea', 'Lesson', 'Deep Dive']
 
+// TERM-064: the post's cashtags, through the one resolver's cashtag tier
+// ($BRK.B books BRK-B, $USD is not a ticker, $aapl is AAPL).
 function extractTickers(text) {
-  const set = new Set()
-  for (const m of String(text).matchAll(/\$([A-Z]{1,5})\b/g)) set.add(m[1])
-  return [...set]
+  return resolveCashtags(text)
 }
 
 export default function Composer({ onClose, onSubmit }) {
@@ -85,9 +88,9 @@ export default function Composer({ onClose, onSubmit }) {
               <button key={f} className={`flair-opt ${flair === f ? 'sel' : ''}`} onClick={() => setFlair(f)}>{f}</button>
             ))}
           </div>
-          <input className="field" placeholder="An interesting, specific title — a real question or topic"
+          <Input aria-label="Title" className="field" placeholder="An interesting, specific title — a real question or topic"
             value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
-          <textarea className="field" placeholder="Add detail, context, your levels, or your thinking. Use $TICKER to tag symbols, or paste an image with Ctrl+V. Leave a blank line between paragraphs."
+          <Textarea aria-label="Details" className="field" placeholder="Add detail, context, your levels, or your thinking. Use $TICKER to tag symbols, or paste an image with Ctrl+V. Leave a blank line between paragraphs."
             value={body} onChange={(e) => setBody(e.target.value)} onPaste={onPaste} />
 
           {/* image attachment previews */}
@@ -118,7 +121,7 @@ export default function Composer({ onClose, onSubmit }) {
             {!chart && !attaching && (
               <button className="tool-btn" onClick={() => setAttaching(true)}><IconTop size={16} /> Chart</button>
             )}
-            <input ref={imageInput} type="file" accept="image/*" multiple hidden
+            <Input aria-label="Attach images" ref={imageInput} type="file" accept="image/*" multiple hidden
               onChange={(e) => { addImageFiles(e.target.files); e.target.value = '' }} />
           </div>
 
@@ -128,7 +131,7 @@ export default function Composer({ onClose, onSubmit }) {
             {tickerTags.map((t) => (
               <span className="tchip" key={t}>${t}<button onClick={() => setTickerTags((p) => p.filter((x) => x !== t))}><IconClose size={11} /></button></span>
             ))}
-            <input placeholder={tickerTags.length ? '' : 'e.g. NVDA, AMD, SPY — press Enter'}
+            <Input aria-label="Tickers / tags" placeholder={tickerTags.length ? '' : 'e.g. NVDA, AMD, SPY — press Enter'}
               value={tickerInput}
               onChange={(e) => setTickerInput(e.target.value)}
               onKeyDown={(e) => {

@@ -318,10 +318,21 @@ describe('⭐⭐ a conditional call under a BAR-INVARIANT guard inlines', () => 
     expect(diag(t).oneExecutionCalls).toBe(1)
   })
 
+  // ⭐ C48 re-pin — `ta.lowest(low, 10)` stood here; capture `vw-call-site-history`
+  // (rows A02 / B04) witnesses it now, so the control is a `ta.*` with no row
+  // (`ta.wma`) and one whose row is in a BLOCK only (`ta.rsi`, A05).
   it('⛔ CONTROL — under `barstate.islast` a `ta.*` no capture shows on its first run still refuses', () => {
+    for (const call of ['ta.wma(close, 10)', 'ta.rsi(close, 14)']) {
+      const t = host(src('f() =>', `    label.new(bar_index, ${call}, "x")`, 'if barstate.islast', '    f()'))
+      expect(diag(t).dropReasons['fn:conditional-history'], call).toBe(1)
+      expect(diag(t).oneExecutionCalls, call).toBeUndefined()
+    }
+  })
+
+  it('⭐ C48 — `ta.lowest(src, len)` on a call\'s one run inlines as its source', () => {
     const t = host(src('f() =>', '    label.new(bar_index, ta.lowest(low, 10), "x")', 'if barstate.islast', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-    expect(diag(t).oneExecutionCalls).toBeUndefined()
+    expect(diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']).toBeUndefined()
+    expect(diag(t).oneExecutionCalls).toBe(1)
   })
 
   it('⛔ an EMPTY guard — the unreadable marker the walk leaves — is never invariant', () => {
@@ -353,7 +364,8 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
 
   it('⛔ CONTROL — `ta.*` in the same body is the call\'s own state, still refused', () => {
     // ⭐ C42 — `ta.ema`: the one-run answer of `ta.sma` / `ta.highest` is witnessed now
-    expect(refused(underLast('    label.new(bar_index, low[k] + ta.ema(close, 3), "x")'))).toBe(1)
+    // ⭐ C48 re-pin — and `ta.ema`'s (rows A04 / B05); `ta.wma` has no row
+    expect(refused(underLast('    label.new(bar_index, low[k] + ta.wma(close, 3), "x")'))).toBe(1)
     const varies = host(src('f(int k) =>', '    label.new(bar_index, low[k] + ta.sma(close, 3), "x")',
       'if close > open', '    f(5)'))
     expect(refused(varies)).toBe(1)
@@ -398,10 +410,13 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
     expect(refused(t)).toBeUndefined()
   })
 
-  it('⛔ an unwitnessed chart series (`time_close[k]`) is refused BY NAME, with the capture that settles it', () => {
-    const t = underLast('    label.new(bar_index, low, str.tostring(time_close[k]))')
-    expect(refused(t)).toBe(1)
-    expect(diag(t).refusedCalls[0]).toContain('vw-call-site-history')
+  // ⭐ C48 re-pin — this pinned `time_close[k]` REFUSED, naming the capture that
+  // would settle it. The capture was taken (`vw-call-site-history`, rows B02 /
+  // B03): both are the chart's, graded in `vendorHarness.c48CallSite`.
+  it('⭐ C48 — `time_close[k]` / `hlcc4[k]` are witnessed the chart\'s', () => {
+    const t = underLast('    label.new(bar_index, hlcc4[k], str.tostring(time_close[k]))')
+    expect(refused(t)).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
   })
 
   // ⭐ C42 — capture `vw-fn-series-history-rddt-1d-2026-09-30`
@@ -504,27 +519,68 @@ describe('⭐⭐ C42 — tokens as they read on ONE execution', () => {
     expect(once('x = ta.highest(high, 10)').left).toBeNull()
   })
 
+  // ⭐ C48 re-pin — the forms `vw-call-site-history` witnesses left this list:
+  // `ta.highest(10)`, `ta.sma(close, 1)`, `ta.lowest(low, 10)` (next test).
   it('⛔ a form the capture does not show is named, and left standing', () => {
-    expect(once('x = ta.highest(10)').why).toMatch(/only `ta\.highest\(source, length\)` is witnessed/)
     expect(once('x = ta.sma(close, len)').why).toMatch(/whose length is not a whole number above 1/)
-    expect(once('x = ta.sma(close, 1)').why).toMatch(/whose length is not a whole number above 1/)
-    expect(once('x = ta.highest(source = high, length = 10)').why).toMatch(/only `ta\.highest/)
-    const r = once('x = ta.lowest(low, 10) + ta.highest(high, 10)')
+    expect(once('x = ta.ema(close, 1)').why).toMatch(/whose length is not a whole number above 1/)
+    expect(once('x = ta.highest(source = high, length = 10)').why).toMatch(/in a form no capture reads/)
+    expect(once('x = ta.lowest(10)').why).toMatch(/in a form no capture reads/)
+    expect(once('x = ta.change(close, 2)').why).toMatch(/in a form no capture reads/)
+    expect(once('x = ta.atr(1)').why).toMatch(/whose length is not a whole number above 1/)
+    // the one-argument `ta.highest(len)` reads the CHART's `high` — only where no script name shadows it
+    expect(once('x = ta.highest(10)').why).toMatch(/reads the chart's `high`, a name this script binds itself/)
+    const r = once('x = ta.wma(low, 10) + ta.highest(high, 10)')
     expect(r.why).toBeNull()
-    expect(String(r.left.value)).toBe('ta.lowest')
-    expect(show(r.toks)).toBe('x = ta.lowest ( low , 10 ) + ( high )')
+    expect(String(r.left.value)).toBe('ta.wma')
+    expect(show(r.toks)).toBe('x = ta.wma ( low , 10 ) + ( high )')
+  })
+
+  // capture `vw-call-site-history-{rddt,spy}-1d-2026-10-01`, rows A01–A11 / B04–B10
+  it('⭐ C48 — every witnessed first-run form, token for token', () => {
+    const chart = new Set(['high'])
+    expect(show(once('x = ta.lowest(low, 10)').toks)).toBe('x = ( low )')
+    expect(show(once('x = ta.highest(10)', { chart }).toks)).toBe('x = high')
+    expect(show(once('x = ta.sma(close, 1)').toks)).toBe('x = ( close )')
+    expect(show(once('x = ta.sma(close, 3)').toks)).toBe('x = na')
+    expect(show(once('x = ta.ema(close, 3)').toks)).toBe('x = na')
+    expect(show(once('x = ta.rsi(close, 14)').toks)).toBe('x = na')
+    expect(show(once('x = ta.stdev(close, 5)').toks)).toBe('x = na')
+    expect(show(once('x = ta.atr(14)').toks)).toBe('x = na')
+    expect(show(once('x = ta.change(close)').toks)).toBe('x = na')
+    expect(show(once('x = ta.cum(volume)').toks)).toBe('x = ( volume )')
+    for (const text of ['x = ta.lowest(low, 10)', 'x = ta.atr(14)', 'x = ta.cum(volume)']) {
+      expect(once(text).why, text).toBeNull()
+      expect(once(text).left, text).toBeNull()
+    }
+  })
+
+  it('⛔ C48 — a row asked only in a BLOCK stays refused inside a helper called once', () => {
+    for (const text of ['x = ta.rsi(close, 14)', 'x = ta.stdev(close, 5)', 'x = ta.atr(14)', 'x = ta.change(close)', 'x = ta.cum(volume)']) {
+      const r = once(text, { helper: true })
+      expect(r.why, text).toMatch(/witnessed in a block that runs once, not inside a function called once/)
+      expect(taCallIn(r.toks), text).not.toBeNull()
+    }
+    // …and the rows asked in both places are served in both
+    for (const [text, want] of [['x = ta.lowest(low, 10)', 'x = ( low )'], ['x = ta.ema(close, 3)', 'x = na'], ['x = ta.sma(close, 1)', 'x = ( close )']]) {
+      expect(show(once(text, { helper: true }).toks), text).toBe(want)
+    }
   })
 
   it('⭐ `flagRest` marks every `ta.*` call left standing — and nothing else', () => {
-    const r = once('x = ta.lowest(low, 10) + ta.highest(high, 10) + math.max(a, b)', { flagRest: true })
-    expect(r.toks.filter((tk) => tk.onceUnwitnessed).map((tk) => tk.value)).toEqual(['ta.lowest'])
+    const r = once('x = ta.wma(low, 10) + ta.highest(high, 10) + math.max(a, b)', { flagRest: true })
+    expect(r.toks.filter((tk) => tk.onceUnwitnessed).map((tk) => tk.value)).toEqual(['ta.wma'])
     expect(once('x = ta.highest(high, 10)', { flagRest: true }).toks.some((tk) => tk.onceUnwitnessed)).toBe(false)
   })
 
   it('⭐ call-owned history: a literal offset above 0 → na; anything else is named', () => {
     const owned = new Set(['x', 'src', 'bar_index'])
     expect(show(once('y = x[1] + src[2] + bar_index[5] + close[1]', { owned }).toks)).toBe('y = na + na + na + close [ 1 ]')
-    expect(once('y = x[0]', { owned }).why).toMatch(/`x\[…\]`.*whole number above 0/)
+    // ⭐ C48 re-pin — `x[0]` was "named"; rows B06 / B07 witness it as the value this run holds
+    expect(show(once('y = x[0] + src[0]', { owned }).toks)).toBe('y = x + src')
+    expect(once('y = x[0]', { owned }).why).toBeNull()
+    // ⛔ …but `bar_index[0]` is in no row (B01 asks k = 5)
+    expect(once('y = bar_index[0]', { owned }).why).toMatch(/`bar_index\[…\]`.*whole number above 0/)
     expect(once('y = x[n]', { owned }).why).toMatch(/`x\[…\]`/)
     // a parameter bound to a literal is that literal; bound to anything else it is not
     const bind = new Map([['k', toks('5')], ['j', toks('bar_index - 3')]])

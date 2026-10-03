@@ -165,7 +165,7 @@ const sameCols = (a, b) =>
 
 export default function ShellToolbar({ meta, view, onView, visibleColumns, allColumns,
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
-  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null,
+  total, shown, isLoading, onExport, onExportXlsx = null, exportState, saveBar, reviewBar = null,
   libraryBar = null,
   presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -238,6 +238,12 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}
         </button>
+        {onExportXlsx && (
+          <button type="button" className={styles.toolBtn} disabled={exportState?.busy}
+            onClick={onExportXlsx} aria-label="Export to Excel">
+            <UIcon name="download" size={13} /> Excel
+          </button>
+        )}
         {/* ⭐ THESE DOORS SIT WITH THE OTHER ACTIONS ON THE RESULT SET (Columns,
             CSV) rather than beside the filters — they act on the answer, not on
             the question. Each is a SLOT for the same reason: this toolbar renders

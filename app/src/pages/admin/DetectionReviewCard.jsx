@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from './PatternAdmin.module.css'
+import Textarea from '../../components/ui/Textarea'
 
 function fmtPrice(v) {
   if (v == null || !Number.isFinite(v)) return '—'
@@ -104,7 +105,7 @@ export default function DetectionReviewCard({ detection, onReview }) {
       </div>
 
       <div className={styles.cardRight}>
-        <textarea
+        <Textarea aria-label="Note"
           placeholder="Note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}

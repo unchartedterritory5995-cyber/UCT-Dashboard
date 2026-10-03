@@ -38,15 +38,17 @@
  *   `no-nav-label`     no NAV_ITEMS label. A panel needs a header, and no copy is invented
  *                      here (the same rule `pageTitle.js` follows for the tab title).
  *
- * ── INERT, DELIBERATELY (the S1 CP1 shape) ──────────────────────────────────
+ * ── MOUNTED THROUGH ONE DOOR (TERMINAL-NEXT lane T1, 2026-10-02) ───────────
  *
- * Nothing mounts a surface panel yet and no menu offers one: every derived entry carries
- * `menus` all false, including `terminal`, and none is bound in the /charts host's
- * `WORKSPACE_WIDGETS`. The declaration earns trust by being checkable before anything
- * depends on it. Rendering a page inside a panel is the half ledger C9 records as the
- * abandoned `embedded` pattern ("20-prop signatures"); it needs its own design and a
- * per-surface mount decision, and it is NOT this module. `panelSet.test.js` fails if a
- * production file imports this module, so the day it is mounted is a visible change.
+ * Landed INERT (the S1 CP1 shape) on 2026-09-29. The UCT Terminal shell is now its one
+ * consumer: `pages/terminal/surfacePanels.js` resolves the shell's `surface` functions
+ * against `SURFACE_PANELS` and binds, per surface, the SAME page module App.jsx loads,
+ * rendered with NO props (so not ledger C9's abandoned `embedded` pattern, which forked
+ * pages behind "20-prop signatures"). The per-surface mount decision is that file's
+ * `SURFACE_IMPORTERS`; every promoted surface it does not bind stays a door in the shell's
+ * registry, with a stated reason. Still offered by NO menu and bound in NO
+ * `WORKSPACE_WIDGETS` slot (the /charts board is unchanged), so `menus` stays all false.
+ * `panelSet.test.js` fails if a second production file imports this module.
  */
 import { MANIFEST } from './manifest.js'
 import { NAV_ITEMS } from '../components/NavBar.jsx'
@@ -112,7 +114,11 @@ function refusalOf(row, labelByPath) {
  */
 export function derivePanelSet({ manifest, navItems, registry }) {
   const labelByPath = new Map(navItems.map((i) => [i.to, i.label]))
-  const nativeIds = Object.keys(registry)
+  // G-040: a CAPTURE-ONLY registry entry (Screener / COT / Model Book Notebook
+  // captures) is a capture kind, not a board tool — no board can hold it, so it is
+  // not in the set. It still guards collisions: a surface id may not reuse it.
+  const allIds = Object.keys(registry)
+  const nativeIds = allIds.filter((id) => registry[id].captureOnly !== true)
   const defaults = pageDefaults(registry)
   const promoted = {}
   const refused = []
@@ -125,7 +131,7 @@ export function derivePanelSet({ manifest, navItems, registry }) {
     }
     const id = surfacePanelId(row.path)
     if (id in promoted) throw new Error(`surface panel id ${id} is derived twice (${promoted[id].surface}, ${row.path})`)
-    if (nativeIds.includes(id)) throw new Error(`surface panel id ${id} collides with a native registry id`)
+    if (allIds.includes(id)) throw new Error(`surface panel id ${id} collides with a native registry id`)
     const label = labelByPath.get(row.path)
     promoted[id] = registerPanel(id, {
       labels: { header: label, menu: label, tab: label },

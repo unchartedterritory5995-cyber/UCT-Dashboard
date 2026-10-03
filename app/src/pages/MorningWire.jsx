@@ -19,6 +19,8 @@ import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon from '../components/ui/UIcon'
 import PageHeader from '../components/PageHeader'
+import { useAuth } from '../context/AuthContext'
+import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
 import styles from './MorningWire.module.css'
 
 // Master kill-switch shared with MoversSidebar: VITE_TWITTER_UI_ENABLED="0" hides the tape.
@@ -144,6 +146,9 @@ function OnTheTape() {
 
 export default function MorningWire() {
   const { mutate } = useSWRConfig()
+  // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const { data: rundown }  = useSWR('/api/rundown', fetcher, { refreshInterval: 300000 })
 
   // Morning Wire is MANUAL-only: no auto-read on page open. (The hands-free
@@ -211,9 +216,14 @@ export default function MorningWire() {
       sections.appendChild(bar)
     }
 
+    // Board cards: 👍/👎/✎ per setup + "Missed a setup?" (owner only).
+    if (isAdmin) injectSetupControls(root, ctrlHtml)
+
     const segAnchor = (seg) => seg === 'overall'
       ? root.querySelector('.rd-overall-fb')
-      : root.querySelector(`section.rd-seg[data-seg="${seg}"]`)
+      : seg.startsWith('setup:')
+        ? setupAnchor(root, seg)
+        : root.querySelector(`section.rd-seg[data-seg="${seg}"]`)
 
     const paint = () => {
       root.querySelectorAll('[data-fb-vote]').forEach((b) => {
@@ -222,6 +232,11 @@ export default function MorningWire() {
       root.querySelectorAll('[data-fb-note]').forEach((b) => {
         b.classList.toggle('rd-fb-note-has', !!(hydrated[b.dataset.fbNote]?.note))
       })
+      const missedStatus = root.querySelector('.rd-missed-status')
+      const logged = loggedMisses(hydrated)
+      if (missedStatus && logged.length && !missedStatus.dataset.busy) {
+        missedStatus.textContent = `Logged today: ${logged.join(', ')}`
+      }
     }
 
     const togglePanel = (seg) => {
@@ -233,8 +248,11 @@ export default function MorningWire() {
       const panel = document.createElement('div')
       panel.className = 'rd-note-panel'
       panel.dataset.seg = seg
+      const placeholder = seg.startsWith('setup:')
+        ? 'What makes this a good or bad setup? Entry, base, extension, group.'
+        : 'What should change here? Your note refines future briefs.'
       panel.innerHTML =
-        '<textarea class="rd-note-input" rows="3" placeholder="What should change here? Your note refines future briefs."></textarea>' +
+        `<textarea class="rd-note-input" rows="3" placeholder="${placeholder}"></textarea>` +
         '<div class="rd-note-actions"><span class="rd-note-status"></span>' +
         `<button class="rd-note-save" data-fb-note-save="${seg}">Save note</button></div>`
       anchor.insertAdjacentElement('afterend', panel)
@@ -250,6 +268,27 @@ export default function MorningWire() {
     })
 
     const onClick = async (e) => {
+      const missedBtn = e.target.closest('[data-fb-missed]')
+      if (missedBtn) {
+        const box = missedBtn.closest('.rd-missed-fb')
+        const status = box?.querySelector('.rd-missed-status')
+        const sym = missedSymFrom(box?.querySelector('.rd-missed-sym')?.value)
+        const note = (box?.querySelector('.rd-missed-note')?.value || '').trim()
+        if (!sym) { if (status) status.textContent = 'Enter a ticker'; return }
+        if (status) { status.dataset.busy = '1'; status.textContent = 'Saving…' }
+        try {
+          const r = await post({ segment_key: `missed:${sym}`, note })
+          if (!r.ok) throw new Error(String(r.status))
+          hydrated[`missed:${sym}`] = { ...(hydrated[`missed:${sym}`] || {}), note }
+          box.querySelector('.rd-missed-sym').value = ''
+          box.querySelector('.rd-missed-note').value = ''
+          if (status) delete status.dataset.busy
+          paint()
+        } catch {
+          if (status) { delete status.dataset.busy; status.textContent = 'Save failed, try again' }
+        }
+        return
+      }
       const saveBtn = e.target.closest('[data-fb-note-save]')
       if (saveBtn) {
         const seg = saveBtn.dataset.fbNoteSave
@@ -286,7 +325,7 @@ export default function MorningWire() {
       .catch(() => {})
 
     return () => { cancelled = true; root.removeEventListener('click', onClick) }
-  }, [rundown?.html, rundown?.date])
+  }, [rundown?.html, rundown?.date, isAdmin])
 
   const handleRefresh = useCallback(() => Promise.all([
     mutate('/api/rundown'),

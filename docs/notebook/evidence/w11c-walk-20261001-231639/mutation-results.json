@@ -1,0 +1,48 @@
+[
+ {
+  "mutation": "M1 disallowed-op filter removed",
+  "tests": [
+   "test_the_plan_drops_a_foreign_id_a_trashed_note_a_wrong_type_and_a_disallowed_op",
+   "test_the_stub_answers_without_touching_the_model_client"
+  ],
+  "mutant_exit": 1,
+  "mutant_totals": "2 failed in 2.84s",
+  "killed": true,
+  "restored_to_HEAD_blob": true
+ },
+ {
+  "mutation": "M2 tenant: plan validation reads a note by id alone",
+  "tests": [
+   "test_the_plan_drops_a_foreign_id_a_trashed_note_a_wrong_type_and_a_disallowed_op",
+   "test_another_members_note_id_in_a_plan_is_skipped_and_never_written"
+  ],
+  "mutant_exit": 1,
+  "mutant_totals": "2 failed in 2.68s",
+  "killed": true,
+  "restored_to_HEAD_blob": true
+ },
+ {
+  "mutation": "M3 tenant: a change set read by id alone",
+  "tests": [
+   "test_another_member_cannot_see_apply_or_undo_a_change_set"
+  ],
+  "mutant_exit": 1,
+  "mutant_totals": "1 failed in 1.63s",
+  "killed": true,
+  "restored_to_HEAD_blob": true
+ },
+ {
+  "mutation": "M4 no-write-before-approve: the plan applies its own changes",
+  "tests": [
+   "test_NOTHING_is_written_to_a_note_while_planning"
+  ],
+  "mutant_exit": 1,
+  "mutant_totals": "1 failed in 2.39s",
+  "killed": true,
+  "restored_to_HEAD_blob": true
+ },
+ {
+  "control_after_restore": "5 passed in 5.06s",
+  "exit": 0
+ }
+]

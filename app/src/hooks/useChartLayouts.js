@@ -105,6 +105,10 @@ export default function useChartLayouts() {
     }
   }
 
+  // COV-06: put a row the SERVER already wrote (a version-history restore) into
+  // the cache. No request — the restore route answered with the row.
+  const adoptRow = (saved) => mutate(cur => withRow(cur, saved), { revalidate: false })
+
   return {
     global: data?.global || [],
     mine: data?.mine || [],
@@ -112,6 +116,7 @@ export default function useChartLayouts() {
     saveLayout,
     renameLayout,
     deleteLayout,
+    adoptRow,
     refresh: mutate,
   }
 }

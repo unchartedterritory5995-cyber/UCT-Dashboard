@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
+import { requestBaseNode } from './interpret.js'
 
 /**
  * ⭐⭐ C10 (2026-09-29, objects-triage fix-order step 20) — what a
@@ -35,7 +36,11 @@ const firstTree = (out) => {
 }
 const withLive = (src) => `${src}plot(close)\n`
 const VALID15 = 'v = timeframe.in_seconds("15") >= timeframe.in_seconds()'
-const REQ15 = 'request.security(syminfo.tickerid, "15", close)'
+// ⚰️ C41 (2026-09-30): this was `"15"`, which a daily chart SERVES now (an `ltf`
+// read). The cases below are about a side that REFUSES, so the request is one
+// that still does — `"30"`, a timeframe no capture shows read below a chart
+// (`lower-tf:unwitnessed`). The validity test keeps artemis's own shape.
+const REQ15 = 'request.security(syminfo.tickerid, "30", close)'
 /** The object program's tree behind a table cell whose text is
  *  `str.tostring(<expr>)`, or the drop reasons when the cell was dropped. */
 const cellTree = (expr) => {
@@ -161,8 +166,10 @@ if barstate.islast
     table.cell(tb, 0, 0, str.tostring(request.security(syminfo.tickerid, tf, close)))`), { strict: true })
     const cellOp = out.objects.ops.find((op) => op.k === 'cell')
     expect(cellOp, JSON.stringify(out.objectDiagnostics.dropReasons)).toBeTruthy()
+    // ⭐ C49 — the request reaches `tf(close, 'W')`, under the gate of the base it
+    // was translated for (`interpret.js::requestBaseNode`).
     expect(out.objects.trees[cellOp.props.text.node.tree])
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual(requestBaseNode('D', { type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }))
   })
 
   it('⛔ CONFINED — the plot lane keeps its four-hop reader (its parameter addresses must not move)', () => {

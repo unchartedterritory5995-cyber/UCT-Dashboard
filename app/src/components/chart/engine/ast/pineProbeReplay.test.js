@@ -81,7 +81,7 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
   it('⛔ a probe that minted a parameter is not replayed — ids stay where they were', () => {
     const { result } = measure(() => translatePine(chain(12), MANIFEST))
     expect(result.inputParams.map((p) => [p.id, p.sourceName, p.min, p.max]))
-      .toEqual([['__uct_param_1', 'len', 1, 50]])
+      .toEqual([['__uct_param_1001', 'len', 1, 50]])
   })
 
   it('⛔ the first-time mark sees a mint even when no Map of the resolver grows', () => {
@@ -150,7 +150,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // '61f060f7ebfeaf71'] before C37 merged. With C37 on top, MEASURED on the
         // merged tree (C31's cell and C37's colours read some of the same names,
         // so this is the measurement, not a sum):
-        plain: [729, 429977, '60011f510b56bd70'], manifest: [729, 429985, 'bde49be716751a27'] },
+        // ⭐ B1 moved artemis: its `barcolor(barCol)` is carried as a paint now
+        // (`pine.js::resolvePaints`), read by ONE more Resolver of its own — 8 steps,
+        // resolving `barCol` to `na` (no paint; TradingView's capture reads `na` on all
+        // 632 bars, `vendorHarness.b1Paints`). Every output, presentation and the object
+        // program byte-identical (translation census). Pre-B1: plain [729, 429977,
+        // '60011f510b56bd70'] / manifest [729, 429985, 'bde49be716751a27'].
+        plain: [730, 429985, '9817f6afa92980bd'], manifest: [730, 429993, 'b3663793714b5924'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
@@ -162,8 +168,16 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // them is still refused by its own text, the latches nothing reads are
       // pruned, and the object program is wave 8's - the same 71 ops over the same
       // 41 trees, interned in another order (program dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
+      // ⭐ C47 moved htf-liquidity: its three helpers whose body is `result = switch x`
+      // (`get_size`, `get_line_style`, `get_table_position`) are readable by the
+      // object pass's Resolver now (`pine.js`: `objectLane`), so a call to one
+      // resolves into the switch before it refuses where it always did (an enum
+      // word is not a number) — 20 more steps, the same 856 Resolvers. The object
+      // program and every output are byte-identical (translation census: the
+      // script is not among the changed rows). Pre-C47: [856, 7174,
+      // 'ff55463c3a36e466'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [856, 7174, 'ff55463c3a36e466'], manifest: [856, 7174, 'ff55463c3a36e466'] },
+        plain: [856, 7194, 'c264e378ba65bd90'], manifest: [856, 7194, 'c264e378ba65bd90'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {

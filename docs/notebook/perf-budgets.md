@@ -982,3 +982,23 @@ unclean, wrapper-loaded trace -- `run_live`'s own caveat), now reports the typin
 INCONCLUSIVE, never a silent pass and never a breach read off the wall-clock row. See
 `tools/notebook_perf_harness.py`'s `summarize()`/`summarize_busy()` and
 `tests/test_notebook_perf_harness.py`'s D24 cases.
+
+### Quiet re-reads, 2026-10-02 (clauses 14d and 4d)
+
+**14d, the curve: the owed quiet re-read exists.** `gate-runs/wave10-PC/curve-d22-q2.*`, a bare
+`--curve` (so the per-call model, ruling D22), tree `93c4bed77`, 05:47-05:50 CT. The box was lock
+FREE and load QUIET at both ends (`curve-d22-q2-box.txt`). **VERDICT PASS**: every op's fit is at
+or under 1.1 and every last segment at or under 1.3. The shared model ran beside it as the
+diagnostic and recorded 5 breaches (count_notes, folder_note_counts, get_symbol_backlinks,
+list_tasks), not gating. Reading: `gate-runs/wave10-PC/README-quiet.md`. The bounds are unchanged.
+
+**4d, typing: still NOT MET, because two quiet readings of the same code disagree.**
+`perf-runs/ty8/ab/` holds six busy-time runs, interleaved A1 B1 A2 B2 A3 B3, 05:08-05:32 CT, each
+QUIET at both ends. A is the editor code this tree ships. B adds TY8's change to
+`memoStringifyBody.js`, which is not on this tree. Every one of the 18 p95 cells is under 16 ms.
+At 2,000 paragraphs, A reads 10.60 / 10.93 / 10.15 ms and B reads 9.89 / 12.18 / 11.66 ms. But
+L15's q1 run on 2026-10-01 at 19:28 was also QUIET at both ends by the same lock tool, on the same
+editor code, and read 19.56 ms at 1,000 paragraphs and 17.12 ms at 2,000. Nothing measured explains
+the gap; unmarked background load is a hypothesis (`perf-runs/ty8/README.md`, "Reading"). The
+clause is cited as MET only once another quiet hour agrees with one side. The line in
+`perf-budgets.json` is unchanged.

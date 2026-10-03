@@ -49,6 +49,8 @@ _REPORTS = {
     "gate-check": ["tools/terminal_next_gate_check.py"],
     # TERM-015 — the daily dead-man roll-up over the cadence markers on this volume.
     "cadence":    ["tools/cadence_rollup_report.py"],
+    # TERM-014 — the RSS slope over the retained series (rss_series.db on this volume).
+    "memory-slope": ["tools/rss_slope_report.py"],
 }
 
 

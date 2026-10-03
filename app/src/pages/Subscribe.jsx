@@ -34,7 +34,7 @@ export default function Subscribe() {
         <div className={styles.brand}>UCT</div>
         <h1 className={styles.title}>Unlock the Intelligence Layer</h1>
         <p className={styles.subtitle}>
-          Hey{user?.display_name ? ` ${user.display_name}` : ''} — Pro adds these on top of your free tools:
+          Hey{user?.display_name ? ` ${user.display_name}` : ''} — every page of UCT Intelligence is part of Pro:
         </p>
 
         <ul style={{

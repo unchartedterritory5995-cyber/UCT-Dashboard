@@ -1,0 +1,13 @@
+  W1_box_by_keyboard: PASS -- 50 Tab presses reached the toggle; Enter opened it; the request box has focus=True
+  W2_planned_by_keyboard: PASS -- Ctrl+Enter planned it; review heading shown=True, focus on H3
+  W3_review_list: PASS -- groups ['NVDA thesis', 'AMD vs NVDA', '2024 trade review: MSFT']; 5 checkboxes all checked; skipped: 2 locked + 3 disallowed (delete) with their reasons
+  W4_no_write_before_approve: PASS -- every seeded note's updatedAt is what it was before the plan
+  W5_uncheck_and_apply_by_keyboard: PASS -- Tab x1 to 'Add tag “earnings-nvda”', Space unchecked it; Tab x6 to 'Apply 4 changes', Enter; status: 'Applied 4 changes.'
+  W6_notes_after_apply: PASS -- A tags ['semis'] (its tag was unchecked) + AI task block; B tags ['earnings-nvda'] + AI task block; C in folder '2024 Reviews'; locked D and unrelated E untouched
+  W7_provenance_and_view_is_read_only: PASS -- label 'Compass · AI change' shown=True; named group=True; A's revision unchanged after viewing=True
+  W8_undo_by_keyboard_restores: PASS -- Tab x1 to Undo, Enter; status 'Undid 4 changes. Your notes are back as they were.'; every note's tags, folder and body are what they were before the set=True
+  W9_history_lists_and_undoes: PASS -- E tagged ['macro'] by the second set; Version history listed it=True; Undo reached by Tab x2; E tags now []
+  W_no_page_errors: PASS -- 0 unforced page errors
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\w11c-walk-20261001-231639\integrity.md
+  W10_driver_never_imported_api: PASS -- no api.* module in the driver's sys.modules
+VERDICT: PASS -- 11 rows

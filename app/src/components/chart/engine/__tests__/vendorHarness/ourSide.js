@@ -27,7 +27,8 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder, drawShiftOf } from '../../binder'
+import { createBinder, drawShiftOf, paintColoursFor } from '../../binder'
+import { bindingKey } from '../../pool'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -35,6 +36,7 @@ import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
+import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -54,6 +56,15 @@ import path from 'node:path'
 
 const OTHER_CAPTURE_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 let otherIndex = null
+// ⭐⭐ C41 — THE CHART SYMBOL'S OWN INTRADAY BARS, FROM COMMITTED CAPTURES ONLY: the
+// supply an `ltf` read (`request.security(syminfo.tickerid, "60", …)` on a daily
+// chart) needs. `TICKER|minutes` → the union of every capture of that listing at
+// that intraday timeframe, REGULAR session (`symbol.session` `0930-1600`) kept
+// apart from every other: a 60-minute bar of an extended-hours chart opens on the
+// clock hour, off the 09:30 grid, and mixing the two would mark its days
+// incomplete. Filled in the same pass as `otherIndex`.
+let intradayIndex = null
+const REGULAR_SESSION = '0930-1600'
 
 /** `TICKER|tf` → `{bars, exchange, file, last}` over the committed native
  *  captures (receipt-verified). Where two captures hold one listing at one
@@ -61,6 +72,7 @@ let otherIndex = null
 function otherCaptureIndex() {
   if (otherIndex) return otherIndex
   otherIndex = new Map()
+  intradayIndex = new Map()
   if (!fs.existsSync(OTHER_CAPTURE_DIR)) return otherIndex
   for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
     if (!name.endsWith('.json')) continue
@@ -73,6 +85,18 @@ function otherCaptureIndex() {
     const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
     const bars = toProductBars(cap)
     const last = bars.length ? String(bars[bars.length - 1].t) : ''
+    if (/^[0-9]+$/.test(tfCodeOf(cap.timeframe))) {
+      const session = cap.symbol && cap.symbol.session === REGULAR_SESSION ? 'regular' : 'other'
+      if (!intradayIndex.has(key)) intradayIndex.set(key, { regular: null, other: null })
+      const slot = intradayIndex.get(key)
+      if (!slot[session]) slot[session] = { byT: new Map(), files: [] }
+      // a bar two captures share keeps the one from the capture reaching later
+      for (const b of bars) {
+        const had = slot[session].byT.get(b.t)
+        if (!had || had.last < last) slot[session].byT.set(b.t, { b, last })
+      }
+      slot[session].files.push(name)
+    }
     // ⭐ C29 — the UNION of every capture of one listing at one timeframe, keyed by
     // the bar's own date: each is TradingView's own bars of the same series, so a
     // short recent capture (the 2026-09-30 SPY probes, 300 bars) EXTENDS a deeper
@@ -117,6 +141,57 @@ function storeExchangeOfCapture(cap, tvExchange) {
   const tv = typeof tvExchange === 'string' ? tvExchange : ''
   const own = confirmed[tv]
   return own && typeof own === 'object' && own.pine === tv ? tv : null
+}
+
+/** ⭐⭐ C41 — the lower-timeframe supply a capture's script asks for
+ *  (`ctx.lowerTf`), and the notes naming what was and was not supplied. Per code:
+ *  the committed captures of the CHART'S OWN listing at the store timeframe that
+ *  code is built from (`LOWER_TF_SOURCE`), else at the deepest other timeframe
+ *  the code's buckets can be built from. ⛔ Nothing is synthesised: a code with no
+ *  such capture is supplied nothing, its reads are UNKNOWN, and the note names
+ *  the capture that is missing. */
+function lowerTfSupply(def, capture) {
+  const codes = lowerTfCodesOf(def)
+  if (!codes.length) return { lowerTf: null, notes: [] }
+  otherCaptureIndex()
+  const { ticker } = symbolOf(capture)
+  const held = new Map() // minutes → {bars, files}
+  for (const [key, slot] of intradayIndex) {
+    const [t, tf] = key.split('|')
+    if (t !== String(ticker).toUpperCase()) continue
+    const pick = slot.regular || slot.other
+    if (!pick.bars) {
+      pick.bars = [...pick.byT.entries()].sort(([a], [b]) => a - b).map(([, v]) => v.b)
+    }
+    held.set(tf, pick)
+  }
+  const lowerTf = new Map()
+  const notes = []
+  for (const code of codes) {
+    const want = LOWER_TF_SOURCE[code]
+    const fits = [...held.keys()].filter((tf) => Number(code) % Number(tf) === 0)
+    // ⭐ C49 (wave-11 merge) — THE SUPPLY REACHING FURTHEST BACK, the store's own
+    // source timeframe winning a tie. This read `fits.includes(want) ? want : <the
+    // longest other>`. Capture round 3 (2026-10-01) then committed a 15-minute
+    // capture of SPY — 3,300 bars, 127 sessions — and `want` for 60 / 240 is 15, so
+    // the eleven-year 60-minute capture C41's rows are graded on was displaced by
+    // it: 2,950 graded sessions → 125. A shallower capture must not shadow a deeper
+    // one; where the store's source timeframe reaches as far back as any other (RDDT:
+    // 15-minute bars from the listing) it is still the one used, as the product builds it.
+    // compared by the first bar's DAY: two captures that both start on the listing
+    // day tie, whatever minute their first bucket opens
+    const firstT = (tf) => { const b = held.get(tf).bars; return b.length ? Math.floor(Number(b[0].t) / 86400) : Infinity }
+    const tf = fits.slice().sort((a, b) => (firstT(a) - firstT(b)) || ((b === want) - (a === want))
+      || (held.get(b).bars.length - held.get(a).bars.length))[0]
+    if (!tf) {
+      notes.push(`lower timeframe ${code}: no committed capture of ${ticker} at ${want} minutes `
+        + '(regular session) — the vendor bars this read would need')
+      continue
+    }
+    lowerTf.set(`code:${code}`, { bars: held.get(tf).bars, status: 'available', sourceCode: tf })
+    notes.push(`lower timeframe ${code}: built from the committed ${tf}-minute capture(s) ${held.get(tf).files.join(', ')}`)
+  }
+  return { lowerTf, notes }
 }
 
 /** The secondary supply a capture's script asks for, and the notes naming what
@@ -250,7 +325,13 @@ function drawnColours(def, bars, ctx) {
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const out = new Map()
   if (!instances.length) return { ok: false, reason: 'addInstance produced no instance', byKey: out }
+  // ⭐ B1 — the chart's own candles (an overlay `bgcolor` with no series of its own is
+  // drawn through them) and the `barcolor` overrides, exactly as StockChart hands them.
+  const candles = fake.chart.addSeries(fake.LWC.CandlestickSeries || 'CandlestickSeries', {}, 0)
+  let barColours = null
   const res = binder.sync({
+    priceSeries: () => candles,
+    setBarColours: (map) => { barColours = map },
     enabled: true,
     cs,
     instances,
@@ -260,8 +341,10 @@ function drawnColours(def, bars, ctx) {
     symbol: ctx.symbol,
     newestBarIsForming: ctx.newestBarIsForming,
     historyFromListing: ctx.historyFromListing === true,
+    barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
+    lowerTf: ctx.lowerTf || null,
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -306,8 +389,32 @@ function drawnColours(def, bars, ctx) {
     })
     out.set(b.plotKey, colors)
   }
+  // ⭐ B1 — every background the binder attached, and what each was told to draw.
+  const backgrounds = fake.calls
+    .filter((c) => c.method === 'attachPrimitive' && c.args[0] && typeof c.args[0].options === 'function')
+    .map((c) => ({ seriesId: c.id, colors: c.args[0].options().colors || null }))
+  // ⛔ read BEFORE the teardown: releasing the binder clears the overrides it handed.
+  const handed = barColours
   binder.teardown()
-  return { ok: true, reason: null, byKey: out, sync: res }
+  return { ok: true, reason: null, byKey: out, sync: res, paints: { backgrounds, barColours: handed } }
+}
+
+/** ⭐ C45 — does the capture's OWN `bar_index` control row print 0, 1, 2 … on
+ *  its bars? The vendor's statement that this series starts at its bar 0. Every
+ *  bar is checked, not the first: a row that starts at 0 and skips is not it. */
+export function barIndexStartsAtZero(capture) {
+  const plots = (capture && capture.study && capture.study.plots) || []
+  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const pv = capture && capture.plotValues
+  if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length) return false
+  const at = pv.fields.indexOf(control.id)
+  if (at < 0) return false
+  const bars = (capture.bars && capture.bars.rows) || []
+  if (bars.length !== pv.rows.length) return false
+  for (let i = 0; i < pv.rows.length; i += 1) {
+    if (pv.rows[i][0] !== bars[i][0] || pv.rows[i][at] !== i) return false
+  }
+  return true
 }
 
 /** The object lane's LIVE set at the last bar, as counts and texts. */
@@ -317,7 +424,9 @@ function objectsOf(def, bars, ctx) {
     const reader = objectReaderFor(def, bars, {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
+      barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
       secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
+      lowerTf: ctx.lowerTf || null,
     })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
@@ -364,9 +473,10 @@ function objectsOf(def, bars, ctx) {
       texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
       // ⭐ C37 — the objects themselves (the runtime's LIVE set, and the render
-      // state's tables), for the colour census (`colourCensus.measure.test.js`):
-      // a colour is compared on an object PAIRED by value, which a count cannot
-      // do. ⛔ Never read by `compareObjects` and never written to a verdict file.
+      // state's tables), for the colour column: a colour is compared on an object
+      // PAIRED by value, which a count cannot do. ⭐ C44 — `gradeCapture` pairs
+      // them (`objectColours.js`) and hands the slot rows to the verdict.
+      // ⛔ The objects themselves are never written to a verdict file.
       held: run.live || [],
       tables: state.tables || [],
       pineVersion: reader.program.pineVersion,
@@ -438,21 +548,57 @@ export function runOurSide(capture) {
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
       historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
+      // the bar TradingView counted as 0. A capture PROVES that about itself when
+      // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an
+      // intraday or weekly capture whose `startsAtBar0` asserts nothing about a
+      // listing still can); one with no control row, or one that reads 8175 on its
+      // first bar, does not — and what depends on the count is withheld by name,
+      // exactly as the member's chart withholds it.
+      barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
     // ⭐ C26 — another symbol's bars, from committed captures only.
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    // ⭐ C41 — the chart symbol's own intraday bars, from committed captures only.
+    const lower = lowerTfSupply(def, capture)
+    if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
+    notes.push(...lower.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
+    // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
+    const paintCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
+    const paints = (def.paints || []).map((p) => ({
+      kind: p.kind, line: p.line ?? null, title: p.title ?? null,
+      colors: paintColoursFor(p, 'harness', paintCols, bars.length),
+    }))
+    const lowerReport = registry.lowerTfReport(cols)
+    if (lowerReport) {
+      for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
+      for (const r of lowerReport.refused) notes.push(`lower timeframe ${r.code}: refused (${r.refusal}) — ${r.reason}`)
+    }
     const otherReport = registry.otherSymbolReport(cols)
     if (otherReport) {
       for (const t of otherReport.served) notes.push(`other symbol ${t}: served`)
       for (const r of otherReport.refused) notes.push(`other symbol ${r.ticker}: refused (${r.code}) — ${r.reason}`)
     }
     // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart, by name.
+    // ⭐⭐ C45 — and one whose value depends on `bar_index` off the listing
+    // (`bar-index:window`). A plot the door withholds on EVERY bar, by name, has
+    // NO served value: it is graded "not compared — withheld by name", never as a
+    // value that differs. ⚰️ Graded as a column of `na` it read DIVERGE, the
+    // verdict a WRONG value gets, which is the one thing a withholding is not.
+    // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
+    // (changing another lane's verdict is not this one's to do).
     const clockReport = registry.chartClockReport(cols)
+    const withheldWhole = new Map()
     if (clockReport) {
-      for (const r of clockReport.withheld) notes.push(`time(<timeframe>) withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+      for (const r of clockReport.withheld) {
+        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+      }
     }
 
     let colours
@@ -475,9 +621,12 @@ export function runOurSide(capture) {
       const row = built.lane === 'runtime'
         ? (rowByOutput.get(index) || null)
         : (o && o.ast ? rowByAst.get(o.ast) : null)
-      const col = row ? cols[row.key] : undefined
+      const heldBy = row ? withheldWhole.get(row.key) : undefined
+      const col = row && !heldBy ? cols[row.key] : undefined
       let missingReason = null
-      if (!row) {
+      if (heldBy) {
+        missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
+      } else if (!row) {
         missingReason = o && o.refusal
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
@@ -507,7 +656,8 @@ export function runOurSide(capture) {
     }
     const objects = objectsOf(def, bars, ctx)
     for (const r of (objects && objects.chartClock) || []) {
-      notes.push(`time(<timeframe>) withheld (${r.code}) in the object lane — ${r.reason}`)
+      const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+      notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
     }
     if (objects && objects.ok && objects.drawn) {
       for (const f of ['lines', 'labels', 'boxes']) {
@@ -523,6 +673,11 @@ export function runOurSide(capture) {
       ctx,
       notes,
       bars,
+      // ⭐ B1 — what the door carried (every call, withheld ones included, in source
+      // order), what the document draws, and what the binder handed the chart.
+      paints,
+      translationPaints: ((built.translation && built.translation.presentation) || {}).paints || [],
+      drawnPaints: colours && colours.paints ? colours.paints : null,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

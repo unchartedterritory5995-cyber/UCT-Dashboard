@@ -95,6 +95,17 @@ DOORS: dict[str, Door] = {
         "member", "POST /api/j2/notes/{id}/writing-help/autofill",
         "daily_counters notebook_writing_help 60/member + $25/day shared",
         meter="notebook_writing_help", pop_cap=_NB_WRITING),
+    "api/services/journal_two/voice_notes.py": Door(
+        "member", "/api/j2/voice-notes/* (NOTEBOOK_VOICE_NOTES_ENABLED, require_paid): Whisper "
+        "per 5-minute part + one summary call",
+        "voice_usage mode D 60 min/month (whole file checked up front) + daily_counters "
+        "notebook_voice_note 20/member + $25/day shared",
+        meter="notebook_voice_notes", pop_cap="api/routers/notebook_voice_notes.py"),
+    "api/services/journal_two/ai_actions.py": Door(
+        "member", "POST /api/j2/ai-actions/plan (NOTEBOOK_AI_ACTIONS_ENABLED, dark; require_paid)",
+        "daily_counters notebook_ai_actions 20/member + $25/day shared (one call per plan, "
+        "charged its own estimate)",
+        meter="notebook_ai_actions", pop_cap="api/routers/notebook_ai_actions.py"),
     "api/services/journal_two/note_semantic.py": Door(
         "member", "meaning search on GET /api/j2/notes (NOTEBOOK_SEMANTIC_SEARCH_ENABLED); sweep",
         "daily_counters notebook_semantic_query_embed 200/member; sweep 2000/run",

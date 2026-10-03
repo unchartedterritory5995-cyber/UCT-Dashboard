@@ -80,6 +80,8 @@ import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../components/artifactHistory/RecentlyDeleted'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
 import { fetchTf } from '../components/chart/timeframes'
@@ -87,6 +89,7 @@ import { enter as enterReview, publish as publishReview } from './charts/review/
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
+import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
@@ -885,6 +888,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols, sym? }
+  // FT-041: the metered server export (Excel). Null while the server door is
+  // dark or the plan is free -- then the menu offers only the in-browser CSV.
+  const [serverExport, setServerExport] = useState(null)
+  useEffect(() => {
+    let live = true
+    exportQuota().then(q => { if (live) setServerExport(q) })
+    return () => { live = false }
+  }, [])
   const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
   const [expandedNote, setExpandedNote] = useState(null) // item ID with note open
   const [noteText, setNoteText] = useState('')
@@ -1087,6 +1098,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
+  // COV-06: version history on the member's own lists + Recently deleted. Both
+  // controls are HIDDEN unless ARTIFACT_VERSIONS_ENABLED answers; the probe runs
+  // only where they can render (the unscoped My Lists view, or an open menu).
+  const [wlHistoryId, setWlHistoryId] = useState(null)
+  const [wlDeletedRev, setWlDeletedRev] = useState(0)
+  const wlHistoryAvailable = useArtifactVersionsAvailable(!pickList || !!ctxMenu || !!wlHistoryId)
   // Prebuilt (curated UCT) lists are opened via a `community:<id>` key, but /api/watchlists/public
   // EXCLUDES is_prebuilt lists (they live in their own tab). So a picked prebuilt list must be
   // resolved against BOTH pools, or it opens with 0 items. `communityLists` still drives the
@@ -1713,6 +1730,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   async function handleDeleteList(id) {
     if (!confirm('Delete this watchlist?')) return
     await fetch(`/api/watchlists/${id}`, { method: 'DELETE' })
+    setWlDeletedRev(n => n + 1)
     setExpandedLists(prev => { const n = new Set(prev); n.delete(id); return n })
     mutateMine()
     mutateCommunity()
@@ -2510,7 +2528,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === wl.id ? (
-            <input
+            <input aria-label="Rename watchlist"
               className={styles.renameInput}
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
@@ -2627,7 +2645,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               {expandedNote === item.id && (
                 <div className={styles.noteRow}>
                   {editable ? (
-                    <textarea
+                    <textarea aria-label="Note for this ticker"
                       className={styles.noteTextarea}
                       value={noteText}
                       onChange={e => setNoteText(e.target.value)}
@@ -2723,7 +2741,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === 'flagged' ? (
-            <input
+            <input aria-label="Rename the flagged list"
               className={styles.renameInput}
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
@@ -3079,6 +3097,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 }
                 return shown.map(wl => renderWatchlistGroup(wl, true))
               })()}
+              {/* COV-06: a deleted list's history outlives it; bring it back here. */}
+              {!pickList && wlHistoryAvailable && (
+                <RecentlyDeleted kind="watchlist" noun="list" refreshKey={wlDeletedRev}
+                  onBroughtBack={() => { mutateMine() }} />
+              )}
             </>
           )}
 
@@ -3191,7 +3214,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <form onSubmit={handleCreate}>
               <div className={styles.formGroup}>
                 <span className={styles.formLabel}>Name</span>
-                <input
+                <input aria-label="Name"
                   className={styles.input}
                   value={createForm.name}
                   onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
@@ -3202,7 +3225,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               </div>
               <div className={styles.formGroup}>
                 <span className={styles.formLabel}>Description</span>
-                <input
+                <input aria-label="Description"
                   className={styles.input}
                   value={createForm.description}
                   onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))}
@@ -3249,7 +3272,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <div className={styles.modalTitle}>Import Tickers</div>
             <div className={styles.formGroup}>
               <span className={styles.formLabel}>Paste tickers (comma or newline separated)</span>
-              <textarea
+              <textarea aria-label="Tickers to import"
                 className={`${styles.input} ${styles.importTextarea}`}
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
@@ -3305,11 +3328,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <div className={styles.alertPopover} style={{ top: alertPopover.y, left: alertPopover.x }} onClick={e => e.stopPropagation()}>
             <div className={styles.alertPopTitle}>Alert for {alertPopover.sym}</div>
             <div className={styles.alertForm}>
-              <select className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
+              <select aria-label="Alert direction" className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
                 <option value="above">Above</option>
                 <option value="below">Below</option>
               </select>
-              <input
+              <input aria-label="Alert price"
                 className={styles.alertInput}
                 type="number"
                 step="0.01"
@@ -3452,12 +3475,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 if (wl) exportCSV(wl)
               }}>Export CSV</button>
             )}
+            {serverExport && ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
+              <button className={styles.ctxItem} onClick={() => {
+                const id = ctxMenu.id
+                setCtxMenu(null)
+                downloadExport(`/api/exports/watchlists/${encodeURIComponent(id)}`, { format: 'xlsx' })
+                  .catch(e => window.alert(`${e?.message || 'Export failed.'} Nothing was downloaded.`))
+              }}>Export Excel</button>
+            )}
             {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={styles.ctxItem} onClick={() => {
                 setImportListId(ctxMenu.id)
                 setImportText('')
                 setCtxMenu(null)
               }}>Import tickers</button>
+            )}
+            {wlHistoryAvailable && ctxMenu.isOwner && ctxMenu.id !== 'flagged'
+              && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id))
+              && !myLists?.find(w => w.id === ctxMenu.id)?.is_prebuilt && (
+              <button className={styles.ctxItem} data-testid="watchlist-history-open" onClick={() => {
+                setWlHistoryId(ctxMenu.id)
+                setCtxMenu(null)
+              }}>Version history</button>
             )}
             {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
@@ -3482,6 +3521,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           </div>
         )
       })()}
+
+      {/* COV-06: one list's version history. Restore is the only write. */}
+      {wlHistoryId && wlHistoryAvailable && (
+        <Sheet open onClose={() => setWlHistoryId(null)} title="Version history">
+          <ArtifactHistory
+            kind="watchlist"
+            artifactId={wlHistoryId}
+            title={`Version history · ${myLists?.find(w => w.id === wlHistoryId)?.name || 'List'}`}
+            onRestored={() => { mutateMine() }}
+            onUnavailable={() => setWlHistoryId(null)}
+          />
+        </Sheet>
+      )}
 
     </div>
   )

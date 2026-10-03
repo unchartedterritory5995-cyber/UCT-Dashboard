@@ -6449,3 +6449,67 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
     } finally { __setPaneModeForTest(null); H.paneModel = null }
   })
 })
+
+// ─── ⭐ B1 — A PINE `barcolor` RECOLOURS THE CHART'S OWN CANDLES, AND NOTHING ELSE ──
+//
+// The overrides reach the candles through the price series' own data (one wrap per
+// series, `engine/barColours.js`), handed over by the binder only when they CHANGE.
+// The two claims a shared chart needs: the candles really are recoloured, and a
+// re-render that changes nothing writes nothing — no candle `setData`, no series
+// restyle — so a paint can never become a render loop.
+describe('B1 — a member script\'s `barcolor` on the candles', () => {
+  const SRC = '//@version=5\nindicator("b1 wiring", overlay = true)\nplot(close, "c")\nbarcolor(close > open ? #123456 : na)\n'
+  const installB1 = async () => {
+    const { memberPaneDefinition } = await import('../../builder/memberPane/memberPaneDefinition')
+    const b = memberPaneDefinition({ source: SRC, id: 'u_member-pane-b1w' })
+    expect(b.ok, b.reason).toBe(true)
+    const { installed } = registry.installUserDefinitions([b.definition])
+    expect(installed).toHaveLength(1)
+    return { instanceId: 'b1-wiring', defId: installed[0].id, inputs: {}, hidden: false }
+  }
+  const candleSeries = () => (H.addSeriesCalls.find((c) => c.ctor === 'CandlestickSeries') || {}).series
+  const recoloured = (data) => (data || []).filter((b) => b && b.color === '#123456').length
+
+  it('⭐ the candles\' data carries the script\'s colour on exactly the bars it names, and the ctx carries both capabilities', async () => {
+    const inst = await installB1()
+    try {
+      draw({ indicatorInstances: [inst] })
+      expect(H.syncCalls.length, 'no sync — nothing below is about the engine').toBeGreaterThan(0)
+      const ctx = H.syncCalls[H.syncCalls.length - 1]
+      expect(typeof ctx.priceSeries).toBe('function')
+      expect(typeof ctx.setBarColours).toBe('function')
+      const s = candleSeries()
+      expect(s, 'no candle series').toBeTruthy()
+      const writes = H.setDataCalls.filter((c) => c.series === s)
+      expect(writes.length).toBeGreaterThan(0)
+      const up = BARS.filter((b) => b.c > b.o).length
+      expect(up, 'the fixture has no up bar — vacuous').toBeGreaterThan(0)
+      expect(recoloured(writes[writes.length - 1].data)).toBe(up)
+    } finally { registry.uninstallUserDefinition(inst.defId) }
+  })
+
+  it('⛔⛔ a re-render that changes nothing re-sets no candle data and restyles no series', async () => {
+    const inst = await installB1()
+    try {
+      let setHost = null
+      let commits = 0
+      const props = { sym: 'AAPL', tf: 'D', barsOverride: BARS, settingsOverride: legendAlways({ indicatorInstances: [inst] }) }
+      function Host() {
+        const [p, setP] = useState(props)
+        setHost = setP
+        return (<Profiler id="b1" onRender={() => { commits += 1 }}><StockChart {...p} /></Profiler>)
+      }
+      render(<Host />)
+      await act(async () => { await new Promise((r) => setTimeout(r, 250)) })
+      expect(recoloured((H.setDataCalls.filter((c) => c.series === candleSeries()).pop() || {}).data),
+        'the candles were never recoloured — the no-op claim below would be about nothing').toBeGreaterThan(0)
+      H.setDataCalls.length = 0
+      H.applyOptionsCalls.length = 0
+      const before = commits
+      await act(async () => { setHost((cur) => ({ ...cur })) })
+      expect(commits, 'the host did not re-render — vacuous').toBeGreaterThan(before)
+      expect(H.setDataCalls, 'a render that changed nothing re-set series data').toEqual([])
+      expect(H.applyOptionsCalls, 'a render that changed nothing re-styled a series').toEqual([])
+    } finally { registry.uninstallUserDefinition(inst.defId) }
+  })
+})

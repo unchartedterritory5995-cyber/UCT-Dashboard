@@ -75,6 +75,51 @@ describe('append_widget_embed — Send to Journal', () => {
   })
 })
 
+// ⭐ G-040 (wave 10, lane CX): the Screener, COT and Model Book "Save to Notebook"
+// doors are NEW CALLERS of this same family — they route through
+// `sendCaptureToJournal`, the frozen `/embeds` call site and its settle, and add no
+// write path of their own. Each is driven here BY NAME, so a door that later grew a
+// private write would have to fail one of these to do it.
+const G040_DOORS = [
+  ['screener', 'Screener results', {
+    name: 'Screener — All Market', asOf: '2026-09-30 03:00 ET (nightly build)',
+    columns: [{ key: 'ticker', label: 'Ticker' }], rows: [{ ticker: 'NVDA', cells: ['NVDA'] }], total: 1,
+  }],
+  ['cot', 'ES COT positioning', {
+    market: 'ES', reportDate: '2026-09-22',
+    groups: { commercials: { net: 1 }, largeSpecs: { net: 2 }, smallSpecs: { net: 3 } },
+  }],
+  ['modelbook', 'NVDA 2023 (Model Book)', { year: 2023, symbol: 'NVDA', annotation: 'mine' }],
+]
+
+describe('append_widget_embed — the G-040 doors (Screener · COT · Model Book)', () => {
+  for (const [widgetId, label, capture] of G040_DOORS) {
+    it(`${widgetId}: landing the revision is what stops the fork`, async () => {
+      const { sendCaptureToJournal } = await import('../sendToJournal')
+      localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now(), title: 'Plan' }))
+      const fetchMock = answering({ note: NOTE })
+
+      const msg = await sendCaptureToJournal(widgetId, capture, { label })
+      expect(msg).toBe(`${label} sent to “Plan”`)
+      expect(landed()).toEqual([T2])
+      expect(landedFor()).toEqual(['n1'])
+      // …through the ONE frozen door, carrying this widget id.
+      const embeds = fetchMock.mock.calls.filter(([u]) => String(u) === '/api/j2/notes/n1/embeds')
+      expect(embeds).toHaveLength(1)
+      expect(JSON.parse(embeds[0][1].body).attrs.widgetId).toBe(widgetId)
+    })
+
+    it(`⛔ CONTROL — ${widgetId}: an append the server REFUSED lands nothing`, async () => {
+      const { sendCaptureToJournal } = await import('../sendToJournal')
+      localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now() }))
+      answering({}, { ok: false, status: 404 })
+
+      await sendCaptureToJournal(widgetId, capture, { label })
+      expect(landed(), 'a write that did not happen has no revision').toEqual([])
+    })
+  }
+})
+
 describe('append_financial_fact — a price saved from outside the editor', () => {
   it('the insert lands the revision, and the member is told it worked', async () => {
     const { capturePriceToNotebook } = await import('../captureFinancialFact')
@@ -434,5 +479,53 @@ describe('import_confirm — a re-import over a note with queued offline work', 
     })
 
     expect(landed(), 'nothing was written, so nothing has a revision').toEqual([])
+  })
+})
+
+// ⭐ Wave 11 lane 11A — the voice-note doors. A NEW note goes through the canonical
+// create (`createNoteViaApi`) and lands the revision it was answered with; the
+// APPEND to the open note is an editor transaction on that note's own autosave
+// (lib/voiceNote.js `appendVoiceNote`, railed in voiceNote.test.js and
+// NoteEditorPage.voiceNote.test.jsx) — no endpoint, so nothing here to land.
+describe('voice note — a new note from a recording, an upload or a Desk session', () => {
+  const RESULT = {
+    source: 'recording', date: '2026-10-01', transcript: 'NVDA.', words: 1,
+    summary: 'NVDA.', tickers: ['NVDA'], actionItems: [], ai: { ok: true, model: 'm', sentence: '' },
+  }
+
+  it('the create lands the revision it was answered with', async () => {
+    const { createVoiceNote } = await import('../voiceNote')
+    answering({ note: { id: 'nv1', title: 'Voice note', updatedAt: T2 } })
+    await createVoiceNote({ title: 'Voice note', result: RESULT })
+    expect(landed()).toEqual([T2])
+    expect(landedFor()).toEqual(['nv1'])
+  })
+
+  it('⛔ CONTROL — a create the server REFUSED lands nothing', async () => {
+    const { createVoiceNote } = await import('../voiceNote')
+    answering({}, { ok: false, status: 500 })
+    await expect(createVoiceNote({ title: 'Voice note', result: RESULT })).rejects.toThrow()
+    expect(landed()).toEqual([])
+  })
+})
+
+// ⭐ Wave 11 lane 11D — the trade-plan canvas's create door. A NEW canvas goes
+// through the canonical create (`createNoteViaApi`) and lands the revision it was
+// answered with. Every later board change is an editor transaction on that note's
+// own autosave (lib/tradeCanvas.js `commitBoard`) — no endpoint, nothing to land here.
+describe('trade-plan canvas — a new canvas note', () => {
+  it('the create lands the revision it was answered with', async () => {
+    const { createTradeCanvasNote } = await import('../tradeCanvasCreate')
+    answering({ note: { id: 'nc1', title: 'NVDA trade plan', updatedAt: T2 } })
+    await createTradeCanvasNote({ ticker: 'NVDA' })
+    expect(landed()).toEqual([T2])
+    expect(landedFor()).toEqual(['nc1'])
+  })
+
+  it('⛔ CONTROL — a create the server REFUSED lands nothing', async () => {
+    const { createTradeCanvasNote } = await import('../tradeCanvasCreate')
+    answering({}, { ok: false, status: 500 })
+    await expect(createTradeCanvasNote({ ticker: 'NVDA' })).rejects.toThrow()
+    expect(landed()).toEqual([])
   })
 })

@@ -26,6 +26,8 @@ import { useIsPhone } from '../../hooks/useBreakpoint'
 import Provenance from '../../components/provenance/Provenance'
 import { SERIES_COLORS } from './cotPalette'
 import { fmtDate, fmtNum, fmtSignedCompact, fmtPct } from './cotFormat'
+import SaveToNotebookButton from '../journal-2-0/components/SaveToNotebookButton'
+import { buildCotCapture } from './cotNotebookCapture'
 
 const TONE_CLASS  = { bull: 'toneBull', bear: 'toneBear', neutral: 'toneNeutral' }
 const CHIP_CLASS  = { bull: 'chipBull', bear: 'chipBear', neutral: 'chipNeutral' }
@@ -217,6 +219,10 @@ const PositioningRail = forwardRef(function PositioningRail(
           <span className={styles.whenLabel}>{isLatest ? 'Latest report' : 'Week of'}</span>
           <span className={styles.whenDate}>{fmtDate(snap.date)}</span>
         </div>
+        {/* G-040 ruling 2: freeze THIS week, as shown — the one the rail is on. */}
+        <SaveToNotebookButton widgetId="cot" label={`${symbol} COT positioning`}
+          ariaLabel={`Save ${symbol} COT positioning for the week of ${fmtDate(snap.date)} to Notebook`}
+          buildCapture={() => buildCotCapture({ symbol, name, snap, read })} />
       </div>
 
       {/* Verdict tiles */}

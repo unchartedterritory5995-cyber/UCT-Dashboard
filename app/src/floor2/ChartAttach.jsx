@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
 
 const TFS = ['5m', '30m', '1h', '1D', '1W']
 
@@ -17,12 +19,12 @@ export default function ChartAttach({ onDone, onCancel }) {
   return (
     <div className="chart-attach">
       <span className="ca-label"><span style={{ color: 'var(--ut-gold)' }}>$</span></span>
-      <input ref={ref} className="ca-ticker" placeholder="TICKER" value={ticker} maxLength={5}
+      <Input aria-label="Chart ticker" ref={ref} className="ca-ticker" placeholder="TICKER" value={ticker} maxLength={5}
         onChange={(e) => setTicker(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
-      <select className="ca-tf" value={tf} onChange={(e) => setTf(e.target.value)}>
+      <Select aria-label="Chart timeframe" className="ca-tf" value={tf} onChange={(e) => setTf(e.target.value)}>
         {TFS.map((t) => <option key={t} value={t}>{t}</option>)}
-      </select>
+      </Select>
       <button className="btn-primary" style={{ height: 32, padding: '0 14px', fontSize: 13 }} disabled={!ticker.trim()} onClick={add}>Add chart</button>
       <button className="btn-ghost" style={{ height: 32, padding: '0 12px', fontSize: 13 }} onClick={onCancel}>Cancel</button>
     </div>

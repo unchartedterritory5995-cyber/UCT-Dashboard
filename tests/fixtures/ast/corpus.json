@@ -3784,6 +3784,22 @@
       }
     },
     {
+      "id": "ltf_close_sixty_is_not_computable_without_a_supply",
+      "source": "ltf(close, '60')",
+      "why": "⛔ THE READ BELOW THE CHART'S TIMEFRAME (C41), AND WHAT BOTH LANES MUST SAY WHEN NOBODY SUPPLIES IT. An `ltf` child runs on the chart symbol's INTRADAY bars, which only a chart's bind supplies (`engine/lowerTf.js::resolveLowerTf` -> `interpret`'s `opts.lowerTf`); this census supplies none, in either lane, and the Python lane never can -- a screen holds daily bars. The correct column is therefore NOT COMPUTABLE on every bar, never the bars in hand read under a lower timeframe's name: a lane that fell back to `close` would produce finite rows, which this case's `allNaN` flag turns into a named failure. The served reading is railed on TradingView's own bars in `vendorHarness.c41LowerTfServe.test.js`.",
+      "ast": {
+        "type": "ltf",
+        "value": "60",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      },
+      "allNaN": true
+    },
+    {
       "id": "idiv_overflow_to_nan",
       "source": "idiv(1e308, 1e-308) > 0",
       "why": "a quotient that overflows to infinity, COMPARED — and the comparison is the whole point. ⚰⚰ DRIVEN BY NOTHING UNTIL NOW, and the lanes failed in OPPOSITE directions: Python raised OverflowError from `int(inf)` (a crash, not a TableRefusal) while JS returned Infinity. ⛔ THE BARE COLUMN IS LAUNDERED TO NaN on write, so `na(overflow)` and a raw overflow column CANNOT tell the lanes apart — the first version of this case was decoration and a mutant survived it. The Infinity survives long enough to be COMPARED, and a scan IS `<tree> != 0`, so `> 0` answered 1 for every symbol: a screen matching the entire universe.",

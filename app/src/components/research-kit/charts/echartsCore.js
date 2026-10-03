@@ -27,7 +27,8 @@
 // the one JSX return below is written with `createElement` instead.
 import { useMemo, createElement } from 'react'
 import * as echarts from 'echarts/core'
-import { BarChart, CustomChart } from 'echarts/charts'
+// LineChart: BRK-01 increment 3's vol smile and term structure (pages/research/tabs/volSurface.js).
+import { BarChart, CustomChart, LineChart } from 'echarts/charts'
 import {
   AxisPointerComponent,
   GridComponent,
@@ -39,7 +40,7 @@ import EChartsReactCore from 'echarts-for-react/lib/core'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import styles from './echartsCore.module.css'
 
-echarts.use([BarChart, CustomChart, GridComponent, TooltipComponent, MarkLineComponent, AxisPointerComponent, CanvasRenderer])
+echarts.use([BarChart, CustomChart, LineChart, GridComponent, TooltipComponent, MarkLineComponent, AxisPointerComponent, CanvasRenderer])
 
 export { echarts }
 

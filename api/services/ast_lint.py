@@ -376,7 +376,7 @@ def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
     if kind == "call":
         functions = table.get("functions") or {}
         return functions.get(node.get("name"), {}).get("yields") == "bool"
-    if kind in ("sym", "tf_live", "tf"):
+    if kind in ("sym", "ltf", "tf_live", "tf"):
         args = node.get("args") or []
         return len(args) == 1 and _arg_yields_bool(args[0], table)
     return False
@@ -597,13 +597,18 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
 #: read UNKNOWN — fail-closed, nothing red in this module, and the badge
 #: hedging about a formula the engine prices exactly.
 _CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-                    "str", "symtext", "textop")
+                    "str", "symtext", "textop", "ltf")
 
 #: ⛔ THE SPANS, DUPLICATED FOR THE SAME FORCED REASON AS THE VOCABULARY ABOVE,
 #: and bound to ``ast_interpret.TF_BASE_BARS`` by a test rather than by an import.
 #: ⚠️ ROUNDING UP IS THE SAFE DIRECTION HERE TOO: a window that is too SMALL
 #: lets a formula claim it reads less history than it does.
 _TF_BASE_BARS = {"W": 5, "M": 21}
+
+#: ⭐ C47 — the spans a FORMING read (`tf_live`) may carry: the mirror of
+#: ``ast_interpret.TF_LIVE_BASE_BARS`` (the quarter, read live only), bound to it
+#: by a test for the same forced reason as the table above.
+_TF_LIVE_BASE_BARS = dict(_TF_BASE_BARS, **{"3M": 63})
 
 
 def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -852,12 +857,12 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # daily bars of its own week. Any positive value yields the same badge,
             # so this is stated for the reader rather than for the verdict.
             code = str(node.get("value"))
-            span = _TF_BASE_BARS.get(code)
+            span = _TF_LIVE_BASE_BARS.get(code)
             if len(args) != 1 or span is None:
                 reach_of[id(node)] = unknown(
                     "a live higher-timeframe node carries one child and a timeframe "
                     "this engine resamples (%s), got %r over %d"
-                    % (", ".join(sorted(_TF_BASE_BARS)), node.get("value"), len(args)))
+                    % (", ".join(sorted(_TF_LIVE_BASE_BARS)), node.get("value"), len(args)))
             else:
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
                 back = cb if cb in (UNKNOWN, UNBOUNDED) else int(cb) * span
@@ -874,6 +879,20 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             if len(args) != 1:
                 reach_of[id(node)] = unknown(
                     "a symbol node carries exactly one child, got %d" % len(args))
+            else:
+                reach_of[id(node)] = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+        elif kind == "ltf":
+            # ⭐ C41 — A READ BELOW THE CHART changes WHICH BARS the child runs on,
+            # never WHEN the chart bar is answered: the last intrabar of a chart
+            # bar that has closed. The child's reach is counted in intrabars and a
+            # chart bar holds at least one, so it passes straight through as an
+            # upper bound in chart bars. Mirrors `lint.js`'s arm.
+            code = str(node.get("value"))
+            if len(args) != 1 or not (code.isascii() and code.isdigit()
+                                      and not code.startswith("0")):
+                reach_of[id(node)] = unknown(
+                    "a lower-timeframe node carries exactly one child and a whole "
+                    "number of minutes, got %r over %d" % (node.get("value"), len(args)))
             else:
                 reach_of[id(node)] = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
         elif kind == "op":

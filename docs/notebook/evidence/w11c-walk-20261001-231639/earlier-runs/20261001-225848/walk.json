@@ -1,0 +1,180 @@
+{
+ "tool": "tools/notebook_w11c_walk.py",
+ "base": "http://127.0.0.1:8601",
+ "requests": [
+  "tag every note that mentions NVDA earnings with earnings-nvda; add a task \"Check the NVDA print\" to every note that mentions NVDA earnings; move every note that mentions 2024 trade review to folder 2024 Reviews; delete every note that mentions NVDA earnings",
+  "tag every note that mentions Rates and the dollar with macro"
+ ],
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11c-walk-20261001-225848\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 22:58:58",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 22:59:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-01 23:01:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-01 23:01:42",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w11c-walk-20261001-225848\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w11c\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T22-58-51.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W1_box_by_keyboard",
+   "verdict": "PASS",
+   "detail": "50 Tab presses reached the toggle; Enter opened it; the request box has focus=True"
+  },
+  {
+   "id": "W2_planned_by_keyboard",
+   "verdict": "FAIL",
+   "detail": "Ctrl+Enter planned it; review heading shown=False, focus on None"
+  },
+  {
+   "id": "W10_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "flag_on_payload": true,
+  "ids": {
+   "A": "ad63708c54124fe4b3fc0d308df9e09b",
+   "B": "ba7398f8c68a41ddb5031f54a030499a",
+   "C": "09d8df570d7d4cd18b17fa9d6265a3b7",
+   "D": "b9386f1c0d6c4a1ebc0a9ed8af4e394e",
+   "E": "af21c88bd23b4041b5adf41ab154c692"
+  },
+  "before": {
+   "A": {
+    "updatedAt": "2026-10-02T03:59:33.855884+00:00",
+    "tags": [
+     "semis"
+    ],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Long NVDA into the print. NVDA earnings land Nov 19."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "B": {
+    "updatedAt": "2026-10-02T03:59:33.898862+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "AMD reports next week; NVDA earnings set the tone for the group."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "C": {
+    "updatedAt": "2026-10-02T03:59:33.943526+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "My 2024 trade review of the MSFT breakout."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "D": {
+    "updatedAt": "2026-10-02T03:59:34.075918+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "NVDA earnings plan, locked on purpose."
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "E": {
+    "updatedAt": "2026-10-02T03:59:34.032844+00:00",
+    "tags": [],
+    "folderId": null,
+    "bodyJson": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Rates and the dollar drive the tape."
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "page_text": "Skip to main content\nSkip to notes list\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nw11c\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nAdd thesis starter views\nAll notes\n5\nUnfiled\n5\nArchived\n0\nTrash\n0\n+ New folder\nTAGS\n#semis\n1\nResearch home\nAsk Notebook to do something\nWhat should Notebook do?\n\nNotebook plans the changes first and writes nothing until you approve them. It can tag, set a property, move to a folder, add a block at the end of a note, or create a note — never delete or rewrite. Ctrl+Enter plans.\n\nPlan changes\n\nNotebook couldn't plan that just now. Nothing was changed in your notes.\n\nNothing needs your attention right now.\n\nFavorite a note or set a thesis to Active to see it here.\n\n?\n◉\n⋮"
+ }
+}

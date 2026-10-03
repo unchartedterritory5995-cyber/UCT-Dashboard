@@ -147,6 +147,23 @@ describe('the Market Map follows its group\'s list-ref channel', () => {
     expect(plotted().get('source')).toBe('index')
   })
 
+  it('⛔ COV-10: a SCAN list-ref on the group is refused BY NAME — never plotted as an empty universe', () => {
+    // A Scanner widget on group A publishes `scan` refs; /api/scatter/data cannot resolve
+    // them. The map must say so and keep plotting its own universe.
+    const store = createChannelStore()
+    render(<Board store={store} showWatchlist={false}
+      wl={{ color: 'A', opts: {} }}
+      map={{ color: 'A', opts: { followList: true } }} />)
+    act(() => {
+      store.publish(channelFor(KIND.LIST_REF, 'A'),
+        { type: KIND.LIST_REF, source: 'scan', value: 'top-gainers-30d', label: 'Top Gainers (30-Day)' }, 'ScannerResults#t')
+    })
+    expect(screen.getByText("Can't plot Top Gainers (30-Day)")).toBeInTheDocument()
+    expect(dataUrls.some((u) => u.includes('source=scan'))).toBe(false)
+    expect(plotted().get('source')).toBe('index')
+    expect(plotted().get('value')).toBe('sp500')
+  })
+
   it('the toggle is a real control: it persists followList, and picking a saved tab turns it off', () => {
     const onOpts = vi.fn()
     render(

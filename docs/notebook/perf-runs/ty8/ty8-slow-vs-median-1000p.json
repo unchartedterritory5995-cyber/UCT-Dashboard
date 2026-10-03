@@ -1,0 +1,2752 @@
+{
+ "n_windows": 149,
+ "slow_cutoff_busy_ms": 10.968,
+ "median_band_ms": [
+  8.417,
+  8.739
+ ],
+ "slow_count": 15,
+ "median_count": 15,
+ "slow_busy_ms": {
+  "mean": 15.078,
+  "min": 10.968
+ },
+ "median_busy_ms": {
+  "mean": 8.565
+ },
+ "rows": [
+  {
+   "label": "FunctionCall Cd.observer http://127.0.0.1:8342/assets/askInsert-laZFcIfe.js:10",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 2.8927,
+    "mean_self_ms_over_bucket": 2.8927
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 1.7535,
+    "mean_self_ms_over_bucket": 1.7535
+   },
+   "delta_mean_self_ms_over_bucket": 1.1392
+  },
+  {
+   "label": "ThreadControllerImpl::RunTask",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 1.6117,
+    "mean_self_ms_over_bucket": 1.6117
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.6613,
+    "mean_self_ms_over_bucket": 0.6613
+   },
+   "delta_mean_self_ms_over_bucket": 0.9504
+  },
+  {
+   "label": "EventDispatch textInput",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 2.115,
+    "mean_self_ms_over_bucket": 2.115
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 1.4073,
+    "mean_self_ms_over_bucket": 1.4073
+   },
+   "delta_mean_self_ms_over_bucket": 0.7077
+  },
+  {
+   "label": "FunctionCall Qe http://127.0.0.1:8342/assets/vendor-react-DZY_6SFR.js:1",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 1.367,
+    "mean_self_ms_over_bucket": 0.3645
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.3645
+  },
+  {
+   "label": "FunctionCall http://127.0.0.1:8342/assets/vendor-react-DZY_6SFR.js:8",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 1.6198,
+    "mean_self_ms_over_bucket": 1.6198
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 1.2991,
+    "mean_self_ms_over_bucket": 1.2991
+   },
+   "delta_mean_self_ms_over_bucket": 0.3207
+  },
+  {
+   "label": "V8.GC_MC_INCREMENTAL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 2.3955,
+    "mean_self_ms_over_bucket": 0.3194
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.3194
+  },
+  {
+   "label": "Layerize",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.6174,
+    "mean_self_ms_over_bucket": 0.6174
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.3493,
+    "mean_self_ms_over_bucket": 0.3493
+   },
+   "delta_mean_self_ms_over_bucket": 0.2681
+  },
+  {
+   "label": "Layout",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.9056,
+    "mean_self_ms_over_bucket": 0.9056
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.6695,
+    "mean_self_ms_over_bucket": 0.6695
+   },
+   "delta_mean_self_ms_over_bucket": 0.2361
+  },
+  {
+   "label": "Paint",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.4983,
+    "mean_self_ms_over_bucket": 0.4983
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.2893,
+    "mean_self_ms_over_bucket": 0.2893
+   },
+   "delta_mean_self_ms_over_bucket": 0.209
+  },
+  {
+   "label": "FunctionCall Qy http://127.0.0.1:8342/assets/vendor-react-DZY_6SFR.js:9",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.4629,
+    "mean_self_ms_over_bucket": 0.4629
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.3101,
+    "mean_self_ms_over_bucket": 0.3101
+   },
+   "delta_mean_self_ms_over_bucket": 0.1528
+  },
+  {
+   "label": "Commit",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.317,
+    "mean_self_ms_over_bucket": 0.317
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.2034,
+    "mean_self_ms_over_bucket": 0.2034
+   },
+   "delta_mean_self_ms_over_bucket": 0.1136
+  },
+  {
+   "label": "PrePaint",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.4545,
+    "mean_self_ms_over_bucket": 0.4545
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.3435,
+    "mean_self_ms_over_bucket": 0.3435
+   },
+   "delta_mean_self_ms_over_bucket": 0.111
+  },
+  {
+   "label": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.8205,
+    "mean_self_ms_over_bucket": 0.1094
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.1094
+  },
+  {
+   "label": "RunTask",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.2649,
+    "mean_self_ms_over_bucket": 0.2649
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.1683,
+    "mean_self_ms_over_bucket": 0.1683
+   },
+   "delta_mean_self_ms_over_bucket": 0.0966
+  },
+  {
+   "label": "V8.GC_MC_FINISH",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.692,
+    "mean_self_ms_over_bucket": 0.0923
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0923
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.6805,
+    "mean_self_ms_over_bucket": 0.0907
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0907
+  },
+  {
+   "label": "V8.GC_MARK_COMPACTOR",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.597,
+    "mean_self_ms_over_bucket": 0.0796
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0796
+  },
+  {
+   "label": "UpdateLayoutTree",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.3743,
+    "mean_self_ms_over_bucket": 0.0749
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0749
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.504,
+    "mean_self_ms_over_bucket": 0.1008
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.436,
+    "mean_self_ms_over_bucket": 0.0291
+   },
+   "delta_mean_self_ms_over_bucket": 0.0717
+  },
+  {
+   "label": "FunctionCall Zc.n.dom.addEventListener.n.input.eventHandlers.<computed> http://127.0.0.1:8342/assets/askInsert-laZFcIfe.js:10",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.2039,
+    "mean_self_ms_over_bucket": 0.2039
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.1343,
+    "mean_self_ms_over_bucket": 0.1343
+   },
+   "delta_mean_self_ms_over_bucket": 0.0696
+  },
+  {
+   "label": "v8.callFunction",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.23,
+    "mean_self_ms_over_bucket": 0.23
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.1747,
+    "mean_self_ms_over_bucket": 0.1747
+   },
+   "delta_mean_self_ms_over_bucket": 0.0553
+  },
+  {
+   "label": "Receive mojo message",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.1545,
+    "mean_self_ms_over_bucket": 0.1545
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.1051,
+    "mean_self_ms_over_bucket": 0.1051
+   },
+   "delta_mean_self_ms_over_bucket": 0.0494
+  },
+  {
+   "label": "EventDispatch keypress",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0779,
+    "mean_self_ms_over_bucket": 0.0779
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0353,
+    "mean_self_ms_over_bucket": 0.0353
+   },
+   "delta_mean_self_ms_over_bucket": 0.0426
+  },
+  {
+   "label": "V8.GC_TIME_TO_SAFEPOINT",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.1497,
+    "mean_self_ms_over_bucket": 0.0399
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0398
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.2535,
+    "mean_self_ms_over_bucket": 0.0338
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0338
+  },
+  {
+   "label": "FunctionCall Sc http://127.0.0.1:8342/assets/vendor-react-DZY_6SFR.js:9",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.162,
+    "mean_self_ms_over_bucket": 0.0324
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0324
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_ROOTS",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.1883,
+    "mean_self_ms_over_bucket": 0.0377
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.095,
+    "mean_self_ms_over_bucket": 0.0063
+   },
+   "delta_mean_self_ms_over_bucket": 0.0314
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_FINALIZE",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.1727,
+    "mean_self_ms_over_bucket": 0.0345
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.143,
+    "mean_self_ms_over_bucket": 0.0095
+   },
+   "delta_mean_self_ms_over_bucket": 0.025
+  },
+  {
+   "label": "FunctionCall s http://127.0.0.1:8342/assets/askInsert-laZFcIfe.js:13",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0865,
+    "mean_self_ms_over_bucket": 0.0865
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0629,
+    "mean_self_ms_over_bucket": 0.0629
+   },
+   "delta_mean_self_ms_over_bucket": 0.0236
+  },
+  {
+   "label": "FunctionCall x http://127.0.0.1:8342/assets/index-BkTa-xpI.js:1",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0791,
+    "mean_self_ms_over_bucket": 0.0791
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0557,
+    "mean_self_ms_over_bucket": 0.0557
+   },
+   "delta_mean_self_ms_over_bucket": 0.0234
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.1407,
+    "mean_self_ms_over_bucket": 0.0281
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.112,
+    "mean_self_ms_over_bucket": 0.0075
+   },
+   "delta_mean_self_ms_over_bucket": 0.0206
+  },
+  {
+   "label": "V8.GC_HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1525,
+    "mean_self_ms_over_bucket": 0.0203
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0203
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_COPY",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1435,
+    "mean_self_ms_over_bucket": 0.0191
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0191
+  },
+  {
+   "label": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1415,
+    "mean_self_ms_over_bucket": 0.0189
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0189
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_COPY_PARALLEL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.139,
+    "mean_self_ms_over_bucket": 0.0185
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0185
+  },
+  {
+   "label": "V8.GC_MC_INCREMENTAL_START",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.132,
+    "mean_self_ms_over_bucket": 0.0176
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0176
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_EXTERNAL_STRING_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.126,
+    "mean_self_ms_over_bucket": 0.0168
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0168
+  },
+  {
+   "label": "FunctionCall u http://127.0.0.1:8342/assets/index-BzjIK6ll.js:11",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1245,
+    "mean_self_ms_over_bucket": 0.0166
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0166
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.087,
+    "mean_self_ms_over_bucket": 0.0174
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.018,
+    "mean_self_ms_over_bucket": 0.0012
+   },
+   "delta_mean_self_ms_over_bucket": 0.0162
+  },
+  {
+   "label": "MinorGC",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0917,
+    "mean_self_ms_over_bucket": 0.0183
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.04,
+    "mean_self_ms_over_bucket": 0.0027
+   },
+   "delta_mean_self_ms_over_bucket": 0.0156
+  },
+  {
+   "label": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1165,
+    "mean_self_ms_over_bucket": 0.0155
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0155
+  },
+  {
+   "label": "V8.GC_HEAP_EMBEDDER_TRACING_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.115,
+    "mean_self_ms_over_bucket": 0.0153
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0153
+  },
+  {
+   "label": "BlinkScheduler_PerformMicrotaskCheckpoint",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0369,
+    "mean_self_ms_over_bucket": 0.0369
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0219,
+    "mean_self_ms_over_bucket": 0.0219
+   },
+   "delta_mean_self_ms_over_bucket": 0.015
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_EXTERNAL_POINTER_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.1105,
+    "mean_self_ms_over_bucket": 0.0147
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0147
+  },
+  {
+   "label": "SimpleWatcher::OnHandleReady",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0852,
+    "mean_self_ms_over_bucket": 0.0852
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0709,
+    "mean_self_ms_over_bucket": 0.0709
+   },
+   "delta_mean_self_ms_over_bucket": 0.0143
+  },
+  {
+   "label": "EventDispatch keydown",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0767,
+    "mean_self_ms_over_bucket": 0.0767
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0644,
+    "mean_self_ms_over_bucket": 0.0644
+   },
+   "delta_mean_self_ms_over_bucket": 0.0123
+  },
+  {
+   "label": "FunctionCall http://127.0.0.1:8342/assets/index-BkTa-xpI.js:1",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0385,
+    "mean_self_ms_over_bucket": 0.0385
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0262,
+    "mean_self_ms_over_bucket": 0.0262
+   },
+   "delta_mean_self_ms_over_bucket": 0.0123
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_WEAK_GLOBAL_HANDLES",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0895,
+    "mean_self_ms_over_bucket": 0.0119
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0119
+  },
+  {
+   "label": "V8.DeoptimizeCode",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.057,
+    "mean_self_ms_over_bucket": 0.0114
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0114
+  },
+  {
+   "label": "EventDispatch input",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0396,
+    "mean_self_ms_over_bucket": 0.0396
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0292,
+    "mean_self_ms_over_bucket": 0.0292
+   },
+   "delta_mean_self_ms_over_bucket": 0.0104
+  },
+  {
+   "label": "FunctionCall onSelectionChange http://127.0.0.1:8342/assets/askInsert-laZFcIfe.js:10",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.044,
+    "mean_self_ms_over_bucket": 0.044
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0336,
+    "mean_self_ms_over_bucket": 0.0336
+   },
+   "delta_mean_self_ms_over_bucket": 0.0104
+  },
+  {
+   "label": "FunctionCall O http://127.0.0.1:8342/assets/index-BkTa-xpI.js:1",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0337,
+    "mean_self_ms_over_bucket": 0.0337
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0235,
+    "mean_self_ms_over_bucket": 0.0235
+   },
+   "delta_mean_self_ms_over_bucket": 0.0102
+  },
+  {
+   "label": "V8.GC_MC_MARK_ROOTS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.076,
+    "mean_self_ms_over_bucket": 0.0101
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0101
+  },
+  {
+   "label": "V8.GCScavenger",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0483,
+    "mean_self_ms_over_bucket": 0.0097
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": 0.0093
+  },
+  {
+   "label": "FunctionCall http://127.0.0.1:8342/assets/index-BzjIK6ll.js:11",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.124,
+    "mean_self_ms_over_bucket": 0.0083
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0083
+  },
+  {
+   "label": "FunctionCall d http://127.0.0.1:8342/assets/index-BzjIK6ll.js:8",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0444,
+    "mean_self_ms_over_bucket": 0.0444
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0363,
+    "mean_self_ms_over_bucket": 0.0363
+   },
+   "delta_mean_self_ms_over_bucket": 0.0081
+  },
+  {
+   "label": "V8.GC_MC_SWEEP",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.06,
+    "mean_self_ms_over_bucket": 0.008
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.008
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_WEAK_COLLECTIONS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0585,
+    "mean_self_ms_over_bucket": 0.0078
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0078
+  },
+  {
+   "label": "V8.GCIncrementalMarking",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.056,
+    "mean_self_ms_over_bucket": 0.0075
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0075
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_JOIN_JOB",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.055,
+    "mean_self_ms_over_bucket": 0.0073
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0073
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_MAPS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.051,
+    "mean_self_ms_over_bucket": 0.0068
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0068
+  },
+  {
+   "label": "EventDispatch keyup",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0527,
+    "mean_self_ms_over_bucket": 0.0527
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0459,
+    "mean_self_ms_over_bucket": 0.0459
+   },
+   "delta_mean_self_ms_over_bucket": 0.0068
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_JS_DISPATCH_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.051,
+    "mean_self_ms_over_bucket": 0.0068
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0068
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0485,
+    "mean_self_ms_over_bucket": 0.0065
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0065
+  },
+  {
+   "label": "Major concurrent marking rescheduled",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.045,
+    "mean_self_ms_over_bucket": 0.006
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.006
+  },
+  {
+   "label": "V8.GC_SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0453,
+    "mean_self_ms_over_bucket": 0.0091
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.05,
+    "mean_self_ms_over_bucket": 0.0033
+   },
+   "delta_mean_self_ms_over_bucket": 0.0058
+  },
+  {
+   "label": "UpdateLayer",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0107,
+    "mean_self_ms_over_bucket": 0.0107
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0049,
+    "mean_self_ms_over_bucket": 0.0049
+   },
+   "delta_mean_self_ms_over_bucket": 0.0058
+  },
+  {
+   "label": "EventDispatch transitionrun",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.029,
+    "mean_self_ms_over_bucket": 0.0058
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0058
+  },
+  {
+   "label": "V8.GC_MC_MARK",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0435,
+    "mean_self_ms_over_bucket": 0.0058
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0058
+  },
+  {
+   "label": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.042,
+    "mean_self_ms_over_bucket": 0.0056
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0056
+  },
+  {
+   "label": "V8.GC_SCAVENGER_FREE_REMEMBERED_SET",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0323,
+    "mean_self_ms_over_bucket": 0.0065
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.015,
+    "mean_self_ms_over_bucket": 0.001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0055
+  },
+  {
+   "label": "FunctionCall jy http://127.0.0.1:8342/assets/vendor-react-DZY_6SFR.js:9",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0385,
+    "mean_self_ms_over_bucket": 0.0051
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0051
+  },
+  {
+   "label": "IntersectionObserverController::computeIntersections",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0219,
+    "mean_self_ms_over_bucket": 0.0219
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.017,
+    "mean_self_ms_over_bucket": 0.017
+   },
+   "delta_mean_self_ms_over_bucket": 0.0049
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_PARALLEL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.037,
+    "mean_self_ms_over_bucket": 0.0049
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0049
+  },
+  {
+   "label": "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.0183,
+    "mean_self_ms_over_bucket": 0.0049
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "delta_mean_self_ms_over_bucket": 0.0046
+  },
+  {
+   "label": "MajorGC",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.034,
+    "mean_self_ms_over_bucket": 0.0045
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0045
+  },
+  {
+   "label": "V8.GC_MC_INCREMENTAL_EXTERNAL_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.033,
+    "mean_self_ms_over_bucket": 0.0044
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0044
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_TRUSTED_POINTER_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.032,
+    "mean_self_ms_over_bucket": 0.0043
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0043
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_WEAK_LISTS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0325,
+    "mean_self_ms_over_bucket": 0.0043
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0043
+  },
+  {
+   "label": "FunctionCall onScroll http://127.0.0.1:8342/assets/tiptap-1qR0zr6j.js:41",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0315,
+    "mean_self_ms_over_bucket": 0.0042
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0042
+  },
+  {
+   "label": "V8.GC_MC_CLEAR",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.029,
+    "mean_self_ms_over_bucket": 0.0039
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0039
+  },
+  {
+   "label": "V8.GC_SCAVENGER_TRACED_HANDLES_RESET_PARALLEL",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0387,
+    "mean_self_ms_over_bucket": 0.0077
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.059,
+    "mean_self_ms_over_bucket": 0.0039
+   },
+   "delta_mean_self_ms_over_bucket": 0.0038
+  },
+  {
+   "label": "FunctionCall B http://127.0.0.1:8342/assets/NotebookFlagGate-B36W-k0F.js:3",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0275,
+    "mean_self_ms_over_bucket": 0.0037
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0037
+  },
+  {
+   "label": "EventDispatch beforeinput",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0095,
+    "mean_self_ms_over_bucket": 0.0095
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0059,
+    "mean_self_ms_over_bucket": 0.0059
+   },
+   "delta_mean_self_ms_over_bucket": 0.0036
+  },
+  {
+   "label": "EventDispatch selectionchange",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0269,
+    "mean_self_ms_over_bucket": 0.0269
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0234,
+    "mean_self_ms_over_bucket": 0.0234
+   },
+   "delta_mean_self_ms_over_bucket": 0.0035
+  },
+  {
+   "label": "EventDispatch scroll",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.026,
+    "mean_self_ms_over_bucket": 0.0035
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0035
+  },
+  {
+   "label": "FunctionCall n http://127.0.0.1:8342/assets/GlobalVoiceLayer-BMxh43lj.js:1",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0067,
+    "mean_self_ms_over_bucket": 0.0067
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0037,
+    "mean_self_ms_over_bucket": 0.0037
+   },
+   "delta_mean_self_ms_over_bucket": 0.003
+  },
+  {
+   "label": "FunctionCall h http://127.0.0.1:8342/assets/index-BzjIK6ll.js:11",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0074,
+    "mean_self_ms_over_bucket": 0.0074
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0044,
+    "mean_self_ms_over_bucket": 0.0044
+   },
+   "delta_mean_self_ms_over_bucket": 0.003
+  },
+  {
+   "label": "Receive mojo reply",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0078,
+    "mean_self_ms_over_bucket": 0.0078
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.005,
+    "mean_self_ms_over_bucket": 0.005
+   },
+   "delta_mean_self_ms_over_bucket": 0.0028
+  },
+  {
+   "label": "ScrollLayer",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0205,
+    "mean_self_ms_over_bucket": 0.0027
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0027
+  },
+  {
+   "label": "V8.GC_HEAP_EXTERNAL_SECOND_PASS_CALLBACKS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.02,
+    "mean_self_ms_over_bucket": 0.0027
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0027
+  },
+  {
+   "label": "V8.GC_HEAP_EXTERNAL_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.0118,
+    "mean_self_ms_over_bucket": 0.0031
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": 0.0027
+  },
+  {
+   "label": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.018,
+    "mean_self_ms_over_bucket": 0.0024
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0024
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.017,
+    "mean_self_ms_over_bucket": 0.0034
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.017,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "delta_mean_self_ms_over_bucket": 0.0023
+  },
+  {
+   "label": "V8.GCIncrementalMarkingStart",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0175,
+    "mean_self_ms_over_bucket": 0.0023
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0023
+  },
+  {
+   "label": "FunctionCall A http://127.0.0.1:8342/assets/NotebookFlagGate-B36W-k0F.js:3",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0155,
+    "mean_self_ms_over_bucket": 0.0021
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0021
+  },
+  {
+   "label": "EventDispatch transitionstart",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.002
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.015,
+    "mean_self_ms_over_bucket": 0.002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.002
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0167,
+    "mean_self_ms_over_bucket": 0.0033
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.019,
+    "mean_self_ms_over_bucket": 0.0013
+   },
+   "delta_mean_self_ms_over_bucket": 0.002
+  },
+  {
+   "label": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0135,
+    "mean_self_ms_over_bucket": 0.0018
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0018
+  },
+  {
+   "label": "FunctionCall x http://127.0.0.1:8342/assets/NotebookFlagGate-B36W-k0F.js:3",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0055,
+    "mean_self_ms_over_bucket": 0.0055
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0038,
+    "mean_self_ms_over_bucket": 0.0038
+   },
+   "delta_mean_self_ms_over_bucket": 0.0017
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0125,
+    "mean_self_ms_over_bucket": 0.0017
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0017
+  },
+  {
+   "label": "TimerFire#205",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.024,
+    "mean_self_ms_over_bucket": 0.0016
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0016
+  },
+  {
+   "label": "V8.GC_MC_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.011,
+    "mean_self_ms_over_bucket": 0.0015
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0015
+  },
+  {
+   "label": "V8.GC_HEAP_EPILOGUE_SAFEPOINT",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0019
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": 0.0015
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0105,
+    "mean_self_ms_over_bucket": 0.0014
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0014
+  },
+  {
+   "label": "FireAnimationFrame",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0013
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0013
+  },
+  {
+   "label": "v8.newInstance",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.02,
+    "mean_self_ms_over_bucket": 0.0013
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0013
+  },
+  {
+   "label": "V8.GC_MC_MARK_FULL_CLOSURE_SERIAL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0013
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0013
+  },
+  {
+   "label": "FunctionCall f http://127.0.0.1:8342/assets/NotebookFlagGate-B36W-k0F.js:3",
+   "slow": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0047,
+    "mean_self_ms_over_bucket": 0.0047
+   },
+   "median": {
+    "presence_rate": 1.0,
+    "mean_self_ms_when_present": 0.0035,
+    "mean_self_ms_over_bucket": 0.0035
+   },
+   "delta_mean_self_ms_over_bucket": 0.0012
+  },
+  {
+   "label": "V8.GCFinalizeMC",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0012
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0012
+  },
+  {
+   "label": "V8.GC_SCAVENGER",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0083,
+    "mean_self_ms_over_bucket": 0.0017
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "delta_mean_self_ms_over_bucket": 0.0012
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_START_JOBS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0085,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0011
+  },
+  {
+   "label": "V8.GC_MC_MARK_RETAIN_MAPS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0085,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0011
+  },
+  {
+   "label": "EventDispatch transitionend",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0057,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0011
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_CODE_POINTER_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.008,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0011
+  },
+  {
+   "label": "TimerFire#438",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.015,
+    "mean_self_ms_over_bucket": 0.001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.001
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_WEAK",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0075,
+    "mean_self_ms_over_bucket": 0.001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.001
+  },
+  {
+   "label": "Responsiveness.Renderer.UserInteraction",
+   "slow": {
+    "presence_rate": 0.8,
+    "mean_self_ms_when_present": 0.0206,
+    "mean_self_ms_over_bucket": 0.0165
+   },
+   "median": {
+    "presence_rate": 0.933,
+    "mean_self_ms_when_present": 0.0166,
+    "mean_self_ms_over_bucket": 0.0155
+   },
+   "delta_mean_self_ms_over_bucket": 0.001
+  },
+  {
+   "label": "V8.GC_MC_FINISH_SWEEP_ARRAY_BUFFERS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0009
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0009
+  },
+  {
+   "label": "TimerFire#627",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.014,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0009
+  },
+  {
+   "label": "V8.GC_MC_INCREMENTAL_EXTERNAL_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0065,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0009
+  },
+  {
+   "label": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0065,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0009
+  },
+  {
+   "label": "TimerFire#373",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.012,
+    "mean_self_ms_over_bucket": 0.0008
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0008
+  },
+  {
+   "label": "V8.GC_HEAP_PROLOGUE",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.0032,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0008
+  },
+  {
+   "label": "TimerFire#827",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "FunctionCall s.onsuccess http://127.0.0.1:8342/assets/offlineFlag-DuRf1w6i.js:1",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.011,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "TimerFire#273",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "TimerFire#363",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "TimerFire#922",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.011,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "V8.GC_HEAP_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.0038,
+    "mean_self_ms_over_bucket": 0.001
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "delta_mean_self_ms_over_bucket": 0.0007
+  },
+  {
+   "label": "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+   "slow": {
+    "presence_rate": 0.267,
+    "mean_self_ms_when_present": 0.0023,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GC_MC_MARK_FINISH_INCREMENTAL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0035,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_NEW_LO",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0035,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "TimerFire#328",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "TimerFire#209",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.008,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GC_HEAP_ENSURE_SWEEPING_COMPLETED",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "TimerFire#333",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "TimerFire#338",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.008,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GC_MC_WEAKNESS_HANDLING",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0035,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "EventDispatch scrollend",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0005
+  },
+  {
+   "label": "V8.GCPhantomHandleProcessingCallback",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.003,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0004
+  },
+  {
+   "label": "TimerFire#358",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0004
+  },
+  {
+   "label": "TimerFire#513",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0004
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_STRING_FORWARDING_TABLE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.003,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0004
+  },
+  {
+   "label": "TimerFire#213",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0004
+  },
+  {
+   "label": "V8.GC_SCAVENGER_RESIZE_NEW_SPACE",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "PageEvacuationJob started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0025,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "TimerFire#210",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.005,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "TimerFire#545",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "V8.GC_MC_EPILOGUE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_CLEAN_UP",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0025,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0003
+  },
+  {
+   "label": "Major concurrent marking started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0015,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0002
+  },
+  {
+   "label": "V8.GC_MC_MARK_CLIENT_HEAPS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0015,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0002
+  },
+  {
+   "label": "ClearStringTableJob started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0015,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0002
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0015,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0002
+  },
+  {
+   "label": "ClearWeaknessProcessor start",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0017,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0002
+  },
+  {
+   "label": "V8.GC_CONSERVATIVE_STACK_SCANNING",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "Closed mojo endpoint",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "Parallel scavenge started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.0015,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "FilterNonTrivialWeakRefJob started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "PointersUpdatingJob started",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0012
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.016,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_FLUSHABLE_BYTECODE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_MC_SWEEP_WASM_CODE_POINTER_TABLE",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_MC_EVACUATE_REBALANCE",
+   "slow": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "ComputeWeaknessProcessor start",
+   "slow": {
+    "presence_rate": 0.2,
+    "mean_self_ms_when_present": 0.0013,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.003,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "ClearTrivialWeakRefJob started",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.002,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_JS_WEAK_REFERENCES",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "V8.GC_MC_CLEAR_FLUSHED_JS_FUNCTIONS",
+   "slow": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.001,
+    "mean_self_ms_over_bucket": 0.0001
+   },
+   "median": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "delta_mean_self_ms_over_bucket": 0.0001
+  },
+  {
+   "label": "TimerFire#128",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.003,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "delta_mean_self_ms_over_bucket": -0.0002
+  },
+  {
+   "label": "TimerFire#127",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.003,
+    "mean_self_ms_over_bucket": 0.0002
+   },
+   "delta_mean_self_ms_over_bucket": -0.0002
+  },
+  {
+   "label": "TimerFire#106",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.004,
+    "mean_self_ms_over_bucket": 0.0003
+   },
+   "delta_mean_self_ms_over_bucket": -0.0003
+  },
+  {
+   "label": "TimerFire#423",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": -0.0004
+  },
+  {
+   "label": "TimerFire#862",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": -0.0004
+  },
+  {
+   "label": "TimerFire#408",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.006,
+    "mean_self_ms_over_bucket": 0.0004
+   },
+   "delta_mean_self_ms_over_bucket": -0.0004
+  },
+  {
+   "label": "TimerFire#393",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.008,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "delta_mean_self_ms_over_bucket": -0.0005
+  },
+  {
+   "label": "TimerFire#637",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.007,
+    "mean_self_ms_over_bucket": 0.0005
+   },
+   "delta_mean_self_ms_over_bucket": -0.0005
+  },
+  {
+   "label": "TimerFire#343",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#218",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#448",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#535",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#832",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#857",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.009,
+    "mean_self_ms_over_bucket": 0.0006
+   },
+   "delta_mean_self_ms_over_bucket": -0.0006
+  },
+  {
+   "label": "TimerFire#882",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.011,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "delta_mean_self_ms_over_bucket": -0.0007
+  },
+  {
+   "label": "TimerFire#667",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "delta_mean_self_ms_over_bucket": -0.0007
+  },
+  {
+   "label": "TimerFire#126",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.01,
+    "mean_self_ms_over_bucket": 0.0007
+   },
+   "delta_mean_self_ms_over_bucket": -0.0007
+  },
+  {
+   "label": "TimerFire#842",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.013,
+    "mean_self_ms_over_bucket": 0.0009
+   },
+   "delta_mean_self_ms_over_bucket": -0.0009
+  },
+  {
+   "label": "TimerFire#248",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.016,
+    "mean_self_ms_over_bucket": 0.0011
+   },
+   "delta_mean_self_ms_over_bucket": -0.0011
+  },
+  {
+   "label": "TimerFire#105",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.039,
+    "mean_self_ms_over_bucket": 0.0026
+   },
+   "delta_mean_self_ms_over_bucket": -0.0026
+  },
+  {
+   "label": "FunctionCall http://127.0.0.1:8342/assets/vendor-swr-_43fCvjP.js:1",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.133,
+    "mean_self_ms_when_present": 0.029,
+    "mean_self_ms_over_bucket": 0.0039
+   },
+   "delta_mean_self_ms_over_bucket": -0.0039
+  },
+  {
+   "label": "HitTest",
+   "slow": {
+    "presence_rate": 0.0,
+    "mean_self_ms_when_present": 0.0,
+    "mean_self_ms_over_bucket": 0.0
+   },
+   "median": {
+    "presence_rate": 0.067,
+    "mean_self_ms_when_present": 0.236,
+    "mean_self_ms_over_bucket": 0.0157
+   },
+   "delta_mean_self_ms_over_bucket": -0.0157
+  }
+ ],
+ "paragraphs": 1000,
+ "chars": 150,
+ "run_id": "r195223"
+}

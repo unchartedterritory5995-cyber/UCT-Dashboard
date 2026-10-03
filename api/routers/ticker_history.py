@@ -29,4 +29,5 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 @router.get("/api/research/history/{sym}", dependencies=[Depends(_armed)])
 def research_history(sym: str, days: int = Query(ticker_history.DEFAULT_DAYS, ge=1, le=ticker_history.MAX_DAYS),
                      _user: dict = Depends(require_paid)):
-    return ticker_history.history(sym, days=days)
+    # The caller's id keys ONLY their own journal lane (dark behind TICKER_HISTORY_LANES2_ENABLED).
+    return ticker_history.history(sym, days=days, user_id=_user.get("id"))

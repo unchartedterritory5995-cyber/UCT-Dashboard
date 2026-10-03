@@ -205,19 +205,29 @@ export function clearProjectionFor(secondaryBars) {
  * @param {Array} secondaryBars bars for the OTHER symbol, same timeframe
  * @param {Array} primaryBars   the chart's bars — defines the admissible times
  * @returns {Array} a subset of `secondaryBars`, in primary order, each carrying
- *                  its OWN `t`
+ *                  its OWN `t` — or, when the two sides spell a DAY differently
+ *                  (unix midnight vs `YYYY-MM-DD`), the primary's spelling of it
  */
 export function clipBarsToDomain(secondaryBars, primaryBars) {
   const secondary = Array.isArray(secondaryBars) ? secondaryBars : []
   const primary = Array.isArray(primaryBars) ? primaryBars : []
   if (!secondary.length || !primary.length) return []
 
+  // ⭐ ONE DAY, TWO SPELLINGS — the rule `projectSymbolField` already applies to the
+  // scalar lane (2026-09-30), applied to the OHLC lane too (2026-10-01). An index's
+  // daily bars key the day as unix seconds at UTC midnight while a stock chart keys
+  // it `"YYYY-MM-DD"`; joined exactly, SPX drawn as Candles or Bars matched 0 bars and
+  // drew nothing. Only when the two sides disagree on the KIND of key is a midnight
+  // number read as its day; same-kind keys (every intraday chart) join exactly.
+  const mixed = mixedDayKeys(primary, secondary)
+  const dayKey = mixed ? toDayKey : (k) => k
+
   // FIRST WINS on a duplicate timestamp, matching `projectSymbolField` exactly.
   // Two lanes reading the same bars must make the same choice about a defect.
   const at = new Map()
   for (let j = 0; j < secondary.length; j++) {
     const b = secondary[j]
-    const key = b && typeof b === 'object' ? b.t : undefined
+    const key = b && typeof b === 'object' ? dayKey(b.t) : undefined
     if (key !== undefined && key !== null && !at.has(key)) at.set(key, b)
   }
 
@@ -226,10 +236,14 @@ export function clipBarsToDomain(secondaryBars, primaryBars) {
   const out = []
   for (let i = 0; i < primary.length; i++) {
     const p = primary[i]
-    const key = p && typeof p === 'object' ? p.t : undefined
+    const key = p && typeof p === 'object' ? dayKey(p.t) : undefined
     if (key === undefined || key === null) continue
     const bar = at.get(key)
-    if (bar !== undefined) out.push(bar)
+    if (bar === undefined) continue
+    // ⚠️ A RE-SPELLED DAY, NOT A BORROWED BAR. When the keys are mixed the bar is
+    // handed on under the PRIMARY's spelling of the SAME day, because one chart axis
+    // cannot hold two time formats; every other field is the secondary's own.
+    out.push(mixed && bar.t !== p.t ? { ...bar, t: p.t } : bar)
   }
   return out
 }

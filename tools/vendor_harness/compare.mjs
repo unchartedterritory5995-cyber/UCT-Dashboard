@@ -748,22 +748,48 @@ export function compareCapture(capture, ours, opts = {}) {
 
   // Objects — counts of what each side KEEPS, and the text they carry.
   if (capture.objects || (ours.objects && ours.objects.drawsObjects)) {
-    base.objects = compareObjects(capture.objects || null, ours.objects || null)
+    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null)
   }
+
+  // Paints — `bgcolor` / `barcolor` (B1, step 61). Graded only where the caller
+  // paired them (`opts.paints`, the runner's `paintColours.js::gradePaints`), and
+  // a row exists only where either side paints at all.
+  const paintRow = opts.paints ? comparePaints(opts.paints) : null
+  if (paintRow) base.paints = paintRow
 
   if (!capture.plotValues || !capture.study) base.notMeasured.push('plot values')
   if (!roles.colorers.length && !Object.keys((capture.study && capture.study.styleState) || {}).length) base.notMeasured.push('colour')
 
-  const verdicts = base.plots.map((p) => p.verdict)
-  if (base.objects) verdicts.push(base.objects.verdict)
+  const plotVerdicts = base.plots.map((p) => p.verdict)
+  const overallOf = (verdicts) => {
+    const n = (x) => verdicts.filter((y) => y === x).length
+    if (n('DIVERGE')) return { verdict: 'DIVERGE', reason: `${n('DIVERGE')} of ${verdicts.length} compared items diverge` }
+    if (n('INCONCLUSIVE')) return { verdict: 'INCONCLUSIVE', reason: `${n('INCONCLUSIVE')} of ${verdicts.length} items could not be compared` }
+    return { verdict: 'MATCH', reason: `all ${verdicts.length} items agree` }
+  }
+  // ⭐ B1 — the verdict BEFORE paints joined it is computed first and kept, so a
+  // capture whose verdict moves because of a paint is named, never mistaken for
+  // a regression elsewhere.
+  const verdictsBeforePaints = base.objects ? [...plotVerdicts, base.objects.verdict] : plotVerdicts
+  const paintJoins = !!(base.paints && base.paints.verdict)
+  const verdicts = paintJoins ? [...verdictsBeforePaints, base.paints.verdict] : verdictsBeforePaints
   if (!verdicts.length) return { ...base, verdict: 'INCONCLUSIVE', reason: 'nothing on either side could be compared' }
-  const n = (x) => verdicts.filter((y) => y === x).length
-  let verdict
-  let reason
-  if (n('DIVERGE')) { verdict = 'DIVERGE'; reason = `${n('DIVERGE')} of ${verdicts.length} compared items diverge` }
-  else if (n('INCONCLUSIVE')) { verdict = 'INCONCLUSIVE'; reason = `${n('INCONCLUSIVE')} of ${verdicts.length} items could not be compared` }
-  else { verdict = 'MATCH'; reason = `all ${verdicts.length} items agree` }
-  return { ...base, verdict, reason }
+  const out = { ...base, ...overallOf(verdicts) }
+  if (paintJoins) {
+    out.verdictWithoutPaints = verdictsBeforePaints.length
+      ? overallOf(verdictsBeforePaints).verdict
+      : 'INCONCLUSIVE'
+  }
+  // ⭐ C44 — BOTH NUMBERS, SIDE BY SIDE. Where object colour was graded, the
+  // capture also carries the verdict it had BEFORE colour joined it, so a score
+  // that moves because of colour is never mistaken for a regression: an entry
+  // whose two verdicts differ changed for that reason and no other.
+  // (Paints stay IN this one: each "without" number differs from the verdict by
+  // its own cause and no other.)
+  if (base.objects && base.objects.verdictWithoutColour) {
+    out.verdictWithoutColour = overallOf([...plotVerdicts, base.objects.verdictWithoutColour, ...(paintJoins ? [base.paints.verdict] : [])]).verdict
+  }
+  return out
 }
 
 /** The member-visible inputs whose captured value differs from the declared
@@ -775,8 +801,88 @@ export function nonDefaultInputs(capture) {
     && JSON.stringify(i.value) !== JSON.stringify(i.defval))
 }
 
-/** Objects: the LIVE set at the last bar on each side. */
-export function compareObjects(vendorObjs, ourObjs) {
+// ── OBJECT COLOUR (C44) ──────────────────────────────────────────────────────
+//
+// ⭐⭐ AN OBJECT FAMILY GRADES MATCH ONLY WHEN ITS COLOURS AGREE TOO (integrator
+// ruling 2026-10-01 on the question C37 left: `colourColumn.js` was a census,
+// and a drawing in the wrong colour graded MATCH). The pairing is the runner's
+// (`vendorHarness/objectColours.js::pairObjects` — every live object paired with
+// the capture's own record BY VALUE, one row per colour slot); this function
+// says, ONCE, what each slot state means for the verdict:
+//
+//   agree, agreeByDefault   agrees
+//   themeRelative           agrees — `chart.fg_color` / `chart.bg_color` are the
+//                           colours of the chart the script runs on; the capture
+//                           records TradingView's theme and our chart wears its
+//                           own, so the slot is correct in OUR colours and is
+//                           not compared with the capture's (§ C37)
+//   carriedDiffers          DIFFERS — we carry a colour and it is not the vendor's
+//   notCarried              DIFFERS — the script names one, we carry none, and
+//                           the default drawn in its place is not the vendor's
+//   vendorUndecodable       NOT GRADED — a verdict about the capture's encoding,
+//                           not about either engine; counted and reported
+//   undrawn                 NOT GRADED — the object is held at an `na` coordinate
+//                           on BOTH sides, so neither platform draws it and a
+//                           member sees nothing (integrator ruling: the verdict
+//                           measures what a member sees). ⛔ COUNTED, never
+//                           dropped: `undrawn` slots and, of those, how many hold
+//                           a colour that differs (`undrawnDiffering`, with the
+//                           first one named) stay in the row and in the reason,
+//                           so a difference in HELD state stays on the books
+//
+// One row per object family that paired at least one slot. A family that paired
+// none has no row: nothing was graded, and nothing is claimed.
+// ⛔ ONLY PAIRED OBJECTS ARE GRADED. An object our side holds that no vendor
+// record matches by value is `unpaired` (reported): its position or text already
+// differs, which is the count / text rows' business (and v1 compares no
+// coordinate).
+const COLOUR_FAMILY_OF = Object.freeze({ line: 'lines', label: 'labels', box: 'boxes', table: 'tables', cell: 'tableCells' })
+const COLOUR_FAMILY_ORDER = Object.freeze(['lines', 'labels', 'boxes', 'tables', 'tableCells'])
+const COLOUR_AGREES = new Set(['agree', 'agreeByDefault', 'themeRelative'])
+const COLOUR_DIFFERS = new Set(['carriedDiffers', 'notCarried'])
+const COLOUR_UNGRADED = new Set(['vendorUndecodable'])
+const COLOUR_UNDRAWN = 'undrawn'
+
+export function objectColourRows(pairing) {
+  const by = new Map()
+  for (const r of (pairing && pairing.rows) || []) {
+    const family = COLOUR_FAMILY_OF[r.kind]
+    // ⛔ FAIL CLOSED: a kind or a state this table does not name is never
+    // quietly read as agreeing.
+    if (!family) throw new Error(`object colour: unknown object kind ${JSON.stringify(r.kind)}`)
+    if (!by.has(family)) {
+      by.set(family, { family: `${family} colour`, agree: null, slots: 0, agreeing: 0, themeRelative: 0, differing: 0, undecodable: 0, undrawn: 0, undrawnDiffering: 0, first: null, firstUndrawn: null })
+    }
+    const row = by.get(family)
+    row.slots += 1
+    if (COLOUR_DIFFERS.has(r.state)) {
+      row.differing += 1
+      if (!row.first) row.first = { slot: `${r.kind}.${r.slot}`, state: r.state, vendor: r.vendor, ours: r.ours, where: r.where }
+    } else if (r.state === COLOUR_UNDRAWN) {
+      row.undrawn += 1
+      if (COLOUR_DIFFERS.has(r.wouldBe)) {
+        row.undrawnDiffering += 1
+        if (!row.firstUndrawn) row.firstUndrawn = { slot: `${r.kind}.${r.slot}`, state: r.wouldBe, vendor: r.vendor, ours: r.ours, where: r.where }
+      }
+    } else if (COLOUR_UNGRADED.has(r.state)) {
+      row.undecodable += 1
+    } else if (COLOUR_AGREES.has(r.state)) {
+      row.agreeing += 1
+      if (r.state === 'themeRelative') row.themeRelative += 1
+    } else {
+      throw new Error(`object colour: unknown slot state ${JSON.stringify(r.state)}`)
+    }
+  }
+  const rows = COLOUR_FAMILY_ORDER.filter((f) => by.has(f)).map((f) => by.get(f))
+  for (const row of rows) row.agree = row.agreeing + row.differing === 0 ? null : row.differing === 0
+  return rows
+}
+
+/** Objects: the LIVE set at the last bar on each side.
+ *  @param {{rows: object[], unpaired: object}|null} [colour] the paired colour
+ *    slots (C44). `null` — a caller that did not pair them — grades counts and
+ *    texts only, exactly as before, and its reason reads as it always did. */
+export function compareObjects(vendorObjs, ourObjs, colour = null) {
   if (!vendorObjs) return { verdict: 'INCONCLUSIVE', reason: 'our side draws objects but the capture recorded none — re-capture with graphics' }
   // ⭐ OUR SCRIPT HAS NO DRAWING PROGRAM AT ALL. That is an answer, not a missing
   // one: if TradingView drew nothing either, the two agree; if it drew something,
@@ -817,11 +923,115 @@ export function compareObjects(vendorObjs, ourObjs) {
   }
   const measured = rows.filter((r) => r.agree !== null).length + textRows.length
   if (!measured) return { verdict: 'INCONCLUSIVE', reason: 'no object family was recorded on both sides', counts: rows }
+  if (!colour) {
+    return {
+      verdict: diverge ? 'DIVERGE' : 'MATCH',
+      reason: diverge ? `${diverge} object families differ (count or text); coordinates are NOT compared by v1` : 'object counts and texts agree; coordinates are NOT compared by v1',
+      counts: rows,
+      texts: textRows,
+    }
+  }
+  // ⭐ C44 — colour joins the verdict. `verdictWithoutColour` is the verdict
+  // exactly as it was computed before (counts and texts), kept beside the new one.
+  const colours = objectColourRows(colour)
+  const colourDiverge = colours.filter((r) => r.agree === false)
+  const graded = colours.reduce((n, r) => n + r.agreeing + r.differing, 0)
+  const theme = colours.reduce((n, r) => n + r.themeRelative, 0)
+  const undrawn = colours.reduce((n, r) => n + r.undrawn, 0)
+  const undrawnDiffering = colours.reduce((n, r) => n + r.undrawnDiffering, 0)
+  // ⛔ said in the reason, MATCH or not: held state that differs on objects nobody draws
+  const undrawnSaid = undrawn
+    ? `; ${undrawn} slot${undrawn === 1 ? '' : 's'} on objects neither side draws not graded${undrawnDiffering ? ` (${undrawnDiffering} of them hold a colour that differs)` : ''}`
+    : ''
+  const first = colourDiverge.length ? colourDiverge[0].first : null
+  const colourSaid = !graded ? 'no colour slot was paired, so no colour was graded'
+    : first
+      ? `${colourDiverge.length} object ${colourDiverge.length === 1 ? 'family differs' : 'families differ'} in COLOUR (first: ${first.slot} of ${first.where} — vendor ${first.vendor ?? 'none'}, ours ${first.ours ?? 'none'}, ${first.state})`
+      : `colours agree on ${graded} paired slots${theme ? ` (${theme} theme-relative)` : ''}`
   return {
-    verdict: diverge ? 'DIVERGE' : 'MATCH',
-    reason: diverge ? `${diverge} object families differ (count or text); coordinates are NOT compared by v1` : 'object counts and texts agree; coordinates are NOT compared by v1',
+    verdict: diverge || colourDiverge.length ? 'DIVERGE' : 'MATCH',
+    verdictWithoutColour: diverge ? 'DIVERGE' : 'MATCH',
+    reason: `${diverge ? `${diverge} object families differ (count or text)` : 'object counts and texts agree'}; ${colourSaid}${undrawnSaid}; coordinates are NOT compared by v1`,
     counts: rows,
     texts: textRows,
+    colours,
+    colourUnpaired: colour.unpaired || null,
+  }
+}
+
+// ── PAINTS (B1, step 61) ─────────────────────────────────────────────────────
+//
+// ⭐⭐ `bgcolor` / `barcolor` JOIN THE VERDICT (integrator ruling 2026-10-02, the
+// way C44 joined object colour). The pairing and the per-bar grade are the
+// runner's (`vendorHarness/paintColours.js::gradePaints`: every vendor
+// `bg_colorer` / `bar_colorer` paired with the translator's paint of that kind by
+// source order); this function says, ONCE, what each state means for the verdict:
+//
+//   agree, naBoth, hiddenBoth   agrees — the same picture on every bar
+//   differ, naDiffers           DIFFERS — a bar is painted differently
+//   titleMismatch               DIFFERS — the pairing itself disagrees
+//   hiddenVendorOnly            DIFFERS — we draw a paint TradingView does not
+//   hiddenOursOnly              DIFFERS — TradingView draws a paint we hide
+//   withheld                    DIFFERS — the door refused it by name (a GAP, and
+//                               counted as one), unless TradingView does not draw
+//                               it either, when neither side paints a bar
+//   notDrawn                    DIFFERS where TradingView painted a bar; where it
+//                               painted NONE (every bar `na` at the defaults) the
+//                               picture agrees and the paint is NOT GRADED —
+//                               ⛔ COUNTED, never dropped (`undrawn`, named)
+//   vendorUnreadable            NOT GRADED — a verdict about the capture
+//   (unpaired)                  DIFFERS — the two sides paint a different number
+//                               of times; nothing was paired by guess
+//
+// No paint on either side ⇒ no row, and nothing is claimed.
+const PAINT_AGREES = new Set(['agree', 'naBoth', 'hiddenBoth'])
+const PAINT_DIFFERS = new Set(['differ', 'naDiffers', 'titleMismatch', 'hiddenVendorOnly', 'hiddenOursOnly'])
+
+export function comparePaints(grade) {
+  if (!grade || grade.refused) return null
+  const rows = grade.rows || []
+  const unpaired = grade.unpaired || []
+  if (!rows.length && !unpaired.length) return null
+  let agreeing = 0
+  let undrawn = 0
+  let undecodable = 0
+  const differing = []
+  const undrawnIds = []
+  for (const r of rows) {
+    const s = r.state
+    if (PAINT_AGREES.has(s)) agreeing += 1
+    else if (PAINT_DIFFERS.has(s)) differing.push(r)
+    else if (s === 'withheld') {
+      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
+    } else if (s === 'notDrawn') {
+      if (r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
+    } else if (s === 'vendorUnreadable') undecodable += 1
+    // ⛔ FAIL CLOSED: a state this table does not name is never read as agreeing.
+    else throw new Error(`paints: unknown paint state ${JSON.stringify(s)}`)
+  }
+  const unpairedSaid = unpaired.map((u) => `${u.kind}: TradingView ${u.vendor}, ours ${u.ours}`)
+  const graded = agreeing + differing.length + unpaired.length
+  const undrawnSaid = undrawn ? `; ${undrawn} paint${undrawn === 1 ? '' : 's'} neither side draws not graded (${undrawnIds.join(', ')})` : ''
+  const undecodableSaid = undecodable ? `; ${undecodable} unreadable in the capture` : ''
+  if (!graded) {
+    return { verdict: null, reason: `no paint was graded${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, undrawn, undecodable, unpaired }
+  }
+  const first = differing[0]
+  const firstSaid = first
+    ? `${first.kind} ${first.id}${first.title ? ` "${first.title}"` : ''} ${first.state}${first.reason ? ` (${first.reason})` : ''}${first.first ? ` — bar ${first.first.bar} vendor ${first.first.vendor} ours ${first.first.ours}` : ''}`
+    : null
+  const diverge = differing.length + unpaired.length
+  return {
+    verdict: diverge ? 'DIVERGE' : 'MATCH',
+    reason: diverge
+      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${undrawnSaid}${undecodableSaid}`
+      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${undrawnSaid}${undecodableSaid}`,
+    agreeing,
+    differing: differing.length,
+    undrawn,
+    undecodable,
+    unpaired,
+    rows: rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) })),
   }
 }
 
@@ -850,9 +1060,28 @@ export function renderSummary(results) {
       lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 13)} ${detail}${p.verdict !== 'MATCH' ? ` — ${p.reason}` : ''}`)
     }
     if (r.objects) lines.push(`    ${pad('objects', 40)} ${pad(r.objects.verdict, 13)} ${r.objects.reason}`)
+    if (r.paints) lines.push(`    ${pad('paints', 40)} ${pad(r.paints.verdict || 'NOT GRADED', 13)} ${r.paints.reason}`)
   }
   const tally = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => r.verdict === v).length]))
   lines.push('')
   lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`)
+  // ⭐ C44 — the same total as it read before object colour joined the verdict,
+  // and every capture colour moved, by name.
+  const coloured = results.filter((r) => r.verdictWithoutColour)
+  if (coloured.length) {
+    const before = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => (r.verdictWithoutColour || r.verdict) === v).length]))
+    const moved = results.filter((r) => r.verdictWithoutColour && r.verdictWithoutColour !== r.verdict)
+    lines.push(`WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on ${coloured.length} captures) — MATCH ${before.MATCH} · DIVERGE ${before.DIVERGE} · INCONCLUSIVE ${before.INCONCLUSIVE}`)
+    lines.push(`CHANGED BY OBJECT COLOUR (${moved.length}): ${moved.map((r) => `${r.id} ${r.verdictWithoutColour} → ${r.verdict}`).join('; ') || 'none'}`)
+  }
+  // ⭐ B1 — the same total as it read before paints joined the verdict, and every
+  // capture a paint moved, by name.
+  const painted = results.filter((r) => r.verdictWithoutPaints)
+  if (painted.length) {
+    const before = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => (r.verdictWithoutPaints || r.verdict) === v).length]))
+    const moved = results.filter((r) => r.verdictWithoutPaints && r.verdictWithoutPaints !== r.verdict)
+    lines.push(`WITHOUT PAINTS (the verdict before B1; paints graded on ${painted.length} captures) — MATCH ${before.MATCH} · DIVERGE ${before.DIVERGE} · INCONCLUSIVE ${before.INCONCLUSIVE}`)
+    lines.push(`CHANGED BY PAINTS (${moved.length}): ${moved.map((r) => `${r.id} ${r.verdictWithoutPaints} → ${r.verdict}`).join('; ') || 'none'}`)
+  }
   return lines.join('\n')
 }

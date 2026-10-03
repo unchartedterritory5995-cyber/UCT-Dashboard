@@ -135,6 +135,17 @@ _DIRECT_USER_TABLES = (
     # leaves with it. Self-ensured by note_semantic.py (never db.py), so on a
     # pod where meaning search never ran this is a "no such table" no-op.
     "j2_note_embeddings",
+    # Wave 11 (lane 11C, "Ask Notebook to do something") -- the member's AI change
+    # sets: the request they typed, the validated plan, and one row per proposed
+    # change (with what an undo needs: a previous tag, folder or property value,
+    # or the block that was added). Self-ensured by ai_actions.py (never db.py),
+    # so on a pod where the door never ran this is a "no such table" no-op.
+    "j2_ai_change_sets",
+    "j2_ai_change_items",
+    # FT-072 (lane/o-options-remainders) -- the member's saved Spread Book. Self-ensured by
+    # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
+    # was never opened this is a "no such table" no-op.
+    "options_spread_book",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
@@ -205,6 +216,18 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
 
+    # Wave 11 lane 11A: a voice note still on its way to a transcript holds the
+    # member's AUDIO (and the transcript so far) in this process's temp directory
+    # and memory -- never a table, so it is not in the manifest above. It goes now,
+    # not at the 2-hour sweep.
+    voice_jobs = 0
+    try:
+        from api.services.journal_two import voice_notes
+        voice_jobs = voice_notes.purge_user(user_id)
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"voice notes: {e}")
+        log.warning("journal_two voice-note purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -212,6 +235,7 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         **report,
         "ok": not errors,
         "attachment_dirs_removed": freed_dirs,
+        "voice_jobs_removed": voice_jobs,
         "errors": errors,
         "tombstone": tomb,
     }

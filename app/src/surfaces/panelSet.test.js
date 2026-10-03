@@ -259,7 +259,11 @@ describe('TERM-037 — the binding pin, extended to the whole panel set', () => 
   }
 
   it('PANEL_SET is the native ids followed by the surface ids, with no duplicate', () => {
-    expect(PANEL_SET).toEqual([...WIDGET_IDS, ...SURFACE_PANEL_IDS])
+    // G-040: the capture-only kinds are Notebook captures, not board tools.
+    const boardIds = WIDGET_IDS.filter((id) => WIDGET_REGISTRY[id].captureOnly !== true)
+    expect(boardIds.length, 'the capture-only filter must not empty the native set').toBeGreaterThan(15)
+    expect(WIDGET_IDS.length - boardIds.length, 'the G-040 capture-only kinds are filtered out').toBeGreaterThan(0)
+    expect(PANEL_SET).toEqual([...boardIds, ...SURFACE_PANEL_IDS])
     expect(new Set(PANEL_SET).size).toBe(PANEL_SET.length)
     for (const id of WIDGET_IDS) expect(id.startsWith(SURFACE_PANEL_PREFIX), id).toBe(false)
   })
@@ -288,7 +292,12 @@ describe('TERM-037 — the binding pin, extended to the whole panel set', () => 
   })
 })
 
-describe('TERM-037 — INERT: nothing mounts the surface panels yet', () => {
+// ⚰️ Until 2026-10-02 this describe asserted that NOTHING imported panelSet.js (INERT). The
+// UCT Terminal shell now mounts surface panels through ONE door, so the rail became: exactly
+// that door imports it, and no second consumer appears without this rail moving too.
+const MOUNT_DOORS = ['pages/terminal/surfacePanels.js']
+
+describe('TERM-037 — MOUNTED THROUGH ONE DOOR: the terminal shell, and nothing else', () => {
   function stripComments(src) {
     return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
   }
@@ -305,14 +314,15 @@ describe('TERM-037 — INERT: nothing mounts the surface panels yet', () => {
     return acc
   }
 
-  it('no production file outside src/surfaces imports panelSet.js', () => {
-    const offenders = walkFiles(SRC)
+  it('the only production importer outside src/surfaces is the terminal\'s surface door', () => {
+    const importers = walkFiles(SRC)
       .filter((f) => !f.startsWith(path.join(SRC, 'surfaces')))
       .filter((f) => importsPanelSet(fs.readFileSync(f, 'utf8')))
+      .map((f) => path.relative(SRC, f).split(path.sep).join('/'))
     expect(
-      offenders.map((f) => path.relative(SRC, f)),
-      'the surface panels are declared, not mounted — an importer means the mount half shipped',
-    ).toEqual([])
+      importers.sort(),
+      'a second consumer of the surface panels is a second panel vocabulary — route it through the door',
+    ).toEqual([...MOUNT_DOORS].sort())
   }, 60_000)
 
   it('CONTROL: the import check sees a real import and ignores a commented one', () => {

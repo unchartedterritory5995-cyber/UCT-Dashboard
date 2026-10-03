@@ -168,7 +168,7 @@ export default function CustomizePanel({
       {mode === 'saveAs' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Save current selection as:</div>
-          <input
+          <input aria-label="New preset name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}
@@ -188,7 +188,7 @@ export default function CustomizePanel({
       {mode === 'rename' && (
         <div className={styles.inlineForm}>
           <div className={styles.inlineLabel}>Rename "{activePreset}" to:</div>
-          <input
+          <input aria-label="New name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}
@@ -219,7 +219,7 @@ export default function CustomizePanel({
           <div className={styles.inlineLabel}>
             Default cannot be edited. Save changes as a new preset:
           </div>
-          <input
+          <input aria-label="New preset name"
             ref={inputRef}
             className={styles.inlineInput}
             value={draftName}

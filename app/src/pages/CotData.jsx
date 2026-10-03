@@ -19,6 +19,7 @@ import { fmtDate, fmtNum, fmtCompact } from './cot/cotFormat'
 import { tooltipRows } from './cot/cotTooltip'
 import { proxyFor } from './cot/cotProxies'
 import { alignPrice } from './cot/cotAnalogs'
+import Input from '../components/ui/Input'
 
 ChartJS.register(
   CategoryScale, LinearScale,
@@ -141,8 +142,17 @@ class ChartErrorBoundary extends Component {
 
 const CHART_SIZE_KEY = 'cot.chart.size'
 
+// G-040: a Notebook COT capture links back with `?cot=<symbol>` ("Current COT
+// for …"). Read once, as the initial pick; an absent or malformed value is ES.
+function initialCotSymbol() {
+  try {
+    const s = new URLSearchParams(window.location.search).get('cot')
+    return s && /^[A-Za-z0-9]{1,6}$/.test(s) ? s.toUpperCase() : 'ES'
+  } catch { return 'ES' }
+}
+
 export default function CotData() {
-  const [symbol,       setSymbol]       = useState('ES')
+  const [symbol,       setSymbol]       = useState(initialCotSymbol)
   const [weeks,        setWeeks]        = useState(52)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [search,       setSearch]       = useState('')
@@ -727,7 +737,7 @@ export default function CotData() {
           {/* Desktop: anchored popover. Touch: bottom-sheet (below). */}
           {dropdownOpen && !isTouch && (
             <div className={styles.dropdownMenu}>
-              <input
+              <Input aria-label="Search markets"
                 className={styles.dropdownSearch}
                 placeholder="Search markets..."
                 value={search}
@@ -768,7 +778,7 @@ export default function CotData() {
             variant="bottom-sheet"
             title="Select market"
           >
-            <input
+            <Input aria-label="Search markets"
               className={styles.sheetSearch}
               placeholder="Search markets..."
               value={search}

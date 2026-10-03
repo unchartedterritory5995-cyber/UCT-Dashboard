@@ -1,0 +1,315 @@
+{
+  "tool": "notebook_w11b_formula_walk",
+  "base": "http://127.0.0.1:8583",
+  "data_dir": "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/w11b-walk1",
+  "started_utc": "2026-10-02T02:43:46+00:00",
+  "sandbox_env": {
+    "NOTEBOOK_FORMULAS_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the auth payload carries notebook_formulas_enabled = true",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "fixtures written through the sandbox's HTTP doors (5 notes, 3 links)",
+      "result": "PASS"
+    },
+    {
+      "row": "create the number property Entry and set it to 100 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Stop and set it to 95 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Target and set it to 115 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "create the number property Exit and set it to 110 (keyboard)",
+      "result": "PASS",
+      "select": "keyboard",
+      "focus_landed_on_its_input": true
+    },
+    {
+      "row": "the server holds Entry 100 / Stop 95 / Target 115 / Exit 110 on the trade plan",
+      "result": "PASS",
+      "saw": {
+        "Entry": 100,
+        "Stop": 95,
+        "Target": 115,
+        "Exit": 110
+      }
+    },
+    {
+      "row": "the live preview reads the value on the open note before saving",
+      "result": "PASS",
+      "saw": "On this note: 2",
+      "selects": [
+        "keyboard",
+        "fallback"
+      ]
+    },
+    {
+      "row": "the starter names the property",
+      "result": "PASS",
+      "saw": "R-multiple"
+    },
+    {
+      "row": "the walk ran to the end",
+      "result": "FAIL",
+      "why": "TimeoutError: Locator.wait_for: Timeout 12000ms exceeded.\nCall log:\n  - waiting for locator(\"li[data-prop-row]\").filter(has_text=\"R-multiple\").first.filter(has_text=re.compile(r\"\\b2\\b\")).first to be visible\n"
+    }
+  ],
+  "keyboard": [
+    {
+      "step": "open the property picker (Entry)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Entry)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Entry",
+      "keys": [
+        "type 'Entry'"
+      ]
+    },
+    {
+      "step": "type of Entry",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Entry",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Entry = 100",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Stop)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Stop)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Stop",
+      "keys": [
+        "type 'Stop'"
+      ]
+    },
+    {
+      "step": "type of Stop",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Stop",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Stop = 95",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Target)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Target)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Target",
+      "keys": [
+        "type 'Target'"
+      ]
+    },
+    {
+      "step": "type of Target",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Target",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Target = 115",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (Exit)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (Exit)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type the name Exit",
+      "keys": [
+        "type 'Exit'"
+      ]
+    },
+    {
+      "step": "type of Exit",
+      "keys": [
+        "type-ahead 'Num'"
+      ]
+    },
+    {
+      "step": "Create Exit",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "commit Exit = 110",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "open the property picker (formula)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "+ New property (formula)",
+      "keys": [
+        "Enter"
+      ]
+    },
+    {
+      "step": "type Formula",
+      "keys": [
+        "type-ahead 'For'"
+      ]
+    },
+    {
+      "step": "starter R-multiple",
+      "keys": [
+        "fallback: select_option"
+      ],
+      "fallback": true
+    },
+    {
+      "step": "Create R-multiple",
+      "keys": [
+        "Enter"
+      ]
+    }
+  ],
+  "screenshots": [
+    "01-trade-plan-open.png",
+    "02-four-numbers.png",
+    "03-formula-preview.png"
+  ],
+  "run_tag": "214500",
+  "fixtures": {
+    "a": "8d4efd358c3e420f84819344812c1e7c",
+    "b": "9dd4e817682a440eb3f116dad5030087",
+    "c": "b9ef65dccacb49449a8c38a79c400847",
+    "p1": "4dbdbd4e34f9432db4377783f6d2ea78",
+    "p2": "e270c1b077b94ed3b729354c17773c32"
+  },
+  "page_errors": [],
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w11b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-43-47.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-01 21:43:53",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-01 21:44:56",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-01 21:46:49",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-01 21:46:58",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w11b\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T21-43-47.md",
+  "finished_utc": "2026-10-02T02:47:29+00:00"
+}

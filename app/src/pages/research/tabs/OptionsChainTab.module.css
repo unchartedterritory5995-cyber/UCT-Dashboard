@@ -9,3 +9,23 @@
 .grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
 .strike, .strikeHead { text-align: center !important; font-weight: 700; color: var(--text-heading); background: var(--bg-surface); position: sticky; left: 0; }
 .atm td { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
+/* BRK-01 increment 2 — payoff at expiration, under the chain. */
+.payoff { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.payoff select { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.payoffChart { width: 100%; max-width: 640px; height: auto; display: block; margin: 6px 0; }
+.payoffZero { stroke: var(--border); stroke-width: 1; }
+.payoffSpot { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.payoffLine { stroke: var(--ut-gold, #c9a84c); stroke-width: 2; }
+/* FT-001 (lane/o-options-remainders): the 'today at IV' curve, dashed beside the at-expiry line. */
+.payoffToday { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.badge { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+.payoffFacts { font-size: 13px; color: var(--text); margin: 4px 0; font-variant-numeric: tabular-nums; }
+/* BRK-01 increment 3 — the implied-vol surface, under the payoff. */
+.volHead { margin: 12px 0 4px; font-size: 12px; font-weight: 600; color: var(--text-heading); }
+.volList { list-style: none; margin: 4px 0; padding: 0; font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.volList li { padding: 2px 0; }
+.volCell { background: color-mix(in srgb, var(--ut-gold, #c9a84c) calc(var(--heat, 0) * 45%), transparent); }
+/* FT-015 (lane/o-options-remainders): the Calls / Puts / Both view switch. */
+.mode { display: inline-flex; gap: 4px; }
+.mode button { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+.mode button[aria-pressed='true'] { border-color: var(--ut-gold, #c9a84c); color: var(--text-heading); }

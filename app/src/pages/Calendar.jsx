@@ -3,7 +3,11 @@
 // and My Stocks personalization. Route stays at this path so nav is unchanged.
 // Week paging (?week=YYYY-MM-DD&d=YYYY-MM-DD), ticker search jump, and
 // land-on-today: calendar flagship Deploy 1b.
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, useContext } from 'react'
+import { AuthContext } from '../context/AuthContext'
+import DateStatusStrip from './calendar/depth/DateStatusStrip'
+import IndexEventsBand from './calendar/depth/IndexEventsBand'
+import OrderExplain, { useBoostOff } from './calendar/depth/OrderExplain'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsResearchModal from '../components/research/EarningsResearchModal'
@@ -42,6 +46,9 @@ import styles from './calendar/Calendar.module.css'
 
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
 // These keep EarningsModal rendering identical to the old page.
+
+// D-10: one stable empty registry, so turning the boost off does not re-tier every render.
+const NO_BUCKETS = Object.freeze([])
 
 function fmtWeekRange(start, end) {
   const s = new Date(start + 'T00:00:00')
@@ -106,6 +113,17 @@ export default function Calendar() {
 
   const { data, error, mutate } = useCalendar(weekParam)
   const { data: mySets } = useCalendarMySets()
+  // Calendar depth (Lane R): each surface behind its own server flag, read `=== true`
+  // (calendarDepthFlags.js). Read through the context directly, null-safe: a page
+  // rendered outside the provider (a test, a preview) shows none of them.
+  const calendarDepth = useContext(AuthContext)?.calendarDepth
+  const dateStatusOn = calendarDepth?.earnings_date_status_enabled === true
+  const indexEventsOn = calendarDepth?.index_rebalance_events_enabled === true
+  const orderExplainOn = calendarDepth?.calendar_order_explain_enabled === true
+  // D-10: the member's switch for the personal boost. It takes effect ONLY while the
+  // surface is on; off, the ordering is exactly the registry's, as before.
+  const [boostOff, setBoostOff] = useBoostOff()
+  const effWeightBuckets = (orderExplainOn && boostOff) ? NO_BUCKETS : mySets?.weight_buckets
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
   const [openDay, setOpenDay] = useState(null)      // { ds, day } for DayDetailDrawer
@@ -512,7 +530,7 @@ export default function Calendar() {
   // sticks for the payload's lifetime.
   const mainEventFrozen = useRef({})
   const weekTiers = useMemo(() => {
-    const tiers = tierWeek(days, weekDates, mySets?.weight_buckets)
+    const tiers = tierWeek(days, weekDates, effWeightBuckets)
     const weekKey = data?.week_start || ''
     // Freeze ONLY once metrics have actually DELIVERED data for this week —
     // mc_b is the dominant imp term and arrives lazily. A failed batch resolves
@@ -547,7 +565,20 @@ export default function Calendar() {
       }
     }
     return tiers
-  }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate, mySets?.weight_buckets])
+  }, [days, weekDates, data?.week_start, enrichmentByDate, metricsByDate, effWeightBuckets])
+
+  // Calendar depth (Lane R): every earnings entry of the visible week, once — the
+  // date-status strip's symbols and the order explainer's population.
+  const weekEntries = useMemo(() => {
+    if (!dateStatusOn && !orderExplainOn) return []
+    const out = []
+    for (const ds of weekDates) {
+      const d = days[ds]
+      if (!d) continue
+      for (const b of ['bmo', 'amc', 'tbd']) for (const e of (d[b] || [])) out.push(e)
+    }
+    return out
+  }, [days, weekDates, dateStatusOn, orderExplainOn])
 
   // Prune freeze keys from weeks the user has paged away from — the ref would
   // otherwise grow one entry per (week, day) across a long browsing session.
@@ -829,6 +860,16 @@ export default function Calendar() {
       {headerEl}
 
       <div className={styles.body}>
+        {indexEventsOn && view !== 'wire' && (
+          <IndexEventsBand weekStart={data.week_start} weekEnd={data.week_end} />
+        )}
+        {dateStatusOn && view !== 'wire' && (
+          <DateStatusStrip syms={weekEntries.map(e => e.sym)} />
+        )}
+        {orderExplainOn && (view === 'table' || view === 'board') && (
+          <OrderExplain entries={weekEntries} weightBuckets={mySets?.weight_buckets}
+            boostOff={boostOff} onBoostOff={setBoostOff} />
+        )}
         {view === 'wire' && <WireView />}
 
         {view === 'table' && (

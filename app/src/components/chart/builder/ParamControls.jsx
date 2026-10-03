@@ -79,7 +79,7 @@ function ParamRow({ id, entry, status, onCommit }) {
         // exactly like the `options` `<select>` two branches below: there is
         // no free-text "0.7" a boolean could be typed as, so the draft/blur/
         // Enter machinery the numeric input needs has nothing to debounce.
-        <input
+        <input aria-label={entry.title || entry.sourceName || id}
           type="checkbox"
           className={styles.checkbox}
           data-testid={`param-input-${id}`}
@@ -87,7 +87,7 @@ function ParamRow({ id, entry, status, onCommit }) {
           onChange={(e) => onCommit(id, e.target.checked ? 1 : 0)}
         />
       ) : Array.isArray(entry.options) ? (
-        <select
+        <select aria-label={entry.title || entry.sourceName || id}
           className={styles.select}
           data-testid={`param-input-${id}`}
           value={draft}
@@ -96,7 +96,7 @@ function ParamRow({ id, entry, status, onCommit }) {
           {entry.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
         </select>
       ) : (
-        <input
+        <input aria-label={entry.title || entry.sourceName || id}
           type="number"
           className={styles.input}
           data-testid={`param-input-${id}`}

@@ -12,6 +12,9 @@ import { DEFAULT_BUDGET } from '../../components/chart/engine/ast/budget'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import panelStyles from '../../components/screener/SavedScreensPanel.module.css'
 import styles from './ScannerPro.module.css'
+import Input from '../../components/ui/Input'
+import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
+import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -228,7 +231,7 @@ function scanName(row) {
 }
 
 export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
-  const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
+  const { saved, starters, create, update, remove, refresh: refreshSaved, error: savedError } = useSavedScreens()
   // ─── FAVORITES: pin the ones a member reaches for to the TOP ────────────────
   // Stored server-side as a set of namespaced keys — `starter:<id>` for a UCT
   // preset, `screen:<id>` for a saved screen — because a preset's string id and a
@@ -280,6 +283,17 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const [renameVal, setRenameVal] = useState('')
   const [shareId, setShareId] = useState(null)
   const [copied, setCopied] = useState(false)
+  // COV-06: which My-screens row has its version history open. The control is
+  // HIDDEN unless `ARTIFACT_VERSIONS_ENABLED` answers (probed only while the
+  // menu is open), and so is "Save current filters into it": overwriting a
+  // screen is offered only where the overwrite can be undone.
+  const [historyId, setHistoryId] = useState(null)
+  const [historyRev, setHistoryRev] = useState(0)
+  const historyAvailable = useArtifactVersionsAvailable(open)
+  const saveIntoScreen = async (id) => {
+    await update(id, { spec: currentSpec })
+    setHistoryRev(n => n + 1)
+  }
   // Definition detail (Task 6): which My-scans row is expanded, and the one
   // session control shared by whichever row is open — mirrors
   // `SavedScreensPanel`'s single selected-screen + single session state.
@@ -421,6 +435,8 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
       return
     }
     setPendingDeleteScreen(pid => (pid === id ? null : pid))
+    // COV-06: the deleted screen now shows under Recently deleted.
+    setHistoryRev(n => n + 1)
     // The share panel is a claim ABOUT this screen too — close it on the same
     // success signal the scans lane retracts its detail pane and run on.
     setShareId(sid => (sid === id ? null : sid))
@@ -515,7 +531,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
               <div key={s.id}>
                 <div className={styles.saveMenuItem}>
                   {renameId === s.id ? (
-                    <input className={styles.saveMenuInput} autoFocus value={renameVal}
+                    <Input aria-label="Rename screen" className={styles.saveMenuInput} autoFocus value={renameVal}
                       onChange={e => setRenameVal(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && commitRename(s.id)}
                       onBlur={() => commitRename(s.id)} />
@@ -541,6 +557,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     </button>
                     <button type="button" aria-label={`Rename ${s.name}`}
                       onClick={() => { setRenameId(s.id); setRenameVal(s.name) }}>✎</button>
+                    {historyAvailable && (
+                      <button type="button" aria-label={`History of ${s.name}`}
+                        aria-expanded={historyId === s.id}
+                        onClick={() => setHistoryId(id => (id === s.id ? null : s.id))}>
+                        <UIcon name="clock" size={12} />
+                      </button>
+                    )}
                     {/* 🔴 IT ARMS A CONFIRM; IT DOES NOT DELETE — X26 / W9c.1,
                         the same idiom as the My-scans row below. Swapped out
                         once armed so one tap can never mean two things. */}
@@ -574,6 +597,20 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                   </p>
                 )}
 
+                {historyAvailable && historyId === s.id && (
+                  <ArtifactHistory kind="screen" artifactId={s.id} title={`History of “${s.name}”`}
+                    refreshKey={historyRev}
+                    onRestored={() => refreshSaved()}
+                    onUnavailable={() => setHistoryId(null)}>
+                    {currentSpec && (
+                      <button type="button" className={styles.shareUnpublish}
+                        onClick={() => saveIntoScreen(s.id)}>
+                        Save the current filters into “{s.name}”
+                      </button>
+                    )}
+                  </ArtifactHistory>
+                )}
+
                 {shareId === s.id && (
                   <div className={styles.sharePanel} data-testid={`share-panel-${s.id}`}>
                     {s.is_public && s.share_token ? (
@@ -582,7 +619,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                           <UIcon name="globe" size={11} /> Anyone with this link can open it
                         </div>
                         <div className={styles.shareLinkRow}>
-                          <input className={styles.saveMenuInput} readOnly
+                          <Input className={styles.saveMenuInput} readOnly
                             aria-label={`Share link for ${s.name}`}
                             value={sharedScreenUrl(s.share_token)}
                             onFocus={e => e.target.select()} />
@@ -624,6 +661,11 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                 )}
               </div>
             ))}
+            {/* COV-06: a deleted screen's history outlives it; bring it back here. */}
+            {historyAvailable && (
+              <RecentlyDeleted kind="screen" noun="screen" refreshKey={historyRev}
+                onBroughtBack={() => refreshSaved()} />
+            )}
           </div>
 
           <div className={styles.saveMenuSection}>
@@ -740,7 +782,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     <div data-testid={`scan-detail-${row.def_id}`}>
                       <label className={panelStyles.session}>
                         <span className={panelStyles.sessionLabel}>Session</span>
-                        <input
+                        <Input
                           type="date"
                           className={panelStyles.sessionInput}
                           value={session}
@@ -825,7 +867,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           </div>
 
           <div className={styles.saveMenuFoot}>
-            <input className={styles.saveMenuInput} placeholder="Name this screen…"
+            <Input aria-label="Screen name" className={styles.saveMenuInput} placeholder="Name this screen…"
               value={newName} onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && saveCurrent()} />
             <button type="button" className="btn btn-primary" onClick={saveCurrent}>Save current</button>

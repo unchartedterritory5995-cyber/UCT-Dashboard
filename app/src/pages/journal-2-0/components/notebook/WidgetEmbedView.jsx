@@ -52,6 +52,11 @@ const EMBED_COMPONENTS = {
   scanner: lazyLeaf(() => import('./ScannerEmbed')),
   watchlist: lazyLeaf(() => import('./WatchlistEmbed')),
   themes: lazyLeaf(() => import('./ThemesEmbed')),
+  // G-040 (wave 10, lane CX): the three capture-only kinds. This is their ONLY
+  // host — no /charts widget exists behind them (registry `captureOnly`).
+  screener: lazyLeaf(() => import('./ScreenerEmbed')),
+  cot: lazyLeaf(() => import('./CotEmbed')),
+  modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render

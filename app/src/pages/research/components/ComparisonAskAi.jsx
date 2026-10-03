@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
+import Textarea from '../../../components/ui/Textarea'
 
 // Shared Multi-Security Grounding Architecture V1 (owner authorization,
 // Phase B). Scoped, minimal Ask AI panel for the two-security comparison
@@ -89,7 +90,7 @@ export default function ComparisonAskAi({ symA, symB }) {
         ))}
       </div>
       <form className={styles.explainForm} onSubmit={onSubmit}>
-        <textarea
+        <Textarea aria-label="Question"
           className={styles.explainInput}
           placeholder={`Ask how ${symA} and ${symB} compare…`}
           value={question}

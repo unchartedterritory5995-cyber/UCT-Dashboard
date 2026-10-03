@@ -812,9 +812,16 @@ const sameValueOutputs = (a, b) => (a.outputs || []).length === (b.outputs || []
     return o.formula === q.formula && !o.refusal === !q.refusal
   })
 const sameObjectProgram = (a, b) => JSON.stringify(a.objects || null) === JSON.stringify(b.objects || null)
+const paintShapeOf = (ps) => JSON.stringify((ps || []).map((p) => [p && p.kind, !!(p && p.withheld), !!(p && p.hidden)]))
 const presentationShapeOf = (p) => JSON.stringify(p || null, (k, v) => ((k === 'formula' || k === 'ast') ? undefined : v))
 const samePresentationShape = (a, b) => (a.outputs || []).every((o, i) => presentationShapeOf(o.presentation) === presentationShapeOf((b.outputs[i] || {}).presentation))
   && presentationShapeOf((a.presentation || {}).fills) === presentationShapeOf((b.presentation || {}).fills)
+  // ⭐ B1 — and the paints (`bgcolor` / `barcolor`): the SAME paints carried, hidden and
+  // withheld. Their colour shape may differ, and only by a fold: an input-pinned rule
+  // (`show ? c : na`) is folded to one colour (or `na`) when its input is a literal, and
+  // stays a rule reading the member's knob when it is declared — the same pixels at the
+  // default either way.
+  && paintShapeOf((a.presentation || {}).paints) === paintShapeOf((b.presentation || {}).paints)
 
 /**
  * ⭐⭐ C43 — AN INPUT ONLY A `runtime.error` CONDITION READS IS STILL THE MEMBER'S
@@ -852,6 +859,7 @@ function withGuardInputs(first, base, final, withDeclarations, { windowBound, di
   const note = (list) => { for (const e of (list || [])) if (e && e.name) valueNames.add(e.name) }
   for (const o of (first.outputs || [])) if (o) { note(o.inputsFolded); note(o._colourInputs) }
   note(((first.presentation || {}).fills || {})._colourInputs)
+  note(((first.presentation || {}).paints || {})._colourInputs)
   const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
   const entryByName = new Map()
   const windowed = new Set()
@@ -931,6 +939,7 @@ function colourRulesOf(t) {
   }
   for (const o of (t.outputs || [])) if (o && !o.refusal) take(o.presentation)
   for (const f of (((t.presentation || {}).fills) || [])) take(f)
+  for (const p of (((t.presentation || {}).paints) || [])) take(p)
   return rules
 }
 
@@ -987,6 +996,7 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   }
   for (const o of (first.outputs || [])) if (o) note(o._colourInputs)
   note(((first.presentation || {}).fills || {})._colourInputs)
+  note(((first.presentation || {}).paints || {})._colourInputs)
   const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:

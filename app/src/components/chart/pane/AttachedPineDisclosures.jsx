@@ -237,7 +237,8 @@ export default function AttachedPineDisclosures({
   const all = [
     ...stopped,
     ...rows,
-    ...clockNotes.map((n) => ({ name: `Time (${n.code})`, note: n.reason })),
+    // C49 — a withheld `request.security` rides the same store; it is named as what it is
+    ...clockNotes.map((n) => ({ name: `${n.code.startsWith('request:') ? 'Request' : 'Time'} (${n.code})`, note: n.reason })),
     ...(scaled && TABLES_FIT.memberNote ? [{ name: 'Tables', note: TABLES_FIT.memberNote }] : []),
   ]
   if (!all.length) return null

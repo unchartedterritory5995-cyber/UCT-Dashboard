@@ -14,6 +14,8 @@ import ProfileCard from './components/ProfileCard'
 import Composer from './Composer'
 import * as chat from '../../lib/chatStreamManager'
 import styles from './Community.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 const REACTIONS = [
   { kind: 'fire', icon: 'flame', label: 'Fire' },
@@ -503,11 +505,11 @@ function GraduateDialog({ msg, isMentor, onClose, onDone }) {
         <div className={styles.gradTitle}><UIcon name="library" size={15} /> Save to the Boards</div>
         <p className={styles.gradHint}>Turn this moment into a permanent thread the room can find later.</p>
         <label className={styles.gradLabel}>Board</label>
-        <select className={styles.gradSelect} value={space} onChange={(e) => setSpace(e.target.value)}>
+        <Select aria-label="Board" className={styles.gradSelect} value={space} onChange={(e) => setSpace(e.target.value)}>
           {spaces.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
+        </Select>
         <label className={styles.gradLabel}>Thread title</label>
-        <input className={styles.gradInput} placeholder="e.g. NVDA breakout — why it worked"
+        <Input aria-label="Thread title" className={styles.gradInput} placeholder="e.g. NVDA breakout — why it worked"
           maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         {err && <div className={styles.composerError}>{err}</div>}
         <div className={styles.gradFoot}>

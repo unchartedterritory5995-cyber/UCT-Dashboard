@@ -4,7 +4,9 @@ import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { ALIAS_PREFIX } from '../../watchlist/communityPick'
-import { KIND, channelFor, listRefCtx, usePublish } from '../../../lib/context/contextChannels'
+import { KIND, channelFor, listRefCtx, usePublish, useChannel } from '../../../lib/context/contextChannels'
+import { SubscribeOffer, SubscribedList, ScreenSourceOffer, SUBSCRIBABLE_SOURCES } from './ListSubscription'
+import useListSubscribeEnabled from '../useListSubscribeEnabled'
 
 // Default column layout for a prebuilt (curated UCT) list. Prebuilt lists ALWAYS open in
 // their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
@@ -22,6 +24,10 @@ const PREBUILT_COL_FALLBACK = { order: ['flag', 'sym', 'chg', 'price', 'dolvol']
 // ⛔ `opts` carries only the SOURCE TAG. The symbols and their per-row meta ride a
 // context, because opts is persisted into a layout blob and a 134-row payload has no
 // business there.
+// COV-10 — the picker sits under the subscribe offer in a column; the picker keeps the rest.
+const OFFER_WRAP = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }
+const OFFER_BODY = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }
+
 const SOURCE_WIDGETS = {
   breadthDrill: lazy(() => import('../../breadth/drill/BreadthDrillList')),
 }
@@ -49,6 +55,7 @@ export function watchKeyToListRef(watchKey, watchName) {
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace()
+  const listSubscribeEnabled = useListSubscribeEnabled()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
   const widgetId = useId()
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
@@ -84,6 +91,25 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // On unmount (or a colour change, which re-keys clearList) give the channel up —
   // clear() is a no-op if another panel has published since.
   useEffect(() => () => { clearList() }, [clearList])
+
+  // COV-10 — SUBSCRIBE to a list this colour group publishes that this widget cannot
+  // pick itself (a Scanner widget's scan, a Themes widget's open theme, or one of the
+  // member's saved screens offered right here), as a FROZEN copy or a TRACKING list,
+  // chosen at import. Dark behind the board's `listSubscribeEnabled`: off => `listSub`
+  // is ignored and the channel is never read, so the widget is exactly what it was.
+  // The channel is read ONLY while the picker is showing (nothing chosen yet), so a
+  // publish anywhere never re-renders a widget that already shows a list.
+  const subOn = listSubscribeEnabled === true
+  const listSub = subOn && opts?.listSub && typeof opts.listSub === 'object' ? opts.listSub : null
+  const offerable = subOn && !!listChannel && !watchKey && !listSub && !opts?.source
+  const groupList = useChannel(offerable ? listChannel : null)
+  const offered = groupList && SUBSCRIBABLE_SOURCES.includes(groupList.source) ? groupList : null
+  const subscribe = useCallback((sub) => {
+    onOptsChange?.({ ...(opts || {}), listSub: sub })
+  }, [opts, onOptsChange])
+  const unsubscribe = useCallback(() => {
+    onOptsChange?.({ ...(opts || {}), listSub: null })
+  }, [opts, onOptsChange])
   const pick = useCallback((sel) => {
     // Creating a list from a saved look Template seeds the widget's appearance
     // (opts.settings) only — a template never controls the column layout. `watchTab` is
@@ -120,6 +146,42 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
 
   // No list chosen yet (freshly added) → show the picker menu instead of the
   // full list view. Once a list is picked, the widget scopes to that single list.
+  if (listSub && !watchKey) {
+    return (
+      <SubscribedList
+        sub={listSub}
+        activeRef={activeWatchlistRef}
+        widgetKey={widgetId}
+        scopedSymContext={scopedSymContext}
+        settingsOverride={wlSettingsOverride}
+        onSettingsPersist={persistWlSettings}
+        onExit={unsubscribe}
+      />
+    )
+  }
+
+  // COV-10 follow-up: a saved screen is a list source no widget on the board publishes, so
+  // the empty widget offers it itself (collapsed to one button; nothing is read until asked).
+  const screenOfferable = subOn && !watchKey && !listSub && !opts?.source
+  if (!watchKey && (offered || screenOfferable)) {
+    return (
+      <div style={OFFER_WRAP}>
+        {offered && (
+          <SubscribeOffer key={`${offered.source}:${offered.value}`} color={color} offered={offered} onSubscribe={subscribe} />
+        )}
+        {screenOfferable && <ScreenSourceOffer onSubscribe={subscribe} />}
+        <div style={OFFER_BODY}>
+          <WatchlistPicker
+            onPick={pick}
+            settingsOverride={wlSettingsOverride}
+            onSettingsPersist={persistWlSettings}
+            initialTab={opts?.watchTab || null}
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (!watchKey) {
     return (
       <WatchlistPicker

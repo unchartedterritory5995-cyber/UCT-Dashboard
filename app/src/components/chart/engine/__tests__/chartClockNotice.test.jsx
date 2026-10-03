@@ -108,11 +108,14 @@ function mount(source) {
 }
 
 describe('the binder publishes what the mask decided — plots and objects', () => {
-  it('⭐ 60m: the plot lane\'s reason reaches the store; back on 1D it is gone', () => {
+  // ⭐ C49 — the unmeasured chart in this file is a 30-minute one. It was the
+  // 60-minute chart until `time(<period>)` was measured there and served
+  // (`vendorHarness.c49CapturedClock.test.js`); the plumbing under test is the same.
+  it('⭐ 30m: the plot lane\'s reason reaches the store; back on 1D it is gone', () => {
     const m = mount(pine(['plot(time("W"), "w")']))
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids)).toEqual([
-      { code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('60') },
+      { code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('30') },
     ])
     m.sync(D1, 'D')
     expect(chartClockNotesFor(m.ids)).toEqual([])
@@ -121,29 +124,29 @@ describe('the binder publishes what the mask decided — plots and objects', () 
 
   it('an OBJECTS-ONLY script (no plot reads the anchor) still says why its drawings are gone', () => {
     const m = mount(pine(['plot(close)', 'if barstate.islast', '    label.new(bar_index, high, na(time("M")) ? "na" : "known")']))
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids).map((n) => n.code)).toEqual(['time-anchor:not-daily'])
     m.binder.teardown()
   })
 
   it('⛔ an indicator that leaves the chart takes its sentence with it — removed, hidden, torn down, engine off', () => {
     const m = mount(pine(['plot(time("W"), "w")', 'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids).length).toBe(1)
-    m.sync(H60, '60', { instances: [] })
+    m.sync(H60, '30', { instances: [] })
     expect(chartClockNotesFor(m.ids)).toEqual([])
 
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids).length).toBe(1)
-    m.sync(H60, '60', { instances: m.instances.map((i) => ({ ...i, hidden: true })) })
+    m.sync(H60, '30', { instances: m.instances.map((i) => ({ ...i, hidden: true })) })
     expect(chartClockNotesFor(m.ids)).toEqual([])
 
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids).length).toBe(1)
-    m.sync(H60, '60', { enabled: false })
+    m.sync(H60, '30', { enabled: false })
     expect(chartClockNotesFor(m.ids)).toEqual([])
 
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     expect(chartClockNotesFor(m.ids).length).toBe(1)
     m.binder.teardown()
     expect(chartClockNotesFor(m.ids)).toEqual([])
@@ -153,7 +156,7 @@ describe('the binder publishes what the mask decided — plots and objects', () 
     const m = mount(pine(['plot(close)']))
     const fn = vi.fn()
     onChartClockChange(fn)
-    m.sync(H60, '60')
+    m.sync(H60, '30')
     m.sync(D1, 'D')
     expect(chartClockNotesFor(m.ids)).toEqual([])
     expect(fn).not.toHaveBeenCalled()
@@ -163,7 +166,7 @@ describe('the binder publishes what the mask decided — plots and objects', () 
   it('a registry without the report (a test double) publishes nothing and breaks nothing', () => {
     const m = mount(pine(['plot(time("W"), "w")']))
     const bare = { ...registry, chartClockReport: undefined }
-    const res = m.sync(H60, '60', { registry: bare, createObjectLayer: undefined })
+    const res = m.sync(H60, '30', { registry: bare, createObjectLayer: undefined })
     expect(res.ok).toBe(true)
     expect(chartClockNotesFor(m.ids)).toEqual([])
     m.binder.teardown()
@@ -171,17 +174,17 @@ describe('the binder publishes what the mask decided — plots and objects', () 
 })
 
 describe('⭐ the strip — the sentence, as RENDERED TEXT, on the member\'s own chart', () => {
-  it('a 60m chart shows the reason; switching the chart to 1D removes it', () => {
+  it('a 30m chart shows the reason; switching the chart to 1D removes it', () => {
     const m = mount(pine(['plot(time("W"), "w")']))
     render(<AttachedPineDisclosures settings={m.cs} barsLoaded={300} />)
     expect(screen.queryByTestId('pine-attached-disclosures')).toBeNull()
 
-    act(() => { m.sync(H60, '60') })
+    act(() => { m.sync(H60, '30') })
     const strip = screen.getByTestId('pine-attached-disclosures')
-    expect(strip.textContent).toContain('are read here on a DAILY chart only')
-    expect(strip.textContent).toContain('This chart\'s timeframe is `60`')
-    expect(strip.textContent).toContain('On a 1D chart it draws.')
-    expect(strip.textContent).toContain(CHART_CLOCK_WITHHELD['time-anchor:not-daily']('60'))
+    expect(strip.textContent).toContain('are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts')
+    expect(strip.textContent).toContain('This chart\'s timeframe is `30`')
+    expect(strip.textContent).toContain('What would settle it here: the `vw-time-tf` probe measured on this timeframe.')
+    expect(strip.textContent).toContain(CHART_CLOCK_WITHHELD['time-anchor:not-daily']('30'))
 
     act(() => { m.sync(D1, 'D') })
     expect(screen.queryByTestId('pine-attached-disclosures')).toBeNull()
@@ -191,9 +194,9 @@ describe('⭐ the strip — the sentence, as RENDERED TEXT, on the member\'s own
   it('`time(timeframe.period)` on a chart no capture measured: its own sentence', () => {
     const m = mount(pine(['plot(time(timeframe.period), "own")']))
     render(<AttachedPineDisclosures settings={m.cs} barsLoaded={300} />)
-    act(() => { m.sync(H60, '5') })
+    act(() => { m.sync(H60, '30') })
     expect(screen.getByTestId('pine-attached-disclosures').textContent)
-      .toContain('on 1D and 60-minute charts only')
+      .toContain('`time(timeframe.period)` and `time("60")` are read on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts')
     act(() => { m.sync(H60, '60') })
     expect(screen.queryByTestId('pine-attached-disclosures')).toBeNull()
     m.binder.teardown()
@@ -201,7 +204,7 @@ describe('⭐ the strip — the sentence, as RENDERED TEXT, on the member\'s own
 
   it('⛔ ONLY this pane\'s instances: another pane\'s withheld indicator does not speak here', () => {
     const m = mount(pine(['plot(time("W"), "w")']))
-    act(() => { m.sync(H60, '60') })
+    act(() => { m.sync(H60, '30') })
     const other = { indicatorInstances: [{ instanceId: 'someone-else', defId: HARNESS_DEF_ID }] }
     render(<AttachedPineDisclosures settings={other} barsLoaded={300} />)
     expect(screen.queryByTestId('pine-attached-disclosures')).toBeNull()
@@ -218,7 +221,7 @@ describe('⭐ the strip — the sentence, as RENDERED TEXT, on the member\'s own
   it('one sentence, however many lanes and plots raise it', () => {
     const m = mount(pine(['plot(time("W"), "w")', 'plot(time("M"), "m")', 'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "na" : "known")']))
     render(<AttachedPineDisclosures settings={m.cs} barsLoaded={300} />)
-    act(() => { m.sync(H60, '60') })
+    act(() => { m.sync(H60, '30') })
     expect(screen.getByTestId('pine-attached-disclosures').querySelectorAll('li').length).toBe(1)
     m.binder.teardown()
   })

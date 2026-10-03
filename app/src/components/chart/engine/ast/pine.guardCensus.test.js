@@ -165,6 +165,14 @@ const EXPECTED_UNEXERCISED = [
   'pine:drawing',
   'pine:empty',
   'pine:function-def',
+  // ⭐ ARRIVED 2026-10-02 (H1), and it arrived because two scripts got BETTER:
+  // `10-supertrend` and the OOS `03-supertrend-kivancozbilgic` were its only
+  // witnesses — every visible column refused at `pine:state` and the survivor
+  // was the author's fill edge. Their trailing stops translate now (the ratchet
+  // window), so the edge sits BESIDE real columns (branch B) and no published
+  // script reaches the ruling. It is still railed by constructed cases in
+  // `pine.hiddenOnly.test.js`.
+  'pine:hidden-only',
   'pine:history-ref',
   'pine:input-kind',
   // ⭐ HOST MODE ONLY (2026-09-08). The census runs the corpus through the

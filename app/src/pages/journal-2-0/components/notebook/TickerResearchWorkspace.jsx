@@ -4,6 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import LoadFailed from '../LoadFailed'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
+import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { openSpanningCitation } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
@@ -118,6 +119,24 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
     }
   }
 
+  // Wave 11 lane 11D: "Plan this trade" -- a trade-plan canvas for this ticker,
+  // opened with a live daily chart of it already on the board. Dark behind the
+  // canvas gate (latched); off, the button does not render.
+  const canvasOn = tradeCanvasEnabled()
+  const handlePlanTrade = async () => {
+    setCreating(true)
+    setActionError('')
+    try {
+      const note = await createTradeCanvasNote({ ticker: symbol })
+      openNote(note)
+    } catch (e) {
+      console.error('[research] create trade plan failed', e)
+      setActionError("Couldn't start that trade plan. Nothing was saved — try again.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
   // Wave 10 F7 (Part A, 5d): a failed read used to leave the loading skeleton up for good.
   if (error && !summary) {
     return <LoadFailed what={`your research on ${symbol}`} error={error} onRetry={refresh} />
@@ -175,6 +194,11 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewThesis} disabled={creating}>
             <UIcon name="compass" size={13} gold={false} /> New thesis
           </button>
+          {canvasOn && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handlePlanTrade} disabled={creating}>
+              <UIcon name="board" size={13} gold={false} /> Plan this trade
+            </button>
+          )}
         </div>
       </div>
 

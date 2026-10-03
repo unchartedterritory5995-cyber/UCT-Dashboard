@@ -175,9 +175,12 @@ describe('⭐⭐ v6 `and`/`or` and `?:` do not run the side that is not taken', 
 describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('without a probe, an empty reduction and a gradient still stop the run by name', () => {
     expect(() => run('a = array.new<float>()\nplot(array.avg(a))\n')).toThrow(/array\.avg of an empty array/)
-    // ⚰️ C29 computes a gradient; only what no capture pins (an empty range) stops.
-    expect(() => run('bgcolor(color.from_gradient(close, 1, 1, color.red, color.green))\nplot(close)\n'))
+    // ⚰️ C29 computes a gradient; only what no capture pins stops. ⭐ C48 re-pin —
+    // that was an empty range (`1, 1`), measured now (the zero colour); a value
+    // outside REVERSED bounds is what is left.
+    expect(() => run('bgcolor(color.from_gradient(close, 1e12, 1e11, color.red, color.green))\nplot(close)\n'))
       .toThrow(/color\.from_gradient/)
+    expect(() => run('bgcolor(color.from_gradient(close, 1, 1, color.red, color.green))\nplot(close)\n')).not.toThrow()
   })
 
   it('with one, it answers the probe and records the hit', () => {

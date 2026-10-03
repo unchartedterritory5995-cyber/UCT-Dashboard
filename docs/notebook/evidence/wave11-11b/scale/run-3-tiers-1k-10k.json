@@ -1,0 +1,498 @@
+{
+ "tool": "notebook_w11b_scale",
+ "started_utc": "2026-10-02T16:02:05+00:00",
+ "git": "cf5e38d5d2e004f2b55da1d42ed904846b18cf1e",
+ "reps": 20,
+ "warmup": 2,
+ "connection_model": "per-call (auth_db.get_connection per route call)",
+ "tiers": [
+  {
+   "tier": 1000,
+   "seed_ms": 367.7,
+   "db_bytes": 13320192,
+   "fixture": {
+    "r_id": "593c1870a9b94d6a919e5bfe8372041b",
+    "avg_id": "dd9280086ba94c1ebdc2561daa19e45b",
+    "exit_id": "c2a650eb6d1347edb12bf7eb5c2fed8a",
+    "plans": 190,
+    "parents": {
+     "50": 50,
+     "500": 190
+    },
+    "parent_500": "60eae087cb984175854ba232edba8224",
+    "write_note": "aa1c22597f534488a90803b31d40d665",
+    "trades_linked": 49,
+    "live_notes": 978
+   },
+   "ops": {
+    "GET /notes, no computed sort or filter (baseline)": {
+     "p50_ms": 8.426,
+     "p95_ms": 9.421,
+     "max_ms": 9.537,
+     "min_ms": 8.122,
+     "reps": 20,
+     "samples_ms": [
+      8.331,
+      8.449,
+      9.043,
+      9.421,
+      8.605,
+      8.318,
+      8.361,
+      8.426,
+      8.277,
+      8.2,
+      8.802,
+      8.759,
+      8.122,
+      9.537,
+      8.34,
+      8.515,
+      8.521,
+      8.528,
+      8.127,
+      8.386
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:06",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:06",
+     "check": {
+      "rows": 100,
+      "total": 956,
+      "first_computed": {
+       "value": 1.07140910134253,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:06.920034+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes sorted by a rollup": {
+     "p50_ms": 10.193,
+     "p95_ms": 10.669,
+     "max_ms": 10.766,
+     "min_ms": 9.908,
+     "reps": 20,
+     "samples_ms": [
+      10.611,
+      10.448,
+      10.385,
+      10.193,
+      10.766,
+      10.66,
+      9.908,
+      10.075,
+      10.623,
+      10.636,
+      9.933,
+      10.095,
+      10.276,
+      10.669,
+      10.117,
+      10.174,
+      10.054,
+      10.411,
+      9.978,
+      10.101
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:07",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:08",
+     "check": {
+      "rows": 100,
+      "total": 956,
+      "first_computed": {
+       "value": 1.1843175175604717,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:08.096228+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 190,
+       "usedSize": 190,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes filtered by a formula": {
+     "p50_ms": 8.656,
+     "p95_ms": 17.152,
+     "max_ms": 18.179,
+     "min_ms": 7.302,
+     "reps": 20,
+     "samples_ms": [
+      9.63,
+      17.152,
+      12.705,
+      18.179,
+      15.796,
+      13.169,
+      9.983,
+      8.949,
+      9.041,
+      8.656,
+      8.887,
+      8.23,
+      8.083,
+      7.302,
+      8.311,
+      7.532,
+      8.494,
+      7.64,
+      7.855,
+      7.422
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:08",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:09",
+     "check": {
+      "rows": 79,
+      "total": 79,
+      "first_computed": {
+       "value": null,
+       "reason": "This note links to no notes yet",
+       "computedAt": "2026-10-02T16:02:09.272568+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 0,
+       "usedSize": 0,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET one note's properties (500-child parent)": {
+     "p50_ms": 5.763,
+     "p95_ms": 6.166,
+     "max_ms": 6.575,
+     "min_ms": 5.52,
+     "reps": 20,
+     "samples_ms": [
+      5.874,
+      5.714,
+      6.014,
+      6.575,
+      5.937,
+      5.786,
+      6.166,
+      5.904,
+      5.602,
+      5.624,
+      5.728,
+      5.822,
+      5.678,
+      5.63,
+      5.709,
+      5.695,
+      5.52,
+      5.802,
+      5.84,
+      5.763
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:09",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:10",
+     "check": {
+      "avg_r": 1.1843175175604717,
+      "set": 190
+     }
+    },
+    "property write, then the sorted read": {
+     "p50_ms": 15.779,
+     "p95_ms": 22.936,
+     "max_ms": 27.254,
+     "min_ms": 14.917,
+     "reps": 20,
+     "samples_ms": [
+      15.591,
+      15.541,
+      15.779,
+      15.438,
+      15.021,
+      16.003,
+      15.079,
+      14.917,
+      15.5,
+      16.47,
+      15.662,
+      16.032,
+      16.021,
+      15.608,
+      18.356,
+      18.829,
+      20.856,
+      17.231,
+      22.936,
+      27.254
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:11",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:12",
+     "check": {
+      "rows": 100,
+      "total": 956,
+      "first_computed": {
+       "value": 1.1503103345251111,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:12.635090+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 190,
+       "usedSize": 190,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    }
+   }
+  },
+  {
+   "tier": 10000,
+   "seed_ms": 4558.5,
+   "db_bytes": 123256832,
+   "fixture": {
+    "r_id": "7a2869643b124be5a6071b1e3dd1b8b5",
+    "avg_id": "1f4f3c2adeb04459b084081d308465a7",
+    "exit_id": "49d19eef7bdc4294a5a8682fd724cb9f",
+    "plans": 1966,
+    "parents": {
+     "50": 50,
+     "500": 500
+    },
+    "parent_500": "67dc42528656443393857cbf1b5c35b6",
+    "write_note": "544deea6b56246369acde9cb910e99d3",
+    "trades_linked": 495,
+    "live_notes": 9809
+   },
+   "ops": {
+    "GET /notes, no computed sort or filter (baseline)": {
+     "p50_ms": 14.776,
+     "p95_ms": 22.832,
+     "max_ms": 23.109,
+     "min_ms": 13.63,
+     "reps": 20,
+     "samples_ms": [
+      14.773,
+      19.28,
+      15.308,
+      14.736,
+      22.832,
+      18.746,
+      17.612,
+      23.109,
+      14.679,
+      14.003,
+      14.102,
+      13.63,
+      14.744,
+      15.548,
+      15.181,
+      14.656,
+      15.325,
+      13.917,
+      15.292,
+      14.776
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:17",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:18",
+     "check": {
+      "rows": 100,
+      "total": 9544,
+      "first_computed": {
+       "value": 1.5576178440257544,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:18.642609+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes sorted by a rollup": {
+     "p50_ms": 22.611,
+     "p95_ms": 30.885,
+     "max_ms": 32.612,
+     "min_ms": 19.978,
+     "reps": 20,
+     "samples_ms": [
+      22.72,
+      22.958,
+      24.565,
+      20.846,
+      20.377,
+      26.761,
+      22.611,
+      20.4,
+      19.978,
+      20.43,
+      20.434,
+      26.533,
+      22.191,
+      22.05,
+      22.754,
+      22.795,
+      24.303,
+      30.885,
+      32.612,
+      20.608
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:19",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:20",
+     "check": {
+      "rows": 100,
+      "total": 9544,
+      "first_computed": {
+       "value": 1.5576178440257544,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:20.364893+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes filtered by a formula": {
+     "p50_ms": 14.357,
+     "p95_ms": 22.601,
+     "max_ms": 24.265,
+     "min_ms": 13.217,
+     "reps": 20,
+     "samples_ms": [
+      18.883,
+      15.273,
+      19.522,
+      13.642,
+      22.601,
+      14.486,
+      13.715,
+      14.357,
+      13.739,
+      13.217,
+      17.65,
+      16.591,
+      13.696,
+      14.47,
+      24.265,
+      14.998,
+      13.545,
+      13.784,
+      14.057,
+      13.846
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:20",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:21",
+     "check": {
+      "rows": 100,
+      "total": 1013,
+      "first_computed": {
+       "value": null,
+       "reason": "This note links to no notes yet",
+       "computedAt": "2026-10-02T16:02:21.839651+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 0,
+       "usedSize": 0,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET one note's properties (500-child parent)": {
+     "p50_ms": 11.293,
+     "p95_ms": 18.541,
+     "max_ms": 18.573,
+     "min_ms": 9.825,
+     "reps": 20,
+     "samples_ms": [
+      10.261,
+      10.023,
+      9.825,
+      10.691,
+      11.167,
+      18.573,
+      17.757,
+      10.528,
+      10.05,
+      10.629,
+      11.499,
+      16.227,
+      13.925,
+      15.965,
+      12.85,
+      11.293,
+      18.024,
+      10.883,
+      13.121,
+      18.541
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:22",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:23",
+     "check": {
+      "avg_r": 1.434199428970151,
+      "set": 500
+     }
+    },
+    "property write, then the sorted read": {
+     "p50_ms": 32.599,
+     "p95_ms": 45.14,
+     "max_ms": 46.695,
+     "min_ms": 25.469,
+     "reps": 20,
+     "samples_ms": [
+      46.695,
+      35.555,
+      41.05,
+      37.557,
+      45.14,
+      40.154,
+      33.025,
+      32.599,
+      33.973,
+      32.693,
+      36.336,
+      28.632,
+      27.588,
+      28.181,
+      27.53,
+      29.281,
+      27.623,
+      25.669,
+      26.494,
+      25.469
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:23",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-02T11:02:25",
+     "check": {
+      "rows": 100,
+      "total": 9544,
+      "first_computed": {
+       "value": 1.5576178440257544,
+       "reason": null,
+       "computedAt": "2026-10-02T16:02:25.196361+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    }
+   }
+  }
+ ],
+ "loglog_slope_p50": {
+  "GET /notes, no computed sort or filter (baseline)": 0.244,
+  "GET /notes sorted by a rollup": 0.346,
+  "GET /notes filtered by a formula": 0.22,
+  "GET one note's properties (500-child parent)": 0.292,
+  "property write, then the sorted read": 0.315
+ },
+ "finished_utc": "2026-10-02T16:02:25+00:00"
+}

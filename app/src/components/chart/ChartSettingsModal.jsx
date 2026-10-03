@@ -845,7 +845,7 @@ export default function ChartSettingsModal({
           {on && swatches.map(([target, pickerLabel]) => (
             <span key={target}>{colorSwatch(target, pickerLabel)}</span>
           ))}
-          <button
+          <button aria-label={label}
             type="button" role="switch" aria-checked={on}
             className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
             onClick={() => setHeader({ [key]: header[key] === false })}
@@ -940,7 +940,7 @@ export default function ChartSettingsModal({
           </div>
           {savingTpl ? (
             <div className={styles.tplSaveRow}>
-              <input
+              <input aria-label="Template name"
                 ref={tplInputRef}
                 className={styles.tplInput}
                 value={tplName}
@@ -1043,7 +1043,7 @@ export default function ChartSettingsModal({
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Show grid lines</span>
-                <button
+                <button aria-label="Show grid lines"
                   type="button"
                   role="switch"
                   aria-checked={grid.visible !== false}
@@ -1137,7 +1137,7 @@ export default function ChartSettingsModal({
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Show watermark</span>
-                <button
+                <button aria-label="Show watermark"
                   type="button"
                   role="switch"
                   aria-checked={watermark.visible !== false}
@@ -1707,7 +1707,7 @@ export default function ChartSettingsModal({
           style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <input
+          <input aria-label="Search fields"
             className={styles.fieldSearch}
             placeholder="Search fields…"
             value={fieldQuery}

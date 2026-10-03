@@ -865,3 +865,11 @@
     align-items: center;
   }
 }
+
+/* Wave 11 lane 11D: a trade-plan canvas note. The board renders in place of the
+   text editor; the editor stays mounted (the board's store) and shows only
+   blocks OTHER than the board, under "Also in this note". */
+.canvasLoading { margin: 12px 0; color: var(--text-muted); font-size: 13px; }
+.canvasExtra { margin-top: 12px; }
+.canvasExtra :global(.uctCanvasNode) { display: none; }
+.canvasExtraTitle { margin: 0 0 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; }

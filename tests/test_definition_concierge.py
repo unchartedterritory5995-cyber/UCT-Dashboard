@@ -2846,7 +2846,8 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     # updated the sibling to 16; this copy still read 12 and went red, which is the
     # duplication paying for itself rather than a maintenance tax. Read as a
     # cross-check it is working; read as a count it looks like a chore.
-    assert len(routes) == 16
+    # 2026-10-02 (RT1): 16 -> 17 with `GET /runtime-kill`, moved with its siblings.
+    assert len(routes) == 17
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]

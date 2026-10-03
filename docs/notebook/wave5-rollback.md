@@ -121,6 +121,33 @@
 > of this lane's scope -- the next lane re-reads `--check` from the live tip. Evidence:
 > `docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1g/` (`sandbox-results.md` is the table).
 >
+> ⭐ **RE-MEASURED A SEVENTH TIME AT `b529c8a786` (L15 #262, production's tip, 2026-10-01; lane
+> R1h).** `L15` is the new top row. It ships real `app/`/`api/` Notebook code (keyboard-access
+> fixes -- the `shift+slash` hotkey chord, TickerPopup's trigger gaining a `tabIndex` and a key
+> handler, `/journal/notebook?view=graph` recognising every `VIEW_MODES` id instead of falling
+> through to Research Home -- a PNG-export size guard for very long notes, and the rollback chain
+> through L14, i.e. lane R1g's own work, landed as part of this same squash) AND its squash
+> subject kept the literal word "wave" ("Notebook 10/10 wave 10 L15: ..."), so like L13/L14 it is
+> selected by SUBJECT AND PATH both -- no new `CHAIN_BY_PATH_ONLY` exception needed. It reverts
+> with 0 conflicts, not even against the hotfix's own test-rail file the step below carries. One
+> more path-only commit landed in the window (`c75bf6ea0..b529c8a786`), older than L15: `726586201`
+> (feat(charts): Technical library Tier 1 -- 33 studies, 9 MA types, real fixed scales), touching
+> `app/src/pages/Settings.jsx` only to widen the Moving Average overlay's type `<select>` for an
+> adopted engine-instance slot (shared file); every other file it ships sits outside the derived
+> Notebook set -- added to `REVIEWED_NOT_LANDINGS`. `L15` is the newest commit the census selects
+> in this window and is itself the tip, so `MEASURED_AT` moves to its own sha, `b529c8a786` --
+> unlike L14's window, nothing REVIEWED lands after it here. The whole chain was rebuilt from the
+> new tip: all eight pins recorded at `c75bf6ea0` came back byte-identical, no new conflict
+> anywhere in the chain. `MEASURED_AT` is `b529c8a786`. Rehearsed on a sandbox: the tip, through
+> `L15` and through `L14`. Three of L15's doors -- `/journal/notebook?view=graph` rendering the
+> graph canvas instead of Research Home, a real Shift+/ keypress opening the Keyboard Shortcuts
+> dialog, and FuturesStrip's TickerPopup trigger carrying `tabIndex=0` with Enter opening its chart
+> dialog -- are exercised behaviourally in a real browser against the real served bundle and read
+> in the table below; the fourth (the PNG export size guard's own refusal text) is checked against
+> the BUILT `app/dist/assets/*.js` output instead of a live click -- see "What was NOT measured
+> here" for why. Evidence: `docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1h/`
+> (`sandbox-results.md` is the table).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -171,6 +198,7 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L15` | `b529c8a78` | wave 10 L15 #262 | |
 | `L14` | `0e7d0561a` | wave 10 L14 #260 | |
 | `L13` | `a680b0d40` | wave 10 L13 #259 | |
 | `L12` | `599cd44f1` | wave 10 L12 #258 | |
@@ -686,6 +714,71 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-10-01: L15 #262 on top, from `c75bf6ea0` (lane R1h)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-10-01-r1h/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | product conflicts | new since 2026-10-01 (R1g) |
+|---|---|---|
+| `L15` | 0 | the new top step. Ships real `app/`/`api/` Notebook code (keyboard-access fixes, a PNG-export size guard, lane R1g's own rollback-chain work through L14) -- its squash subject reads "Notebook 10/10 wave 10 L15: ..." (kept "wave"), so SUBJECT selects it directly; no `CHAIN_BY_PATH_ONLY` exception needed |
+| `L14`...`wave5`, guards | unchanged | -- (same rules, same pins) |
+
+- **All eight pins recorded at `c75bf6ea0` came back byte-identical** from the new tip
+  (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-10-01-r1h/chain/record-pins-output.json`). L15 reverts with
+  zero conflicts of any kind -- not even against the hotfix's own `tests/test_tools_pin_the_root.py`
+  edit the step below carries.
+- **The census of the new window** (`evidence/rollback-rehearsal-2026-10-01-r1h/check-before.log`,
+  the raw `--check` refusal before this lane's edit, from `origin/master` at `b529c8a786`): 2
+  commits selected -- `L15` by subject AND path (a real landing, selected without any declared
+  exception) and one more, `726586201` (feat(charts): Technical library Tier 1 -- 33 studies, 9 MA
+  types, real fixed scales), by path only, older than L15, added to `REVIEWED_NOT_LANDINGS`. A rail
+  derives the window from the tool's own census and fails on any selected commit that is neither in
+  `CHAIN` nor reviewed.
+- **`726586201` edits no Notebook-owned code**: its only touch among shared files is
+  `app/src/pages/Settings.jsx`, widening the Moving Average overlay's type `<select>` from a
+  hardcoded SMA/EMA pair to the full `MA_TYPES` kit for an adopted (engine-instance) overlay slot;
+  every other file it ships (`movingAverages.js`, `technicalStudies.js`, `technicalCategories.js`,
+  `indicatorCatalog.js`, the chart engine's `readout`/`sourceRef`/`registrySizes` modules, their
+  tests, a decision-record doc) sits outside the derived Notebook set.
+- **`MEASURED_AT` moves to `b529c8a786` (L15's own sha)**, not past it as L14's move was: L15 is
+  the newest commit the census selects in this window and is itself the tip -- no
+  `REVIEWED_NOT_LANDINGS` commit lands after it here, unlike the hotfix that trailed L14.
+- `origin/master` had not moved further than `b529c8a786` by the time this lane's `--check
+  --from origin/master` was re-read after the edit (`evidence/rollback-rehearsal-2026-10-01-r1h/check-origin-master-after.log`),
+  so there is nothing further to carry into a future lane's scope statement.
+
+**The sandbox rehearsal, 2026-10-01 (lane R1h).**
+`evidence/rollback-rehearsal-2026-10-01-r1h/rehearse.py` (same method as R1's through R1g's) and
+`probe.py` (imports R1g's probe for the never-revert set, the per-landing doors, L7's door, L12's
+sort door, L10's template door, L13's analyst-consensus door and L14's two doors; adds three of
+L15's four doors, exercised behaviourally in a real browser against the real served bundle):
+
+| L15 door | tip | through `L15` | through `L14` |
+|---|---|---|---|
+| `/journal/notebook?view=graph` renders the graph canvas, not Research Home | **graph canvas** | **Research Home** | **Research Home** |
+| A real Shift+/ keypress opens the Keyboard Shortcuts dialog | **opens** | **nothing** | **nothing** |
+| FuturesStrip's TickerPopup tile carries `tabIndex=0`; Enter opens its chart dialog | **tabIndex=0, opens** | **no tabIndex, nothing** | **no tabIndex, nothing** |
+
+The fourth door -- the PNG export size guard's own refusal text
+(`"...too long for one PNG image..."`, `exportNote.js`) -- is checked against the BUILT
+`app/dist/assets/*.js` output for each tree (`evidence/rollback-rehearsal-2026-10-01-r1h/sandbox/<step>/png-guard-dist-check.json`),
+never by clicking PNG export on a note tall enough to need it: reverting L15 removes the guard
+entirely (its own first sub-commit is what introduces any size check at all), so the pre-L15 code
+has no guard and would attempt a real, unguarded, multi-hundred-megapixel canvas allocation in the
+browser -- precisely the bug this landing fixes -- which this rehearsal does not reproduce three
+times against this box's own memory budget. Present at the tip
+(`NotebookFlagGate-CssHds9m.js`), absent through both `L15` and `L14`.
+
+All three boots CLEAN at every checkpoint (pre-boot, +15s, +120s, shutdown; 62 db files hashed
+each time). Every earlier landing's door (L1a through L14) and the never-revert set behave
+identically at all three steps -- L14's two doors (the locked-note append refusals, the public-
+route intro-skip) stay ACTIVE at the tip and through `L15` (L14 itself is still live at that step)
+and flip to their pre-L14 state only once the chain reaches through `L14`, exactly R1g's own
+measurement. Zero page errors at any step. Full table:
+`evidence/rollback-rehearsal-2026-10-01-r1h/sandbox-results.md`.
 
 ## Measured, 2026-10-01: L14 #260 + hotfix #261 on top, from `a680b0d40` (lane R1g)
 
@@ -1309,3 +1402,25 @@ that failed to read the note:**
 | `append_widget_embed`, `append_financial_fact`, `append_document_excerpt` | They load the stored JSON, append one node and save; unknown types pass through untouched |
 | Connector sync `_apply_resolved_body` (`note_connectors/engine.py`) | It rewrites placeholders in a body the same sync just wrote, locked on `updated_at` |
 | Notebook migration v1 insert (`db.py`) | It is a one-time creation |
+
+## Level 3 -- wave 11 lane 11D, the trade-plan canvas (2026-10-01)
+
+⛔ **NEVER-REVERT, like levels 1 and 2.** Lane 11D adds ONE type, `tradeCanvas`, at level 3 in
+both tables (`lib/notebookSchema.js` and `notebook_schema.py`). A canvas note's body is that one
+block atom (plus TipTap's trailing empty paragraph) holding the whole board in its `board`
+attribute.
+
+- **Why a new type, not a property or an existing node.** Every other place the board could
+  live loses it to an older editor without the server noticing: an existing node's unknown
+  attribute is DROPPED by an editor that does not declare it (and its next save writes the plan
+  away), and a note property rides neither the offline outbox nor the body's compare-and-set.
+  A new type is the only shape the schema guard can protect: a bundle without it declares 2 and
+  is refused (409) on any note whose stored body holds the canvas.
+- **What a rollback of 11D must keep:** both table entries. The node itself
+  (`lib/tradeCanvasNode.js`, registered in `tiptap.js`) may be reverted with the feature; the
+  derived declaration then drops to 2 and every canvas note becomes read-only (refused), never
+  blanked. Restoring the feature restores editing.
+- **The gate is not the schema.** `NOTEBOOK_TRADE_CANVAS_ENABLED` gates the doors that make a
+  canvas and the board's editing controls; the node is registered unconditionally so a gate-off
+  tab still declares 3.
+

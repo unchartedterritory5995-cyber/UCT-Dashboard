@@ -66,7 +66,11 @@ const CASES = [
     // stopped exercising this branch for the THIRD time. The component of an
     // `input.color` is not one of the colours the vendor capture measured and
     // still refuses `pine:colour-value`.
-    src: `${HEAD}var c = color.t(input.color(color.red))\nplot(close)\n`,
+    // ⚰️ 2026-10-01 (C48): AND A FOURTH — `vw-colour-components-spy-1d-2026-10-01`
+    // measures the component of an `input.color` (300 / 300), so that is read too.
+    // A transparency that is not provably within 0..100 (`close`) is not: no row
+    // says what `color.new` does with one, and it still refuses `pine:colour-value`.
+    src: `${HEAD}var c = color.t(color.new(color.red, close))\nplot(close)\n`,
     find: 'var c = color.t',
   },
   {
@@ -126,7 +130,8 @@ describe('every statement branch records its binding, or refuses it by name', ()
   it('⭐⭐ THE CLOSING PASS — an unread UNREADABLE binding is noted, by its own reason', () => {
     // Not merely "a line appears": the note must carry the refusal's own guard, or
     // the member is told a line is unread without being told what about it is.
-    const src = `${HEAD}c = color.t(input.color(color.red))\nplot(close)\n`
+    // (C48: `color.t(input.color(…))` is read now — see the case above.)
+    const src = `${HEAD}c = color.t(color.new(color.red, close))\nplot(close)\n`
     const t = translatePine(src, { mode: 'host' })
     const note = (t.notes || []).find((n) => n.line === 2)
     expect(note, 'line 2 is bound, never read, and must not be silent').toBeTruthy()

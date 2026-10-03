@@ -8,6 +8,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/address/resolve",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/address/search",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/adjustment-basis/{ticker}",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/ai-search/briefings",
       "rate_limit_family": "ai",
       "tier": "paid"
@@ -56,6 +74,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/alerts/routing",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/alerts/taxonomy/cooldowns",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -71,6 +95,18 @@
       "path": "/api/alerts/taxonomy/fires",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks/{webhook_id}/deliveries",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -236,6 +272,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/calendar/date-status",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/calendar/day-metrics",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -267,6 +309,12 @@
     {
       "method": "GET",
       "path": "/api/calendar/implied-moves",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calendar/index-events",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -393,6 +441,18 @@
     {
       "method": "GET",
       "path": "/api/charts/layouts/{layout_id}/share",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/charts/list-sources/screen/{screen_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/charts/list-sources/theme/{theme_id}",
       "rate_limit_family": "member-workspace",
       "tier": "member"
     },
@@ -1340,6 +1400,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/ai-actions",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/ai-actions/{set_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/analytics",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1880,6 +1952,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/voice-notes/desk-sessions",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/voice-notes/status",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/leader-persistence/{symbol}",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -2228,6 +2312,30 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/analyst-revisions/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/blackline/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/broker-estimates/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/call-replay/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/company-news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2240,13 +2348,49 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/earnings-reaction/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/estimate-history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
     {
       "method": "GET",
+      "path": "/api/research/events/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/expected-move/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/filing-search",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/filings-feed",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/filings-feed/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2264,7 +2408,49 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/ftd/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/iv-history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/iv-history/{sym}/implied-vs-realized",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mention-series/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/metric-disagreement/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/story/{news_id}/versions",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2276,7 +2462,61 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options-history/{sym}/daily-move",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options-history/{sym}/iv-crush",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options-history/{sym}/straddle",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/backtest-catalog",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/backtest/{job}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/builder",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/options/{sym}/chain",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/chain-greeks",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/contract/{occ}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/edge",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2288,7 +2528,49 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/monitor",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/payoff-model",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/probability",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/stance",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/strategy-finder",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/surface",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/ownership/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/people/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2301,6 +2583,18 @@
     {
       "method": "GET",
       "path": "/api/research/ratings/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/rename-notice/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/seasonality/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2326,13 +2620,13 @@
       "method": "GET",
       "path": "/api/rundown",
       "rate_limit_family": "market-analytics",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
       "path": "/api/rundown/speech-text",
       "rate_limit_family": "market-analytics",
-      "tier": "member"
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -2546,6 +2840,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/compile",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/grammar",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/meta",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -2553,6 +2859,12 @@
     {
       "method": "GET",
       "path": "/api/screener/methodology",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/save-fork",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -2570,7 +2882,19 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/spec-alerts",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/structures",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/to-watchlist",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -2835,6 +3159,12 @@
     {
       "method": "GET",
       "path": "/api/user-definitions/library",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user-definitions/runtime-kill",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
@@ -3140,8 +3470,48 @@
     }
   ],
   "excluded_no_rate_family": [
-    "/api/address/resolve",
-    "/api/address/search",
-    "/api/adjustment-basis/{ticker}"
+    "/api/artifact-versions/status",
+    "/api/artifact-versions/{kind}/deleted",
+    "/api/artifact-versions/{kind}/{artifact_id}",
+    "/api/artifact-versions/{kind}/{artifact_id}/{version}",
+    "/api/exports/bars/{ticker}",
+    "/api/exports/news",
+    "/api/exports/options/{sym}/chain",
+    "/api/exports/quota",
+    "/api/exports/watchlists/{wl_id}",
+    "/api/options-screener/iv-percentile",
+    "/api/options-screener/more-strategies",
+    "/api/options-screener/more/{name}",
+    "/api/options-screener/screen",
+    "/api/options-screener/sizzle",
+    "/api/options-screener/strategies",
+    "/api/options-screener/strategy/{name}",
+    "/api/options-screener/unusual-volume",
+    "/api/options/market-tide",
+    "/api/options/market-tide/minute",
+    "/api/options/market-tide/sectors",
+    "/api/options/positioning/vocabulary",
+    "/api/options/positioning/{sym}/charm-heatmap",
+    "/api/options/positioning/{sym}/dealer-short",
+    "/api/options/positioning/{sym}/delta-heatmap",
+    "/api/options/positioning/{sym}/heatmap",
+    "/api/options/positioning/{sym}/impact",
+    "/api/options/positioning/{sym}/levels",
+    "/api/options/positioning/{sym}/max-pain",
+    "/api/options/positioning/{sym}/nope",
+    "/api/options/spread-book",
+    "/api/options/vol/{sym}/interpolated-iv",
+    "/api/options/vol/{sym}/iv-rank",
+    "/api/options/vol/{sym}/realized",
+    "/api/options/vol/{sym}/rr-bf",
+    "/api/options/vol/{sym}/surface-3d",
+    "/api/options/vol/{sym}/term-structure",
+    "/api/options/vol/{sym}/vrp",
+    "/api/pine/libraries",
+    "/api/pine/libraries/{author}/{name}/{version}",
+    "/api/terminal/aliases",
+    "/api/terminal/commands/stats",
+    "/api/terminal/compare-target",
+    "/api/terminal/move/{sym}"
   ]
 }

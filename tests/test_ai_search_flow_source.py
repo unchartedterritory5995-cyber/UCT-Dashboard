@@ -74,6 +74,7 @@ def flow_source_server(monkeypatch):
     """
     state = {"rows": {}, "status": 200, "fail_source": None}
     seen = []
+    auth_seen = []
 
     class _H(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"
@@ -84,6 +85,7 @@ def flow_source_server(monkeypatch):
             qs = parse_qs(parsed.query)
             source = (qs.get("source") or ["stocks"])[0]
             seen.append((sym, source))
+            auth_seen.append(self.headers.get("Authorization") or "")
 
             failing = state["fail_source"] in (None, source)
             if state["status"] != 200 and failing:
@@ -131,6 +133,7 @@ def flow_source_server(monkeypatch):
 
     class _Ctl:
         requests = seen
+        auth = auth_seen
 
         @staticmethod
         def seed(source, sym, rows):
@@ -278,3 +281,17 @@ def test_a_successful_read_IS_memoized(flow_source_server):
     assert first == second
     assert first.startswith("NVDA options flow")
     assert flow_source_server.requests == [("NVDA", "stocks")]
+
+
+def test_the_read_carries_the_service_bearer_and_never_a_member_cookie(flow_source_server, monkeypatch):
+    """Every flow read is `require_flow_user` (2026-08-09). Without the
+    PUSH_SECRET bearer the production surface answers 401, and this reader
+    turns a 401 into "no flow": AI Search answered flow questions with no flow
+    from that date until this fix. Asserted on the WIRE, at the server."""
+    monkeypatch.setenv("PUSH_SECRET", "svc-secret-test")
+    flow_source_server.seed("stocks", "NVDA", _prints("NVDA"))
+
+    ai_search._ctx_flow_ticker("NVDA")
+
+    assert flow_source_server.auth, "the server saw no request at all"
+    assert set(flow_source_server.auth) == {"Bearer svc-secret-test"}, flow_source_server.auth

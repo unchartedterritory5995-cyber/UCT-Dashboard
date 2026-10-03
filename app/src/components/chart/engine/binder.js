@@ -58,9 +58,11 @@ import {
   DEFAULT_MARKER_COLOR,
   bindingKey,
   lineStyleValue,
+  OHLC_POOL_KEYS,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
+import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
@@ -84,14 +86,15 @@ import { fundamentalColumn } from './fundamentalSource'
 import { economicColumn, economicPlotStyle, observationAtFor } from './economicSource'
 import { economicMeta } from './economicSeries'
 import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
-import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
+import { ohlcCapabilityOf, barHasOhlc, outputIsSource, drawableOhlcBars } from './ohlcCapability'
 import { sourceCapabilityOf, SCALAR_STYLES } from './sourceCapability'
-import { resolvePlotStyle, resolveCandleColors } from './presentation'
+import { resolvePlotStyle, resolveCandleColors, isOhlcPlotStyle } from './presentation'
 import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapRuns'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
+import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
@@ -152,6 +155,9 @@ const SERIES_CTOR = {
   // computes, and then silently does not exist. `engineLwc()` in StockChart must
   // carry the constructor this names, or the same hole opens one file over.
   candlestick: 'CandlestickSeries',
+  // ⭐ The OHLC bar — the same `BarSeries` the primary chart's 'bars' type uses.
+  // `engineLwc()` in StockChart carries it, for the reason the comment above gives.
+  bar: 'BarSeries',
 }
 
 /**
@@ -217,7 +223,9 @@ function isOhlcPayload(v) {
  * ⛔ THE BAR'S OWN `t`, NEVER THE PRIMARY'S. `clippedBarsFor` has already dropped
  * every bar outside the chart's time domain, so each survivor is a real bar of
  * the secondary instrument at its own timestamp. Rewriting it would attribute one
- * instrument's auction to another's bar.
+ * instrument's auction to another's bar. (An index whose day is keyed as unix
+ * midnight arrives here already spelled as the chart spells that SAME day —
+ * `clipBarsToDomain` — because one axis cannot hold two time formats.)
  *
  * ⛔ AND NO SIGN COLOURS. `colorMode: 'sign'` paints a histogram bar from the
  * value's sign; a candle's colour is its own up/down option and is LWC's to
@@ -364,6 +372,17 @@ function pointColour(colColors, condColumn, i) {
  * in this pass is stored under, so a fill's colour rule can only ever name a
  * column of its OWN instance.
  */
+/** ⭐ B1 — one paint's colour on every bar (a css colour, or null for none): its
+ *  condition column read through `columnColorsForPlot` exactly as a fill's is, or
+ *  its static colour with the opacity folded in. Exported so the vendor harness
+ *  grades the very function the chart draws with. */
+export function paintColoursFor(paint, instanceId, columns, n) {
+  if (!paint) return null
+  if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
+  const c = staticPaintColour(paint)
+  return c ? new Array(n).fill(c) : null
+}
+
 function fillColours(fillSpec, instanceId, columns, n) {
   const cc = columnColorsForPlot(fillSpec)
   if (!cc) return null
@@ -426,6 +445,33 @@ function observationAtOf(column, bars, adjustTime) {
     observationMemo.set(column, m)
   }
   return m.f
+}
+
+// ⭐ AN OHLC BINDING'S LEGEND READS THE CLOSE, BAR BY BAR. A candle/bar point has no
+// `value`, so without this the chip fell back to nothing at all on hover. The close
+// is the number of record on EVERY bar — including a breadth bar whose O/H/L is drawn
+// as whitespace because it was not observed — so the legend still answers there, and
+// the same number a Line would show. Keyed on the payload's identity, like the points.
+const ohlcValueAtMemo = new WeakMap()
+function ohlcValueAtOf(payload, adjustTime) {
+  let m = ohlcValueAtMemo.get(payload)
+  if (!m || m.adjustTime !== adjustTime) {
+    const byTime = new Map()
+    for (const b of (payload && Array.isArray(payload.bars) ? payload.bars : [])) {
+      if (!b) continue
+      byTime.set(adjustTime(b.t), Number.isFinite(b.c) ? b.c : NaN)
+    }
+    m = { adjustTime, f: (time) => (byTime.has(time) ? byTime.get(time) : undefined) }
+    ohlcValueAtMemo.set(payload, m)
+  }
+  return m.f
+}
+
+/** The close of an OHLC payload's newest bar — the developing-bar fallback. */
+function lastOhlcClose(payload) {
+  const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
+  for (let i = bars.length - 1; i >= 0; i--) if (bars[i] && Number.isFinite(bars[i].c)) return bars[i].c
+  return undefined
 }
 
 const valueAtMemo = new WeakMap()
@@ -647,6 +693,118 @@ export function createBinder({ chart, LWC }) {
   /** instanceId → the live object layer for that indicator, if it draws any. */
   const objectLayers = new Map()
 
+  /** ⭐ B1 — `${instanceId}#${paintIndex}` → `{host, handle, sig}`: one background
+   *  primitive per `bgcolor` paint, attached to a series in the script's pane. */
+  const paintLayers = new Map()
+  /** ⭐ B1 — the candle-colour overrides last handed to the host (`barcolor`), as a
+   *  signature, and the capability they were handed to, so a release clears them. */
+  let barColourSig = null
+  let barColourSink = null
+
+  const clearPaints = () => {
+    for (const [, L] of paintLayers) attempt(() => L.host.detachPrimitive(L.handle.primitive))
+    paintLayers.clear()
+    if (barColourSig !== null && barColourSink) attempt(() => barColourSink(null))
+    barColourSig = null
+  }
+
+  /** ⭐⭐ B1 — PINE'S `bgcolor` AND `barcolor`, DRAWN.
+   *
+   *  A paint's colour is a column the compute already produced (the condition,
+   *  palette index or gradient position `memberPaneDefinition` minted) or a static
+   *  colour; `fillColours` reads it through `pool.columnColorsForPlot`, the reader
+   *  a plot's per-point colour uses, so a paint cannot disagree with a plot coloured
+   *  by the same rule.
+   *
+   *  `bgcolor` → one background primitive per call, on the instance's first bound
+   *  series (its pane), or — for an overlay script that binds no series — on the
+   *  chart's own price series (`ctx.priceSeries()`), i.e. the price pane.
+   *  `barcolor` → one map `time → colour` over every instance, handed to the host
+   *  (`ctx.setBarColours`), which owns the candles. Two visible `barcolor`s that
+   *  colour one bar DIFFERENTLY are not resolved here — which one TradingView shows
+   *  has no capture — so that bar keeps its own colour (counted, `conflicts`).
+   *
+   *  ⛔ It never touches React: every write is a primitive's `setOptions` or one
+   *  call to the host's capability, and the capability is called only when the
+   *  overrides CHANGE (`barColourSig`), so a poll that moves nothing costs nothing. */
+  const syncPaints = (ctx, instances, columns, bars, adjustTime, bound) => {
+    const registry = ctx.registry
+    const n = bars.length
+    let times = null
+    const timesOf = () => (times || (times = bars.map((bar) => adjustTime(bar.t))))
+    const alive = new Set()
+    const overrides = new Map()
+    const conflicts = new Set()
+    const hide = ctx.indicatorsHidden === true
+    let any = false
+    for (const inst of instances) {
+      if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true || hide) continue
+      const def = registry && attempt(() => registry.getDefinition(inst.defId)).value
+      const paints = def && Array.isArray(def.paints) ? def.paints : null
+      if (!paints || !paints.length) continue
+      any = true
+      const own = bound.find((b) => b && b.instanceId === inst.instanceId && b.series)
+      const target = (typeof ctx.targetOf === 'function' && attempt(() => ctx.targetOf(inst)).value)
+        || (inst.placement && inst.placement.target) || (def.placement && def.placement.target)
+      const priceHost = target === 'price' && typeof ctx.priceSeries === 'function'
+        ? attempt(() => ctx.priceSeries()).value : null
+      const host = own ? own.series : priceHost
+      paints.forEach((p, i) => {
+        if (!p) return
+        const colours = paintColoursFor(p, inst.instanceId, columns, n)
+        if (!colours) return
+        if (p.kind === 'bgcolor') {
+          if (!host || typeof host.attachPrimitive !== 'function') return
+          const key = `${inst.instanceId}#${i}`
+          alive.add(key)
+          let L = paintLayers.get(key)
+          if (L && L.host !== host) {
+            attempt(() => L.host.detachPrimitive(L.handle.primitive))
+            L = null
+          }
+          if (!L) {
+            const handle = createBackgroundPrimitive({})
+            attempt(() => host.attachPrimitive(handle.primitive))
+            L = { host, handle, sig: null }
+            paintLayers.set(key, L)
+          }
+          const sig = colours.join('|') + '#' + n + ':' + (n ? bars[n - 1].t : '')
+          if (L.sig !== sig) {
+            L.sig = sig
+            L.handle.setOptions({ times: timesOf(), colors: colours })
+          }
+          return
+        }
+        if (p.kind !== 'barcolor') return
+        const tt = timesOf()
+        for (let j = 0; j < n; j += 1) {
+          const c = colours[j]
+          if (c == null || isNaColour(c)) continue
+          const k = String(tt[j])
+          if (conflicts.has(k)) continue
+          const had = overrides.get(k)
+          if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
+          overrides.set(k, c)
+        }
+      })
+    }
+    for (const [key, L] of paintLayers) {
+      if (alive.has(key)) continue
+      attempt(() => L.host.detachPrimitive(L.handle.primitive))
+      paintLayers.delete(key)
+    }
+    if (typeof ctx.setBarColours === 'function') {
+      barColourSink = ctx.setBarColours
+      const sig = overrides.size ? [...overrides].map(([k, v]) => `${k}=${v}`).join('|') : ''
+      if (sig !== (barColourSig || '')) {
+        barColourSig = sig || null
+        attempt(() => ctx.setBarColours(overrides.size ? overrides : null, { conflicts: conflicts.size }))
+      }
+    }
+    return any || barColourSig !== null || paintLayers.size
+      ? { backgrounds: alive.size, barOverrides: overrides.size, conflicts: conflicts.size } : null
+  }
+
   /** ⭐ C36 — the (instance, lane) pairs THIS binder has published a
    *  `time(<timeframe>)` withholding for (`chartClockNotice.js`), so an instance
    *  that leaves the chart takes its sentence with it. */
@@ -715,9 +873,14 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
           secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
           exchangeOf: ctx.exchangeOf,
+          // ⭐ C41 — the same intraday supply the plot beside it is handed.
+          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
           // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
           // document's own declaration is asked inside `objectReaderFor`.
           ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
+          // surface states it.
+          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
@@ -780,7 +943,7 @@ export function createBinder({ chart, LWC }) {
       // bars can draw a different picture once that statement arrives.
       // ⭐ C37 — and the chart's own colours: a theme change repaints the objects
       // that wear them, with the bars and the program unchanged.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}:${theme.fg || ''}/${theme.bg || ''}`
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}${ctx.barIndexFromFirstBar === true ? ':bar0' : ''}:${theme.fg || ''}/${theme.bg || ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -939,6 +1102,9 @@ export function createBinder({ chart, LWC }) {
     // to prevent, one surface newer.
     for (const [, layer] of objectLayers) attempt(() => layer.clear())
     objectLayers.clear()
+    // ⭐ B1 — and the paints: a background left attached, or candles left
+    // recoloured, would read as "the indicator is still on".
+    clearPaints()
     pruneClock('plots', null)
     pruneClock('objects', null)
     held = []
@@ -1042,6 +1208,9 @@ export function createBinder({ chart, LWC }) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.
       if (held.length) releaseAll()
+      // ⭐ B1 — a paint-only instance binds no series, so `held` can be empty while
+      // its background or its candle colours are still on the chart.
+      else if (paintLayers.size || barColourSig !== null) clearPaints()
       // ⭐ C36 — and its `time(<timeframe>)` sentences, held or not: an indicator
       // whose every bar is withheld binds NO series, so `held` is empty exactly
       // when there is a sentence to take down. Zero calls when none was published.
@@ -1271,8 +1440,15 @@ export function createBinder({ chart, LWC }) {
       // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
       // (or changes) must recompute, exactly as a symbol SOURCE does above.
       const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      // ⭐ C41 — and this symbol's intraday windows, for a document that reads
+      // below the chart: a window that lands (or changes) must recompute. '' for
+      // every document that reads none (one property read).
+      const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
+      const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+        + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
+        + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
@@ -1318,11 +1494,18 @@ export function createBinder({ chart, LWC }) {
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
+            // not the series the caller described.
+            ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
             // frame's timeframe, the secondary's are the chart's).
-            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame }))
+            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame,
+            // ⭐⭐ C41 — this symbol's intraday bars per store timeframe, for a Pine
+            // document that reads BELOW the chart (`lowerTf.js` decides what is
+            // served; a framed instance is served none).
+            lowerTf }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -1366,8 +1549,11 @@ export function createBinder({ chart, LWC }) {
         // ⛔ THE SAME RESOLUTION THE PLAN MADE, with the same capability answer —
         // a stored `candles` the source cannot mean is clamped to a line in both
         // places, so the series type and its payload can never disagree.
-        if (resolvePlotStyle(instance, plot, { ohlcCapable: true }) !== 'candles') return null
-        return clippedBarsFor(entry.bars, bars)
+        if (!isOhlcPlotStyle(resolvePlotStyle(instance, plot, { ohlcCapable: true }))) return null
+        // ⛔ PER BAR, FOR A FAMILY THAT IS ATTESTED PER BAR (breadth): an unobserved
+        // bar keeps its time and close and draws as whitespace — never as the
+        // close-to-close body it is. Identity for a security.
+        return drawableOhlcBars(clippedBarsFor(entry.bars, bars), cap.family)
       }
 
       // ── A FRAMED INSTANCE: keep its own-frame columns, project onto the chart ──
@@ -1609,8 +1795,11 @@ export function createBinder({ chart, LWC }) {
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on
         // this instance. No new palette, no second source of truth.
-        candleColors: b.poolKey === 'candlestick'
-          ? resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles)
+        // ⭐ A BAR READS THE SAME PAIR, plus the chart's own `thinBars` — the one
+        // option the primary chart's BarSeries takes that a candlestick does not.
+        candleColors: OHLC_POOL_KEYS.includes(b.poolKey)
+          ? { ...resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles),
+              thinBars: !(ctx.cs && ctx.cs.candles && ctx.cs.candles.thinBars === false) }
           : null,
       })
       if (!options) { orphan(b); continue }
@@ -2013,7 +2202,7 @@ export function createBinder({ chart, LWC }) {
         // Carried on the BINDING because that is the only place the column and
         // the series are both in hand; `readout.js` is pure and gets no other
         // route to the value legacy reads off `indicatorData`.
-        lastValue: lastPointValue(points),
+        lastValue: isOhlcPayload(columns.get(b.key)) ? lastOhlcClose(columns.get(b.key)) : lastPointValue(points),
         // ⭐ …AND THE ONE BEFORE IT, for the one live writer that steps a
         // recurrence: an average's EMA on the developing bar is
         // `c·k + prev·(1-k)`, and on a same-bucket tick `prev` is THIS value, not
@@ -2032,6 +2221,7 @@ export function createBinder({ chart, LWC }) {
         // ⭐ 2026-10-01 — a `sparse` plot is a gap-breaking line too (above), so a
         // blank bar answers NaN and its chip is dropped there.
         ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
+        ...(isOhlcPayload(columns.get(b.key)) ? { valueAt: ohlcValueAtOf(columns.get(b.key), adjustTime) } : {}),
         // The legend's OBSERVATION PERIOD for an economic passthrough (`Aug 2026`).
         ...(econObs.has(b.instanceId) ? { observationAt: observationAtOf(econObs.get(b.instanceId), bars, adjustTime) } : {}),
       })
@@ -2053,6 +2243,10 @@ export function createBinder({ chart, LWC }) {
     // drops the pane synchronously), so this is the first point in the sync where
     // `chart.panes()` describes the stack the layout is talking about.
     if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
+
+    // ── ⭐⭐ B1: the paints (`bgcolor` / `barcolor`), after every series exists ──
+    // ⛔ A failure here costs the shading and nothing else.
+    const paintsDrawn = attempt(() => syncPaints(ctx, instances, columns, bars, adjustTime, next)).value || null
 
     // ── ⭐⭐ THE NOTES CHANNEL: A FILL WITH NO VISIBLE HOST IS SAID, NOT DROPPED ──
     //
@@ -2097,7 +2291,7 @@ export function createBinder({ chart, LWC }) {
       }
     }
 
-    return { ok: true, bound: next.length, released: release.length, notes }
+    return { ok: true, bound: next.length, released: release.length, notes, ...(paintsDrawn ? { paints: paintsDrawn } : {}) }
   }
 
   /**

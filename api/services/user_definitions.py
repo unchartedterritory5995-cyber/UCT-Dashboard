@@ -375,6 +375,12 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # "ticker" is the literal text ``ticker``.
     "symtext": ("type", "name"),
     "textop": ("type", "name", "args"),
+    # ⭐ C41 — THE READ BELOW THE CHART'S TIMEFRAME — `ltf(expr, "60")`. `tf`'s
+    # key set and `tf`'s reason: the code is the node. Written by the Pine member
+    # door for `request.security(syminfo.tickerid, "60", …)` on a daily chart;
+    # ⛔ without this row the STORE would refuse a document every other door
+    # accepts (the trap `offset` documents above).
+    "ltf": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 
@@ -1046,19 +1052,46 @@ def requirement_tags(definition: dict) -> list:
     }
     if not by_tag:
         return []
+    # ⭐ C45 — AND THE `series` ROSTER, which the manifest has always said this
+    # walk reads (`window_dependent.what`: *"the spec carries a `series` roster
+    # beside `calls` and the stamping walk reads both"*) and which it did not: an
+    # `isfirst` LEAF is a `series` node, the walk collected call names only, and a
+    # saved pane document reading `barstate.isfirst` was stamped with nothing.
+    leaves_by_tag = {
+        name: set(spec.get("series") or ())
+        for name, spec in tags_spec.items()
+        if isinstance(spec, Mapping) and spec.get("calls")
+    }
+    # ⭐⭐ C45 — THE ONE SHAPE A TAGGED CALL IS NOT TAGGED IN: a PERIOD ANCHOR,
+    # `valuewhenOccurrence(<period first>, time, 0)` — what `time("W")` translates
+    # to. It is bounded by its period and both interpreters withhold exactly the
+    # bars it cannot answer, so it is not a fact about the request
+    # (`_requirement_tags.occurrence_dependent._not_the_period_anchor`).
+    # ⛔ RECOGNISED BY THE INTERPRETER'S OWN RECOGNISER, the one
+    # `period_anchor_mask` asks — never a second description of the shape here.
+    from api.services import ast_interpret
+    anchor = ast_interpret.is_period_anchor
 
     called: set = set()
+    leaves: set = set()
     unreadable = False
 
     def walk(node):
         nonlocal unreadable
         if isinstance(node, Mapping):
-            if node.get("type") == "call":
+            kind = node.get("type")
+            if kind == "call":
+                if anchor(node):
+                    return
                 name = node.get("name")
                 if isinstance(name, str):
                     called.add(name)
                 else:
                     unreadable = True
+            elif kind == "series":
+                name = node.get("name")
+                if isinstance(name, str):
+                    leaves.add(name)
             for v in node.values():
                 walk(v)
         elif isinstance(node, Sequence) and not isinstance(node, (str, bytes)):
@@ -1073,7 +1106,7 @@ def requirement_tags(definition: dict) -> list:
 
     out = []
     for tag, names in by_tag.items():
-        if unreadable or (called & names):
+        if unreadable or (called & names) or (leaves & leaves_by_tag.get(tag, set())):
             out.append(tag)
     return sorted(out)
 
@@ -1292,6 +1325,13 @@ def save(user_id: Any, def_id: str, definition: dict,
             "makes `defId.plotKey` resolve to two different things")
 
     compute = definition.get("compute")
+    # ⭐⭐ RT1 — A RUNTIME-LANE DOCUMENT HAS ITS OWN DOOR (`runtime_definitions`),
+    # switched OFF by default (`PINE_RUNTIME_SAVE_ENABLED`). It carries no tree, so
+    # nothing below — the manifest hook, the graph split, the tree hash, the lint,
+    # the migration — applies to it.
+    from api.services import runtime_definitions
+    if runtime_definitions.is_runtime(definition):
+        return _save_runtime(user_id, def_id, definition, limits)
     if not isinstance(compute, dict) or compute.get("kind") != "ast":
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
@@ -1578,6 +1618,83 @@ def save(user_id: Any, def_id: str, definition: dict,
         "bindings_on_this_tree": bindings_on_this_tree,
         "ast_hash": new_hash, "repaint": json.loads(repaint),
         "requirements": json.loads(requirements), "appended": True,
+    }
+
+
+def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any) -> dict:
+    """RT1 — append a version of a RUNTIME-LANE document.
+
+    The same table, the same version/tombstone rules, the same count cap and the
+    same 64 KiB cap as a formula — and none of the tree machinery, because there
+    is no tree. ⛔ THREE REFUSALS FIRST, each the sentence the member door shows:
+    the store not taking runtime documents (`PINE_RUNTIME_SAVE_ENABLED` off), the
+    script on the kill list, and a malformed document.
+
+    `ast_hash` holds the runtime handle (`runtime:sha256:<source hash>`), so the
+    sweep's `compute.kind` filter and every reader keyed on that column see at a
+    glance that this is not a tree. `rev` bumps when the SOURCE changes. No
+    migration runs: an alert cannot be bound to a runtime document
+    (`alert_user_series` refuses its lane), so there is no binding to migrate.
+    """
+    from api.services import entitlements, runtime_definitions
+
+    if not runtime_definitions.save_enabled():
+        raise ValueError(
+            "this store does not accept scripts drawn bar by bar yet — the runtime "
+            f"lane's save door is switched off ({runtime_definitions.SAVE_ENV}). The "
+            "preview still draws it; nothing was saved.")
+    why = runtime_definitions.killed(def_id, (definition.get("compute") or {}).get("source"))
+    if why:
+        raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
+    runtime_definitions.validate(definition)
+
+    new_hash = runtime_definitions.handle(definition)
+    blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    size = len(blob.encode("utf-8"))
+    if size > MAX_DEFINITION_BYTES:
+        raise ValueError(
+            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
+            "store names its caps rather than inheriting `user_preferences`', "
+            "which has none")
+    repaint = json.dumps(runtime_definitions.repaint_stamp(definition), sort_keys=True,
+                         separators=(",", ":"))
+    requirements = "[]"
+    now = int(time.time())
+
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        _ensure(c)
+        prev = _newest(c, user_id, def_id)
+        if prev is None or prev["deleted_at"] is not None:
+            entitlements.check_definition_count(_live_def_count(c, user_id), limits)
+        if prev is None:
+            version, rev, rev_bumped = 1, FIRST_REV, False
+        else:
+            if prev["definition"] == blob and prev["deleted_at"] is None:
+                return {
+                    "def_id": def_id, "version": prev["version"], "rev": prev["rev"],
+                    "rev_bumped": False, "migrated": 0, "notified": 0,
+                    "bindings_on_this_tree": 0,
+                    "ast_hash": prev["ast_hash"], "repaint": json.loads(prev["repaint"]),
+                    "requirements": _requirements_of(prev), "appended": False,
+                }
+            version = prev["version"] + 1
+            rev_bumped = prev["ast_hash"] != new_hash
+            rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
+        c.execute(
+            "INSERT INTO user_definitions "
+            "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
+            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,NULL,?)",
+            (str(user_id), def_id, version, rev, new_hash, blob, repaint,
+             requirements, now),
+        )
+        c.commit()
+
+    return {
+        "def_id": def_id, "version": version, "rev": rev,
+        "rev_bumped": rev_bumped, "migrated": 0, "notified": 0,
+        "bindings_on_this_tree": 0,
+        "ast_hash": new_hash, "repaint": json.loads(repaint),
+        "requirements": [], "appended": True,
     }
 
 

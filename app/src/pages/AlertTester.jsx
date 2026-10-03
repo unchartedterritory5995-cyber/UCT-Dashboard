@@ -12,6 +12,9 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Checkbox from '../components/ui/Checkbox'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
 
 const P = {
   bg:  "#0a0e1a",
@@ -82,7 +85,7 @@ function NumField({ label, value, onChange, step=1, hint }) {
   return (
     <label style={{ display:"flex", flexDirection:"column", gap:4 }}>
       <span style={{ fontSize:9, color:P.dim, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{label}</span>
-      <input type="number" value={value} step={step}
+      <Input type="number" value={value} step={step}
         onChange={e=>onChange(Number(e.target.value))}
         style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.text, padding:"6px 8px", fontSize:11, fontFamily:"ui-monospace,monospace" }}/>
       {hint && <span style={{ fontSize:8, color:P.dim }}>{hint}</span>}
@@ -95,7 +98,7 @@ function CB({ label, checked, onChange, color = P.ac }) {
     <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", padding:"4px 8px",
                     background: checked ? color+"22" : "transparent",
                     border:"1px solid "+(checked ? color : P.bd), borderRadius:5, fontSize:10, fontWeight:600 }}>
-      <input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} style={{ accentColor:color }}/>
+      <Checkbox checked={checked} onChange={e=>onChange(e.target.checked)} style={{ accentColor:color }}/>
       <span style={{ color: checked ? color : P.dim }}>{label}</span>
     </label>
   );
@@ -106,7 +109,7 @@ function TickerList({ label, value, onChange }) {
   return (
     <label style={{ display:"flex", flexDirection:"column", gap:4 }}>
       <span style={{ fontSize:9, color:P.dim, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{label}</span>
-      <input type="text" value={text}
+      <Input type="text" value={text}
         onChange={e=>onChange(e.target.value.split(/[\s,]+/).map(s=>s.trim().toUpperCase()).filter(Boolean))}
         placeholder="AAPL, MSFT, …"
         style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.text, padding:"6px 8px", fontSize:11, fontFamily:"ui-monospace,monospace" }}/>
@@ -451,7 +454,7 @@ export default function AlertTester() {
                borderRadius:8, padding:24, textAlign:"center", cursor:"pointer",
                transition:"all 0.15s ease",
              }}>
-          <input ref={fileRef} type="file" accept=".csv" style={{ display:"none" }}
+          <Input aria-label="Upload alert CSV" ref={fileRef} type="file" accept=".csv" style={{ display:"none" }}
                  onChange={e=>handleFile(e.target.files?.[0])}/>
           {csvFile ? (
             <div>
@@ -475,10 +478,10 @@ export default function AlertTester() {
         </button>
       }>
         <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-          <select value={selectedAlert} onChange={e=>setSelectedAlert(e.target.value)}
+          <Select aria-label="UCT alert" value={selectedAlert} onChange={e=>setSelectedAlert(e.target.value)}
             style={{ background:P.al, border:"1px solid "+P.bd, color:P.text, padding:"6px 10px", borderRadius:5, fontSize:11, minWidth:200 }}>
             {ALL_UCT_ALERTS.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          </Select>
           <button onClick={resetToLive} disabled={!liveConfigs}
             style={{ background:"transparent", color:P.dim, border:"1px solid "+P.bd, padding:"6px 12px", borderRadius:5, fontSize:10, fontWeight:600, cursor: liveConfigs?"pointer":"not-allowed" }}>
             ↺ Reset to live config
@@ -581,14 +584,14 @@ export default function AlertTester() {
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, marginBottom:10 }}>
           <label style={{ display:"flex", flexDirection:"column", gap:4 }}>
             <span style={{ fontSize:9, color:P.dim, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Min Discord Grade</span>
-            <select value={minDiscordGrade} onChange={e=>setMinDiscordGrade(e.target.value)}
+            <Select value={minDiscordGrade} onChange={e=>setMinDiscordGrade(e.target.value)}
               style={{ background:P.al, border:"1px solid "+P.bd, color:P.text, padding:"6px 10px", borderRadius:5, fontSize:11 }}>
               <option value="A+">A+ only</option>
               <option value="A">A and above</option>
               <option value="B+">B+ and above</option>
               <option value="B">B and above (production default)</option>
               <option value="C">C and above (everything)</option>
-            </select>
+            </Select>
             <span style={{ fontSize:8, color:P.dim }}>Determines which graded alerts get pushed to Discord</span>
           </label>
           <NumField label="Dedup window (sec)" value={dedupSec} onChange={setDedupSec} hint="Same contract within window keeps only highest premium"/>

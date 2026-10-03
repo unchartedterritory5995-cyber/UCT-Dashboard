@@ -47,7 +47,11 @@ export const WEEK_PARAM = 'week'
 // deliberately absent — the Dashboard mounts two live instances (desktop +
 // mobile trees) and its rows come from today's wire list, so a URL-driven open
 // there is both double-rendering and unresolvable.
-export const ROUTED_PATHS = ['/calendar', '/calendar/mystocks']
+// TERMINAL-NEXT: the UCT Terminal shell embeds this same calendar as its CAL panel, so the
+// shell's two paths honour the param too (coexistence §3.4 row C1 — the deep-link contract
+// is CARRIED, not re-implemented). The shell renders at most one calendar panel
+// (`pages/terminal/panels.jsx` URL_OWNING_PANELS), so the param never opens two modals.
+export const ROUTED_PATHS = ['/calendar', '/calendar/mystocks', '/terminal', '/terminal/calendar']
 
 export function isRoutedPath(pathname) {
   const p = (pathname || '').replace(/\/+$/, '') || '/'

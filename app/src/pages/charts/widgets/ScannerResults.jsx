@@ -5,7 +5,8 @@
 // live prices, per-widget appearance) EXCEPT you can't add/remove/reorder symbols
 // (membership comes from the scan). Clicking a row publishes the ticker to this
 // widget's color group so a paired chart follows.
-import { useMemo, useCallback, useId, useState } from 'react'
+import { useMemo, useCallback, useId, useState, useEffect } from 'react'
+import { KIND, channelFor, listRefCtx, usePublish } from '../../../lib/context/contextChannels'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
@@ -111,16 +112,6 @@ const SCAN_CRITERIA = {
   'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
 }
 
-// scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
-const SCAN_ENDPOINTS = {
-  'highest-volume-1y': '/api/scans/highest-volume-1y',
-  'highest-volume-ever': '/api/scans/highest-volume-ever',
-  'ipo-1y': '/api/scans/ipo-1y',
-  'top-gainers-30d': '/api/scans/top-gainers-30d',
-  'top-gainers-60d': '/api/scans/top-gainers-60d',
-  'top-gainers-90d': '/api/scans/top-gainers-90d',
-}
-
 import useLivePrices from '../../../hooks/useLivePrices'
 // ─── Wave R (R-1a): the Screener's send-to-Journal door ───────────────────────
 // The shared capture flow + the shared toast + the destination picker — the same
@@ -139,9 +130,26 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { captureEnabled } from '../../../widgets/captureRelease'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
+import useListSubscribeEnabled from '../useListSubscribeEnabled'
+
+// scanKey -> endpoint for the preset scans. ONE authority, two readers: this widget and
+// COV-10's tracking list (ListSubscription, which re-resolves a subscribed scan). It lives
+// HERE, in the module that renders the results, because TERM-047's result-surface census
+// finds a surface by the A9 route literals in its OWN module (helpers are not followed):
+// moved to a helper, this widget silently left the census. New presets add a line here
+// + one in ScannerPicker's PRESET_SCANS.
+export const SCAN_ENDPOINTS = {
+  'highest-volume-1y': '/api/scans/highest-volume-1y',
+  'highest-volume-ever': '/api/scans/highest-volume-ever',
+  'ipo-1y': '/api/scans/ipo-1y',
+  'top-gainers-30d': '/api/scans/top-gainers-30d',
+  'top-gainers-60d': '/api/scans/top-gainers-60d',
+  'top-gainers-90d': '/api/scans/top-gainers-90d',
+}
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
+  const listSubscribeEnabled = useListSubscribeEnabled()
   // Stable per-instance key for the wrapped watchlist table (arrow-nav / active id).
   const widgetId = useId()
 
@@ -154,6 +162,20 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     () => ({ sym: color ? groupSyms?.[color] : null, setSym, tf: color ? groupTfs?.[color] : undefined }),
     [groupSyms, groupTfs, color, setSym],
   )
+
+  // COV-10 — publish the scan this widget shows on its colour group's `list-ref` channel,
+  // so a same-group Watchlist widget can subscribe to it (frozen or tracking). Publish-
+  // only: nothing here reads a channel. Dark behind `charts_list_subscribe_enabled`;
+  // off (the board's `listSubscribeEnabled`) => no channel id, nothing published, exactly the pre-COV-10 widget.
+  const listSubOn = listSubscribeEnabled === true
+  const scanListChannel = listSubOn && color ? channelFor(KIND.LIST_REF, color) : null
+  const { publish: publishScan, clear: clearScan } = usePublish(scanListChannel, `ScannerResults#${widgetId}`)
+  useEffect(() => {
+    if (!scanListChannel || !scanKey) return
+    publishScan(listRefCtx({ source: 'scan', value: scanKey, label: scanName || scanKey }))
+  }, [scanListChannel, scanKey, scanName, publishScan])
+  // Give the channel up on unmount / colour change (a no-op if another panel published since).
+  useEffect(() => () => { clearScan() }, [clearScan])
 
   const url = SCAN_ENDPOINTS[scanKey] || null
   // Live all day: poll every 30s (the server recomputes at most ~once/min).

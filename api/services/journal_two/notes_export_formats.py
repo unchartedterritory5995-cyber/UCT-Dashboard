@@ -1024,6 +1024,16 @@ class _Walker:
             base = min(lvl for lvl, _ in headings)
             return [self.para(_run(txt), self._ppr({**ctx, "indent": 360 * (lvl - base)}))
                     for lvl, txt in headings]
+        if t == "tradeCanvas":
+            # Wave 11 lane 11D: the canvas's readable summary, the same sections the
+            # Markdown export writes (trade_canvas.summary_sections) -- a bold title,
+            # then a bold heading and one paragraph per line under each.
+            tc = _nx._trade_canvas
+            out = [self.para(_run(tc.summary_title(attrs), "<w:b/>"), self._ppr(ctx))]
+            for heading, rows in tc.summary_sections(attrs):
+                out.append(self.para(_run(heading, "<w:b/>"), self._ppr(ctx)))
+                out.extend(self.para(_run(f"• {r}"), self._ppr(ctx)) for r in rows)
+            return out
         if t in ("hardBreak", "text", "noteLink", "askCitation", "dateMention", "videoTimestamp",
                  "attachmentChip", "inlineMath"):
             return [self.para(self.inline_node(n), self._ppr(ctx))]

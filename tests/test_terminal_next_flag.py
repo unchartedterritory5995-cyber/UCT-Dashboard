@@ -567,10 +567,16 @@ def test_the_ledger_entry_records_WHY_it_is_dark_and_HOW_the_polarity_changes():
     think somebody flipped a default behind their back.
     """
     entry = _ledger_flags()[rg.TERMINAL_NEXT_FLAG_ENV]
-    assert entry["status"] == "dark"
-    assert entry["where"] == [], "declared dark but claimed to be set somewhere"
+    # ⭐ 2026-10-02: `dark` -> `pending` when the UCT Terminal shell became the flag's
+    # FIRST CONSUMER (app/src/pages/terminal/terminalGate.js). Still set on no service,
+    # so `where` stays empty either way; a pending entry must say what consumes it now.
+    assert entry["status"] in ("dark", "pending")
+    assert entry["where"] == [], "declared unset but claimed to be set somewhere"
     note = (entry.get("note") or "").lower()
-    assert "no consumer" in note, "the note must say WHY it is dark"
+    assert "no consumer" in note, "the note must say WHY it was dark"
+    if entry["status"] == "pending":
+        assert entry.get("since"), "pending needs `since`"
+        assert "first consumer" in note, "a pending entry must name the consumer it now has"
     assert "enablement" in note, "the note must name the polarity it has now"
     assert "rb-4" in note, "the note must name what flips the polarity, and when"
     assert "kill switch" in note, "the note must say what it becomes"

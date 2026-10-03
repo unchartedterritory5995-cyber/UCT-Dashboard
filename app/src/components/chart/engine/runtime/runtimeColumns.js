@@ -22,9 +22,9 @@
 // .test.js` requires every live importer of the front end to reach.
 import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
-import { lowerIrProgram } from './lowerIr.js'
+import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
-import { Budget } from './limits.js'
+import { Budget, RuntimeLimitError } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 
@@ -45,6 +45,10 @@ const COMPILE_ON_A_PANE = Object.freeze({ pane: true, symbolAtBind: true })
 const symbolOf = (ctx) => (ctx && ctx.symbol && typeof ctx.symbol === 'object'
   ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } : undefined)
 const symbolKey = (s) => (s ? `${s.ticker}@${s.exchange}` : '-')
+
+/** ⭐ RT1 — the guard a fallback document carries on a chart whose history does
+ *  not start at the listing (see `runtimeColumnsFor`). */
+export const RUNTIME_HISTORY_GUARD = 'runtime:history-start'
 
 /**
  * Can the runtime lane build this script at all, and what does it output?
@@ -71,7 +75,17 @@ export function probeRuntimeProgram(source) {
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:lower', message: String((err && err.message) || err) } }
   }
-  return { ok: true, outputs: program.outputs.map((o) => ({ call: o.call })) }
+  // ⭐ RT1 — `naTests`: the program's `?:` whose test can be `na` (`naTestsOf`),
+  // read by the member door's runtime fallback.
+  // ⭐ RT2 — `requests`: the requests the lowering did NOT fold into this chart's
+  // own expression (another symbol or timeframe). The pane hands a run no other
+  // bars, so the member door declines a program that has any.
+  return {
+    ok: true,
+    outputs: program.outputs.map((o) => ({ call: o.call })),
+    naTests: naTestsOf(program),
+    requests: (built.ir.requests || []).length,
+  }
 }
 
 /** One build per (bars array, definition, timeframe, forming). A chart repaints
@@ -80,35 +94,74 @@ export function probeRuntimeProgram(source) {
  *  memos are, so a new fetch is a new build. */
 const _memo = new WeakMap()
 
-/**
- * The columns of a `compute.kind: 'runtime'` definition over `bars`.
+/** ⭐⭐ RT1 — THE PER-INDICATOR TIME BUDGET FOR ONE RUNTIME-PANE RUN, in ms.
  *
- * @param {object} def   the definition; `def.compute.source` is the member's Pine
- *                       and `def.compute.outputs` maps plot key → runtime output index
- * @param {object[]} bars `{t, o, h, l, c, v}` rows, oldest first
- * @param {object} [_inputs] unused: a runtime document declares no member knobs
- *                       (it draws the script at its DEFAULTS — the owner principle)
- * @param {object} [ctx] `{tf, newestBarIsForming}` as `computeFor` receives it
- * @returns {Record<string, number[]>} one column per mapped plot key
- * @throws a refusal-shaped error when the runtime lane cannot build the script
+ *  Measured 2026-10-02 (`runtimeFallbackPerf.measure.test.js`, the newest 5,000
+ *  daily bars of a committed AAPL capture, cold, median of 5): every document
+ *  the member door mints from the runtime lane runs in 94–144 ms on the
+ *  measuring box. The budget is ~7x the slowest reading, room for a slower
+ *  device, and it bounds what a runaway costs: a run that passes it STOPS, and
+ *  the pane says so by name (`RUNTIME_TIME_BUDGET_GUARD`), never draws a part.
+ *
+ *  ⛔ It is the runtime PANE's budget, passed to this lane's own run — the VM's
+ *  declared limits (`limits.js`, `WALL_TIME` among them) are not touched, and no
+ *  other caller of `execute` sees it. And it is a wall-clock budget, so it is a
+ *  property of the device that runs it: off the main thread (`runtimeWorker.js`)
+ *  a run costs the member no frame either way, and this is what stops it. */
+export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
+
+/** The guard a run that passes the budget carries. */
+export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'
+
+/** The memo key for one run: the definition, its compute handle, and everything
+ *  in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
+function runKey(def, ctx) {
+  const compute = (def && def.compute) || {}
+  const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
+  const forming = newestBarIsFormingFrom(ctx)
+  const listing = !!(ctx && ctx.historyFromListing === true)
+  return `${def && def.id}|${compute.fn}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}`
+}
+
+/** A refusal-shaped error, as `nativeRegistry.runtimeColumnsOrReasons` reads one. */
+function refusal(guard, message) {
+  const err = new Error(message)
+  err.guard = guard
+  return err
+}
+
+/**
+ * ⭐⭐ RT1 — ONE RUN, NO MEMO: the columns of a runtime document over `rows`.
+ *
+ * The single computation both doors share — the synchronous one below and the
+ * worker (`runtimeWorker.js`) — so a column computed off the main thread is the
+ * same number, by construction, as one computed on it.
+ *
+ * @param {object} def   `def.compute.source` is the member's Pine and
+ *                       `def.compute.outputs` maps plot key → runtime output index
+ * @param {object[]} rows `{t, o, h, l, c, v}` rows, oldest first
+ * @param {object} [ctx] `{tf, newestBarIsForming, symbol, historyFromListing}`
+ * @param {{budgetMs?: number, now?: () => number}} [opts]
+ * @returns {Record<string, number[]>}
+ * @throws a refusal-shaped error (`err.guard`) or the script's own `runtime.error`
  */
-export function runtimeColumnsFor(def, bars, _inputs, ctx) {
+export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
   const outputs = compute.outputs || {}
-  const rows = Array.isArray(bars) ? bars : []
+  // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a
+  // document that needs its run to start at TradingView's bar 0 computes nothing
+  // on a series that is not proven to start at the symbol's listing — refused by
+  // name, never drawn off a seed TradingView never used.
+  if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
+    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
+      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
+      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
+      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
+      + 'within the bars it loads) draws it.')
+  }
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)
-  const key = `${def && def.id}|${compute.fn}|${tf}|${forming}|${symbolKey(symbol)}`
-  let perBars = _memo.get(rows)
-  if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
-  if (perBars.has(key)) {
-    const hit = perBars.get(key)
-    // ⭐ C43 — a run the script stopped is remembered as that stop, not re-run
-    if (hit && hit.stoppedBy) throw hit.stoppedBy
-    return hit
-  }
-
   const clock = runtimeClockOpts(forming, tf ? { tf } : {})
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
@@ -123,12 +176,24 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
   })
   if (!built.ok) {
     const r = built.refusal || {}
-    const err = new Error(r.message || 'the runtime lane could not build this script')
-    err.guard = r.guard || 'runtime:build'
-    throw err
+    throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
+  }
+  // ⛔ RT2 — a request of other bars computes nothing here, whatever door the
+  // document came through (the member door declines one; a stored document is
+  // re-checked at its run): this run is handed no other symbol's bars, and an
+  // `na` drawn where TradingView draws a value is a wrong drawing.
+  if ((built.ir.requests || []).length) {
+    throw refusal('runtime:request', 'this script requests another symbol or timeframe, and a script drawn '
+      + "bar by bar here is handed only the chart's own bars, so nothing is drawn rather than a blank line")
   }
   const program = lowerIrProgram(built.ir)
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
+  // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
+  // own per-bar hook (no VM change): past it the run stops by name.
+  const budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : null
+  const now = typeof opts.now === 'function' ? opts.now
+    : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  const startedAt = budgetMs !== null ? now() : 0
   // ⭐⭐ C43 — the script's own `runtime.error` (C35's `PineRuntimeError`) stops
   // the run on the bar it is reached; TradingView's study then holds nothing and
   // names that bar (`vw-runtime-error-reached`). The bar is the one after the last
@@ -145,11 +210,21 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
       barTimes: rows.map((b) => b.t),
-    }, undefined, { onBar: (bar) => { finished = bar } })
+    }, undefined, {
+      onBar: (bar) => {
+        finished = bar
+        if (budgetMs !== null) {
+          const spent = now() - startedAt
+          if (spent > budgetMs) throw new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
+        }
+      },
+    })
   } catch (err) {
-    if (err && err.name === 'runtime.error') {
-      err.bar = finished + 1
-      perBars.set(key, { stoppedBy: err })
+    if (err && err.name === 'runtime.error') err.bar = finished + 1
+    if (err instanceof RuntimeLimitError && err.limit === 'WALL_TIME' && budgetMs !== null) {
+      throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${budgetMs} ms to draw `
+        + `bar by bar (it had reached bar ${finished + 1} of ${rows.length}), which is this pane's budget `
+        + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
     }
     throw err
   }
@@ -158,8 +233,76 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
     const col = res.outputs[index]
     if (col) out[plotKey] = Array.from(col)
   }
-  perBars.set(key, out)
   return out
+}
+
+/** ⭐⭐ RT1 — WHERE A RUN HAPPENS OFF THE MAIN THREAD, when anything does.
+ *
+ *  `null` (the default, and always in tests) runs on the caller's thread. The
+ *  browser door installs the worker runner (`runtimeAsync.js`) when the runtime
+ *  pane is switched on; a runner takes `(def, rows, ctx, done)` and calls
+ *  `done(err, columns)` once. */
+let _runner = null
+export function setRuntimeRunner(runner) {
+  _runner = typeof runner === 'function' ? runner : null
+}
+
+/** Listeners told when an off-thread run lands, so a chart can repaint. */
+const _landed = new Set()
+export function onRuntimeColumnsLanded(fn) {
+  if (typeof fn !== 'function') return () => {}
+  _landed.add(fn)
+  return () => { _landed.delete(fn) }
+}
+
+/**
+ * The columns of a `compute.kind: 'runtime'` definition over `bars`.
+ *
+ * @param {object} def   the definition; `def.compute.source` is the member's Pine
+ *                       and `def.compute.outputs` maps plot key → runtime output index
+ * @param {object[]} bars `{t, o, h, l, c, v}` rows, oldest first
+ * @param {object} [_inputs] unused: a runtime document declares no member knobs
+ *                       (it draws the script at its DEFAULTS — the owner principle)
+ * @param {object} [ctx] `{tf, newestBarIsForming}` as `computeFor` receives it
+ * @returns {Record<string, number[]>} one column per mapped plot key; `{}` while
+ *          an off-thread run is in flight (the chart repaints when it lands)
+ * @throws a refusal-shaped error when the runtime lane cannot build the script
+ */
+export function runtimeColumnsFor(def, bars, _inputs, ctx) {
+  const rows = Array.isArray(bars) ? bars : []
+  const key = runKey(def, ctx)
+  let perBars = _memo.get(rows)
+  if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
+  if (perBars.has(key)) {
+    const hit = perBars.get(key)
+    // ⭐ C43 — a run the script stopped is remembered as that stop, not re-run;
+    // ⭐ RT1 — and so is a refusal or a budget stop, and an in-flight run.
+    if (hit && hit.stoppedBy) throw hit.stoppedBy
+    if (hit && hit.pending) return {}
+    return hit
+  }
+  if (_runner) {
+    // ⭐⭐ RT1 — OFF THE MAIN THREAD. The run is handed to the worker and this
+    // paint draws nothing for the definition; when the columns land they are
+    // remembered under the same key and every listener is told, so the next
+    // paint reads them here. A run is never started twice for one key.
+    perBars.set(key, { pending: true })
+    _runner(def, rows, ctx, (err, columns) => {
+      perBars.set(key, err ? { stoppedBy: err } : columns)
+      for (const fn of [..._landed]) {
+        try { fn(key) } catch { /* a bad listener must not break the lane */ }
+      }
+    })
+    return {}
+  }
+  try {
+    const out = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    perBars.set(key, out)
+    return out
+  } catch (err) {
+    perBars.set(key, { stoppedBy: err })
+    throw err
+  }
 }
 
 // ─── ⭐⭐ C18 — VALUES A DRAWING READS FROM THE RUNTIME LANE ─────────────────

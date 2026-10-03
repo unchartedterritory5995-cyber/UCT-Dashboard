@@ -148,7 +148,7 @@ describe("the paste box hands the sheet the author's knobs", () => {
     expect(handed.inputs).toEqual([])
     expect(handed.inputParams).toEqual([
       expect.objectContaining({
-        id: '__uct_param_1', sourceName: 'len', title: 'Length', type: 'int', default: 14,
+        id: '__uct_param_1001', sourceName: 'len', title: 'Length', type: 'int', default: 14,
       }),
     ])
     // ⭐⭐ AND THE PLACEMENT IS TRUE ABOUT THE TREE THAT WILL BE SAVED — the
@@ -156,7 +156,7 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // walking the locator's astPath through THAT tree must land on the literal.
     const locs = handed.outputs[0].paramLocators
     expect(locs).toHaveLength(1)
-    expect(locs[0].id).toBe('__uct_param_1')
+    expect(locs[0].id).toBe('__uct_param_1001')
     const parsed = parseFormula(handed.source)
     expect(parsed.ok).toBe(true)
     let node = parsed.ast
@@ -187,7 +187,7 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // differ. The AUTHOR'S OWN number (14) is still what "was 14" shows
     // above — that sentence is unaffected by this.
     expect(handed.source).toBe('sma(close, 50)')
-    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1', default: 50 })
+    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1001', default: 50 })
   })
 
   it('⛔⛔ CLEARING the field returns to the author\'s length — blank is not zero', async () => {
@@ -208,7 +208,7 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // above); the CLAIM this test exists for (blank clears back to the author's
     // 14, never a coerced 0) is unchanged and still checked, on `handed.source`.
     expect(handed.source).toBe('sma(close, 14)')
-    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1', default: 14 })
+    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1001', default: 14 })
   })
 
   it('⛔⛔ a length OUTSIDE the author\'s bounds REFUSES, and the field stays', async () => {

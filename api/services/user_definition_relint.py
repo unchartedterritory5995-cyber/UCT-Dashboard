@@ -179,6 +179,20 @@ STORED_LOOSER = "stored-looser"
 UNCOMPARABLE = "uncomparable"
 
 
+#: ⭐ C45 — the stored `requirements` stamp lacks a tag the manifest derives
+#: today. The ONE direction of that column this pass acts on, and it is the
+#: opposite of `repaint`'s: a stamp SHORTER than reality ADMITS a script to a
+#: consumer that should have refused it (`closedTable.json::_requirement_tags.
+#: _stamped_not_recomputed`), so it is healed toward MORE tags and the armed
+#: alerts standing on the short stamp are NAMED.
+REQUIREMENTS_SHORT = "requirements-short"
+
+#: The `plot_key` a requirements heal is logged under. Not a plot: the stamp is
+#: one list for the whole definition. A plot key is a formula identifier and
+#: cannot start with `*`, so this cannot collide with one.
+REQUIREMENTS_LOG_KEY = "*requirements"
+
+
 class RelintVocabularyError(RuntimeError):
     """A repaint mode this pass cannot place on the gate's own scale.
 
@@ -460,6 +474,89 @@ def _heal(finding: Mapping[str, Any], now: int) -> bool:
     return True
 
 
+# ─── C45 — the requirements stamp ────────────────────────────────────────────
+#
+# ⭐ THE MANIFEST PROMISED THIS AND THE PASS DID NOT DO IT. `_requirement_tags.
+# _stamped_not_recomputed` says, of this column: *"the re-lint pass heals toward
+# MORE tags and reports the missing direction with the armed consumers named"*.
+# Until C45 this module never read the column. It mattered the day a tag's roster
+# grew: every definition saved BEFORE the roster grew carries a stamp that says
+# nothing, every consumer reads the STORED stamp (by design — the contract a
+# member saved under and the one a consumer admitted it under are one fact), and
+# so the new containment reached no definition that already existed.
+#
+# ⛔ THE DIRECTION IS ONE-WAY. A stored stamp that is LONGER than today's
+# derivation refuses more than it need; that is the safe side and it is left
+# alone (a tag removed from the manifest is a ruling, and un-refusing a stored
+# definition is not this pass's to do). Only a MISSING tag is written.
+
+def requirements_drift(row: Mapping[str, Any]) -> Optional[dict]:
+    """One stored definition -> the tags its stamp lacks, or ``None``.
+
+    The derivation is `user_definitions.requirement_tags` — exactly what a
+    `save()` today would stamp — never a second reading of the manifest here.
+    """
+    from api.services import user_definitions
+
+    stored = row.get("requirements")
+    if not isinstance(stored, list):
+        stored = []
+    current = user_definitions.requirement_tags(row.get("definition") or {})
+    missing = sorted(set(current) - set(stored))
+    if not missing:
+        return None
+    return {
+        "user_id": row.get("user_id"),
+        "def_id": row.get("def_id"),
+        "version": row.get("version"),
+        "plot_key": None,                 # the whole definition: every plot's alerts
+        "stored": sorted(stored),
+        "current": sorted(set(stored) | set(current)),
+        "missing": missing,
+        "verdict": REQUIREMENTS_SHORT,
+        "note": "the stored requirements stamp lacks a tag the manifest derives "
+                "today — a comparability consumer reading it admits a script it "
+                "should refuse",
+    }
+
+
+def _heal_requirements(finding: Mapping[str, Any], now: int) -> bool:
+    """Write the longer stamp, under compare-and-set. True if written.
+
+    Same lock, same re-read and same narrowness as `_heal`: the `requirements`
+    COLUMN of the newest live row, and only if it still holds the value the
+    decision was taken against.
+    """
+    from api.services import user_definitions as ud
+
+    with ud._WRITE_LOCK, contextlib.closing(ud._connect()) as c:
+        ud._ensure(c)
+        c.executescript(_LOG_SCHEMA)
+        row = ud._newest(c, finding["user_id"], finding["def_id"])
+        if row is None or row["deleted_at"] is not None:
+            return False
+        if row["version"] != finding["version"]:
+            return False                      # superseded while we were deciding
+        if ud._requirements_of(row) != list(finding["stored"]):
+            return False                      # the stamp moved under the decision
+        c.execute(
+            "UPDATE user_definitions SET requirements=? "
+            "WHERE user_id=? AND def_id=? AND version=?",
+            (json.dumps(list(finding["current"]), separators=(",", ":")),
+             str(finding["user_id"]), finding["def_id"], int(finding["version"])),
+        )
+        c.execute(
+            "INSERT INTO user_definition_relint_log "
+            "(user_id, def_id, version, plot_key, old_mode, new_mode, healed_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (str(finding["user_id"]), finding["def_id"], int(finding["version"]),
+             REQUIREMENTS_LOG_KEY, json.dumps(list(finding["stored"])),
+             json.dumps(list(finding["current"])), now),
+        )
+        c.commit()
+    return True
+
+
 def heal_log(user_id: Any = None, def_id: Optional[str] = None) -> List[dict]:
     """The audit trail: every heal this pass has written, oldest first.
 
@@ -519,8 +616,29 @@ def relint(*, heal: bool = True, now: Optional[int] = None) -> dict:
     needs_decision: List[dict] = []
     uncomparable: List[dict] = []
 
+    requirements_healed: List[dict] = []
+    requirements_unhealed: List[dict] = []
+
+    from api.services import runtime_definitions
     for row in user_definitions.live_definitions():
         definitions_read += 1
+        # ⭐ RT1 — a runtime-lane document carries no tree and no manifest-derived
+        # stamp to drift: its repaint verdict is the runtime door's
+        # (`runtime_definitions.repaint_stamp`), and no consumer that reads these
+        # two stamps admits its lane. There is nothing here to compare.
+        if runtime_definitions.is_runtime(row.get("definition") or {}):
+            continue
+        # ⭐ C45 — the requirements stamp, healed toward MORE tags (see
+        # `requirements_drift`). The armed ids are EVERY active alert on the
+        # definition: each stands on the short stamp and is refused at its next
+        # admission, with the tag's own sentence.
+        short = requirements_drift(row)
+        if short is not None:
+            short = dict(short, armed_alert_ids=_armed_for(armed, short))
+            if heal and _heal_requirements(short, now):
+                requirements_healed.append(dict(short, healed_at=now))
+            else:
+                requirements_unhealed.append(dict(short, healed_at=None))
         for found in compare_row(row):
             plots_read += 1
             verdict = found["verdict"]
@@ -552,9 +670,15 @@ def relint(*, heal: bool = True, now: Optional[int] = None) -> dict:
     # reader who only checks `armed_alerts_affected` was told the second when the
     # truth was the first. An empty authority is not one
     # (`lesson_a_second_authority_over_one_value`).
+    # ⭐ C45 — AND EVERY ALERT STANDING ON A SHORT REQUIREMENTS STAMP, healed or
+    # not: healed, it is refused at its next admission; unhealed, it is admitted
+    # under a stamp that is known to be wrong. Either way somebody must be told.
     affected = sorted({a for f in needs_decision + uncomparable
+                       + requirements_healed + requirements_unhealed
                        for a in f.get("armed_alert_ids") or []})
     return {
+        "requirements_healed": requirements_healed,
+        "requirements_unhealed": requirements_unhealed,
         "definitions_read": definitions_read,
         "plots_read": plots_read,
         "agreed": agreed,
@@ -580,6 +704,39 @@ def format_report(report: Mapping[str, Any]) -> str:
     dangerous = [f for f in report.get("needs_decision") or []
                  if f.get("verdict") == STORED_LOOSER]
     unplaceable = report.get("uncomparable") or []
+
+    # ⭐ C45 — CONTAINMENT LEADS. A requirements stamp shorter than the manifest
+    # derives is a script admitted to a consumer that should have refused it.
+    def stamp_lines(found: List[dict]) -> List[str]:
+        out = []
+        for f in found:
+            ids = f.get("armed_alert_ids") or []
+            out.append(
+                f"  {f['def_id']} v{f['version']} (user {f['user_id']}): "
+                f"stored {f['stored']!r}, the manifest derives {f['current']!r} "
+                f"(missing {f['missing']!r}) — "
+                + (f"ARMED: active alert ids {ids}" if ids
+                   else "no ACTIVE alert on this definition"))
+        return out
+
+    short_unhealed = report.get("requirements_unhealed") or []
+    short_healed = report.get("requirements_healed") or []
+    if short_unhealed:
+        lines.append(
+            f"NEEDS A DECISION — {len(short_unhealed)} stored requirements stamp(s) "
+            "LACK a tag the manifest derives today and were NOT healed (heal "
+            "disabled, or the row moved under the decision; re-run). Until they "
+            "are, every consumer reading the stamp admits a script it should refuse:")
+        lines.extend(stamp_lines(short_unhealed))
+    if short_healed:
+        lines.append(
+            f"CONTAINMENT HEALED — {len(short_healed)} stored requirements stamp(s) "
+            "gained the tag(s) they lacked. Each definition is now refused by the "
+            "consumers its tags name, with the tag's own sentence; an ARMED alert "
+            "below is refused at its next admission and its owner should be told:")
+        lines.extend(stamp_lines(short_healed))
+    if short_unhealed or short_healed:
+        lines.append("")
 
     def armed_clause(f: Mapping[str, Any]) -> str:
         ids = f.get("armed_alert_ids") or []
@@ -707,7 +864,8 @@ def _main(argv: Optional[List[str]] = None) -> int:                # pragma: no 
     # PLACE. Exiting 0 on an uncomparable finding tells every caller that gates on
     # this command that the store is clean, when the true answer is "I could not
     # tell" — and an alert may be armed on the badge in question.
-    return 1 if (report["needs_decision"] or report["uncomparable"]) else 0
+    return 1 if (report["needs_decision"] or report["uncomparable"]
+                 or report["requirements_unhealed"]) else 0
 
 
 if __name__ == "__main__":                                         # pragma: no cover

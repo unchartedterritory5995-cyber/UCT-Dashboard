@@ -3,30 +3,44 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { vi } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../test-utils'
-import NavBar from './NavBar'
+import NavBar, { NAV_ITEMS } from './NavBar'
 
-test('free tier: Morning Wire links to its page, everything else is locked to upgrade', () => {
-  // Free tier (default, no paid plan). Morning Wire is the ONLY free page
-  // (owner decision 2026-07-19). Paid tools are not hidden — they render
-  // dimmed + locked and route to /subscribe so a free user can see what
-  // Pro unlocks.
+test('no free tier: every nav entry, the Morning Wire included, is locked to upgrade', () => {
+  // Owner ruling 2026-10-02 (TERM-081 / OI-12), "everything is paywall". Until
+  // then the Wire was the one free page and linked to itself here. Paid tools
+  // are still not hidden from a non-paid member — they render dimmed + locked
+  // and route to /subscribe so the member can see what Pro unlocks.
   renderWithProviders(<NavBar />)
   expect(screen.getByTestId('nav-sidebar')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /morning wire/i })).toHaveAttribute('href', '/morning-wire')
-  // Everything else is VISIBLE but routed to the upgrade page
-  expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/subscribe')
-  expect(screen.getByRole('link', { name: /breadth/i })).toHaveAttribute('href', '/subscribe')
-  expect(screen.getByRole('link', { name: /^charts — unlock with pro$/i })).toHaveAttribute('href', '/subscribe')
-  expect(screen.getByRole('link', { name: /model book/i })).toHaveAttribute('href', '/subscribe')
-  expect(screen.getByRole('link', { name: /uct terminal/i })).toHaveAttribute('href', '/subscribe')
+  expect(screen.getByRole('link', { name: /morning wire — unlock with pro/i })).toHaveAttribute('href', '/subscribe')
+  // DERIVED, not a hand-picked sample: every declared item that renders.
+  // (/community is dark-launched and renders nothing until enabled.)
+  const rendered = NAV_ITEMS.filter((i) => i.to !== '/community')
+  expect(rendered.length).toBeGreaterThan(5)
+  for (const item of rendered) {
+    const link = screen.getByRole('link', { name: `${item.label} — unlock with Pro` })
+    expect(link, `${item.to} is reachable without a paid plan`).toHaveAttribute('href', '/subscribe')
+  }
+  expect(screen.queryByRole('link', { name: /^morning wire$/i })).toBeNull()
   // Settings is paid-only too (2026-07-19) — locked to upgrade for free users
   expect(screen.getByRole('link', { name: /settings — unlock with pro/i })).toHaveAttribute('href', '/subscribe')
 })
 
-test('active link has active class', () => {
-  renderWithProviders(<NavBar />, { route: '/morning-wire' })
-  const wireLink = screen.getByRole('link', { name: /morning wire/i })
-  expect(wireLink.className).toMatch(/active/)
+test('active link has active class (paid member)', async () => {
+  vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+    ok: true, status: 200,
+    json: () => Promise.resolve(String(url).startsWith('/api/auth/me')
+      ? { user: { id: 1, email: 'p@local', role: 'admin', email_verified: true }, plan: 'lifetime' }
+      : {}),
+  })))
+  try {
+    renderWithProviders(<NavBar />, { route: '/morning-wire' })
+    const wireLink = await screen.findByRole('link', { name: /^morning wire$/i })
+    expect(wireLink).toHaveAttribute('href', '/morning-wire')
+    expect(wireLink.className).toMatch(/active/)
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 test('Flow Scoreboard is reachable from the nav, not only from a dashboard tile', () => {

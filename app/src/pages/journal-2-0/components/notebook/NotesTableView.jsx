@@ -2,6 +2,8 @@ import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
+import ComputedValue from './ComputedValue'
+import ComputedFilterControl from './ComputedFilterControl'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -71,6 +73,12 @@ export default function NotesTableView({
    *  ⛔ Every checkbox stops its click at its own label: the row opens the
    *  note on click, and selecting must never also navigate away. */
   selection = null,
+  /** Wave 11 (lane 11B): the active property filter (for a computed column's
+   *  filter button to show and edit its own condition), and the door that sets
+   *  ONE computed column's condition -- `(propertyId, {op, value} | null)`.
+   *  Absent (null) on a saved view, whose filter is server-resolved. */
+  propertyFilter = null,
+  onComputedFilter = null,
 }) {
   const isBlocked = (id) => Boolean(blockedNoteIds && blockedNoteIds.has(id))
   const rowCheckbox = (n) => (
@@ -84,9 +92,15 @@ export default function NotesTableView({
     </label>
   )
   const userDefs = (propertyDefs || []).filter((d) => d.source === 'user_set')
-  const usedDefs = userDefs.filter((d) =>
-    notes.some((n) => n.propertiesJson && n.propertiesJson[d.id] !== undefined && n.propertiesJson[d.id] !== null),
-  )
+  // Wave 11: a formula or rollup column is ALWAYS shown once the member made one --
+  // its values are computed for every note, so "no note uses it" is never true of it.
+  const usedDefs = userDefs.filter((d) => d.computed || notes.some(
+    (n) => n.propertiesJson && n.propertiesJson[d.id] !== undefined && n.propertiesJson[d.id] !== null,
+  ))
+  const computedCond = (id) => {
+    const c = (propertyFilter || []).find((x) => x.propertyId === id)
+    return c ? { op: c.op, value: c.value } : null
+  }
 
   const sortIcon = (active, dir) => (
     <UIcon name={dir === 'asc' ? 'chevronUp' : 'chevronDown'} size={10} style={{ marginLeft: 4, opacity: active ? 1 : 0.3 }} />
@@ -188,7 +202,27 @@ export default function NotesTableView({
       ariaSort: updatedDir === 'asc' ? 'ascending' : updatedDir === 'desc' ? 'descending' : undefined,
       render: (n) => timeAgo(n.updatedAt),
     },
-    ...usedDefs.map((def) => ({
+    ...usedDefs.map((def) => (def.computed ? {
+      key: def.id,
+      // Wave 11: sorted and filtered ON THE SERVER, over the whole library -- a
+      // client sort of this page would order 100 notes and call it the answer.
+      header: (
+        <span className={styles.headCell}>
+          <button type="button" className={styles.sortBtn} onClick={() => onPropertySortChange(def.id)}>
+            {def.name}
+            {sortIcon(propertySort?.propertyId === def.id, propertySort?.direction || 'asc')}
+          </button>
+          {onComputedFilter && (
+            <ComputedFilterControl name={def.name} cond={computedCond(def.id)}
+              onChange={(cond) => onComputedFilter(def.id, cond)} />
+          )}
+        </span>
+      ),
+      ariaSort: propertySort?.propertyId === def.id
+        ? (propertySort.direction === 'desc' ? 'descending' : 'ascending') : undefined,
+      secondary: true,
+      render: (n) => <ComputedValue cell={n.computed?.[def.id]} />,
+    } : {
       key: def.id,
       // Wave 6: a relation has no order a member means (the server refuses to
       // sort by one), so its header is a label, never a sort button that 400s.

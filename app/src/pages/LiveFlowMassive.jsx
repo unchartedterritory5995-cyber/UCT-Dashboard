@@ -5,6 +5,9 @@ import UIcon from "../components/ui/UIcon";
 import useLongPress from "../components/mobile/useLongPress";
 import { useIsPhone } from "../hooks/useBreakpoint";
 import "./LiveFlowMassive.mobile.css";
+import Checkbox from '../components/ui/Checkbox'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -1061,7 +1064,7 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
             position: "absolute", left: 9, color: P.mt, fontSize: 12,
             pointerEvents: "none",
           }}>🔍</span>
-          <input
+          <Input aria-label="Search tickers"
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -1608,7 +1611,7 @@ function DateRail({ targetDate, onDateChange, onRange, rangeDays }) {
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
         <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
-        <input
+        <Input aria-label="Date"
           type="date" value={iso}
           onChange={(e) => {
             const v = e.target.value;
@@ -2200,8 +2203,8 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
   const previewPassVoiReq = alerts.filter(a => qualifiesCurated(a, thresholdsIfVoiReq)).length;
   const previewTotal = alerts.length;
 
-  const NumberInput = ({ value, onChange, step = 50000, min = 0, suffix = "" }) => (
-    <input
+  const NumberInput = ({ value, onChange, step = 50000, min = 0, suffix = "", label }) => (
+    <Input aria-label={label}
       type="number" value={value} step={step} min={min}
       onChange={e => onChange(Number(e.target.value))}
       style={{
@@ -2277,7 +2280,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             </span>
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11,
               fontWeight: 700, color: autoPushCfg.enabled ? DIR_BULL : P.dm }}>
-              <input type="checkbox" checked={!!autoPushCfg.enabled}
+              <Checkbox checked={!!autoPushCfg.enabled}
                 onChange={e => onAutoPush && onAutoPush({ enabled: e.target.checked })} />
               {autoPushCfg.enabled ? "ON" : "OFF"}
             </label>
@@ -2289,25 +2292,25 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: P.dm }}>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-              <input type="checkbox" checked={!!autoPushCfg.alpha_gold}
+              <Checkbox checked={!!autoPushCfg.alpha_gold}
                 onChange={e => onAutoPush && onAutoPush({ alpha_gold: e.target.checked })} /> Alpha Gold
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                    title="Aggregate ask-side build (sweeps + blocks) ≥ $3M on one LEAP contract (DTE ≥ 180), near-the-money. Institutional conviction the single-print tiers miss.">
-              <input type="checkbox" checked={autoPushCfg.alpha_leaps !== false}
+              <Checkbox checked={autoPushCfg.alpha_leaps !== false}
                 onChange={e => onAutoPush && onAutoPush({ alpha_leaps: e.target.checked })} /> Alpha LEAPS
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-              <input type="checkbox" checked={!!autoPushCfg.grade_a}
+              <Checkbox checked={!!autoPushCfg.grade_a}
                 onChange={e => onAutoPush && onAutoPush({ grade_a: e.target.checked })} /> Grade A / A+
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                    title="Aggregate ask-side build (sweeps + blocks) ≥ $1M on one strike of a name that normally sees no flow. Catches conviction on quiet tickers that no single print surfaces.">
-              <input type="checkbox" checked={autoPushCfg.ask_accum !== false}
+              <Checkbox checked={autoPushCfg.ask_accum !== false}
                 onChange={e => onAutoPush && onAutoPush({ ask_accum: e.target.checked })} /> Ask Accumulation
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-              <input type="checkbox" checked={!!autoPushCfg.size_sweep_enabled}
+              <Checkbox checked={!!autoPushCfg.size_sweep_enabled}
                 onChange={e => onAutoPush && onAutoPush({ size_sweep_enabled: e.target.checked })} /> Size B sweeps &ge; $3M
             </label>
           </div>
@@ -2406,20 +2409,20 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         <div style={{ color: P.wh, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
           QUALITY CONFIRMERS — beyond the premium floor (which is always required),
           alert must also meet ≥{" "}
-          <NumberInput value={thresholds.stack.min_signals}
+          <NumberInput label="Minimum quality confirmers" value={thresholds.stack.min_signals}
             onChange={v => setPath(["stack","min_signals"], v)} step={1} min={0} />
           {" "}of these 3:
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingLeft: 12 }}>
           <div><Label>V/OI ≥</Label>
-            <NumberInput value={thresholds.stack.vOI}
+            <NumberInput label="Stack V/OI minimum" value={thresholds.stack.vOI}
               onChange={v => setPath(["stack","vOI"], v)} step={0.5} />
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
             <label style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               marginLeft: 12, fontSize: 10, color: P.wh, cursor: "pointer",
             }}>
-              <input type="checkbox"
+              <Checkbox
                 checked={!!thresholds.stack.voi_required}
                 onChange={e => setPath(["stack","voi_required"], e.target.checked)}
                 style={{ margin: 0, cursor: "pointer" }} />
@@ -2427,12 +2430,12 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             </label>
           </div>
           <div><Label>Hit count ≥</Label>
-            <NumberInput value={thresholds.stack.hit_count}
+            <NumberInput label="Stack hit count minimum" value={thresholds.stack.hit_count}
               onChange={v => setPath(["stack","hit_count"], v)} step={1} min={1} />
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>fires</span>
           </div>
           <div><Label>Grade ≥</Label>
-            <select value={thresholds.stack.grade}
+            <Select aria-label="Minimum grade" value={thresholds.stack.grade}
               onChange={e => setPath(["stack","grade"], e.target.value)}
               style={{
                 padding: "3px 6px", fontSize: 11, background: P.bg,
@@ -2444,7 +2447,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               <option value="B">B</option>
               <option value="C">C</option>
               <option value="D">D</option>
-            </select>
+            </Select>
           </div>
           <div style={{ color: P.dm, fontSize: 10, fontStyle: "italic" }}>
             0 = premium alone OK · 1 = +1 confirmer · 3 = strictest
@@ -2464,58 +2467,58 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, alignItems: "flex-start" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.derive_strict_bid_only_bb ?? true}
               onChange={e => setPath(["derive_strict_bid_only_bb"], e.target.checked)} />
             <span>Strict bid (<code>BB</code> only)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.sweep_empty_side_as_ask ?? false}
               onChange={e => setPath(["sweep_empty_side_as_ask"], e.target.checked)} />
             <span>Blank-side sweeps → ASK</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.spotless_itm_guard ?? true}
               onChange={e => setPath(["spotless_itm_guard"], e.target.checked)} />
             <span>Guard deep-ITM when spot missing</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.hide_sizeless ?? false}
               onChange={e => setPath(["hide_sizeless"], e.target.checked)} />
             <span>Hide neutral “Not Clean” rows</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.hide_block_only ?? false}
               onChange={e => setPath(["hide_block_only"], e.target.checked)} />
             <span>Hide block-only (require sweep)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.incremental_scan ?? false}
               onChange={e => setPath(["incremental_scan"], e.target.checked)} />
             <span>Incremental scan (perf - fixes blank sides)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
                  title="Auto-push scans only symbols with new prints since the last cycle (not the whole day), so Discord alerts fire in ~60s even at the cold open. Dedup guarantees no double/missed push. Flip off to revert to the full-day scan instantly.">
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.autopush_incremental ?? false}
               onChange={e => setPath(["autopush_incremental"], e.target.checked)} />
             <span>Incremental auto-push (perf - fixes open-time alert lag)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
                  title="Run the heavy dashboard curated scan in a separate process (off the GIL) so it stops starving the WS + auto-push. Same classification, just faster; any failure falls back in-process. Flip off to revert instantly.">
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.scan_offload ?? false}
               onChange={e => setPath(["scan_offload"], e.target.checked)} />
             <span>Offload dashboard scan (perf - fixes feed wedge + alert lag)</span>
           </label>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.wh }}
                  title="Clean directional flow only: drop bid-side sells contaminated by earlier ask-buying on the same contract (likely profit-take / mixed, not clean conviction) from the directional tiers — they surface as neutral 'Not Clean'. Clean writes and ask-side buys are kept.">
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.close_detector_enabled ?? false}
               onChange={e => setPath(["close_detector_enabled"], e.target.checked)} />
             <span>Clean directional (drop mixed bid-sells)</span>
@@ -2524,17 +2527,17 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
             <span>Direction max ITM %</span>
-            <NumberInput value={thresholds.direction_max_itm_pct ?? 20}
+            <NumberInput label="Direction max ITM %" value={thresholds.direction_max_itm_pct ?? 20}
               onChange={v => setPath(["direction_max_itm_pct"], v)} step={1} min={0} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
             <span>Keep-as-Size min premium</span>
-            <NumberInput value={thresholds.keep_sizeless_min_premium ?? 1000000}
+            <NumberInput label="Keep-as-Size min premium" value={thresholds.keep_sizeless_min_premium ?? 1000000}
               onChange={v => setPath(["keep_sizeless_min_premium"], v)} step={250000} min={0} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: P.mt }}>
             <span>Net-flow min ratio</span>
-            <NumberInput value={thresholds.net_flow_min_ratio ?? 0.67}
+            <NumberInput label="Net-flow min ratio" value={thresholds.net_flow_min_ratio ?? 0.67}
               onChange={v => setPath(["net_flow_min_ratio"], v)} step={0.01} min={0} />
           </div>
         </div>
@@ -2574,7 +2577,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                 </td>
                 {["mid_small","large","mega"].map(band => (
                   <td key={band} style={{ padding: "3px 6px" }}>
-                    <NumberInput
+                    <NumberInput label={`${t} ${band} premium floor`}
                       value={thresholds.premium_by_cap[t]?.[band] || 0}
                       onChange={v => setPath(["premium_by_cap",t,band], v)}
                       step={50000} min={0}
@@ -2594,11 +2597,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         </div>
         <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center" }}>
           <div><Label>Min premium</Label>
-            <NumberInput value={thresholds.unusual.min_premium}
+            <NumberInput label="Unusual min premium" value={thresholds.unusual.min_premium}
               onChange={v => setPath(["unusual","min_premium"], v)} step={25000} />
           </div>
           <div><Label>V/OI ≥</Label>
-            <NumberInput value={thresholds.unusual.vOI}
+            <NumberInput label="Unusual V/OI minimum" value={thresholds.unusual.vOI}
               onChange={v => setPath(["unusual","vOI"], v)} step={0.5} />
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
           </div>
@@ -2613,17 +2616,17 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         </div>
         <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 4, color: P.wh, fontSize: 11, cursor: "pointer" }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.premium_override?.enabled ?? true}
               onChange={e => setPath(["premium_override","enabled"], e.target.checked)} />
             Enabled
           </label>
           <div><Label>Min premium</Label>
-            <NumberInput value={thresholds.premium_override?.min_premium ?? 1000000}
+            <NumberInput label="Premium override min premium" value={thresholds.premium_override?.min_premium ?? 1000000}
               onChange={v => setPath(["premium_override","min_premium"], v)} step={100000} />
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 4, color: P.wh, fontSize: 11, cursor: "pointer" }}>
-            <input type="checkbox"
+            <Checkbox
               checked={thresholds.premium_override?.require_sweep_or_block ?? true}
               onChange={e => setPath(["premium_override","require_sweep_or_block"], e.target.checked)} />
             Require SWEEP/BLOCK type
@@ -2647,7 +2650,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         </div>
         <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, color: P.wh, fontSize: 11, cursor: "pointer" }}>
-            <input type="checkbox"
+            <Checkbox
               checked={!!thresholds.etf_enabled}
               onChange={e => setPath(["etf_enabled"], e.target.checked)} />
             Include source='indexes' rows (SPY, QQQ, SOXL, NDXP, VIX, TLT, GDX, …)
@@ -2682,7 +2685,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
                 {TIER_META[tier]?.label || tier}
               </div>
               <div>
-                <NumberInput
+                <NumberInput label={`${TIER_META[tier]?.label || tier} ETF premium floor`}
                   value={thresholds.etf_premium_floors?.[tier] ?? 0}
                   onChange={v => setPath(["etf_premium_floors", tier], v)}
                   step={100000}
@@ -2705,11 +2708,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
         </div>
         <div style={{ display: "flex", gap: 16, paddingLeft: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div><Label>Min premium</Label>
-            <NumberInput value={thresholds.etf_unusual?.min_premium ?? 500000}
+            <NumberInput label="ETF unusual min premium" value={thresholds.etf_unusual?.min_premium ?? 500000}
               onChange={v => setPath(["etf_unusual","min_premium"], v)} step={100000} />
           </div>
           <div><Label>V/OI ≥</Label>
-            <NumberInput value={thresholds.etf_unusual?.vOI ?? 10.0}
+            <NumberInput label="ETF unusual V/OI minimum" value={thresholds.etf_unusual?.vOI ?? 10.0}
               onChange={v => setPath(["etf_unusual","vOI"], v)} step={1.0} />
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>x</span>
           </div>
@@ -2839,7 +2842,7 @@ function DormantStatusPanel() {
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ color: P.dm, fontSize: 10 }}>Lookback:</span>
-        <input
+        <Input aria-label="Lookback days"
           type="number" value={lookback} min={1} max={365} step={1}
           onChange={e => setLookback(parseInt(e.target.value, 10) || 30)}
           style={{
@@ -4724,7 +4727,7 @@ export default function LiveFlowMassive() {
               title="Hide contracts whose settled OI shows they CLOSED (exited). Runs Check OI if not yet fetched."
               style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
                 fontSize: 10, fontWeight: 700, color: stillOpenOnly ? P.ac : P.mt, cursor: "pointer" }}>
-              <input type="checkbox" checked={stillOpenOnly}
+              <Checkbox checked={stillOpenOnly}
                 onChange={(e) => {
                   const on = e.target.checked;
                   setStillOpenOnly(on);

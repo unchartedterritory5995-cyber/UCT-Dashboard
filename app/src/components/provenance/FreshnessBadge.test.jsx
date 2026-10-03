@@ -160,6 +160,26 @@ describe('TERM-059 age clause — a caller-decided as-of, rendered as text', () 
     expect(screen.getByTestId('freshness-age')).toHaveTextContent('as of 2026-06-17')
   })
 
+  it('TERM-006: a named data class renders the class\'s own cadence words, from the age authority', () => {
+    render(<FreshnessBadge age={{ dataClass: 'quarterly', asOfDate: '2026-06-17' }} />)
+    expect(screen.getByTestId('freshness-age').textContent).toBe('quarterly · as of 2026-06-17')
+  })
+
+  it('TERM-006: a named class ALSO works beside a D1 tier (the prop of the same name does not shadow it)', () => {
+    render(<FreshnessBadge freshnessClass="end_of_day" age={{ dataClass: 'end_of_day', asOfDate: '2026-06-17' }} />)
+    expect(screen.getByTestId('freshness-age').textContent).toBe('daily · as of 2026-06-17')
+  })
+
+  it('TERM-006: an unknown data class fails loudly rather than printing a guessed cadence', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(() => render(<FreshnessBadge age={{ dataClass: 'hourly', asOfDate: '2026-06-17' }} />))
+        .toThrow(/Unknown freshness class/)
+    } finally {
+      console.error.mockRestore()
+    }
+  })
+
   it('no age prop renders no age clause — every existing caller is unchanged', () => {
     render(<FreshnessBadge freshnessClass="delayed_15" />)
     expect(screen.queryByTestId('freshness-age')).toBeNull()

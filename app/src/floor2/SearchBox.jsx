@@ -1,4 +1,5 @@
 import { IconSearch } from './icons'
+import Input from '../components/ui/Input'
 
 // Plain search input — filters the feed as you type (no dropdown).
 export default function SearchBox({ query, setQuery }) {
@@ -6,7 +7,7 @@ export default function SearchBox({ query, setQuery }) {
     <div className="search-wrap">
       <div className="search">
         <IconSearch size={17} />
-        <input
+        <Input aria-label="Search the Floor"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') e.target.blur() }}

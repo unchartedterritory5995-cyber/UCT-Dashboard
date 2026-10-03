@@ -53,14 +53,14 @@ test('an active-trial member is routed to /dashboard, not the free page', async 
   expect(navigateSpy).toHaveBeenCalledWith('/dashboard', { replace: true })
 })
 
-test('a genuinely free, non-trial member still lands on /morning-wire', async () => {
+test('a genuinely free, non-trial member lands on the upgrade screen (no free page since 2026-10-02)', async () => {
   loginImpl = async () => ({
     user: { role: 'member' }, plan: 'free',
     trial: { active: false, days_left: 0 }, paid_equiv: false,
   })
   renderLogin()
   await submit()
-  expect(navigateSpy).toHaveBeenCalledWith('/morning-wire', { replace: true })
+  expect(navigateSpy).toHaveBeenCalledWith('/subscribe', { replace: true })
 })
 
 test('a paid-plan member still lands on /dashboard', async () => {

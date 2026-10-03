@@ -87,6 +87,16 @@ _TIMEOUT = httpx.Timeout(
 _client: httpx.AsyncClient | None = None
 
 
+def internal_read_headers() -> dict:
+    """Headers for a SERVER-SIDE read of the flow family (`/api/flow/*`).
+
+    Every flow read is `require_flow_user` (2026-08-09), which accepts the PUSH_SECRET bearer.
+    A server-side caller sends that SERVICE credential and never a member's session cookie.
+    Without a secret the read is refused (401); callers treat that as a failed read."""
+    secret = (os.environ.get("PUSH_SECRET") or "").strip()
+    return {"Authorization": f"Bearer {secret}"} if secret else {}
+
+
 def _get_client() -> httpx.AsyncClient:
     """Lazily create a pooled client bound to the running loop."""
     global _client

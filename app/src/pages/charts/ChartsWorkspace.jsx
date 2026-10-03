@@ -40,6 +40,7 @@ import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
+import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
@@ -55,6 +56,11 @@ import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y a
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
+import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
+import Checkbox from '../../components/ui/Checkbox'
+import Input from '../../components/ui/Input'
+import { isSuspendedGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -700,15 +706,18 @@ function readWatchlistColumns() {
 // looking at — not an empty group showing a blank Fundamentals panel or a chart
 // stuck on the SPY fallback). Fall back to the first populated group, then to
 // the next free color for a genuinely empty board.
-function pickWidgetColor(widgets, groupSyms) {
+function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
   // Owner request: every NEW widget defaults to the YELLOW color group (A) no matter
   // what — a consistent dot instead of the A→B→C→D cycle. A tickered chart still wins
   // so a new widget lands on the ticker you're looking at (that chart is normally
   // group A too); otherwise 'A', never the next free colour.
+  // COV-10 remainder: a widget stored on E-H while extra groups are off is not linked,
+  // so it is never the group a new widget inherits.
   const g = groupSyms || {}
-  const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
+  const live = (w) => g[w.color] && !isSuspendedGroup(w.color, extraGroupsOn)
+  const chartW = widgets.find((w) => w.type === 'chart' && live(w))
   if (chartW) return chartW.color
-  const anyW = widgets.find((w) => g[w.color])
+  const anyW = widgets.find((w) => live(w))
   if (anyW) return anyW.color
   return 'A'
 }
@@ -783,6 +792,8 @@ export default function ChartsWorkspace() {
   const [pendingAdd, setPendingAdd] = useState(null)
   const pendingAddRef = useRef(null)
   pendingAddRef.current = pendingAdd
+  // TERM-001: the sentence the last refused add produced (board at MAX_BOARD_WIDGETS), or null.
+  const [boardRefusal, setBoardRefusal] = useState(null)
 
   // Viewport-locked sizing: measure the workspace body and divide its height
   // by FIXED_ROWS so the grid always fills the visible area exactly. The page
@@ -825,6 +836,23 @@ export default function ChartsWorkspace() {
   const layoutRef = useRef(layout)
   layoutRef.current = layout
 
+  // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
+  // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
+  // first. A board at or over MAX_BOARD_WIDGETS is refused with the bound's own sentence and is
+  // otherwise left exactly as it is: nothing here removes, truncates or re-saves a widget.
+  // The server applies the same rule at save time (api/services/board_bound.py).
+  const refuseIfBoardFull = useCallback(() => {
+    const count = boardWidgetCount(layoutRef.current) ?? 0
+    if (boardCanGrow(count)) return false
+    setBoardRefusal(boardRefusalSentence(count + 1))
+    return true
+  }, [])
+  const boardCount = boardWidgetCount(layout) ?? 0
+  const boardHasRoom = boardCanGrow(boardCount)
+  const boardOverBound = boardOverBoundSentence(boardCount)
+  // A refusal describes a full board; once a widget is closed it is no longer true.
+  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom])
+
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
   useEffect(() => {
@@ -863,6 +891,12 @@ export default function ChartsWorkspace() {
   const storedLayoutUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
   const storedLayoutUnreadableRef = useRef(storedLayoutUnreadable)
   storedLayoutUnreadableRef.current = storedLayoutUnreadable
+
+  // COV-10 remainder: colour groups E-H (CHARTS_EXTRA_GROUPS_ENABLED). Held in a ref for
+  // pickWidgetColor so the add-widget callbacks keep their dependency lists.
+  const extraGroupsOn = useExtraGroupsEnabled()
+  const extraGroupsOnRef = useRef(extraGroupsOn)
+  extraGroupsOnRef.current = extraGroupsOn
 
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
@@ -1586,6 +1620,7 @@ export default function ChartsWorkspace() {
   }, [scheduleSave])
 
   const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false } = {}) => {
+    if (refuseIfBoardFull()) return
     // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
@@ -1605,7 +1640,7 @@ export default function ChartsWorkspace() {
       // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1699,7 +1734,7 @@ export default function ChartsWorkspace() {
       const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
       setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
     }
-  }, [scheduleSave, groupSyms])
+  }, [scheduleSave, groupSyms, refuseIfBoardFull])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
@@ -1748,8 +1783,10 @@ export default function ChartsWorkspace() {
   const commitPendingAdd = useCallback(() => {
     const cur = pendingAddRef.current
     if (!cur) return
+    // The ghost was offered while the board had room; something else may have filled it since.
+    if (refuseIfBoardFull()) { setPendingAdd(null); return }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       let widgets = prev.widgets
       if (cur.mutations && cur.mutations.length) {
         const byId = Object.fromEntries(cur.mutations.map(m => [m.id, m]))
@@ -1783,7 +1820,7 @@ export default function ChartsWorkspace() {
       return next
     })
     setPendingAdd(null)
-  }, [groupSyms, scheduleSave])
+  }, [groupSyms, scheduleSave, refuseIfBoardFull])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
   // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
   // its place + the widgets it displaces) before the user commits with Place.
@@ -1841,7 +1878,7 @@ export default function ChartsWorkspace() {
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
-      const color = pickWidgetColor(widgets, groupSyms)
+      const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
       const newWidget = {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,
@@ -1874,9 +1911,9 @@ export default function ChartsWorkspace() {
   }, [])
 
   // ── Named layout templates (prebuilt + personal) ──
-  const { user } = useAuth()
+  const { user, addressSpaceEnabled } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, adoptRow: adoptLayoutRow, isLoading: templatesLoading } = useChartLayouts()
 
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
@@ -1965,9 +2002,19 @@ export default function ChartsWorkspace() {
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
   // so any older-shaped template is normalized to the current grid.
-  const applyTemplate = useCallback((tpl) => {
+  const applyTemplate = useCallback((tpl, { skipFlush = false } = {}) => {
     if (!tpl?.layout?.widgets) return
-    flushNamedSaveRef.current?.()
+    // TERM-001: a saved layout larger than the bound may not replace a smaller board (the
+    // server refuses the same write). The saved layout itself is untouched in its store.
+    const tplCount = boardWidgetCount(tpl.layout)
+    if (!boardMayBecome(tplCount, boardWidgetCount(layoutRef.current))) {
+      setBoardRefusal(boardLayoutRefusalSentence(tplCount))
+      return
+    }
+    // COV-06: a version-history restore of the OPEN layout must not flush the
+    // board on screen into it first — that would save the replaced board over
+    // the restore it is about to show.
+    if (!skipFlush) flushNamedSaveRef.current?.()
     userRemovedRef.current = false
     suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
@@ -2047,44 +2094,25 @@ export default function ChartsWorkspace() {
   // Waits on templatesLoading the same way the deep-link effect waits on
   // prefsLoading — applying against an empty myLayouts/globalLayouts list
   // would silently no-op the very first time this ever runs.
-  const namedAddressAppliedRef = useRef(false)
-  useEffect(() => {
-    if (namedAddressAppliedRef.current || templatesLoading) return
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-    const openLayoutId = params.get('openLayout')
-    const openSharedToken = params.get('openShared')
-    if (!openLayoutId && !openSharedToken) return
-    namedAddressAppliedRef.current = true
-
-    const strip = () => {
-      try {
-        params.delete('openLayout')
-        params.delete('openShared')
-        const q = params.toString()
-        window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-      } catch { /* history unavailable — lingering params are harmless */ }
-    }
-
-    if (openLayoutId) {
-      const id = Number(openLayoutId)
-      const tpl = globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id)
-      strip()
-      if (tpl) applyTemplate(tpl)
-      // A missing id (deleted, or belongs to someone else and isn't shared)
-      // falls through to whatever the workspace would otherwise open on —
-      // never a crash, matching this repo's own "an invalid deep link degrades,
-      // it doesn't break the page" convention.
-      return
-    }
-
-    // Share token: not in the preloaded lists by construction (it may belong
-    // to a different user), so this is a live fetch.
-    fetch(`/api/charts/layouts/shared/${encodeURIComponent(openSharedToken)}`, { credentials: 'include' })
+  // TERM-038 in-page: through useDoorParam, so a pick from the palette while the board is
+  // ALREADY mounted opens the layout too (it used to apply once per mount only).
+  useDoorParam('openLayout', (raw) => {
+    const id = Number(raw)
+    const tpl = globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id)
+    // A missing id (deleted, or belongs to someone else and isn't shared)
+    // falls through to whatever the workspace would otherwise open on —
+    // never a crash, matching this repo's own "an invalid deep link degrades,
+    // it doesn't break the page" convention.
+    if (tpl) applyTemplate(tpl)
+  }, { ready: !templatesLoading })
+  // Share token: not in the preloaded lists by construction (it may belong
+  // to a different user), so this is a live fetch.
+  useDoorParam('openShared', (token) => {
+    fetch(`/api/charts/layouts/shared/${encodeURIComponent(token)}`, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : null))
-      .then(tpl => { strip(); if (tpl) applyTemplate(tpl) })
-      .catch(() => strip())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templatesLoading, globalLayouts, myLayouts])
+      .then(tpl => { if (tpl) applyTemplate(tpl) })
+      .catch(() => {})
+  }, { ready: !templatesLoading })
 
   // ── A12 CP2 (2026-09-25): a WATCHLIST is a name, and a name is an address ──────
   //
@@ -2094,21 +2122,11 @@ export default function ChartsWorkspace() {
   // the ?openLayout=/?openShared= doors above. The board's first Watchlist widget is
   // pointed at the list through its own opts path (so the change persists exactly like
   // a pick from the widget's menu); with no Watchlist widget on the board, one is added
-  // carrying the key. Runs once per mount, after prefs AND templates load (so it lands
+  // carrying the key. Runs after prefs AND templates load (so it lands
   // after the default-layout and named-address effects rather than under them), strips
-  // its own param, and an unrecognised key degrades to a no-op — never a crash.
-  const openWatchlistAppliedRef = useRef(false)
-  useEffect(() => {
-    if (openWatchlistAppliedRef.current || prefsLoading || templatesLoading) return
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-    const key = params.get('openWatchlist')
-    if (!key) return
-    openWatchlistAppliedRef.current = true
-    try {
-      params.delete('openWatchlist')
-      const q = params.toString()
-      window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
-    } catch { /* history unavailable — a lingering param is harmless */ }
+  // its own param, and an unrecognised key degrades to a no-op — never a crash. Runs on
+  // every router location that carries the param (useDoorParam), not only at mount.
+  useDoorParam('openWatchlist', (key) => {
     if (!WATCH_KEY_RE.test(key)) return
     const existing = layoutRef.current?.widgets?.find(w => w.type === 'watchlist')
     if (existing) {
@@ -2116,7 +2134,27 @@ export default function ChartsWorkspace() {
     } else {
       handleAddWidget('watchlist', { watchKey: key, watchName: null, watchTab: null }, { instant: true })
     }
-  }, [prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
+  }, { ready: !prefsLoading && !templatesLoading })
+
+  // ── TERM-038 slice 2 (2026-10-01): a THEME SET is a name, and a name is an address ──
+  //
+  //   ?openThemeSet=<id>   the T:<id> address door
+  //
+  // The ?openWatchlist= shape exactly: the board's first Themes widget is pointed at the
+  // set through its own opts path (ThemeTrackerPage follows opts.themeSetId), and with no
+  // Themes widget on the board one is added carrying the id. Honoured ONLY while the
+  // address space rides the auth payload (unset = the param is ignored and left alone, so
+  // the page is byte-identical). An id the member does not own falls back to the shared
+  // default inside ThemeTrackerPage, the same as a set deleted elsewhere.
+  useDoorParam('openThemeSet', (id) => {
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return
+    const existing = layoutRef.current?.widgets?.find(w => w.type === 'themes')
+    if (existing) {
+      handleOptsChange(existing.id, { ...(existing.opts || {}), themeSetId: id })
+    } else {
+      handleAddWidget('themes', { themeSetId: id }, { instant: true })
+    }
+  }, { ready: addressSpaceEnabled && !prefsLoading && !templatesLoading })
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
@@ -2685,9 +2723,20 @@ export default function ChartsWorkspace() {
   // Delete — reuses the workspace's own handler, so deleting the layout you are
   // IN still falls back to UCT Default rather than leaving you on a ghost.
   const handleDockDelete = useCallback((entry) => {
-    if (!entry || entry.id === UCT_DEFAULT_ID) return
-    handleDeleteTemplate(entry.id)
+    if (!entry || entry.id === UCT_DEFAULT_ID) return undefined
+    // Returned so the dock can re-read Recently deleted once the delete landed.
+    return handleDeleteTemplate(entry.id)
   }, [handleDeleteTemplate])
+
+  // COV-06 — a named layout was restored from its version history. The library
+  // row is adopted from the route's answer; if it is the layout you are IN, the
+  // board takes the restored arrangement WITHOUT the switch flush, otherwise the
+  // next auto-save would write the replaced board straight back over it.
+  const handleDockRestored = useCallback((row) => {
+    if (!row || row.id == null) return
+    adoptLayoutRow(row)
+    if (row.id === dockActiveId) applyTemplate(row, { skipFlush: true })
+  }, [adoptLayoutRow, applyTemplate, dockActiveId])
 
   // Same contract as Open Layout: opening a workspace layout leaves grid mode.
   const handleDockOpen = useCallback((entry) => {
@@ -2792,6 +2841,8 @@ export default function ChartsWorkspace() {
             onSaveLayout={handleSaveLayout}
             onSaveLayoutAs={handleSaveAsTemplate}
             onDeleteLayout={handleDeleteTemplate}
+            /* COV-06 — the same restore handler the desktop Layout Dock uses. */
+            onLayoutRestored={handleDockRestored}
           />
         )}
         {noticeHost}
@@ -2982,6 +3033,16 @@ export default function ChartsWorkspace() {
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
+            Nothing is removed from an over-bound board; it simply cannot grow. */}
+        {(boardRefusal || boardOverBound) && (
+          <div className={styles.boardBoundStatus} role="status" data-testid="board-bound-status">
+            <span>{boardRefusal || boardOverBound}</span>
+            {boardRefusal && (
+              <button type="button" onClick={() => setBoardRefusal(null)}>Dismiss</button>
+            )}
+          </div>
+        )}
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
@@ -2996,6 +3057,12 @@ export default function ChartsWorkspace() {
               <div className={`${styles.addMenu} ${styles.wAddMenu}`} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
                 {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
                     click to drop a widget onto the board via smart placement. */}
+                {/* TERM-001: a full board says why in words and offers nothing to add. */}
+                {!boardHasRoom && (
+                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
+                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
+                  </div>
+                )}
                 {WIDGET_MENU_GROUPS.map(group => (
                   <div key={group.key} className={styles.wAddGroup}>
                     <div className={styles.addMenuGroupLabel}>{group.label}</div>
@@ -3007,6 +3074,7 @@ export default function ChartsWorkspace() {
                             key={t}
                             type="button"
                             className={styles.wAddChip}
+                            disabled={!boardHasRoom}
                             title={meta.blurb || WIDGET_LABELS[t]}
                             onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
                           >
@@ -3079,7 +3147,7 @@ export default function ChartsWorkspace() {
                   <div className={styles.menuDivider} />
                   <div className={styles.menuForm}>
                     <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
-                    <input
+                    <Input aria-label="Template name"
                       className={styles.menuInput}
                       placeholder="Template name"
                       value={saveAsName}
@@ -3089,7 +3157,7 @@ export default function ChartsWorkspace() {
                     />
                     {isAdmin && (
                       <label className={styles.menuCheck}>
-                        <input type="checkbox" checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
+                        <Checkbox checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
                         Prebuilt (available to all users)
                       </label>
                     )}
@@ -3219,6 +3287,7 @@ export default function ChartsWorkspace() {
           onDuplicate={handleDockDuplicate}
           onDelete={handleDockDelete}
           onRename={handleDockRename}
+          onRestored={handleDockRestored}
         />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

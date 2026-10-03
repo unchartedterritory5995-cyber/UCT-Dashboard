@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SHARED_SCREEN_PARAM, sharedScreenReadUrl } from '../screenShareLink'
+import useDoorParam from '../../../hooks/useDoorParam'
 import { SPEC_PARAM, DEFAULT_SORT, DEFAULT_VIEW, encodeSpec, decodeSpec } from './specUrl'
 
 export const PAGE_SIZE = 100
@@ -23,6 +24,11 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   // ordering when present — query.py ranks by it and top_n bounds the list — so
   // an explicit column-header sort clears it (see setSort).
   const [rank, setRankState] = useState(fromUrl?.rank ?? null)
+  // FT-026: an optional all-of / any-of / none-of tree, ANDed server-side with
+  // `filters`. Set from the server's own parser (CriteriaBox), a saved spec, or
+  // the URL -- which carries it (`lg`), so refresh/back/forward and a copied
+  // link keep the grouped criteria instead of silently widening the screen.
+  const [logic, setLogicState] = useState(fromUrl?.logic ?? null)
   const [page, setPage] = useState(1)
 
   // ── shared-screen arrival: only when no working spec is in the URL ───────
@@ -39,16 +45,20 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── saved-screen arrival (build D, 2026-09-30): the door the command
+  // ── saved-screen door (build D, 2026-09-30): the door the command
   // palette's `S:<id>` address resolves to. Loads the member's OWN saved screen
-  // by id and applies it, once, only when no working spec is in the URL. A
-  // missing or unreadable screen leaves the page as it is and says so in the
-  // console -- never a silent swallow.
-  useEffect(() => {
-    if (fromUrl) return undefined
-    const want = new URLSearchParams(window.location.search).get(SAVED_SCREEN_PARAM)
-    if (!want) return undefined
-    let alive = true
+  // by id and applies it. A missing or unreadable screen leaves the page as it
+  // is and says so in the console -- never a silent swallow.
+  // TERM-038 in-page: through useDoorParam, so a pick made while the screener is
+  // ALREADY open applies too (it used to run once, at mount). A working spec in
+  // the URL AT MOUNT still wins over a door that arrived with it, as before.
+  const specBeatsMountDoorRef = useRef(
+    !!fromUrl && new URLSearchParams(window.location.search).has(SAVED_SCREEN_PARAM),
+  )
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+  useDoorParam(SAVED_SCREEN_PARAM, (want) => {
+    if (specBeatsMountDoorRef.current) { specBeatsMountDoorRef.current = false; return }
     ;(async () => {
       try {
         const r = await fetch('/api/screener/saved-screens', { credentials: 'include' })
@@ -56,14 +66,12 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
         const body = await r.json()
         const rec = (body?.saved || []).find(x => String(x.id) === String(want))
         if (!rec) throw new Error(`saved screen ${want} not found`)
-        if (alive && rec.spec) applySpec(rec.spec)
+        if (aliveRef.current && rec.spec) applySpec(rec.spec)
       } catch (err) {
         console.warn('[screener] savedScreen door:', err?.message || err)
       }
     })()
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  })
 
   // ── URL write: debounced replaceState; local edits strip `screen=` ───────
   const writeTimer = useRef()
@@ -73,7 +81,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     clearTimeout(writeTimer.current)
     writeTimer.current = setTimeout(() => {
       const url = new URL(window.location.href)
-      const enc = encodeSpec({ filters, sort, view, columns, rank })
+      const enc = encodeSpec({ filters, sort, view, columns, rank, logic })
       if (enc) url.searchParams.set(SPEC_PARAM, enc)
       else url.searchParams.delete(SPEC_PARAM)
       url.searchParams.delete(SHARED_SCREEN_PARAM)
@@ -81,7 +89,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       window.history.replaceState(null, '', url)
     }, 400)
     return () => clearTimeout(writeTimer.current)
-  }, [filters, sort, view, columns, rank])
+  }, [filters, sort, view, columns, rank, logic])
 
   // ── back/forward restores the encoded screen ─────────────────────────────
   useEffect(() => {
@@ -93,6 +101,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       setViewState(dec?.view ?? DEFAULT_VIEW)
       setColumnsState(dec?.columns ?? null)
       setRankState(dec?.rank ?? null)
+      setLogicState(dec?.logic ?? null)
       setPage(1)
     }
     window.addEventListener('popstate', onPop)
@@ -145,8 +154,10 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     if (s?.sort) setSortState({ ...s.sort })
     setColumnsState(Array.isArray(s?.columns) && s.columns.length ? [...s.columns] : null)
     setRankState(s?.rank ? { ...s.rank } : null)
+    setLogicState(s?.logic && typeof s.logic === 'object' ? s.logic : null)
     setPage(1)
   }, [])
+  const setLogic = useCallback(l => { setLogicState(l || null); setPage(1) }, [])
   const loadMore = useCallback(() => setPage(p => p + 1), [])
 
   const visibleColumns = useMemo(
@@ -159,7 +170,8 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   const baseSpec = useMemo(() => ({
     filters: Object.entries(filters).filter(([, v]) => v).map(([key, v]) => ({ key, ...v })),
     sort, view, ...(columns?.length ? { columns } : {}), ...(rank ? { rank } : {}),
-  }), [filters, sort, view, columns, rank])
+    ...(logic ? { logic } : {}),
+  }), [filters, sort, view, columns, rank, logic])
 
   const scanSpec = useMemo(() => ({
     ...baseSpec,
@@ -167,7 +179,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     page, page_size: PAGE_SIZE,
   }), [baseSpec, requestColumns, page])
 
-  return { filters, sort, view, columns, rank, visibleColumns, page,
-    setFilter, clearFilters, setSort, setRank, setView, setColumns, applySpec,
+  return { filters, sort, view, columns, rank, logic, visibleColumns, page,
+    setFilter, clearFilters, setSort, setRank, setView, setColumns, applySpec, setLogic,
     loadMore, resetPage, baseSpec, scanSpec }
 }

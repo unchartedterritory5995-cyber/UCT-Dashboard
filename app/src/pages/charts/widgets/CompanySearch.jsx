@@ -13,6 +13,7 @@ import UIcon from '../../../components/ui/UIcon'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { searchCompany, groupResults, highlightParts, POPULAR } from './companySearchIndex'
 import styles from './CompanySearch.module.css'
+import Input from '../../../components/ui/Input'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 const EXPLORE = ['Financial Statements', 'Earnings History', 'Valuation', 'Overview']
@@ -204,7 +205,7 @@ export default function CompanySearch({ sym, onClose }) {
     <div className={styles.root}>
       <div className={styles.bar}>
         <UIcon name="search" size={15} gold={false} />
-        <input ref={inputRef} className={styles.input} value={q} onChange={e => onQueryChange(e.target.value)} onKeyDown={onKey}
+        <Input aria-label="Search company information" ref={inputRef} className={styles.input} value={q} onChange={e => onQueryChange(e.target.value)} onKeyDown={onKey}
           placeholder="Search company information…" spellCheck={false} autoComplete="off" />
         <button type="button" className={styles.escBtn} onClick={onClose} title="Close (Esc)">Esc</button>
       </div>

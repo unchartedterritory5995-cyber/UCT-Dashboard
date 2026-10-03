@@ -1022,6 +1022,25 @@ def get_floor_thread(thread_id, viewer_id=None):
     return d
 
 
+def list_floor_titles():
+    """Every live Floor post as ``{id, title}`` (TERM-038 address space). The same
+    visibility predicate ``get_floor_thread`` applies: the Floor space, not deleted."""
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            "SELECT id, title FROM threads WHERE space=? AND deleted=0 ORDER BY id DESC",
+            (FLOOR_SPACE,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def floor_title(thread_id):
+    """``{id, title}`` of one live Floor post, else None (TERM-056 chips)."""
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT id, title FROM threads WHERE id=? AND space=? AND deleted=0",
+            (thread_id, FLOOR_SPACE)).fetchone()
+    return dict(row) if row else None
+
+
 def _normalize_words(text):
     out = []
     for ch in (text or "").lower():

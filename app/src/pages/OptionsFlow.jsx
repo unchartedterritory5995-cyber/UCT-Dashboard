@@ -85,6 +85,8 @@ import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoad
 // A clobber that drops these call sites also drops this import -> CI fails.
 import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+import MarketTidePanel from "./optionsAnalytics/MarketTidePanel";  // FT-056, dark: renders nothing until OPTIONS_MARKET_TIDE_ENABLED
+import StrategyScreensPanel from "./optionsAnalytics/StrategyScreensPanel";  // FT-072/073, dark: OPTIONS_STRATEGY_SCREENS_ENABLED
 
 // buildCharts counts its own runs (flowCompute.chartsBuildStats). flowCompute
 // must stay worker-safe -- it also runs in the flow Web Worker and in node --
@@ -637,7 +639,11 @@ const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracke
 // which is the failure this list exists to prevent.
 const FEATURE_DATA_TABS = ["Top Flow", "Tracker", "Watchlist"];
 
-export default function OptionsFlowDashboard() {
+// TERMINAL-NEXT (2026-10-02): the UCT Terminal's GEX function opens this page on its GEX
+// view for one ticker (`/options-flow?view=gex&ticker=NVDA`, parsed by App.jsx's
+// OptionsFlowRoute). Both props only SEED initial state and default to exactly the old
+// values, so every existing mount (no props) is byte-identical in behaviour.
+export default function OptionsFlowDashboard({ initialMode = null, initialGexTicker = null } = {}) {
   // ── Render timeline instrument ───────────────────────────────────────────
   // "Options Flow renders 8-15 times before stabilising while UCT20 renders
   // 2-3" is a claim about a RUN, so it needs a count from a run rather than an
@@ -659,7 +665,7 @@ export default function OptionsFlowDashboard() {
 
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";  // gates the Discord push controls
-  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index" | "liveflow" | "darkpool" | "gex"
+  const [dataMode, setDataMode] = useState(initialMode === "gex" ? "gex" : "stocks"); // "stocks" | "index" | "liveflow" | "darkpool" | "gex"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
   // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges
@@ -873,8 +879,8 @@ export default function OptionsFlowDashboard() {
   // curation stays intuitive — sorting by another column re-orders the rows
   // but each one keeps its #N badge from the score ranking.
   const [tfSort, setTfSort] = useState({ col: "score", dir: "desc" });
-  const [gexTicker, setGexTicker] = useState("SPY");
-  const [gexInput, setGexInput] = useState("SPY");
+  const [gexTicker, setGexTicker] = useState(initialGexTicker || "SPY");
+  const [gexInput, setGexInput] = useState(initialGexTicker || "SPY");
   const [gexData, setGexData] = useState(null);
   const [gexLoading, setGexLoading] = useState(false);
   const [gexDte, setGexDte] = useState("all");
@@ -4011,7 +4017,7 @@ export default function OptionsFlowDashboard() {
             }}>{t}</button>
           ))}
           </div>
-          <input type="text" value={hdrSearch}
+          <input type="text" aria-label="Search ticker" value={hdrSearch}
             onChange={e => setHdrSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
             onKeyDown={e => {
               if (e.key === "Enter" && hdrSearch.trim()) {
@@ -4394,7 +4400,7 @@ export default function OptionsFlowDashboard() {
             {/* Search + Quick Tickers + DTE */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"center" }}>
               <div style={{ display:"flex", gap:6, flex:"1 1 300px" }}>
-                <input type="text" value={gexInput}
+                <input type="text" aria-label="GEX ticker" value={gexInput}
                   onChange={e=>setGexInput(e.target.value.toUpperCase())}
                   onKeyDown={e=>{ if(e.key==="Enter") setGexTicker(gexInput.trim()); }}
                   placeholder="Enter ticker (SPY, NVDA, etc)"
@@ -5284,6 +5290,8 @@ export default function OptionsFlowDashboard() {
         {/* Market Read */}
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <MarketTidePanel />
+            <StrategyScreensPanel />
             {/* Flow Intelligence Summary */}
             {FD && D.clean_confirmed && (()=>{
               // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
@@ -7452,7 +7460,7 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ position:"relative" }}>
-              <input type="text" value={search}
+              <input type="text" aria-label="Search ticker, theme, or sector" value={search}
                 onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(tickerDb.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
                 placeholder="Search ticker, theme, or sector..."
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
@@ -7693,7 +7701,7 @@ export default function OptionsFlowDashboard() {
             {batchMode && (
               <Card>
                 <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
-                  <textarea value={batchTickers} onChange={e=>setBatchTickers(e.target.value.toUpperCase())}
+                  <textarea aria-label="Batch tickers" value={batchTickers} onChange={e=>setBatchTickers(e.target.value.toUpperCase())}
                     placeholder="Paste tickers: AAPL, TSLA, NVDA, META..."
                     rows={2}
                     style={{ flex:1, padding:"8px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", resize:"vertical" }}
@@ -8736,7 +8744,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                <input type="text" value={oiSearch}
+                <input type="text" aria-label="Search OI tickers" value={oiSearch}
                   onChange={e=>setOiSearch(e.target.value.toUpperCase())}
                   placeholder="Search ticker…"
                   style={{ width:140, padding:"6px 12px", borderRadius:6, fontSize:11, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
@@ -9011,7 +9019,7 @@ export default function OptionsFlowDashboard() {
                     background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
                     fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>All</button>
                 {trackerDates.length > 0 && (
-                  <select value={trackerDateFilter==="All"?"":trackerDateFilter}
+                  <select aria-label="Tracker date" value={trackerDateFilter==="All"?"":trackerDateFilter}
                     onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
                     style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit", fontWeight:600 }}>
                     <option value="">Select date...</option>
@@ -9218,7 +9226,7 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
                     {isEditing ? (
-                      <input type="number" step="0.5" min="0" max="10" value={item.score}
+                      <input type="number" aria-label={`${item.sym} score`} step="0.5" min="0" max="10" value={item.score}
                         onChange={e=>update("score",parseFloat(e.target.value)||0)}
                         onClick={e=>e.stopPropagation()}
                         style={{ width:40, background:P.al, border:"1px solid "+P.bd, borderRadius:3, color:P.wh, fontSize:11, padding:"1px 4px", fontFamily:"inherit" }}/>
@@ -9255,7 +9263,7 @@ export default function OptionsFlowDashboard() {
                     {item.liveOI>0 && <span style={{ color:P.ac }}>Live OI: <span style={{ fontWeight:700 }}>{item.liveOI.toLocaleString()}</span></span>}
                   </div>
                   {isEditing ? (
-                    <textarea value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
+                    <textarea aria-label={`${item.sym} trade notes`} value={item.notes||""} onChange={e=>{update("notes",e.target.value); e.stopPropagation();}}
                       onClick={e=>e.stopPropagation()}
                       placeholder="Trade notes, DP checks, GSA status..."
                       style={{ width:"100%", minHeight:40, marginTop:4, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"4px 6px", fontFamily:"inherit", resize:"vertical" }}/>
@@ -9324,7 +9332,7 @@ export default function OptionsFlowDashboard() {
                     ))}
                   </div>
                   <div style={{ display:"flex", gap:4 }}>
-                    <input value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
+                    <input aria-label={`Reason for removing ${item.sym}`} value={wlRemoveReason} onChange={e=>setWlRemoveReason(e.target.value)}
                       onKeyDown={e=>e.key==="Enter"&&wlRemoveReason.trim()&&confirmRemove(wlRemoveReason.trim())}
                       placeholder="Or type a custom reason..."
                       style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}/>
@@ -9351,7 +9359,7 @@ export default function OptionsFlowDashboard() {
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {wlDates.length>0 && (
-                    <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
+                    <select aria-label="Watchlist date" value={wlDate} onChange={e=>wlLoad(e.target.value)}
                       style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}>
                       <option value={new Date().toISOString().slice(0,10)}>Today</option>
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
@@ -9374,11 +9382,11 @@ export default function OptionsFlowDashboard() {
                       text-push Watchlist/Unusual buttons were retired. */}
                   {isAdmin && (
                     <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-                      <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
+                      <select aria-label="Discord post label" value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
                         style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"4px 0 0 4px", color:P.wh, fontSize:10, padding:"5px 6px", fontFamily:"inherit" }}>
                         {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                       </select>
-                      <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
+                      <select aria-label="Discord post count" value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
                         style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:10, padding:"5px 4px", fontFamily:"inherit" }}>
                         {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
                         <option value={99}>All</option>
@@ -9521,7 +9529,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBull.length>0?"No bull picks in this DTE range.":"No bull picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bull watchlist" value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9542,7 +9550,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ textAlign:"center", padding:20, color:P.dm, fontSize:11 }}>{wlBear.length>0?"No bear picks in this DTE range.":"No bear picks. Click \"Auto-Fill from Scanner\" to populate."}</div>
                     )}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bear watchlist" value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9567,7 +9575,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ marginBottom:8, height:19 }}/>
                     {renderCol(right, filtBull, wlBull, "bull")}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bull watchlist" value={wlAddBull} onChange={e=>setWlAddBull(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bull")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>
@@ -9591,7 +9599,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ marginBottom:8, height:19 }}/>
                     {renderCol(right, filtBear, wlBear, "bear")}
                     <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                      <input value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
+                      <input aria-label="Add ticker to bear watchlist" value={wlAddBear} onChange={e=>setWlAddBear(e.target.value.toUpperCase())}
                         onKeyDown={e=>e.key==="Enter"&&wlAddTicker("bear")}
                         placeholder="Add ticker..."
                         style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 8px", fontFamily:"inherit" }}/>

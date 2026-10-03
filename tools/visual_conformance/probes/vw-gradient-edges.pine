@@ -1,0 +1,61 @@
+//@version=6
+indicator("UCTPROBE_VW_GRADIENT_EDGES", overlay = false)
+
+// --- 2026-10-01 C48 - `color.from_gradient` AT ITS EDGES: THE CHANNELS NO ROW PRINTED ---
+//
+// `vw-colour-components-spy-1d-2026-10-01` graded the blend formula exact (3,600 of 3,600
+// component-bars) and showed what the edges return, but not every channel of it:
+//   - equal bounds / an `na` bound or value: rows print r, b and t of the result
+//     (0, 0, 100) and never g - the engine serves g = 0 by inference;
+//   - reversed bounds (bottom > top) with the value between them: rows print r and t of
+//     the bottom colour - g and b are served by inference;
+//   - reversed bounds with the value OUTSIDE them: no row - the engine holds the colour.
+//
+//   Z0x  equal bounds           color.from_gradient(close, 100, 100, c1, c2)
+//   N0x  an `na` value          color.from_gradient(na, 0, 100, c1, c2)
+//   B0x  an `na` bottom bound   color.from_gradient(close, na, 100, c1, c2)
+//   R0x  reversed, inside       color.from_gradient(50, 100, 0, c1, c2)
+//   O0x  reversed, above top    color.from_gradient(150, 100, 0, c1, c2)
+//   U0x  reversed, below bottom color.from_gradient(-50, 100, 0, c1, c2)
+//   each as four rows: r, g, b, t.   K00 = bar_index control.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (none).
+
+c1 = color.new(#112233, 20)
+c2 = color.new(#ddeeff, 60)
+float nv = na
+gz = color.from_gradient(close, 100, 100, c1, c2)
+gn = color.from_gradient(nv, 0, 100, c1, c2)
+gb = color.from_gradient(close, nv, 100, c1, c2)
+gr = color.from_gradient(50, 100, 0, c1, c2)
+go = color.from_gradient(150, 100, 0, c1, c2)
+gu = color.from_gradient(-50, 100, 0, c1, c2)
+
+plot(bar_index,    "K00_bar_index_CONTROL")
+plot(color.r(gz),  "Z01_equal_r")
+plot(color.g(gz),  "Z02_equal_g")
+plot(color.b(gz),  "Z03_equal_b")
+plot(color.t(gz),  "Z04_equal_t")
+plot(color.r(gn),  "N01_na_value_r")
+plot(color.g(gn),  "N02_na_value_g")
+plot(color.b(gn),  "N03_na_value_b")
+plot(color.t(gn),  "N04_na_value_t")
+plot(color.r(gb),  "B01_na_bound_r")
+plot(color.g(gb),  "B02_na_bound_g")
+plot(color.b(gb),  "B03_na_bound_b")
+plot(color.t(gb),  "B04_na_bound_t")
+plot(color.r(gr),  "R01_reversed_inside_r")
+plot(color.g(gr),  "R02_reversed_inside_g")
+plot(color.b(gr),  "R03_reversed_inside_b")
+plot(color.t(gr),  "R04_reversed_inside_t")
+plot(color.r(go),  "O01_reversed_above_r")
+plot(color.g(go),  "O02_reversed_above_g")
+plot(color.b(go),  "O03_reversed_above_b")
+plot(color.t(go),  "O04_reversed_above_t")
+plot(color.r(gu),  "U01_reversed_below_r")
+plot(color.g(gu),  "U02_reversed_below_g")
+plot(color.b(gu),  "U03_reversed_below_b")
+plot(color.t(gu),  "U04_reversed_below_t")
+plot(na(gz) ? 1 : 0, "Z05_equal_is_na")
+plot(na(go) ? 1 : 0, "O05_reversed_above_is_na")
+plot(na(gu) ? 1 : 0, "U05_reversed_below_is_na")

@@ -53,6 +53,17 @@ def deliver(
     if not _receipts.claim_delivery(fire_id):
         return {"claimed": False, "channels": {}, "channels_ok": 0, "channels_failed": 0, "errors": {}}
 
+    # FT-036: the member's one routing rule (None while dark -> unchanged path).
+    from api.services.alert_taxonomy import routing_rule as _routing
+    rule = _routing.effective(user_id)
+    if rule is not None and rule.suspended:
+        # ⛔ Suspended: the fire is already RECORDED (alert_fires), the lease is
+        # held so nothing re-sends it, and its outcome says why nothing went out.
+        channels = {"routing": "suspended"}
+        _receipts.record_delivery_channels(fire_id, channels)
+        return {"claimed": True, "channels": channels, "channels_ok": 0,
+                "channels_failed": 0, "errors": {}, "suspended": True}
+
     report = watchlist_alert_service.deliver_alert_payload(
         user_id=user_id,
         sym=sym,
@@ -61,6 +72,18 @@ def deliver(
         source=source,
         extra_data=extra_data,
         severity=severity,
+        **({"channels_allowed": rule.channels_allowed()} if rule is not None else {}),
     )
+    # FT-033: queue (never send) the member's webhooks. Sending is the drain
+    # job's, off this sweep's path; enqueue never raises.
+    if rule is None or rule.webhook:
+        from api.services.alert_taxonomy import outbound_webhooks as _webhooks
+        queued = _webhooks.enqueue_fire(user_id, {
+            "fire_id": fire_id, "trigger_type": source, "entity": sym,
+            "title": title, "message": message,
+            "research_url": (extra_data or {}).get("research_url"),
+        })
+        if queued:
+            report = {**report, "channels": {**report.get("channels", {}), "webhook": "queued"}}
     _receipts.record_delivery_channels(fire_id, report.get("channels", {}))
     return report

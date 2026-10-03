@@ -11,6 +11,8 @@ export default function useScreenerCount(spec, { debounce = 120 } = {}) {
   const [empty, setEmpty] = useState(null)
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  // FT-028: the snapshot the count describes, from the same statement.
+  const [asOf, setAsOf] = useState(null)
   const timer = useRef()
   const seq = useRef(0) // guards against out-of-order responses
   const key = spec ? JSON.stringify(spec) : null
@@ -38,6 +40,7 @@ export default function useScreenerCount(spec, { debounce = 120 } = {}) {
         if (mySeq !== seq.current) return
         setCount(json.count)
         setEmpty(json.empty)
+        setAsOf(json.as_of || null)
       } catch (e) {
         if (mySeq === seq.current) setError(e)
       } finally {
@@ -47,5 +50,5 @@ export default function useScreenerCount(spec, { debounce = 120 } = {}) {
     return () => clearTimeout(timer.current)
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { count, empty, isLoading, error }
+  return { count, empty, isLoading, error, asOf }
 }

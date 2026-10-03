@@ -10,6 +10,7 @@ import { SWRConfig } from 'swr'
 // retry that hard-reloads the page instead of hanging on a missing chunk.
 import lazy from './utils/lazyWithRetry'
 import { COMING_SOON } from './utils/comingSoon'
+import { UPGRADE_PATH } from './constants/freePages'
 import { isDiscordLaunch } from './utils/discordLaunch'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -37,6 +38,9 @@ import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // every link a member sent resolved to the catch-all 404 below.
 import { SHARED_FORMULA_ROUTE, FORMULA_LIBRARY_PATH } from './pages/formulas/formulaShareLink'
 import { createRoutePrefetcher, attachRoutePrefetch } from './routePrefetch'
+// UCT Terminal shell (TERMINAL-NEXT). Eager and tiny (one context read): the gate both
+// `/terminal` and `/calendar` consult, so the pair can never disagree and loop.
+import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // The single authority for "is the joystick hub actually rendering" — shared with
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
@@ -82,6 +86,7 @@ const Breadth = lazyPage('/breadth', () => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazyPage('/calendar', () => import('./pages/Calendar'))
 const MyStocksHub = lazyPage('/calendar/mystocks', () => import('./pages/calendar/MyStocksHub'))
+const TerminalShell = lazyPage('/terminal', () => import('./pages/terminal/TerminalShell'))
 const Screener = lazyPage('/screener', () => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
@@ -264,7 +269,7 @@ function GlobalVoiceGateForUser() {
 function PublicOnly({ children }) {
   const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
+  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
   return children
 }
 
@@ -273,9 +278,14 @@ function PublicOnly({ children }) {
  *  so an existing member who bookmarked /pricing still lands somewhere useful. */
 function PreLaunchGate({ children }) {
   const { user, isPaid, loading } = useAuth()
+  const location = useLocation()
   if (!COMING_SOON) return children
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : '/morning-wire'} replace />
+  // ⛔ A signed-in member without a paid plan has no free page to go to (owner
+  // ruling 2026-10-02), so their home IS the upgrade screen. Render it here
+  // rather than redirect: redirecting /subscribe to /subscribe never settles.
+  if (user && !isPaid && location.pathname === UPGRADE_PATH) return children
+  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
   return <Navigate to="/" replace />
 }
 
@@ -333,8 +343,15 @@ function JournalShellSelector() {
  */
 function OptionsFlowRoute() {
   const { search } = useLocation()
-  if (new URLSearchParams(search).get('view') === 'scoreboard') {
+  const params = new URLSearchParams(search)
+  if (params.get('view') === 'scoreboard') {
     return <Navigate to="/flow-scoreboard" replace />
+  }
+  // TERMINAL-NEXT: `?view=gex[&ticker=SYM]` opens the page on its GEX view (the UCT
+  // Terminal's GEX function). Seeds initial state only; a bad ticker falls back to SPY.
+  if (params.get('view') === 'gex') {
+    const t = (params.get('ticker') || '').toUpperCase()
+    return <OptionsFlow initialMode="gex" initialGexTicker={/^[A-Z][A-Z.-]{0,6}$/.test(t) ? t : null} />
   }
   return <OptionsFlow />
 }
@@ -582,7 +599,11 @@ export default function App() {
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/research/:sym" element={<ResearchPage />} />
                 <Route path="/research/:sym/compare/:comparator" element={<ResearchComparePage />} />
-                <Route path="/calendar" element={<Calendar />} />
+                {/* TERMINAL-NEXT: /calendar is the shell's Calendar section for an admitted
+                    member and today's page for everyone else (pages/terminal/TerminalRoutes.jsx). */}
+                <Route path="/calendar" element={<CalendarRoute><Calendar /></CalendarRoute>} />
+                <Route path="/terminal" element={<TerminalRoute><TerminalShell /></TerminalRoute>} />
+                <Route path="/terminal/calendar" element={<TerminalRoute><TerminalShell /></TerminalRoute>} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 {/* ⭐⭐ THE VOCABULARY A MEMBER BUILDS WITH. Until this route

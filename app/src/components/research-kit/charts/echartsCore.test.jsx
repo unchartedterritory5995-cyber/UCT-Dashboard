@@ -81,6 +81,7 @@ describe('echartsCore — tree-shaken registration (§3.4)', () => {
       'CanvasRenderer',
       'CustomChart',
       'GridComponent',
+      'LineChart',
       'MarkLineComponent',
       'TooltipComponent',
     ])
