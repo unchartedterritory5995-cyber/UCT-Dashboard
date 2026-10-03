@@ -242,7 +242,8 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
     is retried (at most 3), never hidden."""
     pg.evaluate("""() => { window.__h2ev = []; const pm = document.querySelector('.ProseMirror');
       if (pm && !pm.__h2) { pm.__h2 = 1;
-        pm.addEventListener('focus', () => window.__h2ev.push(['pm-focus', performance.now() | 0]), true);
+        pm.addEventListener('focus', () => window.__h2ev.push(['pm-focus', performance.now() | 0,
+          (new Error().stack || '').split('\\n').slice(1, 14).join(' | ').slice(0, 1600)]), true);
         pm.addEventListener('blur', () => window.__h2ev.push(['pm-blur', performance.now() | 0]), true); }
       const f = document.querySelector('[data-widget-embed-view="chart"]');
       if (f && !f.__h2) { f.__h2 = 1; new MutationObserver(() => window.__h2ev.push(['class',
