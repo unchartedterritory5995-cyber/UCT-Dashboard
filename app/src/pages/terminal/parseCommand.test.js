@@ -35,6 +35,11 @@ const OK = [
   ['help gp',              'HELP',  null,    ['GP']],
   ['?',                    'HELP',  null,    []],
   ['CAL NEXT',             'CAL',   null,    ['NEXT']], // a market code keeps a non-ticker arg
+  ['CAL TODAY',            'CAL',   null,    ['TODAY']],
+  ['NVDA GP W',            'GP',    'NVDA',  ['W']],    // the timeframe the shell honours (args.js)
+  // OSCR / OBT were ABSENT answers until 2026-10-02 (V1): both surfaces are built.
+  ['OSCR',                 'OSCR',  null,    []],
+  ['NVDA OBT',             'OBT',   'NVDA',  []],
 ]
 
 const ADDRESSES = [
@@ -52,8 +57,6 @@ const FAIL = [
   ['NVDA GPX',          'Unknown function "GPX" for NVDA', ['GP']],
   ['NVDA OMN',          'Unknown function "OMN"',          ['OMON']],
   ['123',               'Unknown command',                 []],
-  ['OSCR',              'options screener',                []],
-  ['NVDA OBT',          'backtester',                      []],
   ['12AB FA',           'is not a ticker',                 []],
 ]
 

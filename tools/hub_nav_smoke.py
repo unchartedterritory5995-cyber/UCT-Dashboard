@@ -184,8 +184,13 @@ def nav_items() -> list[dict]:
     if not m:
         raise SystemExit("FATAL: could not find NAV_ITEMS in NavBar.jsx — derivation is broken")
     out = []
-    for row in re.finditer(r"\{\s*to:\s*'([^']+)'\s*,\s*label:\s*'([^']+)'", m.group(1)):
-        out.append({"to": row.group(1), "label": row.group(2)})
+    for row in re.finditer(r"\{\s*to:\s*'([^']+)'\s*,\s*label:\s*'([^']+)'([^}]*)\}", m.group(1)):
+        # `alsoActive: ['/terminal']` — routes this entry LANDS on (TERMINAL-NEXT: the
+        # `/calendar` entry redirects a cohort member into `/terminal`). They are top-level
+        # routes the sweep must visit too, derived here rather than typed (RM-X02).
+        also = re.search(r"alsoActive:\s*\[([^\]]*)\]", row.group(3))
+        out.append({"to": row.group(1), "label": row.group(2),
+                    "also": re.findall(r"'([^']+)'", also.group(1)) if also else []})
     if len(out) < 5:
         raise SystemExit(f"FATAL: parsed only {len(out)} nav items — derivation is broken")
     return out
@@ -321,9 +326,12 @@ def top_level_routes(entries: list[dict]) -> list[str]:
     """
     seen, out = set(), []
     for e in entries:
-        if e["to"] not in seen:
-            seen.add(e["to"])
-            out.append(e["to"])
+        # An entry's `alsoActive` routes follow it (`/calendar`, then `/terminal`): the UCT
+        # Terminal shell is a top-level surface even while its nav `to` is still `/calendar`.
+        for r in [e["to"], *e.get("also", [])]:
+            if r not in seen:
+                seen.add(r)
+                out.append(r)
     if "/dashboard" in out:  # the page the freeze was reported on leads.
         out.remove("/dashboard")
         out.insert(0, "/dashboard")
@@ -410,6 +418,8 @@ def sweep_every_route(page, base: str, routes: list[str], entries: list[dict]):
     probes: list[tuple[str, dict]] = []
     clicked = 0
     by_route = {e["to"]: e for e in entries}
+    # An `alsoActive` route has no link of its own; the link that reaches it is its owner's.
+    link_for = {r: e["to"] for e in entries for r in e.get("also", [])}
 
     for i, route in enumerate(routes):
         target = routes[(i + 1) % len(routes)]
@@ -430,9 +440,10 @@ def sweep_every_route(page, base: str, routes: list[str], entries: list[dict]):
         if verdict:
             failures.append(verdict)
 
-        if target == route:
-            continue
-        link = nav_link(page, target)
+        href = link_for.get(target, target)
+        if target == route or href == route:
+            continue  # the only link to the target is the page we are on: nothing to depart by
+        link = nav_link(page, href)
         if link is None:
             say(f"    skipped {target} (not in the nav after {NAV_LINK_WAIT_MS} ms)")
             continue
