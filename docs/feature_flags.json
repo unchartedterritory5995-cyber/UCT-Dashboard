@@ -1401,6 +1401,24 @@
       "where": [],
       "note": "FT-036 (TERMINAL-NEXT owner ruling 2026-10-02): one global routing rule per member for S7 alerts (Bloomberg MRUL) -- email on/off, push on/off, webhook on/off -- plus SUSPEND/RESUME of every alert without losing a definition (/api/alerts/routing*, require_paid). Applied in alert_taxonomy/delivery.deliver: suspended -> the fire is still RECORDED in alert_fires with delivery_channels {routing: suspended} and nothing is sent; otherwise deliver_alert_payload gets channels_allowed (new keyword-only arg, default None = unchanged for every other caller). The in-app record is never routable. ENABLEMENT GATE, default OFF, read per call in routing_rule.is_enabled(); SERVICE: web. Off: routes 404 and delivery is byte-identical to before (a stored rule is kept, never applied, never deleted). Not yet applied to the TERM-048 price-alert S7 bridge (_deliver_via_s7), which has its own fan-out. Pending: needs an owner arm. Rollback: set 0."
     },
+    "SCREENER_PROMOTE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-027 (TERMINAL-NEXT owner ruling 2026-10-02): scan -> watchlist promotion. POST /api/screener/to-watchlist takes the screen spec and puts the WHOLE result set, in screen order, up to 500 symbols, into a new list or one the member owns (a TERM-077 linked list is refused with that feature's sentence); the response says when the screen matched more than fit. Rows come from query.run_scan with the caller's id, the same function /api/screener/scan runs. Toolbar 'To watchlist' button renders only when GET /api/screener/to-watchlist answers. ENABLEMENT GATE, default OFF, read per request in api/routers/screen_promote.is_enabled(); SERVICE: web. Off: both routes 404. require_paid. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "SCREENER_PATTERN_PRESETS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-022 (TERMINAL-NEXT owner ruling 2026-10-02): 18 chart-pattern preset scans (Cup & Handle, triangles, flags, pennant, wedges, double/triple tops and bottoms, head & shoulders and inverse, rounded base, rectangle, channel) appended to saved_screens.starters(), each one pattern-engine detection matched as an EXACT token on pattern_engine_ids (delimiter-wrapped), Patterns view, strongest detection first. The preset rail checks every id against the detector registry. ENABLEMENT GATE, default OFF, read per call in saved_screens.pattern_presets_enabled(); SERVICE: web. Off: starters() is byte-identical to before. Pending: needs an owner arm after a live count of how many symbols each detection currently covers. Rollback: set 0."
+    },
+    "ALERT_LIFECYCLE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-035 (TERMINAL-NEXT owner ruling 2026-10-02): per-alert expiry for S7 alerts. PUT /api/alerts/predicates/{id}/expiry (owner-scoped, require_paid; future, at most a year out; null clears) stores alert_predicates.expires_at (migration add_alert_predicates_expires_at); the alert_lifecycle_expire scheduler job (every minute, registered unconditionally) SUSPENDS a predicate past its expiry (suspended_at) -- never deletes it. Remind and reverse-crossover are not built (see lifecycle.py's docstring). ENABLEMENT GATE, default OFF, read per call in lifecycle.is_enabled(); SERVICE: web. Off: the route 404s and the job expires nothing; a stored expiry is kept. Pending: needs an owner arm. Rollback: set 0."
+    },
     "WEB_PUSH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

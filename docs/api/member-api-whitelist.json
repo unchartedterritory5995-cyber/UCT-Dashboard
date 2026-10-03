@@ -2690,6 +2690,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/to-watchlist",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/sector-strength",
       "rate_limit_family": "market-analytics",
       "tier": "paid"

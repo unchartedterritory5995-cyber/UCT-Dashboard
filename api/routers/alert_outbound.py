@@ -77,6 +77,31 @@ def resume_alerts(user: dict = Depends(require_paid)):
     return routing.resume(user["id"]).as_dict()
 
 
+# ── FT-035: per-alert expiry ────────────────────────────────────────────────
+
+class ExpiryIn(BaseModel):
+    expires_at: float | None = None   # unix seconds; null clears it
+
+
+def _lifecycle_armed() -> None:
+    from api.services.alert_taxonomy import lifecycle
+    if not lifecycle.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.put("/api/alerts/predicates/{predicate_id}/expiry", dependencies=[Depends(_lifecycle_armed)])
+def set_alert_expiry(predicate_id: str, body: ExpiryIn, user: dict = Depends(require_paid)):
+    """Past its expiry an alert is SUSPENDED (kept, reactivatable), never deleted."""
+    from api.services.alert_taxonomy import lifecycle
+    try:
+        out = lifecycle.set_expiry(user["id"], predicate_id, body.expires_at)
+    except lifecycle.LifecycleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if out is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return out
+
+
 # ── FT-033: outbound webhooks ───────────────────────────────────────────────
 
 class WebhookIn(BaseModel):

@@ -322,6 +322,52 @@ def candle_starters():
     ]
 
 
+#: FT-022: the chart-pattern presets. Each is ONE engine detection, matched as
+#: an exact token (the column is delimiter-wrapped, so ",head_shoulders," can
+#: never match ",inverse_head_shoulders,"), on the Patterns view, strongest
+#: detection first. The ids are the detectors' own `_PATTERN_ID`s -- the
+#: preset rail checks every one against the registry, so a renamed detector
+#: fails by name instead of shipping a preset that matches nothing.
+PATTERN_PRESETS = (
+    ("cup_handle", "Cup & Handle"),
+    ("ascending_triangle", "Ascending Triangle"),
+    ("symmetrical_triangle", "Symmetrical Triangle"),
+    ("descending_triangle", "Descending Triangle"),
+    ("bull_flag", "Bull Flag"),
+    ("bear_flag", "Bear Flag"),
+    ("pennant", "Pennant"),
+    ("falling_wedge", "Falling Wedge"),
+    ("rising_wedge", "Rising Wedge"),
+    ("double_bottom", "Double Bottom"),
+    ("double_top", "Double Top"),
+    ("triple_bottom", "Triple Bottom"),
+    ("triple_top", "Triple Top"),
+    ("inverse_head_shoulders", "Inverse Head & Shoulders"),
+    ("head_shoulders", "Head & Shoulders"),
+    ("rounded_base", "Rounded Base"),
+    ("rectangle", "Rectangle"),
+    ("channel", "Channel"),
+)
+
+PATTERN_PRESETS_FLAG = "SCREENER_PATTERN_PRESETS_ENABLED"
+
+
+def pattern_presets_enabled() -> bool:
+    import os
+    return os.environ.get(PATTERN_PRESETS_FLAG, "0").strip() == "1"
+
+
+def pattern_starters():
+    return [
+        {"id": f"starter_pattern_{pid}", "name": label, "group": "Chart Patterns",
+         "spec": {"filters": [{"key": "pattern_engine_id", "op": "contains",
+                               "value": f",{pid},"}],
+                  "view": "patterns",
+                  "sort": {"key": "pattern_engine_conf", "dir": "desc"}}}
+        for pid, label in PATTERN_PRESETS
+    ]
+
+
 def starters():
     # ── UCT Preset Scans — the firm's curated setups ──────────────────────────
     # ⛔ candle_starters() is NO LONGER surfaced here (owner call, 2026-09-20):
@@ -431,4 +477,4 @@ def starters():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ]
+    ] + (pattern_starters() if pattern_presets_enabled() else [])

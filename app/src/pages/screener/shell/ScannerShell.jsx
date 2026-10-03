@@ -21,6 +21,7 @@ import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
 import CriteriaBox from './CriteriaBox'
+import PromoteButton from './PromoteButton'
 import UniverseBar from './UniverseBar'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
@@ -386,6 +387,7 @@ export default function ScannerShell({ embedded = false }) {
           saveBar={<>
             <SaveScanButton spec={s.baseSpec}
               hasFilters={Object.keys(s.filters).length > 0} />
+            <PromoteButton spec={s.baseSpec} disabled={!result || !total} />
             <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
               label="Screener results" ariaLabel="Save these results to Notebook"
               disabled={!result || total == null} />

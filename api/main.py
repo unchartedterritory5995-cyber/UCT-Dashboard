@@ -7255,6 +7255,24 @@ async def lifespan(app: FastAPI):
             max_instances=1, replace_existing=True,
         )
 
+        # FT-035 -- per-alert expiry: past it a predicate is SUSPENDED, never
+        # deleted. `expire_due()` reads ALERT_LIFECYCLE_ENABLED per run.
+        def _alert_lifecycle_expire_job():
+            try:
+                from api.services.alert_taxonomy import lifecycle as _lc
+                n = _lc.expire_due()
+                if n:
+                    print(f"[alert_lifecycle] expired (suspended) {n} predicate(s)")
+            except Exception as e:
+                print(f"[alert_lifecycle] expire failed: {type(e).__name__}: {e}")
+
+        _scheduler.add_job(
+            _alert_lifecycle_expire_job,
+            trigger=CronTrigger(minute="*", timezone=_ET),
+            id="alert_lifecycle_expire",
+            max_instances=1, replace_existing=True,
+        )
+
         # GATE-S7-PRICE-LEVEL CP3 -- the DARK forward-only comparison sweep.
         # Owner approval line 2 (2026-09-12): the harness runs against the
         # projected predicates, ADMIN-ROLE COHORT ONLY, five full trading
@@ -9062,8 +9080,10 @@ from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark
 app.include_router(web_push_router.router)
 from api.routers import data_exports as data_exports_router  # noqa: E402  (FT-041/042/043, dark)
 app.include_router(data_exports_router.router)
-from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (FT-033/036, dark)
+from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (FT-033/035/036, dark)
 app.include_router(alert_outbound_router.router)
+from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
+app.include_router(screen_promote_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
