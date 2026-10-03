@@ -65,6 +65,21 @@ vi.mock('../../featureFlags', () => ({
           : true,
 }))
 
+// Wave 13 lane 13F: the Reviews section is real when notebook_review_drafts_enabled
+// is latched on (dark by default). Mocked here so this shell test controls it
+// without going through the flag-latch machinery; its own data-building behavior
+// is covered by reviewDrafts.test.js.
+let reviewDraftsFlagOn = false
+vi.mock('../../lib/reviewDrafts', () => ({
+  reviewDraftsEnabled: () => reviewDraftsFlagOn,
+  draftDailyReview: vi.fn(async () => ({ note: { id: 'd1' } })),
+  draftWeeklyReview: vi.fn(async () => ({ note: { id: 'w1' } })),
+  draftMonthlyReview: vi.fn(async () => ({ note: { id: 'm1' } })),
+  todayDayIso: () => '2026-10-02',
+  mondayOfIso: () => '2026-09-28',
+  thisMonthIso: () => '2026-10',
+}))
+
 import InsightsHub from './InsightsHub'
 
 // Surfaces the live querystring so we can assert ?ins= persistence + coexistence.
@@ -99,6 +114,7 @@ beforeEach(() => {
   regimeFlagOn = true
   psychologyFlagOn = true
   verdictScoreFlagOn = true
+  reviewDraftsFlagOn = false
 })
 
 describe('InsightsHub — sub-nav shell', () => {
@@ -221,5 +237,23 @@ describe('InsightsHub — sub-nav shell', () => {
   it('renders no emoji (all iconography via UIcon)', () => {
     const { container } = renderHub()
     expect(container.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
+  })
+})
+
+describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
+  it('the Reviews tab is absent while the flag is off (default)', () => {
+    renderHub()
+    expect(screen.queryByRole('button', { name: 'Reviews' })).not.toBeInTheDocument()
+  })
+
+  it('the Reviews tab appears and its three draft buttons navigate on click', async () => {
+    reviewDraftsFlagOn = true
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
+    expect(screen.getByRole('button', { name: /today.s recap/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /this week.s review/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /this month.s review/i })).toBeInTheDocument()
+    // Other sections unmounted — only one at a time, the same discipline every tab follows.
+    expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
   })
 })

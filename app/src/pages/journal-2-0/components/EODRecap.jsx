@@ -6,16 +6,39 @@
  *   onFeedback(value: 'helpful'|'unhelpful'): void
  *   onRegenerate(): void
  *   onForget(): void
+ *   accountId: the J2 selected account (or null for unified) — wave 13 lane 13F's
+ *     "Draft in today's note" door reads the same period the recap itself covers
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
+import { reviewDraftsEnabled, draftDailyReview } from '../lib/reviewDrafts'
+import { compassScope } from '../hooks/compassScope'
 
-export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) {
+export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
   const body = useMemo(() => renderMarkdown(recap?.body), [recap?.body])
+  const navigate = useNavigate()
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState(null)
   if (!recap) return null
+
+  const day = recap.day || recap.metadata?.day
+  const handleDraft = async () => {
+    if (drafting || !day) return
+    setDrafting(true)
+    setDraftError(null)
+    try {
+      const { note } = await draftDailyReview({ accountId: compassScope(accountId), day })
+      navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
+    } catch {
+      setDraftError('Could not draft today’s recap into your daily note — try again.')
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   const feedback = recap.feedback
   const validationPassed = recap.validation?.passed !== false
@@ -57,8 +80,18 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget }) 
           ><UIcon name="thumbsDown" size={11} /></button>
           <button type="button" onClick={onRegenerate} style={ghost()}>Regen</button>
           <button type="button" onClick={onForget} style={ghost()}>Forget</button>
+          {reviewDraftsEnabled() && (
+            <button type="button" onClick={handleDraft} disabled={drafting} style={ghost()}>
+              {drafting ? 'Drafting…' : 'Draft in today’s note'}
+            </button>
+          )}
         </div>
       </header>
+      {draftError && (
+        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 11, margin: '4px 0 8px' }}>
+          {draftError}
+        </p>
+      )}
       {!validationPassed && (
         <div
           role="alert"
