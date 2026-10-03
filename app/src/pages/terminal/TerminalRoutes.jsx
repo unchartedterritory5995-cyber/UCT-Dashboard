@@ -9,14 +9,26 @@
 // ⚠️ AuthGuard's free-tier `/calendar?earnings=` -> `/research/:sym` clause matches the
 // exact path BEFORE this element renders, so the acquisition redirect (row E2) is untouched.
 import { Navigate, useLocation } from 'react-router-dom'
+import usePreferences from '../../hooks/usePreferences'
 import useTerminalNext, { calendarIntoShell, shellOutToCalendar } from './terminalGate'
+import { readLibrary } from './boardModel'
+import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
 
-/** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section. */
+/** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section.
+ *
+ *  Lane T2 / V19: an admitted member may choose to KEEP the classic page here
+ *  (`terminal_boards.keepCalendar`, set from the shell's Boards menu); `/terminal` stays open
+ *  to them. ⚠️ This is a preference, and that is safe ONLY because it can narrow what a member
+ *  sees, never widen it: a closed cohort never reaches this branch (terminalGate.js). While the
+ *  preference is loading nothing renders, so the redirect never fires ahead of the choice. */
 export function CalendarRoute({ children }) {
   const open = useTerminalNext()
   const { search, hash } = useLocation()
-  if (open) return <Navigate to={calendarIntoShell(search, hash)} replace />
-  return children
+  const { prefs, loading } = usePreferences(open)
+  if (!open) return children
+  if (loading) return null
+  if (readLibrary(prefs?.[TERMINAL_BOARDS_PREF]).library.keepCalendar) return children
+  return <Navigate to={calendarIntoShell(search, hash)} replace />
 }
 
 /** `/terminal` and `/terminal/calendar`: the shell, or — when closed — `/calendar`. */

@@ -82,7 +82,12 @@ ENABLED_ENV = "WORKSPACE_DOC_STORE_ENABLED"
 
 SCHEMA_VERSION = 1
 BOARD_CHARTS = "charts"
-BOARDS = (BOARD_CHARTS,)
+#: TERMINAL-NEXT lane T2 (V2): the UCT Terminal shell's layout and its named-board library are a
+#: SECOND board in this same store, under the same flag. Its keys are disjoint from the Charts
+#: board's, so a key belongs to exactly one board (``board_for_key``): a Charts read or write never
+#: sees a terminal key, nor the reverse.
+BOARD_TERMINAL = "terminal"
+BOARDS = (BOARD_CHARTS, BOARD_TERMINAL)
 
 #: The board's persisted keys: every key ``app/src/pages/charts/ChartsWorkspace.jsx`` writes
 #: through ``setPref``, plus the ``WIDGET_GLOBAL_PREF_KEYS`` values it writes in a loop.
@@ -103,6 +108,35 @@ WORKSPACE_PREF_KEYS = frozenset({
     "watchlist_columns",
     "watchlist_settings",
 })
+
+#: The terminal board's persisted keys: every ``*_PREF`` constant
+#: ``app/src/pages/terminal/useTerminalLayout.js`` exports. ⛔ Derived, not hand-kept:
+#: ``tests/test_workspace_doc_terminal_board.py`` re-reads the client constants, both directions.
+TERMINAL_PREF_KEYS = frozenset({
+    "terminal_boards",
+    "terminal_layout",
+})
+
+#: Which keys each board owns. The ONE table every board-scoped read, write and validation
+#: consults; nothing below names a board's key set directly.
+BOARD_KEYS = {
+    BOARD_CHARTS: WORKSPACE_PREF_KEYS,
+    BOARD_TERMINAL: TERMINAL_PREF_KEYS,
+}
+
+
+def board_keys(board_id: str) -> frozenset:
+    """The keys ``board_id`` owns (``KeyError`` for a board that does not exist)."""
+    return BOARD_KEYS[board_id]
+
+
+def board_for_key(key: str) -> Optional[str]:
+    """The ONE board that owns ``key``, or None for a key no board versions."""
+    for board_id, keys in BOARD_KEYS.items():
+        if key in keys:
+            return board_id
+    return None
+
 
 #: The board key that carries the Watchlist column layout (``localStorage['uct.watchlist.cols']``,
 #: which the Watchlist widget still reads and writes). Folded into the document while armed so a
@@ -267,7 +301,7 @@ def validate_doc(doc: Any, board_id: str) -> dict:
     prefs = doc.get("prefs")
     if not isinstance(prefs, dict):
         raise InvalidDocument("prefs must be an object")
-    unknown = sorted(set(prefs) - WORKSPACE_PREF_KEYS)
+    unknown = sorted(set(prefs) - board_keys(board_id))
     if unknown:
         raise InvalidDocument(f"prefs carries keys outside the board: {unknown}")
     for k, v in prefs.items():
@@ -292,7 +326,7 @@ def _sha(text: str) -> str:
 def doc_from_prefs(prefs: dict, board_id: str = BOARD_CHARTS) -> dict:
     """COPY the board's keys out of a ``user_preferences`` mapping, values verbatim."""
     return {"schema_version": SCHEMA_VERSION, "board": board_id,
-            "prefs": {k: prefs[k] for k in sorted(WORKSPACE_PREF_KEYS) if k in prefs}}
+            "prefs": {k: prefs[k] for k in sorted(board_keys(board_id)) if k in prefs}}
 
 
 def prefs_from_doc(doc: dict) -> dict:
@@ -672,7 +706,7 @@ def read_prefs(user_id: str, prefs: dict, prefs_writer: Callable[[str, str, Opti
     served = dict(prefs)
     doc_newer: list = []
     old_newer: dict = {}
-    for key in sorted(WORKSPACE_PREF_KEYS):
+    for key in sorted(board_keys(board_id)):
         if key not in doc_prefs:
             continue                                   # the old store's value (or absence) stands
         if key in prefs and prefs[key] == doc_prefs[key]:
@@ -859,14 +893,17 @@ def begin_pref_write(user_id: str, key: str, prefs_reader: Callable[[str], dict]
     ⛔ WITH THE FLAG OFF THIS RETURNS BEFORE ANY I/O: it does not read the preferences, does not
     open or create the store. ``test_flag_off_the_preference_write_path_is_untouched`` asserts
     exactly that. Never raises into the caller."""
-    if not is_enabled() or key not in WORKSPACE_PREF_KEYS:
+    if not is_enabled():
+        return None
+    board_id = board_for_key(key)
+    if board_id is None:
         return None
     try:
-        ensure_snapshot(user_id, prefs_reader)
+        ensure_snapshot(user_id, prefs_reader, board_id)
     except Exception as exc:  # noqa: BLE001 -- the member's write must never depend on the shadow
         _HOOK_FAILURES["snapshot"] += 1
         logger.warning("[workspace_doc] pre-write snapshot failed for %s/%s: %s", user_id, key, exc)
-    return {"user_id": user_id, "key": key}
+    return {"user_id": user_id, "key": key, "board": board_id}
 
 
 def finish_pref_write(ticket: Optional[dict], value: Optional[str]) -> None:
@@ -879,7 +916,7 @@ def finish_pref_write(ticket: Optional[dict], value: Optional[str]) -> None:
     if ticket is None:
         return
     try:
-        res = mirror_pref(ticket["user_id"], ticket["key"], value)
+        res = mirror_pref(ticket["user_id"], ticket["key"], value, ticket.get("board", BOARD_CHARTS))
     except Exception as exc:  # noqa: BLE001
         _HOOK_FAILURES["mirror"] += 1
         logger.warning("[workspace_doc] mirror failed for %s/%s: %s", ticket["user_id"], ticket["key"], exc)
@@ -887,7 +924,7 @@ def finish_pref_write(ticket: Optional[dict], value: Optional[str]) -> None:
     if not res.get("appended"):
         return
     try:
-        prune_versions(ticket["user_id"], BOARD_CHARTS, int(_clock()))
+        prune_versions(ticket["user_id"], ticket.get("board", BOARD_CHARTS), int(_clock()))
     except Exception as exc:  # noqa: BLE001 -- retention must never fail a member's write
         _HOOK_FAILURES["prune"] = _HOOK_FAILURES.get("prune", 0) + 1
         logger.warning("[workspace_doc] prune failed for %s: %s", ticket["user_id"], exc)

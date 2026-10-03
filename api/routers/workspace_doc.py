@@ -143,7 +143,7 @@ def restore(req: RestoreRequest, user: dict = Depends(get_current_user)):
     if res["appended"] and not failed:
         wds.mark_writeback_done(uid, board, [res["version"]])
     current = auth_service.get_user_preferences(uid)
-    untouched = sorted(k for k in current if k in wds.WORKSPACE_PREF_KEYS and k not in restored)
+    untouched = sorted(k for k in current if k in wds.board_keys(board) and k not in restored)
     return {
         "board": board,
         "version": res["version"],

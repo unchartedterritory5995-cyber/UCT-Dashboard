@@ -333,6 +333,10 @@
   grid-template-columns: 1fr 1fr;
 }
 
+.grid[data-count='3'] {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .grid[data-count='4'] {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
@@ -379,6 +383,208 @@
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+}
+
+.groupDotStatic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 2px dashed var(--dot, var(--border));
+  border-radius: 50%;
+  color: var(--dot, var(--text-muted));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── lane T2: panel actions (duplicate · pop out · close) ── */
+.panelActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.panelAct {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.panelAct:hover,
+.panelAct:focus-visible {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ── lane T2: the Boards / Recents menus (inside a Sheet) ── */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.menuHead {
+  margin-top: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide, 0.06em);
+  text-transform: uppercase;
+}
+
+.menuNote,
+.menuWarn {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.menuWarn {
+  color: var(--text);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg, var(--bg-surface));
+}
+
+.menuForm,
+.menuShare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.menuBoard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.menuMain,
+.menuMainBtn {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menuMainBtn {
+  min-height: 30px;
+  padding: 0 var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuMainBtn:hover {
+  background: var(--bg-hover);
+}
+
+.menuLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.menuHint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.menuInput,
+.menuInputSm {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.menuInput {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.menuInputSm {
+  width: 96px;
+  text-transform: uppercase;
+}
+
+.menuBtn {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.menuBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: 30px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-normal, 1.5);
 }
 
 .panelTitle {
@@ -473,6 +679,34 @@
   color: var(--text-muted);
 }
 
+/* ── lane T2: board DENSITY, desktop only (the touch tier's 44px floor is never undercut) ── */
+@media (min-width: 1025px) {
+  .shell[data-density='compact'] .panelHead {
+    min-height: 26px;
+  }
+
+  .shell[data-density='compact'] .panelBody {
+    font-size: var(--text-sm);
+  }
+
+  .shell[data-density='dense'] .panelHead {
+    min-height: 22px;
+    gap: var(--space-xs);
+  }
+
+  .shell[data-density='dense'] .panelBody {
+    font-size: var(--text-xs);
+  }
+
+  .shell[data-density='dense'] .railItem {
+    min-height: 22px;
+  }
+
+  .shell[data-density='dense'] .grid {
+    gap: 0;
+  }
+}
+
 /* ── TOUCH TIER (phone + tablet): the 44px floor on every control, and the grid stacks ── */
 @media (max-width: 1024px) {
   .cmdInput {
@@ -487,8 +721,29 @@
   .noticeClose,
   .railItem,
   .helpRow,
-  .panelLink {
+  .panelLink,
+  .panelAct,
+  .menuBtn,
+  .menuMainBtn,
+  .menuInput,
+  .menuInputSm,
+  .menuCheck {
     min-height: var(--tap-min);
+  }
+
+  .panelAct,
+  .menuBtn {
+    min-width: var(--tap-min);
+  }
+
+  .groupDotStatic {
+    width: var(--tap-min);
+    height: var(--tap-min);
+  }
+
+  .menuInput,
+  .menuInputSm {
+    font-size: 16px; /* >=16px: iOS does not zoom the page on focus */
   }
 
   .cmdGo,
@@ -517,6 +772,7 @@
   }
 
   .grid[data-count='2'],
+  .grid[data-count='3'],
   .grid[data-count='4'] {
     grid-template-columns: 1fr;
     grid-template-rows: none;
