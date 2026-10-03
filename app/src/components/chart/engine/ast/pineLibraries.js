@@ -313,6 +313,23 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   }
 
   const mangle = (unit, name) => `__lib${unit.id}_${name}`
+  /** ⭐ F4 (step 85) — A LIBRARY MAY NAME A TOP-LEVEL VALUE EXACTLY AS ONE OF ITS
+   *  FUNCTIONS, and Pine keeps the two apart: a call reads the function, a bare
+   *  name the value. `theEccentricTrader/PubLibTrend/3` writes `rlut = rlut()`
+   *  (and `dt`, `ut`, `rldt`); one mangled spelling for both made them ONE name in
+   *  the linked program, so every call of `tr.rlut()` read as a call of a value and
+   *  was refused (`pine:function` `__lib3_rlut`) — and with it every drawing whose
+   *  guard reaches it: all-chart-patterns held 64 of TradingView's 156 objects.
+   *  The value gets its own spelling only where the unit also defines a function
+   *  of that name; every other name is spelled exactly as before. */
+  const mangleValue = (unit, name) => {
+    if (!unit.defs.some((d) => d.kind === 'fn' && d.name === name)) return mangle(unit, name)
+    const spelled = `${name}__value`
+    if (unit.defs.some((d) => d.name === spelled)) {
+      throw new LinkRefusal(`the library \`${unit.imp.path}\` names a value and a function \`${name}\` and also defines \`${spelled}\``)
+    }
+    return mangle(unit, spelled)
+  }
 
   /** Grow `unit.keep` from `needed` (names) to everything those reach. */
   const reach = (unit, needed, stack) => {
@@ -428,7 +445,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
           if (!namedArg && !fields.has(i) && !isLocalRef(locals, head, i)) {
             if (parts.length === 1 && fns.has(head) && isPunct(next, '(')) c.value = mangle(unit, head)
             else if (typesAndEnums.has(head)) c.value = [mangle(unit, head), ...parts.slice(1)].join('.')
-            else if (values.has(head) && !isPunct(next, '(')) c.value = [mangle(unit, head), ...parts.slice(1)].join('.')
+            else if (values.has(head) && !isPunct(next, '(')) c.value = [mangleValue(unit, head), ...parts.slice(1)].join('.')
             else if (unit.nested.has(head) && parts[1] && unit.nested.get(head).unit) {
               const nunit = unit.nested.get(head).unit
               c.value = rewriteAlias(nunit, parts.slice(1), next) || v
@@ -554,7 +571,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   }
   for (const u of linked.values()) {
     for (const d of u.defs) {
-      if (d.name && !names.has(mangle(u, d.name))) names.set(mangle(u, d.name), `${u.imp.alias}.${d.name}`)
+      if (!d.name) continue
+      const spelled = d.kind === 'value' ? mangleValue(u, d.name) : mangle(u, d.name)
+      if (!names.has(spelled)) names.set(spelled, `${u.imp.alias}.${d.name}`)
     }
   }
   for (const [tok, reason] of refusedAt) {
