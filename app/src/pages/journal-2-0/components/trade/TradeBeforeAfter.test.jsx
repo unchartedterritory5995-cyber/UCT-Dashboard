@@ -59,6 +59,11 @@ describe('TradeBeforeAfter', () => {
       expect(p.sym).toBe('NVDA')
       expect(p.stockChartProps.backgroundWarm).toBe(false)
       expect(p.stockChartProps.priceLines.map((l) => l.title)).toEqual(['Plan entry', 'Plan stop', 'Plan target'])
+      // W5 (390px walk) FAIL, fixed: the shared scale-toggle (9px font) and the legend's
+      // indicator-overflow chip both sit under --tap-min with two of these side by side at
+      // phone width. Both are HOST chrome vetoes here, like hideJournalOverlay above.
+      expect(p.stockChartProps.hideLegend).toBe(true)
+      expect(p.stockChartProps.hideScaleToggle).toBe(true)
     }
     expect(before.stockChartProps.markers.map((m) => m.text)).toEqual(['BUY 100'])
     expect(after.stockChartProps.markers.map((m) => m.text)).toEqual(['BUY 100', 'SELL Win'])

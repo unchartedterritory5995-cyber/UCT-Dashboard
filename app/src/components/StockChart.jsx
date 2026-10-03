@@ -2351,6 +2351,10 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  hideScaleToggle = false,    // suppress the Arithmetic/Log/Percent price-scale toggle: a HOST veto for a canvas too
+                              // small for a 9px toolbar to clear the --tap-min touch floor (wave 13 lane 13I-2's
+                              // two side-by-side before/after charts) -- same shape as hideLegend/hideCompare, not a
+                              // user preference, so it never reaches chart settings.
   legendColor = null,         // workspace: override the base OHLCV legend text color (time + O/H/L/C/V). null = CSS default. Change%/overlay/indicator colors keep their own (semantic) colors.
   savedColors = [],           // shared saved-color swatches (workspace) → the drawing color picker reuses the same list as Chart Settings
   onSaveColor = null,         //   (hex) => void
@@ -18653,7 +18657,7 @@ export default function StockChart({
       {/* Price-scale mode toggle — sits on the right price axis, just above the
           volume/indicator pane stack (top of the sub-panes = main.bottom frac).
           26px allows for the time axis below the price-pane drawing area. */}
-      {!showFatalError && chartReady && (
+      {!showFatalError && chartReady && !hideScaleToggle && (
         <div
           className={styles.scaleToggle}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps

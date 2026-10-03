@@ -76,6 +76,14 @@ function FrozenChart({ symbol, day, markers, priceLines, label }) {
               showRangeSelector: false,
               hideJournalOverlay: true,
               backgroundWarm: false,
+              // Two of these sit side by side at phone width (390px CLAUDE.md tier):
+              // the shared scale-toggle (9px font) and the legend's indicator-overflow
+              // chip are both HOST chrome vetoes (same shape as hideCompare/
+              // hideJournalOverlay above), not user preferences, and neither clears
+              // the --tap-min touch floor at this size. A quick before/after glance
+              // doesn't need a live crosshair readout or an A/L/% scale picker.
+              hideLegend: true,
+              hideScaleToggle: true,
             }}
           />
         </Suspense>

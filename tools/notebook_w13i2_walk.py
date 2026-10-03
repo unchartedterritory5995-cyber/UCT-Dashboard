@@ -331,7 +331,20 @@ def run_walk(base: str, art: Path, day: str) -> None:
             book.get_by_label("RS rank at least").fill("90")
             pg.wait_for_timeout(1500)
             cards = pg.locator('[data-testid="playbook-card"]')
-            syms = [c.split()[0] for c in cards.all_inner_texts() if c.strip()]
+            # The symbol via the card's own image/placeholder accessible name (both carry
+            # "{symbol} {tf} chart as of {day}" -- the placeholder's aria-label appends
+            # ": no frozen image yet"), NOT the card's whole inner text: when a card has no
+            # archived image (every seeded card here -- the seed writes ta.fingerprint
+            # directly, never through the freeze route that produces one), the "No frozen
+            # image yet" placeholder sits in the DOM BEFORE the symbol, so `text.split()[0]`
+            # reads "No" for every such card. This cost a FAIL the first time: cards_api
+            # correctly read ["AMD"] while this extraction read ["No"].
+            syms = []
+            for i in range(cards.count()):
+                img = cards.nth(i).locator('img, [role="img"]').first
+                label = (img.get_attribute("alt") or img.get_attribute("aria-label") or "").strip()
+                if label:
+                    syms.append(label.split()[0])
             stats = pg.locator('[data-testid="slice-stats"]')
             stats_text = " ".join(stats.inner_text().split())
             reveal = stats.get_by_role("button", name="Show the numbers anyway")
