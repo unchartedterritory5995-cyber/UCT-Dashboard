@@ -15354,6 +15354,17 @@ function tupleRefusalTail(call, names, env) {
       + 'missing tuple form, it is a missing primitive'
   }
   const callee = env.get(call.name)
+  // ⭐ H3 (2026-10-02) — A HELPER THIS ENGINE REFUSED NAMES ITS OWN WALL. The
+  // destructure of `[a, b] = helper(...)` used to fall through to "this engine has
+  // no tuple form for `helper` — the ones it can take apart are `ta.bb`, ..." — a
+  // sentence about builtins, said about the member's own function, whose real wall
+  // (a `for` running total, a reassignment) was already recorded on the opaque
+  // binding. Measured on the corpus: linear-regression-channel(-200),
+  // delta-rsi-oscillator-strategy, anchored-vwap-pinch-handoff and four more.
+  if (callee && callee.kind === 'opaque' && callee.isFunction) {
+    return '`' + shown + '`' + ' is a function this script defines and this engine could '
+      + 'not read, so none of its values can be handed out — ' + String(callee.message || '')
+  }
   if (callee && callee.kind === 'fn') {
     const v = callee.value
     if (!v || v.kind !== 'tuple') {
