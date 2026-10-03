@@ -152,6 +152,9 @@ BENIGN_4XX_5XX = (
     "/api/j2/broker/sync",      # BROKER_SYNC_ENABLED=0 in the kill list -- a 503 by design
     "/api/stream/bars",         # no live vendor in the sandbox
     "/api/live-prices",         # no live vendor in the sandbox
+    "warm=1",                   # background bars pre-warm for OTHER timeframes (5/15/30/60/W/M)
+                                 # this walk never seeded -- the chart's own D-tf request (no
+                                 # warm=1) is the one that must succeed, and does
 )
 
 res: dict = {"wave": 13, "lane": "13X", "checks": {}, "errors": [], "console_errors": [],
@@ -613,6 +616,14 @@ def run_walk(base: str, art: Path) -> None:
         # ── W1: Research Home, everything mounted together ──────────────────────────────────
         @guarded("W1_research_home_1200")
         def w1():
+            # Diagnostic for a prior run's false negative (run 2): read the SAME endpoint
+            # the page calls, directly, before touching the browser at all -- settles
+            # whether an empty Active theses section is a backend read or a frontend race.
+            home_api = M.get(base + "/api/j2/notebook/home")
+            state["W1_home_api_status"] = home_api.status
+            state["W1_home_api_active_theses"] = (
+                [n.get("id") for n in (home_api.json().get("activeTheses") or [])]
+                if home_api.status == 200 else None)
             pg = new_page(member, "W1-home")
             pg.goto(base + "/journal/notebook", wait_until="domcontentloaded")
             h._dismiss_intro(pg)
@@ -639,7 +650,10 @@ def run_walk(base: str, art: Path) -> None:
             ok = "$AMD" in prep_text and "NVDA" in active_text and today_btn.count() >= 1
             record("W1_research_home_1200", "PASS" if ok else "FAIL",
                    reporting_soon_text=prep_text[:300], active_theses_text=active_text[:300],
-                   today_button_present=today_btn.count() >= 1, screenshot="W1-home-1200.png")
+                   today_button_present=today_btn.count() >= 1, screenshot="W1-home-1200.png",
+                   home_api_status=state.get("W1_home_api_status"),
+                   home_api_active_theses=state.get("W1_home_api_active_theses"),
+                   seeded_note_id=state.get("note_id"))
             pg.close()
         w1()
 
@@ -819,11 +833,24 @@ def run_walk(base: str, art: Path) -> None:
                     present = True
                 except Exception as e:  # noqa: BLE001 -- recorded as absent, not fatal to the row
                     state[f"W6_{key}_error"] = str(e)[:300]
+                    # Diagnostic (run 2 never resolved this): is the DOM stuck on the
+                    # loading sentinel, the error alert, or something unaccounted for --
+                    # and what does the endpoint itself say, read directly.
+                    if key == "discipline":
+                        state["W6_discipline_dom"] = {
+                            "loading": pg.get_by_test_id("discipline-loading").count(),
+                            "alert": pg.get_by_role("alert").count(),
+                            "alert_text": (pg.get_by_role("alert").first.inner_text()
+                                          if pg.get_by_role("alert").count() else None),
+                        }
+                        api = M.get(base + "/api/j2/plan-grades/discipline")
+                        state["W6_discipline_api"] = {"status": api.status, "body": api.text()[:600]}
                 rows[key] = present
                 pg.screenshot(path=str(art / f"W6-insights-{key}-1200.png"))
                 pg.close()
             ok = all(rows.values())
-            record("W6_insights_1200", "PASS" if ok else "FAIL", sections_present=rows)
+            record("W6_insights_1200", "PASS" if ok else "FAIL", sections_present=rows,
+                   discipline_dom=state.get("W6_discipline_dom"), discipline_api=state.get("W6_discipline_api"))
         w6()
 
         # ── W7: the setups board -- cross-feature exclusion + find-similar ──────────────────
