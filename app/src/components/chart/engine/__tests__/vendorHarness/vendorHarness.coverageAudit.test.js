@@ -404,7 +404,7 @@ describe('CAP3 — Q-RT5a vw-rt5-arm-draw-block-history, NYSE:RDDT 1D from the l
     expect(col3(c, 'B01_block_local_prev_exec')).toEqual(want)
     expect(col3(c, 'B00_bar_index_CONTROL')).toEqual(c.bars.rows.map((_, i) => i))
   }, T)
-  it('door on this tree: refused by name (pine:drawing) — the RT5 branch is what this capture grades', () => {
+  it('door (RT5 merged): still refused by name (pine:drawing) — the ternary-arm label is a named refusal this capture is the evidence for', () => {
     expect(grade('vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03', 'runtime').v.reason).toMatch(/pine:drawing/)
   }, T)
 })
@@ -446,7 +446,44 @@ describe('CAP3 — Q-H4a vw-h4-loops (vendor witness)', () => {
     expect(Math.max(...bad(l2, 'L2'))).toBeLessThan(22)
     expect(bad(l3, 'L3')).toEqual([0, 1])
   }, T)
-  it('door on this tree: refused by name (pine:block, the `for` in wsum) — the H4 branch is what this capture grades', () => {
-    expect(grade('vw-h4-loops-rddt-1d-2026-10-03', 'runtime').v.reason).toMatch(/pine:block/)
+  it('⭐ door (runtime pane, H4 merged): RDDT MATCH — all four rows on all 636 bars', () => {
+    const v = grade('vw-h4-loops-rddt-1d-2026-10-03', 'runtime').v
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.plots.length).toBe(4)
+    for (const p of v.plots) expect(p.stats.compared, p.title).toBe(636)
+  }, T)
+  it('door: SPY (a window not from the listing) — the run computes no column; the objects pane alone still refuses the `for` (pine:block)', () => {
+    const s = grade('vw-h4-loops-spy-1d-2026-10-03', 'runtime').v
+    expect(s.verdict).toBe('INCONCLUSIVE')
+    expect(s.plots.every((p) => /no column/.test(p.reason || ''))).toBe(true)
+    expect(grade('vw-h4-loops-rddt-1d-2026-10-03').v.reason).toMatch(/pine:block/)
+  }, T)
+})
+
+describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own objects, RT5 merged)', () => {
+  it('vendor: RDDT from the listing (636 bars) and SPY 1800 bars; the source is the corpus file', () => {
+    const r = grade('renko-candles-overlay-rddt-1d-2026-10-03', 'runtime').cap
+    expect(r.history.startsAtBar0).toBe(true)
+    expect(r.bars.count).toBe(636)
+    expect(r.source.sha256).toBe('b41903eaef3cdd27e29411a6d1a102ab8927e22b474e459b3086b4dab3b1da40')
+    expect(grade('renko-candles-overlay-spy-1d-2026-10-03', 'runtime').cap.bars.count).toBe(1800)
+  }, T)
+  it('⭐ RDDT (runtime pane): MATCH — 142 boxes, 2 lines, 2 labels, texts and colours (290 paired slots) and the paint agree', () => {
+    const v = grade('renko-candles-overlay-rddt-1d-2026-10-03', 'runtime').v
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.objects.counts.find((c) => c.family === 'boxes')).toMatchObject({ vendor: 142, ours: 142 })
+    expect(v.objects.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 2, ours: 2 })
+    expect(v.objects.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
+    expect(v.paints.verdict).toBe('MATCH')
+  }, T)
+  it('SPY (a window not from the listing): the paint agrees; the run draws nothing (TradingView 141 boxes) — INCONCLUSIVE, not a match', () => {
+    const v = grade('renko-candles-overlay-spy-1d-2026-10-03', 'runtime').v
+    expect(v.verdict).toBe('INCONCLUSIVE')
+    expect(v.paints.verdict).toBe('MATCH')
+    expect(v.objects.reason).toMatch(/the run drew nothing/)
+  }, T)
+  it('the objects pane alone still refuses it by name (pine:collection)', () => {
+    expect(grade('renko-candles-overlay-rddt-1d-2026-10-03').v.reason).toMatch(/pine:collection/)
   }, T)
 })
