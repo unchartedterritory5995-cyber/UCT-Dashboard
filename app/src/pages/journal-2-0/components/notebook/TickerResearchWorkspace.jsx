@@ -12,6 +12,7 @@ import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
+import { SaveTranscriptButton } from './TranscriptDoors'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -226,6 +227,10 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               <UIcon name="calendar" size={13} gold={false} /> Earnings prep
             </button>
           )}
+          {/* Wave 13 lane 13G-1: save a call-transcript passage into one of these notes as a
+              cited excerpt. Renders nothing while notebook_transcript_capture_enabled is off. */}
+          <SaveTranscriptButton symbol={identity.symbol} notes={[...activeTheses, ...notes]}
+            onSaved={refresh} onOpenNote={openNote} disabled={creating} />
         </div>
       </div>
 

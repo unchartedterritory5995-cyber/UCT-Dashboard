@@ -306,6 +306,26 @@ def test_saving_the_same_passage_twice_is_one_excerpt(client, app, gate_on, inde
     assert sum(1 for n in body if n.get("type") == "documentExcerpt") == 2
 
 
+def test_the_same_quote_after_its_node_was_removed_goes_back_in_once(client, app, gate_on, index_db):
+    _store()
+    note_id = _note(A)
+    as_user(app, A)
+    ex_id = _save(client, note_id).json()["excerpt"]["id"]
+    from api.services.journal_two import notes
+    n = notes.get_note(A, note_id)
+    kept = [x for x in n["bodyJson"]["content"] if x.get("type") != "documentExcerpt"]
+    notes.update_note(A, note_id, {"bodyJson": {"type": "doc", "content": kept}},
+                      client_schema=99)
+    again = _save(client, note_id).json()
+    assert again["deduped"] is True and again["excerpt"]["id"] == ex_id
+    body = notes.get_note(A, note_id)["bodyJson"]["content"]
+    assert [x["attrs"]["excerptId"] for x in body if x.get("type") == "documentExcerpt"] == [ex_id]
+    assert again["note"]["updatedAt"] == notes.get_note(A, note_id)["updatedAt"]
+    _save(client, note_id)
+    body = notes.get_note(A, note_id)["bodyJson"]["content"]
+    assert sum(1 for x in body if x.get("type") == "documentExcerpt") == 1
+
+
 def test_a_locked_note_refuses_and_leaves_nothing_behind(client, app, gate_on, index_db):
     _store()
     note_id = _note(A)

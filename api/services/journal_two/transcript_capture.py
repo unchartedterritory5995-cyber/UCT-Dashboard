@@ -369,11 +369,26 @@ def save_passage(user_id: str, note_id: str, *, symbol: Any, quarter: Any, turn:
             (user_id, note_id, doc_id, turn_no, captured)).fetchone()
         if dup is not None:
             conn.commit()
+            # The same quote again is the same excerpt. If the member had since removed its node
+            # from the note, it goes back in (once); otherwise the note is untouched.
+            placed = conn.execute(
+                "SELECT 1 FROM j2_note_excerpt_refs WHERE user_id = ? AND note_id = ? AND excerpt_id = ?",
+                (user_id, note_id, dup["id"])).fetchone()
+            if placed is None:
+                try:
+                    notes_service.append_document_excerpt(user_id, note_id, dup["id"], conn=conn)
+                except notes_service.NoteLockedError as ex:
+                    raise TranscriptCaptureError(str(ex), status=423) from ex
+                except notes_service.NoteValidationError as ex:
+                    raise TranscriptCaptureError(str(ex)) from ex
             row = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ? AND user_id = ?",
                                (note_id, user_id)).fetchone()
-            return _result(note_excerpts.get_excerpt(user_id, dup["id"], conn=conn),
-                           {"id": note_id, "updatedAt": row["updated_at"] if row else None},
-                           True, doc_id, t, turn_no, by_turn[turn_no])
+            out = _result(note_excerpts.get_excerpt(user_id, dup["id"], conn=conn),
+                          {"id": note_id, "updatedAt": row["updated_at"] if row else None},
+                          True, doc_id, t, turn_no, by_turn[turn_no])
+            if owned:
+                conn.close()
+            return out
 
         excerpt = note_excerpts.create_excerpt(
             user_id, note_id, document_id=doc_id, page_number=turn_no, captured_text=captured,
