@@ -52,6 +52,9 @@ export default function ThesisChip({ chip, currentPrice }) {
     <span
       className={styles.wrap}
       ref={wrapRef}
+      /* a stable selector for the real-browser walk (tools/notebook_w13g2_walk.py) --
+         the note this chip reads, never a styling hook. */
+      data-thesis-chip={chip.noteId}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
