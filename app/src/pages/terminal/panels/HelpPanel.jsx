@@ -2,15 +2,17 @@
 import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE } from '../functions'
 import styles from '../TerminalShell.module.css'
 
-export default function HelpPanel({ args = [], onRun }) {
-  const focus = args[0] && BY_CODE[args[0]] ? args[0] : null
+export default function HelpPanel({ focusCode = null, onRun }) {
+  // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
+  const focus = focusCode && BY_CODE[focusCode] ? focusCode : null
   const rows = focus ? [BY_CODE[focus]] : FUNCTIONS
   return (
     <div className={styles.help} data-testid="terminal-help">
       <p className={styles.helpSyntax}>
         Type <kbd>TICKER</kbd> for an overview, <kbd>TICKER FUNC</kbd> for a function
         (<kbd>NVDA GP</kbd>, <kbd>AAPL FA</kbd>), or a bare <kbd>FUNC</kbd> for a market-wide one
-        (<kbd>CAL</kbd>, <kbd>BRD</kbd>). <kbd>$CAL</kbd> forces a ticker. Saved things open by
+        (<kbd>CAL</kbd>, <kbd>BRD</kbd>). Arguments follow the code: <kbd>NVDA GP W</kbd> (weekly),
+        <kbd>CAL TODAY</kbd>, <kbd>CAL NEXT</kbd>. <kbd>$CAL</kbd> forces a ticker. Saved things open by
         address (<kbd>L:12</kbd>, <kbd>W:3</kbd>).
       </p>
       {FUNCTION_GROUPS.map((g) => {
@@ -35,7 +37,7 @@ export default function HelpPanel({ args = [], onRun }) {
           </section>
         )
       })}
-      {!focus && (
+      {!focus && Object.keys(ABSENT).length > 0 && (
         <section>
           <h3 className={styles.helpGroup}>Not on this release</h3>
           <ul className={styles.helpList}>

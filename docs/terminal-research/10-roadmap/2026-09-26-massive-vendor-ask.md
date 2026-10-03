@@ -1,6 +1,6 @@
 ---
 id: VENDOR-ASK-MASSIVE-1
-title: The Massive vendor ask - ready to send
+title: The Massive vendor ask - sent 2026-09-29, replied 2026-09-30
 role: >
   Roadmap item RM-N02. One email, four register items, zero engineering, and the only
   thing that can move BRK-01 - the largest coverage gap in the product. Written to be
@@ -24,7 +24,7 @@ date: 2026-09-26
 > ✅ **SENT 2026-09-29 (evening ET) by the owner**, to **sales@massive.com** (the address
 > Massive's contact page gives for "market data experts"), from goszbless@gmail.com, with the
 > body naming the account as **unchartedterritory5995@gmail.com**. Greeting changed to "Hey Massive
-> team,"; the four questions went verbatim. ⏳ **Next: the reply.** Paste it into the session and map
+> team,"; the four questions went verbatim. ~~⏳ **Next: the reply.**~~ ✅ The reply came 2026-09-30 and is mapped in the table above. What remains: (a) the owner buys the second OPRA connection ($75/mo, TERM-002); (b) the options history is accumulated by our own log, `OPTIONS_UNIVERSE_LOG_ENABLED`, armed on terminal-next-monitor 2026-10-02. Status re-verified 2026-10-03 by lane/d-records. The original wording follows, kept as history: Paste it into the session and map
 > each answer through the table below. ⛔ A silence on 1 or 2 is not a no (see below).
 
 **Why one email and not four.** These are four register items (LCQ-01, LCQ-02, TERM-002
