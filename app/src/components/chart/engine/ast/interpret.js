@@ -85,7 +85,7 @@ import { yieldsOf, SENTENCE_RULES } from './sentence.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT, VWAP_MIN_INSTANT,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
   CLOCK_PERIOD_SECONDS, computePeriodCalendar,
 } from '../../indicators.js'
 
@@ -3189,12 +3189,12 @@ export const BAR_FN = Object.freeze({
  *  Returns null when it does not apply. */
 function dailySessionVwap(name, bars, args, length, opts) {
   if (!opts || opts.tf !== 'D' || !Array.isArray(bars) || bars.length !== length || !length) return null
-  // a daily KEY on every bar: the chart's `'YYYY-MM-DD'`, or the alert lane's
-  // date-shaped integer (both below any real instant)
+  // the CHART's daily key, `'YYYY-MM-DD'`, on every bar. ⛔ Not the server sweep's
+  // `YYYYMMDD` integer: that lane (and its Python twin) keeps `computeVWAP`'s
+  // refusal, which `nanLaundering.test.js` pins — the screener states no chart.
   for (let i = 0; i < length; i++) {
     const t = bars[i] ? bars[i].t : undefined
-    const key = typeof t === 'string' ? /^\d{4}-\d{2}-\d{2}$/.test(t) : (Number.isFinite(t) && t < VWAP_MIN_INSTANT)
-    if (!key) return null
+    if (!(typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t))) return null
   }
   const src = name === 'vwapOf' ? (args && args[0]) : null
   if (name === 'vwapOf' && !(src && typeof src.length === 'number')) return null

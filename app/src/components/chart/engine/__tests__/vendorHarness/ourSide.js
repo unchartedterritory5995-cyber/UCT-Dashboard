@@ -525,8 +525,10 @@ function objectsOf(def, bars, ctx, cols, built = null) {
     })
     if (run.withheldBy && run.withheldBy['objects:off-listing']) {
       const fams = run.withheldBy['objects:off-listing']
-      return { drawsObjects: true, ok: false, withheld: 'objects:off-listing',
-        reason: `withheld by name (objects:off-listing) — the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable` }
+      // the same report shape as a drawing the door's gate withholds (F3,
+      // `drawingWithheldBy`): a withheld family is a gap, graded as one
+      return { drawsObjects: false, withheld: 'objects:off-listing',
+        reason: `the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable` }
     }
     const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])

@@ -422,10 +422,19 @@ describe('C42 — the same call, reached another way, is never the every-bar num
       '    label.new(bar_index, low, "OK|" + str.tostring(fok(close)))',
       '    label.new(bar_index, low, "TOP|" + str.tostring(top))',
     ))
-    // 🔴 CONTROLS — a function that reads only the current bar, and the same
-    // history function called at the TOP LEVEL (every bar), are both read
-    expect(labels.map((l) => l.text).sort()).toEqual(['OK|284.88', 'TOP|161.67'])
-    expect(diag.dropReasons['create:label']).toBe(4)
+    // ⭐ F1 re-pin — a ONE-EXPRESSION value helper called from the block is read as
+    // its one-run body (`vw-once-ta-helper` T01–T06): `fv()` / `fs()` are
+    // `ta.highest(high, 10)` on one run = the bar's high (C04 / A01 / B10), and
+    // `fp(src) => src[1]` is the call's own history on its one run = `na`. The local
+    // `fl = fv()` declared in the block takes another path and stays refused.
+    const texts = labels.map((l) => l.text).sort()
+    expect(texts).toContain('OK|284.88')
+    expect(texts).toContain('TOP|161.67')
+    expect(texts).toContain('FS|T151.8899')
+    expect(texts).toContain('FP|NaN')
+    expect(texts).toContain('F|151.8899')
+    // 🔴 CONTROL — the every-bar 10-bar maximum is NOT what the one-run call prints
+    expect(texts).not.toContain('F|161.67')
   })
 
   it('⛔ a `var` written from a `ta.*` call in a block that runs once is refused where a drawing reads it', () => {

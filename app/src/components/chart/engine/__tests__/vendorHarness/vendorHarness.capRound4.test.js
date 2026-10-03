@@ -355,14 +355,15 @@ describe('Q-O1 — the door on the wave-16 tree (O1 merged), graded', () => {
 
   it('⛔ sonarlab SPY (off the listing): the boxes are WITHHELD by name, never drawn as a subset (F1)', () => {
     const v = grade(SONAR_SPY)
-    expect(v.objects.verdict).toBe('INCONCLUSIVE')
-    expect(v.objects.reason).toMatch(/objects:off-listing/)
+    // a withheld drawing grades as a GAP (DIVERGE with its name), F3's rule
+    expect(v.objects.verdict).toBe('DIVERGE')
+    expect(v.objects.reason).toMatch(/withheld by name \(objects:off-listing\)/)
   })
 
   it('⛔ auto-trendline: 6 plots MATCH; the 2 lines are WITHHELD by name (the program lost a removal)', () => {
     const v = grade(ATL)
     expect(v.plots.filter((p) => p.verdict === 'MATCH').length).toBe(6)
-    expect(v.objects.verdict).toBe('INCONCLUSIVE')
-    expect(v.objects.reason).toMatch(/withheld by name/)
+    expect(v.objects.verdict).toBe('DIVERGE')
+    expect(v.objects.reason).toMatch(/withheld by name \(pine:object-removal-lost\)/)
   })
 })

@@ -87,7 +87,7 @@ describe('O1 G2a + G2b — sonarlab-order-blocks holds the boxes its Pine semant
       // drawn as a subset. CAP round 4 measured why: SPY / AAPL / BRK.A 1D hold
       // 24 / 17 / 24 boxes on TradingView, many made before the first loaded bar.
       if (cap.history && cap.history.startsAtBar0 === false) {
-        expect(ours.objects.ok).toBe(false)
+        expect(ours.objects.drawsObjects).toBe(false)
         expect(ours.objects.withheld).toBe('objects:off-listing')
         return
       }

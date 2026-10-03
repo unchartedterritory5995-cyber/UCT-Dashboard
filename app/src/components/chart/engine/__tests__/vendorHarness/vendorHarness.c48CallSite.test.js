@@ -311,9 +311,9 @@ describe('C48 — ONE execution: our object lane on the probe\'s own source', ()
       '    g()',
       '    label.new(bar_index, low, "block|" + str.tostring(ta.atr(14)))',
     ].join('\n'))
-    expect(labels.map((l) => l.text)).toEqual(['block|NaN'])
-    expect(diag.refusedCalls).toHaveLength(1)
-    expect(diag.refusedCalls[0]).toMatch(/witnessed in a block that runs once, not inside a function called once/)
+    // ⭐ F1 — the drawing helper's `ta.atr(14)` now reads its one run (`na`), as T03 does
+    expect(labels.map((l) => l.text).sort()).toEqual(['NaN', 'block|NaN'])
+    expect(diag.refusedCalls || []).toHaveLength(0)
   })
 })
 

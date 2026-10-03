@@ -106,7 +106,7 @@ describe('C12w — the listing seed reproduces TradingView\'s structure objects,
         const control = runOurSide(withoutListing(cap))
         // ⭐ F1 — off the listing a `var` list of drawings is withheld whole, by name
         // (`objects:off-listing`), which is the stronger form of "fewer".
-        if (control.objects.ok === false) expect(control.objects.withheld).toBe('objects:off-listing')
+        if (control.objects.withheld) expect(control.objects.withheld).toBe('objects:off-listing')
         else expect(control.objects.counts.lines + control.objects.counts.labels).toBeLessThan(lines + labels)
       }, 60000)
     })
