@@ -225,9 +225,15 @@ def strip_comments_and_docstrings(src: str) -> str:
     one of the two passes still matches its own explanation.
     """
     starts = _line_offsets(src)
+    src_lines = src.splitlines(keepends=True)
 
     def off(lineno: int, col: int) -> int:
-        return starts[lineno - 1] + col
+        # ⛔ ast col offsets are UTF-8 BYTES; `src` is indexed by CHARACTERS. A
+        # docstring carrying non-ASCII (`coverage_monitor.run_check`'s arrows) made a
+        # raw byte offset overshoot into the next line's indentation and the stripped
+        # text stopped parsing. Convert on the line's own bytes.
+        line = src_lines[lineno - 1] if lineno - 1 < len(src_lines) else ""
+        return starts[lineno - 1] + len(line.encode("utf-8")[:col].decode("utf-8", "ignore"))
 
     tree = ast.parse(src)
     doc_spans: list[tuple[int, int]] = []
