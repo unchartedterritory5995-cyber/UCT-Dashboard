@@ -31,7 +31,13 @@ export function withRuntimeObjects(out, payload) {
 export function runtimeObjectsOf(cols) {
   if (!cols || typeof cols !== 'object') return null
   const p = cols[RUNTIME_OBJECTS_KEY]
-  return p && typeof p === 'object' && Array.isArray(p.live) ? p : null
+  return p && typeof p === 'object' && Array.isArray(p.live) && p.status !== 'WITHHELD' ? p : null
+}
+
+/** A run that owned its drawings and withheld them by name: `{guard, reason}`, or null. */
+export function runtimeObjectsWithheldOf(cols) {
+  const p = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
+  return p && p.status === 'WITHHELD' ? { guard: p.guard, reason: p.reason } : null
 }
 
 /** Does this definition draw objects from its own run? */

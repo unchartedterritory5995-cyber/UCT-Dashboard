@@ -40,6 +40,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
+import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
@@ -1401,6 +1402,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
       : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  const DRAW_HEAD = /^(line|label|box|table|linefill)\.[a-z_0-9]+$/
+  const splitDrawingCommas = (list) => {
+    const out = []
+    for (const st of list || []) {
+      const segs = splitCommaStatements([st], { isPunct })
+      const drawing = segs.length > 1 && segs.every((x) => x.header && x.header[0]
+        && x.header[0].kind === 'ident' && DRAW_HEAD.test(String(x.header[0].value)))
+      if (drawing) out.push(...segs)
+      else out.push(st)
+    }
+    return out
   }
   const slotHistoryGuard = (slot, at) => {
     if (slot !== null && slot !== undefined
@@ -4589,6 +4602,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
+        // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
+        // tick is the symbol's, settled at bind like every `syminfo.mintick`.
+        if (objectsInRun && node.name === 'math.round_to_mintick' && (node.args || []).length === 1
+          && !(node.args[0] && node.args[0].name)) {
+          const x = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
+          const tick = { type: 'name', name: 'syminfo.mintick', tok: node.tok }
+          return lowerExpr({ type: 'binary', op: '*', tok: node.tok, right: tick, left: {
+            type: 'call', name: 'math.round', tok: node.tok,
+            args: [{ type: 'binary', op: '/', tok: node.tok, left: x, right: tick }] } }, scope, opts)
+        }
         // ⭐⭐ `Foo.new(…)` — ONE INSTANCE OF A USER-DEFINED TYPE.
         //
         // ⛔ FIRST IN THIS ARM, BEFORE THE USER-FUNCTION TABLE AND BEFORE THE
@@ -6161,7 +6185,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  const lowerStmts = (list, scope, rootHoist = false) => {
+  const lowerStmts = (list0, scope, rootHoist = false) => {
+    // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of drawing STATEMENTS
+    // (the host object lane's own split, `objectFnInline.splitCommaStatements`),
+    // split only where every segment is a drawing call.
+    const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null

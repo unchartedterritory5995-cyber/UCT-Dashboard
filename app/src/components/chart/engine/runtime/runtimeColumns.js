@@ -157,7 +157,31 @@ function refusal(guard, message) {
  * @returns {Record<string, number[]>}
  * @throws a refusal-shaped error (`err.guard`) or the script's own `runtime.error`
  */
+/**
+ * ⭐⭐ RT5 — a run that OWNS its drawings and cannot make them (a named drawing
+ * wall, an engine error inside drawing code, `calc_bars_count`) never costs the
+ * document its plots: the plain run (drawings skipped, as before RT5) computes the
+ * columns, and the drawings are WITHHELD by name beside them. A reached
+ * `runtime.error` and the two run-wide budgets are the run's answer, not the
+ * drawings', and stay as they are.
+ */
 export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
+  const compute = (def && def.compute) || {}
+  if (compute.objects !== true) return computeRuntimeColumnsOnce(def, rows, ctx, opts)
+  try {
+    return computeRuntimeColumnsOnce(def, rows, ctx, opts)
+  } catch (err) {
+    if (err && (err.name === 'runtime.error' || err.guard === RUNTIME_TIME_BUDGET_GUARD
+      || err.guard === RUNTIME_HISTORY_GUARD)) throw err
+    const plain = { ...def, compute: { ...compute, objects: undefined } }
+    let out
+    try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch { throw err }
+    return withRuntimeObjects(out, { status: 'WITHHELD', live: [], guard: (err && err.guard) || 'runtime:objects',
+      reason: String((err && err.message) || err) })
+  }
+}
+
+function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
   const outputs = compute.outputs || {}
   // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a

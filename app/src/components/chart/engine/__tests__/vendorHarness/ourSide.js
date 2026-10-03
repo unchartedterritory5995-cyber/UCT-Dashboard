@@ -35,7 +35,7 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
 import { maxLookback } from '../../ast/interpret'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -422,6 +422,11 @@ export function barIndexStartsAtZero(capture) {
 /** ⭐⭐ RT5 — a runtime document's LIVE set at the last bar, made by its own run
  *  (`runtime/runtimeObjects.js`), in the same shape the object lane reports. */
 function runtimeObjectsReport(def, bars, ctx, cols) {
+  const withheldRun = runtimeObjectsWithheldOf(cols)
+  if (withheldRun) {
+    return { drawsObjects: true, ok: false, lane: 'runtime', withheld: withheldRun.guard,
+      reason: `withheld by name (${withheldRun.guard}) — ${withheldRun.reason}` }
+  }
   const payload = runtimeObjectsOf(cols)
   if (!payload) {
     const errs = registry.columnErrors ? registry.columnErrors(cols) : null
