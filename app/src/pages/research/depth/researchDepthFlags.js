@@ -15,6 +15,7 @@ export const RESEARCH_DEPTH_KEYS = [
   'ftd_dataset_enabled',
   'mention_series_enabled',
   'broker_estimates_enabled',
+  'call_replay_enabled',
 ]
 
 export function readResearchDepth(d) {

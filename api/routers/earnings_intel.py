@@ -169,7 +169,7 @@ def call_recap_endpoint(
                     timeout=max(0.0, deadline - time.monotonic()))
             except Exception:
                 webcast = None
-        return {
+        out = {
             "ticker": sym,
             "entity": entity,
             "recap": recap,
@@ -177,6 +177,16 @@ def call_recap_endpoint(
             "webcast_url": webcast,
             "rating_changes": ratings,
         }
+        # D-4 (Lane R): the recap's review status, DARK behind
+        # TRANSCRIPT_CHAPTERS_ENABLED. A fact about our pipeline: every recap is
+        # model-written and no person reviews it. Only on a recap that exists.
+        try:
+            from api.services import transcript_chapters as tc
+            if recap and tc.is_enabled():
+                out["review_status"] = tc.REVIEW_STATUS
+        except Exception:  # noqa: BLE001 -- a label must never cost the recap
+            pass
+        return out
     except Exception as e:
         _log.warning("[earnings_intel] call-recap failed for %s: %s", sym, e)
         return {"ticker": sym, "entity": entity, "recap": None, "recap_status": "unavailable",
@@ -233,6 +243,15 @@ def _with_qa_boundary(res):
         res["prepared_remarks_end"] = prepared_remarks_end(res["segments"])
     except Exception:
         res["prepared_remarks_end"] = None
+    # D-4 (Lane R): chapters, DARK behind TRANSCRIPT_CHAPTERS_ENABLED. Built from
+    # the SAME boundary as the chip above, so the two can never disagree. Unset =>
+    # no key, the payload is byte-identical to before.
+    try:
+        from api.services import transcript_chapters as tc
+        if tc.is_enabled():
+            res["chapters"] = tc.chapters(res["segments"], res.get("prepared_remarks_end"))
+    except Exception:  # noqa: BLE001 -- chapters are additive; the transcript must still serve
+        res.pop("chapters", None)
     return res
 
 
