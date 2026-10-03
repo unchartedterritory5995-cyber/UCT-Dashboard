@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-10-02",
+  "measured_at": "2026-10-03",
   "scripts": 266,
-  "host_ok": 73,
+  "host_ok": 75,
   "screener_ok": 66,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -774,11 +774,9 @@
     },
     {
       "file": "fib-retracement__8XcLscnekw.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -2294,13 +2292,11 @@
     },
     {
       "file": "sonarlab-order-blocks__0df0d45ee6.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {

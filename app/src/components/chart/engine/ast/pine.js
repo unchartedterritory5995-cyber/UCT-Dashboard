@@ -3058,7 +3058,11 @@ export function blockStatements(toks, indents, indent) {
     // and was never a candidate — `splitTopLevel` is the same depth rule
     // `findTop` uses, so there is one definition of "top level" here.
     const parts = body.length === 0 ? splitTopLevel(header, ',') : [header]
-    if (parts.length > 1 && parts.every(isBindingSegment)) {
+    // ⭐ O1 (step 67, G8) — `a := x, b := y` too: a REASSIGNMENT segment splits
+    // exactly as a binding one does. Pine runs the comma-joined statements of a
+    // line left to right, which is what two lines do; the all-or-nothing rule
+    // above is unchanged (one segment of any other shape and nothing splits).
+    if (parts.length > 1 && parts.every((p) => isBindingSegment(p) || isReassignSegment(p))) {
       for (const part of parts) out.push({ header: part, body: [], sub: [] })
       continue
     }
@@ -3164,6 +3168,13 @@ function isBindingSegment(toks) {
 
   for (let i = 0; i < eq; i += 1) if (toks[i].kind !== 'ident') return false
   return true
+}
+
+/** ⭐ O1 — is this token run `name <mutator> expression` — one reassignment
+ *  (`:=`, `+=`, …) of ONE name, with a non-empty right-hand side? */
+function isReassignSegment(toks) {
+  if (toks.length < 3 || toks[0].kind !== 'ident') return false
+  return toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
 }
 
 /** The index of the first token at bracket depth 0 matching `pred`, or -1. */
@@ -14853,6 +14864,100 @@ function readMethodDefs(stmts) {
  *  NAME = <literal>` inside `if`/`else` bodies only (never a loop, a `switch`, a
  *  function body), a spelling nothing outside its declaring blocks names. Any
  *  other spelling is left exactly as it was. */
+/** ⭐⭐ O1 (step 67) — A FIRST-MATCH SEARCH LOOP IS THE CHAINED `?:` IT COMPUTES.
+ *
+ *  sonarlab-order-blocks places its order block on the first green candle 4 to 15
+ *  bars back:
+ *
+ *      for i = 4 to 15 by 1
+ *          if close[i] > open[i]
+ *              last_green := i
+ *              break
+ *
+ *  Pine runs the passes in order and stops at the first index whose test holds,
+ *  leaving `last_green` as it was when none does — exactly
+ *
+ *      last_green := close[4] > open[4] ? 4 : close[5] > open[5] ? 5 : … : last_green
+ *
+ *  which evaluates the same tests in the same order and stops at the same one. An
+ *  `na` test is false in the `if` and takes the next arm in the `?:` (RT1's
+ *  captures): the same. The statement is rewritten in place, before either walk.
+ *
+ *  ⛔ EXACTLY: integer-literal bounds (`by` a positive integer literal, ascending,
+ *  or no `by`), at most `FIRST_MATCH_MAX_PASSES` passes; a body of ONE `if` (no
+ *  `else`) whose block is exactly `X := <counter>` then `break`; a test with no
+ *  call at all (a call could carry state or an effect the chain would not run the
+ *  same number of times in every engine), no assignment, no `X`, and the counter
+ *  only as a bare name. Anything else is left as it was. */
+const FIRST_MATCH_MAX_PASSES = 64
+function rewriteFirstMatchLoops(stmts) {
+  const ident = (t, v) => !!t && t.kind === 'ident' && (v === undefined || t.value === v)
+  const intLit = (t) => !!t && t.kind === 'number' && Number.isInteger(t.value) && /^\d+$/.test(String(t.raw ?? t.value))
+  const rewrite = (st) => {
+    const hd = st.header || []
+    // for I = A to B [by S]
+    if (!ident(hd[0], 'for') || !ident(hd[1]) || !isPunct(hd[2], '=') || !intLit(hd[3]) || !ident(hd[4], 'to')
+        || !intLit(hd[5])) return null
+    let step = null
+    if (hd.length === 8 && ident(hd[6], 'by') && intLit(hd[7]) && hd[7].value > 0) step = hd[7].value
+    else if (hd.length !== 6) return null
+    const counter = String(hd[1].value)
+    const a = hd[3].value
+    const b = hd[5].value
+    if (step !== null && a > b) return null
+    const dir = step !== null ? step : (b >= a ? 1 : -1)
+    const passes = []
+    for (let v = a; dir > 0 ? v <= b : v >= b; v += dir) {
+      passes.push(v)
+      if (passes.length > FIRST_MATCH_MAX_PASSES) return null
+    }
+    if (!passes.length) return null
+    const body = st.sub || []
+    if (body.length !== 1) return null
+    const ifSt = body[0]
+    const ih = ifSt.header || []
+    if (!ident(ih[0], 'if') || ih.length < 2) return null
+    const inner = ifSt.sub || []
+    if (inner.length !== 2) return null
+    const asg = inner[0].header || []
+    if (asg.length !== 3 || !ident(asg[0]) || !isPunct(asg[1], ':=') || !ident(asg[2], counter)
+        || (inner[0].sub || []).length) return null
+    const brk = inner[1].header || []
+    if (brk.length !== 1 || !ident(brk[0], 'break') || (inner[1].sub || []).length) return null
+    const target = String(asg[0].value)
+    if (target === counter) return null
+    const test = ih.slice(1)
+    for (let i = 0; i < test.length; i += 1) {
+      const tk = test[i]
+      if (tk.kind === 'punct' && (tk.value === '(' || tk.value === '=' || tk.value === '=>' || MUTATORS.has(tk.value))) return null
+      if (tk.kind === 'ident' && tk.value === target) return null
+      if (tk.kind === 'ident' && String(tk.value).split('.').includes(counter) && tk.value !== counter) return null
+    }
+    if (!test.some((tk) => ident(tk, counter))) return null
+    const at = hd[0]
+    const mk = (kind, value, extra = {}) => ({ kind, value, line: at.line, column: at.column, index: at.index, ...extra })
+    const num = (v) => mk('number', v, { raw: String(v) })
+    // ⛔ the assignment's OWN `X` and `:=` tokens: the script's reassignment ledger
+    // (`reassignedNames`, read off the token stream) names those objects.
+    const out = [asg[0], asg[1]]
+    for (const v of passes) {
+      out.push(mk('punct', '('))
+      for (const tk of test) out.push(ident(tk, counter) ? { ...num(v), line: tk.line, column: tk.column, index: tk.index } : tk)
+      out.push(mk('punct', ')'), mk('punct', '?'), num(v), mk('punct', ':'))
+    }
+    out.push(mk('ident', target))
+    return { ...st, header: out, body: [], sub: [], firstMatch: { target, passes: passes.length } }
+  }
+  const visit = (list) => {
+    for (let i = 0; i < (list || []).length; i += 1) {
+      const r = rewrite(list[i])
+      if (r) list[i] = r
+      else visit(list[i].sub)
+    }
+  }
+  visit(stmts)
+}
+
 function hoistBlockVars(stmts) {
   const LITERAL = (t) => t && (t.kind === 'number'
     || (t.kind === 'ident' && (t.value === 'true' || t.value === 'false' || t.value === 'na')))
@@ -20094,6 +20199,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.guardRefusals = diagnostics.guardRefusals || []
     const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` ${subject}` : ''}`
     if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
+    noteWhy('guardRefusalWhy', `${e} :: ${msg}`)
+  }
+  /** ⭐ O1 (step 67) — THE SENTENCE BEHIND A COUNT. `guardRefusals` names the
+   *  guard and its subject; a `create:<family>` drop named nothing at all. Both
+   *  keep the refusal's own words here (first 200 characters, at most 40
+   *  entries each), so a triage reads WHY a drawing is empty off the translation
+   *  instead of off a patched copy of this file. Diagnostics only: nothing reads
+   *  these to decide what is drawn. */
+  const noteWhy = (key, line) => {
+    const list = diagnostics[key] || (diagnostics[key] = [])
+    const s = String(line).slice(0, 260)
+    if (list.length < 40 && !list.includes(s)) list.push(s)
+  }
+  const noteCreateDrop = (op, slot, r) => {
+    noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
+      + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
   }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** ⭐ C25 — the first carried loop scalar a node reads, or null. */
@@ -20980,9 +21101,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           props[k] = r
           continue
         }
+        // ⛔ O1 — READ, NEVER RESET: `rtTextOf` consults `lastCanonRefusal`, so
+        // the sentence is taken only when THIS slot's read wrote a new one.
+        const refusalBefore = lastCanonRefusal
         const v = valueRef(node, k)
         if (!v) {
-          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) { bad = true; break }
+          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
+            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal : null)
+            bad = true
+            break
+          }
           dropProp(op.family, k, node)
           continue
         }
@@ -22422,6 +22550,9 @@ function translatePineResult(source, opts = {}) {
   // tokens every later reader sees.
   const hoistedVars = hoistBlockVars(stmts)
   ctx.hoisted = hoistedVars.skip
+  // ⭐ O1 (step 67) — a counted loop that only searches for the FIRST index whose
+  // test holds is the chained `?:` it computes (`rewriteFirstMatchLoops`).
+  rewriteFirstMatchLoops(stmts)
   // ⛔⛔ H14 — every array write, taken BEFORE the walk and attached to each vector
   // as it is created. See `arrayWritesByName` for the three shapes it closes.
   const arrayWrites = arrayWritesByName(stmts)

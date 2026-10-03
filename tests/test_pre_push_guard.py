@@ -1184,3 +1184,55 @@ def test_the_bypass_log_carries_a_machine_readable_reason_code(tmp_path, monkeyp
     lines = (tmp_path / "bypass.log").read_text(encoding="utf-8").splitlines()
     assert "reason_code=CLOCK-WINDOW" in lines[0]
     assert "reason_code=UNSPECIFIED" in lines[1], "an uncoded bypass must say so, not be blank"
+
+
+# ────────────────── a TERMINAL failure is not a swap (2026-10-02 deadlock) ──────────────────
+#: Three FAILED deploys sat as the newest row while the site was healthy again on the
+#: restarted prior build; every push of the fix was refused as "a swap is in flight".
+
+def _failed(status="FAILED", health=None):
+    d = _dep(status=status)
+    if health is not None:
+        d["live_health"] = health
+    return d
+
+
+@pytest.mark.parametrize("status", ["FAILED", "CRASHED"])
+def test_a_settled_terminal_failure_with_a_healthy_site_ALLOWS(status):
+    v, why = G.decide(_failed(status, {"ok": True, "why": "HTTP 200 status=ok"}),
+                      now_age=G.TERMINAL_SETTLE_SECONDS + 1)
+    assert v == G.OK, why
+    assert "TERMINAL" in why and "healthy" in why
+
+
+def test_a_YOUNG_terminal_failure_still_REFUSES():
+    """Railway may still be restarting the prior build onto the pod."""
+    v, _ = G.decide(_failed(health={"ok": True, "why": "200"}),
+                    now_age=G.TERMINAL_SETTLE_SECONDS - 1)
+    assert v == G.REFUSE
+
+
+@pytest.mark.parametrize("health", [None, {"ok": False, "why": "URLError: timed out"}, {}])
+def test_a_terminal_failure_without_a_HEALTHY_read_still_REFUSES(health):
+    """Down, unreadable, or never read: the guard never claims safety it cannot measure."""
+    v, _ = G.decide(_failed(health=health), now_age=10_000)
+    assert v == G.REFUSE
+
+
+@pytest.mark.parametrize("status", ["BUILDING", "DEPLOYING", "REMOVED", ""])
+def test_a_healthy_site_never_waives_a_real_swap(status):
+    v, _ = G.decide(_failed(status, {"ok": True, "why": "200"}), now_age=10_000)
+    assert v == G.REFUSE, f"{status!r} was allowed"
+
+
+def test_main_reads_live_health_only_for_a_terminal_row(monkeypatch):
+    m = _load()
+    calls = []
+    monkeypatch.setattr(m, "live_health", lambda *a, **k: calls.append(1) or {"ok": True, "why": "200"})
+    monkeypatch.setattr(m, "latest_deployment", lambda: dict(_dep(status="SUCCESS",
+                                                                   created="2026-01-01T00:00:00Z")))
+    m.main(["--json"])
+    assert calls == []
+    monkeypatch.setattr(m, "latest_deployment", lambda: dict(_dep(status="FAILED",
+                                                                   created="2026-01-01T00:00:00Z")))
+    assert m.main(["--json"]) == 0 and calls == [1]

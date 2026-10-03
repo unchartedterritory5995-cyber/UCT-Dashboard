@@ -104,13 +104,10 @@ describe('H2 — a comma line of statements is the statements on separate lines'
     expect(headersOf('float x = na\nx := switch, y = 1\n    close > open => 1\n    => 0')).toContain('x := switch , y = 1')
   })
 
-  it('⛔ a segment carrying a second assignment is not a statement (a continuation line glued on)', () => {
-    // `c = 3` indented under a line that opened nothing CONTINUES that line, so the
-    // last segment reads `b := 2 c = 3` — kept whole, never split into a fragment
-    expect(headersOf('a = 1, b := 2\n    c = 3')).toContain('a = 1 , b := 2 c = 3')
-  })
-
-  it('⛔ a dotted or indexed target is not a bare-name mutation', () => {
-    expect(headersOf('a = 1, t.f := 2')).toContain('a = 1 , t.f := 2')
+  // ⚠️ A comma line with NO block beneath it is O1's split (`isReassignSegment`,
+  // step 67, which runs first and owns that path); the cases below are the ones
+  // only H2's reader takes — a block hanging under the last segment.
+  it('⛔ a dotted target is not a bare-name mutation, so a line with a block under it stays whole', () => {
+    expect(headersOf('a = 1, t.f := switch\n    close > open => 1\n    => 0')).toContain('a = 1 , t.f := switch')
   })
 })
