@@ -25221,6 +25221,42 @@ const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
  *
  *  Only when the caller opted in (`ctx.foldSelectors`, a shared counter the
  *  caller reads afterwards to learn that a fold happened). */
+/** ⭐⭐ F2 (2026-10-02) — AN ARM OF `x = if …` IS OPENED LIKE A NAME.
+ *
+ *  `foldIfChain` builds the value of an if EXPRESSION as a ternary whose arms are
+ *  `bound` nodes (`boundNode(<the arm's binding>)`), never `name` nodes — so every
+ *  colour reader below, which opens a NAME to its binding, stopped at the arm and
+ *  answered "a colour this door cannot say". ⚰️ MEASURED on the vendor harness
+ *  (CAP2, `implied-volatility-suite`, RDDT 1D and SPY 1D, 2026-10-02):
+ *
+ *      col = if (VolatilityChoice == "IV Percentile")
+ *          pctileRank < 50 ? color.red : …
+ *      else if (VolatilityChoice == "IV Rank")
+ *          IVR < 50 ? color.red : IVR >= 50 ? color.green : color.green
+ *      …
+ *      plot(VolatilityData, color = col)
+ *
+ *  drew the pane's gold on every valued bar (272 / 1,388) where TradingView draws
+ *  red or green — a WRONG colour, live. The same rule written as a ternary was
+ *  already carried; only the `if` spelling hid it.
+ *
+ *  ⛔ ONLY AN `expr` BINDING (the text reader's rule, `textNodeOf`), and ONLY an
+ *  arm whose scope is the chain's own: an arm that declared or rebound a name of
+ *  its own reads a scope the plot's colour rule is not resolved in, so it stays
+ *  unopened (declined, as before) rather than read in the wrong scope.
+ *  @returns {{node: object, env: Map}|null} */
+function openBoundArm(node, env) {
+  if (!node || node.type !== 'bound') return null
+  const b = node.binding
+  if (!b || b.kind !== 'expr' || !b.node) return null
+  const own = b.env
+  if (own && own !== env) {
+    if (!env || typeof env.get !== 'function' || typeof own.get !== 'function' || own.size !== env.size) return null
+    for (const [k, v] of own) if (env.get(k) !== v) return null
+  }
+  return { node: b.node, env: own || env }
+}
+
 function constantColourSelector(node, env, ctx) {
   const r = ctx && ctx.resolver
   if (!r || !ctx.foldSelectors || !node || node.type !== 'ternary') return node
@@ -25280,6 +25316,13 @@ function settledColourNode(node, env, ctx) {
       if (!b || b.kind !== 'expr') break
       cur = b.node
       e = b.env || e
+      continue
+    }
+    if (cur.type === 'bound') {
+      const arm = openBoundArm(cur, e)
+      if (!arm) break
+      cur = arm.node
+      e = arm.env
       continue
     }
     if (cur.type !== 'ternary') break
@@ -25583,6 +25626,10 @@ function colourChannelTree(colour, channel) {
 
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? staticColourOf(arm.node, arm.env, depth + 1, ctx) : null
+  }
   // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is its branch.
   if (node.type === 'ternary') {
     const taken = constantColourSelector(node, env, ctx)
@@ -25732,6 +25779,10 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  */
 function colourHelperAlpha(node, env, ctx, depth = 0) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourHelperAlpha(arm.node, arm.env, ctx, depth + 1) : null
+  }
   // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
   // `staticColourOf` opens them — otherwise the two readers disagree about the
   // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
@@ -26042,6 +26093,10 @@ function openColourHelper(node, env, ctx) {
  *  any leaf is not a static colour. Bounded like every other chase here. */
 function staticColourArity(node, env, depth = 0, seen = new Set(), ctx = null) {
   if (!node || depth > 8) return 0
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? staticColourArity(arm.node, arm.env, depth + 1, seen, ctx) : 0
+  }
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen, ctx)
@@ -26116,6 +26171,10 @@ function paletteEntryWithAlpha(hex, a) {
 
 function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourIndexChain(arm.node, arm.env, ctx, depth + 1, acc) : null
+  }
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
@@ -26203,6 +26262,10 @@ function securityColourRule(node, env, depth, ctx) {
 
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourConditional(arm.node, arm.env, depth + 1, ctx) : null
+  }
   if (node.type === 'name') {
     const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (bound && bound.kind === 'expr') {

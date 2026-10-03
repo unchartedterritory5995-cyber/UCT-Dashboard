@@ -299,6 +299,16 @@ function symbolOf(capture) {
   return { ticker, exchange }
 }
 
+/** The reach of a plot's per-bar colour rule, or null when it has none. */
+function colourRuleLookback(o) {
+  const p = o && o.presentation
+  if (!p) return null
+  const reaches = ['colorIndex', 'colorCondition', 'colorGradient']
+    .map((k) => (p[k] && p[k].ast ? lookbackOf(p[k].ast) : null))
+    .filter((n) => Number.isInteger(n))
+  return reaches.length ? Math.max(...reaches) : null
+}
+
 function lookbackOf(ast) {
   try {
     const n = maxLookback(ast)
@@ -641,6 +651,8 @@ export function runOurSide(capture) {
         column: col || null,
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
+        // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
+        colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.

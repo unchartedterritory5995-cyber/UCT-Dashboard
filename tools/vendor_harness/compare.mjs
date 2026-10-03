@@ -340,9 +340,12 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  * @param {Array|null} a.vendorColors normalised hex per bar, or null (not measured)
  * @param {Array|null} a.ourColors    normalised hex per bar, or null (unresolvable)
  * @param {number} a.warmupBars      bars [0, W) are the warm-up region
+ * @param {number} [a.colorWarmupBars] bars [0, C) are the COLOUR's warm-up: a
+ *                                   colour is compared from bar C on (default W).
+ *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, tol, oursUnreadAfter = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -396,7 +399,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       if (!valuesAgree(o, v, tol)) { kind = 'value'; res.valueMismatches += 1 }
     }
     if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
-    if (!kind && vendorColors && ourColors && !isNa(v)) {
+    if (!kind && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
       const vc = vendorColors[i]
       const oc = ourColors[i]
       if (vc !== undefined && vc !== null && oc !== undefined) {
@@ -461,6 +464,27 @@ function divergencePattern(compared, divergent, steady) {
   }
   if (lastDivergent === lastCompared) return { kind: 'persistent', lastDivergentBar: lastDivergent }
   return { kind: 'scattered', lastDivergentBar: lastDivergent }
+}
+
+/** ⭐⭐ F2 (2026-10-02) — A COLOUR HAS A WARM-UP OF ITS OWN.
+ *
+ *  A capture that does not start at the listing excuses the first `maxLookback`
+ *  bars of each plot's VALUE tree (`warmupBars`): TradingView computed them from
+ *  history before the window, which neither side of the comparison holds. A plot's
+ *  per-bar COLOUR is a second tree (`colorIndex` / `colorCondition` /
+ *  `colorGradient`), and it can reach further back than the value: CPR draws
+ *  `DayPivot` (reach 1) in `DayPivot != DayPivot[1] ? na : color.blue` (reach 2).
+ *  ⚰️ MEASURED (CAP2, `cpr-with-mas-super-trend-vwap` SPY 1D from 2019-08-06): on
+ *  bar 1 TradingView compared against its bar 0 pivot (284.58, history before the
+ *  window) and drew no colour; ours compared against a bar before the window and
+ *  drew blue — on CP, BC, TC, D-S1 and D-R1, bar 1 only. The colour there is
+ *  exactly as unknowable as a value inside the value's warm-up, and it is excused
+ *  by the same rule: no further, and never on a capture from the listing.
+ *  ⛔ ONLY THE COLOUR: the value is still compared from `warmupBars` on. */
+export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback }) {
+  if (bar0) return warmupBars
+  if (capture && capture.warmup && Number.isInteger(capture.warmup.bars)) return warmupBars
+  return Number.isInteger(colorLookback) && colorLookback > warmupBars ? colorLookback : warmupBars
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
@@ -706,6 +730,7 @@ export function compareCapture(capture, ours, opts = {}) {
     else if (capture.warmup && Number.isInteger(capture.warmup.bars)) { warmupBars = capture.warmup.bars; warmupSource = `declared by the capture (${capture.warmup.source || 'unstated'})` }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
+    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback })
     const oursCol = leadBy(drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column, treeShift)
     // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
     // `display = display.none`) has no colour anyone sees, so its colour is not
@@ -725,7 +750,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
@@ -735,6 +760,7 @@ export function compareCapture(capture, ours, opts = {}) {
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
+      ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
       color: !vc.measured ? 'not captured'
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
