@@ -399,25 +399,15 @@ def score_row(conn, row: sqlite3.Row) -> None:
     base_date, base_close = row["base_date"], row["base_close"]
     if base_close is None:
         base = read_base(sym, cutoff)
-        if base is None:
-            conn.execute(
-                "UPDATE j2_passed_setups SET status = ?, gaps = ?, sessions_stored = 0, scored_at = ?"
-                " WHERE id = ?",
-                (STATUS_NO_BARS, json.dumps({"base": "no_bars"}), _now_utc().isoformat(), row["id"]))
-            return
-        base_date, base_close = _ymd_iso(base["t"]), float(base["c"])
-    base_ts = int(base_date.replace("-", ""))
-    forward = read_after(sym, base_ts, BEST_WINDOW)
+        if base is not None:
+            base_date, base_close = _ymd_iso(base["t"]), float(base["c"])
+    base_ts = int(base_date.replace("-", "")) if base_date else cutoff
+    forward = read_after(sym, base_ts, BEST_WINDOW) if base_date else []
     calendar = read_after(CALENDAR_SYMBOL, base_ts, BEST_WINDOW)
-    if calendar:
-        calendar_n: int | None = len(calendar)
-    else:
-        # No SPY session after the reference: zero sessions have passed IF the calendar is
-        # stored up to the reference day itself; otherwise the store cannot tell.
-        spy = read_base(CALENDAR_SYMBOL, base_ts)
-        calendar_n = 0 if (spy and spy["t"] == base_ts) else None
 
-    # The trade window ends at the 10th session after the reference close.
+    # ⛔ TRADED FIRST, whatever the bars say: a name the member traded is not a pass even when
+    # the store holds no bars for it. The window ends at the 10th session after the reference
+    # close (read on the session calendar, else this name's own bars, else two calendar weeks).
     sessions = calendar or forward
     if len(sessions) >= TRADED_WITHIN:
         until = _ymd_iso(sessions[TRADED_WITHIN - 1]["t"])
@@ -430,6 +420,21 @@ def score_row(conn, row: sqlite3.Row) -> None:
             " scored_at = ? WHERE id = ?",
             (STATUS_TRADED, t_on, base_date, base_close, _now_utc().isoformat(), row["id"]))
         return
+
+    if base_close is None:
+        conn.execute(
+            "UPDATE j2_passed_setups SET status = ?, gaps = ?, sessions_stored = 0, scored_at = ?"
+            " WHERE id = ?",
+            (STATUS_NO_BARS, json.dumps({"base": "no_bars"}), _now_utc().isoformat(), row["id"]))
+        return
+
+    if calendar:
+        calendar_n: int | None = len(calendar)
+    else:
+        # No SPY session after the reference: zero sessions have passed IF the calendar is
+        # stored up to the reference day itself; otherwise the store cannot tell.
+        spy = read_base(CALENDAR_SYMBOL, base_ts)
+        calendar_n = 0 if (spy and spy["t"] == base_ts) else None
 
     s = score(base_close, forward, calendar_n)
     # ⛔ FROZEN: COALESCE keeps every value already filled; only an empty slot takes a new one.

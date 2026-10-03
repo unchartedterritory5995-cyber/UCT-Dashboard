@@ -11,7 +11,7 @@ import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCa
 const SaveTranscriptPassage = lazy(() => import('./SaveTranscriptPassage'))
 
 /** The ticker research workspace's door: a button, then the sheet with a destination picker. */
-export function SaveTranscriptButton({ symbol, notes, onSaved, onOpenNote, disabled }) {
+export function SaveTranscriptButton({ symbol, notes = null, quarter = null, onSaved, onOpenNote, disabled }) {
   const [open, setOpen] = useState(false)
   if (!transcriptCaptureEnabled()) return null
   return (
@@ -22,7 +22,7 @@ export function SaveTranscriptButton({ symbol, notes, onSaved, onOpenNote, disab
       {open && (
         <Suspense fallback={null}>
           <SaveTranscriptPassage open={open} onClose={() => setOpen(false)} symbol={symbol}
-            notes={notes} onSaved={onSaved} onOpenNote={onOpenNote} />
+            notes={notes} quarter={quarter} onSaved={onSaved} onOpenNote={onOpenNote} />
         </Suspense>
       )}
     </>

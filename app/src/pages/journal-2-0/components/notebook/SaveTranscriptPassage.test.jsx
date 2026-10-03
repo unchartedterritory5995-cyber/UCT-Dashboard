@@ -114,6 +114,24 @@ describe('SaveTranscriptPassage', () => {
     expect(calls.find((c) => c.method === 'POST').body.noteId).toBe('n-new')
   })
 
+  it('a door handed no notes (the calendar panel) asks for the member\'s notes on the ticker and opens on the quarter it was given', async () => {
+    const calls = installFetch([
+      [/\/api\/j2\/notes\?ticker=NVDA&limit=50$/, 'GET', [200, { notes: [{ id: 'n9', title: 'NVDA call notes' }] }]],
+      [/\/quarters$/, 'GET', [200, QUARTERS]],
+      [/\/transcripts\/NVDA\/2026Q1$/, 'GET', [200, { ...TRANSCRIPT, quarter: '2026Q1', callDate: null }]],
+      [/\/save$/, 'POST', [200, SAVED]],
+    ])
+    wrap(<SaveTranscriptButton symbol="NVDA" quarter="2026Q1" />)
+    fireEvent.click(screen.getByRole('button', { name: /Save from a transcript/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Quote from turn 2' }))
+    expect(screen.getByRole('combobox', { name: 'Call quarter' }).value).toBe('2026Q1')
+    expect(screen.getByText(/call date not stored/)).toBeTruthy()
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Destination note' }).value).toBe('n9'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save passage' }))
+    await screen.findByText(/Cited as/)
+    expect(calls.find((c) => c.method === 'POST').body).toMatchObject({ noteId: 'n9', quarter: '2026Q1' })
+  })
+
   it('says so when UCT holds no transcript', async () => {
     installFetch([[/\/quarters$/, 'GET', [200, { ...QUARTERS, quarters: [] }]]])
     wrap(<SaveTranscriptButton symbol="NVDA" notes={NOTES} />)

@@ -11,6 +11,7 @@ import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import styles from './SaveTranscriptPassage.module.css'
 
 const NEW_NOTE = '__new__'
+const EMPTY = Object.freeze([])
 
 /** The member's selection, when it sits inside `el` -- what they meant to quote. */
 function selectionInside(el) {
@@ -36,7 +37,7 @@ function selectionInside(el) {
  */
 export default function SaveTranscriptPassage({
   open, onClose, symbol: givenSymbol = '', notes = null, fixedNoteId = null,
-  onSaved, onOpenNote,
+  quarter: preferredQuarter = null, onSaved, onOpenNote,
 }) {
   const [symbol, setSymbol] = useState(givenSymbol || '')
   const [symbolDraft, setSymbolDraft] = useState(givenSymbol || '')
@@ -53,6 +54,7 @@ export default function SaveTranscriptPassage({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [fetchedNotes, setFetchedNotes] = useState(null)
   const turnRefs = useRef({})
   const passageRef = useRef(null)
 
@@ -64,10 +66,23 @@ export default function SaveTranscriptPassage({
     setError('')
   }, [open, givenSymbol])
 
+  // A door that was not handed the member's notes (the calendar's transcript panel) asks for
+  // their notes on this ticker; the workspace hands its own list in.
+  useEffect(() => {
+    if (!open || fixedNoteId || notes !== null || !symbol) return undefined
+    let live = true
+    fetch(`/api/j2/notes?ticker=${encodeURIComponent(symbol)}&limit=50`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { notes: [] }))
+      .then((d) => { if (live) setFetchedNotes(Array.isArray(d?.notes) ? d.notes : []) })
+      .catch(() => { if (live) setFetchedNotes([]) })
+    return () => { live = false }
+  }, [open, fixedNoteId, notes, symbol])
+  const destNotes = useMemo(() => notes ?? fetchedNotes ?? EMPTY, [notes, fetchedNotes])
+
   useEffect(() => {
     if (fixedNoteId) return
-    setDest((d) => d || (notes && notes.length ? notes[0].id : NEW_NOTE))
-  }, [notes, fixedNoteId])
+    setDest((d) => (d && d !== NEW_NOTE ? d : (destNotes.length ? destNotes[0].id : NEW_NOTE)))
+  }, [destNotes, fixedNoteId])
 
   // The quarters UCT holds for this symbol.
   useEffect(() => {
@@ -82,11 +97,12 @@ export default function SaveTranscriptPassage({
         if (!live) return
         const qs = Array.isArray(d?.quarters) ? d.quarters : []
         setQuarters(qs)
-        setQuarter(qs.length ? qs[0].quarter : '')
+        const preferred = qs.find((x) => x.quarter === preferredQuarter)
+        setQuarter(preferred ? preferred.quarter : (qs.length ? qs[0].quarter : ''))
       })
       .catch((e) => { if (live) { setQuarters([]); setLoadError(e.message) } })
     return () => { live = false }
-  }, [open, symbol])
+  }, [open, symbol, preferredQuarter])
 
   // The chosen call, as numbered speaker turns.
   useEffect(() => {
@@ -132,7 +148,7 @@ export default function SaveTranscriptPassage({
         noteId = created.id
         noteTitle = created.title
       } else if (!fixedNoteId) {
-        noteTitle = (notes || []).find((n) => n.id === dest)?.title || null
+        noteTitle = destNotes.find((n) => n.id === dest)?.title || null
       }
       const out = await savePassage({
         noteId, symbol, quarter, turn: turn.turn, passage, annotation: annotation.trim(),
@@ -253,7 +269,7 @@ export default function SaveTranscriptPassage({
                 <span className={styles.label}>Save into</span>
                 <select className={styles.select} value={dest} aria-label="Destination note"
                   onChange={(e) => setDest(e.target.value)}>
-                  {(notes || []).map((n) => (
+                  {destNotes.map((n) => (
                     <option key={n.id} value={n.id}>{n.title?.trim() || 'Untitled'}</option>
                   ))}
                   <option value={NEW_NOTE}>A new {symbol} note</option>

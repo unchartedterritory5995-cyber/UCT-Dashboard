@@ -317,6 +317,16 @@ def test_a_name_held_across_the_save_is_traded(db_path, bars):
     assert _row(A, "NVDA")["status"] == "traded"
 
 
+def test_a_traded_name_leaves_the_list_even_with_no_stored_bars(db_path, bars):
+    """Traded is decided before bars are: a name with nothing in the store is still not a pass
+    if the member traded it (found by the walk's own design review, 13G-1)."""
+    bars("SPY", _rising())
+    _position(A, "ZZZZ", AFTER[1])
+    _manual(A, "ZZZZ", BASE_DAY, NOW)
+    r = _row(A, "ZZZZ")
+    assert (r["status"], r["traded_on"]) == ("traded", AFTER[1])
+
+
 def test_another_members_trade_does_not_count(db_path, bars):
     bars("SPY", _rising())
     bars("NVDA", _rising())
