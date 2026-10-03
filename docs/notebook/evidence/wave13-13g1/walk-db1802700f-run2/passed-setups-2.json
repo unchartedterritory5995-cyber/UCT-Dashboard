@@ -1,0 +1,170 @@
+{
+ "items": [
+  {
+   "id": "a018a44c849847028bf85e00c3ee9517",
+   "symbol": "NVDA",
+   "savedAt": "2026-08-27T21:30:00+00:00",
+   "savedDay": "2026-08-27",
+   "source": "scanner",
+   "sourceRef": "91dbf67d74bd4578bd1862a09ac5a278",
+   "status": "scored",
+   "baseDate": "2026-08-27",
+   "baseClose": 200.0,
+   "sessionsStored": 20,
+   "tradedOn": null,
+   "outcomes": [
+    {
+     "key": "r1",
+     "sessions": 1,
+     "pct": 1.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r5",
+     "sessions": 5,
+     "pct": 5.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r10",
+     "sessions": 10,
+     "pct": 10.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r20",
+     "sessions": 20,
+     "pct": 20.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "best20",
+     "sessions": 20,
+     "pct": 20.5,
+     "missing": null,
+     "label": null,
+     "best": true
+    }
+   ],
+   "noBarsLabel": null
+  },
+  {
+   "id": "a7b6fd96c89d425f95431d488b130016",
+   "symbol": "QZXT",
+   "savedAt": "2026-08-27T20:00:00+00:00",
+   "savedDay": "2026-08-27",
+   "source": "manual",
+   "sourceRef": null,
+   "status": "pending",
+   "baseDate": "2026-08-27",
+   "baseClose": 50.0,
+   "sessionsStored": 3,
+   "tradedOn": null,
+   "outcomes": [
+    {
+     "key": "r1",
+     "sessions": 1,
+     "pct": 1.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r5",
+     "sessions": 5,
+     "pct": null,
+     "missing": "missing",
+     "label": "Bars missing from the store"
+    },
+    {
+     "key": "r10",
+     "sessions": 10,
+     "pct": null,
+     "missing": "missing",
+     "label": "Bars missing from the store"
+    },
+    {
+     "key": "r20",
+     "sessions": 20,
+     "pct": null,
+     "missing": "missing",
+     "label": "Bars missing from the store"
+    },
+    {
+     "key": "best20",
+     "sessions": 20,
+     "pct": null,
+     "missing": "missing",
+     "label": "Bars missing from the store",
+     "best": true
+    }
+   ],
+   "noBarsLabel": null
+  },
+  {
+   "id": "155af6367ccb4a46a0fbcba4ec477f3c",
+   "symbol": "ZZZZ",
+   "savedAt": "2026-08-27T20:00:00+00:00",
+   "savedDay": "2026-08-27",
+   "source": "manual",
+   "sourceRef": null,
+   "status": "no_bars",
+   "baseDate": null,
+   "baseClose": null,
+   "sessionsStored": 0,
+   "tradedOn": null,
+   "outcomes": [
+    {
+     "key": "r1",
+     "sessions": 1,
+     "pct": null,
+     "missing": "no_bars",
+     "label": "No stored daily bars for this name on or before the save"
+    },
+    {
+     "key": "r5",
+     "sessions": 5,
+     "pct": null,
+     "missing": "no_bars",
+     "label": "No stored daily bars for this name on or before the save"
+    },
+    {
+     "key": "r10",
+     "sessions": 10,
+     "pct": null,
+     "missing": "no_bars",
+     "label": "No stored daily bars for this name on or before the save"
+    },
+    {
+     "key": "r20",
+     "sessions": 20,
+     "pct": null,
+     "missing": "no_bars",
+     "label": "No stored daily bars for this name on or before the save"
+    },
+    {
+     "key": "best20",
+     "sessions": 20,
+     "pct": null,
+     "missing": "no_bars",
+     "label": "No stored daily bars for this name on or before the save",
+     "best": true
+    }
+   ],
+   "noBarsLabel": "No stored daily bars for this name on or before the save"
+  }
+ ],
+ "tradedCount": 1,
+ "horizons": [
+  1,
+  5,
+  10,
+  20
+ ],
+ "bestWindow": 20,
+ "tradedWithin": 10,
+ "lookbackDays": 60
+}

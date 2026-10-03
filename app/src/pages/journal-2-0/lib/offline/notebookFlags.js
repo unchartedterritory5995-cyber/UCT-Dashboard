@@ -57,6 +57,8 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_chart_plan_enabled: false, // wave 13 lane 13H-1: the chart plan (sizing, alerts at drawn levels) — absent ⇒ OFF
   notebook_plan_grading_enabled: false, // wave 13 lane 13A: plan vs execution grading — absent ⇒ OFF
   notebook_entry_context_enabled: false, // wave 13 lane 13E-1: the market context frozen at the fill — absent ⇒ OFF
+  notebook_transcript_capture_enabled: false, // wave 13 lane 13G-1: a transcript passage into a note — absent ⇒ OFF
+  notebook_passed_setups_enabled: false, // wave 13 lane 13G-1: the passed-setups journal — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

@@ -118,6 +118,7 @@ import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/trade
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { TranscriptInsertHost } from './TranscriptDoors'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -4583,6 +4584,8 @@ export default function NoteEditorPage({
           />
         </Suspense>
       )}
+      {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
+      <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel

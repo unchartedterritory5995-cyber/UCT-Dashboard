@@ -22,6 +22,7 @@ import { DICTATE_EVENT } from '../../lib/dictationInsert'
 import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
+import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -236,6 +237,20 @@ export const ITEMS = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
       editor.view.dom.dispatchEvent(new CustomEvent(CANVAS_EVENT, { bubbles: true }))
+    },
+  },
+  {
+    // Wave 13 lane 13G-1: /transcript -- a passage of a call transcript UCT already holds,
+    // saved as a cited excerpt and placed at the caret. Dark behind
+    // `notebook_transcript_capture_enabled`, and dispatched on this editor's own DOM root (I5);
+    // the sheet is TranscriptDoors' TranscriptInsertHost, mounted by the editor page.
+    title: 'Transcript passage',
+    description: 'Quote an earnings call, cited with the call, its date and the speaker turn',
+    keywords: ['transcript', 'earnings', 'call', 'quote', 'excerpt', 'cite'],
+    available: () => transcriptCaptureEnabled(),
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(TRANSCRIPT_EVENT, { bubbles: true }))
     },
   },
 ]

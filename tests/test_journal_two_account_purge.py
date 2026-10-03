@@ -156,6 +156,9 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # read (wave 13 lane 13E-1).
     from api.services.journal_two import entry_context as ectx
     ectx.ensure_schema(conn)
+    # j2_passed_setups, likewise: passed_setups.py self-ensures it (wave 13 lane 13G-1).
+    from api.services.journal_two import passed_setups as psu
+    psu.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

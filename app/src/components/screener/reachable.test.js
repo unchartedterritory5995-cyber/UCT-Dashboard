@@ -299,9 +299,9 @@ const AWAITING_A_DECISION = {
   'app/src/pages/journal-2-0/lib/chartPlan.js':
     'WAVE 13 13H-1 chart-plan library (ta shape, role writer, starter sizing): '
     + 'the 13H-2 plan panel mounts it. Mount it or delete it; then drop this entry.',
-  'app/src/pages/journal-2-0/lib/planLevels.js':
-    'WAVE 13 13A-1 plan-level write builders, reached via chartPlan.js: the '
-    + '13H-2 panel (or 13A-2) mounts it. Mount it or delete it; then drop this entry.',
+  // planLevels.js entry DROPPED 2026-10-03 (w13 landing): it is reachable now
+  // (notebookTemplates.js imports it, 13A's plan grade card path), so the
+  // rail's own expiry clause fired.
   // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
   //
   // Its own header is the reason: approved scope (owner, 2026-09-13) is "a

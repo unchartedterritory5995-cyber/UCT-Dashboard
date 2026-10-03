@@ -1,0 +1,66 @@
+{
+ "items": [
+  {
+   "id": "e666cef419514f428c65c58abe69e8f2",
+   "symbol": "NVDA",
+   "savedAt": "2026-08-27T21:30:00+00:00",
+   "savedDay": "2026-08-27",
+   "source": "scanner",
+   "sourceRef": "004f4f8eb90b44bfac359b63d6fb241b",
+   "status": "scored",
+   "baseDate": "2026-08-27",
+   "baseClose": 200.0,
+   "sessionsStored": 20,
+   "tradedOn": null,
+   "outcomes": [
+    {
+     "key": "r1",
+     "sessions": 1,
+     "pct": 1.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r5",
+     "sessions": 5,
+     "pct": 5.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r10",
+     "sessions": 10,
+     "pct": 10.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "r20",
+     "sessions": 20,
+     "pct": 20.0,
+     "missing": null,
+     "label": null
+    },
+    {
+     "key": "best20",
+     "sessions": 20,
+     "pct": 20.5,
+     "missing": null,
+     "label": null,
+     "best": true
+    }
+   ],
+   "noBarsLabel": null
+  }
+ ],
+ "tradedCount": 0,
+ "horizons": [
+  1,
+  5,
+  10,
+  20
+ ],
+ "bestWindow": 20,
+ "tradedWithin": 10,
+ "lookbackDays": 60
+}

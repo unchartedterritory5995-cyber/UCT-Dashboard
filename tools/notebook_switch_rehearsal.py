@@ -227,6 +227,11 @@ NOT_REHEARSED = {
     # Wave 13 lane 13E-1. No member surface yet: 13E-2 builds the card and the prompt.
     "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "dark (wave 13 13E-1): the market context frozen at the "
                                       "fill (API + capture hooks); no member surface until 13E-2",
+    # Wave 13 lane 13G-1.
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "dark (wave 13 13G-1): save a call-transcript passage "
+                                           "into a note as a cited excerpt; waits for its walk",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": "dark (wave 13 13G-1): the passed-setups journal on Research "
+                                      "Home; waits for its real-browser walk",
 }
 
 

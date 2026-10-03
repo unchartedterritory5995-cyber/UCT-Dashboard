@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -16,12 +16,17 @@ import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import AiActionsBox from './AiActionsPanel'
 import ReportingSoon from './ReportingSoon'
+import { passedSetupsEnabled } from '../../lib/researchCapture'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import LoadFailed from '../LoadFailed'
 import styles from './ResearchHome.module.css'
+
+// Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
+// first-open bytes do not carry it).
+const PassedSetups = lazy(() => import('./PassedSetups'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -304,12 +309,19 @@ export default function ResearchHome({
   // is off. The SECOND child of the same fragment in every return below, for the same reason
   // as the box above: a home that flips between quiet and full must not remount it mid-draft.
   const prepBox = <ReportingSoon onOpenNote={openNote} />
+  // Wave 13 lane 13G-1: "Passed setups" -- nothing (and no fetch) while
+  // notebook_passed_setups_enabled is off. The THIRD child of the same fragment in every
+  // return below, for the same reason as the two boxes above.
+  const passedBox = passedSetupsEnabled()
+    ? <Suspense fallback={null}><PassedSetups /></Suspense>
+    : null
 
   if (nothingToShow && homeError) {
     return (
       <>
         {aiBox}
         {prepBox}
+        {passedBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
@@ -323,6 +335,7 @@ export default function ResearchHome({
       <>
         {aiBox}
         {prepBox}
+        {passedBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <p>Nothing needs your attention right now.</p>
@@ -336,6 +349,7 @@ export default function ResearchHome({
     <>
     {aiBox}
     {prepBox}
+    {passedBox}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
