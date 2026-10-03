@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import styles from '../../pages/Settings.module.css'
+import Switch from '../ui/Switch'
 import {
   fetchPushConfig, pushSupport, currentSubscription, enablePush, disablePush,
 } from '../../utils/webPush'
@@ -78,17 +79,14 @@ export default function PushNotificationsRow() {
         )}
         {msg && <span className={styles.prefDesc} role="status">{msg}</span>}
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
+      <Switch
+        checked={on}
         aria-label="Push notifications to this device"
         className={styles.btn}
         disabled={busy || !support.ok}
         onClick={onToggle}
-      >
-        {busy ? '…' : on ? 'On' : 'Off'}
-      </button>
+      />
+      <span aria-hidden="true">{busy ? '…' : on ? 'On' : 'Off'}</span>
     </div>
   )
 }
