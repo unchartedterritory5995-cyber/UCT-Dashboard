@@ -101,6 +101,9 @@ def load_pair(metric_a: str, metric_b: str, universe: str,
             [(b.get(d) or {}).get("c") for d in dates])
 
 
+#: Exchange Breadth V1 universes: same engine, plus the locked burn-in suppression on MCO.
+EXCHANGE_UNIVERSES = ("nyse", "nasdaq")
+
 # ── McClellan ────────────────────────────────────────────────────────────────
 
 def mcclellan_for_universe(universe: str,
@@ -325,7 +328,13 @@ def _build_uncached(sid: str) -> Optional[DerivedSeries]:
         res = mcclellan_for_universe(uni)
         if res is None:
             return None
-        return DerivedSeries(series_id=sid, dates=res.dates, values=res.oscillator,
+        osc = res.oscillator
+        if uni in EXCHANGE_UNIVERSES:
+            # Exchange Breadth V1 (locked): NOT published inside the 120-session burn-in — a value
+            # there is an artifact of the zero seed wearing the name of a market level.
+            idx = mc.first_trustworthy_index(osc, mc.RATIO_ADJUSTED)
+            osc = [None] * len(osc) if idx is None else [None] * idx + list(osc[idx:])
+        return DerivedSeries(series_id=sid, dates=res.dates, values=osc,
                              universe=uni, methodology_version=row.methodology_version,
                              detail={"ema19": res.ema19, "ema39": res.ema39,
                                      "normalised": res.normalised})

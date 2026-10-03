@@ -83,3 +83,28 @@ def test_appending_future_sessions_never_changes_history():
 def test_deterministic():
     d, a, b = _series(300)
     assert dx.derive(d, a, b) == dx.derive(list(d), list(a), list(b))
+
+
+def test_the_production_derivation_path_equals_the_locked_derivation(monkeypatch):
+    """producers._build_uncached (what a member chart would read) == derive_exchange_series."""
+    from api.services import breadth_daily_ohlc as store
+    from api.services.market_indicators import producers as p
+    d, a, b = _series(300, holes=(150,))
+    data = {"advancing": a, "declining": b, "adv_decline": [None if x is None else x - y for x, y in zip(a, b)]}
+
+    def hist(metric, limit=None, universe=None):
+        assert universe in ("nyse", "nasdaq")
+        return {dt: {"c": v} for dt, v in zip(d, data[metric]) if v is not None}
+    monkeypatch.setattr(store, "history", hist)
+    want = dx.derive(d, a, b)
+    for X in ("NYSE", "NASDAQ"):
+        mco = p._build_uncached(f"{X}:MCO")
+        mcs = p._build_uncached(f"{X}:MCS")
+        ad = p._build_uncached(f"{X}:AD")
+        got_mco = dict(zip(mco.dates, mco.values))
+        assert [got_mco.get(x) for x in d if x != d[150]] == [v for x, v in zip(d, want["MCO"]) if x != d[150]]
+        assert mcs.epoch == want["epoch"] and mcs.base == 0.0
+        got_mcs = dict(zip(mcs.dates, mcs.values))
+        assert all(abs(got_mcs[x] - v) < 1e-9 for x, v in zip(d, want["MCS"]) if v is not None and x in got_mcs)
+        got_ad = dict(zip(ad.dates, ad.values))
+        assert [got_ad[x] for x in d if x in got_ad] == [v for x, v in zip(d, want["AD"]) if x in got_ad]
