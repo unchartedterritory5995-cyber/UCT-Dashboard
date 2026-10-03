@@ -33,6 +33,11 @@
 import { h, p, labeled, linkP, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
 import { PLAN_ROLES } from './planLevels'
 import { callout, isWalkthroughNode, metricTable, table, walkthroughToggle } from './templateBlocks'
+// Wave 13 lane 13C-2: the earnings-prep template is built from the SAME scaffold the one-click
+// "Create prep note" door uses -- never a second, hand-typed one. See earningsPrepShared.js's
+// own header for why this is the shared module and not `earningsPrep.js` itself (a cycle through
+// `noteCreation.js` -> `templateContext.js`).
+import { buildPrepDoc, prepTitle } from './earningsPrepShared'
 
 // ── Families (picker grouping) ────────────────────────────────────────────────
 
@@ -730,7 +735,13 @@ const CATALOG = [
     when: 'The days before a company reports',
     description: 'The expectations, the reaction history, and what to listen for, before the report.',
     tags: ['earnings', 'earnings-prep'],
-    needs: {},
+    // Wave 13 lane 13C-2: declares the SAME draft the one-click "Create prep note" door fetches
+    // (earningsPrepShared.js::requestPrepDraft, through templateContext.js::
+    // assembleTemplateContext) when a ticker is already known -- the same values, the same
+    // "Source, as of" lines, the same cap. No ticker given ⇒ no fetch at all; `build` below
+    // still renders the FULL scaffold, every cell an honest "not available" (never a second,
+    // hand-typed placeholder body).
+    needs: { earningsPrepDraft: true },
     walkthrough: [
       'Fill the report date and the expectations table from the consensus and last year\'s numbers.',
       'Fill the last four reactions: the gap, and where the stock closed that day.',
@@ -738,33 +749,15 @@ const CATALOG = [
       'Note where the stock sits going in: in a base, extended, or broken.',
       'If you will trade the report, size it in an Earnings Play Plan.',
     ],
-    defaultTitle: (ctx = {}) => (ctx.ticker ? `Earnings Prep — ${ctx.ticker}` : 'Earnings Prep'),
-    build: () =>
-      doc([
-        h(2, 'The report'),
-        bullets(['Date, before or after the bell: —', 'Expected move (from options): —']),
-        h(2, 'What the Street expects'),
-        table(['', 'Estimate', 'A year ago', 'Actual'], [
-          ['EPS', '', '', ''],
-          ['Revenue', '', '', ''],
-          ['Key metric', '', '', ''],
-        ]),
-        h(2, 'The last four reactions'),
-        table(['Quarter', 'Beat or miss', 'Gap', 'Close that day'], [
-          ['', '', '', ''],
-          ['', '', '', ''],
-          ['', '', '', ''],
-          ['', '', '', ''],
-        ]),
-        hr(),
-        h(2, 'What the market will listen for'),
-        bullets(['Guidance: —', 'The metric that moves this stock: —', 'Anything new: —']),
-        h(2, 'Where the stock sits going in'),
-        p('In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.'),
-        callout('info', 'This note is the homework. If you trade the report, size it in an Earnings Play Plan.'),
-        h(2, 'After the report'),
-        p('The numbers, the reaction, and whether the setup you described held.'),
-      ]),
+    // Bare / ticker-only (no draft fetched yet): the old static title, unchanged. A real draft
+    // (fetched because a ticker was already known) gets the one-click door's own title --
+    // symbol plus the report day, exactly as `earningsPrep.js::createEarningsPrepNote` titles it.
+    defaultTitle: (ctx = {}) => (ctx.earningsPrepDraft
+      ? prepTitle(ctx.earningsPrepDraft)
+      : (ctx.ticker ? `Earnings Prep — ${ctx.ticker}` : 'Earnings Prep')),
+    // `buildPrepDoc({})` is already proven to build a whole, valid, all-missing doc in the real
+    // editor schema (earningsPrep.test.js) -- the exact doc a ticker-less pick renders here.
+    build: (ctx = {}) => buildPrepDoc(ctx.earningsPrepDraft || {}),
   },
   {
     key: 'ipo-notes',
@@ -1345,6 +1338,10 @@ export const STRUCTURE_PROBE_CONTEXT = Object.freeze({
   regimeLine: `${MARK}regime`,
   positionLines: [`${MARK}position`],
   gamePlanNote: { id: `${MARK}id`, title: `${MARK}plan`, planBullets: [`${MARK}plan bullet`] },
+  // Wave 13 lane 13C-2: left `null`, matching `emptyTemplateContext()`'s own default -- a draft
+  // is either the real, fetched shape or absent, never a marked placeholder object (nothing in
+  // `buildPrepDoc` reads a truthy-but-fake draft as "has data"; every cell checks `value`).
+  earningsPrepDraft: null,
 })
 
 /**

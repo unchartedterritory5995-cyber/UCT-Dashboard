@@ -13,6 +13,7 @@ import { WALKTHROUGH_TITLE, isWalkthroughNode, table, toggle } from './templateB
 import { NOTEBOOK_TYPE_SCHEMA } from './notebookSchema'
 import { editorSchema } from './tiptap'
 import { emptyTemplateContext } from './templateContext'
+import { buildPrepDoc, prepTitle } from './earningsPrepShared'
 
 const KEYS = [
   'daily-prep',
@@ -410,5 +411,80 @@ describe('12B -- the owner\'s list is in the catalog', () => {
       getTemplate(key).build(new Proxy({}, { get: (_, k) => { read.add(k); return undefined } }))
       for (const k of read) if (typeof k === 'string') expect(STRUCTURE_PROBE_CONTEXT, `${key} reads ctx.${k}`).toHaveProperty(k)
     }
+  })
+})
+
+// ── Wave 13 lane 13C-2: the earnings-prep template is the SAME scaffold the one-click
+// "Create prep note" door uses -- never a second, hand-typed one. These prove it by calling
+// BOTH the catalog entry and `buildPrepDoc`/`prepTitle` directly and asserting identity, not
+// similarity: a future edit that forks the two bodies apart fails this file by name. ──────────
+
+describe('13C-2 -- the earnings-prep template reads the one shared scaffold', () => {
+  const FULL_DRAFT = {
+    symbol: 'NVDA',
+    frozenAt: '2026-10-02T14:00:00Z',
+    report: {
+      date: { value: '2026-10-05', source: 'UCT earnings calendar', asOf: '2026-10-02T13:00:00Z', missing: null },
+      timing: { value: 'amc', source: 'UCT earnings calendar', asOf: '2026-10-02T13:00:00Z', missing: null },
+    },
+    expectedMove: { value: { pct: 7.2, dollar: 13.1 }, source: 'Options-implied move, captured by UCT before the report', asOf: '2026-10-01T21:00:00Z', missing: null },
+    street: {
+      quarter: 'FY2027 Q3',
+      eps: { value: 1.31, source: 'UCT earnings data', asOf: '2026-10-02T13:00:00Z', missing: null },
+      revenue: { value: 54_000_000_000, source: 'UCT earnings data', asOf: '2026-10-02T13:00:00Z', missing: null },
+      epsYearAgo: { value: 0.81, source: 'UCT earnings data', asOf: '2026-10-02T13:00:00Z', missing: null },
+      revenueYearAgo: { value: 35_100_000_000, source: 'UCT earnings data', asOf: '2026-10-02T13:00:00Z', missing: null },
+      epsGrowthPct: 61.7, revenueGrowthPct: 53.8,
+    },
+    reactions: { value: [], source: 'UCT earnings data, reactions from UCT daily bars', asOf: '2026-10-02T13:00:00Z', missing: null },
+    recap: { value: null, source: 'UCT call recap (stored)', asOf: null, missing: 'No stored call recap for NVDA.' },
+    myNotes: { value: [], source: 'Your Notebook', asOf: null, missing: 'You have no notes on NVDA yet.' },
+    myTrades: { value: [], source: 'Your trade journal', asOf: null, missing: 'You have no closed trades in NVDA in your journal.' },
+    myPosition: { value: [], source: 'Your open positions', asOf: null, missing: 'You hold no open position in NVDA.' },
+  }
+
+  it('declares the need the one-click door\'s fetch is gated on', () => {
+    expect(getTemplate('earnings-prep').needs).toEqual({ earningsPrepDraft: true })
+  })
+
+  // The catalog wraps every `build` in `withWalkthrough` (one collapsed "How to use this
+  // template" toggle appended at the end, per catalog entry -- `notebookTemplates.js`'s own
+  // `withWalkthrough`). It is identical scaffolding every template gets, never part of the
+  // SCAFFOLD this lane shares with the one-click door, so it is stripped before comparing.
+  const withoutWalkthrough = (d) => ({ ...d, content: (d.content || []).filter((n) => !isWalkthroughNode(n)) })
+
+  it('with a fetched draft, builds byte-identically to buildPrepDoc(draft) -- the one-click body', () => {
+    const fromTemplate = withoutWalkthrough(getTemplate('earnings-prep').build({ earningsPrepDraft: FULL_DRAFT }))
+    expect(fromTemplate).toEqual(buildPrepDoc(FULL_DRAFT))
+    // non-vacuity: this is the DATA-FILLED body, not two empty scaffolds matching by accident
+    expect(JSON.stringify(fromTemplate)).toContain('$1.31')
+    expect(JSON.stringify(fromTemplate)).toContain('Source: UCT earnings calendar, as of')
+  })
+
+  it('titles the note exactly as the one-click door would, once a draft is present', () => {
+    expect(getTemplate('earnings-prep').defaultTitle({ earningsPrepDraft: FULL_DRAFT }))
+      .toBe(prepTitle(FULL_DRAFT))
+    expect(getTemplate('earnings-prep').defaultTitle({ earningsPrepDraft: FULL_DRAFT }))
+      .toBe('Earnings Prep — NVDA (Mon, Oct 5)')
+  })
+
+  it('with no draft fetched (no ticker given), builds byte-identically to buildPrepDoc({}) -- never a second, hand-typed scaffold', () => {
+    expect(withoutWalkthrough(getTemplate('earnings-prep').build({}))).toEqual(buildPrepDoc({}))
+    expect(withoutWalkthrough(getTemplate('earnings-prep').build({ ticker: 'GH' }))).toEqual(buildPrepDoc({}))
+  })
+
+  it('every value in the data-filled body still carries a "Source, as of" line, exactly like the one-click note', () => {
+    const flat = JSON.stringify(withoutWalkthrough(getTemplate('earnings-prep').build({ earningsPrepDraft: FULL_DRAFT })))
+    for (const src of ['UCT earnings calendar', 'Options-implied move, captured by UCT before the report', 'UCT earnings data']) {
+      expect(flat).toMatch(new RegExp(`Source: ${src.replace(/[()]/g, '\\$&')}, as of `))
+    }
+    // the missing cells (recap, notes, trades, position) are labelled, never invented
+    expect(flat).toContain('— not available: No stored call recap for NVDA.')
+    expect(flat).toContain('— not available: You have no notes on NVDA yet.')
+  })
+
+  it('CONTROL -- a template that forked its own scaffold would fail the identity check above', () => {
+    const forked = () => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a different body' }] }] })
+    expect(forked()).not.toEqual(buildPrepDoc(FULL_DRAFT))
   })
 })
