@@ -1904,6 +1904,23 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_screen_alerts", max_instances=1, replace_existing=True)
 
+    # -- FT-027: standing alerts on FILTER-LIST screens (membership snapshot).
+    # Registered unconditionally; `spec_alerts.run_nightly` asks
+    # SCREENER_SPEC_ALERTS_ENABLED each run and does nothing while it is off.
+    # 06:30 ET reads the 03:00 snapshot build; a second run on the same build
+    # stores nothing and diffs nothing (the session is the snapshot's date).
+    def _run_spec_alerts():
+        try:
+            from api.services.screener import spec_alerts
+            print(f"[scheduler] spec screen alerts: {spec_alerts.run_nightly()}")
+        except Exception as e:
+            print(f"[scheduler] spec screen alerts error: {e}")
+
+    scheduler.add_job(
+        _run_spec_alerts,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+        id="screener_spec_alerts", max_instances=1, replace_existing=True)
+
     # -- Wave 2 nightly source jobs: finviz universe, earnings dates, insider
     # capture, analyst pass. Each wraps its runner in try/except and logs the
     # RECEIPT dict on success -- Task 14's verification greps this line, and

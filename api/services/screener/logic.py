@@ -40,7 +40,7 @@ GROUP_KEYS = ("all", "any", "none")
 MAX_DEPTH = 4
 #: thinkorswim's Stock Hacker allows 25 filters per scan; the same ceiling here.
 MAX_LEAVES = 25
-REFUSED_IN_GROUP = ("scan", "list", "universe")
+REFUSED_IN_GROUP = ("scan", "list", "universe", "tickers")
 
 DISABLED_SENTENCE = ("Grouped criteria (any of / none of) are not switched on "
                      "yet, so this screen was not run.")

@@ -40,4 +40,25 @@ describe('specUrl codec', () => {
     expect(out.rank).toEqual(rank)
     expect(out.view).toBe('uct_ratings')
   })
+
+  it('carries grouped logic, so a link never opens a broader screen', () => {
+    const logic = { any: [
+      { key: 'price', op: 'gte', min: 200 },
+      { not: { key: 'sector', op: 'in', values: ['Utilities'] } },
+      { all: [{ key: 'rsi14', op: 'lt', max: 30 }, { key: 'eps_growth', op: 'gt', min: 25 }] },
+    ] }
+    const enc = encodeSpec({ filters: {}, logic })
+    expect(enc).not.toBeNull()
+    expect(decodeSpec(enc).logic).toEqual(logic)
+  })
+
+  it('a malformed logic node decodes to null, never to a partial tree', () => {
+    const bad = [{ any: [] }, { all: 'x' }, { any: [{ nope: 1 }] }, { all: [1], any: [2] }, [1]]
+    for (const lg of bad) {
+      const raw = btoa(JSON.stringify({ lg, f: { price: { op: 'gte', min: 1 } } }))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      expect(decodeSpec(raw).logic).toBeNull()
+    }
+    expect(decodeSpec(encodeSpec({ filters: { p: { op: 'gte', min: 1 } } })).logic).toBeNull()
+  })
 })

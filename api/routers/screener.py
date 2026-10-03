@@ -153,14 +153,27 @@ def screener_grammar(_user=Depends(require_paid)):
 def screener_grammar_parse(body: GrammarIn, _user=Depends(require_paid)):
     """Text -> the `logic` tree a screen runs, plus one plain sentence per
     criterion (the explanation panel). A malformed text is a 400 whose detail
-    says where and why -- never a guess."""
+    says where and why -- never a guess.
+
+    FT-029 v2 (dark, SCREENER_ALERT_GRAMMAR_ENABLED): a `$TICKER` / `#list`
+    scope comes back as `scope_filters` -- flat filters resolved for THIS
+    caller (a list name is looked up among their own lists only) -- which the
+    screen ANDs into `filters`, where reserved keys already live."""
     from api.services.screener import grammar, logic as scr_logic
     try:
-        node = grammar.parse(body.text)
-        n = scr_logic.validate(node)
+        out = grammar.compile_text(body.text)
+        node = out["logic"]
+        n = scr_logic.validate(node) if node is not None else 0
+        scope_filters = grammar.resolve_scopes(out["subjects"],
+                                               (_user or {}).get("id"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"logic": node, "criteria": n, "explanation": grammar.explain(node)}
+    resp = {"logic": node, "criteria": n,
+            "explanation": grammar.explain(node) if node is not None else []}
+    if scope_filters:
+        resp["scope_filters"] = scope_filters
+        resp["subjects"] = out["subjects"]
+    return resp
 
 
 @router.get("/api/screener/meta")

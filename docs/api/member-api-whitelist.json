@@ -2864,6 +2864,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/save-fork",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/saved-screens",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -2871,6 +2877,12 @@
     {
       "method": "GET",
       "path": "/api/screener/snapshot-status",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screener/spec-alerts",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
