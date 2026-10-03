@@ -112,6 +112,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/SetupsBoard.jsx': { recipe: 'setups-board' },
   'components/notebook/BoardCard.jsx': { coveredBy: 'setups-board' },
   'components/notebook/SimilarNames.jsx': { recipe: 'similar-names' },
+  // Wave 13 lane 13G-2: the thesis chip (status + distance to stop, on Positions/Holdings/
+  // Watchlist rows; dark behind notebook_thesis_chips_enabled); rail a11y/thesisChip.a11y.test.jsx.
+  // Its mount points (PositionsTable.jsx, HoldingsList.jsx) live outside this population.
+  'components/notebook/ThesisChip.jsx': { recipe: 'thesis-chip-closed' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },

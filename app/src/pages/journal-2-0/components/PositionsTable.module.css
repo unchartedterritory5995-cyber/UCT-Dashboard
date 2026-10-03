@@ -227,6 +227,13 @@
   min-width: 0;
 }
 
+/* Wave 13 lane 13G-2: the Symbol cell, with its thesis chip inline. */
+.symCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .cardSym {
   font-weight: 700;
   font-size: 15px;

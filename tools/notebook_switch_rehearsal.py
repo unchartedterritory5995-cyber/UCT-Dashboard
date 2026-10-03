@@ -232,6 +232,9 @@ NOT_REHEARSED = {
                                            "into a note as a cited excerpt; waits for its walk",
     "NOTEBOOK_PASSED_SETUPS_ENABLED": "dark (wave 13 13G-1): the passed-setups journal on Research "
                                       "Home; waits for its real-browser walk",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": "dark (wave 13 13G-2): thesis status + distance-to-stop chips "
+                                     "on Positions/Holdings rows; the WatchlistWidget mount waits "
+                                     "on the controller's announcement (P2)",
     # Wave 13 lane 13I-2.
     "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "dark (wave 13 13I-2): the visual playbook grid, the setup-tag "
                                         "suggestion at insert and the trade page's before/after; "
