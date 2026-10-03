@@ -1161,7 +1161,7 @@ export function collectObjectOps(stmts, h) {
             const fam = rhs[0].value.slice('array.new_'.length)
             if (OBJECT_NAMESPACES.includes(fam)) {
               const slots = word === 'var' ? witnessedSlots(rhs) : null
-              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}) })
+              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}), ...(word === 'var' || word === 'varip' ? { persist: true } : {}) })
               if (!slots && createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
             }
             continue
@@ -1184,7 +1184,7 @@ export function collectObjectOps(stmts, h) {
             const fam = String(rhs[0].typeArgs[0] || '')
             if (OBJECT_NAMESPACES.includes(fam)) {
               const slots = word === 'var' ? witnessedSlots(rhs) : null
-              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}) })
+              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}), ...(word === 'var' || word === 'varip' ? { persist: true } : {}) })
               if (!slots && createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
             }
             continue

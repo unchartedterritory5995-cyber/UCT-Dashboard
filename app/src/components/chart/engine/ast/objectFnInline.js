@@ -1023,7 +1023,10 @@ export function historyReason(def, drawFns, userFns, pureFns = new Set(), method
  *    ta.stdev(src, len ≥ 2) → na             A10          (block only)
  *    ta.atr(len ≥ 2)        → na             A06          (block only)
  *    ta.change(src)         → na             A07          (block only)
- *    ta.cum(src)            → src            A11          (block only)
+ *    ta.cum(src)            → src            A11          (block only until F1)
+ *    ta.wma(src, len ≥ 2)   → na             T06, B06     (F1, vw-once-ta-helper)
+ *  F1: T01–T05 of `vw-once-ta-helper` answer the five "block only" rows inside a
+ *  helper called once, the same as in the block, on RDDT and SPY.
  *
  *  A key that is a NUMBER is an arity: what that many positional arguments
  *  answer — 'source' the first argument · 'high' the chart's `high` · 'na' ·
@@ -1040,11 +1043,16 @@ export const ONE_EXECUTION_TA = Object.freeze({
   'ta.lowest': Object.freeze({ helper: true, 2: 'source' }),
   'ta.sma': Object.freeze({ helper: true, 2: 'len', one: true }),
   'ta.ema': Object.freeze({ helper: true, 2: 'len' }),
-  'ta.rsi': Object.freeze({ helper: false, 2: 'len' }),
-  'ta.stdev': Object.freeze({ helper: false, 2: 'len' }),
-  'ta.atr': Object.freeze({ helper: false, 1: 'len' }),
-  'ta.change': Object.freeze({ helper: false, 1: 'na' }),
-  'ta.cum': Object.freeze({ helper: false, 1: 'source' }),
+  // ⭐ F1 — `helper: true` for the five block-only rows and the new `ta.wma` row:
+  // `vw-once-ta-helper-{rddt,spy}-1d-2026-10-02` (CAP round 4) prints T01–T06 in a
+  // helper called once and B01–B06 in the block, and every pair answers the same
+  // on both charts (NaN · NaN · NaN · NaN · the bar's volume · NaN).
+  'ta.rsi': Object.freeze({ helper: true, 2: 'len' }),
+  'ta.stdev': Object.freeze({ helper: true, 2: 'len' }),
+  'ta.atr': Object.freeze({ helper: true, 1: 'len' }),
+  'ta.change': Object.freeze({ helper: true, 1: 'na' }),
+  'ta.cum': Object.freeze({ helper: true, 1: 'source' }),
+  'ta.wma': Object.freeze({ helper: true, 2: 'len' }),
 })
 
 /** ⭐ C42 — is this guard `barstate.islast`, alone or as a top-level `and`

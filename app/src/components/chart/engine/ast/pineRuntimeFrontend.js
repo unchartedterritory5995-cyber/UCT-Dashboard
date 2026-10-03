@@ -35,6 +35,7 @@ import {
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS,
+  declarationWordsOf, pineConstIntValue, constIntWritesOf,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -1131,15 +1132,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  `isfirst`, "this is a screen, not a chart pane" on `timeframe.change`).
    *  ⛔ NO RULE LIVES HERE. Every answer is `pine.js`'s; this only hands the host
    *  lane the same three facts its own pane translation hands it. */
+  // ⭐⭐ F1 — Pine's `/` between two `const int` truncates before v6. The columnar
+  // Resolver answers it for a pure subtree (`declWords` below); a name this lane
+  // MUTATES is a slot, and `constIntWritesOf` says what it holds where.
+  const declWords = declarationWordsOf(tokens)
+  const constIntCtx = { version: pineVersion, declWords }
+  const constIntWrites = constIntWritesOf(stmts, constIntCtx)
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
+      declWords,
       strict: true,
       basePeriod: basePeriodOf(opts),
       newestBarIsForming: opts.newestBarIsForming === true
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
     }
-    : { pineVersion }
+    : { pineVersion, declWords }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
@@ -4111,6 +4119,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // is this engine's declared answer in both lanes now instead of one.
         if (node.op === '%') {
           return irBuiltin('mod', [lowerExpr(node.left, scope), lowerExpr(node.right, scope)])
+        }
+        // ⭐⭐ F1 — `/` between two `const int` is the integer Pine computes (before
+        // v6), whether the operands are slots (`a = 28` · `a /= 100`) or bindings.
+        // ⛔ A slot answers only when it is the TOP-LEVEL one `constIntWrites`
+        // read; a function's own local of the same name is not that variable.
+        if (node.op === '/') {
+          const q = pineConstIntValue(node, (name, at) => {
+            const slot = scope.lookup(name)
+            if (slot === null) return env.get(name)
+            if (root.names.get(name) !== slot) return undefined
+            const v = constIntWrites.valueAt(name, at && at.tok ? at.tok.index : NaN)
+            return v === null ? undefined : { kind: 'constInt', value: v }
+          }, constIntCtx)
+          if (q !== null) return num(q)
         }
         const op = BIN[node.op]
         if (!op) {

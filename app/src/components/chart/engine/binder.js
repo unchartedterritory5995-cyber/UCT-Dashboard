@@ -376,6 +376,25 @@ function pointColour(colColors, condColumn, i) {
  *  condition column read through `columnColorsForPlot` exactly as a fill's is, or
  *  its static colour with the opacity folded in. Exported so the vendor harness
  *  grades the very function the chart draws with. */
+/** ⭐⭐ F1 — WHERE a paint's per-bar colour is DRAWN. `offset` and `show_last` are
+ *  render-time only (CAP round 4, `vw-bgcolor-barcolor-spy-1d-2026-10-02`: the
+ *  per-bar record sits on the unshifted bar; the chart shades `offset` bars over,
+ *  and only the last `show_last` bars): bar `j` draws the colour computed on bar
+ *  `j - offset`, and nothing before `n - show_last`. A paint with neither is
+ *  returned as it is. */
+export function paintRenderColours(paint, colours, n) {
+  const off = paint && Number.isInteger(paint.offset) ? paint.offset : 0
+  const last = paint && Number.isInteger(paint.showLast) && paint.showLast >= 0 ? paint.showLast : null
+  if (!off && last === null) return colours
+  const out = new Array(n).fill(null)
+  for (let j = 0; j < n; j += 1) {
+    if (last !== null && j < n - last) continue
+    const from = j - off
+    out[j] = from >= 0 && from < n ? colours[from] : null
+  }
+  return out
+}
+
 export function paintColoursFor(paint, instanceId, columns, n) {
   if (!paint) return null
   if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
@@ -728,6 +747,8 @@ export function createBinder({ chart, LWC }) {
    *  call to the host's capability, and the capability is called only when the
    *  overrides CHANGE (`barColourSig`), so a poll that moves nothing costs nothing. */
   const syncPaints = (ctx, instances, columns, bars, adjustTime, bound) => {
+    // ⭐ F1 — the instance whose `barcolor`s are being folded (later wins inside one).
+    let instBar = null
     const registry = ctx.registry
     const n = bars.length
     let times = null
@@ -749,10 +770,12 @@ export function createBinder({ chart, LWC }) {
       const priceHost = target === 'price' && typeof ctx.priceSeries === 'function'
         ? attempt(() => ctx.priceSeries()).value : null
       const host = own ? own.series : priceHost
+      instBar = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const colours = paintColoursFor(p, inst.instanceId, columns, n)
-        if (!colours) return
+        const computed = paintColoursFor(p, inst.instanceId, columns, n)
+        if (!computed) return
+        const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
           if (!host || typeof host.attachPrimitive !== 'function') return
           const key = `${inst.instanceId}#${i}`
@@ -777,16 +800,24 @@ export function createBinder({ chart, LWC }) {
         }
         if (p.kind !== 'barcolor') return
         const tt = timesOf()
+        // ⭐⭐ F1 — INSIDE ONE SCRIPT THE LATER `barcolor` WINS (CAP round 4,
+        // `vw-bgcolor-barcolor-spy-1d`: P1 yellow on every bar, P2 navy on the up
+        // bars, and TradingView's candles are navy on the up bars, yellow on the
+        // rest). An `na` bar of the later call leaves the earlier one standing.
         for (let j = 0; j < n; j += 1) {
           const c = colours[j]
           if (c == null || isNaColour(c)) continue
-          const k = String(tt[j])
-          if (conflicts.has(k)) continue
-          const had = overrides.get(k)
-          if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
-          overrides.set(k, c)
+          instBar.set(String(tt[j]), c)
         }
       })
+      // Two SCRIPTS that colour one bar differently are not resolved — which one
+      // TradingView shows has no capture — so that bar keeps its own colour.
+      for (const [k, c] of instBar) {
+        if (conflicts.has(k)) continue
+        const had = overrides.get(k)
+        if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
+        overrides.set(k, c)
+      }
     }
     for (const [key, L] of paintLayers) {
       if (alive.has(key)) continue
@@ -897,6 +928,8 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
           // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
           readUnknown: reader.readUnknown,
+          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
+          offListing: reader.historyFromListing !== true,
         })
         return {
           run,

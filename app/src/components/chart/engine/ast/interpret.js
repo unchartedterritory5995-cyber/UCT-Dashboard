@@ -3293,6 +3293,22 @@ export const naConditionIsFalse = (version) => {
   return Number.isFinite(v) && v >= NA_CONDITION_FALSE_FROM_VERSION
 }
 
+/** ⭐⭐ F1 — Pine's `?:`: an `na` test takes the ELSE branch (`pineBool`).
+ *  WITNESSED for every test shape and every version CAP probed
+ *  (`rt1-na-test-v4/v5/v6`, NYSE:RDDT 1D from the listing, 2026-10-02):
+ *  `cross(close, warm)` with `warm` in warm-up -> 2 on bars 0..19, and
+ *  `bool b = na` · `b ? 1 : 2` -> 2 on every bar (v4, v5). */
+export const PINE_TERNARY = (t, a, b) => (pineBool(t) ? a : b)
+
+/** Does this evaluation read a `?:` test as Pine does? Two facts, both stated by
+ *  the CALLER and neither inferred: the series starts at the listing (so a `NaN`
+ *  is Pine's `na`, never a value behind the curtain), and the document's Pine
+ *  version has the rule (`opts.naConditionFalse`, from `meta.naConditionFalse`,
+ *  `nativeRegistry.listingOptsFor`). The same two the runtime lane asks
+ *  (`runtime/lowerIr.js` `naFalse`). Off the listing `TERNARY` stands. */
+export const pineTernaryFor = (opts) => !!opts && opts.historyFromListing === true
+  && opts.naConditionFalse === true
+
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
 // --------------------------------------------------------------------------- //
@@ -5961,7 +5977,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return lift3(values[0], values[1], values[2], TERNARY, length)
+      return lift3(values[0], values[1], values[2], pineTernaryFor(opts) ? PINE_TERNARY : TERNARY, length)
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -5995,7 +6011,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return TERNARY(values[0], values[1], values[2])
+      return (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(values[0], values[1], values[2])
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -6335,7 +6351,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             v = pineTest === LISTING_UNKNOWN || (strict && Number.isNaN(pineTest))
               ? LISTING_UNKNOWN
               : heldLatch && Number.isNaN(pineTest) ? values[2]
-                : TERNARY(pineTest, values[1], values[2])
+                : (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(pineTest, values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {

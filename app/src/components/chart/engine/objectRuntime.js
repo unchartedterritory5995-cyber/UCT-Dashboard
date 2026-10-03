@@ -2035,6 +2035,22 @@ export function beginObjects(program, ctx) {
   // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
   // this run could not decide pushed the possible count past its trigger).
   for (const fam of collectorUnknown) withheldFams.add(fam)
+  // ⭐⭐ F1 — OFF THE LISTING, A `var` LIST OF DRAWINGS HOLDS WHAT THIS RUN NEVER
+  // SAW. TradingView ran the script from the symbol's first bar: the list (and the
+  // chart) already holds the objects earlier bars made, and the script keeps
+  // acting on them — sonarlab-order-blocks off the listing (SPY / AAPL / BRK.A 1D,
+  // CAP round 4) holds 24 / 17 / 24 order blocks, many made years before the
+  // first loaded bar (SPY's first held box tops at 71.73), where this run made 10 /
+  // 9 / 17. Which ones TradingView still holds is not knowable from these bars, so
+  // the family is withheld whole, by name (`withheldBy`). From the listing the
+  // list starts empty, exactly as here (RDDT: 5 / 5).
+  // ⛔ Only when the caller STATES the series does not start at the listing
+  // (`ctx.offListing === true`); a caller that says nothing keeps today's answer.
+  const offListingFams = new Set()
+  if (ctx.offListing === true) {
+    for (const c of program.colls || []) if (c.persist === true && c.family) offListingFams.add(c.family)
+  }
+  for (const fam of offListingFams) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
@@ -2087,6 +2103,7 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
+    ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,

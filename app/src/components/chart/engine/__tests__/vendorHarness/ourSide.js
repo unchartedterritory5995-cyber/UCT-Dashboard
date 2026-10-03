@@ -39,6 +39,7 @@ import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
+import { paneObjectsGate } from '../../ast/paneGate'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import fs from 'node:fs'
@@ -432,7 +433,15 @@ function objectsOf(def, bars, ctx) {
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
       readUnknown: reader.readUnknown,
+      // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
+      // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
+      offListing: reader.historyFromListing !== true,
     })
+    if (run.withheldBy && run.withheldBy['objects:off-listing']) {
+      const fams = run.withheldBy['objects:off-listing']
+      return { drawsObjects: true, ok: false, withheld: 'objects:off-listing',
+        reason: `withheld by name (objects:off-listing) — the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable` }
+    }
     const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
@@ -657,9 +666,18 @@ export function runOurSide(capture) {
     // ⭐ RT4 — the binder's own gate: a runtime document whose run computed
     // nothing here draws none of its object program (`runtimeObjectsWithheld`).
     const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
+    // ⭐ F1 — the member door's OWN object gate (`paneObjectsGate`): a script whose
+    // object program lost a removal has its drawings WITHHELD by name (the pane
+    // draws its plots and says so in its disclosures). That is not "no drawing
+    // program": it is a withheld family, graded as such, never as an absence.
+    const translated = built.translation
+    const gate = !objectsWithheld && translated && translated.objects && (translated.objects.ops || []).length
+      && !(def.objects && (def.objects.ops || []).length) ? paneObjectsGate(translated) : null
     const objects = objectsWithheld
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
-      : objectsOf(def, bars, ctx)
+      : gate && !gate.draw
+        ? { drawsObjects: true, ok: false, withheld: gate.guard, reason: `withheld by name (${gate.guard}) — ${gate.refusal || 'the object program lost a removal'}` }
+        : objectsOf(def, bars, ctx)
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)

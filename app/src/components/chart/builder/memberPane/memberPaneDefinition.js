@@ -27,6 +27,7 @@ import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/p
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
+import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
@@ -490,6 +491,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         kind: p.kind,
         ...(Number.isInteger(p.line) ? { line: p.line } : {}),
         ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+        // ⭐ F1 — render-time placement, witnessed (`pine.js::resolvePaint`).
+        ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+        ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
       }
       if (typeof p.color === 'string') doc.color = p.color
       if (Number.isFinite(p.opacity)) doc.opacity = p.opacity
@@ -787,6 +791,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // and it rides OUTSIDE the trees, so no tree hash moves. A document without
     // it (saved before this, or from another translator) keeps the bounded window.
     recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
+    // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
+    // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
+    // (`nativeRegistry.listingOptsFor`). Outside the trees, so no tree hash moves;
+    // a document without it keeps `TERNARY`'s answer.
+    ...(naConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
