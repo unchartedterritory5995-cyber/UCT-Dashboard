@@ -282,6 +282,7 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
         try:
             tool.first.wait_for(state="visible", timeout=15000)
         except Exception:
+            w.raw[f"{tag}_events_when_tool_missing"] = pg.evaluate("() => window.__h2ev || null")
             w.raw[f"{tag}_buttons_when_tool_missing"] = pg.evaluate(
                 "() => [...document.querySelectorAll('button')].map(b => [(b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 50), !!b.offsetParent, Math.round(b.getBoundingClientRect().width)])")
             w.shot(pg, f"{tag}-2-draw-mode-no-tool")
@@ -325,7 +326,13 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
     w.raw[f"{tag}_inserted_chart"] = {k: chart.get(k) for k in ("embedId", "params", "mode")}
     w.record(f"{tag}-1_insert_chart", ok1 and bool(embed_id) and (chart.get("params") or {}).get("to") == NOTE_DAY,
              f"/chart typed + Enter -> stored widgetEmbed NVDA D to={(chart.get('params') or {}).get('to')} embedId={embed_id}")
-    pg.wait_for_timeout(1500)
+    # The fresh snapshot self-archives ~3.5 s after it mounts (WidgetEmbedView's settle clock),
+    # which writes `fallback` onto the node. Draw on the settled chart, after that write landed:
+    # run 3 entered draw mode and lost it again inside that window. Recorded either way.
+    t_arch = time.time()
+    _, archived = wait_stored(req, base, nid, lambda e: bool((e[0].get("fallback") or {}).get("url")), timeout_s=30)
+    w.raw[f"{tag}_archive_landed"] = {"landed": archived, "after_s": round(time.time() - t_arch, 1)}
+    pg.wait_for_timeout(800)
     w.shot(pg, f"{tag}-1-chart")
 
     # 2 -- draw three lines, then mark their roles in the panel
