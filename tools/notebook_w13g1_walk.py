@@ -39,7 +39,7 @@ never killed); the data dir outside the shared root (refused) and EMPTY.
       the cited line shows
   W6  1200 px: Research Home's Passed setups lists NVDA from a SCANNER CAPTURE in a note, scored
       +1/+5/+10/+20 and best-in-20 exactly as the seeded bars say
-  W7  keyboard: add PLTR (bars stop after 3 sessions) and ZZZZ (no bars) by hand: PLTR's +5 reads
+  W7  keyboard: add QZXT (fictitious; bars stop after 3 sessions) and ZZZZ (no bars): QZXT's +5 reads
       "Bars missing from the store", ZZZZ says it has no stored bars -- no number is invented
   W8  a name the member traded within 10 sessions (TSLA) leaves the list and is counted
   W9  390 px, touch: Passed setups fits, its controls are >= 44 px, a tap removes a row
@@ -103,7 +103,11 @@ def bars_spec(today: date) -> tuple[dict, dict]:
     spec = {
         "SPY": [[d, 500.0, 501.0] for d in days],          # the session calendar
         "NVDA": series(200.0, 2.0, 25, 1.0),               # +1 / +5 / +10 / +20 = 1 / 5 / 10 / 20 %, best 20.5 %
-        "PLTR": series(50.0, 0.5, 3, 0.25),                # three sessions, then the store has no more
+        # ⛔ A FICTITIOUS symbol for "the store stops after three sessions". Run 1 used PLTR, and the
+        # sandbox boots with USE_REMOTE_BARS=1, which MERGES the worker's real bars snapshot from R2
+        # (newer-wins): every real PLTR session after the seeded third was filled in, and the product
+        # correctly scored what the store then held (+285%). A real ticker cannot be a gap fixture.
+        "QZXT": series(50.0, 0.5, 3, 0.25),                # three sessions, then the store has no more
         "TSLA": series(300.0, 3.0, 25, 1.0),
     }
     meta = {"pass_day": D, "after": after[:25]}
@@ -384,19 +388,19 @@ def run(base: str, w: Walk, meta: dict) -> None:
             tick.focus()
             pg.keyboard.press("Enter")
             pg.locator(f'[data-passed-symbol="{sym}"]').wait_for(state="attached", timeout=30000)
-        for sym in ("PLTR", "ZZZZ", "TSLA"):
+        for sym in ("QZXT", "ZZZZ", "TSLA"):
             try:
                 add_by_keyboard(sym, D)
             except Exception as e:  # noqa: BLE001 -- TSLA must NOT appear; recorded below
                 w.raw[f"W7_add_{sym}_wait"] = str(e)[:200]
         pg.wait_for_timeout(1500)
-        pl, zz = row_cells(pg, "PLTR"), row_cells(pg, "ZZZZ")
-        w.raw["W7"] = {"PLTR": pl, "ZZZZ": zz}
+        pl, zz = row_cells(pg, "QZXT"), row_cells(pg, "ZZZZ")
+        w.raw["W7"] = {"QZXT": pl, "ZZZZ": zz}
         ok7 = (pl and pl["cells"].get("r1") == pct_text(1.0) and pl["cells"].get("r5") == "Bars missing from the store"
                and pl["cells"].get("best20") == "Bars missing from the store"
                and zz and zz["noBars"] == "No stored daily bars for this name on or before the save."
                and not zz["cells"])
-        w.record("W7_gaps_labelled_never_invented", bool(ok7), f"PLTR={pl and pl['cells']}; ZZZZ={zz and zz['noBars']!r}")
+        w.record("W7_gaps_labelled_never_invented", bool(ok7), f"QZXT={pl and pl['cells']}; ZZZZ={zz and zz['noBars']!r}")
         traded_note = pg.get_by_role("note").filter(has_text="traded within").first
         traded_text = traded_note.inner_text() if traded_note.count() else ""
         tsla_listed = pg.locator('[data-passed-symbol="TSLA"]').count()
