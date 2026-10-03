@@ -1,0 +1,54 @@
+Ad-hoc diagnosis (not the 13Q-1 instrument -- see debug_q1_focus.py's own header) run
+2026-10-03 against the SAME sandbox boot path (notebook_perf_harness.Sandbox) and the
+SAME member-provisioning helpers (h._provision) the instrument itself uses, to isolate
+why Q1's body-focus fix (NoteEditorPage.jsx, openFocus === 'body') measured WORSE
+(mouse/taps unchanged at 3; keys up from ~6 to ~97) after three different timing
+strategies (plain useEffect, double-requestAnimationFrame useEffect matching AskPanel's
+own documented race fix, useLayoutEffect) all produced IDENTICAL results -- ruling out
+a React scheduling race as the cause.
+
+Raw console output of the run that found the actual cause:
+
+IMMEDIATE activeElement: {'tag': 'BODY', 'ce': False}
+SETTLED(+500ms) activeElement: {'tag': 'BODY', 'ce': False}
+MANUAL focus attempt result: {'ok': True, 'activeIsPM': False, 'activeTag': 'BODY', 'isDestroyed': False, 'isEditable': True, 'pmCount': 1}
+document.hasFocus(): True
+document.hasFocus() after bring_to_front: True
+MANUAL focus attempt AFTER bring_to_front: {'activeIsPM': True, 'activeTag': 'DIV'}
+Playwright locator.focus() result: {'tag': 'DIV', 'ce': True}
+
+Reading, in order:
+1. Immediately after `.ProseMirror` becomes visible (the same point the instrument's own
+   `focus_in_editor` check fires), document.activeElement is BODY, not the editor --
+   even 500ms later, ruling out a slow effect.
+2. A MANUAL `editor.commands.focus('end')`, called directly via page.evaluate (bypassing
+   React entirely), returns normally -- no exception, `isDestroyed: false`,
+   `isEditable: true`, exactly one `.ProseMirror` node on the page (no ambiguity) --
+   and STILL leaves `document.activeElement` on BODY.
+3. `document.hasFocus()` is `True` throughout, so the common "the browser window itself
+   isn't OS-focused" explanation does not apply here.
+4. The SAME manual call, issued again immediately after `page.bring_to_front()` (Playwright's
+   own "activate this tab" API), succeeds: `activeIsPM: True`.
+5. Playwright's own `locator.focus()` helper (its dedicated API, not a raw JS call) ALSO
+   succeeds, confirming the page itself and the element are both genuinely focusable --
+   the ONE missing ingredient was foreground/activation state.
+
+Conclusion: `tools/notebook_w13q_clicks.py`'s own `run_one` (`ctx = br.new_context(...)`;
+`pg = ctx.new_page()`) creates a brand-new page for EVERY row and never calls
+`page.bring_to_front()` on it. Chromium (correctly, by design -- a background tab must
+not be able to steal keyboard focus) silently ignores a script-triggered `.focus()` call
+on a page that has not been brought to the front, while Playwright's SYNTHETIC
+clicks/taps/keypresses (CDP-level input dispatch, which is what every OTHER row in this
+program measures) are unaffected by foreground state -- which is exactly why every other
+flow's Tab-based navigation in this same instrument measures correctly while a
+programmatic `.focus()` call cannot be observed at all.
+
+This is an INSTRUMENT gap, not a product defect: a real member's browser tab is, by
+definition, the foreground tab they are looking at, so `editor.commands.focus('end')`
+works for them exactly as it works here once `bring_to_front()` is called. It cannot be
+fixed from product code -- there is no DOM API that asks a background page to become the
+browser's foreground tab; only the host automating it can do that.
+
+Recommended instrument fix (for the 13Q-owning lane, not made here -- this lane does not
+edit tools/notebook_w13q_clicks.py): add `pg.bring_to_front()` immediately after
+`pg = ctx.new_page()` in `run_one`.

@@ -717,7 +717,13 @@ export default function NotebookTab() {
   // by the editor — lib/noteTasks.js); any other open drops a stale one.
   // Final-review fix I-1: `fresh` marks a note the member just MADE (createNote
   // below) -- the one open whose next act is typing its title.
-  const openNote = (note, target = null, { task = null, fresh = false } = {}) => {
+  // Wave 13Q-2 (13Q click-budget fix): `blank` narrows that further -- a note
+  // made with NO title and NO template body has nothing in the title worth
+  // reviewing first, so the member's next act is writing in the BODY, not the
+  // title. A template or a typed title still lands in the title (I-1 unchanged
+  // there); only the bare "+ New note" / palette "New Note" / Ctrl+K path is
+  // `blank`. See `createNote`'s own `blank` computation.
+  const openNote = (note, target = null, { task = null, fresh = false, blank = false } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -742,7 +748,7 @@ export default function NotebookTab() {
     // THAT open, not this one.
     paneFocusPlanRef.current = null
     const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
-    setOpenFocus(inside ? null : { id: note.id, to: fresh ? 'title' : 'landmark' })
+    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : 'title') : 'landmark' })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -1473,7 +1479,12 @@ export default function NotebookTab() {
       addNoteToTree(created)
       refreshAll()
       // I-1: the one open that lands in the title -- the member made this note.
-      openNote(created, null, { fresh: true })
+      // 13Q-2: UNLESS it is blank (no title, no template body) -- then straight
+      // to the body (`blank`, computed from what the CALLER passed in, never
+      // from the server's response: every note's stored bodyJson is a real doc,
+      // even an empty one, so reading `created.bodyJson` could not tell blank
+      // from templated).
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
