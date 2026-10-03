@@ -24,15 +24,18 @@
 
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
-import { TEXT_FNS } from './text.js'
+import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
 import {
-  udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet,
+  udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet, isUdtRecord,
 } from './records.js'
+// ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
+import { makeObjectStore } from './objectStore.js'
+import { isDrawingHandle } from './handles.js'
 import { Budget } from './limits.js'
 import { etClockAt } from '../../indicators.js'
 
@@ -254,7 +257,14 @@ export function execute(program, ctx, limits, opts) {
   const histTotal = histOffset[nHist]
   budget.peak('HISTORY_SLOTS', nHist)
   budget.peak('HISTORY_VALUES', histTotal)
-  const hist = new Float64Array(histTotal).fill(NaN)
+  // ⭐⭐ RT5 — A PROGRAM THAT DRAWS KEEPS VALUES, NOT DOUBLES, IN ITS RINGS.
+  // `line.delete(sup[1])` reads a drawing HANDLE one bar back, and a
+  // `Float64Array` turns a handle into `NaN` on the write with nothing raised —
+  // so the delete would find `na`, do nothing, and leave a line TradingView
+  // removed. Only a drawing program pays for the boxed ring.
+  const objectOps = program.objectOps || []
+  const boxedRings = objectOps.length > 0
+  const hist = boxedRings ? new Array(histTotal).fill(NaN) : new Float64Array(histTotal).fill(NaN)
   // How many bars have been committed, so a ring position is `(committed - k) % depth`.
   let committed = 0
 
@@ -272,7 +282,17 @@ export function execute(program, ctx, limits, opts) {
   // per-invocation (that gives `A-6` at `v[2]`), not clamped (that gives `A-3` at
   // `v[4]`), not blank. Because `held` is simply not overwritten on a skipped
   // bar, holding is what this array does by construction rather than by a rule.
-  const held = new Float64Array(histTotal ? nHist : 1).fill(NaN)
+  const held = boxedRings ? new Array(histTotal ? nHist : 1).fill(NaN)
+    : new Float64Array(histTotal ? nHist : 1).fill(NaN)
+  // ⭐⭐ RT5 — THE RUN'S OBJECT STORE: handed in by the caller (who reads its
+  // `finish()`), or made here for a program that draws. A request's sub-run is
+  // handed none — another symbol's bars never draw on this chart.
+  const store = (opts && opts.objects) || (objectOps.length && !(opts && opts.entry !== undefined)
+    ? makeObjectStore({
+      pineVersion: Number.isFinite(program.version) ? program.version : 6,
+      caps: program.objectCaps || {},
+    })
+    : null)
 
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
@@ -397,6 +417,31 @@ export function execute(program, ctx, limits, opts) {
   const frCarriedBase = new Int32Array(depthLimit + 1)
   const frWindowBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
+
+  /** ⭐ RT5 — what holds a drawing right now, for Pine's collector (C7): a
+   *  VARIABLE (a `var`/global slot or a live frame local) spares its object; an
+   *  ARRAY element or a UDT FIELD is reported separately — the case no capture
+   *  separates. Asked only when a collection actually fires. */
+  let heldTop = 0
+  const heldNow = () => {
+    const vars = new Set()
+    const containers = new Set()
+    const seen = new Set()
+    const inside = (v, depth) => {
+      if (depth > 32 || v === null || typeof v !== 'object' || seen.has(v)) return
+      if (isDrawingHandle(v)) { containers.add(v.id); return }
+      seen.add(v)
+      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
+      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
+    }
+    const top = (v) => {
+      if (isDrawingHandle(v)) vars.add(v.id)
+      else inside(v, 0)
+    }
+    for (let i = 0; i < persist.length; i += 1) top(persist[i])
+    for (let i = 0; i < heldTop; i += 1) top(locals[i])
+    return { vars, containers }
+  }
 
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
@@ -632,7 +677,31 @@ export function execute(program, ctx, limits, opts) {
           if (b === 1) v = fn(stack[sp])
           else if (b === 2) v = fn(stack[sp], stack[sp + 1])
           else v = fn(...Array.prototype.slice.call(stack, sp, sp + b))
+          // ⭐ RT5 — `na(h)` of a drawing asks the store, which knows whether
+          // the object behind it was deleted (a case it refuses to guess).
+          if (store && b === 1 && typeof stack[sp] === 'object' && program.pointwise[a] === 'na') {
+            const nv = store.naOf(stack[sp])
+            if (nv !== null) v = nv
+          }
           stack[sp++] = v
+          break
+        }
+        // ⭐⭐ RT5 — A DRAWING OPERATION. The PASSED arguments are on the stack in
+        // parameter order; the op's `present` mask spreads them back onto its
+        // canonical parameter list, `undefined` where the script passed nothing.
+        case OP.OBJECT: {
+          const oop = objectOps[a]
+          if (!store) {
+            throw new VmError(`pc ${pc - 1}: \`${oop.fn}\` draws, and this run holds no drawings `
+              + '(a request of other bars, or a caller that asked for none)')
+          }
+          sp -= b
+          const oargs = new Array(oop.present.length)
+          let k = sp
+          for (let i = 0; i < oop.present.length; i += 1) oargs[i] = oop.present[i] ? stack[k++] : undefined
+          heldTop = localsTop
+          const ov = store.call(oop.fn, oargs, bar, heldNow)
+          if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
           break
         }
         case OP.COLOUR: {
@@ -666,6 +735,7 @@ export function execute(program, ctx, limits, opts) {
           for (let i = 0; i < b; i += 1) {
             const kind = spec.args[i]
             const v = stack[sp + i]
+            if (kind === 'any') continue
             // ⛔ ONE KIND VOCABULARY ACROSS BOTH TABLES. `typeof []` is
             // "object", so a member who handed `str.length` the result of
             // `str.split` was told "got object" — a JavaScript word for a Pine
@@ -1080,5 +1150,5 @@ export function execute(program, ctx, limits, opts) {
     if (onBar) onBar(bar, iters, outputs)
   }
 
-  return { outputs, iters, budget, requested: Array.from(requested).sort() }
+  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
 }

@@ -137,7 +137,7 @@ export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
   carried2 = [],
-  requests = [], objectTreeOutputs = [], iterOutputs = [],
+  requests = [], objectTreeOutputs = [], iterOutputs = [], objectCaps = {},
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -171,6 +171,8 @@ export function makeIrProgram({
     // ⭐ Per-ITERATION buffers — `[{ kind: 'num'|'text' }]`. Empty for every
     // ordinary script; only an object drawing inside a loop declares one.
     iterOutputs: iterOutputs || [],
+    // ⭐ RT5 — the script's declared `max_*_count`s (the run's object store).
+    objectCaps: objectCaps || {},
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -453,7 +455,19 @@ export function validateIr(p) {
         e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
         return
       }
-      case EXPR.TUPLE: case EXPR.ARRAY_OP: case EXPR.OBJECT_OP:
+      // ⭐⭐ RT5 — A DRAWING OPERATION THE RUN EXECUTES ITSELF (`objectStore.js`).
+      // `args` is POSITIONAL on the op's canonical parameter list, with `null`
+      // where the script passed nothing (the default applies) — a different fact
+      // from an `na` it passed, which arrives as an expression.
+      case EXPR.OBJECT_OP:
+        if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a drawing op carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a drawing op carries an args array`)
+        if (!['void', 'handle', 'number', 'string', 'array'].includes(e.returns)) {
+          throw new IrError(`${where}: \`${e.fn}\` declares what it returns`)
+        }
+        e.args.forEach((x, i) => { if (x !== null) walkExpr(x, `${where}.${e.fn}[${i}]`) })
+        return
+      case EXPR.TUPLE: case EXPR.ARRAY_OP:
         // ⛔ DECLARED, NOT LOWERABLE. Accepted by the validator so a front end
         // can BUILD one and get a named refusal from the lowering, rather than
         // the validator pretending the shape does not exist.
@@ -729,6 +743,12 @@ export const colourCall = (fn, args) => ({ kind: EXPR.COLOUR, fn, args })
  *  `array.new` reads — it decides the per-element default for a sized array. */
 export const arrayCall = (fn, args, typeArg = null) => (
   { kind: EXPR.ARRAY, fn, args, typeArg })
+/** ⭐⭐ RT5 — a drawing operation the run executes (`objectStore.js`): `fn` is
+ *  the store's canonical name (or `any.<method>`, dispatched on the receiver's
+ *  family at run time), `args` positional with `null` for an argument the
+ *  script did not pass, `returns` what it leaves on the stack. */
+export const objectCall = (fn, args, returns) => (
+  { kind: EXPR.OBJECT_OP, fn, args, returns })
 /** `Foo.new(…)` — one instance of a user-defined type.
  *
  *  ⛔ `fields` IS IN DECLARATION ORDER AND `args` MATCHES IT POSITION FOR

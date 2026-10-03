@@ -27,6 +27,8 @@ import { execute } from './vm.js'
 import { Budget, RuntimeLimitError } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
+// ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
+import { withRuntimeObjects } from './runtimeObjects.js'
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
  *  door in this module: a runtime pane's columns and an object pass's values are
@@ -59,11 +61,14 @@ export const RUNTIME_HISTORY_GUARD = 'runtime:history-start'
  *
  * @returns {{ok: true, outputs: {call: string}[]} | {ok: false, refusal: object}}
  */
-export function probeRuntimeProgram(source) {
+export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
   let built
   try {
+    // ⭐ RT5 — `objectsInRun`: the build that DRAWS its own objects instead of
+    // handing them to the host object pass (`objectTrees: []`).
     built = buildRuntimeIr(String(source || ''), {
-      bars: [], inputs: {}, objectTrees: [], ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      bars: [], inputs: {}, ...(objectsInRun ? { objectsInRun: true } : { objectTrees: [] }),
+      ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -85,6 +90,8 @@ export function probeRuntimeProgram(source) {
     outputs: program.outputs.map((o) => ({ call: o.call })),
     naTests: naTestsOf(program),
     requests: (built.ir.requests || []).length,
+    // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
+    objectOps: (program.objectOps || []).length,
   }
 }
 
@@ -163,12 +170,15 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)
   const clock = runtimeClockOpts(forming, tf ? { tf } : {})
+  // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
+  // (`objectsInRun`); every other runtime document keeps the host lane's.
+  const ownObjects = compute.objects === true
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
     inputs: {},
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
-    objectTrees: [],
+    ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
     pane: true,
     ...(symbol ? { symbol } : {}),
     ...(tf ? { basePeriod: tf, tf } : {}),
@@ -232,6 +242,12 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]
     if (col) out[plotKey] = Array.from(col)
+  }
+  // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
+  // safe for the worker), beside the columns.
+  if (ownObjects) {
+    const fin = res.objects ? res.objects.finish() : { status: 'ok', reason: null, live: [], withheld: {} }
+    withRuntimeObjects(out, { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
   }
   return out
 }
