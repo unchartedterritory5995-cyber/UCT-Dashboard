@@ -169,6 +169,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 67 | O1 (lane brief, wave 15) the drawing-only scripts: why each of the 33 `pine:no-output` and 6 `pine:object-removal-lost` scripts draws nothing (section O1). Triage: the first wall per script, read off `o1DrawingOnly.measure.test.js`; ten causes, largest G1 collections / UDTs 11, G2 loop-computed values 6, G4 data 5; the runtime fallback draws plot rows only, so it serves none of them. New read-only diagnostics `createDropWhy` / `guardRefusalWhy`. **G7:** `[x =] cond ? f(…) : na` with `f` a drawing helper and `x` read nowhere is `if cond` + `f(…)` (argued from Pine: `?:` runs only the arm it picks, C18's capture; `na` test → ELSE arm, RT1's). **G8:** `a := x, b := y` on one line splits as two lines (Pine's grammar). **G2b:** a getter read through a local (`top = box.get_top(b)` … `if x > top`) is the getter read at the `if` while nothing between can move the object. **G2a:** a first-match `for … if c(i): x := i; break` over literal bounds is the chained `?:` it computes | `69ec7f8963` (triage), `09a77a0fdb` (G7), `41561a52c7` (G8), `83422ea9c8` (G2b), `c82c14ad0c` (G2a) | 0 entries change in the committed harness dir (objects MATCH 73, overall 52 of 138, pane on), every step | translation census host 71 → 75, screener 64 → 65 (`fib-retracement`, `auto-trendline-dojiemoji`, `pa-zigzag-fibonacci-fan`, `sonarlab-order-blocks`) | member door on 75 → **79** / 266, off 52 → 54, on + runtime 78 → 82: `fib-retracement` (G7; 7 lines + 7 labels held to its Pine semantics on RDDT 1D vendor bars), `auto-trendline-dojiemoji` and `pa-zigzag-fibonacci-fan` (G8; each equals its two-line spelling, which attached at base; pa-zigzag host = runtime lane on every RDDT bar), `sonarlab-order-blocks` (G2a + G2b; every held box one its step-by-step Pine semantics keeps, on RDDT, AAPL and BRK.A vendor bars); no capture of any of the four (Q-O1a–d queued); 0 previously attached scripts lost |
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
+| 76 | H4 (lane brief, wave 16) LOOPS, ruling R7 (section H4): every loop shape is served on the RUNTIME lane, which already runs a counted `for`; nothing is folded on the host lane (an exact closed form needs every window element defined, which a loop does not guarantee). Removed the walls in front of the loop: **(1)** a call-site length that is constant arithmetic (`vl3 + vl4`) folds as a loop bound already did, `/` and `%` refused; **(2)** a helper ending in `if` around a `for` is valueless (C18's rule), reading it refuses by name; **(3)** `array.size(array.from(..))` is the argument count, effect-free elements only, never through a shadowing slot; **(4)** a refused row's `display.none` / `offset` reach the runtime document (two spreads dropped them) | `df9e500ac1` + the H4 docs commit | 29 / 47 unchanged | host 75 / screener 66 unchanged | member door off / on 54 / 79, 0 rows; on + runtime 85 -> **84**: wyckoff-accumulation-distribution withdrawn (its `offset = -pivotLen` markers were drawn on the wrong bar), kalman / NW / volume-divergence past their loop walls onto the per-bar colour and `pivotlow` walls; harness dir 202 x on / off / runtime: 0 entries changed (MATCH 56 / 41 / 62); `vendorHarness.h4Loops` 13 hand replays on 631 RDDT bars; 10 / 10 mutations red; Q-H4a queued |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5705,3 +5706,86 @@ attaching through step 1 - the same two O1's G8 attaches, so on the merge they c
   would settle it.
 - **R-f, a tuple part read through its own history** (williams-fractal-trailing-stops): one script, and its next wall is a
   latch in `f_flip` (S-c). Not built.
+
+## H4 - loops on the runtime lane: the walls in front of a counted `for`, and refused rows that drew what TradingView hides (2026-10-02, step 76)
+
+Lane H4 of the "import any TradingView Pine script" program, branch `pine/h4-loops`, base
+`integrate/wave16-2026-10-02` (`a242ed77f6`). Target: the loop wall class (ruling R7) - H2's R-b / R-c / B-a
+(17 scripts) and O1's G2 (a value a loop computes).
+
+### Route, decided per shape
+
+Ruling R7 already put numeric accumulators in a counted `for` on the RUNTIME lane, and that lane runs a counted
+`for` natively (`pineRuntimeFrontend.js` `forStmt`; `INSTRUCTIONS_PER_BAR` unchanged). The host columnar fold was
+measured out by WAVE2-A (counted-`for` accumulators: 63 of 379 have a knowable bound, 1 of 379 admissible), and an
+exact closed form exists only for a window whose every element is defined, which a loop does not guarantee (`na`
+in `+` poisons the loop's total; a window sum does not say so). So **every shape below is served on the runtime
+lane; nothing is folded on the host lane**, and the Python mirror is untouched (no host tree changes; translation
+census 75 / 66 at base and tip).
+
+What stopped the loop scripts were walls IN FRONT of the loop, read off each script's own `runtimeDeclined`
+(member-door census, runtime state):
+
+| shape | scripts | wall at base | outcome |
+|---|---|---|---|
+| **L1** a call-site length that is constant ARITHMETIC (`pine_wma(v4, vl5)`, `vl5 = vl3 + vl4`) | volume-divergence-by-mm (B-a) | `runtime:history-dynamic-offset` (`y` sizes a window) | **served**: `constantArgOf` folds constant arithmetic the way `constValueOf` already folded a loop bound (`foldScalar` over the frozen resolver). `/` and `%` keep their refusal (Pine's integer division is version-dependent). Next wall: `runtime:call-windowed-state` (`pivotlow` over runtime state) |
+| **L2** a helper whose body ENDS in an `if` around a `for` (`f_init(p) => if na(..)` / `for ...`) | kalman-price-filter-backquant (B-a) | `runtime:block-value` (an `if` arm must yield a value) | **served**: `endsInLoop` compiles it VALUELESS, the rule C18 already applies to a bare trailing loop; a call that READS the value still refuses by name (`runtime:function`). Pine discards it at a statement call, as here. Next wall: the plot's per-bar colour |
+| **L3** `array.size(array.from(e1..eN))` as a loop bound | nadaraya-watson-rational-quadratic-kernel-non-repainting (B-a) | `runtime:history-dynamic-offset` (`_size`), then `pine:collection` | **served**: N on every bar (`fromLiteralSizeOf` / `substFromSizes`), read through a once-bound name and never through a slot that shadows it, lowered only when every element is a bare name or literal (no skipped effect). Next wall: the plot's per-bar colour |
+| **L4** a REFUSED row's `display = display.none` and `offset` | nadaraya-watson (`Alert Stream`), wyckoff-accumulation-distribution (8 markers, `offset = -pivotLen`) | none: a wrong drawing | **fixed**: two spreads (`pine.js` outputs, `builderInputs.annotate`) dropped the non-enumerable `_offsetWritten`, so RT1's offset guard never saw a refused row's offset, and a refused row never carried `hidden`. Now `_authorHidden` is read by the reader a translated row uses (`outputHidden`), both facts survive both copies, and the runtime document skips a hidden row and withholds a shifted one by name |
+
+Refused, named, not this lane's (each script's final `runtimeDeclined`): R-b machine-learning-ma
+(`pine:role-order`, `ta.cci`), moving-averages-sr-mtf (`security`), order-block-finder (`tostring`); R-c
+delta-imbalance (`var tablePos = switch`), smart-money-volume (`barstate.isnew`), smt-divergence and
+volume-profile-v054beta and session-tpo-profile (a non-literal session), supply-demand (`input.timeframe`),
+sr-logistic-regression (`for ... in` over a UDT list, H3's), volatility-coil (`_compMinBars` reassigned under a
+text-input switch, sizing `ta.atr`); B-a atr-stepped / kalman / NW (per-bar plot colour), kernel-channel
+(`plotcandle`), one-sided-gaussian (`matrix.new`), nonlinear-regression (a trailing comma ends line 93: a comma
+line, H2's / O1's), trend-line-harrybot (`[a, b] = if` with drawings); G2 trendlinesample (`line.new`: the runtime
+fallback draws no objects), support-and-resistance x2 (`short_term_top`, a global read in a frame; `for i = 1 to
+ta.barssince(r)`, an unbounded dynamic offset, correctly refused), fibonacci-retracement-statistics (`int` over
+state).
+
+### Evidence
+
+No TradingView capture of any loop script exists. `vendorHarness.h4Loops` (13 tests) holds the runtime lane's
+columns to a HAND REPLAY written from Pine's semantics (a `for` runs `from`..`to` inclusive; `x[i]` before bar 0
+is `na`; `na + x` is `na`; an `na` comparison is false) on every NYSE:RDDT listing bar (631): `pine_wma(close,
+13)` with the length spelled `vl1 + vl2` (619 drawn, na-ness identical), the kalman filter verbatim (631), the NW
+kernel's 27-pass loop (605), and a top-level running total (ruling R7). Controls: `/` and `%` lengths still
+refuse; a helper whose `if` ends in a value still returns it; a parameter spelled like a once-bound global is the
+argument; an `array.from` element that is a call is not folded; the door draws `vis`, skips `display.none`,
+withholds `offset`. Probe `tools/visual_conformance/probes/vw-h4-loops.pine` (static colours; draws all four rows
+on the runtime lane) is queued as Q-H4a (`docs/pine/capture-queue-2026-10-02-h4-loops.md`).
+
+Mutations (each restored from captured bytes, sha verified, `git status` clean after): arithmetic fold off (3 red),
+`/` admitted (1), `endsInLoop` bare-only (2), `array.from` count off (2), shadow guard off (1), `plainOnly` off
+(1), `_authorHidden` unset (1), `keepHiddenFacts` no-op (1), `carryHandoffs` keys dropped (1), the door ignoring
+`_authorHidden` (1): 10 of 10 red.
+
+### Measured (base `a242ed77f6` -> tip)
+
+| | base | tip |
+|---|---|---|
+| member door off / on / on + runtime | 54 / 79 / 85 | 54 / 79 / **84**; off and on: 0 rows changed |
+| runtime rows changed | - | kalman `runtime:block-value` -> withheld-all (colour); NW `history-dynamic-offset` -> withheld-all (colour); volume-divergence `history-dynamic-offset` -> `call-windowed-state`; **wyckoff-accumulation-distribution attached -> declined** |
+| harness dir (202 entries), on / off / runtime MATCH | 56 / 41 / 62 | 56 / 41 / 62; 0 entries changed (note below) |
+| translation census host / screener | 75 / 66 | 75 / 66 |
+
+**The one lost attach is a wrong drawing withdrawn.** wyckoff's eight `plotshape`s carry `offset = offsetVal`
+with `offsetVal = -pivotLen`; at base the runtime document drew them on the bar that computed them, `pivotLen`
+bars right of where TradingView draws them, because the offset fact was dropped by a spread before RT1's own
+guard could read it (ungraded: no capture). Now each row is withheld by name ("drawn away from its own bar").
+
+Harness note: the full runtime-state sweep at tip read 3 plots of `vw-deadband-ticks-aapl-1d` as INCONCLUSIVE
+("computeFor returned no column"); re-run alone twice at tip they read MATCH on 11,534 bars, as at base. That is
+the runtime pane's 1,000 ms per-indicator wall-clock budget on a box at 2 GB free, not the code; counted as 0
+changed.
+
+### Next wall, measured by substitution (not built)
+
+A runtime row's **per-bar colour** (`runtimeRowPresentation`: a `colorDynamic` row is withheld) is the wall in
+front of atr-stepped-pdf-ma, kalman-price-filter and nadaraya-watson (all three now past their loop walls) and of
+deadband-hysteresis-filter, fvg-trend and parabolic-sar. Substituting "carry it as the default colour" at tip
+attaches those six (84 -> 90, scratch census `h4-census-colourprobe`, file restored by bytes; a measurement, not a
+design: a default colour where TradingView paints two would be a wrong drawing). Carrying it needs a runtime-computed colour column and a palette the document can name: the
+presentation half of the runtime lane, RT's to own.
