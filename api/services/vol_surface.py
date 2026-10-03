@@ -80,7 +80,9 @@ def _side(rows: list[dict], kind: str) -> dict:
             refused.append({"strike": k, "reason": why})
             continue
         points.append({"strike": k, "iv": _num(r["iv"]), "t": r["quote_time"],
-                       "bid": _num(r["bid"]), "ask": _num(r["ask"])})
+                       "bid": _num(r["bid"]), "ask": _num(r["ask"]),
+                       # the vendor's delta, carried for FT-018's RR/BF table (None when absent)
+                       "delta": _num(r.get("delta"))})
     points.sort(key=lambda p: p["strike"])
     refused.sort(key=lambda p: p["strike"])
     out: dict[str, Any] = {"points": points, "refused": refused,
@@ -218,6 +220,24 @@ def get_surface(sym: str, selected: str = "") -> dict:
     if hit is not None:
         return dict(hit)
 
+    fetched = fetch_chains(s, selected)
+    if "error" in fetched:
+        return fetched
+    chains, missing, all_exps = fetched["chains"], fetched["missing"], fetched["listed"]
+    out = build_surface(s, chains, selected or None, len(all_exps), missing,
+                        datetime.now(_ET).date())
+    out["served_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    out["cache_seconds"] = po._CHAIN_TTL
+    _CACHE.set(key, dict(out), po._CHAIN_TTL)
+    return out
+
+
+def fetch_chains(s: str, selected: str = "") -> dict:
+    """The bounded fetch behind the surface: {chains, missing, listed} or {"error", "ticker"}.
+    Shared with FT-018's RR/BF table (api/services/options_analytics/vol_skew.py); every chain is a
+    get_chain cache entry, so a second reader costs no vendor call inside the 60 s."""
+    from api.services import polygon_options as po
+
     listed = po.list_expirations(s)
     if isinstance(listed, dict) and listed.get("error"):
         return {"error": listed["error"], "ticker": s}
@@ -253,9 +273,4 @@ def get_surface(sym: str, selected: str = "") -> dict:
     if not chains:
         return {"error": "no expiration could be fetched", "ticker": s}
     missing.sort(key=lambda m: m["expiration"])
-    out = build_surface(s, chains, selected or None, len(all_exps), missing,
-                        datetime.now(_ET).date())
-    out["served_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    out["cache_seconds"] = po._CHAIN_TTL
-    _CACHE.set(key, dict(out), po._CHAIN_TTL)
-    return out
+    return {"chains": chains, "missing": missing, "listed": all_exps}

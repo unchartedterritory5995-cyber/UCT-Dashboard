@@ -147,6 +147,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # them on the first plan or read (wave 11 lane 11C).
     from api.services.journal_two import ai_actions as aia
     aia.ensure_schema(conn)
+    # options_spread_book, likewise: spread_book.py self-ensures it on the first
+    # list / save (FT-072, lane/o-options-remainders).
+    from api.services.options_analytics import spread_book as sbk
+    sbk.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

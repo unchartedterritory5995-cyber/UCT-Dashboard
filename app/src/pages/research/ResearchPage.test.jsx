@@ -517,6 +517,9 @@ describe.each([
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByText(loading)).toBeInTheDocument()
+  })
+})
+
 // lane gaps-research -- the Depth tab exists only while one of its panels' flags is on
 // (each key rides the auth payload only when on; researchDepthFlags.js).
 describe('Depth tab (lane gaps-research, dark per panel)', () => {

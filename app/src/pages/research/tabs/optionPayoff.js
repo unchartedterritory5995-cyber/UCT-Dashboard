@@ -38,7 +38,8 @@ export function buildLegs(kind, strikes, rows) {
   const leg = (type, side, k) => {
     const q = byStrike.get(k)?.[type]
     const premium = mid(q)
-    return { type, side, strike: k, premium }
+    // iv: the vendor's, carried for FT-001's "today at IV" curve (chainModels.js); unused at expiry
+    return { type, side, strike: k, premium, iv: q?.iv ?? null }
   }
   let legs
   if (kind === 'long_call') legs = [leg('call', 1, ks[0])]
