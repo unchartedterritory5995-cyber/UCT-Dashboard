@@ -285,6 +285,11 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // WAVE 13 CHART PLAN (13H-1, 2026-10-02) — unparked by 13H-2 on 2026-10-03.
+  // `lib/chartPlan.js` and `lib/planLevels.js` stood here from 13H-1 (2026-10-02)
+  // until the plan panel mounted them: App.jsx → … → WidgetEmbedView.jsx →
+  // lazy ChartPlanPanel.jsx → chartPlan.js → planLevels.js. Removed in the same
+  // change that made them reachable, which is this block's own rule.
   // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
   //
   // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
@@ -808,6 +813,8 @@ const PARKING_EXPIRES = {
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
   'TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED (2026-09-29)': '2026-11-30',   // landed 2026-09-29 with the derivation itself; the first surface-panel mount resolves it
+  // (WAVE 13 CHART PLAN's expiry, 2026-10-31, was deleted 2026-10-03 with its block:
+  // 13H-2 mounted ChartPlanPanel.jsx, so the parking note had nothing left to outlive.)
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which

@@ -79,7 +79,7 @@
 
 .pnl { font-size: 17px; font-weight: 800; }
 .pos { color: var(--gain); }
-.neg { color: var(--loss); }
+.neg { color: var(--danger-ink); }
 
 .controls {
   display: flex;
@@ -118,10 +118,41 @@
   min-width: 120px;
 }
 
-.err { color: var(--loss); font-size: 13px; margin: 0; }
+.err { color: var(--danger-ink); font-size: 13px; margin: 0; }
 .hint { color: var(--text-muted, #8a8a8a); font-size: 13px; margin: 0; }
+
+/* Wave 13 lane 13H-2: "what happened next" steps one bar at a time. */
+.stepBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text, #e8e6e1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.stepBtn:hover:not(:disabled) { border-color: #dcbb5e; color: var(--accent); }
+.stepBtn:disabled { opacity: 0.45; cursor: default; }
+
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted, #8a8a8a);
+}
 
 @media (max-width: 640px) {
   .panel { padding: 12px; }
   .chart { min-height: 260px; }
+}
+
+/* The touch tier (phone AND tablet) meets the 44px floor (styles/tapFloor.test.js). */
+@media (max-width: 1024px) {
+  .playBtn, .speedBtn, .stepBtn, .close {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  .scrub { min-height: var(--tap-min, 44px); }
 }

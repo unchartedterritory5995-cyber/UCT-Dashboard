@@ -38,6 +38,63 @@ const stringAttr = (name, dflt = null) => ({
   },
 })
 
+// ⛔⛔ 13H-2 fix — Draw mode's focus-steal (measured, not guessed: the call
+// stack recorded in docs/notebook/evidence/wave13-13h2/walk-69473964d-run7
+// is `MouseDown.up -> selectClickedLeaf -> updateSelection -> view.focus()`,
+// all in prosemirror-view/dist/index.js).
+//
+// widgetEmbed is `atom: true, selectable: true`. ProseMirror's OWN mousedown
+// handler (registered on the editor's DOM root, gated by THIS function —
+// `NodeView.stopEvent`) treats a mousedown anywhere inside a selectable atom
+// as "maybe the user is about to click-select this node", and arms a
+// mouseup listener that, on release, creates a NodeSelection and calls
+// `view.focus()` — regardless of whether the mousedown landed on the
+// chart's own canvas, an SVG drawing handle, or blank chrome. That listener
+// is wired directly on `view.root` (bypassing this function entirely on
+// mouseup), so the ONLY lever is stopping the mousedown itself.
+// WidgetEmbedView listens for exactly that editor focus to mean "the member
+// clicked back into their prose, exit Draw mode"
+// (`editor.on('focus', exit)`), so every mousedown+mouseup on the chart's
+// drawing surface while annotating was read as a deliberate "done drawing"
+// and silently exited Draw mode after the very first mark.
+//
+// The fix: tell ProseMirror a mousedown landing on the chart's own rendered
+// surface (`data-widget-embed-body` — the live canvas, its drawing overlay,
+// any resize/crosshair handle the chart library draws as plain SVG/DOM) is
+// not its business at all. Everything else in this function mirrors
+// `@tiptap/core`'s own default `NodeView.prototype.stopEvent` (its
+// INPUT/BUTTON/SELECT/TEXTAREA/contentEditable passthrough, and the
+// click-to-select / drag / clipboard exceptions) — providing `stopEvent`
+// at all REPLACES that default outright for this node type, so the toolbar's
+// own buttons and the TF `<select>` must keep behaving exactly as they did
+// before this fix.
+export function widgetEmbedStopEvent({ event }) {
+  const target = event?.target
+  const tag = target && typeof target.tagName === 'string' ? target.tagName : ''
+  const isInput = tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'TEXTAREA'
+    || !!(target && target.isContentEditable)
+  const isDragEvent = typeof event?.type === 'string' && event.type.startsWith('drag')
+  // Default's own passthrough: an input-like element always owns its events,
+  // except the drag/drop family (a draggable row dragged FROM a button, say).
+  if (isInput && event.type !== 'drop' && !isDragEvent) return true
+  // The fix: never let a mousedown on the chart's own surface reach
+  // ProseMirror's click-to-select handling, in or out of Draw mode — the
+  // chart owns its own gestures.
+  if (event?.type === 'mousedown' && target?.closest?.('[data-widget-embed-body]')) {
+    return true
+  }
+  // Everything past here matches the untouched vendor default for a
+  // selectable, non-dragging atom node: let a mousedown elsewhere in the
+  // embed's chrome (frame border, toolbar background) still select the
+  // node, and leave the drag/drop/clipboard family alone; stop anything
+  // else (e.g. a stray keydown bubbling from inside the embed).
+  if (isDragEvent || event?.type === 'drop' || event?.type === 'copy'
+    || event?.type === 'paste' || event?.type === 'cut' || event?.type === 'mousedown') {
+    return false
+  }
+  return true
+}
+
 export const WidgetEmbed = Node.create({
   name: 'widgetEmbed',
   group: 'block',
@@ -107,7 +164,7 @@ export const WidgetEmbed = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(WidgetEmbedView)
+    return ReactNodeViewRenderer(WidgetEmbedView, { stopEvent: widgetEmbedStopEvent })
   },
 
   addCommands() {

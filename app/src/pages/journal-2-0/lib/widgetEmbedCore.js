@@ -7,6 +7,13 @@ import {
   widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable, asOfDayOf,
 } from '../../../widgets/registry'
 import { peekDrawings } from '../../../components/chart/drawingsStore'
+import { notebookFlag } from './offline/notebookFlags'
+
+/** Wave 13 lane 13H-2: the ONE client gate for the chart-plan doors -- the plan panel, bar
+ *  replay, the weekly /mtf stack and /vs. It is 13H-1's flag, reused (never a second one):
+ *  `NOTEBOOK_CHART_PLAN_ENABLED` on the server, latched per tab. Absent => OFF. */
+export const CHART_PLAN_FLAG = 'notebook_chart_plan_enabled'
+export const chartPlanEnabled = () => notebookFlag(CHART_PLAN_FLAG) === true
 
 // ⭐ `ownChartSettings` is loaded ON FIRST STAMP, never statically. It merges
 // through chartDefaults → nativeRegistry → the whole Pine engine, and a static
@@ -206,6 +213,12 @@ export function parseChartSlashArgs(rest) {
 /** The MTF stack's timeframes, top-down (the house read: daily structure →
  *  hourly context → 15m execution). One preset, not a config surface. */
 export const MTF_STACK_TFS = ['D', '60', '15']
+/** Wave 13 lane 13H-2: the WEEKLY stack (weekly structure -> daily -> hourly), beside today's
+ *  D/60/15 (plan A.13H H7). 60 stands in for the plan's "60/65": 65 is a custom multiplier,
+ *  which falls through both durability rails (no `to=`, no warm) by design. Dark behind the
+ *  chart-plan gate -- the caller passes `weekly: true` only when it is on. */
+export const MTF_WEEKLY_STACK_TFS = ['W', 'D', '60']
+const WEEKLY_STACK_TOKENS = new Set(['w', 'week', 'weekly', '1w'])
 
 /** Parse the free text after '/mtf' — SYMBOL [day] → {symbol, tfs, day}.
  *  Same strictness contract as /chart: prose must parse as NOTHING. The
@@ -213,15 +226,50 @@ export const MTF_STACK_TFS = ['D', '60', '15']
  *  dates, so the stack does too) anchors all three charts at that date; a
  *  TIMEFRAME token is deliberately NOT accepted — the stack's tfs are the
  *  preset, not a config surface. */
-export function parseMtfSlashArgs(rest) {
+export function parseMtfSlashArgs(rest, { weekly = false } = {}) {
   const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
-  if (!tokens.length || tokens.length > 2 || !SYMBOL_RE.test(tokens[0])) return null
+  if (!tokens.length || tokens.length > 3 || !SYMBOL_RE.test(tokens[0])) return null
   let day = null
-  if (tokens[1]) {
-    day = parseDayToken(tokens[1])
-    if (!day) return null
+  let stack = 'intraday'
+  for (const tok of tokens.slice(1)) {
+    // 13H-2: one optional STACK token selects the weekly stack -- still a preset, never a
+    // free timeframe (the stack's tfs are not a config surface).
+    if (weekly && stack === 'intraday' && WEEKLY_STACK_TOKENS.has(tok.toLowerCase())) { stack = 'weekly'; continue }
+    const d = !day ? parseDayToken(tok) : null
+    if (!d) return null
+    day = d
   }
-  return { symbol: tokens[0].toUpperCase(), tfs: [...MTF_STACK_TFS], day }
+  const tfs = stack === 'weekly' ? MTF_WEEKLY_STACK_TFS : MTF_STACK_TFS
+  return { symbol: tokens[0].toUpperCase(), tfs: [...tfs], day, ...(stack === 'weekly' ? { stack } : {}) }
+}
+
+/** Wave 13 lane 13H-2 -- `/vs`: the stock beside a benchmark (plan A.13H H7).
+ *  The broad pair is named; `sector` / `theme` are KEYWORDS the server resolves to an ETF
+ *  (`GET /api/j2/chart-plan/benchmarks`, chart_plan.benchmark_options). Any other symbol is an
+ *  explicit benchmark. Same strictness contract as /chart: prose parses as NOTHING.
+ *    /vs AMD                 -> { symbol, bench: null }            (the menu offers the four)
+ *    /vs AMD SPY [day] [tf]  -> { symbol, bench: 'SPY', day, tf }
+ *    /vs AMD sector          -> { symbol, bench: 'sector', ... } */
+export const VS_BROAD = ['SPY', 'QQQ']
+export const VS_KEYWORDS = ['sector', 'theme']
+export function parseVsSlashArgs(rest) {
+  const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
+  if (!tokens.length || tokens.length > 4 || !SYMBOL_RE.test(tokens[0])) return null
+  const symbol = tokens[0].toUpperCase()
+  let bench = null
+  let more = tokens.slice(1)
+  const second = more[0]
+  if (second) {
+    const low = second.toLowerCase()
+    if (VS_KEYWORDS.includes(low)) { bench = low; more = more.slice(1) }
+    else if (!parseTfToken(second) && !parseDayToken(second) && SYMBOL_RE.test(second)) {
+      bench = second.toUpperCase(); more = more.slice(1)
+    }
+  }
+  if (bench === symbol) return null                 // a stock against itself compares nothing
+  const slots = parseTfDayTokens(more)
+  if (!slots) return null
+  return { symbol, bench, day: slots.day, tf: slots.tf || 'D' }
 }
 
 function validDay(y, mo, d) {
@@ -473,7 +521,8 @@ export function chartInsertNodes(kind, args, settings) {
   const frozen = settings ? { settings } : {}
   const anchored = args.day ? { to: args.day } : {}
   if (kind === 'mtf') {
-    return MTF_STACK_TFS.map((tf) => widgetSlotNode('chart', {
+    const tfs = Array.isArray(args.tfs) && args.tfs.length ? args.tfs : MTF_STACK_TFS
+    return tfs.map((tf) => widgetSlotNode('chart', {
       symbol: args.symbol, tf, ...anchored, ...frozen,
     }))
   }
@@ -486,6 +535,20 @@ export function chartInsertNodes(kind, args, settings) {
       // embed whose caption promises it tracks now.
       widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
         { layout: { width: 'half' }, caption: 'after · now' }),
+    ]
+  }
+  if (kind === 'vs') {
+    // 13H-2: BOTH charts frozen at the SAME `to` -- one moment computed once, so the pair is
+    // a comparison of one window, never two windows a millisecond apart.
+    const bench = String(args.benchmark || '').toUpperCase()
+    if (!bench || !args.symbol || bench === args.symbol) return []
+    const to = args.day || Math.floor(Date.now() / 1000)
+    const tf = args.tf || 'D'
+    return [
+      widgetSlotNode('chart', { symbol: args.symbol, tf, to, ...frozen },
+        { layout: { width: 'half' }, caption: `${args.symbol} · vs ${bench}` }),
+      widgetSlotNode('chart', { symbol: bench, tf, to, ...frozen },
+        { layout: { width: 'half' }, caption: `vs ${bench}${args.label ? ` · ${args.label}` : ''}` }),
     ]
   }
   if (kind === 'chart') {

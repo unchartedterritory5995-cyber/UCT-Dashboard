@@ -1,0 +1,390 @@
+/**
+ * ChartPlanPanel — "the chart markup is the plan" (wave 13 lane 13H-2, plan A.13H H3-H6).
+ *
+ * Under a note's chart: every flat level the member drew (a horizontal line or ray in the price
+ * pane) is listed with its price, and each can be marked Entry, Stop or Target, armed as an
+ * alert, and the plan sized. Dark behind 13H-1's `notebook_chart_plan_enabled`: the embed only
+ * mounts this file when the gate is on (WidgetEmbedView), and it is lazy, so the Notebook's
+ * first-open bytes do not move.
+ *
+ * ⛔ ONE READER OF PLAN LEVELS. This panel WRITES a role onto a drawing (`setPlanRole`, 13H-1's
+ * writer — the shape 13A's `plan_extract` reads) and never reads a plan out of the drawings
+ * itself. The numbers come from the server's reading: `POST /api/j2/chart-plan/size` hands the
+ * block to `plan_extract` and answers {plan, account, compass}; `sizePlan` then evaluates the
+ * STARTER FORMULAS on those numbers (no new formula). The roles shown on each row are the
+ * drawing's own field — what the member set — not a second plan.
+ *
+ * ⛔ ONE ALERT PIPELINE. "Arm alert at this level" posts to 13H-1's thin adapter
+ * (`/api/j2/chart-plan/alerts`), which calls the EXISTING watchlist-alert route with a bound
+ * `drawing_id`. Moving the line re-points the alert through the EXISTING bound PATCH, and
+ * deleting it deletes the alert under the EXISTING seen-to-absent rule — both by mounting
+ * `useBoundDrawingAlerts` on THIS chart's drawings. A cold mount never deletes (that hook's
+ * rule: a drawing this session never saw is left alone).
+ *   The bound id is namespaced to the chart (`nb:<embedId>:<drawingId>`): a note chart's
+ *   drawings are often a COPY of the symbol's /charts drawings (same ids, frozen at capture),
+ *   and an un-namespaced id would let the /charts chart re-point a note's alert to ITS line.
+ *
+ * ⛔ WRITES ARE EXPLICIT ACTIONS. A role change, "Use this size" and nothing else write the
+ * note — through `updateAttributes`, the member's own editor transaction (autosave, CAS, the
+ * outbox). Showing a number never writes it.
+ *
+ * Touch: the panel claims BOTH event families (pointerdown/mousedown AND touchstart) at its
+ * root, so a tap on it never reaches the editor's selection handling or a drag under it (the
+ * CLAUDE.md touch-routing rule: a stop of the wrong family is no stop). Every control meets
+ * the 44px floor on the touch tier.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { mutate as globalMutate } from 'swr'
+import {
+  canCarryPlanRole, drawingLevelPrice, setPlanRole, sizePlan, withPlanShares, SIZED_BY_LABEL,
+} from '../../lib/chartPlan'
+import { PRICE_ROLES } from '../../lib/planLevels'
+import useBoundDrawingAlerts from '../../../../components/chart/useBoundDrawingAlerts'
+import { anchorsForDrawing } from '../../../../components/chart/drawingAlertAnchors'
+import { money } from '../../../../lib/journal-2-0/format'
+import BarReplay, { barTs } from './BarReplay'
+import styles from './ChartPlanPanel.module.css'
+
+const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
+const ROLE_COLOR = { entry: '#c9a84c', stop: '#ef4444', target: '#22c55e' }
+const SIZE_DEBOUNCE_MS = 300
+const NATIVE_TFS = new Set(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
+const REPLAY_BEFORE = 40      // context bars revealed before the note's as-of
+const REPLAY_AFTER = 250      // at most this many bars after it
+
+/** The bound-alert id of a drawing on THIS chart (see the header). */
+export const boundAlertId = (embedId, drawingId) => `nb:${embedId}:${drawingId}`
+
+/** Which way an alert at a role's level should trigger, given the plan's side. null = ask. */
+export function roleDirection(role, side) {
+  if (side !== 'long' && side !== 'short') return null
+  const long = side === 'long'
+  if (role === 'stop') return long ? 'below' : 'above'
+  if (role === 'target' || role === 'entry') return long ? 'above' : 'below'
+  return null
+}
+
+const fmtPrice = (p) => (Number.isFinite(p) ? (p >= 1 ? p.toFixed(2) : p.toPrecision(3)) : '—')
+
+async function readSizing(body, signal) {
+  const res = await fetch('/api/j2/chart-plan/size', {
+    method: 'POST', credentials: 'include', signal,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(res.status === 404 ? 'Chart plans are not available right now.' : 'The plan could not be sized.')
+  return res.json()
+}
+
+/** The note's as-of moment as epoch seconds (params.to, else the capture time), or null. */
+function asOfSeconds(attrs) {
+  const to = attrs?.params?.to
+  if (typeof to === 'number' && Number.isFinite(to)) return to > 10_000_000_000 ? Math.floor(to / 1000) : to
+  if (typeof to === 'string' && /^\d{4}-\d{2}-\d{2}/.test(to)) return barTs(to.slice(0, 10))
+  const cap = Date.parse(attrs?.capturedAt || '')
+  return to === null || !Number.isFinite(cap) ? null : Math.floor(cap / 1000)
+}
+
+export default function ChartPlanPanel({
+  attrs, noteId, updateAttributes, open = false, replayOpen = false, onCloseReplay,
+}) {
+  const params = attrs?.params || {}
+  const symbol = String(params.symbol || '').toUpperCase()
+  const tf = String(params.tf ?? 'D')
+  const embedId = attrs?.embedId || ''
+  const annotations = useMemo(() => (Array.isArray(attrs?.annotations) ? attrs.annotations : []), [attrs?.annotations])
+  const planBlock = attrs?.ta?.planBlock || null
+
+  // ── claim both event families at the root (touch routing) ──────────────────────────────
+  const rootRef = useRef(null)
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    const claim = (e) => e.stopPropagation()
+    const types = ['pointerdown', 'mousedown', 'touchstart']
+    types.forEach((t) => el.addEventListener(t, claim, t === 'touchstart' ? { passive: true } : false))
+    return () => types.forEach((t) => el.removeEventListener(t, claim, t === 'touchstart' ? { passive: true } : false))
+  }, [open])
+
+  // ── follow-the-line: the EXISTING bound-alert sync, over this chart's drawings ─────────
+  const nsDrawings = useMemo(
+    () => annotations.map((d) => (d && d.id ? { ...d, id: boundAlertId(embedId, d.id) } : d)),
+    [annotations, embedId],
+  )
+  const noBars = useCallback(() => [], [])
+  const alerts = useBoundDrawingAlerts({ sym: symbol, drawings: embedId ? nsDrawings : [], tf, getBars: noBars })
+  const armedIds = useMemo(
+    () => new Set((alerts || []).filter((a) => a?.is_active && a.drawing_id).map((a) => a.drawing_id)),
+    [alerts],
+  )
+
+  // ── the levels a role can ride ──────────────────────────────────────────────────────────
+  const levels = useMemo(
+    () => annotations.filter(canCarryPlanRole).sort((a, b) => drawingLevelPrice(b) - drawingLevelPrice(a)),
+    [annotations],
+  )
+
+  // ── the server's reading (plan_extract) + sizing inputs + Compass ───────────────────────
+  const sizeKey = useMemo(() => JSON.stringify({
+    levels: annotations.filter((d) => d && d.role).map((d) => [d.id, d.role, drawingLevelPrice(d) ?? d.price ?? null]),
+    planBlock,
+  }), [annotations, planBlock])
+  const [reading, setReading] = useState({ status: 'idle', data: null, error: null })
+  useEffect(() => {
+    if (!open && !replayOpen) return undefined
+    const ctl = new AbortController()
+    setReading((r) => ({ ...r, status: 'loading', error: null }))
+    const t = setTimeout(() => {
+      readSizing({ annotations, symbol, ...(planBlock ? { planBlock } : {}) }, ctl.signal)
+        .then((data) => setReading({ status: 'ok', data, error: null }))
+        .catch((e) => {
+          if (e?.name === 'AbortError') return
+          setReading({ status: 'error', data: null, error: e?.message || 'The plan could not be sized.' })
+        })
+    }, SIZE_DEBOUNCE_MS)
+    return () => { clearTimeout(t); ctl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sizeKey, symbol, open, replayOpen])
+
+  const plan = reading.data?.plan || null
+  const sized = useMemo(() => (plan ? sizePlan({
+    entry: plan.entry, stop: plan.stop, target: plan.target,
+    accountSize: reading.data?.account?.accountSize, riskPct: reading.data?.account?.riskPct,
+    compass: reading.data?.compass,
+  }) : null), [plan, reading.data])
+
+  // ── writes: explicit actions only ───────────────────────────────────────────────────────
+  const [msg, setMsg] = useState(null)
+  const setRole = (drawingId, role) => {
+    const next = setPlanRole(annotations, drawingId, role || null)
+    if (next !== annotations) updateAttributes?.({ annotations: next })
+  }
+  const savedShares = planBlock?.shares ?? null
+  const canSaveSize = sized?.shares != null && (savedShares !== sized.shares || planBlock?.sizedBy !== sized.sizedBy)
+  const saveSize = () => {
+    if (!canSaveSize) return
+    updateAttributes?.({ ta: withPlanShares(attrs?.ta, sized.shares, sized.sizedBy) })
+    setMsg({ tone: 'ok', text: `Saved ${sized.shares.toLocaleString()} shares to this chart's plan.` })
+  }
+
+  const [dirOverride, setDirOverride] = useState({})
+  const [arming, setArming] = useState(null)
+  const armAlert = async (drawing) => {
+    const role = drawing.role || null
+    const direction = roleDirection(role, plan?.side) || dirOverride[drawing.id] || 'above'
+    const geom = anchorsForDrawing(drawing, { tf })
+    if (!geom || !noteId || !embedId) {
+      setMsg({ tone: 'err', text: 'This level cannot carry an alert yet.' })
+      return
+    }
+    setArming(drawing.id)
+    setMsg(null)
+    try {
+      const res = await fetch('/api/j2/chart-plan/alerts', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId, embedId, drawingId: boundAlertId(embedId, drawing.id), direction, ...geom }),
+      })
+      if (!res.ok) {
+        let detail = ''
+        try { detail = (await res.json())?.detail || '' } catch { /* the status speaks */ }
+        setMsg({ tone: 'err', text: res.status === 404 && /not found in this note/i.test(String(detail))
+          ? 'The note is still saving this chart. Try again in a moment.'
+          : (typeof detail === 'string' && detail) || 'The alert could not be armed.' })
+        return
+      }
+      setMsg({ tone: 'ok', text: `Alert armed: ${symbol} ${direction} ${fmtPrice(geom.target_price)}. It follows the line if you move it.` })
+      globalMutate((k) => typeof k === 'string' && k.startsWith('/api/watchlist-alerts'))
+    } catch {
+      setMsg({ tone: 'err', text: 'The alert could not be armed (network).' })
+    } finally {
+      setArming(null)
+    }
+  }
+
+  // ── "what happened next": the one replay engine (BarReplay) ─────────────────────────────
+  const replayTf = NATIVE_TFS.has(tf) ? tf : 'D'
+  const asOf = asOfSeconds(attrs)
+  const daily = replayTf === 'D' || replayTf === 'W' || replayTf === 'M'
+  const cmp = useCallback((ts) => (daily ? ts - (ts % 86400) : ts), [daily])
+  const windowBars = useCallback((all) => {
+    if (asOf == null) return { error: 'This chart tracks now, so nothing has printed after it yet.' }
+    const limit = cmp(asOf) + (daily ? 86400 - 1 : 0)
+    let asIdx = -1
+    for (let i = 0; i < all.length; i++) {
+      if (barTs(all[i].t) <= limit) asIdx = i
+      else break
+    }
+    if (asIdx < 0) return { error: 'No bar history reaches this note’s date.' }
+    if (asIdx >= all.length - 1) return { error: 'Nothing has printed after this note’s date yet.' }
+    const start = Math.max(0, asIdx - REPLAY_BEFORE)
+    const bars = all.slice(start, Math.min(all.length, asIdx + 1 + REPLAY_AFTER))
+    return { bars, startIdx: asIdx - start + 1 }
+  }, [asOf, cmp, daily])
+  const replayLines = useMemo(() => PRICE_ROLES
+    .filter((r) => Number.isFinite(plan?.[r]))
+    .map((r) => ({ price: plan[r], color: ROLE_COLOR[r], title: ROLE_LABEL[r].toLowerCase() })), [plan])
+  const [replayStart, setReplayStart] = useState(null)
+  const firstHit = useCallback((bars, from, test) => {
+    for (let i = from; i < bars.length; i++) if (test(bars[i])) return i
+    return -1
+  }, [])
+  const hitsFor = useCallback((bars, from) => {
+    const long = plan?.side !== 'short'
+    const stop = plan?.stop
+    const target = plan?.target
+    return {
+      stopAt: Number.isFinite(stop) ? firstHit(bars, from, (b) => (long ? b.l <= stop : b.h >= stop)) : -1,
+      targetAt: Number.isFinite(target) ? firstHit(bars, from, (b) => (long ? b.h >= target : b.l <= target)) : -1,
+    }
+  }, [plan, firstHit])
+  const windowAndRemember = useCallback((all) => {
+    const w = windowBars(all)
+    if (!w.error) setReplayStart(w.startIdx)
+    return w
+  }, [windowBars])
+  const markersAt = useCallback((idx, bars) => {
+    if (replayStart == null || replayStart < 1) return []
+    const marks = [{ time: bars[replayStart - 1].t, position: 'aboveBar', color: '#c9a84c', shape: 'arrowDown', text: 'note' }]
+    const { stopAt, targetAt } = hitsFor(bars, replayStart)
+    if (stopAt >= 0 && idx > stopAt) marks.push({ time: bars[stopAt].t, position: 'belowBar', color: ROLE_COLOR.stop, shape: 'circle', text: 'stop' })
+    if (targetAt >= 0 && idx > targetAt) marks.push({ time: bars[targetAt].t, position: 'aboveBar', color: ROLE_COLOR.target, shape: 'circle', text: 'target' })
+    return marks.sort((a, b) => barTs(a.time) - barTs(b.time))
+  }, [replayStart, hitsFor])
+  const statusAt = useCallback((idx, bars) => {
+    if (replayStart == null) return null
+    const after = Math.max(0, idx - replayStart)
+    const base = bars[replayStart - 1]?.c
+    const last = bars[Math.max(0, idx - 1)]?.c
+    const chg = Number.isFinite(base) && Number.isFinite(last) && base ? ((last - base) / base) * 100 : null
+    const { stopAt, targetAt } = hitsFor(bars, replayStart)
+    const hits = []
+    if (targetAt >= 0 && idx > targetAt) hits.push('target reached')
+    if (stopAt >= 0 && idx > stopAt) hits.push('stop hit')
+    const order = stopAt >= 0 && targetAt >= 0 && idx > Math.max(stopAt, targetAt)
+      ? (stopAt <= targetAt ? ' (stop first)' : ' (target first)') : ''
+    const label = after === 0
+      ? 'At the note — step forward'
+      : `${after} bar${after === 1 ? '' : 's'} after the note${hits.length ? ` · ${hits.join(', ')}${order}` : ''}`
+    return { label, value: chg == null ? null : `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`, tone: chg == null ? null : chg >= 0 ? 'pos' : 'neg' }
+  }, [replayStart, hitsFor])
+
+  const replay = replayOpen ? (
+    <BarReplay
+      symbol={symbol}
+      tf={replayTf}
+      title={`What happened next · ${symbol}`}
+      tfNote={replayTf === 'D' ? 'daily bars' : replayTf === 'W' ? 'weekly bars' : replayTf === 'M' ? 'monthly bars' : `${replayTf}-minute bars`}
+      windowBars={windowAndRemember}
+      priceLines={replayLines}
+      markersAt={markersAt}
+      statusAt={statusAt}
+      autoplay={false}
+      onClose={() => onCloseReplay?.()}
+    />
+  ) : null
+
+  if (!open) return replay
+
+  return (
+    <>
+      <section
+        ref={rootRef}
+        className={styles.panel}
+        contentEditable={false}
+        aria-label={`Trade plan for ${symbol}`}
+        data-chart-plan-panel=""
+      >
+        <h4 className={styles.head}>Trade plan</h4>
+        {levels.length === 0 ? (
+          <p className={styles.hint}>
+            Draw a horizontal line on this chart (Draw, then the horizontal-line tool), then mark it
+            Entry, Stop or Target here.
+          </p>
+        ) : (
+          <ul className={styles.levels} aria-label="Drawn levels">
+            {levels.map((d) => {
+              const price = drawingLevelPrice(d)
+              const role = PRICE_ROLES.includes(d.role) ? d.role : ''
+              const armed = embedId && armedIds.has(boundAlertId(embedId, d.id))
+              const derived = roleDirection(role, plan?.side)
+              return (
+                <li key={d.id} className={styles.level} data-level-id={d.id}>
+                  <span className={styles.price}>{fmtPrice(price)}</span>
+                  <div className={styles.roles} role="radiogroup" aria-label={`Role of the line at ${fmtPrice(price)}`}>
+                    {['', ...PRICE_ROLES].map((r) => (
+                      <button
+                        key={r || 'none'}
+                        type="button"
+                        role="radio"
+                        aria-checked={role === r}
+                        className={`${styles.roleBtn} ${role === r ? styles.roleOn : ''}`}
+                        data-role={r || 'none'}
+                        onClick={() => setRole(d.id, r)}
+                      >
+                        {r ? ROLE_LABEL[r] : 'None'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.alertCell}>
+                    {!derived && !armed && (
+                      <select
+                        className={styles.dirSelect}
+                        aria-label={`Alert direction at ${fmtPrice(price)}`}
+                        value={dirOverride[d.id] || 'above'}
+                        onChange={(e) => setDirOverride((o) => ({ ...o, [d.id]: e.target.value }))}
+                      >
+                        <option value="above">Crosses above</option>
+                        <option value="below">Crosses below</option>
+                      </select>
+                    )}
+                    {armed ? (
+                      <span className={styles.armed}>Alert armed</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.armBtn}
+                        disabled={arming === d.id}
+                        onClick={() => armAlert(d)}
+                        aria-label={`Arm alert at this level, ${fmtPrice(price)}`}
+                      >
+                        {arming === d.id ? 'Arming…' : 'Arm alert at this level'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        <div className={styles.numbers} aria-live="polite">
+          {reading.status === 'error' && <p className={styles.err} role="alert">{reading.error}</p>}
+          {reading.status === 'loading' && !reading.data && <p className={styles.hint}>Reading the plan…</p>}
+          {sized && (
+            <>
+              <dl className={styles.grid}>
+                <div><dt>R:R</dt><dd data-plan-value="rr">{sized.rewardToRisk == null ? '—' : `${sized.rewardToRisk.toFixed(2)}R`}</dd></div>
+                <div><dt>Risk / share</dt><dd data-plan-value="rps">{sized.riskPerShare == null ? '—' : money(sized.riskPerShare)}</dd></div>
+                <div><dt>Account risk</dt><dd data-plan-value="acct">{sized.accountRisk == null ? '—' : money(sized.accountRisk)}</dd></div>
+                <div><dt>Position size</dt><dd data-plan-value="shares">{sized.shares == null ? '—' : `${sized.shares.toLocaleString()} sh`}</dd></div>
+              </dl>
+              {sized.label && <p className={styles.engine} data-sized-by={sized.sizedBy}>{sized.label}</p>}
+              {sized.reason && <p className={styles.hint}>{sized.reason}{/account size|max risk/i.test(sized.reason) ? ' — set it in Journal Settings, Accounts.' : ''}</p>}
+              {sized.rewardToRiskReason && sized.rewardToRisk == null && sized.side && (
+                <p className={styles.hint}>{sized.rewardToRiskReason}</p>
+              )}
+              {sized.shares != null && (
+                <button type="button" className={styles.saveBtn} disabled={!canSaveSize} onClick={saveSize}>
+                  {canSaveSize ? 'Use this size in the plan' : 'Size saved in the plan'}
+                </button>
+              )}
+            </>
+          )}
+          {msg && <p className={msg.tone === 'err' ? styles.err : styles.ok} role={msg.tone === 'err' ? 'alert' : 'status'}>{msg.text}</p>}
+        </div>
+      </section>
+      {replay}
+    </>
+  )
+}

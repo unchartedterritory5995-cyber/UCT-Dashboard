@@ -142,6 +142,11 @@ export const SURFACES = Object.freeze({
   'components/notebook/BreadthEmbed.jsx': { recipe: 'embed-breadth' },
   'components/notebook/CalendarEmbed.jsx': { recipe: 'embed-calendar' },
   'components/notebook/ChartEmbed.jsx': { recipe: 'embed-chart' },
+  // Wave 13 lane 13H-2: the chart plan panel and "what happened next" replay, dark behind
+  // notebook_chart_plan_enabled (so no editor recipe renders them); rail
+  // a11y/chartPlan.a11y.test.jsx (states: sized, empty, refused; the replay stepped once).
+  'components/notebook/ChartPlanPanel.jsx': { recipe: 'chart-plan-panel' },
+  'components/notebook/BarReplay.jsx': { recipe: 'bar-replay' },
   'components/notebook/FundamentalsEmbed.jsx': { recipe: 'embed-fundamentals' },
   'components/notebook/IndexesEmbed.jsx': { recipe: 'embed-indexes' },
   'components/notebook/MarketContextEmbed.jsx': { recipe: 'embed-market-context' },
