@@ -117,6 +117,8 @@ def test_ON_a_runtime_document_is_stored_under_a_runtime_handle(store, monkeypat
      r"meta\.repaint — declared 'non-repainting' but this script measures 'preview-repaints' "
      r"\(it reads barstate\.islast\)"),
     (lambda d: d["plots"][0].update(forward=1), r"plots\.value\.forward — declared 1 but this script reads 0"),
+    # ⭐ RT5 — `objects` is `true` or absent, never another value
+    (lambda d: d["compute"].update(objects=1), r"compute\.objects: when present, true"),
 ])
 def test_a_malformed_or_forged_runtime_document_is_refused_by_name(store, monkeypatch, mutate, message):
     monkeypatch.setenv(rt.SAVE_ENV, "1")
@@ -124,6 +126,27 @@ def test_a_malformed_or_forged_runtime_document_is_refused_by_name(store, monkey
     mutate(d)
     with pytest.raises(ValueError, match=message):
         svc.save(USER, DEF_ID, d)
+
+
+DRAWING_SOURCE = ('//@version=5\nindicator("t", overlay=true)\n'
+                  'if barstate.islast\n    label.new(bar_index, high, "x")\n')
+
+
+def test_RT5_a_drawing_only_document_maps_no_plot_and_is_stored(store, monkeypatch):
+    """`compute.objects: true` — the run draws the document's objects, so
+    `outputs` may be empty; without the flag an empty map is still refused."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(DRAWING_SOURCE)
+    d["compute"].update(outputs={}, objects=True)
+    d["meta"]["repaint"] = "preview-repaints"
+    d["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    row = svc.save(USER, DEF_ID, d)
+    assert row["appended"] is True
+    # ⛔ CONTROL — the same document without `objects` is refused
+    d2 = runtime_defn(DRAWING_SOURCE, "u_0000000000a2")
+    d2["compute"].update(outputs={})
+    with pytest.raises(ValueError, match=r"compute\.outputs"):
+        svc.save(USER, "u_0000000000a2", d2)
 
 
 def test_the_count_cap_is_asked_for_a_runtime_document_too(store, monkeypatch):

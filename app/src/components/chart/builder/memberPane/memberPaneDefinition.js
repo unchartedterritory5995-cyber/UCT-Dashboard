@@ -30,6 +30,8 @@ import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
+// ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
+import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
 import { runtimeKillOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -951,9 +953,15 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // at the save door. Only a source the classifier cannot READ is unstated.
   const repaint = runtimeRepaintOf(source)
   if (!repaint.ok) return decline('runtime:repaint-unstated', repaint.why)
-  const probe = probeRuntimeProgram(source)
+  // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
+  // builds WITH its drawings, the document's objects come from its own run.
+  const own = runtimeOwnObjectsOf({ source, t })
+  const ownObjects = !!own.probe
+  const probe = own.probe || probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
+    // RT5: a drawing the value build cannot hold is the drawing build's to explain.
+    if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
@@ -1008,7 +1016,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
-    if (o.hidden) continue
+    // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
+    // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
+    if (o.hidden || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     if (runtimeRowOffset(o)) {
       withheld.push({ label, why: 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it' })
@@ -1018,7 +1028,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
     carried.push({ o, index, p: pres.p, out: runtimeByKind.get(o.kind)[ord] })
   }
-  if (!carried.length) {
+  if (!carried.length && !ownObjects) {
     return decline(withheld.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', withheld.length
       ? `every output it draws is withheld (${withheld.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
       : 'the script declares nothing a chart row draws')
@@ -1049,7 +1059,15 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     }
   })
   const objectsGate = paneObjectsGate(t)
-  const drawsObjects = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  // ⭐ RT5 — a document whose only output is its drawings carries the hidden
+  // anchor row an objects-only document carries (never offered, never drawn).
+  if (!rows.length) {
+    rows.push({
+      key: 'value', label: '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode,
+      readback: '', style: 'line', hidden: true,
+    })
+  }
   let definition
   try {
     definition = buildDefinition({
@@ -1085,6 +1103,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     rev: 1,
     source,
     outputs,
+    // ⭐ RT5 — the run draws this document's objects (`runtimeObjects.js`).
+    ...(ownObjects ? { objects: true } : {}),
   }
   const notes = [{
     name: 'Drawn bar by bar',
@@ -1132,8 +1152,15 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
-  const drawingNote = objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  const drawingNote = ownObjects ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
+  if (ownObjects) {
+    notes.push({
+      name: 'Drawings',
+      note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
+        + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.',
+    })
+  }
   definition.meta = {
     ...(definition.meta || {}),
     lane: 'runtime',

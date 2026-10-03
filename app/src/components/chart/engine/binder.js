@@ -68,6 +68,8 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
+import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
@@ -839,6 +841,36 @@ export function createBinder({ chart, LWC }) {
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
+      // already computed (one run, both answers), drawn by the same render state.
+      // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
+      // draws nothing — never a stale picture, never the host program's.
+      if (drawsRuntimeObjects(def)) {
+        alive.add(inst.instanceId)
+        if (typeof make !== 'function') continue
+        let rlayer = objectLayers.get(inst.instanceId)
+        if (!rlayer) {
+          const made = attempt(() => make(inst))
+          rlayer = made.ok ? made.value : null
+          if (!rlayer) continue
+          objectLayers.set(inst.instanceId, rlayer)
+        }
+        const memo = computeMemo.get(inst.instanceId)
+        const payload = runtimeObjectsOf(memo && memo.cols)
+        if (!payload) { attempt(() => rlayer.set(null, '')); continue }
+        const rstate = attempt(() => toRenderState(payload.live,
+          { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
+        if (!rstate) { attempt(() => rlayer.set(null, '')); continue }
+        const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
+        attempt(() => rlayer.set(rstate, rsig, {
+          liveIds: payload.live.map((o) => o.id),
+          createdBars: payload.live.map((o) => o.createdBar),
+          lane: 'runtime',
+          withheld: payload.withheld || {},
+          reason: payload.reason || null,
+        }))
+        continue
+      }
       const program = def && def.objects
       if (!program) continue
       alive.add(inst.instanceId)
@@ -1536,7 +1568,9 @@ export function createBinder({ chart, LWC }) {
         // has not landed yet" — and remembering that answer against an unchanged
         // (def, bars, inputs) key would pin the indicator blank until the bars
         // array changed for some unrelated reason.
-        if (Object.keys(cols).length) {
+        // ⭐ RT5 — a drawing-only runtime document's record carries no column
+        // and IS an answer (its drawings ride non-enumerably beside them).
+        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)

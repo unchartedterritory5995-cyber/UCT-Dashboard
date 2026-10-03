@@ -24223,6 +24223,11 @@ function translatePineResult(source, opts = {}) {
             const written = pargs.some((a) => a && a.name === 'offset')
               || (Number.isInteger(at) && pargs.filter((a) => a && !a.name).length > at)
             Object.defineProperty(row, '_offsetWritten', { value: written, enumerable: false })
+            // ⭐ H4 — and whether its author hid it (`display = display.none`), read
+            // by the reader a translated row's `hidden` comes from. A refused row
+            // never carried `hidden`, so the runtime document drew a plot
+            // TradingView does not draw (nadaraya-watson's `Alert Stream`).
+            Object.defineProperty(row, '_authorHidden', { value: outputHidden(pargs), enumerable: false })
           }
         } catch { /* a presentation that cannot be read is simply not carried */ }
       }
@@ -24874,7 +24879,10 @@ function translatePineResult(source, opts = {}) {
     // able to read even when the program is null.
     objects: objectPass.program,
     objectDiagnostics: objectPass.diagnostics,
-    outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
+    // ⛔ H4 — the copy keeps a refused row's NON-ENUMERABLE facts (`_offsetWritten`,
+    // `_authorHidden`): a spread drops them, so the runtime document never saw
+    // that a refused plot was shifted or hidden, and drew it unshifted / at all.
+    outputs: resolved.map((r) => (r.refusal ? keepHiddenFacts(r, { ...r, refusal: withExcerpt(r.refusal, lines) }) : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
     // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
@@ -27507,6 +27515,17 @@ function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
  *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
  *  author's own, more general statement of it, so it is the one to read.
  */
+/** ⛔ H4 — copy a row's own NON-ENUMERABLE properties onto its copy. They are the
+ *  asked-for facts no digest or persisted copy should see (`_offsetWritten`,
+ *  `_authorHidden`), and an object spread silently drops every one of them. */
+function keepHiddenFacts(from, to) {
+  for (const k of Object.getOwnPropertyNames(from)) {
+    const d = Object.getOwnPropertyDescriptor(from, k)
+    if (d && !d.enumerable && !Object.prototype.hasOwnProperty.call(to, k)) Object.defineProperty(to, k, d)
+  }
+  return to
+}
+
 function outputHidden(args) {
   const d = args.find((a) => a.name === 'display')
   // `display.none` lexes as ONE ident — the dot is part of the name, not an

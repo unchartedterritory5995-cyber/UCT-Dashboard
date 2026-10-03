@@ -25,6 +25,8 @@
 // drift; seven hand-written checks can, and the one that drifts is the one
 // nobody reads again.
 
+import { formatNumber } from '../objectRuntime.js'
+
 /**
  * @typedef {object} TextFn
  * @property {string[]} args     operand kinds, in order ('string' today)
@@ -78,6 +80,35 @@ export const TEXT_FNS = Object.freeze({
   },
   'str.length': { args: ['string'], returns: 'number', fn: (s) => s.length },
 })
+
+/**
+ * ⭐⭐ RT5 — `str.tostring` FOR A RUN THAT DRAWS (`objectsInRun`), and ONLY there.
+ *
+ * Kept OUT of `TEXT_FNS` on purpose: that table drives the front end's route
+ * decision (`producesText`) for every build, and adding a name there changes what
+ * every other runtime document compiles. The front end emits these two names only
+ * when the run draws its own objects.
+ *
+ * ⭐ ONE FORMATTER: `objectRuntime.formatNumber`, the host object lane's own
+ * (`#`/`0` patterns; no format = ten decimals trimmed, C43). A text argument is
+ * itself. ⛔ The format must be a literal `#`/`0` pattern — the front end refuses
+ * `format.mintick` / `format.percent` / a pattern with a comma by name.
+ */
+export const RUN_TEXT_FNS = Object.freeze({
+  'str.tostring': {
+    args: ['any'],
+    returns: 'string',
+    fn: (v) => (typeof v === 'string' ? v : typeof v === 'number' ? formatNumber(v) : ''),
+  },
+  'str.tostring/fmt': {
+    args: ['any', 'string'],
+    returns: 'string',
+    fn: (v, f) => (typeof v === 'string' ? v : typeof v === 'number' ? formatNumber(v, f) : ''),
+  },
+})
+
+/** Every text op the VM can execute: the shared table plus the run-only one. */
+export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...RUN_TEXT_FNS })
 
 /** The names this lane serves, for the front end's admission check. */
 export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))
