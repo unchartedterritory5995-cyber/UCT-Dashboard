@@ -248,6 +248,11 @@ NOT_REHEARSED = {
     "NOTEBOOK_PLAYBOOK_ENABLED": "dark (wave 13 13B): My Playbook -- per-setup stats with R3 ranges "
                                  "and the before-losses-vs-wins patterns; waits for the wave-13 PR "
                                  "and the owner's arming order (P6)",
+    # Wave 13 lane 13F.
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "dark (wave 13 13F): reviews that write themselves -- one "
+                                      "click drafts a daily/weekly/monthly review's data, the leak "
+                                      "finder's findings; waits for the wave-13 PR and the owner's "
+                                      "arming order",
 }
 
 

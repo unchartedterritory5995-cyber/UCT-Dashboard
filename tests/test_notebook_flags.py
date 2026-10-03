@@ -63,6 +63,8 @@ NOTEBOOK_KEYS = [
     "notebook_find_similar_enabled",
     # Wave 13 lane 13B: My Playbook — an enablement gate.
     "notebook_playbook_enabled",
+    # Wave 13 lane 13F: reviews that write themselves, with the leak finder — an enablement gate.
+    "notebook_review_drafts_enabled",
 ]
 
 

@@ -57,6 +57,7 @@ from api.services.journal_two import visual_playbook
 from api.services.journal_two import note_levels
 from api.services.journal_two import setups_board
 from api.services.journal_two import similar_matches
+from api.services.journal_two import review_drafts
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -142,6 +143,9 @@ def _server_gates() -> dict:
         # Wave 13 lane 13J: the setups-board and similar-names routers' own gate functions.
         "NOTEBOOK_SETUPS_BOARD_ENABLED": setups_board.enabled,
         "NOTEBOOK_FIND_SIMILAR_ENABLED": similar_matches.enabled,
+        # Wave 13 lane 13F: the review-drafts service's own gate function (the router's
+        # `enabled()` is a thin re-export of this one).
+        "NOTEBOOK_REVIEW_DRAFTS_ENABLED": review_drafts.enabled,
     }
 
 
