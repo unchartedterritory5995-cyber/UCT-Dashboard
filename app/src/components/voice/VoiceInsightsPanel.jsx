@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { formatETDate, formatETFull } from '../../utils/timeAgo'
 import UIcon from '../ui/UIcon'
 import styles from './VoiceInsightsPanel.module.css'
@@ -18,6 +19,18 @@ const KIND_META = {
   regime_shift: { emoji: 'globe', label: 'Regime shift', color: '#a78bfa' },
   drift_warning: { emoji: 'warning', label: 'Drift warning', color: '#fca5a5' },
   mistake_pattern: { emoji: 'refresh', label: 'Recurring mistake', color: '#fca5a5' },
+  // Wave 13 lane 13D: resurfacing (Awareness R7-R9) -- a note the member wrote, back.
+  note_level_touch: { emoji: 'document', label: 'Your notes', color: '#dcbb5e' },
+  note_big_move: { emoji: 'document', label: 'Your notes', color: '#dcbb5e' },
+  note_date_due: { emoji: 'document', label: 'Your notes', color: '#dcbb5e' },
+}
+
+// Lane 13D: the door a resurfacing insight carries (`link`, attached server-side only while
+// AWARENESS_NOTE_RESURFACE_ENABLED is on) to the note at the version that named the level.
+// Only the Notebook's own `?note=` door is ever followed; anything else renders nothing.
+function noteDoor(insight) {
+  const link = typeof insight?.link === 'string' ? insight.link : ''
+  return link.startsWith('/journal/notebook?note=') ? link : null
 }
 
 function kindMeta(kind) {
@@ -173,6 +186,9 @@ export default function VoiceInsightsPanel() {
                 </div>
                 <div className={styles.rowHeadline}>{i.headline}</div>
                 {i.body && <div className={styles.rowText}>{i.body}</div>}
+                {noteDoor(i) && (
+                  <Link to={noteDoor(i)} className={styles.noteDoor}>Open what you wrote</Link>
+                )}
                 <div className={styles.rowFooter}>
                   {isPending && <span className={styles.statusPending}>pending</span>}
                   {!isPending && !isDismissed && i.delivered_at && (

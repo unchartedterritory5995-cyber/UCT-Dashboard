@@ -355,8 +355,20 @@ def _title(lv: dict) -> str:
 
 
 def _named_day(lv: dict) -> str:
+    """The ET calendar day the note named it ("on 2026-09-12"). A stored stamp is UTC ISO;
+    a UTC date would name tomorrow for an evening edit, so it is converted, never sliced."""
     v = lv.get("named_at")
-    return f"on {str(v)[:10]}" if v else "earlier"
+    if not v:
+        return "earlier"
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(ZoneInfo("America/New_York"))
+        return f"on {dt.date().isoformat()}"
+    except (ValueError, TypeError):
+        return f"on {str(v)[:10]}"
 
 
 def rule_note_level_touch(scan_ctx: dict, user_ctx: dict) -> list[ResurfaceCandidate]:

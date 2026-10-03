@@ -111,28 +111,6 @@
   line-height: 1.5;
 }
 
-/* Wave 13 lane 13D: a resurfacing insight's door to the note it brought back. */
-.feedItemNoteLink {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ut-gold, #dcbb5e);
-  text-decoration: none;
-}
-
-.feedItemNoteLink:hover {
-  text-decoration: underline;
-}
-
-/* The touch tier: the door meets the 44px floor. */
-@media (max-width: 1024px) {
-  .feedItemNoteLink {
-    min-height: var(--tap-min, 44px);
-  }
-}
-
 .dismissBtn {
   flex-shrink: 0;
   background: transparent;

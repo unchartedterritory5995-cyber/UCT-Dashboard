@@ -158,6 +158,13 @@ def test_R7_fires_on_a_cross_between_cycles_but_not_on_a_first_sighting_outside_
     assert rules.rule_note_level_touch(_ctx(price=97.0), {"note_levels": [_lv()]}) == []
 
 
+def test_R7_names_the_ET_day_the_level_was_written_not_the_UTC_one():
+    # 03:01 UTC on Oct 3 is 23:01 ET on Oct 2: the member wrote it on the 2nd.
+    out = rules.rule_note_level_touch(_ctx(price=100.0), {"note_levels": [
+        _lv(named_at="2026-10-03T03:01:44.123456+00:00")]})
+    assert "on 2026-10-02" in out[0].body and "2026-10-03" not in out[0].body
+
+
 def test_R7_needs_a_cached_price_and_a_price_role():
     assert rules.rule_note_level_touch(_ctx(), {"note_levels": [_lv()]}) == []
     assert rules.rule_note_level_touch(_ctx(price=100.0), {"note_levels": [_lv(role="note", price=None)]}) == []

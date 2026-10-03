@@ -28,7 +28,8 @@ never killed); the data dir outside the shared root (refused) and EMPTY.
       that named the stop exists and does NOT hold the target
   W2  scan 1 at 104 (first sighting, 4% away): no notice -- the side is recorded
   W3  scan 2 at 98 (crossed the stop): exactly one notice, kind note_level_touch, in-app only
-  W4  1200 px: the Dashboard's Compass tile shows it under "Your Notes" with "Open what you wrote"
+  W4  1200 px: the in-app insights inbox (Settings > Compass, the live surface that lists
+      /api/voice/insights) shows it under "Your notes" with "Open what you wrote"
   W5  click it: the note opens at ?note=<id>&resurfaceVersion=<the version that named the stop>,
       the sheet "What you wrote then" shows that version (Stop: 100, no target) beside the live
       note (which has the target); closing drops the parameter
@@ -65,6 +66,8 @@ import notebook_perf_harness as h  # noqa: E402  -- imports no api.* (asserted a
 MEMBER = ("w13d@local.dev", "LocalTest2026!", "w13d")
 FLAG_KEY = "awareness_note_resurface_enabled"
 PORTS = range(8620, 8625)
+#: The live in-app inbox of insights (Settings > Compass > Voice Insights Inbox).
+INBOX = "/settings?section=compass"
 
 
 class Walk:
@@ -236,8 +239,8 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         pg.on("pageerror", lambda e: errors.append(str(e)[:300]))
         pg.on("request", lambda r: version_requests.append(r.url) if "/versions/" in r.url else None)
 
-        # W4 -- the tile
-        pg.goto(base + "/dashboard", wait_until="domcontentloaded")
+        # W4 -- the inbox
+        pg.goto(base + INBOX, wait_until="domcontentloaded")
         h._dismiss_intro(pg)
         door = pg.get_by_role("link", name="Open what you wrote")
         try:
@@ -246,13 +249,13 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         except Exception as e:  # noqa: BLE001
             ok4 = False
             w.raw["W4_error"] = str(e)[:400]
-        tile_text = pg.get_by_text("Your Notes").first.locator("xpath=..").inner_text() if ok4 else ""
+        tile_text = door.first.locator("xpath=../..").inner_text() if ok4 else ""
         w.raw["W4_tile_text"] = tile_text
         href = door.first.get_attribute("href") if ok4 else None
-        w.record("W4_tile_shows_the_notice", ok4 and "NVDA reached 100.00" in tile_text
+        w.record("W4_inbox_shows_the_notice", ok4 and "NVDA reached 100.00" in tile_text and "Your notes" in tile_text
                  and href == f"/journal/notebook?note={n0['id']}&resurfaceVersion={vid}",
-                 f"door href {href}; tile group text {tile_text!r}")
-        w.shot(pg, "W4-dashboard-tile-1200")
+                 f"door href {href}; inbox row text {tile_text!r}")
+        w.shot(pg, "W4-inbox-1200")
 
         # W5 -- click through to the version
         ok5, detail5 = False, "door not shown"
@@ -305,7 +308,7 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
                  f"property PUT HTTP {up2.status}; fired {s4['result']['resurface']['fired']}; {dd}")
 
         # W8 -- keyboard
-        pg.goto(base + "/dashboard", wait_until="domcontentloaded")
+        pg.goto(base + INBOX, wait_until="domcontentloaded")
         h._dismiss_intro(pg)
         pg.get_by_role("link", name="Open what you wrote").first.wait_for(state="visible", timeout=60000)
         pg.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
@@ -330,7 +333,7 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
                                reduced_motion="reduce", storage_state=state)
         pp = phone.new_page()
         pp.on("pageerror", lambda e: errors.append(str(e)[:300]))
-        pp.goto(base + "/dashboard", wait_until="domcontentloaded")
+        pp.goto(base + INBOX, wait_until="domcontentloaded")
         h._dismiss_intro(pp)
         pdoor = pp.get_by_role("link", name="Open what you wrote").first
         ok9, geo = False, {}
@@ -340,7 +343,7 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
             geo = pp.evaluate("""() => { const a = [...document.querySelectorAll('a')].find(x => x.textContent.trim() === 'Open what you wrote');
                 const r = a.getBoundingClientRect();
                 return {sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, door_h: r.height, door_right: r.right} }""")
-            w.shot(pp, "W9-dashboard-390")
+            w.shot(pp, "W9-inbox-390")
             pdoor.tap()
             sheet = pp.get_by_role("dialog", name="What you wrote then")
             sheet.wait_for(state="visible", timeout=60000)

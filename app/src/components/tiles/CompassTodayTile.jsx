@@ -36,18 +36,6 @@ const KIND_LABELS = {
   scanner_match: 'Scanner',
   mistake_pattern: 'Discipline',
   drift_warning: 'Discipline',
-  // Wave 13 lane 13D: resurfacing (Awareness R7-R9) -- a note the member wrote, back.
-  note_level_touch: 'Your Notes',
-  note_big_move: 'Your Notes',
-  note_date_due: 'Your Notes',
-}
-
-// Lane 13D: the door a resurfacing insight carries (`link`, attached server-side only
-// while AWARENESS_NOTE_RESURFACE_ENABLED is on). Only the Notebook's own `?note=` door
-// is ever followed -- anything else in that field renders nothing.
-function resurfaceLink(ins) {
-  const link = typeof ins?.link === 'string' ? ins.link : ''
-  return link.startsWith('/journal/notebook?note=') ? link : null
 }
 
 function kindLabel(kind) {
@@ -211,11 +199,6 @@ function CompassTodayBody({ todayFocus, noticed, mutate }) {
                       {ins.headline}
                     </div>
                     {ins.body && <div className={styles.feedItemBody}>{ins.body}</div>}
-                    {resurfaceLink(ins) && (
-                      <Link to={resurfaceLink(ins)} className={styles.feedItemNoteLink}>
-                        Open what you wrote
-                      </Link>
-                    )}
                   </div>
                   <button
                     type="button"
