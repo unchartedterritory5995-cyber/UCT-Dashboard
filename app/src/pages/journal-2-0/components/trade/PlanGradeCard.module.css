@@ -128,6 +128,9 @@
   .linkBtn {
     min-height: var(--tap-min, 44px);
   }
+  /* min-height is inert on an inline element: the plan link (an <a>) measured 16 px at 390 in
+     walk 2 (walk-a78cee85cf, row P8). inline-flex makes the floor apply. */
+  .linkBtn { display: inline-flex; align-items: center; }
   .check { grid-template-columns: 56px 1fr; }
   .checkDetail { grid-column: 1 / -1; }
 }
