@@ -66,6 +66,21 @@ describe('reading and saving the note', () => {
     expect(screen.getByText('Tight flag at the 21EMA')).toBeTruthy()
   })
 
+  it('a FIRST save (why starts null) renders the just-typed text, never crashes, even before the parent refetches', async () => {
+    // ⚰️ Measured on a real sandbox walk, not guessed: `editing` flips to false locally the
+    // instant the PUT resolves, one render before the parent's `why` prop (via onSaved -> retry)
+    // catches up -- so this render happens with `why` STILL null. The component used to read
+    // `why.text` unconditionally there and crashed outright.
+    global.fetch = vi.fn(async () => json({ context: { symbol: 'NVDA', entryDay: '2026-10-02', why: null } }))
+    const onSaved = vi.fn()
+    render(<WhyPrompt symbol="NVDA" entryDay="2026-10-02" why={null} whyMaxChars={500} onSaved={onSaved} />)
+    await userEvent.type(screen.getByLabelText('Why did you take it?'), 'Tight flag at the 21EMA')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(screen.getByTestId('why-prompt-saved')).toBeTruthy()
+    expect(screen.getByText('Tight flag at the 21EMA')).toBeTruthy()
+  })
+
   it('opens editing pre-filled, and Save PUTs the key and text then calls onSaved', async () => {
     const calls = []
     global.fetch = vi.fn(async (url, init) => {

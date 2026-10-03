@@ -57,10 +57,17 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   }
 
   if (!editing) {
+    // ⛔ `why` can still be the PARENT's stale (null) prop for one render after a successful
+    // FIRST save -- this component flips local `editing` to false the instant the PUT resolves,
+    // before the parent's own refetch (onSaved -> retry()) lands. `why?.text` alone would render
+    // an empty flash (or, before this fix, `why.text` on a null `why` CRASHED the component
+    // outright); falling back to the just-typed `text` shows the member their own words with no
+    // gap at all, and resolves to the server's text within one render once the refetch arrives.
+    const shown = why?.text ?? text
     return (
       <div className={styles.wrap} data-testid="why-prompt-saved">
         <div className={styles.label}>Why did you take it?</div>
-        <p className={styles.savedText}>{why.text}</p>
+        <p className={styles.savedText}>{shown}</p>
         <button type="button" className={styles.linkBtn} onClick={() => setEditing(true)}>
           Edit
         </button>
