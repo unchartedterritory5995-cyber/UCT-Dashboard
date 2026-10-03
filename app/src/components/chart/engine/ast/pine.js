@@ -15917,6 +15917,49 @@ function switchAssignmentBindings(subjectToks, subStmts, env, firstTok) {
   return out
 }
 
+/** ⭐⭐ H2 — a SUBJECT-LESS `switch` in value position, as the ternary chain it
+ *  is, or null for any other shape (the caller then keeps the refusal it had):
+ *
+ *      _direction := switch                    →  nz(c1) ? v1 : nz(c2) ? v2 : d
+ *          c1 => v1
+ *          c2 => v2
+ *          => d
+ *
+ *  Pine runs the FIRST arm whose condition is true; the bare `=>` arm runs when
+ *  none is, and with no bare arm the switch yields `na`. ⛔ An `na` condition is
+ *  NOT true — Pine reads it as false and tries the next arm — while this engine's
+ *  `?:` answers `na` for an `na` test, so every condition that is not already a
+ *  comparison (`cmp` answers 0 on `na`) is read through `nz`, which is exactly
+ *  Pine's reading. ⛔ NARROW: no subject, every arm one line (`cond => expr`, no
+ *  block beneath it), at most one bare arm and only as the last. */
+function subjectlessSwitchNode(subStmts, firstTok) {
+  const arms = (subStmts || []).filter((a) => a && a.header && a.header.length)
+  if (!arms.length) return null
+  const CMP = new Set(['<', '<=', '>', '>=', '==', '!='])
+  const asCondition = (node) => (node && node.type === 'binary' && CMP.has(node.op)
+    ? node
+    : { type: 'call', name: 'nz', args: [{ name: null, value: node }], tok: node && node.tok })
+  const parsed = []
+  for (let k = 0; k < arms.length; k += 1) {
+    const arm = arms[k]
+    if (arm.sub && arm.sub.length) return null
+    const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+    if (at < 0 || at === arm.header.length - 1) return null
+    if (at === 0 && k !== arms.length - 1) return null
+    parsed.push({
+      cond: at === 0 ? null : asCondition(parseWholeExpression(arm.header.slice(0, at))),
+      value: parseWholeExpression(arm.header.slice(at + 1)),
+      tok: arm.header[at],
+    })
+  }
+  const last = parsed[parsed.length - 1]
+  let node = last.cond ? { type: 'name', name: 'na', tok: firstTok } : last.value
+  for (let k = parsed.length - (last.cond ? 1 : 2); k >= 0; k -= 1) {
+    node = { type: 'ternary', test: parsed[k].cond, yes: parsed[k].value, no: node, tok: parsed[k].tok }
+  }
+  return node
+}
+
 function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   const arms = []
   let fallback = null
@@ -16275,6 +16318,43 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         record(st, nameTok.value)
         i += 1
         continue
+      }
+      // ⭐⭐ H2 — A BLOCK-VALUED REASSIGNMENT: `x := if …` / `x := switch` (no
+      // subject). The value is the block's, built by the readers `x = if …` and
+      // the switch arms already use; it binds exactly as `x := <ternary>` would
+      // (in the env a moment ago, so `x` and `x[1]` on the right are the name's
+      // own), which is what lets a helper's `x := switch … => nz(x[1])` reach
+      // H1's local recurrence. Any other shape falls through to the refusal below.
+      const blockWord = op === ':=' && toks[mut + 1] && toks[mut + 1].kind === 'ident' ? toks[mut + 1].value : null
+      if (blockWord === 'if' || (blockWord === 'switch' && toks.length === mut + 2)) {
+        let built = null
+        let next = i + 1
+        if (blockWord === 'if') {
+          const folded = foldIfChain(stmts, i, ctx, env)
+          consumeMutators(ctx, st.body)
+          for (let k = i + 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+          if (!folded.value || folded.value.kind !== 'expr') {
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — \`${nameTok.value} := if …\` has a branch with no value`,
+              locate(toks[mut + 1]))
+          }
+          built = folded.value
+          next = folded.next
+        } else {
+          const node = subjectlessSwitchNode(st.sub, toks[mut + 1])
+          if (node) built = exprBinding(node, new Map(env), locate(nameTok))
+        }
+        if (built) {
+          env.set(nameTok.value, built)
+          if (prior.blockLocal) {
+            env.get(nameTok.value).blockLocal = prior.blockLocal
+            if (!env.get(nameTok.value).execGuard) env.get(nameTok.value).execGuard = prior.execGuard
+          }
+          record(st, nameTok.value)
+          ctx.consumed.add(toks[mut].index)
+          i = next
+          continue
+        }
       }
       const rhs = parseWholeExpression(toks.slice(mut + 1))
       // `x += e` is `x := x + e`, and the `x` on the right is the binding that
@@ -22952,6 +23032,38 @@ function translatePineResult(source, opts = {}) {
             prior && prior.message ? prior.message
               : `${REFUSALS['pine:reassign']} — \`${nameTok.value}\``,
             prior && prior.at ? prior.at : locate(toks[mutAt]))
+        }
+        // ⭐⭐ H2 — `x := if …` / `x := switch` (no subject) at the top level: the
+        // same block-valued reassignment `foldStatements` reads (see there).
+        const blockWord = toks[mutAt].value === ':=' && toks[mutAt + 1] && toks[mutAt + 1].kind === 'ident'
+          ? toks[mutAt + 1].value : null
+        if (blockWord === 'if') {
+          const chain = ifBranches(stmts, si - 1)
+          const last = chain ? chain.next : si
+          try {
+            const folded = foldIfChain(stmts, si - 1, ctx, env)
+            for (let k = si - 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+            if (!folded.value || folded.value.kind !== 'expr') {
+              throw new PineRefusal('pine:block',
+                `${REFUSALS['pine:block']} — \`${nameTok.value} := if …\` has a branch with no value`,
+                locate(toks[mutAt + 1]))
+            }
+            env.set(nameTok.value, folded.value)
+            ctx.consumed.add(toks[mutAt].index)
+            si = folded.next
+          } catch (err) {
+            si = last
+            throw err
+          }
+          continue
+        }
+        if (blockWord === 'switch' && toks.length === mutAt + 2) {
+          const node = subjectlessSwitchNode(stmts[si - 1].sub, toks[mutAt + 1])
+          if (node) {
+            env.set(nameTok.value, exprBinding(node, new Map(env), locate(nameTok)))
+            ctx.consumed.add(toks[mutAt].index)
+            continue
+          }
         }
         const rhs = parseWholeExpression(toks.slice(mutAt + 1))
         const op = toks[mutAt].value

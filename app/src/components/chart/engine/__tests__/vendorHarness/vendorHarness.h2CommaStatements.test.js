@@ -83,6 +83,47 @@ describe('H2 — pa-zigzag-fibonacci-fan: host lane equals the runtime lane on e
   })
 })
 
+describe('H2 — 3-level-zigzag-semafor\'s zigzag(): a comma line whose last statement is a subject-less `:= switch`', () => {
+  // The script itself stops at its lower-timeframe requests (`pine:function`, H3's /
+  // the clock's); its helper is what H2 reads. The helper, verbatim from the corpus,
+  // plotted directly — once returning the zigzag, once its own `_direction` state —
+  // against the runtime lane's independent per-bar run on RDDT's listing bars.
+  const helper = () => {
+    const text = corpus('3-level-zigzag-semafor').replace(/\r\n/g, '\n')
+    const at = text.indexOf('zigzag() =>')
+    const end = text.indexOf('    _zigzag\n', at) + '    _zigzag\n'.length
+    expect(at).toBeGreaterThan(0)
+    expect(end).toBeGreaterThan(at)
+    return text.slice(at, end)
+  }
+  for (const [label, edit] of [
+    ['the zigzag it returns', (h) => h],
+    ['its own `_direction` state', (h) => h.replace(/ {4}_zigzag\n$/, '    _direction\n')],
+  ]) {
+    it(`⭐⭐ ${label}: host lane equals the runtime lane on every bar`, () => {
+      vi.stubEnv(OBJECTS, '1')
+      const source = `//@version=5\nindicator("h2 zigzag", overlay = true)\n${edit(helper())}\nplot(zigzag(), "z")\n`
+      const { cap, ours } = host(source)
+      expect(ours.ok, ours.refusal).toBe(true)
+      expect(probeRuntimeProgram(source).ok).toBe(true)
+      const n = cap.bars.rows.length
+      const ourCol = columnOf(ours.plots[0], n)
+      const rt = computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source, outputs: { v: 0 } } },
+        toProductBars(cap), { tf: 'D', newestBarIsForming: false, historyFromListing: true }).v
+      let drawn = 0
+      for (let i = 0; i < n; i += 1) {
+        if (isNa(ourCol[i])) continue // withheld or na: never a value the runtime lane disagrees with
+        drawn += 1
+        expect(ourCol[i], `bar ${i}`).toBe(rt[i])
+      }
+      // and the host withholds nothing the runtime lane draws past the first bars
+      const missing = ourCol.map((v, i) => (isNa(v) && !isNa(rt[i]) ? i : -1)).filter((i) => i > 1)
+      expect(missing).toEqual([])
+      expect(drawn).toBeGreaterThan(label.startsWith('its') ? 600 : 150) // non-vacuity
+    })
+  }
+})
+
 /** The script's own arithmetic, bar by bar (auto-trendline-dojiemoji, inputs as given). */
 function replayAutoTrendline(bars, { showHH, showLH, showLL, showHL, showCross }, n = 10) {
   const H = bars.map((b) => b.h); const L = bars.map((b) => b.l); const C = bars.map((b) => b.c)

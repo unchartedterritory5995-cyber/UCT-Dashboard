@@ -2,7 +2,7 @@
   "measured_at": "2026-10-02",
   "scripts": 266,
   "host_ok": 73,
-  "screener_ok": 65,
+  "screener_ok": 66,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -10,13 +10,11 @@
     {
       "file": "3-level-zigzag-semafor__3078.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:block",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:block",
         "pine:function"
       ]
     },
@@ -2130,10 +2128,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:block"
+        "pine:function"
       ],
       "screenerGuards": [
-        "pine:block"
+        "pine:function"
       ]
     },
     {
