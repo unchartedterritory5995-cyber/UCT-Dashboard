@@ -29,6 +29,11 @@ import { maxLookback } from '../../ast/interpret'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+
+// ⭐ L1 — opt-in: `PINE_LIBRARY_STORE=<scratch dir>` measures WITH the imported libraries
+// (never committed). Unset, the registry is empty, as in every production process.
+const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 const RUN = process.env.VENDOR_BATCH_CENSUS === '1'
 const OUT = process.env.VENDOR_BATCH_CENSUS_OUT
 const REPO = path.resolve(process.cwd(), '..')
@@ -42,6 +47,14 @@ const CORPUS = path.join(REPO, 'corpus', 'committed')
  *  will run with, never assume it. */
 const GATE_SRC = fs.readFileSync(path.join(REPO, 'app/src/components/chart/engine/objectsOnlyPaneGate.js'), 'utf8')
 const OBJECTS_ONLY_FLAG = (GATE_SRC.match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
+
+/** ⭐ RT1 — THE RUNTIME FALLBACK'S FLAG, read off ITS gate module the same way.
+ *  Opt-in (`VENDOR_BATCH_CENSUS_RUNTIME=1`): a third state, objects-only ON and
+ *  the runtime pane ON — what the door attaches once the runtime lane is the
+ *  member door's fallback. Off, the census writes exactly what it always wrote. */
+const RUNTIME_GATE_SRC = fs.readFileSync(path.join(REPO, 'app/src/components/chart/engine/runtimePaneGate.js'), 'utf8')
+const RUNTIME_FLAG = (RUNTIME_GATE_SRC.match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
+const WITH_RUNTIME = process.env.VENDOR_BATCH_CENSUS_RUNTIME === '1'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -57,8 +70,9 @@ function largestWindow(built) {
   return best
 }
 
-function row(file, flagOn) {
+function row(file, flagOn, runtimeOn = false) {
   vi.stubEnv(OBJECTS_ONLY_FLAG, flagOn ? '1' : '')
+  if (runtimeOn) vi.stubEnv(RUNTIME_FLAG, '1')
   const bytes = fs.readFileSync(path.join(CORPUS, file))
   const source = bytes.toString('utf8')
   const base = {
@@ -88,6 +102,13 @@ function row(file, flagOn) {
       outputs: outputs.length,
       drawsObjects: !!(door.def && door.def.objects && (door.def.objects.ops || []).length),
       largestWindow: door.def ? largestWindow(door.built) : null,
+      // ⭐ RT1 — which lane drew it, and why the runtime lane declined (only
+      // present when the runtime state is measured).
+      ...(runtimeOn ? {
+        lane: door.built && door.built.lane ? door.built.lane : (door.def ? 'host' : null),
+        runtimeDeclined: (door.built && door.built.runtimeDeclined) || null,
+        withheld: (door.built && door.built.withheld) || [],
+      } : {}),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
@@ -108,11 +129,14 @@ describe.skipIf(!RUN)('member-door census for the vendor batch (opt-in)', () => 
     const off = files.map((f) => row(f, false))
     const on = files.map((f) => row(f, true))
     vi.unstubAllEnvs()
+    const runtime = WITH_RUNTIME ? files.map((f) => { const r = row(f, true, true); vi.unstubAllEnvs(); return r }) : null
+    vi.unstubAllEnvs()
     // every script is accounted for, and every refusal carries its sentence
     expect(off.length).toBe(files.length)
     expect(on.length).toBe(files.length)
-    for (const r of [...off, ...on]) if (!r.attached) expect(r.refusal, r.file).toBeTruthy()
-    const states = { off, on }
+    for (const r of [...off, ...on, ...(runtime || [])]) if (!r.attached) expect(r.refusal, r.file).toBeTruthy()
+    if (runtime) expect(RUNTIME_FLAG, 'the runtime flag name could not be read off its gate').toMatch(/^VITE_/)
+    const states = runtime ? { off, on, runtime } : { off, on }
     fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true })
     fs.writeFileSync(OUT, JSON.stringify({
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/memberDoorCensus.measure.test.js',
@@ -120,12 +144,20 @@ describe.skipIf(!RUN)('member-door census for the vendor batch (opt-in)', () => 
       corpus: 'corpus/committed',
       flag: OBJECTS_ONLY_FLAG,
       ambientFlagOn,
+      librariesLoaded: LIBRARIES_LOADED,
       files: files.length,
-      attached: { off: off.filter((r) => r.attached).length, on: on.filter((r) => r.attached).length },
+      attached: {
+        off: off.filter((r) => r.attached).length,
+        on: on.filter((r) => r.attached).length,
+        ...(runtime ? { runtime: runtime.filter((r) => r.attached).length } : {}),
+      },
+      ...(runtime ? { runtimeFlag: RUNTIME_FLAG } : {}),
       states,
     }, null, 1) + '\n')
     // eslint-disable-next-line no-console
     console.log(`member-door census: ${OBJECTS_ONLY_FLAG} off ${off.filter((r) => r.attached).length}/${files.length}, `
-      + `on ${on.filter((r) => r.attached).length}/${files.length} attach -> ${OUT}`)
+      + `on ${on.filter((r) => r.attached).length}/${files.length} attach`
+      + (runtime ? `, +${RUNTIME_FLAG} ${runtime.filter((r) => r.attached).length}/${files.length}` : '')
+      + ` -> ${OUT}`)
   }, 900000)
 })

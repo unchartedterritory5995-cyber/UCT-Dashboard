@@ -1,0 +1,22 @@
+// UCT probe — L1, an imported library's exports against the same formulas written here.
+// Written for this repository's capture rig; it contains no library code. The library it
+// imports (TradingView/ta/7) is fetched by TradingView's own editor when this is pasted.
+//@version=5
+indicator("UCTPROBE L1 library import", overlay = false)
+import TradingView/ta/7 as tvta
+
+// L01 — a pure export: ao() with its defaults (hl2, 5, 34)
+plot(tvta.ao(), "L01 ao")
+// L01c — the same formula written here; L01 - L01c must be 0 on every bar
+plot(tvta.ao() - (ta.sma(hl2, 5) - ta.sma(hl2, 34)), "L01c ao minus inline")
+// L02 — an export reading the history of its own intermediate (ema of an ema)
+plot(tvta.dema(close, 9), "L02 dema")
+// L02c — the same formula written here, as a difference
+e1 = ta.ema(close, 9)
+plot(tvta.dema(close, 9) - (2 * e1 - ta.ema(e1, 9)), "L02c dema minus inline")
+// L03 — an export holding `var` state, at ONE call site (new month resets it)
+plot(tvta.highestSince(ta.change(time("M")) != 0, high), "L03 highestSince month")
+// L04 — the SAME export at a SECOND call site: its own state, not L03's
+plot(tvta.highestSince(ta.change(time("W")) != 0, high), "L04 highestSince week")
+// L05 — an export with a series default argument omitted (source = high)
+plot(tvta.highestSince(ta.change(time("M")) != 0), "L05 highestSince default source")

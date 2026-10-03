@@ -15,6 +15,7 @@ import { compareCapture, renderSummary } from '../../../../../../../tools/vendor
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
+import { gradePaints } from './paintColours'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -67,8 +68,21 @@ export function objectColourGraded(opts = {}) {
   return process.env.VENDOR_HARNESS_OBJECT_COLOUR !== '0'
 }
 
+/** ⭐⭐ B1 (step 61) — PAINTS ARE PART OF THE VERDICT, ON BY DEFAULT.
+ *  A capture whose `bgcolor` / `barcolor` paints differ from TradingView's — or
+ *  that the door withholds — grades DIVERGE (`compare.mjs::comparePaints` states
+ *  the rule). Same contract as `objectColourGraded`: `gradeCapture(c, {paints:
+ *  false})`, or `VENDOR_HARNESS_PAINTS=0` for a whole run, reproduces the verdict
+ *  as it was before; every graded verdict also carries `verdictWithoutPaints`,
+ *  so both numbers are read side by side from ONE run.
+ *  Read at call time, so a test may stub the variable. */
+export function paintsGraded(opts = {}) {
+  if (opts.paints !== undefined) return !!opts.paints
+  return process.env.VENDOR_HARNESS_PAINTS !== '0'
+}
+
 /** Grade one capture object.
- *  @param {{objectColour?: boolean}} [opts] */
+ *  @param {{objectColour?: boolean, paints?: boolean}} [opts] */
 export function gradeCapture(capture, opts = {}) {
   const integrity = validateCapture(capture)
   // ⛔ AN INVALID CAPTURE IS NEVER RUN. Running our side on bars whose receipt
@@ -80,7 +94,8 @@ export function gradeCapture(capture, opts = {}) {
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairObjects(capture, ours.objects)
     : null
-  const verdict = compareCapture(capture, ours, { integrity, objectColours })
+  const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
+  const verdict = compareCapture(capture, ours, { integrity, objectColours, paints })
   return { verdict, ours, integrity }
 }
 

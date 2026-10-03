@@ -896,6 +896,167 @@ export function probeValuesOf(tree) {
   return [...out]
 }
 
+// --------------------------------------------------------------------------- //
+// H1 — a switched recurrence whose RESET TEST reads its own state (a ratchet)
+// --------------------------------------------------------------------------- //
+//
+// The trailing stop every supertrend writes:
+//
+//     up  = hl2 - m * atr
+//     up1 = nz(up[1], up)
+//     up := close[1] > up1 ? max(up, up1) : up
+//
+// resets to the fresh band when price closes through the stop — but the test
+// that decides it reads the stop itself, so from an unknown state C12s's single
+// abstract value cannot tell which arm runs and the stop is never known. It is
+// still EXACT from a window once the data has squeezed every possible earlier
+// stop onto one value: a run that enters bar `s` with no knowledge at all is
+// "any number or `na`", the test `close[1] > s` splits that into the part below
+// the close (which `max` lifts to at least `up`) and the part above it (which
+// resets to `up`), and within a few bars of a trend the band rises past every
+// stop that could have survived — at which point the value is one number for
+// every seed Pine could have held.
+//
+// ⭐ THE DOMAIN: a value is a number (exact, `NaN` = `na`) or a RANGE
+// `{lo, hi, na}` — every number in the closed interval, plus `na` when `na` is
+// set. Every pointwise operator is answered by its interval extension (sound:
+// the true value always lies inside the answer), a test that reads the state is
+// answered for each side separately with the state NARROWED by the test
+// (`refine` in `runRecurrence`), and the two answers are joined. A range that
+// narrows to one number IS that number. Nothing here guesses: a value comes out
+// a number only when every value the window could have held gives that number.
+//
+// ⛔ A `NaN` TEST (not computable here) answers "anything" — the same strict rule
+// `stepListing` keeps for the switched window — so the curtain is never read as
+// Pine's `na`.
+
+/** "Any number, or `na`" in the range domain. */
+export const RANGE_TOP = Object.freeze({ lo: -Infinity, hi: Infinity, na: true })
+const RANGE_EMPTY_LO = Infinity
+const RANGE_EMPTY_HI = -Infinity
+const isRangeValue = (v) => v !== null && typeof v === 'object' && typeof v.lo === 'number'
+const rangeIsTop = (v) => isRangeValue(v) && v.na && v.lo === -Infinity && v.hi === Infinity
+/** A number as a range: `NaN` is `na` with no number. */
+const asRange = (v) => (isRangeValue(v) ? v
+  : (v !== v ? { lo: RANGE_EMPTY_LO, hi: RANGE_EMPTY_HI, na: true } : { lo: v, hi: v, na: false }))
+const rangeHasNumber = (r) => r.lo <= r.hi
+/** The canonical form: a number when only one value is possible, `null` when no
+ *  value is (an arm no state reaches). */
+function rangeNorm(lo, hi, na) {
+  if (!(lo <= hi)) return na ? NaN : null
+  if (!na && lo === hi) return lo
+  return { lo, hi, na: !!na }
+}
+/** Every value either side can hold. */
+export function rangeJoin(a, b) {
+  if (a === null) return b
+  if (b === null) return a
+  if (typeof a === 'number' && typeof b === 'number' && (a === b || (a !== a && b !== b))) return a
+  const A = asRange(a)
+  const B = asRange(b)
+  return rangeNorm(Math.min(A.lo, B.lo), Math.max(A.hi, B.hi), A.na || B.na)
+}
+/** Which of `na`, zero and not-zero a value can be — how a test reads it. */
+function rangeTruth(v) {
+  if (typeof v === 'number') {
+    return v !== v ? { nan: true, zero: false, nonzero: false } : { nan: false, zero: v === 0, nonzero: v !== 0 }
+  }
+  const num = rangeHasNumber(v)
+  return {
+    nan: v.na,
+    zero: num && v.lo <= 0 && v.hi >= 0,
+    nonzero: num && !(v.lo === 0 && v.hi === 0),
+  }
+}
+const RANGE_ORDER = new Set(['<', '<=', '>', '>='])
+const RANGE_FLIP = Object.freeze({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' })
+const rangeOf01 = (outs, na) => rangeNorm(outs.length ? Math.min(...outs) : RANGE_EMPTY_LO,
+  outs.length ? Math.max(...outs) : RANGE_EMPTY_HI, na)
+/** The interval extension of one operator over at least one range. */
+function rangeOp(name, values) {
+  if (name === 'u-') {
+    const A = asRange(values[0])
+    return rangeNorm(-A.hi, -A.lo, A.na)
+  }
+  if (name === '!') {
+    const t = rangeTruth(values[0])
+    return rangeOf01([...(t.zero ? [1] : []), ...(t.nonzero ? [0] : [])], t.nan)
+  }
+  if (name === '&&' || name === '||') {
+    // `logical`: `na` when either side is `na`, else a 0/1 of the two truths
+    const a = rangeTruth(values[0])
+    const b = rangeTruth(values[1])
+    const sidesA = [...(a.zero ? [false] : []), ...(a.nonzero ? [true] : [])]
+    const sidesB = [...(b.zero ? [false] : []), ...(b.nonzero ? [true] : [])]
+    const outs = new Set()
+    for (const x of sidesA) for (const y of sidesB) outs.add((name === '&&' ? (x && y) : (x || y)) ? 1 : 0)
+    return rangeOf01([...outs], a.nan || b.nan)
+  }
+  const A = asRange(values[0])
+  const B = asRange(values[1])
+  const na = A.na || B.na
+  if (RANGE_ORDER.has(name) || name === '==' || name === '!=') {
+    // `cmp`: a comparison against `na` is 0, never `na`
+    let canT = false
+    let canF = na
+    if (rangeHasNumber(A) && rangeHasNumber(B)) {
+      const point = A.lo === A.hi && B.lo === B.hi
+      const overlap = A.lo <= B.hi && B.lo <= A.hi
+      if (name === '>') { canT = A.hi > B.lo; canF = canF || A.lo <= B.hi }
+      else if (name === '<') { canT = A.lo < B.hi; canF = canF || A.hi >= B.lo }
+      else if (name === '>=') { canT = A.hi >= B.lo; canF = canF || A.lo < B.hi }
+      else if (name === '<=') { canT = A.lo <= B.hi; canF = canF || A.hi > B.lo }
+      else if (name === '==') { canT = overlap; canF = canF || !(point && A.lo === B.lo) }
+      else { canT = !(point && A.lo === B.lo); canF = canF || overlap }
+    }
+    return rangeOf01([...(canF ? [0] : []), ...(canT ? [1] : [])], false)
+  }
+  if (!rangeHasNumber(A) || !rangeHasNumber(B)) return rangeNorm(RANGE_EMPTY_LO, RANGE_EMPTY_HI, na)
+  let c
+  if (name === '+') c = [A.lo + B.lo, A.hi + B.hi]
+  else if (name === '-') c = [A.lo - B.hi, A.hi - B.lo]
+  else if (name === '*') c = [A.lo * B.lo, A.lo * B.hi, A.hi * B.lo, A.hi * B.hi]
+  else if (name === '/') {
+    // a divisor that can be 0 has no bound (`x / 0` is ±Infinity, `0 / 0` is na)
+    if (B.lo <= 0 && B.hi >= 0) return RANGE_TOP
+    c = [A.lo / B.lo, A.lo / B.hi, A.hi / B.lo, A.hi / B.hi]
+  } else {
+    return RANGE_TOP
+  }
+  if (c.some((x) => x !== x)) return RANGE_TOP
+  return rangeNorm(Math.min(...c), Math.max(...c), na)
+}
+/** The interval extension of the pointwise calls a ratchet holds; any other
+ *  call over a range answers "anything". */
+function rangeCall(name, values) {
+  if (name === 'nz') {
+    const X = asRange(values[0])
+    const num = rangeHasNumber(X) ? rangeNorm(X.lo, X.hi, false) : null
+    return X.na ? rangeJoin(num, values[1]) : num
+  }
+  if (name === 'na') {
+    const X = asRange(values[0])
+    return rangeOf01([...(rangeHasNumber(X) ? [0] : []), ...(X.na ? [1] : [])], false)
+  }
+  if (name === 'min' || name === 'max') {
+    const A = asRange(values[0])
+    const B = asRange(values[1])
+    const na = A.na || B.na
+    if (!rangeHasNumber(A) || !rangeHasNumber(B)) return rangeNorm(RANGE_EMPTY_LO, RANGE_EMPTY_HI, na)
+    return name === 'min'
+      ? rangeNorm(Math.min(A.lo, B.lo), Math.min(A.hi, B.hi), na)
+      : rangeNorm(Math.max(A.lo, B.lo), Math.max(A.hi, B.hi), na)
+  }
+  if (name === 'abs') {
+    const A = asRange(values[0])
+    if (!rangeHasNumber(A)) return rangeNorm(RANGE_EMPTY_LO, RANGE_EMPTY_HI, A.na)
+    if (A.lo >= 0) return rangeNorm(A.lo, A.hi, A.na)
+    if (A.hi <= 0) return rangeNorm(-A.hi, -A.lo, A.na)
+    return rangeNorm(0, Math.max(-A.lo, A.hi), A.na)
+  }
+  return RANGE_TOP
+}
+
 const listingSame = (a, b) => a === b || (a !== a && b !== b)
 const listingKey = (v) => {
   if (v === LISTING_UNKNOWN) return 'U'
@@ -1200,8 +1361,9 @@ function windowArgExtreme(series, lo, hi, better) {
   return NaN
 }
 
-/** `pivothigh`/`pivotlow` — the bar's own value where it is the STRICT extreme of
- *  `[i-left, i+right]`, and NOT COMPUTABLE everywhere else.
+/** `pivothigh`/`pivotlow` — the bar's own value where it is the extreme of
+ *  `[i-left, i+right]` — beating every bar on its RIGHT and at least matching
+ *  every bar on its LEFT — and NOT COMPUTABLE everywhere else.
  *
  *  ⭐⭐ THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and it is
  *  legal precisely because the entry DECLARES it: `forward: 'arg2'` is what
@@ -1210,10 +1372,19 @@ function windowArgExtreme(series, lo, hi, better) {
  *  refuses a negative at the door — so the manifest stays the single authority
  *  on forward reach.
  *
- *  ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
- *  uniquely the extreme. A `>=` reading emits both and looks entirely
- *  reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
- *  `high` and 15 in `low`.
+ *  ⭐⭐ H1 (2026-10-02) — A PLATEAU'S LAST BAR IS THE PIVOT, READ OFF TRADINGVIEW.
+ *  The rule was STRICT on both sides ("two equal maxima mean neither bar is
+ *  uniquely the extreme"), which reads well and is not what TradingView does:
+ *  - `pivot-point-supertrend-rddt-1d-2026-09-27`: bars 473 and 474 both print a
+ *    152.44 high, and TradingView's `pivothigh(2, 2)` fires on 474 (its center
+ *    line moves at bar 476 by exactly that pivot) — a tie on the LEFT is a pivot.
+ *    Strict on the left, the script's line diverged on 131 of 631 bars; with the
+ *    tie admitted it matches on all 631.
+ *  - `liquidity-pools-…` and `price-action-as-in-book-…` (both plot their pivots)
+ *    go DIVERGE the moment a tie on the RIGHT is admitted too — so the right side
+ *    stays strict, and a plateau pivots once, on its last bar.
+ *  Every other capture that reads a pivot grades the same under both readings.
+ *  `ast_interpret._pivot_col` is the same rule.
  *
  *  ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
  *  The TAIL is the interesting one: those bars are *not yet decidable*, not
@@ -1244,7 +1415,9 @@ function pivotCol(series, left, right, beats) {
       // bar. ⛔ KEPT to state the rule at the site, and because it stops being
       // redundant the moment `beats` is anything but a strict comparison — not
       // because it guards anything today (`lesson_gate_that_cannot_fail`).
-      if (Number.isNaN(w) || !beats(v, w)) { ok = false; break }
+      // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
+      // does not
+      if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
     }
     if (ok) out[i] = v
   }
@@ -6044,6 +6217,29 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
      *  memo is keyed by node AND guard context, and lives for one call — a shared
      *  node is one Pine value at one point in the bar, so answering it once is
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
+    /** ⭐ H1 — is this test a Pine `bool` that can never be `na`? Crossings and
+     *  comparisons, joined by `&&` / `||` / `!`. Anything else is not. */
+    const neverNaBool = (x) => {
+      if (!x || typeof x !== 'object' || reads(x)) return false
+      if (x.type === 'call') return x.name === 'crossOver' || x.name === 'crossUnder'
+      if (x.type !== 'op' || !Array.isArray(x.args)) return false
+      if (RANGE_ORDER.has(x.name) || x.name === '==' || x.name === '!=') return true
+      if (x.name === '&&' || x.name === '||' || x.name === '!') return x.args.every(neverNaBool)
+      return false
+    }
+    /** ⭐ H1 — that test's Pine value on bar `j`: a crossing that answers `NaN`
+     *  is `false`; the rest composes as Pine's `bool` does. */
+    const pineBoolAt = (x, j) => {
+      if (x.type === 'call') {
+        const c = toColumn(evalNode(x), length)
+        return c[j] !== c[j] ? 0 : c[j]
+      }
+      if (x.name === '!') return pineBoolAt(x.args[0], j) ? 0 : 1
+      if (x.name === '&&') return pineBoolAt(x.args[0], j) && pineBoolAt(x.args[1], j) ? 1 : 0
+      if (x.name === '||') return pineBoolAt(x.args[0], j) || pineBoolAt(x.args[1], j) ? 1 : 0
+      const c = toColumn(evalNode(x), length)
+      return c[j] !== c[j] ? 0 : c[j]
+    }
     /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
     let heldLatch = false
     const stepListing = (x, j, history, read, strict = false) => {
@@ -6080,10 +6276,25 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             // the state (`TERNARY`), and a v6 `bool` is never `na`. Only here: from
             // the listing a `na` test is Pine's own `na` (a warm-up), where behind
             // the curtain it is a value this engine does not have (`strict`, above).
-            v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
+            // ⭐ H1 — and from the listing a test built only of crossings and
+            // comparisons is a Pine `bool` that is never `na`: `ta.cross`,
+            // `crossover` and `crossunder` compare two series on this bar and the
+            // last, and a comparison with `na` is false. The column answers `NaN`
+            // there (the event domain's warm-up, right for a window that starts
+            // mid-history), so the test is re-read with a `NaN` crossing as Pine's
+            // `false` (`pineBoolAt`). MEASURED: `qqe-signals` from the RDDT listing
+            // — `trend := cross(…, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend[1], 1)`
+            // read `na` on bars 71–72 where Pine reads 1, and `trend == 1`
+            // downstream drew a "Long" on bar 73 TradingView never drew
+            // (`vendorHarness.h1Ratchet.test.js`). Only in the listing pass, where
+            // a `NaN` IS Pine's `na`; an unknown bar is a probe value there, never
+            // `NaN`, so `interpretAgreed` still sees it move.
+            const pineTest = !strict && Number.isNaN(values[0]) && neverNaBool(n.args[0])
+              ? pineBoolAt(n.args[0], j) : values[0]
+            v = pineTest === LISTING_UNKNOWN || (strict && Number.isNaN(pineTest))
               ? LISTING_UNKNOWN
-              : heldLatch && Number.isNaN(values[0]) ? values[2]
-                : TERNARY(values[0], values[1], values[2])
+              : heldLatch && Number.isNaN(pineTest) ? values[2]
+                : TERNARY(pineTest, values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {
@@ -6150,7 +6361,214 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (stepRecord) stepRecord.switched = { withheld }
       return col
     }
-    const switched = switchedReal ? switchedColumn() : null
+    /** ⭐ H1 — does a TEST in this body read the running value? (`up := close[1] >
+     *  up1 ? max(up, up1) : up`). Only such a body takes the range window below;
+     *  every other switched body keeps C12s's column byte for byte. */
+    const testReadsState = (() => {
+      const stack = [body]
+      const seen = new Set()
+      while (stack.length) {
+        const x = stack.pop()
+        if (!x || typeof x !== 'object' || seen.has(x) || !reads(x)) continue
+        seen.add(x)
+        if (x.type === 'op' && x.name === '?:' && Array.isArray(x.args) && x.args.length === 3 && reads(x.args[0])) return true
+        if (Array.isArray(x.args)) for (const a of x.args) stack.push(a)
+      }
+      return false
+    })()
+
+    /** ⭐ H1 — `stepListing` in the RANGE domain (see `RANGE_TOP`): the body run
+     *  once at bar `j` from a state that is a number or a range. A test that can
+     *  go both ways is answered per side, each with the state narrowed by the
+     *  test (`refine`), and the two answers joined. One evaluation per node per
+     *  state per step. */
+    const columnAt = (x, j) => {
+      const c = columns.get(sk(x))
+      return isColumn(c) ? c[j] : c
+    }
+    /** A SERIES bar this engine holds as `NaN` is "not computable here" — `close[1]`
+     *  on the first bar fetched, an indicator's warm-up — and behind the curtain the
+     *  bar Pine read there was a real number. So the range window reads it as
+     *  "anything" (`RANGE_TOP`), never as Pine's `na`: a stop must not collapse onto
+     *  a value that only a missing bar decided. A scalar `NaN` is a literal `na`. */
+    const operandAt = (x, j) => {
+      const c = columns.get(sk(x))
+      if (!isColumn(c)) return c
+      const v = c[j]
+      return v !== v ? RANGE_TOP : v
+    }
+    /** The state read a test can narrow: bare `self`, or `nz(self, k)` with a `k`
+     *  that does not read it. */
+    const stateReadOf = (x) => {
+      if (isBind(x)) return { nzDefault: null }
+      if (x && x.type === 'call' && x.name === 'nz' && Array.isArray(x.args) && x.args.length === 2
+          && isBind(x.args[0]) && !reads(x.args[1])) return { nzDefault: x.args[1] }
+      return null
+    }
+    /** The states for which `cond` answers `branch`, as narrow as this can say
+     *  soundly; `null` when no state does. Anything it does not recognise keeps
+     *  the state whole — wider, never wrong. */
+    const refine = (cond, branch, st, j) => {
+      if (st === null || !cond || cond.type !== 'op' || !Array.isArray(cond.args)) return st
+      if (cond.name === '!' && cond.args.length === 1) return refine(cond.args[0], !branch, st, j)
+      if ((cond.name === '&&' && branch) || (cond.name === '||' && !branch)) {
+        let s = st
+        for (const a of cond.args) {
+          s = refine(a, branch, s, j)
+          if (s === null) return null
+        }
+        return s
+      }
+      if (!RANGE_ORDER.has(cond.name) || cond.args.length !== 2) return st
+      let op = cond.name
+      let ref = stateReadOf(cond.args[0])
+      let other = cond.args[1]
+      if (!ref) {
+        ref = stateReadOf(cond.args[1])
+        other = cond.args[0]
+        op = RANGE_FLIP[op]
+      }
+      if (!ref || reads(other)) return st
+      const c = columnAt(other, j)
+      if (typeof c !== 'number' || c !== c) return st
+      const S = asRange(st)
+      // `s OP c` holds below `c` for `<`/`<=` and above it for `>`/`>=`
+      const below = (op === '<' || op === '<=') === branch
+      const lo = below ? S.lo : Math.max(S.lo, c)
+      const hi = below ? Math.min(S.hi, c) : S.hi
+      let na = false
+      if (S.na) {
+        // `na` compares as 0 (`cmp`); inside `nz(self, k)` it reads as `k` — and a
+        // `k` this engine cannot compute could answer either way, so `na` stays
+        const k = ref.nzDefault ? columnAt(ref.nzDefault, j) : NaN
+        na = k !== k ? (ref.nzDefault ? true : !branch) : ((BINARY[op](k, c) !== 0) === branch)
+      }
+      return rangeNorm(lo, hi, na)
+    }
+    const stepRange = (j, state) => {
+      // a node reached by more than one parent is answered once per state (the
+      // spine is a DAG — C12r); every other node is walked once anyway
+      let memo = null
+      const walk = (n, st) => {
+        const k = sk(n)
+        if (columns.has(k)) return operandAt(n, j)
+        if (isBind(n)) return st
+        const shared = (refs.get(k) || 0) > 1
+        let byState = shared && memo ? memo.get(k) : undefined
+        if (byState && byState.has(st)) return byState.get(st)
+        let v
+        if (n.type === 'op' && n.name === '?:' && n.args.length === 3) {
+          const t = rangeTruth(walk(n.args[0], st))
+          if (t.nan) v = RANGE_TOP
+          else if (!t.zero) v = walk(n.args[1], st)
+          else if (!t.nonzero) v = walk(n.args[2], st)
+          else {
+            const sT = refine(n.args[0], true, st, j)
+            const sF = refine(n.args[0], false, st, j)
+            v = rangeJoin(sT === null ? null : walk(n.args[1], sT), sF === null ? null : walk(n.args[2], sF))
+            if (v === null) v = RANGE_TOP
+          }
+        } else {
+          const values = n.args.map((a) => walk(a, st))
+          v = values.every((x) => typeof x === 'number')
+            ? (n.type === 'op' ? applyOpStep(n, values) : POINTWISE[n.name](...values))
+            : (n.type === 'op' ? rangeOp(n.name, values) : rangeCall(n.name, values))
+        }
+        if (shared) {
+          if (!memo) memo = new Map()
+          if (!byState) { byState = new Map(); memo.set(k, byState) }
+          byState.set(st, v)
+        }
+        return v
+      }
+      return walk(body, state)
+    }
+    const sameState = (a, b) => (typeof a === 'number' ? typeof b === 'number' && (a === b || (a !== a && b !== b))
+      : isRangeValue(b) && a.lo === b.lo && a.hi === b.hi && a.na === b.na)
+    /** ⭐ H1 — the RANGE switched window, all bars in two passes.
+     *
+     *  Bar `t` is published when a run that ENTERS some bar `s` in `(t − W, t]`
+     *  knowing nothing (`RANGE_TOP`) holds one number at `t`. That number is
+     *  Pine's for every earlier history, and it reads only bars `s .. t`, so
+     *  `maxLookback` stays true exactly as C12s's single-step forget keeps it.
+     *
+     *  Pass 1 (descending): `collapseAt[s]` — the first bar at which the run from
+     *  `s` is one number (capped at `s + W − 1`). Two runs holding the same state
+     *  at the same bar are the same run from there on, so a run that meets the
+     *  state a later-starting run held at that bar (`trail`) borrows that run's
+     *  answer — which is also how a run back at "anything" after bar `j` borrows
+     *  the run from `j + 1`'s. That is what keeps the pass near one step per bar
+     *  on real data: the extra bar a run starts with is absorbed within a few.
+     *  Pass 2 (forward): the exact value is carried bar to bar; a step that loses
+     *  it (a `NaN` test) breaks the segment, and a later collapse starts a new
+     *  one. A run that collapsed inside the current segment stays one number to
+     *  its end, so `t` is published when some run starting in the window
+     *  collapsed inside it. Every bar C12s publishes for a body without a state
+     *  test is published here too — a single-step forget is a collapse at its own
+     *  bar. */
+    const rangeSwitchedColumn = () => {
+      if (maxSelfLag > 0) {
+        refuse('interpret:recurrence',
+          `— a switched ${node.name}(…) reads \`${bind}[${maxSelfLag}]\`; the reset rule `
+          + 'is proved for a body that reads only its previous value')
+      }
+      const fill = opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : NaN
+      const col = nan(length)
+      const collapseAt = new Array(length + 1).fill(Infinity)
+      const collapseVal = new Array(length + 1).fill(NaN)
+      // `trail[j]` is the state some run held after bar `j`, and `trailOf[j]` that
+      // run's start: written by every run as it goes, read by the next one
+      const trail = new Array(length).fill(null)
+      const trailOf = new Array(length).fill(-1)
+      let rangeSteps = 0
+      for (let s = length - 1; s >= 0; s--) {
+        let st = RANGE_TOP
+        for (let j = s; j < length && j < s + warmup; j++) {
+          rangeSteps += 1
+          st = stepRange(j, st)
+          if (typeof st === 'number') { collapseAt[s] = j; collapseVal[s] = st; break }
+          if (rangeIsTop(st)) { collapseAt[s] = collapseAt[j + 1]; collapseVal[s] = collapseVal[j + 1]; break }
+          const o = trailOf[j]
+          if (o > s && sameState(st, trail[j])) {
+            collapseAt[s] = collapseAt[o]
+            collapseVal[s] = collapseVal[o]
+            break
+          }
+          trail[j] = st
+          trailOf[j] = s
+        }
+      }
+      // the latest start that collapses at each bar, and the value it collapses to
+      const latestStart = new Array(length).fill(-1)
+      const valueAt = new Array(length).fill(NaN)
+      for (let s = 0; s < length; s++) {
+        const c = collapseAt[s]
+        if (c < length && s > latestStart[c]) { latestStart[c] = s; valueAt[c] = collapseVal[s] }
+      }
+      let known = null
+      let latestInSegment = -1
+      let withheld = 0
+      for (let t = 0; t < length; t++) {
+        let v = null
+        if (known !== null) {
+          const r = stepRange(t, known)
+          if (typeof r === 'number') v = r
+        }
+        if (v === null) {
+          latestInSegment = -1
+          if (latestStart[t] >= 0) v = valueAt[t]
+        }
+        if (v !== null && latestStart[t] > latestInSegment) latestInSegment = latestStart[t]
+        known = v
+        if (v !== null && latestInSegment >= t - warmup + 1) col[t] = v
+        else { col[t] = fill; withheld += 1 }
+      }
+      // `rangeSteps` — the descending pass's range steps, read by the rail that
+      // keeps it near one per bar (`ratchetRecurrence.test.js`)
+      if (stepRecord) stepRecord.switched = { withheld, ranged: true, rangeSteps }
+      return col
+    }
+    const switched = switchedReal ? (testReadsState ? rangeSwitchedColumn() : switchedColumn()) : null
     /** The bounded window's value at bar `i >= warmup` — the definition above.
      *  A switched recurrence answers from its own column (C12s). */
     const windowAt = switched ? (i) => switched[i] : (i) => {

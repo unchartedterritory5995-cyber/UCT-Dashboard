@@ -917,8 +917,9 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
 
 def _pivot_col(series: Sequence[float], left: int, right: int,
                beats: Callable[[float, float], bool]) -> List[float]:
-    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the STRICT
-    extreme of ``[i-left, i+right]``, and NOT COMPUTABLE everywhere else.
+    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the extreme
+    of ``[i-left, i+right]`` -- beating every bar on its RIGHT and at least
+    matching every bar on its LEFT -- and NOT COMPUTABLE everywhere else.
 
     ⭐⭐ THIS IS THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and
     it is legal precisely because the entry DECLARES it: ``forward: "arg2"`` is
@@ -927,11 +928,11 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
     backward-only and ``parse.js`` refuses a negative at the door -- so the
     manifest stays the single authority on forward reach.
 
-    ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
-    uniquely the extreme. A ``>=`` reading emits both and looks entirely
-    reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
-    ``high`` and 15 in ``low``, which is why those counts are asserted rather
-    than an absence.
+    ⭐⭐ H1 (2026-10-02) -- A PLATEAU'S LAST BAR IS THE PIVOT, READ OFF
+    TRADINGVIEW (``interpret.js::pivotCol`` carries the evidence): a tie on the
+    LEFT pivots (``pivot-point-supertrend``'s capture, bars 473/474), a tie on
+    the RIGHT does not (``liquidity-pools`` and ``price-action-as-in-book``
+    diverge when it does). It was strict on both sides.
 
     ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
     The first ``left`` bars and the last ``right`` bars have a window that runs
@@ -967,7 +968,9 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
             # it states the rule at the site, and it STOPS being redundant the
             # moment `beats` is anything but a strict comparison. Labelled so
             # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
-            if math.isnan(w) or not beats(v, w):
+            # a tie on the LEFT still pivots (the plateau's last bar); one on the
+            # RIGHT does not
+            if math.isnan(w) or not (beats(v, w) or (j < i and v == w)):
                 ok = False
                 break
         if ok:
@@ -1753,6 +1756,185 @@ _UNKNOWN = object()
 
 #: The probe the root agreement fills a not-computable bar with, both signs.
 PREFIX_PROBE = 1e12
+
+
+# --------------------------------------------------------------------------- #
+# H1 -- a switched recurrence whose RESET TEST reads its own state (a ratchet),
+# the port of ``interpret.js::RANGE_TOP`` and ``rangeSwitchedColumn``
+# --------------------------------------------------------------------------- #
+#
+# ``up := close[1] > nz(up[1], up) ? max(up, nz(up[1], up)) : up`` resets on a
+# test that READS the stop. From an unknown state the single abstract value of
+# C12s cannot decide it, so the window carries a RANGE instead: a value is a
+# number (exact, ``NaN`` = ``na``) or ``(lo, hi, na)`` -- every number in the
+# closed interval, plus ``na`` when ``na`` is set. Every operator answers its
+# interval extension, a test that reads the state is answered per side with the
+# state NARROWED by the test, and the answers are joined. A range that narrows to
+# one number IS that number. One authority for the rule: the JS docstring; this
+# is the same algorithm, held equal by ``tests/fixtures/ast/ratchet_parity.json``.
+
+_R_EMPTY_LO = INF
+_R_EMPTY_HI = -_R_EMPTY_LO
+
+
+class _Range(tuple):
+    """``(lo, hi, na)`` -- a set of values. A ``tuple`` so two equal states are
+    equal (the descending pass compares them)."""
+    __slots__ = ()
+
+    @property
+    def lo(self) -> float:
+        return self[0]
+
+    @property
+    def hi(self) -> float:
+        return self[1]
+
+    @property
+    def na(self) -> bool:
+        return self[2]
+
+
+#: "Any number, or ``na``" in the range domain.
+RANGE_TOP = _Range((-_R_EMPTY_LO, _R_EMPTY_LO, True))
+
+
+def _r_is_range(v: Any) -> bool:
+    return isinstance(v, _Range)
+
+
+def _r_as(v: Any) -> "_Range":
+    if isinstance(v, _Range):
+        return v
+    if v != v:
+        return _Range((_R_EMPTY_LO, _R_EMPTY_HI, True))
+    return _Range((v, v, False))
+
+
+def _r_has_number(r: "_Range") -> bool:
+    return r[0] <= r[1]
+
+
+def _r_norm(lo: float, hi: float, na: bool) -> Any:
+    if not (lo <= hi):
+        return NAN if na else None
+    if not na and lo == hi:
+        return lo
+    return _Range((lo, hi, bool(na)))
+
+
+def _r_join(a: Any, b: Any) -> Any:
+    if a is None:
+        return b
+    if b is None:
+        return a
+    if not _r_is_range(a) and not _r_is_range(b) and (a == b or (a != a and b != b)):
+        return a
+    A, B = _r_as(a), _r_as(b)
+    return _r_norm(min(A[0], B[0]), max(A[1], B[1]), A[2] or B[2])
+
+
+def _r_truth(v: Any) -> tuple:
+    """``(nan, zero, nonzero)`` -- which of them a value can be."""
+    if not _r_is_range(v):
+        if v != v:
+            return True, False, False
+        return False, v == 0, v != 0
+    num = _r_has_number(v)
+    return v[2], num and v[0] <= 0 <= v[1], num and not (v[0] == 0 and v[1] == 0)
+
+
+_R_ORDER = ("<", "<=", ">", ">=")
+_R_FLIP = {"<": ">", "<=": ">=", ">": "<", ">=": "<="}
+
+
+def _r_01(outs: list, na: bool) -> Any:
+    return _r_norm(min(outs) if outs else _R_EMPTY_LO, max(outs) if outs else _R_EMPTY_HI, na)
+
+
+def _r_op(name: str, values: list) -> Any:
+    """The interval extension of one operator over at least one range."""
+    if name == "u-":
+        A = _r_as(values[0])
+        return _r_norm(-A[1], -A[0], A[2])
+    if name == "!":
+        nan_, zero, nonzero = _r_truth(values[0])
+        return _r_01(([1.0] if zero else []) + ([0.0] if nonzero else []), nan_)
+    if name in ("&&", "||"):
+        an, az, ann = _r_truth(values[0])
+        bn, bz, bnn = _r_truth(values[1])
+        sides_a = ([False] if az else []) + ([True] if ann else [])
+        sides_b = ([False] if bz else []) + ([True] if bnn else [])
+        outs = sorted({(1.0 if ((x and y) if name == "&&" else (x or y)) else 0.0)
+                       for x in sides_a for y in sides_b})
+        return _r_01(outs, an or bn)
+    A, B = _r_as(values[0]), _r_as(values[1])
+    na = A[2] or B[2]
+    if name in _R_ORDER or name in ("==", "!="):
+        can_t, can_f = False, na
+        if _r_has_number(A) and _r_has_number(B):
+            point = A[0] == A[1] and B[0] == B[1]
+            overlap = A[0] <= B[1] and B[0] <= A[1]
+            if name == ">":
+                can_t, can_f = A[1] > B[0], can_f or A[0] <= B[1]
+            elif name == "<":
+                can_t, can_f = A[0] < B[1], can_f or A[1] >= B[0]
+            elif name == ">=":
+                can_t, can_f = A[1] >= B[0], can_f or A[0] < B[1]
+            elif name == "<=":
+                can_t, can_f = A[0] <= B[1], can_f or A[1] > B[0]
+            elif name == "==":
+                can_t, can_f = overlap, can_f or not (point and A[0] == B[0])
+            else:
+                can_t, can_f = not (point and A[0] == B[0]), can_f or overlap
+        return _r_01(([0.0] if can_f else []) + ([1.0] if can_t else []), False)
+    if not _r_has_number(A) or not _r_has_number(B):
+        return _r_norm(_R_EMPTY_LO, _R_EMPTY_HI, na)
+    if name == "+":
+        c = [A[0] + B[0], A[1] + B[1]]
+    elif name == "-":
+        c = [A[0] - B[1], A[1] - B[0]]
+    elif name == "*":
+        c = [A[0] * B[0], A[0] * B[1], A[1] * B[0], A[1] * B[1]]
+    elif name == "/":
+        # a divisor that can be 0 has no bound (``x / 0`` is +-Infinity)
+        if B[0] <= 0 <= B[1]:
+            return RANGE_TOP
+        c = [A[0] / B[0], A[0] / B[1], A[1] / B[0], A[1] / B[1]]
+    else:
+        return RANGE_TOP
+    if any(x != x for x in c):
+        return RANGE_TOP
+    return _r_norm(min(c), max(c), na)
+
+
+def _r_call(name: str, values: list) -> Any:
+    """The interval extension of the pointwise calls a ratchet holds."""
+    if name == "nz":
+        X = _r_as(values[0])
+        num = _r_norm(X[0], X[1], False) if _r_has_number(X) else None
+        return _r_join(num, values[1]) if X[2] else num
+    if name == "na":
+        X = _r_as(values[0])
+        return _r_01(([0.0] if _r_has_number(X) else []) + ([1.0] if X[2] else []), False)
+    if name in ("min", "max"):
+        A, B = _r_as(values[0]), _r_as(values[1])
+        na = A[2] or B[2]
+        if not _r_has_number(A) or not _r_has_number(B):
+            return _r_norm(_R_EMPTY_LO, _R_EMPTY_HI, na)
+        if name == "min":
+            return _r_norm(min(A[0], B[0]), min(A[1], B[1]), na)
+        return _r_norm(max(A[0], B[0]), max(A[1], B[1]), na)
+    if name == "abs":
+        A = _r_as(values[0])
+        if not _r_has_number(A):
+            return _r_norm(_R_EMPTY_LO, _R_EMPTY_HI, A[2])
+        if A[0] >= 0:
+            return _r_norm(A[0], A[1], A[2])
+        if A[1] <= 0:
+            return _r_norm(-A[1], -A[0], A[2])
+        return _r_norm(0.0, max(-A[0], A[1]), A[2])
+    return RANGE_TOP
 
 
 def _is_zero_over_zero(n: Any) -> bool:
@@ -5598,6 +5780,180 @@ def _interpret_column(ast: Any, bars: List[dict],
                     return v
 
                 return walk(x)
+
+            # ⭐ H1 -- a TEST that reads the running value takes the range window
+            # (``interpret.js::rangeSwitchedColumn``); every other switched body
+            # keeps the C12s column below, byte for byte.
+            def test_reads_state() -> bool:
+                stack = [body]
+                seen = set()
+                while stack:
+                    x = stack.pop()
+                    if not isinstance(x, dict) or id(x) in seen or not reads(x):
+                        continue
+                    seen.add(id(x))
+                    a = x.get("args")
+                    if (x.get("type") == "op" and x.get("name") == _TERNARY_NAME
+                            and isinstance(a, list) and len(a) == 3 and reads(a[0])):
+                        return True
+                    if isinstance(a, list):
+                        stack.extend(a)
+                return False
+
+            if test_reads_state():
+                def column_at(x: Any, j: int) -> Any:
+                    got = columns.get(sk(x))
+                    return got[j] if _is_column(got) else got
+
+                def operand_at(x: Any, j: int) -> Any:
+                    # a SERIES bar held as NaN is "not computable here" (``close[1]``
+                    # on the first bar, a warm-up): behind the curtain it was a real
+                    # number, so the range window reads it as anything, never as ``na``
+                    got = columns.get(sk(x))
+                    if not _is_column(got):
+                        return got
+                    v = got[j]
+                    return RANGE_TOP if v != v else v
+
+                def state_read_of(x: Any) -> Any:
+                    if is_bind(x):
+                        return {"nz": None}
+                    a = x.get("args") if isinstance(x, dict) else None
+                    if (isinstance(x, dict) and x.get("type") == "call" and x.get("name") == "nz"
+                            and isinstance(a, list) and len(a) == 2 and is_bind(a[0]) and not reads(a[1])):
+                        return {"nz": a[1]}
+                    return None
+
+                def refine(cond: Any, branch: bool, st: Any, j: int) -> Any:
+                    if st is None or not isinstance(cond, dict) or cond.get("type") != "op":
+                        return st
+                    a = cond.get("args") or []
+                    name = cond.get("name")
+                    if name == "!" and len(a) == 1:
+                        return refine(a[0], not branch, st, j)
+                    if (name == "&&" and branch) or (name == "||" and not branch):
+                        s = st
+                        for c in a:
+                            s = refine(c, branch, s, j)
+                            if s is None:
+                                return None
+                        return s
+                    if name not in _R_ORDER or len(a) != 2:
+                        return st
+                    op = name
+                    ref, other = state_read_of(a[0]), a[1]
+                    if ref is None:
+                        ref, other, op = state_read_of(a[1]), a[0], _R_FLIP[op]
+                    if ref is None or reads(other):
+                        return st
+                    c = column_at(other, j)
+                    if not isinstance(c, (int, float)) or c != c:
+                        return st
+                    S = _r_as(st)
+                    below = (op in ("<", "<=")) == branch
+                    lo = S[0] if below else max(S[0], c)
+                    hi = min(S[1], c) if below else S[1]
+                    na = False
+                    if S[2]:
+                        k = column_at(ref["nz"], j) if ref["nz"] is not None else NAN
+                        if k != k:
+                            na = True if ref["nz"] is not None else (not branch)
+                        else:
+                            na = (_BINARY[op](k, c) != 0) == branch
+                    return _r_norm(lo, hi, na)
+
+                def step_range(j: int, state: Any) -> Any:
+                    memo: dict = {}
+
+                    def walk(n: Any, st: Any) -> Any:
+                        k = sk(n)
+                        if k in columns:
+                            return operand_at(n, j)
+                        if is_bind(n):
+                            return st
+                        key = (k, st if _r_is_range(st) else ("n", st if st == st else "nan"))
+                        if key in memo:
+                            return memo[key]
+                        if n.get("type") == "op" and n.get("name") == _TERNARY_NAME and len(n["args"]) == 3:
+                            nan_, zero, nonzero = _r_truth(walk(n["args"][0], st))
+                            if nan_:
+                                v = RANGE_TOP
+                            elif not zero:
+                                v = walk(n["args"][1], st)
+                            elif not nonzero:
+                                v = walk(n["args"][2], st)
+                            else:
+                                s_t = refine(n["args"][0], True, st, j)
+                                s_f = refine(n["args"][0], False, st, j)
+                                v = _r_join(None if s_t is None else walk(n["args"][1], s_t),
+                                            None if s_f is None else walk(n["args"][2], s_f))
+                                if v is None:
+                                    v = RANGE_TOP
+                        else:
+                            values = [walk(c, st) for c in n["args"]]
+                            if all(not _r_is_range(x) for x in values):
+                                v = (apply_op_step(n, values) if n["type"] == "op"
+                                     else _POINTWISE[n["name"]](*values))
+                            else:
+                                v = (_r_op(n["name"], values) if n["type"] == "op"
+                                     else _r_call(n["name"], values))
+                        memo[key] = v
+                        return v
+
+                    return walk(body, state)
+
+                def same_state(a: Any, b: Any) -> bool:
+                    if b is None:
+                        return False
+                    if not _r_is_range(a):
+                        return not _r_is_range(b) and (a == b or (a != a and b != b))
+                    return _r_is_range(b) and tuple(a) == tuple(b)
+
+                collapse_at = [math.inf] * (length + 1)
+                collapse_val = [NAN] * (length + 1)
+                trail: list = [None] * length
+                trail_of = [-1] * length
+                for s in range(length - 1, -1, -1):
+                    st: Any = RANGE_TOP
+                    j = s
+                    while j < length and j < s + warmup:
+                        st = step_range(j, st)
+                        if not _r_is_range(st):
+                            collapse_at[s], collapse_val[s] = j, st
+                            break
+                        if st == RANGE_TOP:
+                            collapse_at[s], collapse_val[s] = collapse_at[j + 1], collapse_val[j + 1]
+                            break
+                        o = trail_of[j]
+                        if o > s and same_state(st, trail[j]):
+                            collapse_at[s], collapse_val[s] = collapse_at[o], collapse_val[o]
+                            break
+                        trail[j], trail_of[j] = st, s
+                        j += 1
+                latest_start = [-1] * length
+                value_at = [NAN] * length
+                for s in range(length):
+                    c = collapse_at[s]
+                    if c < length and s > latest_start[c]:
+                        latest_start[c], value_at[c] = s, collapse_val[s]
+                col = _nan_col(length)
+                known: Any = None
+                latest_in_segment = -1
+                for t in range(length):
+                    v: Any = None
+                    if known is not None:
+                        r = step_range(t, known)
+                        if not _r_is_range(r):
+                            v = r
+                    if v is None:
+                        latest_in_segment = -1
+                        if latest_start[t] >= 0:
+                            v = value_at[t]
+                    if v is not None and latest_start[t] > latest_in_segment:
+                        latest_in_segment = latest_start[t]
+                    known = v
+                    col[t] = v if (v is not None and latest_in_segment >= t - warmup + 1) else fill
+                return col
 
             col = _nan_col(length)
             state: Any = _UNKNOWN

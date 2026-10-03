@@ -21,7 +21,7 @@
     "translate": {
       "status": "UNSUPPORTED",
       "guard": "pine:module",
-      "message": "importing another script pulls in code this engine never sees",
+      "message": "importing another script pulls in code this engine never sees — the library `DevLucem/ZigLib/1` is not in this engine's library registry, so its code cannot be compiled",
       "unsupported_constructs": []
     },
     "canonical_ast": {

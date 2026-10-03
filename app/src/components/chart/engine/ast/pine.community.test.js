@@ -43,6 +43,12 @@ describe('the community corpus, by name', () => {
     // max/min fold: a 250-bar rolling window standing in for an all-time one. Both are
     // TRAILING STOPS, so the wrong window put a stop in the wrong place. A roster that
     // shrinks because a wrong answer stopped being produced has got MORE true.
+    // ⭐⭐ AND BOTH CAME BACK 2026-10-02 (H1) ON THE RIGHT ANSWER: each stop resets on
+    // a test that reads the stop, and the RANGE window (`interpret.js::RANGE_TOP`)
+    // publishes a bar only where every earlier history gives one value — held to the
+    // listing run over AGEN and RDDT, 0 bars disagree (`ratchetServedScripts.test.js`).
+    '04-ut-bot-alerts.pine',
+    '05-chandelier-exit.pine',
     '06-qqe-mod.pine',
     // ⭐⭐ TWO WALLS FELL IN ONE SESSION AND THE SECOND WAS INVISIBLE BEHIND THE
     // FIRST. `haopen = na(haopen[1]) ? … : …` is Pine's plain self-referencing

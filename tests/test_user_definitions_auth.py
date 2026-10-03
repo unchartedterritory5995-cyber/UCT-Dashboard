@@ -81,7 +81,11 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: cross-file assertion fired: the number had drifted between two files that
 #: exist to agree. Every new write route was verified to carry its OWN
 #: `require_paid` BEFORE this number moved.
-EXPECTED_ROUTE_COUNT = 16
+#: 2026-10-02 (RT1): 16 -> 17 — `GET /runtime-kill`, the runtime lane's per-script
+#: kill list and save switch for the member door's preview. It carries its OWN
+#: `require_paid`, verified before this number moved; the other two sites moved
+#: with it.
+EXPECTED_ROUTE_COUNT = 17
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -170,8 +174,9 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
     # a path count alone cannot see a verb added to an existing path, and a
     # verb count alone cannot see a new path. Both went red together here, which
     # is the pair working.
+    # ⭐ 9 -> 10 on 2026-10-02 (RT1): `GET /runtime-kill` is a new PATH.
     assert sorted(seen) == sorted(set(seen)), seen
-    assert len({s.split(" ", 1)[1] for s in seen}) == 9, seen
+    assert len({s.split(" ", 1)[1] for s in seen}) == 10, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():

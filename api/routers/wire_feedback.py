@@ -16,6 +16,15 @@ router = APIRouter(prefix="/api", tags=["wire-feedback"])
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SEG_KEYS = {"overall", "tape", "macro", "earn", "analyst", "movers", "setups", "close"}
 _NOTE_MAX = 2000
+# Per-SETUP feedback (owner 2026-10-02: "train the brain and system to give good
+# setups"): `setup:<SYM>` rates one board card, `missed:<SYM>` names a setup the
+# board should have carried. Admin only: these train the selector, so a member's
+# click must never land in the training set. The wire critic ignores both.
+_SETUP_KEY_RE = re.compile(r"^(?:setup|missed):[A-Z][A-Z0-9.]{0,9}$")
+
+
+def is_setup_key(segment_key: str) -> bool:
+    return bool(_SETUP_KEY_RE.match(segment_key or ""))
 
 
 def _segment_text(market_date: str, segment_key: str) -> str:
@@ -48,8 +57,10 @@ def wire_feedback_vote(body: dict = Body(...), user=Depends(get_current_user)):
 
     if not _DATE_RE.match(market_date):
         raise HTTPException(400, "market_date must be YYYY-MM-DD")
-    if segment_key not in _SEG_KEYS:
+    if segment_key not in _SEG_KEYS and not is_setup_key(segment_key):
         raise HTTPException(400, "invalid segment_key")
+    if is_setup_key(segment_key) and user.get("role") != "admin":
+        raise HTTPException(403, "setup feedback is admin-only")
     if verdict is not None and verdict not in ("up", "down"):
         raise HTTPException(400, "verdict must be 'up' or 'down'")
     if verdict is None and note is None:
@@ -58,7 +69,8 @@ def wire_feedback_vote(body: dict = Body(...), user=Depends(get_current_user)):
     is_admin = 1 if user.get("role") == "admin" else 0
     store.record_feedback(user_id=str(user["id"]), market_date=market_date,
                           segment_key=segment_key, verdict=verdict, note=note,
-                          segment_text=_segment_text(market_date, segment_key),
+                          segment_text=("" if is_setup_key(segment_key)
+                                        else _segment_text(market_date, segment_key)),
                           is_admin=is_admin)
     return {"ok": True, "segment_key": segment_key,
             "verdict": verdict, "has_note": bool(note)}

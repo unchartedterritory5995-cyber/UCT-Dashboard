@@ -150,7 +150,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // '61f060f7ebfeaf71'] before C37 merged. With C37 on top, MEASURED on the
         // merged tree (C31's cell and C37's colours read some of the same names,
         // so this is the measurement, not a sum):
-        plain: [729, 429977, '60011f510b56bd70'], manifest: [729, 429985, 'bde49be716751a27'] },
+        // ⭐ B1 moved artemis: its `barcolor(barCol)` is carried as a paint now
+        // (`pine.js::resolvePaints`), read by ONE more Resolver of its own — 8 steps,
+        // resolving `barCol` to `na` (no paint; TradingView's capture reads `na` on all
+        // 632 bars, `vendorHarness.b1Paints`). Every output, presentation and the object
+        // program byte-identical (translation census). Pre-B1: plain [729, 429977,
+        // '60011f510b56bd70'] / manifest [729, 429985, 'bde49be716751a27'].
+        plain: [730, 429985, '9817f6afa92980bd'], manifest: [730, 429993, 'b3663793714b5924'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

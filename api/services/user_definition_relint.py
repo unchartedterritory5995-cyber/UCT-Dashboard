@@ -619,8 +619,15 @@ def relint(*, heal: bool = True, now: Optional[int] = None) -> dict:
     requirements_healed: List[dict] = []
     requirements_unhealed: List[dict] = []
 
+    from api.services import runtime_definitions
     for row in user_definitions.live_definitions():
         definitions_read += 1
+        # ⭐ RT1 — a runtime-lane document carries no tree and no manifest-derived
+        # stamp to drift: its repaint verdict is the runtime door's
+        # (`runtime_definitions.repaint_stamp`), and no consumer that reads these
+        # two stamps admits its lane. There is nothing here to compare.
+        if runtime_definitions.is_runtime(row.get("definition") or {}):
+            continue
         # ⭐ C45 — the requirements stamp, healed toward MORE tags (see
         # `requirements_drift`). The armed ids are EVERY active alert on the
         # definition: each stands on the short stamp and is refused at its next

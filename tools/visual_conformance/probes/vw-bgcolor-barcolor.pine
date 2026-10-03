@@ -1,0 +1,33 @@
+//@version=5
+indicator("UCTPROBE_VW_BGCOLOR_BARCOLOR", overlay = true)
+
+// --- 2026-10-02 B1 - `bgcolor` / `barcolor`: what the committed captures do NOT witness ---
+//
+// Served (graded bar for bar against 8 committed captures, `vendorHarness.b1Paints.test.js`):
+// the colour each bar takes - static, two-colour, chain, `na`-gated, palette-less, `transp`,
+// `display.none`. Withheld BY NAME until this probe is captured:
+//
+//   O1  bgcolor offset = +1          O2  bgcolor offset = -1
+//   O3  barcolor offset = -2         O4  barcolor offset = na   (written by ict-institutional-order-flow-fadi)
+//   S1  bgcolor show_last = 5
+//   D1  bgcolor display = display.data_window
+//   P1/P2 two `barcolor`s that DISAGREE on a bar: which one TradingView paints.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, after the close, with tools/vendor_harness/tv_capture.js.
+// Every row is its own plot (bg_colorer / bar_colorer) in this order, so the capture records each
+// row's per-bar colour. What the capture CANNOT record: where a colour is DRAWN (pixels). For O1-O4
+// read the chart: on the bar after (before) an up-close bar, is the shading / candle colour there?
+// For P1/P2 read one bar where both rows hold a colour (an up-close bar): which colour is the candle?
+// The rows' colours are distinct so a screenshot answers each question unambiguously.
+
+up = close > open
+
+bgcolor(up ? color.new(color.green, 70) : na, offset = 1, title = "O1")
+bgcolor(up ? color.new(color.red, 70) : na, offset = -1, title = "O2")
+barcolor(up ? #00e5ff : na, offset = -2, title = "O3")
+barcolor(up ? #ff00ff : na, offset = na, title = "O4")
+bgcolor(color.new(color.blue, 80), show_last = 5, title = "S1")
+bgcolor(color.new(color.orange, 80), display = display.data_window, title = "D1")
+barcolor(#ffeb3b, title = "P1")
+barcolor(up ? #000080 : na, title = "P2")
+plot(close, "control")

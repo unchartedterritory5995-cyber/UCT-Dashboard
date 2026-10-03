@@ -159,6 +159,12 @@ without it; each row below is a full re-grade of the 47 captures.
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
+| 60 | L1 `import Author/Library/Version` is LINKED (§ L1): a server-side library store (data dir, never git; licence + attribution per version; `GET /api/pine/libraries`), a fetch tool for the owner, a client registry the doors fill, and a token-level linker both lanes call after `lexPine` - an imported export compiles to exactly what the same function pasted into the script compiles to (proved bar for bar in both lanes on fixtures written for the test). Unknown library, other Pine version, ambiguous block shadowing, kept `var` / top-level-reassigned library values, cycles: refused by name on the import line. No budget moved | `a30aa584c0`, `9066030225`, `43b02c38a4`, `f34c0c4cd5`, `38dca3d9c1` (merge `e5d0198b34`) | unchanged: no capture imports a library (0 / 139 harness files) | unchanged | with the libraries in a scratch store: importers past the import wall 29 / 34 both lanes; runtime `runtime:library` 30 -> 5, compiled 15 -> 15; member door on 68 -> **70** (`all-chart-patterns-theeccentrictrader`, `black-scholes-...-loxx`); with an empty registry (production today) 0 served outputs, 0 params, 0 object programs changed over 266 x 3 lanes, door 45 / 68, only the 34 importers' refusal sentence names the missing library. Notebook first-open 2,148,818 B (+0, PASS), `pine` chunk +13,766 B, total JS +14,810 B. `paramIds.test.js` green, no edit. 8 mutations, 7 red, 1 equivalent survivor named. Q-L1 queued |
+| 61 | B1 `bgcolor(...)` / `barcolor(...)` are DRAWN (§ B1, step 61). The host lane carries each top-level call as a paint (`presentation.paints`) whose colour goes through the one colour reader a plot uses (static, two-colour, palette with the transparent `na` entry, gradient), or is WITHHELD by name (`offset` non-zero or `na`, `show_last`, another `display`, `overlay` / `force_overlay`, a v3/v4 `bgcolor` with no `transp`, an uncarried colour); nothing mints. The member door mints each rule as a hidden condition column (shared with a plot or fill on the same rule) and writes `definition.paints` (`defSchema.validatePaints`); the binder draws one background primitive per `bgcolor` (behind the series, full pane height) and hands `time -> colour` candle overrides to the chart only when they change (StockChart applies them to the price series' own data). Graded against the 14 committed captures that record paints (`bg_colorer` / `bar_colorer`): every paint the door draws agrees on every bar (2,639 vendor-painted bars compared). 12 mutations, each red | `875245b282` + the § B1 commit | 30 / 46 -> 30 / 46 (overall 29 -> 29) | 169 / 190 -> 169 / 190 (count+text families read off `verdicts.json`) | paints JOIN the verdict (§ B1, follow-ups): graded on 7 of the 47 and 9 of the committed 138, **0 verdicts move** in either (47: 29 / 17 / 1 both ways; committed: 50 / 26 / 62 both ways); heat-map-seasons' withheld `barcolor` counts as a gap (already DIVERGE on its plots); the `pine:chart-only` sentence says per call what the door does; member door attach 45 / 68 unchanged; 5 attached scripts now draw their paints |
+| 63 | H1 the host translator's three largest first refusals (`pine:state`, `pine:reassign`, `pine:request`) on the 266, clustered by shape (§ H1). **Served:** **(1)** a pivot on a PLATEAU is TradingView's: a tie on the LEFT pivots, a tie on the RIGHT does not, so a flat top pivots on its LAST bar (`interpret.js::pivotCol` ⇄ `ast_interpret.py::_pivot_col`; witness RDDT bars 473/474 in `pivot-point-supertrend-rddt-1d-2026-09-27`); **(2)** a SWITCHED recurrence whose reset test reads its own state (the ratchet: `up := close[1] > up1 ? max(up, up1) : up`) is decided by a RANGE window, published only on a bar every earlier history agrees on (`forgetsOnReset::orderingTest`, `interpret.js::rangeSwitchedColumn` ⇄ `_Range` in Python); **(3)** a helper's own `x = init` / `x := f(x[1])` recurrence (`Resolver.finalLocalOf`); **(4)** from the listing a crossing over a warm-up `na` is Pine's `false` (`interpret.js::pineBoolAt`). Id rule: a script `param-ids.json` pins mints only its frozen ids in the pinned lane (`paramIdPinned.js`, derived); `paramIds.test.js` unedited. **Refused, named:** all 18 `pine:request` first walls (other symbol / dark lower timeframe / barstate offset / 12M / budget), loop running totals (ruling R7), coupled vars, block-local stops. No budget moved | `9808723a7e`, `ee1c6a7cc7`, `a8ff4b52fc`, `1cde2b4581` | 29 / 47 → 29 / 47 (pane off 16 → 16; base `5564cca92b`, objects pane on) | member door **68 → 75 / 266** on (45 → 52 off), base-vs-base 0 rows | the 47: 0 entries change. Committed harness dir: overall MATCH 50 → 52 of 138 (pane off 37 → 39) — `pivot-point-supertrend-rddt-1d-2026-09-27` and `qqe-signals-rddt-1d-2026-09-27` INCONCLUSIVE → MATCH, 0 regressions. Translation census 266: strict / member ok 64 → 71, screen 58 → 64; 0 previously served outputs changed. Notebook first-open 2,148,818 B both sides (+0, PASS); `pine` chunk 417,918 → 423,187 B (+5,269) |
+| 62 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
+| 64 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
+| 65 | RT2 (lane brief, wave 12) the runtime document STATES its repaint class instead of declining (section RT2): `engine/runtime/runtimeRepaint.js` gives the host linter's three classes by the host's `modeFromReach`, as the worst reach over the reads the program makes (lexed code, never comments/strings), from ONE table (`runtimeRepaint.json`) read by the JS door and the Python save door (`api/services/runtime_repaint.py`), held to one answer per corpus script (`tests/fixtures/runtime_repaint/corpus.json`). A clock leaf's reach is the HOST linter's (`astReach` over `closedTable.json`) joined with a right-edge finding (islast / islastconfirmedhistory 1; lastbarindex / lastbartime / lastbar* unbounded), proved by moving the fetch through `computeClock`. Every drawn row carries the class as `mode` and `forward`; the store refuses a declared class that disagrees. A request the lowering does not fold is declined by name (`runtime:request`) at the door and at the run. No budget or flag moved | `0b2f2a809b`, `b31eae3ec8`, `a210db44dd` (wave 10 `e4e24524ef` already an ancestor) | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall, unchanged | translation census unchanged | 0 entries change on the 47 (all three states) and the harness dir (pane on / off). Harness dir, runtime on: 2 entries change (the two `vw-int-array-avg` probes, INCONCLUSIVE -> DIVERGE on OBJECTS only: they now route to the runtime document and the host objects it carries are graded; no plot compared, no plot drawn). Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71 -> 71**: of the 127 `repaint-unstated`, **0** attach - each now names its real wall (library 27, call-undeclared-builtin-state 11, pine:request 9, ...); repaint-unstated 127 -> 0 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4571,3 +4577,640 @@ builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (20
 `37 passed`. Translation census byte-identical to § 10's merged tip. Bytes: `pine` chunk 396,432 → 396,522
 (+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
 1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.
+
+## L1 - `import Author/Library/Version`: a library registry, and an imported function is the script's own (2026-10-02, step L1)
+
+Branch `pine/l1-libraries`, base `origin/master` @ `cf5e38d5d2` (waves 7-13 + C50), merged with
+`origin/master` @ `5564cca92b` (docs only). 34 of the 266 committed scripts import a library; both
+lanes refused every one of them at the import line (`pine:module`, `runtime:library`, 30 each as the
+first wall).
+
+**The registry (sources never in git).** `api/services/pine_library_store.py`: one JSON per library
+VERSION under `$PINE_LIBRARY_DIR` or `$DATA_DIR/pine_libraries` (`<Author>/<Library>/<N>.json`) -
+source, sha256, licence, licence basis (`header`, or TradingView's MPL-2.0 default recorded as
+such), attribution. An entry without a licence, with a bad hash, or whose source declares no
+`library()` is never served; a version never stands in for another. Read door:
+`GET /api/pine/libraries[/<A>/<L>/<N>]` (`api/routers/pine_libraries.py`, signed-in members). Filled
+by `tools/pine_library/fetch_library.py` (owner/integrator runs it; public endpoints only - the
+library search with `type=3` nominates, the candidate's own `library("<name>")` at the requested
+version decides, because a publication's display name and author can differ from its import path:
+`Simple Trendlines` / `SimpleTrendlines`, `TradingFinder` / `TFlab`). Client side:
+`pineLibraryStore.js` (empty in every process) + `usePineLibraries` in PineBox and MemberPane (no
+request for a source without an import; one per library; PineBox shows path, licence, attribution).
+
+**The rule, as implemented (`pineLibraries.js`).** Both lanes call `linkLibraries` right after
+`lexPine`. A resolved import line is replaced, at the TOKEN level, by the library's reached
+definitions: the functions, methods, types and enums the script reaches from the `alias.X` it writes
+(transitively), and the plain top-level values those read; `library()`, demo plots, inputs and
+top-level blocks are dropped (an importing script never runs them). Library top-level names become
+`__lib<k>_<name>` - functions at call position only, values and types by head, never a type field
+name, a named argument, or a reference to the definition's own parameter / local at or after its
+declaration (Pine scoping read positionally) - and the script's `alias.X` is rewritten to the same
+name; methods keep theirs. A library importing a library is linked first; one version is one unit.
+The script's tokens keep every line, column and index (refusals, excerpts and parameter ids do not
+move; `scriptKey` and the input sites read `tokens.unlinked`); library tokens get lines past the
+script's last line (indent and line tables extended) and FRACTIONAL indices inside the removed
+import line's gap, so token order - which the walk's binary-searched statement log depends on - is
+run order. A refusal inside library code is moved to the member's import line, names the library and
+its line, and spliced names read `alias.name` again. Refused by name on the import line (guards
+unchanged, the sentence gains the reason): a library not in the registry (which one), a library in
+another Pine version than the script, a block local named like a top-level value it also reads after
+the block, a kept top-level value the library keeps across bars (`var`) or reassigns at its top
+level, a cycle.
+
+**Proof.** `pineLibraries.test.js` (20): linked equals the function pasted in, bar for bar over 60
+bars, in BOTH lanes (host trees through `interpret`, runtime IR lowered and executed); a control
+without the library refuses; the script's own `mid`/`FACTOR` never captured; a parameter named like a
+top-level value; a type field named like one; a library type and its method; a library importing a
+library; `/2` runs v2 and not v1; every refusal above. `usePineLibraries.test.jsx` (2),
+`tests/test_pine_library_store.py` (8). No committed capture imports a library (0 of 139 harness
+files): the equivalence reduces L1 to the user-function semantics the captures already grade, and
+Q-L1 (`vw-library-import.pine`, `docs/pine/capture-queue-2026-10-02-l1-libraries.md`) would ratify it
+on the vendor's side.
+
+**Measured with the real libraries in a scratch store** (49 versions fetched, all MPL-2.0, one by a
+TradingView default; never committed; `algotraderdev/contrast/1` could not be resolved):
+
+| | no libraries (prod today) | with the scratch store |
+|---|---|---|
+| importers past the import wall, host / runtime | 4 / 34 (strategies, refused earlier) | **29 / 34** both |
+| runtime census compiled (bare / owned) | 15 / 27 (base 15 / 27) | 15 / 27 |
+| runtime census `runtime:library` first wall | 30 (base 30) | **5** |
+| member door attach off / on | 45 / 68 (base 45 / 68) | 45 / **70** |
+
+Still at the import wall: 4 v6 scripts importing v5 libraries (`TFlab/AlertSenderLibrary_TradingFinder/1`,
+`boitoki/AwesomeColor/9`, `jdehorty/MLExtensions/2`, `ClassicScott/MyMovingAveragesLibrary/4`) and
+`algotraderdev/contrast/1` (not fetched). The other 29 now stop at the engine's own walls, most
+inside library code and named there: default parameter values (`ao()`, ZenLibrary `getPipSize`),
+`switch` (PineCoders/lower_tf), `chart.left_visible_bar_time` (VisibleChart), array methods named
+like built-ins (arraymethods `delete`), `runtime.error` in a helper (TradingView/ta), tuples,
+`pine:state`, `pine:arity`. Door: `all-chart-patterns-theeccentrictrader` and
+`black-scholes-option-pricing-model-w-greeks-loxx` attach (objects pane on).
+
+**Mutations** (pineLibraries.js bytes captured + sha256, restored by bytes, sha verified each time):
+no rename -> red; keep the library's top-level code -> 7 red; a version stands in for another -> 2 red;
+type field names read as references -> red; library refusal keeps its library line -> red; no
+version check -> red; block-local shadow not refused -> red. SURVIVES: parameters not treated as
+locals - renaming a parameter's declaration and its uses together is consistent, and the two cases
+where it is observable (a default value, a named argument at the call) are refused by both lanes on
+their own walls today.
+## B1 - `bgcolor` / `barcolor` are drawn, graded against the captures that record them (2026-10-02, step 61)
+
+Branch `pine/b1-bgcolor-barcolor`, base `origin/master` `cf5e38d5d2` (waves 7-13 + C50).
+
+**What was true before.** Both calls sat in `CHART_ONLY_CALLS` and were skipped with the `pine:chart-only`
+note on both lanes: a script's background shading and its candle colours were never drawn, and a script
+whose only visible output is a paint was `pine:no-output`.
+
+**The premise, measured.** The brief said 18 of the 33 `pine:no-output` scripts use `bgcolor`. That counted
+the TOKEN, and almost every hit is `box.new(..., bgcolor = ...)` / `table.cell(..., bgcolor = ...)`. Calls
+to `bgcolor(...)` / `barcolor(...)` themselves: **4 of the 33** (ict-killzone-index-version,
+volume-profile-v054beta, visualizing-displacement-tfo, volume-profile-auto-line-v2), and **72 of the 266**
+corpus scripts, 9 of which attached before this lane (the 9 all have committed captures).
+
+### The rule as implemented
+
+1. **Translator (host lane only, `pine.js::resolvePaints`).** Every top-level `bgcolor(...)` /
+   `barcolor(...)` statement becomes a paint in `presentation.paints`, source order, with its `line`.
+   The arguments are placed by the version's own signature (v5/v6 `color, offset, editable, show_last,
+   title, display, overlay`; v3/v4 `bgcolor(color, transp, offset, ...)`, `barcolor(color, offset, ...)`;
+   `transp =` by name on any version). The colour goes through `outputPresentation` - the reader a plot,
+   a fill and a marker use - so a paint carries: a static colour (+ opacity from `color.new` / `transp`),
+   a two-colour test, a palette and its index column (`cond ? c : na` is a palette with the transparent
+   `na` entry), or a `color.from_gradient` position (C37's rule, extended to the two paint kinds).
+   `na` - and a rule whose deciding tree is a CONSTANT that picks its `na` entry - is `na: true`, no paint;
+   a constant that picks a colour folds to that static colour. `display = display.none` is `hidden`.
+   Everything else is **withheld by name** (`withheld: {code, reason}`): `paint:offset` (non-zero or `na`),
+   `paint:show-last`, `paint:display` (other than all / none), `paint:overlay` (`overlay` / `force_overlay`),
+   `paint:v4-default-transp`, `paint:colour` (a colour the reader cannot carry), `paint:argument`.
+   **Nothing mints**: every paint rule resolves with `paramMint` held at null (R36); the screener lane is
+   unchanged (TradingView's screener reads no paint).
+2. **A script whose only output is its paint** (`paintOnlyWin`) is a host-lane accept on the bar the
+   object-only win is held to: every paint carried (none withheld), and **no drawing lost** - an object pass
+   that dropped any op (an EMPTY program is not a clean one) refuses. Measured: volume-profile-auto-line-v2
+   makes the candles transparent with `barcolor` so its profile can be read; all 20 of its drawing ops drop;
+   admitting it on the paint would have shown a member a chart with nothing on it. It stays refused.
+3. **Member door (`memberPaneDefinition`).** Each drawn paint's rule is minted as a hidden condition column
+   through the SAME `conditionColumnFor` a plot and a fill use (one column per canonical formula, so a paint
+   and a plot on one rule share it), and the document carries `paints: [{kind, line, title?, color?,
+   opacity?, colorMode?, colorUp/colorDown | colorPalette | colorGradient}]` - validated by
+   `defSchema.validatePaints`, absent on every document with no paint. A withheld paint is a disclosure:
+   "`barcolor` (line N) is not drawn: <reason>". A paint-only script is admitted on the objects-only flag
+   (`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`, armed in prod), and **a PANE script whose only drawing is a
+   background is refused by name (`pine:paint-pane`)**: the pane it would shade is built only when a series
+   binds in it. A `barcolor`-only pane script is admitted (it recolours the chart's own bars).
+   `builderInputs.withColourInputs` reads paints' `_colourInputs` like fills', so a toggle only a paint reads
+   is a live knob; its shape check compares paints by (kind, withheld, hidden) because the constant fold
+   above legitimately turns `show ? c : na` into `na` when `show` is a literal and leaves it a rule when it
+   is declared.
+4. **Drawing (`binder.syncPaints`, `paintPrimitive.js`, `barColours.js`, `StockChart.jsx`).**
+   `bgcolor` -> ONE series primitive per call, `zOrder: 'bottom'` (behind every series), full pane height,
+   one rectangle per run of adjacent same-colour bars (bar spacing wide), attached to the instance's first
+   bound series - or, for an overlay instance that binds none, to the candles (`ctx.priceSeries`). Re-fed
+   only when its colours change; detached when the instance leaves, is hidden, or its host changes.
+   `barcolor` -> one `time -> colour` map over every instance, handed to the chart (`ctx.setBarColours`)
+   **only when it changes**; StockChart wraps the OHLC price series ONCE (after the net-change wrap) so
+   every write - setData, gold highlight, every live `update` - is recoloured from a ref, and a changed map
+   is re-applied from the series' own remembered payload (one `update` of the last bar when only it
+   changed, else one `setData`). An explicit colour already on a bar (a highlight) wins. Two visible
+   `barcolor`s that DISAGREE on a bar leave that bar its own colour (`conflicts`, counted) - no capture says
+   which one TradingView paints.
+
+### Graded against TradingView
+
+Captures record each paint as a plot (`bg_colorer` / `bar_colorer`) with the bar's colour per row (a
+palette index through `valToIndex`, or palette-less the packed colour; `null` = `na`), style
+`transparency` and `display`. `vendorHarness/paintColours.js` reads them through `compare.mjs::
+vendorColorsFor` (one vendor reader) and pairs the k-th vendor paint with the k-th paint of that kind
+(Pine allows these calls only at global scope, so source order is the vendor's order; a count that
+disagrees is reported unpaired, a title that disagrees is reported). Our side is the binder's own
+`paintColoursFor` over the member door's computed columns. Pinned in `vendorHarness.b1Paints.test.js`:
+
+| capture | result |
+|---|---|
+| atr-support-and-resistance | Impulse Candles **agree 632 / 632** (25 bars painted); RSI S/R hidden both; two `na` both |
+| atr-trailing-stoploss | **agree 631 / 631** (631 painted) |
+| btc-charlie | four barcolors **agree 634 / 634** (8, 9, 349, 244 painted); one bgcolor agree (0 painted); three bgcolors `notDrawn` - carried, but their condition columns do not compute (`computeFor` answers no column); TradingView draws nothing there at the defaults either |
+| elliott-wave-3-finder | two bgcolors **agree 632 / 632** (65, 44 painted) |
+| ema-ribbon | bgcolor **agree 632 / 632** (632 painted, palette-less); barcolor agree (0 painted) |
+| fibonacci-pivot-points | **agree 632 / 632** (632 painted) |
+| artemis, mcclellan | `na` on both sides, every bar |
+| heat-map-seasons | withheld (`paint:colour`: a ternary choosing between two `color.from_gradient`s) |
+| fvg-trend, inside-bar-range, vw-deadband-ticks x3 | the script is refused (`pine:state`) |
+
+**No paint the door draws differs from TradingView on any bar: 2,639 vendor-painted bars compared.**
+A further rail asserts the binder hands the chart exactly the graded colours (elliott's two backgrounds,
+fibonacci's 632 candle overrides by bar time).
+
+**Witnessed vs not.** Witnessed: the colour each bar takes. NOT witnessed by any capture (a capture records
+study data, never pixels): WHERE a paint is drawn - the script's pane for `bgcolor`, the chart's own bars for
+`barcolor` - is Pine's documented placement, built by construction and railed in `paintRender.test.js` /
+`stockChartWiring.test.jsx`. Withheld until captured: probes `vw-bgcolor-barcolor.pine` (offset, `na`
+offset, show_last, a data-window display, two disagreeing barcolors) and `vw-bgcolor-v4-default.pine` (the
+v4 default transparency, read straight off `styleState`), queue `docs/pine/capture-queue-2026-10-02-b1-paints.md`.
+
+### Measured (base `cf5e38d5d2` -> tip `875245b282`, alternated, one process at a time)
+
+- 47, objects pane on: overall MATCH 29 -> 29 / 47, objects 30 -> 30 / 46, plots 171 -> 171 / 172; pane
+  off 16 -> 16, objects 17 -> 17 / 25, plots 150 -> 150 / 151. Committed dir: 50 -> 50 / 138 (on), 37 -> 37
+  (off). **No entry changed** in any of the four (compared by file).
+- Member door census, 266 x 2: attach **45 / 68 -> 45 / 68**. Changed rows: 5, all attached before and
+  after - atr-support-and-resistance, btc-charlie, elliott-wave-3-finder, ema-ribbon, fibonacci-pivot-points
+  gain their paint columns (`plots` 10->11, 6->14, 2->4, 17->19, 7->8).
+- Translation census, 266 x {host, screen}: every served formula, every output presentation, every object
+  program and every other presentation field byte-identical; host ok 64 -> 64, served 827 -> 827; screen
+  58 / 779 unchanged. Paints on the host lane: 71 scripts - drawn 17 calls, `na` 19, hidden 3, withheld 65
+  (colour 54, offset 6, v4 default transp 3, display 1, overlay 1).
+- `savedDocumentRoundTrip` (C46): a paint's colour column is an APPEND, like the manifest's own rule - the
+  comparison takes out exactly the columns only a paint reads and is then the saved document byte for byte
+  (5 scripts); a rail proves the rule is load-bearing and is the identity on a paint-free script.
+
+### What stays refused, and what settles it
+
+- `offset`, `show_last`, another `display`, `overlay`: `vw-bgcolor-barcolor.pine` + screenshots.
+  Unblocks visualizing-displacement-tfo (a `pine:no-output` script whose only output is
+  `barcolor(..., offset = require_fvg ? -1 : na)`) and the five other `offset` paints in the corpus
+  (ict-institutional-order-flow-fadi x2, liquidity-engulfing-displacement-msf,
+  wyckoff-accumulation-distribution, trailing-take-profit-trailing-stop-loss).
+- A v3/v4 `bgcolor` with no `transp`: `vw-bgcolor-v4-default.pine`. Unblocks volume-profile-v054beta.
+- Two disagreeing barcolors: the P1/P2 screenshot.
+- 54 paint colours the reader cannot carry (ict-killzone-index-version's `color.new(input.color, input.int)`
+  under a `time()` session test; heat-map-seasons' choice between two gradients): translator work, not a
+  capture.
+- btc-charlie's three bgcolor condition columns that `computeFor` does not compute: a compute-lane gap
+  (the plot lane has the same silent hole for a colour column), not a paint one.
+
+### Decisions left for the integrator
+
+1. **Paints are graded in their own rail, not in the harness verdict.** Joining them (as C44 joined object
+   colour) would leave every verdict unchanged on this tree (no paint differs) but would turn heat-map-seasons'
+   withheld barcolor into a counted gap. Recommended: join, as a column like object colour. **RULED: join,
+   default ON** - see the follow-ups below.
+2. **The `pine:chart-only` note still says "this line is ignored here too"** on the host lane for a paint
+   that is now drawn (as `hline` / `fill` already do). Rewording it is a member-visible copy change across
+   every lane test that pins notes; left as is. **RULED: make it true per call, one authority, railed** - see
+   the follow-ups below.
+3. **Paint-only scripts ride the objects-only flag** (D2: a script with no screenable column). Measured:
+   no corpus script attaches through it today (the 4 candidates are withheld or lose their drawings).
+4. **The fix-order step number** is written `B1`; renumber on merge. **RULED: step 61** (L1 = 60, R1 = 62,
+   H1 = 63, RT1 = 64).
+
+### Addendum - merged tree, bytes, suite
+
+Merged `origin/master` `5564cca92b` (two Notebook-only commits). On the merged tree: member-door census
+45 / 68, 0 rows differ from the pre-merge tip; base-vs-base control 0 rows. Bytes (vite build, base -> tip):
+notebook first-open 2,148,818 -> 2,148,818 B (+0, `notebook_perf_budgets` PASS); `pine` chunk 417,918 ->
+422,659 (+4,741); `StockChart` chunk 702,343 -> 707,910 (+5,567); total JS 13,253,874 -> 13,268,078
+(+14,204). Full `src/components/chart` suite: `Tests  10 failed | 16894 passed | 85 skipped (16989)` -
+nine 15 s timeouts (the brief's known list plus `enumerationSites` and `flipCGeometry`'s source walk, both
+green alone) and `pineProbeReplay`'s artemis pin, re-pinned with its reason (one paint Resolver, 8 steps).
+`paramIds.test.js` green, unedited.
+
+### Follow-ups - the two rulings (2026-10-02)
+
+**(1) Paints join the harness verdict, default ON.** `compare.mjs::comparePaints` states, once, what each
+paint state means: `agree` / `naBoth` / `hiddenBoth` agree; `differ` / `naDiffers` / `titleMismatch` /
+`hiddenVendorOnly` / `hiddenOursOnly` differ; `withheld` differs (a GAP) unless TradingView does not draw it
+either; `notDrawn` differs where TradingView painted a bar and is counted, NOT graded, where it painted none;
+`vendorUnreadable` is not graded; an unpaired count differs; an unknown state throws. The pairing and the
+per-bar grade stay the runner's (`paintColours.js::gradePaints`). `harness.js::paintsGraded` is the option
+(`{paints: false}` or `VENDOR_HARNESS_PAINTS=0`); every verdict a paint row joins carries
+`verdictWithoutPaints`, and the summary prints `WITHOUT PAINTS` and `CHANGED BY PAINTS` beside C44's lines.
+`verdictWithoutColour` now keeps the paint row in, so each "without" number differs from the verdict by its
+own cause only.
+
+| set | verdict (paints ON) | `verdictWithoutPaints` | paints graded on | moved |
+|---|---|---|---|---|
+| the 47 (`ext-2026-09-28`, objects pane on) | MATCH 29 / DIVERGE 17 / INCONCLUSIVE 1 | 29 / 17 / 1 | 7 | none |
+| committed harness dir (138, objects pane on) | MATCH 50 / DIVERGE 26 / INCONCLUSIVE 62 | 50 / 26 / 62 | 9 | none |
+
+Byte for byte: a `VENDOR_HARNESS_PAINTS=0` run's `verdicts.json` equals the pre-follow-up tip's run on every
+record (all 47 + 138, `JSON` identical), and `verdictWithoutPaints` equals it on every entry. Paint rows:
+heat-map-seasons **DIVERGE** (`barcolor plot_0 "Bar Color"` withheld - its colour chooses between two
+gradients; the capture was already DIVERGE on its plots, so its verdict does not move); btc-charlie MATCH
+with 3 paints neither side draws counted (`plot_14`, `plot_16`, `plot_17`: TradingView's every bar is `na`
+at the defaults); the other 7 MATCH. Rail: `vendorHarness.b1PaintVerdict.test.js` (11).
+
+**(2) The `pine:chart-only` sentence is true per call.** `pine.js::chartOnlySentence(word, how)` is the one
+authority (`how` = lane, site - top / assigned / in a block - and the outcome resolution knows: a folded level,
+a carried band, the resolved paint record); a `fill` and a paint are re-said after resolution through the same
+function. Host lane: a drawn paint says `is drawn: it shades the background behind this script` /
+`recolours the chart's own candles`; a withheld one `is not drawn here: <the door's reason>`; `display.none`
+and `na` say they paint nothing, as on TradingView; `hline` says it is **not drawn on this chart** (the member
+document carries no level - checked against `memberPaneDefinition`); a `fill` whose edges are carried plots is
+`carried as the band between its two plots` (the document draws it), otherwise `is not drawn` with why;
+`alert()` draws nothing and nothing here delivers it. Screener lane keeps the screen statement and says what
+the builder carries (a folded `hline` as a level line, a carried `fill` as its band; `bgcolor` / `barcolor`
+not carried). Rail: `ast/chartOnly.test.js` (16) - every sentence against the door's own record, and across
+the corpus on both lanes no host note says "ignored", a paint says drawn iff its record draws, a fill says
+carried iff a band is; `alphaCarriage` / `silenceSpeaks` re-pinned to the new sentences.
+
+Proof: 10 mutations, each red alone (5 on the verdict join - paints never join, a withheld paint read as
+agreeing, `notDrawn` never differing, the option ignored, `verdictWithoutPaints` taken from the new verdict;
+5 on the sentence - a host paint said as on the screener, fills never re-said after resolution, a host `hline`
+said carried, a withheld paint said drawn, a site writing its own sentence). Full `src/components/chart` suite:
+`Tests  9 failed | 16922 passed | 85 skipped (17016)` - eight 15 s timeouts (the known list, all green alone:
+7 files, 54 tests) and `defSchema`'s fill-reader rail, which caught a stash field named `fill` in `pine.js`
+(renamed `fillRec`; green). `paramIds.test.js` green, unedited.
+## H1 - the host translator's three largest walls: pivots on a plateau, a ratchet decided by range, a helper's own recurrence (2026-10-02, step 63)
+
+Lane H1 of the "import any TradingView Pine script" program, branch `pine/h1-host-walls`, base `5564cca92b`,
+master merged at `c31023ef1d`. Goal metric: the member-door census over the 266 committed scripts.
+
+### The walls, by shape (first refusal per script at base, flag on)
+
+| wall | scripts | shapes (clustered) | outcome |
+|---|---|---|---|
+| `pine:state` | 16 | ratchet stop whose reset test reads the stop (supertrend family, ATR trailing stops); a helper's own `x = init` / `x := f(x[1])` (range filter, PMax); coupled `var`s (inside-bar, smc-structures, wyckoff); running totals with no window (fvg-trend, smoothed-gaussian, deadband, ema-92150 vwap); a `var` never updated (auto-trendline); stops inside an `if` (neural-network) | first two SERVED (7 scripts attach); the rest refused by name |
+| `pine:reassign` | 15 | comma statement `_direction = na , _direction := switch` (3-level / pa zigzag); `for` running totals (ruling R7: machine-learning-ma, moving-averages-sr-mtf, order-block-finder); loops in blocks (delta-imbalance, smart-money, smt, supply-demand, support-resistance-logreg, volatility-coil); `var` state (bolingger, inside-bar-boxes); a UDT field (ict-turtle-soup); a tuple part (williams-fractal) | refused by name; every shape is either a loop total (R7) or would next hit a dark lower timeframe |
+| `pine:request` | 18 | another symbol (4c-nyse USI, ad-line SP sectors, banknifty, sub INDEX:, cumulative-volume-delta BINANCE, open-interest and swing-points computed symbols); a lower timeframe with `VITE_PINE_LOWER_TF_ENABLED` dark (advanced-custom, ai-supertrend, mtf-dashboard, multi-tf-rsi, multi-tf-trend, take-profit); a `barstate` offset (ml-logistic-regression, previous-n-days with `gaps_on`); 12M (camarilla); a string-ternary timeframe that then exceeds `budget:series` 13 > 8 (cppivot); a computed timeframe plus loops (delta-volume) | none served: each is behind a rule (other symbol unserved, dark flag, unwitnessed `barstate`/`gaps_on`, no budget raised) |
+
+### Rules served
+
+1. **A plateau pivots on its LAST bar.** `pivothigh(src, L, R)` at the candidate bar `i`: a bar on the left may EQUAL it, a bar on
+   the right may not. Witness: RDDT bars 473/474 tie at 152.44 and TradingView confirms the second; a hand replay of
+   pivot-point-supertrend's arithmetic over `FN.pivothigh/pivotlow` equals vendor `plot_4` on all 631 bars, while the strict rule
+   diverges first at bar 476 (`vendorHarness.h1PivotTies.test.js`). JS and Python move together (`tests/test_ast_pivots.py`:
+   plateau `[(4, 20.0)]`, corpus counts 54/54 → 62/63).
+2. **A ratchet is decided by RANGE.** `forgetsOnReset` admits a reset arm whose test is an ORDERING (`< <= > >=`) between the
+   state (`self` or `nz(self, k)`) and a MOVING value (not a constant, not carried). `interpret.js` then runs the body in a range
+   domain (a value is a number or `{lo, hi, na}`; each op its interval extension; a test that reads the state refines it per
+   branch and joins the answers) and publishes a bar only when every run entering the window collapses to one number. A NaN
+   series bar is read as the whole range, never as `na`. Python mirror `_Range` / `test_ast_ratchet_parity.py`.
+3. **A helper's own recurrence** is the same tree as the identical top-level one: the fold maps every earlier binding of a
+   local to its final (`finalLocals.chainFinal`), so `x[1]` above or below the last `:=` reads the column a bar back, two call
+   sites build two columns, and a top-level name the helper shadows stays top-level (`ast/functionLocalRecurrence.test.js`).
+4. **From the listing, a crossing over `na` is `false`.** Found by this lane's own measurement: after (2) attached
+   `qqe-signals`, the committed capture graded its `QQE long` DIVERGE on one bar (73, ours 20.72, TradingView `na`). The
+   listing pass carried `trend` as `na` where `cross(...)` was `NaN`; Pine's crossing is never `na`. The listing pass now
+   re-reads a test built only of crossings and comparisons with a `NaN` crossing as `false` (`pineBoolAt`); behind the curtain
+   nothing changes (`ast/listingPineBool.test.js`, `vendorHarness.h1Ratchet.test.js`). JS only: the Python lane has no listing pass.
+5. **Ids.** A declared input whose ordinal the frozen map holds is still minted, and a script `docs/pine/param-ids.json` pins
+   mints ONLY its frozen ids in the pinned lane (`paramIdPinned.js`, 297 keys DERIVED from the artifact by
+   `ast/paramIdPinned.test.js`). `paramIds.test.js` green with no edit; `param-ids.json` unchanged.
+
+### Measured (base `5564cca92b` vs tip, same box, same commands)
+
+| | base | tip |
+|---|---|---|
+| the 47, pane on / off | 29 / 47, 16 / 47 | 29 / 47, 16 / 47 (0 entries change) |
+| committed harness dir, pane on / off | 50 / 138, 37 / 138 | 52 / 138, 39 / 138 |
+| member door, on / off | 68 / 266, 45 / 266 | 75 / 266, 52 / 266 (base-vs-base 0 rows) |
+| translation census, strict / screen / member ok | 64 / 58 / 64 | 71 / 64 / 71 |
+| notebook first-open | 2,148,818 B PASS | 2,148,818 B PASS |
+| `pine` chunk / total JS | 417,918 / 13,255,669 B | 423,187 / 13,269,891 B (total includes master's two merged commits) |
+
+Census attach (flag on) as the shapes landed: base 68 → plateau rule + ratchet window 73 (measured together, not separately) → helper recurrence 75 → listing bool 75.
+Newly attached: atr-trailing-stop-by-ceyhun, pivot-point-supertrend, qqe-signals, supertrend-explorer, supertrend-strategy,
+pmax-explorer, twin-range-filter. Two first refusals moved without attaching (atr-god-strategy → `pine:block`,
+momentum-based-zigzag → `pine:function` on an unbounded `barssince`). The only served-output change in the translation census
+is three newly translated plots of cpr-with-mas-super-trend in the screen lane (the member door still refuses it on `pine:arity`).
+
+### What stays refused, and what settles it
+
+Every `pine:request` wall (above). The ratchet curtain on a short chart: qqe-signals behind the curtain on 631 bars is withheld
+whole (its counters read a 250-bar window over two ema-of-ema chains). Probe `tools/visual_conformance/probes/vw-ratchet-stops.pine`,
+queue `docs/pine/capture-queue-2026-10-02-h1-ratchet.md` (Q-H1a SPY 1D grades the curtain path; Q-H1b RDDT 1D widens the plateau
+evidence).
+
+### Decisions for the integrator
+
+- **Param-id gains.** C46's text says a script that gains a translation gains source ids; its rails (`paramIds`, the legacy
+  dense rail) forbid a pinned map from growing. H1 resolved it with the derived `PINNED_SCRIPT_KEYS` rule (member door keeps the
+  knobs at source ids). A regeneration of `param-ids.json` is the alternative and is the owner's call.
+- **Ruling R7** (loop running totals) decides the next five `pine:reassign` scripts.
+- **The plateau rule moves every served pivot script** (vendor-grounded; 0 harness regressions).
+## R1 - the runtime lane reads a strategy, and the exact half of `runtime:statement` (2026-10-02, step 62)
+
+Branch `pine/r1-runtime-strategy`, base `cf5e38d5d2` (origin/master with C50), merged `5564cca92b`.
+Scope: carry C50 into the RUNTIME lane (`engine/ast/pineRuntimeFrontend.js`), then the next-largest
+runtime first walls, `runtime:statement` and `runtime:object-op`, as far as is exact.
+
+### Step 1 - a strategy (`597552a6a4`)
+
+- `strategy(` is skipped exactly as `indicator(` is (this lane reads neither; title and overlay are the
+  host translation's). The program is byte-for-byte the indicator's (`runtimeStrategy.test.js`).
+- An order call in `STRATEGY_ORDER_CALLS` - IMPORTED from `pine.js`, one authority - is skipped as a
+  statement and counted (`runtime:strategy-order`). A `strategy.*` call outside the set is not.
+- A `strategy.*` VALUE still refuses by name (`pine:strategy-call`), including inside a condition.
+- Only the CALL form `strategy(` / `library(` is a declaration. `liquidity-engulfing-candles-upslidedown`
+  is an indicator with a VARIABLE named `strategy`; it was refused "not an indicator" and now compiles,
+  all three plots equal to the vendor on all 632 bars (`runtimeStrategyWord.vendor.test.js`).
+- No strategy capture exists (none of the 139 harness captures declares `strategy(`). Queued:
+  `docs/pine/capture-queue-2026-10-02-r1-strategy.md`, probe `r1-strategy-draws.pine`.
+
+### Step 2 - `runtime:statement`, the exact shapes (`bfecbecbef`)
+
+| shape | rule | proof |
+|---|---|---|
+| lone atom on its own line (`countBuy` closing an `if` body) | discarded; still lowered first so its own refusals stand; a function ending in a loop stays valueless | `runtimeDiscardedValue.vendor` (btc-charlie, 5 rows, every bar) |
+| `#RRGGBBAA` literal | `objectHexToPacked` (C48's conversion) | `runtimeColourLiteral8.vendor` (vw-colour-components K02..K07 through `bgcolor` of a `var`) |
+| `[x]` function result | one-element tuple: `[a] = f()`; a plain read refuses; ir.js admits 1-element tuple / destructure | unit |
+| body ending in a void collection call | valueless, its own sentence at a reading call site | unit |
+| `request.security(symbol =, timeframe =, expression =)` | placed by `pine.js::positionaliseSecurityArgs` (now exported) | unit: same answer as positional |
+| `plot(title =, series =)` | value arg by `pine.js::OUTPUT_CALLS` name | unit |
+| 1-arg `ta.highest` / `ta.lowest` | filled from `PINE_SHORT_FORM` (groupb-hilo-default) - the explicit spelling's answer | unit |
+| interpret.js `TableRefusal` | keeps its guard (`interpret:bind-time-text`), not `runtime:statement` | unit |
+
+Left refused by name (14): session-clock arguments (7: `time(tf, ...)` off the chart period, a
+non-literal session), a line carrying `,`-separated statements AND a block (3: the split is grammar no
+capture witnesses here), `ta.pivothigh` with a per-bar leftbars (1), `input.string` with a non-literal
+default (1), `color.new(color =, transp =)` (1: no evidenced parameter names), and
+`madrid-moving-average-ribbon` (1) - a DEFECT found, not fixed: a user function reading history of its
+parameter, called inside a plot's `color =`, produces IR whose history index has no slot; the IR
+validator catches it, so it is a refusal (line null), never a wrong drawing. Minimal repro:
+`f(_ma) => d = ta.change(_ma) ... plot(close, color = f(ta.sma(close, 3)))`; bound to a variable first,
+it compiles.
+
+### Step 3 - `runtime:object-op` (`a029107811`)
+
+The BARE row (29 -> 33) is the harness's: a build not told who owns the drawing refuses every drawing
+call, and `runtimeCorpusCensus.measure.test.js` rails exactly that. It is left as it is. Under ownership
+the real rows were 6: two were a function whose LAST line is a drawing call (lowered as its result);
+such a body is now valueless, like a loop body. The other four read a drawing's state as a value
+(`box.get_top`, `line.get_y1`, `line.get_x2`, `line.get_price`) - a real gap, refused by name.
+
+### Measured (base `cf5e38d5d2` / tip after merge `689e4875d6`)
+
+| | base | tip |
+|---|---|---|
+| runtime census compiled end to end | 15 / 266 | **19** / 266 |
+| owned-drawing census | 27 | **31** |
+| `runtime:declaration` / `runtime:statement` | 26 / 33 | 0 / 14 |
+| member door attach (off / on) | 45 / 68 | 45 / 68, 0 rows changed (base vs base: 0) |
+| the 47, pane on: objects / overall | 30 of 46 / 29 of 47 | identical, 0 entries changed |
+| the 47, pane off | 17 of 25 / 16 | identical, 0 entries changed |
+| harness dir, pane on / off: objects | 68 of 86 / 55 of 65 | identical, 0 entries changed |
+| translation census (`corpus_metric.json`) | | unchanged |
+| notebook first-open | 2,148,818 B | 2,148,818 B (+0, PASS) |
+| pine chunk / total JS | 417,918 / 13,253,874 B | 417,950 / 13,255,794 B |
+| `paramIds.test.js` | green | green, no edit |
+
+Why the served numbers do not move: the runtime pane is dark (`VITE_PINE_RUNTIME_PANE_ENABLED`), and the
+object lane consults this lane only for a last-bar drawing it could rescue - no such script changed.
+
+Mutations (bytes + sha256, restored by bytes): 18 run, 18 red after one fix - M5 (8-digit literal)
+first SURVIVED because the probe's own `color.r(k1)` rows are folded by the columnar lane; the rail was
+rebuilt on `bgcolor` of a `var` and then went red. M16 (ownership re-checked in the drawing-end
+predicate) survived and the check was deleted as dead (`lowerStmts` is the authority).
+
+## RT1 - the runtime lane as the member door's general fallback (2026-10-02, step 64)
+
+Branch `pine/rt1-runtime-fallback`, base origin/master `5564cca92b` + R1 (`44aa7cc9b0`, merge
+`867beab706`), master `c31023ef1d` merged (`c03f08295a`). Integrator ruling: the member door has
+two engines; a script the HOST lane refuses goes to the RUNTIME lane, and if that lane builds it
+within its budgets and everything it would draw is exact, the pane draws it from there. Behind the
+existing `VITE_PINE_RUNTIME_PANE_ENABLED`, still OFF; the store's door behind its own
+`PINE_RUNTIME_SAVE_ENABLED`, OFF.
+
+### The routing, and which sentence a member reads
+
+- `paneGate.runtimeFallbackOf(t)`: the host translation refused (any refusal) -> the runtime lane is
+  asked. `runtimeRouteOf` (every refusal names the lane) keeps its C23 wording and behaviour.
+- **Decision: when the runtime lane declines, the member reads the HOST refusal verbatim, guard
+  included.** It names the construct the member wrote in TradingView's terms with its `TO UNBLOCK`;
+  the runtime lane's reasons are about its own internals. The runtime reason rides beside it
+  (`runtimeDeclined: {code, why}`) for the census, never instead of it.
+- `pine.js` `refusedPresentation` (asked for only with the flag on): a refused row keeps its title,
+  presentation and whether its call was written with an `offset`. Off, nothing changes.
+
+### What the runtime document will not draw, by name (each railed in `vendorHarness.rt1RuntimeFallback.test.js`)
+
+| construct | rule | why |
+|---|---|---|
+| a `?:` whose test can be `na` (`lowerIr.js::naTestsOf`, a `SELECT` not provably 0/1) | the fallback refuses the script, `runtime:na-test` | the shared `TERNARY` answers `na`; TradingView takes the other branch: `qqe-signals` RDDT 1D bar 73 (vendor na, ours 20.72), `pivot-point-supertrend` RDDT 1D `Buy` bar 517 (118.94 vs 117.31). Capture queued: `capture-queue-2026-10-02-rt1-na-test.md`, probe `rt1-na-test.pine` |
+| a series not proven to start at the listing | the document computes nothing, `runtime:history-start` | R-W applied to this lane: a per-bar run seeds `var` state at its first bar, TradingView's bar 0 only from the listing; the host lane admits only state that forgets its seed in 250 bars, this lane cannot prove that of a script |
+| a row drawn with `offset` | withheld, named in the disclosures | the runtime document draws each value on the bar that computed it |
+| a row whose colour changes per bar, or is unknown (refused row, no presentation) | withheld, named | the document carries one static colour; the harness grades a wrong colour DIVERGE (R-G keeps a host line because it draws today; nothing draws a runtime row today) |
+| `fill` / `hline` / `bgcolor` / `barcolor` / candles | not drawn, named in one disclosure | no row on this document |
+| a source the server would not accept (`RUNTIME_REPAINT_RISK`) | declined, `runtime:repaint-unstated` | unchanged; 127 of the census declines are this |
+
+### Performance, the budget, and no freeze
+
+`runtimeFallbackPerf.measure.test.js` (newest 5,000 bars of the committed AAPL 1D capture, cold,
+median of 5, this box): adx-and-di-for-v4 118 ms, inside-bar 144 ms, wyckoff 94 ms (it then refuses
+by name on AAPL, `array.max of an empty array`). Every one is several frames, so the run goes OFF the
+main thread: `runtime/runtimeWorker.js` runs `computeRuntimeColumns` (the one computation; the
+synchronous door runs the same function), `runtimeAsync.js` posts plain rows and lands the columns,
+and the chart repaints through `serverCompute.notifyColumnsLanded` (the generation `StockChart`
+already listens to). Measured in headless Chromium against a local flag-on build: first run 354 ms
+(includes loading the 914,591 B worker), second 39 ms, the page kept painting. **Budget: 1,000 ms
+per indicator run** (`RUNTIME_PANE_TIME_BUDGET_MS`, ~7x the slowest reading), enforced through the
+VM's own per-bar hook; past it the run stops by name (`runtime:time-budget`, naming the bar it
+reached) and nothing partial is drawn. No VM limit moved.
+
+### The kill switch (never a delete)
+
+`PINE_RUNTIME_KILL_LIST` on `web` (comma/space separated; a definition id `u_` + 12 hex, or the
+sha256 of the Pine source, a prefix of >= 12 hex accepted). A listed script: its save is refused; a
+stored copy is SERVED with `meta.runtimeKilled` (list, get, history) and every client's install
+door refuses it; the member door's preview reads the list from `GET /api/user-definitions/runtime-kill`
+and falls back to the host refusal. The stored row is never touched; unlisting brings it back on the
+next read (`test_runtime_definitions.py`).
+
+### The server's door
+
+`api/services/runtime_definitions.py` + `user_definitions._save_runtime`: same table, versions,
+tombstones, count cap, 64 KiB cap; `ast_hash` = `runtime:sha256:<source>`; repaint stamp re-derived
+server side; `REPAINT_RISK` mirrored byte for byte (railed against the JS literal). The sweep, the
+alert lane and the relint pass never admit a runtime row (railed). Route count 16 -> 17 in the three
+files that assert it.
+
+### Measured (base `867beab706` / after, merged tree `dcb7da5dad`)
+
+| | base | after |
+|---|---|---|
+| member door attach, objects off / on | 45 / 68 | 45 / 68, **0 rows changed** in either state |
+| member door, objects on + runtime on | (69: C23's routed inside-bar) | **71**: + adx-and-di-for-v4, wyckoff-accumulation-distribution |
+| the 47, pane on / off | 29 MATCH (objects 30) / 16 (objects 17) | identical, 0 entries changed |
+| the 47, pane on + runtime on | - | 30 MATCH, 0 DIVERGE added (inside-bar INCONCLUSIVE -> MATCH) |
+| harness dir, pane on / off | 50 / 37 MATCH (objects 71 / 58) | identical, 0 entries changed |
+| harness dir, pane on + runtime on | - | 52 MATCH, DIVERGE 26 -> 26: adx-and-di and inside-bar -> MATCH, three deadband probes compare more items, all agreeing |
+| translation census | 64 / 58 | unchanged (`corpus_metric.json` untouched) |
+| notebook first-open | 2,148,818 B | 2,148,818 B (+0, PASS) |
+| pine chunk / total JS | 417,950 / 13,255,794 B | 418,281 / 14,179,578 B (the runtime worker is 914,591 B, fetched only when a runtime pane computes) |
+| `paramIds.test.js` | green | green, no edit |
+
+Ungraded by capture: wyckoff-accumulation-distribution (`var` x12, 17 `if`, `ta.valuewhen`,
+`ta.pivothigh`/`pivotlow`, `ta.barssince`, `ta.rsi`, `array.new_float`/`push`/`min`/`max`, a `for`,
+`box.new`; three of its eight `plotshape` rows withheld for per-bar colour).
+
+Remaining runtime declines on the corpus (flag on): `runtime:repaint-unstated` 127,
+`history-dynamic-offset` 9, `call-undeclared-builtin-state` 7, `library` 6, `na-test` 6 (cc-yata,
+fibonacci-dolphintradebot, pivot-point-supertrend, qqe-signals, supertrend-strategy,
+trend-targets-algoalpha), `function-global-state` 4, `statement` 4, `withheld-all` 3, others <= 3.
+
+## Wave 15 integration (2026-10-02) - L1 + B1 + H1 + RT1, and what H1 re-admitted
+
+Branch `integrate/wave15-2026-10-02`. Six-shard gate: 6 NEW against the baseline, 125 no
+longer failing, 2,485 files, totals reconcile. Three are master's known reds
+(`entryExcludesChartEngine` x2, `objectFnInline.vendor` sector-rotation). The other three, and
+two RT1 rails found by the focused run, were rule-meets-rule, none a regression:
+
+| rail | what moved | evidence |
+|---|---|---|
+| `rt1RuntimeFallback` (qqe-signals, pivot-point-supertrend) | the host lane now serves both, so the door never reaches the runtime fallback | `vendorHarness.h1Ratchet`: every label TradingView's |
+| `rt1RuntimeFallback` (pivot-point-supertrend `Buy`) | the runtime `Buy` now AGREES with TradingView; RT1's disagreement was the pivot tie, which the runtime lane reads from the shared house column, not the `na` test | `vendorHarness.h1PivotTies`; the decline keeps a door witness on `trend-targets-algoalpha` |
+| `graphSaveDoor`, `paramSingleTranslation`, `builderInputs.symbolClosure` | `high_engagement__03-supertrend-kivancozbilgic` (KivancOzbilgic SuperTrend) translates again: R-F had refused its band, H1 admits the ratchet | same ratchet shape graded on `pivot-point-supertrend`; host vs runtime on RDDT's 631 listing bars, all six rows: Up Trend 375 bars, Down Trend 247, UpTrend Begins 5, Buy 5, DownTrend Begins 6, Sell 6 - identical drawn sets, 0 values differ |
+
+The save door has its demonstration back: SuperTrend's document is 383,178 B and reduces to
+6,751 B (x56.8) with every parameter placed, reading back as the same indicator.
+No TradingView capture of SuperTrend itself exists yet; it is queued as a cheap confirmation.
+## RT2 - the runtime document states its repaint class (2026-10-02, step 65)
+
+Branch `pine/rt2-runtime-repaint`, base `pine/rt1-runtime-fallback` (`b711ef5c6a`); wave 10
+(`e4e24524ef`) was already an ancestor, nothing to merge. Behind `VITE_PINE_RUNTIME_PANE_ENABLED`,
+still OFF; the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`, still OFF.
+
+### The rule, as implemented
+
+`engine/runtime/runtimeRepaint.js::runtimeRepaintOf(source)` returns the host linter's class
+(`non-repainting` / `preview-repaints` / `repaints`) by the host's own `modeFromReach`, as the
+WORST reach over the reads the program makes. Reads are taken off a small lexer (comments and
+strings dropped; dotted names joined across horizontal whitespace exactly as `pine.js::lexPine`
+joins them). Everything the per-bar run computes from bars at or before its own bar reaches 0;
+a later bar can reach a run only through what it is HANDED, and `runtimeRepaint.json` names those
+reads:
+
+| read | reach | authority |
+|---|---|---|
+| a clock leaf (`barstate.*`, `bar_index`, `time`, `dayofweek`, ... 18 spellings) | the HOST linter's `astReach({type:'series', name: leaf})` over `closedTable.json`, joined with `clockEdge` | the shared table; the spelling -> leaf map is railed against `pine.js` (`pineClockKeyOf`, `BUILTIN_BARSTATE_SERIES`) |
+| `clockEdge`: `islast`, `islastconfirmedhistory` | 1 | FINDING, below |
+| `clockEdge`: `lastbarindex`, `lastbartime`, `lastbar{year,month,dayofmonth,hour,minute}` (`last_bar_index`, `last_bar_time`, `timenow`) | unbounded | FINDING, below |
+| `varip`, `barstate.isnew`, `chart.left/right_visible_bar_time`, `barmerge.lookahead_on` | unbounded | runtime table (the host refuses or has no node for these) |
+| `lookahead =` / `calc_on_every_tick =` other than `barmerge.lookahead_off` / `false` | unbounded | runtime table |
+| `request.security` / `security` NOT spelled as this chart at this period (`syminfo.tickerid`, `timeframe.period` or `""`, positional or named) | unbounded | runtime table |
+| any other `request.*` | unbounded | runtime table |
+
+A source the lexer cannot read (an unterminated string) has no stated class:
+`runtime:repaint-unstated`, the only way left to reach it.
+
+The document carries the class: every drawn row's `mode` AND `plots[].forward` (the one field
+`defSchema` lets a non-tree plot state), so `meta.repaint` (worst row) and the pane's own notice
+(`repaintVerdict.js` through `lint.js::lintDefinition`'s hand-written branch, `modeFromReach`
+again) say it, plus a disclosure naming the reads. Conservative by construction: the class is the
+whole program's, so a read that feeds only an undrawn value still labels every row.
+
+**Declined by name, newly said (it was hidden behind the regex):** a `request.security` the
+lowering does not fold into the chart's own expression reads bars the pane never hands the run
+(`computeRuntimeColumns` passes no `requestBars`; the VM would answer `na`). The door declines it
+(`runtime:request`, from the probe's new `requests` count) and `computeRuntimeColumns` refuses it
+at the run, so a stored document cannot draw a blank column either.
+
+**Server parity.** `api/services/runtime_repaint.py` mirrors the lexer and rules over the same
+JSON and the host's `ast_lint.ast_reach` / `mode_from_reach`. `tests/fixtures/runtime_repaint/
+corpus.json` holds the JS answer for all 266 corpus scripts (sha256 of the LF text, class,
+forward, reads); `runtimeRepaint.test.js` writes/compares it, `tests/test_runtime_repaint.py`
+holds Python to the same rows. The save door re-derives the class, refuses a document whose
+`meta.repaint` or a drawn row's `forward` disagrees (both directions), and stamps the derived
+class. Corpus: 113 non-repainting, 31 preview-repaints, 122 repaints; reads most often
+`barstate.islast` 85, `request.security` 66, `barmerge.lookahead_on` 30, `security` 25.
+
+### FINDING for the integrator (railed, not acted on)
+
+`closedTable.json::clock` declares `islast`, `islastconfirmedhistory`, `lastbarindex`,
+`lastbartime` and `lastbar{year,month,dayofmonth,hour,minute}` with `lookback: 0` and no
+`forward`, so the HOST linter answers reach 0 (`non-repainting`) for them. By the linter's own
+one-sentence rule that is not true: `runtimeRepaintEdge.test.js` moves the fetch through
+`indicators.js::computeClock` (N vs N+1 / N+2 bars, newest forming vs closed; a daily fixture
+across a year end and a 5-minute one across midnight) and finds EXACTLY those nine leaves moving
+on a closed bar, with `islast` / `islastconfirmedhistory` final one bar later and the rest never.
+The runtime document carries the edge in `runtimeRepaint.json::clockEdge`, joined with (never
+replacing) the host answer - the rail proves that moving a host declaration moves the runtime
+answer. Declaring `forward` on those leaves in the shared table would fix both lanes at once, but
+it moves host badges, `canSaveFormula`, the saved definitions' relint and the alert repaint gate,
+so it is a ruling, not this lane's change.
+
+### Measured (base `b711ef5c6a` / tip `a210db44dd`)
+
+| | base | tip |
+|---|---|---|
+| member door attach off / on / on + runtime | 45 / 68 / 71 | 45 / 68 / **71** |
+| rows changed off / on | - | 0 / 0 (base vs base 0) |
+| rows changed on + runtime | - | 127: every `repaint-unstated` row now names its real wall; 0 attach |
+| `runtime:repaint-unstated` | 127 | **0** |
+| the 127 now decline at | - | library 27, call-undeclared-builtin-state 11, pine:request 9, runtime:statement 8, pine:builtin 8, input-kind 6, history-dynamic-offset 5, history-expression 4, ... runtime:request 3, varip 3 |
+| the 47, pane on / off / on + runtime | 29 / 16 / 30 MATCH | identical, 0 entries changed |
+| harness dir, pane on / off | 47 / 34 MATCH | identical, 0 entries changed |
+| harness dir, pane on + runtime | 49 MATCH, 26 DIVERGE | 49 MATCH, **28** DIVERGE: `vw-int-array-avg` and `vw-int-array-avg-neg` |
+| translation census | | unchanged (host translation untouched; `corpus_metric.json` untouched) |
+| notebook first-open | 2,148,818 B | 2,148,818 B (+0, PASS) |
+| pine chunk / total JS | 418,281 / 14,181,373 B | 418,281 / 14,189,502 B (+8,129: `runtimeRepaint.js` + its JSON in the member pane chunk and the worker) |
+| `paramIds.test.js` | green | green, no edit |
+
+Why nothing newly attaches: with the gate removed outright (a probe run, not shipped) 0 of the
+127 attach - every one stops at a later wall. The classifier removes a wall that was hiding the
+real ones; it does not move the metric by itself. No newly attached script, so no new perf row.
+
+**The two DIVERGE added (runtime flag on, harness dir), and why they are not drawings.** Both
+`vw-int-array-avg` probes now reach the runtime document (they read `barstate.islast` /
+`barstate.isfirst` only; class `preview-repaints`). Every PLOT stays INCONCLUSIVE ("computeFor
+returned no column"): the document is a FALLBACK, R-W applies, and the harness' bars are not
+proven to start at the listing, so `runtime:history-start` computes nothing - nothing is drawn.
+The DIVERGE is the OBJECTS row only: the document carries the host lane's object program (lines /
+labels whose text depends on `array.avg` of an int array) and the harness grades the counts and
+texts it would draw (e.g. labels 25 vendor vs 1 ours). That is the RT1 object-carrying rule
+applied to two scripts the regex used to stop, not a wrong drawing of a value: under
+`runtimeHistory: 'listing'` a member's chart either computes the run on a listing-start series or
+draws nothing; the host object program itself is unchanged and would be graded the same on the
+host lane. Left as found and named here; the integrator decides whether a runtime document should
+carry the host object program at all when its own run computes nothing.
+
+### Rails and mutations
+
+`runtime/__tests__/runtimeRepaint.test.js` (18: rules with controls, one-authority, spelling map,
+corpus fixture), `runtime/__tests__/runtimeRepaintEdge.test.js` (8: the edge, measured),
+`vendorHarness.rt2RuntimeRepaint.test.js` (6: on the committed ADX capture a stated
+`preview-repaints` / `repaints` document labels every row, its notice names the read, and it
+draws column-for-column what the graded MATCH document draws; the request decline at door and
+run), `tests/test_runtime_repaint.py` (17), `tests/test_runtime_definitions.py` (the store,
+incl. both disagreement directions). Two RT1/C23 rails used an unused `request.security` to make
+a script unroutable; both now use a `varip` (declined `runtime:varip`).
+
+17 mutations, each restored by bytes + sha256, each red on its own: edge join removed (JS 8 red;
+Py 8 red), `islastconfirmedhistory` dropped from `clockEdge` (4), `varip` dropped (2), every
+request the identity (2), comments read as code (2), dotted names not joined (Py 1), rows
+hard-coded `non-repainting` (2), `forward` not stamped (3), door request decline removed (1), run
+request refusal removed (1), server `meta.repaint` check removed (2), server stamp hard-coded (1),
+server `forward` check removed (1), identity timeframe loses `""` (JS 1, Py 1), `pineClockKeyOf`
+answers null (1).
