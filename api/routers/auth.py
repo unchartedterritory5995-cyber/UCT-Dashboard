@@ -2479,6 +2479,11 @@ _PREFERENCE_KEYS = {
     # is not refused for a key the product already owns.
     "shared_tag_colors": _PREF_OPAQUE,
     "tag_labels": _PREF_OPAQUE,
+    # TERMINAL-NEXT (2026-10-02): the UCT Terminal shell's panel grid -- count, focus, and
+    # per-panel {code, group, sym, args} (`app/src/pages/terminal/useTerminalLayout.js`).
+    # ADDITIONS-ONLY: a new key, no existing key renamed (coexistence MG-4); the panels'
+    # linked security rides the EXISTING `charts_workspace_groups`, not a copy here.
+    "terminal_layout": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
