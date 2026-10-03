@@ -7615,6 +7615,36 @@ _WORKER_HISTORY_TTL = int(os.environ.get("MASSIVE_WORKER_HISTORY_TTL", "300"))
 _worker_history_lock = threading.Lock()   # single-flight: one heavy scan at a time
 
 
+def invalidate_date_caches(mdy: str) -> int:
+    """Drop every Live Flow result cached for `mdy` (M/D/YYYY) so the next read
+    recomputes. Called by the T+1 healers (gap-fill run, tape-spool replay) after
+    they mutate a past date. Without it the historical caches (_HISTORICAL_TTL,
+    6h) kept serving the pre-heal snapshot: on 10/03 the healed 10/2 showed an
+    empty table and a stale "FEED GAP 9:31 AM–4:00 PM" banner while /day-stats
+    (30s TTL) already counted 9,381 alerts. flow_router.bump_data_version() does
+    not reach these caches. Multi-day caches span dates, so they clear whole.
+    Returns the number of entries dropped. Never raises."""
+    dropped = 0
+    try:
+        mdy = _resolve_date(mdy)
+
+        def _hits(key):
+            return key == mdy or (isinstance(key, tuple) and mdy in key)
+
+        for cache in (_recent_cache, _recent_last_good, _day_stats_cache,
+                      _by_contract_cache, _diagnostic_cache, _cream_cache,
+                      _worker_history_cache):
+            for k in [k for k in list(cache) if _hits(k)]:
+                cache.pop(k, None)
+                dropped += 1
+        for cache in (_symbol_recent_cache, _multiday_recent_cache):
+            dropped += len(cache)
+            cache.clear()
+    except Exception as e:
+        logging.getLogger(__name__).warning("[massive] cache invalidation for %s failed: %s", mdy, e)
+    return dropped
+
+
 @router.get("/worker-history")
 def worker_history(
     target_date: str = Query(default=None, description="M/D/YYYY or ISO. Defaults to today ET."),

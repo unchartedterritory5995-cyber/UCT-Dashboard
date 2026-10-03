@@ -4668,13 +4668,18 @@ export default function LiveFlowMassive() {
           color: P.text, fontSize: 12.5, lineHeight: 1.5,
         }}>
           <strong style={{ color: "#d8ae4e", letterSpacing: 0.5 }}>
-            {gapInfo.windows.length} FEED GAP{gapInfo.windows.length > 1 ? "S" : ""} TODAY
+            {gapInfo.windows.length} FEED GAP{gapInfo.windows.length > 1 ? "S" : ""} {targetDate ? "ON THIS DAY" : "TODAY"}
           </strong>
           {" — "}
           {gapInfo.windows.map((w, i) => `${i > 0 ? ", " : ""}${w.start}–${w.end}`).join("")}
           {gapInfo.estDropped > 0 && ` · ~${gapInfo.estDropped.toLocaleString()} prints missed live`}
           {" · "}
-          <span style={{ opacity: 0.85 }}>backfilling overnight from the official OPRA tape</span>
+          {/* Past date: a gap still showing means the T+1 heal hasn't filled it
+              (healers drop this date's caches when they do) — don't promise "overnight". */}
+          <span style={{ opacity: 0.85 }}>
+            {targetDate ? "not yet backfilled from the official OPRA tape"
+                        : "backfilling overnight from the official OPRA tape"}
+          </span>
         </div>
       )}
 
