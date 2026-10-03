@@ -307,12 +307,21 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
                  and len(dd) == 1 and "is today" in dd[0]["headline"],
                  f"property PUT HTTP {up2.status}; fired {s4['result']['resurface']['fired']}; {dd}")
 
-        # W8 -- keyboard
+        # W8 -- keyboard. Scoped to the NVDA door by its exact href, never by the label
+        # text alone: W7's AMD review-date notice ALSO renders an "Open what you wrote"
+        # door (same label), but its review-date property was set in the very PUT that
+        # created it, so no version was ever checkpointed WITH that date on it (a
+        # checkpoint captures the PRE-edit row -- see note_levels._versions_naming) --
+        # its link therefore carries no resurfaceVersion by design, and it sorts ABOVE
+        # the NVDA door (list_history orders by created_at DESC). A label-only match
+        # lands keyboard/touch focus on that door first and times out waiting on a
+        # sheet the product never promised for it. href_js is reused by W9 below.
+        href_js = json.dumps(href)
         pg.goto(base + INBOX, wait_until="domcontentloaded")
         h._dismiss_intro(pg)
-        pg.get_by_role("link", name="Open what you wrote").first.wait_for(state="visible", timeout=60000)
+        pg.locator(f"a[href={href_js}]").first.wait_for(state="visible", timeout=60000)
         pg.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
-        presses = tab_to(pg, "((el.textContent || '').trim() === 'Open what you wrote')")
+        presses = tab_to(pg, f"el.tagName === 'A' && el.getAttribute('href') === {href_js}")
         ok8 = False
         if presses > 0:
             pg.keyboard.press("Enter")
@@ -335,14 +344,18 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         pp.on("pageerror", lambda e: errors.append(str(e)[:300]))
         pp.goto(base + INBOX, wait_until="domcontentloaded")
         h._dismiss_intro(pp)
-        pdoor = pp.get_by_role("link", name="Open what you wrote").first
+        # Scoped by href for the same reason as W8 -- not by label text, which the AMD
+        # review-date door (no resurfaceVersion, sorted above NVDA's) also carries.
+        pdoor = pp.locator(f"a[href={href_js}]").first
         ok9, geo = False, {}
         try:
             pdoor.wait_for(state="visible", timeout=60000)
             pdoor.scroll_into_view_if_needed()
-            geo = pp.evaluate("""() => { const a = [...document.querySelectorAll('a')].find(x => x.textContent.trim() === 'Open what you wrote');
-                const r = a.getBoundingClientRect();
-                return {sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, door_h: r.height, door_right: r.right} }""")
+            geo = pp.evaluate(
+                """(hr) => { const a = [...document.querySelectorAll('a')].find(x => x.getAttribute('href') === hr);
+                    const r = a.getBoundingClientRect();
+                    return {sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, door_h: r.height, door_right: r.right} }""",
+                href)
             w.shot(pp, "W9-inbox-390")
             pdoor.tap()
             sheet = pp.get_by_role("dialog", name="What you wrote then")
