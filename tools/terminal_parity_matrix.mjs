@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // MG-7 — THE COEXISTENCE PARITY MATRIX, DERIVED FROM CODE (coexistence.md §3, §5.8).
 //
 // "No TERMINAL-NEXT surface reaches a member until the §3 matrix names, for every

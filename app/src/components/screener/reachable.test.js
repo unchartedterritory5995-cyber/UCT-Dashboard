@@ -733,22 +733,13 @@ const AWAITING_A_DECISION = {
   // `app/src/lib/marketClock/sessionCalendar.js`. `nyseCalendar.js` now derives
   // its tables from it, so it is reached through `marketClock.js` like every
   // other clock reader; the block and its expiry were deleted in that commit.)
-  // ── TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED (2026-09-29) ──
-  //
-  // `surfaces/panelSet.js` derives one registered panel manifest per page-shaped
-  // surface from the S1 surface manifest (FB-S1-03: "the panel set a by-product
-  // of the surface set"), and lands INERT the way S1 CP1 did: every derived
-  // entry is offered by no menu and bound in no host, so nothing a member sees
-  // changes. Its only importer is `panelSet.test.js`, which this walk cannot see
-  // because it starts from App.jsx. Mounting a page as a panel is the abandoned
-  // `embedded` pattern (ledger C9) and needs its own design, so it is not a
-  // ride-along. Expiry: the first surface panel is mounted (drop this entry, and
-  // `panelSet.test.js`'s INERT describe goes red in the same commit, by design),
-  // or the declaration is withdrawn and the module deleted.
-  'app/src/surfaces/panelSet.js':
-    'TERM-037 surface-derived panel set — declared from the surface manifest, '
-    + 'offered by no menu and bound in no host BY DECISION. Mount a surface '
-    + 'panel, or delete it; do not leave it looking shipped.',
+  // (A "TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED" block stood
+  // here from 2026-09-29 until TERMINAL-NEXT lane T1 on 2026-10-02, parking
+  // `app/src/surfaces/panelSet.js`. The UCT Terminal shell now resolves its
+  // `surface` functions through it (`pages/terminal/surfacePanels.js`), so it is
+  // reached from App.jsx like any rendered module; the block, its expiry and
+  // `panelSet.test.js`'s "nothing imports it" rail went in that commit, as the
+  // block's own text said.)
   }
 
 /**
@@ -807,7 +798,6 @@ const PARKING_EXPIRES = {
   //
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
-  'TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED (2026-09-29)': '2026-11-30',   // landed 2026-09-29 with the derivation itself; the first surface-panel mount resolves it
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
