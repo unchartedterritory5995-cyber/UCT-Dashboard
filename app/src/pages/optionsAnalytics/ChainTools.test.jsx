@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { ProbabilityPanel, ContractDrill, ContractPicker, PositionBuilder, priceLegs, netGreeks, daysTo } from './ChainTools'
+import { ProbabilityPanel, ContractDrill, ContractPicker, PositionBuilder, StancePanel, priceLegs, netGreeks, daysTo } from './ChainTools'
 
 // Route bodies are the shapes api/services/options_analytics/chain_tools.py returns
 // (tests/test_options_chain_tools.py); chain rows are polygon_options.get_chain rows.
@@ -68,6 +68,29 @@ describe('ContractDrill + ContractPicker (FT-016)', () => {
     wrap(<ContractPicker sym="TST" rows={ROWS} onPick={onPick} />)
     fireEvent.change(await screen.findByLabelText('Drill into contract'), { target: { value: 'O:TST261016P00095000' } })
     expect(onPick).toHaveBeenCalledWith(ROWS[0].put)
+  })
+})
+
+describe('StancePanel (FT-039)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const STANCE = { label: 'computed', fit_score: 3.94, components_used: 4,
+    sub_scores: { iv_regime: null, greeks_fit: 1, dte_fit: 1, liquidity: 0.85, earnings_timing: 0.3 },
+    reasons: { iv_regime: 'IV rank: 3 sessions logged, needs 20.', greeks_fit: 'delta +0.45', dte_fit: '30 days', liquidity: 'spread 2.0%', earnings_timing: 'earnings before expiry' },
+    explanation: 'Scores 3.94 of 5 over 4 of 5 components.', disclaimer: 'Not advice and not a recommendation.' }
+  it('shows the score, the components it could not compute, and the disclaimer', async () => {
+    stub({ '/stance': [200, STANCE] })
+    wrap(<StancePanel sym="TST" contract={ROWS[1].call} />)
+    expect((await screen.findByTestId('stance-score')).textContent).toContain('3.94 / 5 over 4 of 5 components')
+    expect(screen.getByTestId('stance').textContent).toContain('IV regime: not computed')
+    expect(screen.getByTestId('stance-disclaimer').textContent).toContain('Not advice')
+    fireEvent.click(screen.getByRole('button', { name: 'bearish' }))
+    await waitFor(() => expect(fetch.mock.calls.some(([u]) => u.includes('direction=bearish'))).toBe(true))
+  })
+  it('is absent while dark', async () => {
+    stub({})
+    const { container } = wrap(<StancePanel sym="TST" contract={ROWS[1].call} />)
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(container.querySelector('[data-testid="stance"]')).toBeNull()
   })
 })
 

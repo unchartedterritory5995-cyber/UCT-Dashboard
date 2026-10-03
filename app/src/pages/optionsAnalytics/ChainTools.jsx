@@ -143,6 +143,46 @@ export function ContractPicker({ sym, rows, onPick }) {
   )
 }
 
+// ── FT-039 ─────────────────────────────────────────────────────────────────────
+
+const LABELS = { iv_regime: 'IV regime', greeks_fit: 'Greeks fit', dte_fit: 'Time to expiry', liquidity: 'Liquidity', earnings_timing: 'Earnings timing' }
+
+export function StancePanel({ sym, contract }) {
+  const [direction, setDirection] = useState(contract?.type === 'put' ? 'bearish' : 'bullish')
+  const occ = contract?.contract
+  const { data, hidden, failed } = useDarkSection(occ ? `/api/research/options/${enc(sym)}/stance?contract=${enc(occ)}&direction=${direction}` : null)
+  if (!occ || hidden || (!data && !failed) || (data && !('fit_score' in data))) return null
+  return (
+    <section className={styles.panel} data-testid="stance">
+      <div className={styles.head}>
+        <span className={styles.title}>Option stance</span>
+        <span className={styles.badge}>computed</span>
+        <span className={styles.seg} role="group" aria-label="Directional view">
+          {['bullish', 'bearish'].map((d) => (
+            <button key={d} type="button" aria-pressed={direction === d} onClick={() => setDirection(d)}>{d}</button>
+          ))}
+        </span>
+      </div>
+      {failed ? <p className={styles.note}>The stance is unavailable right now.</p> : (
+        <>
+          <p className={styles.facts} data-testid="stance-score">
+            Fit <b>{data.fit_score == null ? '—' : `${num(data.fit_score)} / 5`}</b>
+            <span className={styles.muted}> over {data.components_used} of 5 components</span>
+          </p>
+          <ul className={styles.list}>
+            {Object.entries(data.sub_scores).map(([k, v]) => (
+              <li key={k}>{LABELS[k] || k}: {v == null ? <span className={styles.muted}>not computed</span> : num(v)}
+                <span className={styles.muted}> · {data.reasons?.[k]}</span></li>
+            ))}
+          </ul>
+          <p className={styles.muted}>{data.explanation}</p>
+          <p className={styles.muted} data-testid="stance-disclaimer">{data.disclaimer}</p>
+        </>
+      )}
+    </section>
+  )
+}
+
 // ── FT-002 ─────────────────────────────────────────────────────────────────────
 
 const GREEKS = ['delta', 'gamma', 'theta', 'vega']

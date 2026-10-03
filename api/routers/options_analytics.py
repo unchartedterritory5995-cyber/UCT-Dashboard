@@ -248,3 +248,22 @@ def options_builder(sym: str, _user: dict = Depends(require_paid)):
     from api.services.options_analytics import chain_tools
     _sym(sym)
     return chain_tools.builder_config()
+
+
+# ── FT-039 option stance ───────────────────────────────────────────────────────
+
+@router.get("/api/research/options/{sym}/stance",
+            dependencies=[Depends(_switch("OPTIONS_STANCE_ENABLED"))])
+def options_stance(sym: str, contract: str = Query(..., max_length=32),
+                   direction: str = Query("bullish", pattern="^(bullish|bearish)$"),
+                   _user: dict = Depends(require_paid)):
+    """Plain `def`: the vendor chain, our log and the earnings file all block."""
+    from api.services.options_analytics import stance
+    try:
+        return stance.stance(_sym(sym), contract, direction)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except stance.NotInChain as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=f"Option chain unavailable: {e}") from e
