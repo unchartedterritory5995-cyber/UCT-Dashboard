@@ -1,0 +1,264 @@
+{
+  "about": "CAP3 (step 81): RT6 capture queue (Q-RT6a-f), NYSE:RDDT 1D from the listing (Q-RT6a also AMEX:SPY 1D), graded in the runtime state. signature written by cap3SpyGaps.measure.test.js, never by hand.",
+  "captures": [
+    {
+      "id": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
+      "script": "tools/visual_conformance/probes/vw-rt6-runtime-colour.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "MATCH",
+            636
+          ],
+          [
+            "C01_var_colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "C02_new_var_40",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "C03_new_na_base",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "C04_new_na_transp",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "C05_rgb_na",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "C06_cond_or_na",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "vw-rt6-runtime-colour-spy-1d-2026-10-03",
+      "script": "tools/visual_conformance/probes/vw-rt6-runtime-colour.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld on this chart on every bar,"
+          ],
+          [
+            "C01_var_colour",
+            "DIVERGE",
+            0,
+            "color",
+            1800,
+            "persistent"
+          ],
+          [
+            "C02_new_var_40",
+            "DIVERGE",
+            0,
+            "color",
+            1800,
+            "persistent"
+          ],
+          [
+            "C03_new_na_base",
+            "DIVERGE",
+            0,
+            "color",
+            1800,
+            "persistent"
+          ],
+          [
+            "C04_new_na_transp",
+            "DIVERGE",
+            0,
+            "color",
+            1800,
+            "persistent"
+          ],
+          [
+            "C05_rgb_na",
+            "DIVERGE",
+            0,
+            "color",
+            1800,
+            "persistent"
+          ],
+          [
+            "C06_cond_or_na",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+      "script": "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Kalman",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
+      }
+    },
+    {
+      "id": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+      "script": "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "DBHF",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
+      }
+    },
+    {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03",
+      "script": "corpus/committed/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "Rational Quadratic Kernel Estimate",
+            "MATCH",
+            636
+          ],
+          [
+            "Alert Stream",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the translator refused this plot (pi"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03",
+      "script": "corpus/committed/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR-Stepped, PDF MA",
+            "MATCH",
+            636
+          ],
+          [
+            "Long",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "Short",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
+      }
+    },
+    {
+      "id": "parabolic-sar-rddt-1d-2026-10-03",
+      "script": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Parabolic SAR",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      }
+    }
+  ]
+}
