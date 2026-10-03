@@ -419,6 +419,7 @@ export function execute(program, ctx, limits, opts) {
   const frPersistBase = new Int32Array(depthLimit + 1)
   const frHistoryBase = new Int32Array(depthLimit + 1)
   const frCarriedBase = new Int32Array(depthLimit + 1)
+  const frCarried2Base = new Int32Array(depthLimit + 1)
   const frWindowBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
 
@@ -461,6 +462,7 @@ export function execute(program, ctx, limits, opts) {
     let persistBase = 0
     let historyBase = 0
     let carriedBase = 0
+    let carried2Base = 0
     let windowBase = 0
     for (;;) {
       const base = pc * 3
@@ -687,6 +689,8 @@ export function execute(program, ctx, limits, opts) {
           historyBase = site.historyBase
           frCarriedBase[depth - 1] = carriedBase
           carriedBase = site.carriedBase
+          frCarried2Base[depth - 1] = carried2Base
+          carried2Base = site.carried2Base || 0
           frWindowBase[depth - 1] = windowBase
           windowBase = site.windowBase
           pc = fn.entry
@@ -916,17 +920,15 @@ export function execute(program, ctx, limits, opts) {
           // ⭐ TWO INPUTS, POPPED IN REVERSE. `lowerIr` walks the condition
           // first and the source second, so the source is on top.
           //
-          // ⛔ THE SITE IS GLOBAL, NOT FRAME-RELATIVE, AND THE FRONT END
-          // REFUSES `ta.valuewhen` INSIDE A USER FUNCTION FOR THAT REASON.
-          // `OP.CARRIED` adds `carriedBase` so two invocations of one body keep
-          // two recurrences; there is no `carried2Base` yet, so two invocations
-          // would SHARE one ring and answer a plausible wrong number. A named
-          // refusal is the honest version of that limit.
+          // ⭐⭐ RT7 — THE SITE IS FRAME-RELATIVE, as `OP.CARRIED`'s: `carried2Base`
+          // is the call site's block, so two invocations of one body keep two
+          // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
           budget.charge('CARRIED_STEPS', 1)
-          stack[sp++] = car2Spec[a].step(
-            car2State, car2Offset[a], v2cond, v2src, car2Plan[a].n)
+          const c2 = carried2Base + a
+          stack[sp++] = car2Spec[c2].step(
+            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
           break
         }
                 case OP.RET: {
@@ -968,6 +970,7 @@ export function execute(program, ctx, limits, opts) {
           persistBase = frPersistBase[depth]
           historyBase = frHistoryBase[depth]
           carriedBase = frCarriedBase[depth]
+          carried2Base = frCarried2Base[depth]
           windowBase = frWindowBase[depth]
           break
         }
