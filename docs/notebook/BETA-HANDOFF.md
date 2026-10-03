@@ -3,7 +3,7 @@
 This is everything the Notebook still needs that a build cannot do. It is meant as the input to
 the owner's own beta-testing plan. Each row names what closes it and where the kit already is.
 
-**Where the build stands:** waves 5-13 are built. The parity scorecard reads 41 of 62 clauses
+**Where the build stands:** waves 5-13 are built. The parity scorecard reads 41 of 61 clauses
 MET and 3 of 16 standards at bar (`docs/notebook/parity-scorecard.md`, re-scored by wave 13 lane
 13SC). Wave 13 added no new clause or gap-ledger row: it targets a different competitive
 bar (trading journals and charting platforms, not Notion, Evernote or Obsidian), which is tracked
