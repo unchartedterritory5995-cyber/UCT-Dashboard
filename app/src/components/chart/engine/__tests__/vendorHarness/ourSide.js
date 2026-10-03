@@ -654,7 +654,12 @@ export function runOurSide(capture) {
           : null,
       })
     }
-    const objects = objectsOf(def, bars, ctx)
+    // ⭐ RT4 — the binder's own gate: a runtime document whose run computed
+    // nothing here draws none of its object program (`runtimeObjectsWithheld`).
+    const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
+    const objects = objectsWithheld
+      ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
+      : objectsOf(def, bars, ctx)
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)

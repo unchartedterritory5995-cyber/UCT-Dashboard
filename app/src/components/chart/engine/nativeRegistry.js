@@ -2252,6 +2252,48 @@ export function columnErrors(columns) {
   return e || {}
 }
 
+// ─── ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN ─────────────────────
+//
+// A runtime-lane document (`memberPaneDefinition.js::runtimeLaneDefinition`)
+// draws its lines from its own per-bar run and carries the HOST lane's object
+// program beside them. The object reader evaluates that program on its own, so
+// on a chart where the run computed NOTHING — refused at its listing check
+// (`runtime:history-start`), its time budget, a request, a reached
+// `runtime.error`, or a run still in flight — the drawings were drawn alone.
+// Measured (RT2, harness dir, runtime flag on): `vw-int-array-avg` and its `-neg`
+// probe drew labels 25 vendor vs 1 ours from a document whose every line was
+// withheld — a wrong drawing on a pane that otherwise said "nothing is drawn".
+// Integrator ruling (RT4): such a document does not draw its object program.
+
+/** The guard a runtime document's withheld drawings carry. */
+export const RUNTIME_OBJECTS_GUARD = 'runtime:objects-without-run'
+
+/**
+ * Why a runtime document's object program is NOT drawn over these columns, or
+ * `null` when it may be (any other document, a runtime document with no object
+ * program, or a run that produced at least one of its columns).
+ *
+ * @param {object} def the installed definition
+ * @param {object|null|undefined} cols what `computeFor` answered for it on THIS
+ *   chart (`undefined`/`null`: nothing was computed)
+ * @returns {{guard: string, message: string} | null}
+ */
+export function runtimeObjectsWithheld(def, cols) {
+  if (!def || !def.compute || def.compute.kind !== 'runtime') return null
+  if (!def.objects || !Array.isArray(def.objects.ops) || !def.objects.ops.length) return null
+  const keys = Object.keys(def.compute.outputs || {})
+  if (cols && keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
+  const first = Object.values(columnErrors(cols))[0]
+  const why = first
+    ? `its run computed nothing on this chart (${first.guard})`
+    : 'its run has not computed on this chart'
+  return {
+    guard: RUNTIME_OBJECTS_GUARD,
+    message: `This script's drawings are not drawn: ${why}, and its drawings belong to that run — `
+      + 'drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.',
+  }
+}
+
 // ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
 //
 // TradingView's study holds NOTHING once the script's own `runtime.error` is
