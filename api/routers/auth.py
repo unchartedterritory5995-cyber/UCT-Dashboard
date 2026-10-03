@@ -293,6 +293,31 @@ def _research_depth_flags() -> dict:
     return out
 
 
+# Lane R: the Research page notices under the header (D-9 member-interest line,
+# D-11 rename notice, D-12 metric disagreement). NOT Depth panels: these keys never
+# open the Depth tab. Mirrored in app/src/pages/research/notices/researchNoticeFlags.js.
+_RESEARCH_NOTICE_SURFACES = (
+    ("member_interest_line_enabled", "member_interest_line"),
+    ("entity_rename_notice_enabled", "entity_rename_notice"),
+    ("metric_disagreement_enabled", "metric_disagreement"),
+)
+
+
+def _research_notice_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
+    this payload is byte-identical to before the lane. The client reads `=== true`.
+    Never raises; a surface whose module cannot be read is simply absent."""
+    import importlib
+    out = {}
+    for key, mod in _RESEARCH_NOTICE_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
 def _options_vol_surface_enabled() -> bool:
     """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
     surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
@@ -635,6 +660,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_filing_blackline_flag(),
         **_options_screener_flag(),
         **_research_depth_flags(),
+        **_research_notice_flags(),
         **_charts_list_subscribe_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────

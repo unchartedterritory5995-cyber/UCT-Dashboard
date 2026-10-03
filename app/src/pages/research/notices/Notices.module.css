@@ -1,0 +1,16 @@
+/* Research notices under the header (lane R: D-9, D-11, D-12). */
+.notices { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
+.line { font-size: 13px; color: var(--text); line-height: 1.5; }
+.muted { font-size: 12px; color: var(--text-muted); }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-muted); margin-right: 6px; }
+.warn { color: var(--warn); }
+.link { color: var(--accent, var(--gain)); }
+.toggle { min-height: var(--tap-min, 36px); font-size: 12px; padding: 2px 10px; margin-left: 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; }
+@media (min-width: 1025px) { .toggle { min-height: 28px; } }
+.scroll { overflow-x: auto; max-width: 100%; }
+.grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; margin-top: 4px; }
+.grid th, .grid td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.grid th[scope='row'], .grid thead th:first-child { text-align: left; }
+.grid thead th { color: var(--text-muted); font-weight: 600; }

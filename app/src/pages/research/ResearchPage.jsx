@@ -29,6 +29,7 @@ import EstimateHistoryTab from './tabs/EstimateHistoryTab'
 import FilingsFeedTab from './tabs/FilingsFeedTab'
 import DepthTab from './depth/DepthTab'
 import { anyResearchDepth } from './depth/researchDepthFlags'
+import ResearchNotices from './notices/ResearchNotices'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -142,7 +143,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth, researchNotices } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -205,6 +206,8 @@ export default function ResearchPage() {
         ratings={headerRatings}
         onSymbolChange={(s) => s && navigate(`/research/${s.toUpperCase()}`)}
       />
+      {/* Lane R notices (D-9/D-11/D-12): each dark behind its own flag; renders nothing while all are off. */}
+      <ResearchNotices sym={sym} flags={researchNotices} />
       <nav className={styles.tabs}>
         {tabs.map(t => (
           <button
