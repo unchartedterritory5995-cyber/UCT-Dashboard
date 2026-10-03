@@ -28,6 +28,7 @@
     "app/src/pages/charts/widgets/VolumeScanWidget.jsx",
     "app/src/pages/cot/PositioningRail.jsx",
     "app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx",
+    "app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",
     "app/src/pages/research/tabs/AnalystRatingsTab.jsx",

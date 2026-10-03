@@ -174,6 +174,8 @@ _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 # each line is a reason, with its kind first. `no-door` means a real saved object that
 # has no URL instruction to open it yet -- the next thing to build, not a wontfix.
 EXEMPT: dict[str, str] = {
+    "terminal_aliases": "not-a-saved-object: a member's command-alias map (a setting the parser reads), not a thing anyone opens",
+    "options_spread_book": "no-door: FT-072 Spread Book is dark and no route opens one saved spread by id; give it a kind when one does",
     "playbooks": "no-door: Journal 1.0 playbooks, a retired surface with no route that opens one",
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
     "upb_sections": "not-a-saved-object: a section groups playbook entries; the entry is the object",

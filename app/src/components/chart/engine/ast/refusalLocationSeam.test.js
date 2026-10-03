@@ -164,7 +164,10 @@ describe('⭐⭐ a refusal that knows where it is keeps its own location', () =>
     // statement being lowered when the colour was read. That is an honest
     // approximation, and it is marked as one.
     const src = `${HEAD}table.cell(t, 0, 0, ${Q}x${Q})${LF}`
-      + `myCol = #00e67610${LF}`     // ← the unreadable colour really lives here
+      // ⚰️ R1 (2026-10-02): this was `#00e67610`, the corpus shape — R1 now serves an
+      // eight-digit literal (`objectHexToPacked`, C48's conversion), so the control is
+      // re-anchored on a SEVEN-digit one: same bare `ColourError`, still no position.
+      + `myCol = #00e6761${LF}`      // ← the unreadable colour really lives here
       + `bgcolor(myCol)${LF}`        // ← and this is the statement it is reported on
     const r = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
     expect(r && r.ok, 'the colourless fixture did not refuse').toBe(false)

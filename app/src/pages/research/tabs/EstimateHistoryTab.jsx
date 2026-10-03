@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
 // upcoming quarter has moved, from UCT's own daily snapshots of FMP's consensus
@@ -13,7 +14,8 @@ import styles from './ResearchCov.module.css'
 // ⛔ Days whose read failed are listed as gaps, not skipped.
 
 const eps = (v) => (v == null ? 'unavailable' : v.toFixed(2))
-const rev = (v) => (v == null ? 'unavailable' : v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : `${(v / 1e6).toFixed(1)}M`)
+const rev = (v) => (v == null ? 'unavailable'
+  : formatCompact(Number(v), { tiers: [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }] }))
 const chg = (c) => {
   if (!c || c.pct == null) return { text: 'unavailable', cls: '' }
   return { text: `${c.pct > 0 ? '+' : ''}${c.pct.toFixed(2)}%`, cls: c.pct > 0 ? styles.up : c.pct < 0 ? styles.down : '' }

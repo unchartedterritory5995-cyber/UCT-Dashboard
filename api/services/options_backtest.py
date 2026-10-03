@@ -55,12 +55,61 @@ _log = logging.getLogger(__name__)
 
 NY = ZoneInfo("America/New_York")
 
+# Each leg is (type, signed quantity, ladder steps from the anchor in units of `width`). The anchor
+# is the at-the-money strike moved `offset` steps; a leg at 0 sits ON the anchor.
 STRATEGIES = {
-    "long_call": {"label": "Long call", "legs": 1, "type": "call"},
-    "long_put": {"label": "Long put", "legs": 1, "type": "put"},
-    "bull_call": {"label": "Bull call spread", "legs": 2, "type": "call"},
-    "bear_put": {"label": "Bear put spread", "legs": 2, "type": "put"},
+    "long_call": {"label": "Long call", "legs": 1, "type": "call", "spec": (("call", 1, 0),)},
+    "long_put": {"label": "Long put", "legs": 1, "type": "put", "spec": (("put", 1, 0),)},
+    "bull_call": {"label": "Bull call spread", "legs": 2, "type": "call",
+                  "spec": (("call", 1, 0), ("call", -1, 1))},
+    "bear_put": {"label": "Bear put spread", "legs": 2, "type": "put",
+                 "spec": (("put", 1, 0), ("put", -1, -1))},
 }
+# FT-011 (lane/o-options-remainders): more structures, served only while
+# OPTIONS_BACKTEST_MORE_ENABLED is on (`more_enabled`). Credit structures carry a NEGATIVE debit.
+MORE_STRATEGIES = {
+    "bear_call": {"label": "Bear call spread (credit)", "legs": 2,
+                  "spec": (("call", -1, 0), ("call", 1, 1))},
+    "bull_put": {"label": "Bull put spread (credit)", "legs": 2,
+                 "spec": (("put", -1, 0), ("put", 1, -1))},
+    "long_straddle": {"label": "Long straddle", "legs": 2, "spec": (("call", 1, 0), ("put", 1, 0))},
+    "short_straddle": {"label": "Short straddle", "legs": 2, "spec": (("call", -1, 0), ("put", -1, 0))},
+    "long_strangle": {"label": "Long strangle", "legs": 2, "spec": (("call", 1, 1), ("put", 1, -1))},
+    "short_strangle": {"label": "Short strangle", "legs": 2, "spec": (("call", -1, 1), ("put", -1, -1))},
+    "iron_condor": {"label": "Iron condor (credit)", "legs": 4,
+                    "spec": (("put", 1, -2), ("put", -1, -1), ("call", -1, 1), ("call", 1, 2))},
+    "call_butterfly": {"label": "Long call butterfly", "legs": 3,
+                       "spec": (("call", 1, -1), ("call", -2, 0), ("call", 1, 1))},
+}
+ANCHORS = ("monthly", "earnings")
+MORE_FLAG = "OPTIONS_BACKTEST_MORE_ENABLED"
+
+
+def more_enabled() -> bool:
+    """FT-011's switch, read per call (api/services/options_analytics/flags.py owns the name)."""
+    from api.services.options_analytics import flags
+    return flags.is_on(MORE_FLAG)
+
+
+def strategy_spec(name: str) -> dict | None:
+    if name in STRATEGIES:
+        return STRATEGIES[name]
+    if name in MORE_STRATEGIES and more_enabled():
+        return MORE_STRATEGIES[name]
+    return None
+
+
+def uses_width(name: str) -> bool:
+    spec = STRATEGIES.get(name) or MORE_STRATEGIES.get(name) or {}
+    return any(m != 0 for _, _, m in spec.get("spec", ()))
+
+
+def catalog() -> dict:
+    """What the panel may offer while FT-011 is on: every structure and both entry anchors."""
+    rows = [{"id": k, "label": v["label"], "legs": v["legs"], "uses_width": uses_width(k)}
+            for k, v in {**STRATEGIES, **MORE_STRATEGIES}.items()]
+    return {"strategies": rows, "anchors": list(ANCHORS), "entry_dtes": list(ENTRY_DTES),
+            "earnings_rule": EARNINGS_RULE_TEXT, "earnings_lookback": EARNINGS_LOOKBACK}
 ENTRY_DTES = (7, 14, 30, 45)
 MAX_OFFSET = 5
 MAX_WIDTH = 5
@@ -81,6 +130,15 @@ RISK_FREE_RATE = 0.04   # flat, stated wherever an IV is shown
 IV_SOURCE_TEXT = ("IV is COMPUTED here, not the vendor's: a Black-Scholes inversion of the entry mid "
                   "(European exercise, no dividends, a flat 4.0% rate, calendar days to expiry). "
                   "Massive keeps no historical IV.")
+EARNINGS_LOOKBACK = 8      # the most recent past prints read for the earnings anchor
+EARNINGS_MAX_EXPIRY_DAYS = 45
+EARNINGS_RULE_TEXT = (
+    "Earnings anchor: enter at the close of the last session before the report reaches the market "
+    "and exit at the close of the first session that trades on it. A report after the close (AMC) "
+    "enters on the report day and exits the next session; a report before the open (BMO) enters "
+    "the session before and exits on the report day. A print whose timing is not on file is "
+    "EXCLUDED and counted, because its entry close would be a guess. The options are the first "
+    "listed expiration on or after the exit session; both ends are priced at the quote mid.")
 BASIS_TEXT = ("A historical simulation, not advice. One contract per leg, every fill at the mid of the "
               "bid and ask, before commissions and fees. Entry prices are option QUOTES at the entry "
               "close, never trade prints; the expiry value is intrinsic from the underlying's close.")
@@ -101,19 +159,29 @@ def normalize_params(sym: str, raw: dict) -> dict:
     if not s or len(s) > 10 or not all(c.isalnum() or c in ".-" for c in s):
         raise BadParams("Pick a symbol.")
     strategy = str(raw.get("strategy") or "")
-    if strategy not in STRATEGIES:
+    spec = strategy_spec(strategy)
+    if spec is None:
+        if more_enabled():
+            raise BadParams("Pick one of: " + ", ".join(
+                v["label"].lower() for v in {**STRATEGIES, **MORE_STRATEGIES}.values()) + ".")
         raise BadParams("Pick one of: long call, long put, bull call spread, bear put spread.")
+    anchor = str(raw.get("anchor") or "monthly")
+    if anchor not in ANCHORS or (anchor != "monthly" and not more_enabled()):
+        raise BadParams("Entries anchor on monthly expirations"
+                        + (" or earnings prints." if more_enabled() else "."))
     try:
-        dte = int(raw.get("dte"))
+        dte = int(raw.get("dte") or 0) if anchor == "earnings" else int(raw.get("dte"))
         offset = int(raw.get("offset", 0))
         width = int(raw.get("width", 1))
     except (TypeError, ValueError):
         raise BadParams("Entry days, offset and width must be whole numbers.") from None
-    if dte not in ENTRY_DTES:
+    if anchor == "earnings":
+        dte = 0                      # the earnings anchor sets its own entry and exit
+    elif dte not in ENTRY_DTES:
         raise BadParams(f"Entry must be one of {', '.join(map(str, ENTRY_DTES))} trading days before expiry.")
     if abs(offset) > MAX_OFFSET:
         raise BadParams(f"The strike offset must be within {MAX_OFFSET} strikes of the money.")
-    if STRATEGIES[strategy]["legs"] == 1:
+    if not uses_width(strategy):
         width = 0
     elif not 1 <= width <= MAX_WIDTH:
         raise BadParams(f"A spread is 1 to {MAX_WIDTH} strikes wide.")
@@ -129,13 +197,17 @@ def normalize_params(sym: str, raw: dict) -> dict:
         if v not in EXIT_PCTS:
             raise BadParams(f"Exit percentages must be one of {', '.join(map(str, EXIT_PCTS))}.")
         return v
-    return {"sym": s, "strategy": strategy, "dte": dte, "offset": offset, "width": width,
-            "take_profit_pct": _pct("take_profit_pct"), "stop_loss_pct": _pct("stop_loss_pct")}
+    out = {"sym": s, "strategy": strategy, "dte": dte, "offset": offset, "width": width,
+           "take_profit_pct": _pct("take_profit_pct"), "stop_loss_pct": _pct("stop_loss_pct")}
+    if anchor == "earnings":
+        # one session in, one session out: an exit rule has no session to fire on
+        out.update(anchor="earnings", take_profit_pct=None, stop_loss_pct=None)
+    return out
 
 
 def cache_key(p: dict) -> tuple:
     return (p["sym"], p["strategy"], p["dte"], p["offset"], p["width"],
-            p["take_profit_pct"], p["stop_loss_pct"])
+            p["take_profit_pct"], p["stop_loss_pct"], p.get("anchor", "monthly"))
 
 
 # ── the vendor, behind a budget ───────────────────────────────────────────────────────────────
@@ -293,30 +365,54 @@ def _ns_iso(ns) -> str | None:
         return None
 
 
-def _pick_legs(p: dict, ladder: list[dict], spot: float) -> tuple[list[dict] | None, str | None]:
-    if not ladder:
-        return None, "no contracts listed for this expiration at entry"
-    atm = min(range(len(ladder)), key=lambda i: (abs(ladder[i]["strike"] - spot), ladder[i]["strike"]))
-    i = atm + p["offset"]
-    kind = STRATEGIES[p["strategy"]]["type"]
-    if p["strategy"] in ("long_call", "long_put"):
-        idx = [(i, 1)]
-    elif p["strategy"] == "bull_call":
-        idx = [(i, 1), (i + p["width"], -1)]          # buy the lower call, sell the higher
-    else:
-        idx = [(i, 1), (i - p["width"], -1)]          # buy the higher put, sell the lower
-    if any(j < 0 or j >= len(ladder) for j, _ in idx):
-        return None, "the strike offset falls outside the listed ladder"
-    return [{"type": kind, "side": side, "strike": ladder[j]["strike"], "ticker": ladder[j]["ticker"]}
-            for j, side in idx], None
+def leg_types(strategy: str) -> list[str]:
+    """The option types a structure needs a ladder for, in a stable order (call before put)."""
+    spec = (STRATEGIES.get(strategy) or MORE_STRATEGIES.get(strategy))["spec"]
+    return [t for t in ("call", "put") if any(lt == t for lt, _, _ in spec)]
+
+
+def _pick_legs(p: dict, ladders, spot: float) -> tuple[list[dict] | None, str | None]:
+    """`ladders` is one ladder (single-type structures, the first slice's call shape) or a dict
+    {type: ladder}. Each type anchors on ITS OWN at-the-money strike, moved `offset` steps; a leg
+    sits `mult x width` steps from that anchor."""
+    spec = (STRATEGIES.get(p["strategy"]) or MORE_STRATEGIES.get(p["strategy"]))["spec"]
+    if not isinstance(ladders, dict):
+        ladders = {spec[0][0]: ladders}
+    out = []
+    for kind, side, mult in spec:
+        ladder = ladders.get(kind) or []
+        if not ladder:
+            return None, "no contracts listed for this expiration at entry"
+        atm = min(range(len(ladder)), key=lambda i: (abs(ladder[i]["strike"] - spot), ladder[i]["strike"]))
+        j = atm + p["offset"] + mult * p["width"]
+        if j < 0 or j >= len(ladder):
+            return None, "the strike offset falls outside the listed ladder"
+        out.append({"type": kind, "side": side, "strike": ladder[j]["strike"], "ticker": ladder[j]["ticker"]})
+    return out, None
 
 
 def _value(legs: list[dict], mids: list[float]) -> float:
     return sum(l["side"] * m for l, m in zip(legs, mids)) * MULTIPLIER
 
 
-def run_backtest(p: dict, vendor: Vendor, today: date) -> dict:
-    """Pure over `vendor` -- every number traces to a read through it."""
+def _ladders(vendor: Vendor, sym: str, strategy: str, exp: date, as_of: date, spot: float):
+    types = leg_types(strategy)
+    if len(types) == 1:
+        return _ladder(vendor, sym, types[0], exp, as_of, spot)
+    return {t: _ladder(vendor, sym, t, exp, as_of, spot) for t in types}
+
+
+def _ret_pct(val: float, debit: float) -> float:
+    """Return on the premium at risk: a debit pays `debit`, a credit collects `-debit`. Either way
+    the base is its absolute size, so +50% on a credit means half the credit kept."""
+    return (val - debit) / abs(debit) * 100
+
+
+def run_backtest(p: dict, vendor: Vendor, today: date, prints=None) -> dict:
+    """Pure over `vendor` -- every number traces to a read through it. `prints` (earnings anchor
+    only) is the past-prints reader; default: the engine's quarterly history (FMP)."""
+    if p.get("anchor") == "earnings":
+        return run_earnings_backtest(p, vendor, today, prints or _default_prints)
     from api.services.massive import to_polygon_symbol
     sym = to_polygon_symbol(p["sym"])
     window_start = today - timedelta(days=round(LOOKBACK_MONTHS * 365 / 12))
@@ -344,7 +440,7 @@ def run_backtest(p: dict, vendor: Vendor, today: date) -> dict:
         entry = sessions[ei - p["dte"]]
         spot = close[entry]
         try:
-            ladder = _ladder(vendor, sym, STRATEGIES[p["strategy"]]["type"], exp, entry, spot)
+            ladder = _ladders(vendor, sym, p["strategy"], exp, entry, spot)
             legs, why = _pick_legs(p, ladder, spot)
             if legs is None:
                 excluded.append({"expiry": exp.isoformat(), "entry": entry.isoformat(), "reason": why})
@@ -365,7 +461,7 @@ def run_backtest(p: dict, vendor: Vendor, today: date) -> dict:
                                 "iv_computed": implied_vol(l["type"], m, spot, l["strike"], t_years)})
             debit = _value(legs, mids)
             exit_ = None
-            if (p["take_profit_pct"] or p["stop_loss_pct"]) and debit > 0:
+            if (p["take_profit_pct"] or p["stop_loss_pct"]) and debit != 0:
                 for day in sessions[ei - p["dte"] + 1: ei]:
                     qs = [_quote_at_close(vendor, l["ticker"], day) for l in legs]
                     ms = [two_sided_mid(q) for q in qs]
@@ -373,7 +469,7 @@ def run_backtest(p: dict, vendor: Vendor, today: date) -> dict:
                         unmarked += 1
                         continue
                     val = _value(legs, ms)
-                    ret = (val - debit) / debit * 100
+                    ret = _ret_pct(val, debit)
                     if p["take_profit_pct"] and ret >= p["take_profit_pct"]:
                         exit_ = {"date": day.isoformat(), "kind": "take_profit", "value": round(val, 2),
                                  "underlying_close": close[day]}
@@ -396,13 +492,13 @@ def run_backtest(p: dict, vendor: Vendor, today: date) -> dict:
         pnl = round(exit_["value"] - debit, 2)
         trades.append({"expiry": exp.isoformat(), "entry_date": entry.isoformat(), "entry_close": spot,
                        "legs": leg_out, "debit": round(debit, 2), "exit": exit_, "pnl": pnl,
-                       "pnl_pct": round(pnl / debit * 100, 1) if debit > 0 else None})
+                       "pnl_pct": round(pnl / abs(debit) * 100, 1) if debit != 0 else None})
 
     trades.sort(key=lambda t: t["entry_date"])
     excluded.sort(key=lambda e: e["expiry"])
     not_run.sort(key=lambda e: e["expiry"])
     return {
-        "sym": p["sym"], "params": p, "strategy_label": STRATEGIES[p["strategy"]]["label"],
+        "sym": p["sym"], "params": p, "strategy_label": _label(p["strategy"]),
         "basis": BASIS_TEXT, "iv_source": "computed", "iv_source_text": IV_SOURCE_TEXT,
         "risk_free_rate": RISK_FREE_RATE,
         "window": {
@@ -586,3 +682,188 @@ def _reset_for_tests() -> None:
         _inflight.clear()
         _jobs.clear()
         _member_runs.clear()
+
+
+def _label(strategy: str) -> str:
+    return (STRATEGIES.get(strategy) or MORE_STRATEGIES.get(strategy) or {"label": strategy})["label"]
+
+
+# ── FT-011: the earnings anchor ───────────────────────────────────────────────────────────────
+
+def _default_prints(sym: str) -> list:
+    """Past prints, newest first: [{reportedDate, reportTime}] -- the same reader the IV-history
+    implied-vs-realized table uses (api/services/research/iv_history.py)."""
+    from api.services.research import iv_history
+    return iv_history._default_prints(sym) or []
+
+
+def timing_of(raw) -> str | None:
+    """'amc' / 'bmo' from the vendor's words, or None when it does not say."""
+    t = str(raw or "").strip().lower()
+    if not t:
+        return None
+    if t == "amc" or "post" in t or "after" in t:
+        return "amc"
+    if t == "bmo" or "pre" in t or "before" in t:
+        return "bmo"
+    return None
+
+
+def earnings_window(report: date, timing: str, sessions: list[date]) -> tuple[date | None, date | None]:
+    """(entry session, exit session) for one print on the sorted session calendar `sessions`.
+    AMC: enter the report day's close, exit the next session. BMO: enter the prior session's
+    close, exit the report day's close."""
+    if report not in set(sessions):
+        return None, None
+    if timing == "amc":
+        later = [d for d in sessions if d > report]
+        return report, (later[0] if later else None)
+    earlier = [d for d in sessions if d < report]
+    return (earlier[-1] if earlier else None), report
+
+
+def _first_expiry(v: Vendor, sym: str, kind: str, on_or_after: date, as_of: date,
+                  spot: float) -> tuple[date | None, list[dict]]:
+    """(expiry, ladder) of the FIRST expiration listed at entry on or after the exit session."""
+    data = v.get("/v3/reference/options/contracts",
+                 {"underlying_ticker": sym, "contract_type": kind, "as_of": as_of.isoformat(),
+                  "expiration_date.gte": on_or_after.isoformat(),
+                  "expiration_date.lte": (on_or_after + timedelta(days=EARNINGS_MAX_EXPIRY_DAYS)).isoformat(),
+                  "strike_price.gte": round(spot * 0.6, 2), "strike_price.lte": round(spot * 1.4, 2),
+                  "sort": "expiration_date", "order": "asc", "limit": 1000})
+    by_exp: dict[str, dict[float, str]] = {}
+    for c in data.get("results") or []:
+        k, tick, e = c.get("strike_price"), c.get("ticker"), c.get("expiration_date")
+        if isinstance(k, (int, float)) and tick and e and c.get("contract_type") == kind:
+            by_exp.setdefault(e, {}).setdefault(float(k), tick)
+    if not by_exp:
+        return None, []
+    first = min(by_exp)
+    rows = by_exp[first]
+    return date.fromisoformat(first), [{"strike": k, "ticker": rows[k]} for k in sorted(rows)]
+
+
+def _missing_names(legs: list[dict], mids: list) -> str:
+    return " and ".join(f"{l['strike']:g} {l['type']}" for l, m in zip(legs, mids) if m is None)
+
+
+def run_earnings_backtest(p: dict, vendor: Vendor, today: date, prints) -> dict:
+    """Enter before each past print, exit on the first session that trades on it
+    (EARNINGS_RULE_TEXT). Pure over `vendor` and `prints`."""
+    from api.services.massive import to_polygon_symbol
+    sym = to_polygon_symbol(p["sym"])
+    quarters = []
+    for q in (prints(p["sym"]) or []):
+        try:
+            d = date.fromisoformat(str(q.get("reportedDate") or q.get("date") or "")[:10])
+        except ValueError:
+            continue
+        if d < today:
+            quarters.append((d, q.get("reportTime") or q.get("time") or ""))
+    quarters = sorted(quarters, reverse=True)[:EARNINGS_LOOKBACK]
+    trades, excluded, not_run = [], [], []
+    bars = (_bars(vendor, sym, min(d for d, _ in quarters) - timedelta(days=10), today)
+            if quarters else [])
+    sessions = [d for d, _ in bars]
+    close = dict(bars)
+    started = time.monotonic()
+    for report, raw_timing in quarters:
+        timing = timing_of(raw_timing)
+        rec = {"expiry": None, "report_date": report.isoformat(), "timing": timing or "unknown"}
+        if timing is None:
+            excluded.append({**rec, "entry": None,
+                             "reason": "the report time (before the open or after the close) is not on file"})
+            continue
+        entry, exit_day = earnings_window(report, timing, sessions)
+        if entry is None or exit_day is None or exit_day >= today:
+            excluded.append({**rec, "entry": entry.isoformat() if entry else None,
+                             "reason": "no completed session on one side of the print"})
+            continue
+        if time.monotonic() - started > RUN_WALL_SECONDS:
+            not_run.append({**rec, "reason": "the run's time budget ran out"})
+            continue
+        spot = close[entry]
+        try:
+            ladders, expiry, why = {}, None, None
+            for t in leg_types(p["strategy"]):
+                e, lad = _first_expiry(vendor, sym, t, exit_day, entry, spot)
+                if e is None:
+                    why = "no expiration listed at entry on or after the exit session"
+                    break
+                if expiry is not None and e != expiry:
+                    why = "the call and put lists name different first expirations"
+                    break
+                expiry = e
+                ladders[t] = lad
+            if why:
+                excluded.append({**rec, "entry": entry.isoformat(), "reason": why})
+                continue
+            rec["expiry"] = expiry.isoformat()
+            legs, why = _pick_legs(p, ladders, spot)
+            if legs is None:
+                excluded.append({**rec, "entry": entry.isoformat(), "reason": why})
+                continue
+            q_in = [_quote_at_close(vendor, l["ticker"], entry) for l in legs]
+            m_in = [two_sided_mid(q) for q in q_in]
+            if any(m is None for m in m_in):
+                excluded.append({**rec, "entry": entry.isoformat(),
+                                 "reason": f"no two-sided quote for the {_missing_names(legs, m_in)} at the entry close"})
+                continue
+            if exit_day >= expiry:
+                m_out = [intrinsic(l["type"], l["strike"], close[exit_day]) for l in legs]
+                exit_kind = "expiry"
+            else:
+                m_out = [two_sided_mid(_quote_at_close(vendor, l["ticker"], exit_day)) for l in legs]
+                exit_kind = "after_print"
+                if any(m is None for m in m_out):
+                    excluded.append({**rec, "entry": entry.isoformat(),
+                                     "reason": f"no two-sided quote for the {_missing_names(legs, m_out)} at the exit close"})
+                    continue
+        except BudgetExhausted:
+            not_run.append({**rec, "reason": "the vendor request budget ran out"})
+            continue
+        except Exception as exc:  # noqa: BLE001 -- one print's vendor failure is counted, not fatal
+            _log.warning("options_backtest earnings %s %s: %s", sym, report, exc)
+            not_run.append({**rec, "reason": "the vendor read failed"})
+            continue
+        t_years = max(1, (expiry - entry).days) / 365.0
+        leg_out = [{**l, "bid": q["bid_price"], "ask": q["ask_price"], "mid": round(m, 4),
+                    "quote_time": _ns_iso(q.get("sip_timestamp")),
+                    "iv_computed": implied_vol(l["type"], m, spot, l["strike"], t_years)}
+                   for l, q, m in zip(legs, q_in, m_in)]
+        debit = _value(legs, m_in)
+        val = _value(legs, m_out)
+        pnl = round(val - debit, 2)
+        trades.append({"expiry": expiry.isoformat(), "report_date": report.isoformat(), "timing": timing,
+                       "entry_date": entry.isoformat(), "entry_close": spot, "legs": leg_out,
+                       "debit": round(debit, 2),
+                       "exit": {"date": exit_day.isoformat(), "kind": exit_kind, "value": round(val, 2),
+                                "underlying_close": close[exit_day]},
+                       "underlying_move_pct": round((close[exit_day] / spot - 1) * 100, 2),
+                       "pnl": pnl, "pnl_pct": round(pnl / abs(debit) * 100, 1) if debit != 0 else None})
+    trades.sort(key=lambda t: t["entry_date"])
+    excluded.sort(key=lambda e: e["report_date"])
+    not_run.sort(key=lambda e: e["report_date"])
+    text = (f"The {len(quarters)} most recent past earnings print{'s' if len(quarters) != 1 else ''} "
+            f"on file (at most {EARNINGS_LOOKBACK}).")
+    if trades:
+        text += f" The first simulated entry is {trades[0]['entry_date']}."
+    return {
+        "sym": p["sym"], "params": p, "strategy_label": _label(p["strategy"]), "anchor": "earnings",
+        "anchor_text": EARNINGS_RULE_TEXT,
+        "basis": BASIS_TEXT, "iv_source": "computed", "iv_source_text": IV_SOURCE_TEXT,
+        "risk_free_rate": RISK_FREE_RATE,
+        "window": {"prints_read": len(quarters),
+                   "starts": quarters[-1][0].isoformat() if quarters else None,
+                   "ends": quarters[0][0].isoformat() if quarters else None,
+                   "first_entry": trades[0]["entry_date"] if trades else None, "text": text},
+        "expirations_considered": len(quarters),
+        "trades": trades,
+        "excluded": excluded, "excluded_count": len(excluded),
+        "not_run": not_run, "not_run_count": len(not_run),
+        "unmarked_exit_checks": 0,
+        "summary": summarize(trades),
+        "summary_reason": None if len(trades) >= MIN_SUMMARY_N else small_sample_text(len(trades)),
+        "vendor_requests": {"used": vendor.used, "budget": vendor.budget},
+        "computed_at": datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds"),
+    }

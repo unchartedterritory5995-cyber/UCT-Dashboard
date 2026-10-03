@@ -528,6 +528,113 @@ def _body_cache_key(days: int, end: str, anchor: str) -> str:
     return f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
 
 
+# ── TERM-082 (census rank 5): serve the last good body while one refresh runs ──
+#
+# The body cache dies on a hard 300 s clock, so one member in every window paid the
+# deep read (+ bounds + encode) on a cold key. `ServeStale` holds the last GOOD body
+# per (days, end, anchor) and refreshes behind the caller, exactly as `/api/snapshot`
+# and `/api/movers` already do.
+#
+# ⛔ A COLLECTOR PUSH MUST NEVER BE ANSWERED WITH THE PRE-PUSH MONITOR. Every writer
+# (`store_snapshot`, `patch_field`, `delete_snapshot`, the recon and numeric migration)
+# already calls `cache.delete_prefix("breadth_history_")`. The GENERATION SENTINEL
+# below lives under that same prefix, so every one of those writers wipes it with no
+# change to any of them. A remembered body carries the generation it was built under;
+# a body whose generation is no longer current is forgotten, never served, and the
+# caller builds synchronously, which is what happened before this existed. A build
+# that straddles a write (generation changed while it ran) is never remembered.
+#: Bounded at 5x the body TTL: past that a failing refresh degrades to the old
+#: synchronous build instead of pinning the Monitor to a 25-minute-old body.
+HISTORY_STALE_MAX_AGE = 1500
+_HISTORY_STALE_MAX_KEYS = 16
+_GEN_KEY = "breadth_history_generation"
+_GEN_TTL = 7 * 86400
+
+
+def _history_generation(create: bool) -> str | None:
+    """The current data generation, or None when a writer has wiped it. With
+    `create`, mint one (a build is about to read the store under it)."""
+    gen = cache.get(_GEN_KEY)
+    if gen is None and create:
+        gen = f"{time.time_ns()}-{os.getpid()}"
+        cache.set(_GEN_KEY, gen, ttl=_GEN_TTL)
+    return gen
+
+
+_HISTORY_STALE = None  # built lazily below; ServeStale import kept local to the route
+
+
+def _history_stale():
+    global _HISTORY_STALE
+    if _HISTORY_STALE is None:
+        from api.services.serve_stale import ServeStale
+        _HISTORY_STALE = ServeStale("breadth_monitor", max_age_seconds=HISTORY_STALE_MAX_AGE,
+                                    max_keys=_HISTORY_STALE_MAX_KEYS)
+    return _HISTORY_STALE
+
+
+def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dict:
+    """Read + bound + encode one window, write the body cache, and return a slot
+    record `{body, nrows, gen, gen_end}`. `timed` is False on the background refresh
+    thread, which must not write into the requesting caller's timing record."""
+    from api.services import breadth_timing
+    gen = _history_generation(create=True)
+    _t0 = time.perf_counter()
+    rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
+    if timed:
+        breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows),
+                            body_cache="miss")
+    # ⭐ `date_bounds()` and `next_trading_day()` run AFTER reader_ms stops and
+    # BEFORE the response exists, so they were hiding inside post_reader_ms with
+    # no name. `route_tail` is that work, measured rather than attributed to the
+    # encoder.
+    with (breadth_timing.phase("route_tail") if timed else _null_phase()):
+        top = rows[0]["date"] if rows else None
+        bounds = svc.date_bounds()
+        _next = svc.next_trading_day(top) if end else None
+    payload = {
+        "rows": rows,
+        "days": days,
+        "top_date": top,
+        "min_date": bounds.get("min"),
+        "max_date": bounds.get("max"),
+        # Only needed when the window is held back in time; at the latest
+        # window there is nothing newer to step to.
+        "next_date": _next,
+    }
+    with (breadth_timing.phase("serialise") if timed else _null_phase()):
+        body = _render_json(payload)
+    gen_end = _history_generation(create=False)
+    if gen_end == gen:
+        # Only a build no writer interrupted may fill the body cache; a straddling
+        # one would otherwise pin pre-push bytes for the full TTL.
+        cache.set(_body_cache_key(days, end, anchor), (body, len(rows)), ttl=_BODY_CACHE_TTL)
+    return {"body": body, "nrows": len(rows), "gen": gen, "gen_end": gen_end}
+
+
+def _fresh_body(bk: str):
+    """The body cache, in the slot-record shape. Module-level on purpose: every
+    `return` inside the route must stay a `Response` (test_breadth_preserialised)."""
+    hit = cache.get(bk)
+    if hit is None:
+        return None
+    return {"body": hit[0], "nrows": hit[1], "hit": True}
+
+
+class _null_phase:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _history_good(rec) -> bool:
+    """Remember only a complete, uninterrupted, non-empty build."""
+    return (isinstance(rec, dict) and rec.get("nrows", 0) > 0
+            and rec.get("gen") is not None and rec.get("gen") == rec.get("gen_end"))
+
+
 def _render_json(payload: dict) -> bytes:
     """The bytes starlette's `JSONResponse.render` would have produced — by making
     the identical call, not by reproducing its output.
@@ -603,33 +710,36 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
             breadth_timing.mark("route_return")
             return Response(content=body, media_type="application/json")
 
-        _t0 = time.perf_counter()
-        rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
-        breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows),
-                            body_cache="miss")
-        # ⭐ `date_bounds()` and `next_trading_day()` run AFTER reader_ms stops and
-        # BEFORE the response exists, so they were hiding inside post_reader_ms with
-        # no name. `route_tail` is that work, measured rather than attributed to the
-        # encoder.
-        with breadth_timing.phase("route_tail"):
-            top = rows[0]["date"] if rows else None
-            bounds = svc.date_bounds()
-            _next = svc.next_trading_day(top) if end else None
-        payload = {
-            "rows": rows,
-            "days": days,
-            "top_date": top,
-            "min_date": bounds.get("min"),
-            "max_date": bounds.get("max"),
-            # Only needed when the window is held back in time; at the latest
-            # window there is nothing newer to step to.
-            "next_date": _next,
-        }
-        with breadth_timing.phase("serialise"):
-            body = _render_json(payload)
-        _cache.set(bk, (body, len(rows)), ttl=_BODY_CACHE_TTL)
+        # TERM-082: the body cache missed. Serve the last good body for this window
+        # (bounded, generation-checked) while one refresh runs behind the caller.
+        from api.services.serve_stale import serve_with_tier, server_timing
+        stale = _history_stale()
+        _caller = threading.current_thread()
+        _t_route = time.perf_counter()
+        slot, _age = stale.peek(bk)
+        if slot is not None and slot.get("gen") != _history_generation(create=False):
+            # A writer wiped the generation since this body was built: it is the
+            # pre-write Monitor and must never be served.
+            stale.forget(bk)
+
+        rec, tier, age = serve_with_tier(
+            stale, bk, fresh=lambda: _fresh_body(bk),
+            build=lambda: _build_history_body(days, end, anchor,
+                                              timed=threading.current_thread() is _caller),
+            good=_history_good)
+        if rec.get("hit"):
+            breadth_timing.note(cache="hit", cache_tier="body", rows=rec["nrows"],
+                                body_cache="hit")
+        elif tier == "stale-swr":
+            # Served from a cache, so `cache=hit` (that field stays hit/miss); the
+            # tier names WHICH one: the bounded last-good slot.
+            breadth_timing.note(cache="hit", cache_tier="stale", rows=rec["nrows"],
+                                body_cache="stale")
         breadth_timing.mark("route_return")
-        return Response(content=body, media_type="application/json")
+        return Response(content=rec["body"], media_type="application/json",
+                        headers={"Server-Timing": server_timing(
+                            "breadth_monitor", tier,
+                            (time.perf_counter() - _t_route) * 1000.0, age)})
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

@@ -67,6 +67,23 @@ samples are in `docs/notebook/evidence/wave11-11b/scale/`.
 box lock during run 1's 50k batch and all of run 2 (`box_before`/`box_after` in
 each batch). Re-read on a quiet machine before citing these as the product's numbers.
 
+**Run 3 is the quiet reading (2026-10-02/03).** Every batch reads `load: QUIET` in its
+`box_before` and `box_after`: the 1k and 10k tiers in `run-3-tiers-1k-10k.json`, and the 50k
+tier in `run-3b-tier-50k.json` (run 3's own 50k batch was not quiet and is kept as
+`run-3-tier-50k-NOT-QUIET.json`). Combined in `run-3b-combined.json`. p50 / p95 ms:
+
+| op | 1k | 10k | 50k | log-log slope (p50) |
+|---|---|---|---|---|
+| GET /notes, no computed sort or filter (baseline) | 8.4 / 9.4 | 14.8 / 22.8 | 20.8 / 21.7 | 0.23 |
+| GET /notes sorted by a rollup | 10.2 / 10.7 | 22.6 / 30.9 | 37.4 / 38.4 | 0.33 |
+| GET /notes filtered by a formula | 8.7 / 17.2 | 14.4 / 22.6 | 33.1 / 34.4 | 0.34 |
+| GET one note's properties (500-child parent) | 5.8 / 6.2 | 11.3 / 18.5 | 12.2 / 13.0 | 0.19 |
+| property write, then the sorted read | 15.8 / 22.9 | 32.6 / 45.1 | 42.2 / 46.2 | 0.25 |
+
+Every op is under the 100 ms p95 list/search budget at every tier; the slowest at 50k is the
+write-then-sorted-read at 46.2 ms p95. These are the numbers to cite; runs 1 and 2 below are
+kept for the history of the formula-value memo.
+
 Run 2 (`run-2-combined.json`, at `21d4b4782b`, with the formula-value memo), p50 / p95 ms:
 
 | op | 1k | 10k | 50k | log-log slope (p50) |

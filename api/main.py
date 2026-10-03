@@ -4700,6 +4700,9 @@ async def lifespan(app: FastAPI):
                 _rss = _process_rss_mb()
                 if _rss is not None:
                     print(f"[mem] rss_mb={_rss} threads={threading.active_count()}")
+                    # TERM-014: retain the sample (dark: RSS_SERIES_ENABLED unset => no I/O).
+                    from api.services import rss_series as _rss_series
+                    _rss_series.record(_rss, threading.active_count())
             except Exception:
                 pass
             _mw_time.sleep(60)
@@ -9272,6 +9275,8 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
+app.include_router(terminal_grammar_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
 from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)
@@ -9282,6 +9287,14 @@ from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-
 app.include_router(research_cov_router.router)
 from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
 app.include_router(research_depth_router.router)
+from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
+app.include_router(news_depth_router.router)
+from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)
+app.include_router(research_notices_router.router)
+from api.routers import research_calls_depth as research_calls_depth_router  # noqa: E402  (Lane R D-5, dark per surface)
+app.include_router(research_calls_depth_router.router)
+from api.routers import calendar_depth as calendar_depth_router  # noqa: E402  (Lane R D-1/D-2/D-3, dark per surface)
+app.include_router(calendar_depth_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)

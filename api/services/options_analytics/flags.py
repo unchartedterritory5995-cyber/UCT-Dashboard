@@ -28,6 +28,21 @@ OPTIONS_ANALYTICS_FLAGS = {
     "OPTIONS_MULTI_LEG_ENABLED": "",
     "OPTIONS_STANCE_ENABLED": "",
     "OPTIONS_STRATEGY_SCREENS_ENABLED": "",
+    # lane/o-options-remainders (Lane O of the TERMINAL-NEXT scope audit): one per surface.
+    "OPTIONS_PAYOFF_TODAY_ENABLED": "",            # FT-001 today-at-IV curve + PoP
+    "OPTIONS_BACKTEST_MORE_ENABLED": "",           # FT-011 earnings-anchored entries + strategies
+    "OPTIONS_EDGE_RANKING_ENABLED": "",            # FT-012 theoretical-value edge
+    "OPTIONS_STRATEGY_FINDER_ENABLED": "",         # FT-014 per-underlying strategy finder
+    "OPTIONS_CHAIN_FULL_GREEKS_ENABLED": "",       # FT-015 rho / lambda / epsilon + calls/puts mode
+    "OPTIONS_VOL_RR_BF_ENABLED": "",               # FT-018 25/10 delta RR/BF tenor table
+    "OPTIONS_VOL_SURFACE_3D_ENABLED": "",          # FT-018 3D surface view
+    "OPTIONS_DELTA_PRESSURE_ENABLED": "",          # FT-049 delta-pressure heatmap
+    "OPTIONS_CHARM_HEATMAP_ENABLED": "",           # FT-049 charm heatmap
+    "OPTIONS_SECTOR_TIDE_ENABLED": "",             # FT-056 per-sector tide
+    "OPTIONS_TIDE_CLICKTHROUGH_ENABLED": "",       # FT-057 tide minute -> that minute's tape
+    "OPTIONS_SPREAD_BOOK_ENABLED": "",             # FT-072 saved Spread Book
+    "OPTIONS_MORE_STRATEGY_SCREENS_ENABLED": "",   # FT-073 butterflies / by-expiration / blocks
+    "OPTIONS_SIZZLE_ENABLED": "",                  # FT-075 Sizzle, 5-day window
 }
 
 _TRUE = ("1", "true", "yes", "on")

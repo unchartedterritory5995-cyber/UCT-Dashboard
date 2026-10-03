@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from api.services import artifact_versions
+from api.services import watchlist_entity_keys
 from api.services.auth_db import get_connection
 
 
@@ -168,6 +169,9 @@ def get_watchlist(wl_id: str, user_id: str = None) -> dict | None:
         if user_id and wl["user_id"] != user_id and not wl["is_public"]:
             return None
         wl["items"] = _get_items(conn, wl_id)
+        if not wl.get("is_prebuilt"):
+            # Entity Master UC-2 (dark): display alias + renamed/delisted marker.
+            watchlist_entity_keys.annotate(wl["items"])
         wl["owner_name"] = _get_display_name(conn, wl["user_id"])
         return wl
     finally:
@@ -223,6 +227,9 @@ def list_user_watchlists(
             for wl in results:
                 wl["items"] = items_by_list.get(wl["id"], [])
                 wl["item_count"] = len(wl["items"])
+                if not wl.get("is_prebuilt"):
+                    # Entity Master UC-2 (dark): never the prebuilt INDEX lists.
+                    watchlist_entity_keys.annotate(wl["items"])
         else:
             counts = _get_item_counts_bulk(conn, ids)
             for wl in results:
@@ -367,6 +374,8 @@ def _add_item_unversioned(user_id: str, wl_id: str, sym: str, notes: str = "") -
             (datetime.now(timezone.utc).isoformat(), wl_id),
         )
         conn.commit()
+        # Entity Master UC-2 (dark): key the new row to its entity, once, today.
+        watchlist_entity_keys.key_items([(item_id, sym_u)])
         return {"id": item_id, "watchlist_id": wl_id, "sym": sym_u, "notes": notes, "duplicate": False}
     finally:
         conn.close()
@@ -384,6 +393,7 @@ def _bulk_add_items_unversioned(user_id: str, wl_id: str, symbols: list[str]) ->
             "SELECT COALESCE(MAX(sort_order), 0) FROM watchlist_items WHERE watchlist_id = ?", (wl_id,)
         ).fetchone()[0]
         added = 0
+        new_rows = []
         for sym in symbols:
             s = sym.strip().upper()
             if not s or s in existing:
@@ -395,6 +405,7 @@ def _bulk_add_items_unversioned(user_id: str, wl_id: str, symbols: list[str]) ->
                 (item_id, wl_id, s, "", max_order),
             )
             existing.add(s)
+            new_rows.append((item_id, s))
             added += 1
         if added:
             conn.execute(
@@ -402,6 +413,8 @@ def _bulk_add_items_unversioned(user_id: str, wl_id: str, symbols: list[str]) ->
                 (datetime.now(timezone.utc).isoformat(), wl_id),
             )
             conn.commit()
+            # Entity Master UC-2 (dark): key each new row, once, today.
+            watchlist_entity_keys.key_items(new_rows)
         return {"added": added, "watchlist": get_watchlist(wl_id, user_id)}
     finally:
         conn.close()

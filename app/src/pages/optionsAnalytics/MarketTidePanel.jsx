@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
+import useDarkSection from './useDarkSection'
 import { sectionFetcher } from '../../components/research/sections/sectionFetch'
 import styles from './optionsAnalytics.module.css'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
+// The tide's own ladder: B at two decimals, M at one, K whole.
+const TIDE_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
 
 // FT-056 Market Tide: market-wide net call / net put premium by minute, COMPUTED from our flow
 // tape (api/services/options_analytics/market_tide.py).
@@ -11,6 +16,11 @@ import styles from './optionsAnalytics.module.css'
 // ⛔ The tape's own filters are printed on the panel, every time: this is the tide of 50+ contract,
 //    $10K+ prints, not of all option volume.
 // ⛔ A failed read is said in words; a source the server could not read is named.
+//
+// lane/o-options-remainders adds two siblings over the SAME cached tape read (tide_extras.py), each
+// its OWN dark surface: FT-056 SectorTide (OPTIONS_SECTOR_TIDE_ENABLED) and FT-057 TideMinute
+// (OPTIONS_TIDE_CLICKTHROUGH_ENABLED) -- a click on the tide, or a picked minute, opens that minute's
+// prints. While both are off the default export renders exactly the tide it always did.
 
 const SCOPES = [['all', 'All'], ['stocks', 'Stocks'], ['etfs', 'ETFs']]
 
@@ -18,8 +28,7 @@ export function money(v) {
   if (v == null || Number.isNaN(Number(v))) return '—'
   const n = Number(v)
   const a = Math.abs(n)
-  const s = a >= 1e9 ? `${(a / 1e9).toFixed(2)}B` : a >= 1e6 ? `${(a / 1e6).toFixed(1)}M`
-    : a >= 1e3 ? `${(a / 1e3).toFixed(0)}K` : `${Math.round(a)}`
+  const s = formatCompact(a, { tiers: TIDE_TIERS })
   return `${n < 0 ? '-' : n > 0 ? '+' : ''}$${s}`
 }
 
@@ -40,8 +49,15 @@ export function tidePaths(minutes) {
   return { call: path(calls), put: path(puts), zeroY: y(0) }
 }
 
-export default function MarketTidePanel() {
-  const [scope, setScope] = useState('all')
+/** The minute under a click on the tide chart (the chart's x maps linearly onto `minutes`). */
+export function minuteAt(minutes, fracX) {
+  if (!minutes?.length) return null
+  const x = fracX * W
+  const i = Math.round(((x - PAD) / (W - 2 * PAD)) * (minutes.length - 1))
+  return minutes[Math.max(0, Math.min(minutes.length - 1, i))].t
+}
+
+function TidePanel({ scope, setScope, onPickMinute }) {
   const { data, error } = useMobileSWR(`/api/options/market-tide?scope=${scope}`, sectionFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false })
 
@@ -84,8 +100,13 @@ export default function MarketTidePanel() {
         </p>
       ) : <p className={styles.note}>No prints on the tape for the last session.</p>}
       {p && (
-        <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="market-tide-chart"
-          aria-label="Cumulative net call premium (green) and net put premium (red) by minute">
+        <svg className={`${styles.chart}${onPickMinute ? ` ${styles.clickable}` : ''}`} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="market-tide-chart"
+          aria-label="Cumulative net call premium (green) and net put premium (red) by minute"
+          onClick={onPickMinute ? (e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            const t = minuteAt(data.minutes, r.width ? (e.clientX - r.left) / r.width : 0)
+            if (t) onPickMinute(t)
+          } : undefined}>
           <line className={styles.axis} x1={PAD} x2={W - PAD} y1={p.zeroY} y2={p.zeroY} />
           <path className={styles.lineCall} d={p.call} />
           <path className={styles.linePut} d={p.put} />
@@ -100,5 +121,107 @@ export default function MarketTidePanel() {
       </p>
       <p className={styles.muted}>{data.method}</p>
     </section>
+  )
+}
+
+// ── FT-056 per-sector tide ────────────────────────────────────────────────────
+
+export function SectorTide({ scope }) {
+  const { data, hidden, failed } = useDarkSection(`/api/options/market-tide/sectors?scope=${scope}`)
+  if (hidden || (!data && !failed) || (data && !Array.isArray(data.sectors))) return null
+  return (
+    <section className={styles.panel} data-testid="sector-tide">
+      <div className={styles.head}>
+        <span className={styles.title}>Market Tide by sector</span>
+        <span className={styles.badge}>computed</span>
+      </div>
+      {failed ? <p className={styles.note}>The sector tide is unavailable right now. That does not mean the tape is quiet.</p> : (
+        <>
+          {data.sectors.length ? (
+            <div className={styles.scroll}>
+              <table className={styles.table} data-testid="sector-tide-table">
+                <thead><tr><th>Sector</th><th>Net call premium</th><th>Net put premium</th><th>Net</th><th>Prints</th></tr></thead>
+                <tbody>
+                  {data.sectors.map((x) => (
+                    <tr key={x.sector}>
+                      <th>{x.sector}</th>
+                      <td>{money(x.totals.net_call_premium)}</td><td>{money(x.totals.net_put_premium)}</td>
+                      <td className={x.totals.net_premium >= 0 ? styles.gain : styles.loss}>{money(x.totals.net_premium)}</td>
+                      <td>{x.prints}{x.prints_unsigned ? <span className={styles.muted}> ({x.prints_unsigned} unsigned)</span> : null}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className={styles.note}>No prints on the tape for {data.session || 'the last session'}.</p>}
+          {data.partial && (data.partial_reasons || []).length > 0 && <p className={styles.muted}>Partial: {data.partial_reasons.join(' ')}</p>}
+          <p className={styles.muted}>{data.session} · {data.note} {data.filters}</p>
+        </>
+      )}
+    </section>
+  )
+}
+
+// ── FT-057 tide click-through ─────────────────────────────────────────────────
+
+// The probe's answer is a list of 'HH:MM' strings; anything else (another route's body) is not armed.
+const isMinuteList = (m) => Array.isArray(m) && m.every((t) => typeof t === 'string')
+
+export function TideMinute({ scope, minute, setMinute }) {
+  const probe = useDarkSection(`/api/options/market-tide/minute?scope=${scope}`)
+  const armed = isMinuteList(probe.data?.minutes)
+  const one = useDarkSection(armed && minute ? `/api/options/market-tide/minute?scope=${scope}&t=${encodeURIComponent(minute)}` : null)
+  if (probe.hidden || !armed) return null
+  const d = one.data
+  return (
+    <section className={styles.panel} data-testid="tide-minute">
+      <div className={styles.head}>
+        <span className={styles.title}>Tape at a minute</span>
+        <select className={styles.select} aria-label="Tide minute" value={minute} onChange={(e) => setMinute(e.target.value)}>
+          <option value="">pick a minute, or click the tide…</option>
+          {probe.data.minutes.map((t) => <option key={t} value={t}>{t} ET</option>)}
+        </select>
+      </div>
+      {one.failed && <p className={styles.note}>That minute&apos;s prints are unavailable right now.</p>}
+      {d && Array.isArray(d.prints) && (
+        <>
+          <p className={styles.facts} data-testid="tide-minute-count">
+            {d.session} {d.t} ET: {d.count} print{d.count === 1 ? '' : 's'} counted in the tide{d.note ? `. ${d.note}` : ''}
+          </p>
+          {d.prints.length > 0 && (
+            <div className={styles.scroll}>
+              <table className={styles.table} data-testid="tide-minute-prints">
+                <thead><tr><th>Ticker</th><th>Contract</th><th>Side</th><th>Premium</th><th>Contracts</th><th>Type</th></tr></thead>
+                <tbody>
+                  {d.prints.map((p, i) => (
+                    <tr key={`${p.symbol}-${p.time}-${i}`}>
+                      <th>{p.symbol}</th><td>{p.type} {p.strike} {p.expiration}</td><td>{p.side}</td>
+                      <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{p.trade_type}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+      <p className={styles.muted}>{probe.data.filters}</p>
+    </section>
+  )
+}
+
+export default function MarketTidePanel() {
+  const [scope, setScope] = useState('all')
+  const [minute, setMinute] = useState('')
+  // the same key TideMinute probes (SWR shares the one request): the chart is clickable exactly
+  // while the click-through's switch is on
+  const probe = useDarkSection(`/api/options/market-tide/minute?scope=${scope}`)
+  const clickable = isMinuteList(probe.data?.minutes)
+  return (
+    <>
+      <TidePanel scope={scope} setScope={setScope} onPickMinute={clickable ? setMinute : undefined} />
+      <SectorTide scope={scope} />
+      <TideMinute scope={scope} minute={minute} setMinute={setMinute} />
+    </>
   )
 }

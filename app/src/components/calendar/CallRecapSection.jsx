@@ -245,6 +245,16 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
             {recap.generated_at ? `synthesized ${new Date(recap.generated_at * 1000).toLocaleDateString()}` : ''}
           </span>
         )}
+        {/* D-4 (dark behind TRANSCRIPT_CHAPTERS_ENABLED): the server stamps
+            `review_status` only when on. A fact about the pipeline, said in
+            words: a model wrote this and no person reviewed it. */}
+        {recap.review_status === 'ai_unreviewed' && (
+          <span className={styles.sectionLabel} data-testid="recap-review-status"
+                style={{ fontWeight: 400, opacity: 0.85 }}
+                title="Written by a language model from the call transcript. No person reviews it before it is shown.">
+            AI-generated · not reviewed
+          </span>
+        )}
         {hasSpeechSynthesis() && (
           <button
             type="button"

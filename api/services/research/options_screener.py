@@ -875,7 +875,9 @@ def _log_has_volume(store: LocalStore, session: str) -> bool:
     return any((r.get("volume") or "") != "" for r in _read_csv(store.volume_path(session)))
 
 
-def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int = MAX_ROWS) -> dict:
+def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int = MAX_ROWS,
+                   window: int = VOLUME_WINDOW, min_sessions: int = VOLUME_MIN_SESSIONS,
+                   method: str = VOLUME_METHOD) -> dict:
     """Today's option volume / the underlying's own trailing average. The volume comes
     from the options log when the log carries it, otherwise from the flow tape -- and
     the answer names which (`volume_source`, `volume_rule`)."""
@@ -890,16 +892,16 @@ def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int =
                     + (f" (its {log_sessions[-1]} volume column is empty)" if log_sessions else "")
                     + ", so this ranks the flow tape.")
     base = {"source": SOURCE if kind == "options_log" else "UCT options-flow tape (flow.db)",
-            "data_basis": DATA_BASIS, "method": VOLUME_METHOD, "volume_source": kind,
+            "data_basis": DATA_BASIS, "method": method, "volume_source": kind,
             "volume_rule": rule, "fallback_note": fallback,
-            "min_sessions": VOLUME_MIN_SESSIONS, "window": VOLUME_WINDOW}
+            "min_sessions": min_sessions, "window": window}
     if not sessions:
         return {**base, "status": "no_log", "session": None, "sessions_logged": 0,
                 "ranked": [], "not_ranked": [], "coverage": None, "missing_sessions": [],
                 "available_on": None,
                 "note": "No session's option volume has been derived yet."}
     latest = sessions[-1]
-    prior = sessions[:-1][-VOLUME_WINDOW:]
+    prior = sessions[:-1][-window:]
     today = {r["underlying"]: r for r in _read_csv(path_of(latest))}
     hist: dict = {}
     for i, d in enumerate(prior):
@@ -917,8 +919,8 @@ def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int =
         row = {"underlying": und, "session": latest, "data_basis": DATA_BASIS,
                "volume": int(v), "call_volume": int(float(r["call_volume"] or 0)),
                "put_volume": int(float(r["put_volume"] or 0)), "n_sessions": n}
-        if n < VOLUME_MIN_SESSIONS:
-            row["note"] = f"{n} session{'s' if n != 1 else ''}, needs {VOLUME_MIN_SESSIONS}"
+        if n < min_sessions:
+            row["note"] = f"{n} session{'s' if n != 1 else ''}, needs {min_sessions}"
             not_ranked.append(row)
             listed.append({"ticker": und, "reason": "not-computable", "detail": row["note"]})
             continue
@@ -938,13 +940,13 @@ def unusual_volume(*, store: Optional[LocalStore] = None, now=None, limit: int =
             "prior_sessions": len(prior), "ranked": ranked[:limit], "ranked_total": len(ranked),
             "not_ranked": not_ranked[:limit], "not_ranked_total": len(not_ranked),
             "missing_sessions": _missing(sessions[0], sessions, now),
-            "available_on": (ranking_available_on(latest, VOLUME_MIN_SESSIONS - most)
+            "available_on": (ranking_available_on(latest, min_sessions - most)
                              if not ranked else None),
             "coverage": {"evaluated": len(today), "answered": len(ranked), "dropped": 0,
                          "not_computable": len(not_ranked), "dropped_symbols": listed[:NOT_COMPUTABLE_LISTED]},
             "note": None if ranked else (
                 f"{len(prior)} prior session{'s' if len(prior) != 1 else ''} held; the ratio needs "
-                f"{VOLUME_MIN_SESSIONS}.")}
+                f"{min_sessions}.")}
 
 
 def bucket(pct: float) -> str:

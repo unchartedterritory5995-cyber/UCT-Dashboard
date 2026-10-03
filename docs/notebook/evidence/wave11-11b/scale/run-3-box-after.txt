@@ -1,0 +1,6 @@
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment
+    - vitest  pid 35752   "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/co
+    - vitest  pid 22464   "node"   "C:\Users\Patrick\uct-dashboard\.claude\worktrees\pine-l1\app\node_modules\.bin\\..\vitest\vitest.mjs
+    - vitest  pid 20144   "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resol
+  ⛔ FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.

@@ -1,0 +1,2 @@
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: QUIET — 0 marked processes outside our own tree at 2026-10-02T11:01:46

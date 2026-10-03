@@ -143,7 +143,8 @@ def test_the_report_surface_runs_only_DECLARED_commands():
     r = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(r)
     # TERM-015 adds "cadence" — the dead-man roll-up, one more DECLARED tool.
-    assert set(r._REPORTS) == {"ticking", "report", "gate-check", "cadence"}
+    # TERM-014 adds "memory-slope" — the RSS slope reader, one more DECLARED tool.
+    assert set(r._REPORTS) == {"ticking", "report", "gate-check", "cadence", "memory-slope"}
     for argv in r._REPORTS.values():
         assert argv[0].startswith("tools/"), argv
 
@@ -189,7 +190,7 @@ def test_every_post_carries_the_commit_and_a_timestamp(monkeypatch):
 
 def test_the_job_registry_matches_the_four_schedules():
     assert set(_load().JOBS) == {"ticking", "catalyst", "gate-check", "weekly", "cadence",
-                                 "options-log", "options-screen"}
+                                 "options-log", "options-screen", "memory"}
 
 
 # ───────────────────────── the ET schedule, and the DST hazard it exists for

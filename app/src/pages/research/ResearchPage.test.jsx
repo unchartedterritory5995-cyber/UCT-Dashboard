@@ -121,9 +121,11 @@ vi.mock('./hooks/useDecisionRecord', () => ({
 // (falsy) -- A13 Wave B's Flow tab ships DARK, so the baseline shape here
 // must be "not released" unless a test explicitly opts in.
 const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
-vi.mock('../../context/AuthContext', () => ({
+vi.mock('../../context/AuthContext', async () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
+  // FT-046 HowToChecklist reads useContext(AuthContext) (it tolerates no provider).
+  AuthContext: (await import('react')).createContext(null),
 }))
 
 // S7 filing-watch — controlled mock so the header action's tests are
@@ -517,6 +519,9 @@ describe.each([
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByText(loading)).toBeInTheDocument()
+  })
+})
+
 // lane gaps-research -- the Depth tab exists only while one of its panels' flags is on
 // (each key rides the auth payload only when on; researchDepthFlags.js).
 describe('Depth tab (lane gaps-research, dark per panel)', () => {
