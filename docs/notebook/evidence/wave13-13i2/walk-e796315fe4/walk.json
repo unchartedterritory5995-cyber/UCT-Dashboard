@@ -1,0 +1,273 @@
+{
+ "wave": 13,
+ "lane": "13I-2",
+ "checks": {
+  "W0_gates_and_identity": {
+   "verdict": "PASS",
+   "payload_flags": {
+    "notebook_ta_fingerprint_enabled": true,
+    "notebook_visual_playbook_enabled": true,
+    "notebook_plan_grading_enabled": true
+   },
+   "seeded_trades_graded_by_13a": true,
+   "trades": {
+    "AMD": {
+     "id": "278480e9-abbe-4afc-83ed-a25f1a9144ef",
+     "status": "planned",
+     "noteId": "b3e2830c31284d8e9b702906ae28910e"
+    },
+    "TSLA": {
+     "id": "5d8e7a60-7d43-4725-ac83-5505316b62dd",
+     "status": "planned",
+     "noteId": "6a0f62ceb84746b58057c9722d645d89"
+    },
+    "MSFT": {
+     "id": "4f8d503b-03c4-4d48-87c2-3b5327ba1ed8",
+     "status": "planned",
+     "noteId": "1a939623162144d48b0b474356c3d7f0"
+    }
+   }
+  },
+  "W1_insert_chart_fingerprint_panel_1200": {
+   "verdict": "PASS",
+   "note": "becaa0878bbd4ce8980eac067578901b",
+   "panel_text_at_mount": "TECHNICAL FINGERPRINT Freezing the fingerprint for this chart… Setup No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad Cup & Handle High Tight Flag (Powerplay) VCP 4B Setup (Stan Weinstein)",
+   "saved_fingerprint_as_of": "2026-10-02",
+   "saved_fingerprint_mode": "bars",
+   "block_source": "note",
+   "field_rows": [
+    "ADR %\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "vs 10-day\t+2.6%\tcomputed on stored daily bars",
+    "vs 20-day\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "vs 50-day\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "vs 200-day\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "MA stack\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "EMA stack\tintact (close > 10 > 20, rising)\tcomputed on stored daily bars",
+    "RS rank\tNot available: RS rank is a nightly universe rank and only the latest nightly is kept; a past day has none\tnightly screener row",
+    "RS line\tup\tcomputed on stored daily bars",
+    "Base length\tNot available: no flat base ends at this day (base_catalog.flat_base_state found none)\tcomputed on stored daily bars",
+    "Base depth\tNot available: no flat base ends at this day (base_catalog.flat_base_state found none)\tcomputed on stored daily bars",
+    "Pullback depth\t1.6%\tcomputed on stored daily bars",
+    "Volume dry-up\tnot at a 2-4 week low\tcomputed on stored daily bars",
+    "Tightness (close CV)\t1.2%\tcomputed on stored daily bars",
+    "Prior run (pole)\tNot available: withheld by the screener: the bar series reverses itself inside this window\tcomputed on stored daily bars",
+    "Confirmed patterns\tvcp (82%)\tpattern engine, confirmed only"
+   ],
+   "note_writes_seen": [
+    "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b",
+    "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b"
+   ],
+   "screenshot": "w1-panel-1200.jpg",
+   "how": "note created empty over the API; the chart typed as /chart NVDA D in the real editor"
+  },
+  "W2_suggested_tag_shown_not_applied_then_accepted": {
+   "verdict": "PASS",
+   "suggestion": "The pattern engine confirmed VCP (82% confidence, 2026-10-02). Suggested tag — not applied. Use “VCP” Dismiss",
+   "saved_tag_before_click": null,
+   "saved_tag_after_click": "VCP",
+   "screenshots": [
+    "w2-suggestion-1200.jpg",
+    "w2-tag-accepted-1200.jpg"
+   ]
+  },
+  "W3_visual_playbook_filter_setup_and_rs_1200": {
+   "verdict": "PASS",
+   "cards_unfiltered": 3,
+   "cards_shown": [
+    "AMD"
+   ],
+   "cards_api": [
+    "AMD"
+   ],
+   "stats": "1 trade from 1 chart · too few to judge Show the numbers anyway",
+   "revealed": "1 trade from 1 chart · too few to judge Hide the numbers Win rate 100% Average R +2.50R Wins / losses / even 1 / 0 / 0",
+   "left_out": [
+    "1 chart was left out: no RS rank in the fingerprint."
+   ],
+   "api_stats": {
+    "trades": 1,
+    "band": "too_few",
+    "wording": "too few to judge",
+    "winRate": 1.0,
+    "avgR": 2.5
+   },
+   "regime": {
+    "available": false,
+    "reason": "Filtering by market regime needs the entry context lane (13E), which is not built yet."
+   },
+   "screenshots": [
+    "w3-playbook-all-1200.jpg",
+    "w3-playbook-vcp-rs90-1200.jpg"
+   ]
+  },
+  "W4_before_after_1200": {
+   "verdict": "PASS",
+   "text": "Before and after Plan levels from “AMD plan r225925”: entry 100, stop 96, target 112 (frozen when the plan was matched). Before: AMD as of the entry day, 2026-10-03 Volume 19.9M After: AMD as of the exit day, 2026-10-03 Volume 19.9M",
+   "figures": 2,
+   "canvases": 26,
+   "api_plan": {
+    "entry": 100.0,
+    "stop": 96.0,
+    "target": 112.0,
+    "shares": 100.0,
+    "sourceKind": "note",
+    "noteId": "b3e2830c31284d8e9b702906ae28910e",
+    "planAsOf": "2026-10-03T03:59:53.240100+00:00",
+    "flags": [],
+    "noteTitle": "AMD plan r225925"
+   },
+   "entry_day": "2026-10-03",
+   "screenshot": "w4-before-after-1200.jpg"
+  },
+  "W5_phone_390": {
+   "verdict": "PASS",
+   "probes": {
+    "panel": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "playbook": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "before_after": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    }
+   },
+   "screenshots": [
+    "w5-panel-390.jpg",
+    "w5-playbook-390.jpg",
+    "w5-before-after-390.jpg"
+   ]
+  },
+  "W6_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "POST /api/j2/notes/becaa0878bbd4ce8980eac067578901b/opened",
+  "GET /api/j2/notebook-fingerprint/meta",
+  "POST /api/j2/notebook-fingerprint/blocks/becaa0878bbd4ce8980eac067578901b/a5978e3c-bd7c-4d57-9557-f8a78658f9c5/freeze",
+  "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b",
+  "POST /api/j2/notebook-fingerprint/blocks/becaa0878bbd4ce8980eac067578901b/a5978e3c-bd7c-4d57-9557-f8a78658f9c5/freeze",
+  "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b",
+  "POST /api/j2/notes/becaa0878bbd4ce8980eac067578901b/images",
+  "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b",
+  "PUT /api/j2/notes/becaa0878bbd4ce8980eac067578901b",
+  "GET /api/j2/notebook-visual-playbook/cards?setup=VCP",
+  "GET /api/j2/notebook-visual-playbook/cards?setup=VCP&range=rs_rank%3A90%3A",
+  "GET /api/j2/notebook-visual-playbook/trades/278480e9-abbe-4afc-83ed-a25f1a9144ef/before-after"
+ ],
+ "seeded": {
+  "market_stores": {
+   "rc": 0,
+   "line": "SEED {\"bars_written\": {\"NVDA\": 320, \"SPY\": 320}, \"first_day\": \"2025-07-14\", \"last_day\": \"2026-10-02\", \"confirmed_verdicts\": [{\"setup\": \"vcp\", \"asof_date\": \"2026-10-02\", \"vision_confidence\": 82.0}], \"bars_db\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\\\scratchpad\\\\w13i2-data-4\\\\bars.db\", \"pattern_db\": \"C:\\\\Users\\\\Patrick\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Patrick\\\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\\\scratchpad\\\\w13i2-data-4\\\\pattern_vision.db\"}",
+   "stderr_tail": ""
+  },
+  "notes": {
+   "AMD": {
+    "id": "b3e2830c31284d8e9b702906ae28910e",
+    "tag": "VCP",
+    "rs_rank": 96
+   },
+   "TSLA": {
+    "id": "6a0f62ceb84746b58057c9722d645d89",
+    "tag": "VCP",
+    "rs_rank": 82
+   },
+   "MSFT": {
+    "id": "1a939623162144d48b0b474356c3d7f0",
+    "tag": "Flat Base Breakout",
+    "rs_rank": 91
+   },
+   "META": {
+    "id": "1f6cb21ee8e947b1a0b8ff1fa0a3ab6c",
+    "tag": "Bull Flag",
+    "rs_rank": 88
+   }
+  },
+  "trades": {
+   "AMD": {
+    "id": "278480e9-abbe-4afc-83ed-a25f1a9144ef",
+    "status": "planned",
+    "noteId": "b3e2830c31284d8e9b702906ae28910e"
+   },
+   "TSLA": {
+    "id": "5d8e7a60-7d43-4725-ac83-5505316b62dd",
+    "status": "planned",
+    "noteId": "6a0f62ceb84746b58057c9722d645d89"
+   },
+   "MSFT": {
+    "id": "4f8d503b-03c4-4d48-87c2-3b5327ba1ed8",
+    "status": "planned",
+    "noteId": "1a939623162144d48b0b474356c3d7f0"
+   }
+  }
+ },
+ "tip": "e796315fe4221014ea8c3b34edaf7c5732aae183",
+ "base": "http://127.0.0.1:8640",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13i2-data-4",
+ "instrument": "tools\\notebook_w13i2_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0 payload_flags)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8640 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13i2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T22-57-38.md (identity b38338999f30..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13i2-data-4)"
+ },
+ "run": "r225925",
+ "accounts": {
+  "member": "w13i2-member-r225925@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13i2\\walk-e796315fe4\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13i2\\walk-e796315fe4\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 22:57:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 22:59:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 23:01:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 23:01:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

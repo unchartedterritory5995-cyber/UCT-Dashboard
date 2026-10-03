@@ -77,6 +77,11 @@ export const SURFACES = Object.freeze({
   'components/notebook/TradeCanvasBoard.jsx': { recipe: 'trade-canvas' },
   'components/notebook/TradeCanvasItem.jsx': { coveredBy: 'trade-canvas' },
   'components/notebook/TradeCanvasDialogs.jsx': { recipe: 'trade-canvas-dialogs' },
+  // Wave 13 lane 13I-2: the fingerprint panel under a chart block and the visual playbook sheet
+  // (dark behind notebook_ta_fingerprint_enabled / notebook_visual_playbook_enabled, so the
+  // editor recipes never render them); rail a11y/visualPlaybook.a11y.test.jsx.
+  'components/notebook/FingerprintPanel.jsx': { recipe: 'fingerprint-panel' },
+  'components/notebook/VisualPlaybook.jsx': { recipe: 'visual-playbook' },
   'components/notebook/NoteHistoryPanel.jsx': { coveredBy: 'editor-history' },
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },
@@ -209,4 +214,7 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/insights/DisciplineRecord.jsx': { recipe: 'discipline-record', railFile: 'a11y/planGrading.a11y.test.jsx' },
   // The Unplanned chip lives in the Trade Journal table; the recipe renders the table with it.
   'components/TradesTable.jsx': { recipe: 'trades-table-unplanned', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  // Wave 13 lane 13I-2: before and after on the trade page (dark behind
+  // notebook_visual_playbook_enabled); rail a11y/visualPlaybook.a11y.test.jsx.
+  'components/trade/TradeBeforeAfter.jsx': { recipe: 'trade-before-after', railFile: 'a11y/visualPlaybook.a11y.test.jsx' },
 })

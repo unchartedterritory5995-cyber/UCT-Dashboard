@@ -1,0 +1,40 @@
+/* Wave 13 lane 13I-2 — before and after on the closed-trade page. */
+.card {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #101013);
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+.title { margin: 0 0 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.02em; color: var(--text, #e8e6e1); }
+.planLine { margin: 0 0 10px; font-size: 13px; color: var(--text, #e8e6e1); font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-muted, #8a8a8a); font-size: 12px; margin: 0; }
+.error { color: var(--loss, #ef4444); font-size: 13px; margin: 0 0 8px; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart { margin: 0; min-width: 0; }
+.caption { font-size: 12px; color: var(--text-muted, #8a8a8a); margin: 0 0 4px; }
+.chartBox { height: 280px; border: 1px solid var(--border, #2a2a2e); border-radius: var(--radius-sm, 4px); overflow: hidden; }
+.loading { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted, #8a8a8a); font-size: 12px; }
+
+.planChart { margin: 12px 0 0; }
+.planImg { display: block; max-width: 100%; height: auto; border: 1px solid var(--border, #2a2a2e); border-radius: var(--radius-sm, 4px); }
+
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent, #dcbb5e);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .linkBtn { min-height: var(--tap-min, 44px); display: inline-flex; align-items: center; }
+}
+@media (max-width: 640px) {
+  .pair { grid-template-columns: 1fr; }
+  .chartBox { height: 240px; }
+}

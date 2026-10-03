@@ -54,6 +54,8 @@ NOTEBOOK_KEYS = [
     # Wave 13 lane 13G-1: research capture -- two enablement gates.
     "notebook_transcript_capture_enabled",
     "notebook_passed_setups_enabled",
+    # Wave 13 lane 13I-2: the visual playbook, tag suggestion and before/after — an enablement gate.
+    "notebook_visual_playbook_enabled",
 ]
 
 

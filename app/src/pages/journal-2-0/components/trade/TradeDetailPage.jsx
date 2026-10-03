@@ -41,6 +41,7 @@ import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import { planGradingEnabled } from '../../hooks/usePlanGrade'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -65,6 +66,8 @@ const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/Char
 // Wave 13 lane 13A: the plan-grade card is loaded only while its gate is latched on, so the
 // trade page's own graph is unchanged with the feature dark.
 const PlanGradeCard = lazyChunk(() => import('./PlanGradeCard'))
+// Wave 13 lane 13I-2: before and after (dark behind notebook_visual_playbook_enabled).
+const TradeBeforeAfter = lazyChunk(() => import('./TradeBeforeAfter'))
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
 // (kept for the "not yet computed" state + shown in the chart footer then).
@@ -761,6 +764,11 @@ export default function TradeDetailPage() {
             onTagSetup={(setup) => patchTrade({ setup }, { setup })}
             onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
           />
+        </Suspense>
+      )}
+      {notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
+        <Suspense fallback={null}>
+          <TradeBeforeAfter tradeId={trade.id} />
         </Suspense>
       )}
 

@@ -139,6 +139,9 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED and NOTEBOOK_PASSED_SETUPS_ENABLED (one gate per router).
 from api.routers import notebook_research_capture as notebook_research_capture_router
 
+# Wave 13 lane 13I-2: the visual playbook + before/after (/api/j2/notebook-visual-playbook/*),
+# dark behind NOTEBOOK_VISUAL_PLAYBOOK_ENABLED (router-level 404).
+from api.routers import notebook_visual_playbook as notebook_visual_playbook_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8976,6 +8979,9 @@ app.include_router(notebook_entry_context_router.router)
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
 
+# Wave 13 lane 13I-2 (router-level 404 while NOTEBOOK_VISUAL_PLAYBOOK_ENABLED is off). Outside
+# /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_visual_playbook_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

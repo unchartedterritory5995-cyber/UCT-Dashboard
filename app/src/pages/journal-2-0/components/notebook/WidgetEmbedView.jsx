@@ -12,6 +12,7 @@ import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captu
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -58,6 +59,10 @@ const EMBED_COMPONENTS = {
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
+
+// Wave 13 lane 13I-2: the technical fingerprint under a chart block (dark behind
+// notebook_ta_fingerprint_enabled). Lazy, so a note with the gate off loads none of it.
+const FingerprintPanel = lazyLeaf(() => import('./FingerprintPanel'))
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
 // error inside a live embed drops the block to its archived image (or the
@@ -717,6 +722,13 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       </div>
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
+      {attrs.widgetId === 'chart' && !shareView && notebookFlag('notebook_ta_fingerprint_enabled') === true && (
+        <EmbedErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <FingerprintPanel attrs={attrs} updateAttributes={updateAttributes} editor={editor} />
+          </Suspense>
+        </EmbedErrorBoundary>
+      )}
       {/* Bottom-right resize handle (editable + not drawing) — works on live
           charts and frozen images alike. */}
       {editor?.isEditable !== false && !annotate && (
