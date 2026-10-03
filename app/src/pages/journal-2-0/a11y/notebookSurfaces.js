@@ -230,4 +230,10 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // notebook_playbook_enabled); rail a11y/myPlaybook.a11y.test.jsx.
   'components/insights/MyPlaybook.jsx': { recipe: 'my-playbook', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
   'components/insights/PlaybookSection.jsx': { recipe: 'playbook-section-door', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
+  // Wave 13 lane 13E-2: the Entry-context card and its "Why did you take it?" prompt, on the
+  // position and trade detail pages (dark behind notebook_entry_context_enabled; the dictation
+  // button inside WhyPrompt is further gated on notebook_voice_notes_enabled); rail
+  // a11y/entryContext.a11y.test.jsx.
+  'components/EntryContextCard.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
+  'components/WhyPrompt.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
 })

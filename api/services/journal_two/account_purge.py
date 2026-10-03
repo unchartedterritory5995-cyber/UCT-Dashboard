@@ -163,6 +163,9 @@ _DIRECT_USER_TABLES = (
     # symbol, entry day), with the member's "why did you take it" note. Self-ensured by
     # entry_context.py (never db.py), so on a pod where it never ran this is a no-op.
     "j2_entry_context",
+    # Wave 13 (lane 13E-2, the one-a-day new-fill bell) -- the claim log that dedupes it.
+    # Self-ensured by entry_context.py; same no-op-on-a-fresh-pod note as the row above.
+    "j2_entry_context_bell_log",
     # Wave 13 (lane 13G-1, passed setups) -- the names the member saved and did not trade,
     # with their frozen scores. Self-ensured by passed_setups.py (never db.py), so on a pod
     # where the door never ran this is a "no such table" no-op. (13G-1 transcript passages

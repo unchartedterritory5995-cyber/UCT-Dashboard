@@ -70,6 +70,17 @@ WHEN IT FREEZES (and only while `NOTEBOOK_ENTRY_CONTEXT_ENABLED` is on):
 ⛔ NO MODEL CALL. One vendor read is reachable: `_next_report_date` (FMP, then Finnhub), the
 authority the plan names for the report date; it runs in the scheduler thread or after the
 add response, never on a member's request path except the on-demand read.
+
+THE BELL (lane 13E-2): one in-app notification per member per ET day for a NEW fill, through
+the same claim-then-deliver idiom `note_tasks.py` uses for its task reminders (an atomic
+``INSERT OR IGNORE`` on ``(user_id, day)`` is the claim; a delivery that raises releases it so
+a later freeze that day retries; `api.services.alerts.add_alert` at severity ``info`` is the
+one delivery channel, same as `note_tasks._deliver_in_app` -- never email). `notify_new_fill`
+fires from `capture_at_entry` exactly when THAT call freshly froze an entry (never on an
+``already_frozen`` answer, and `backfill_open_positions` never calls `capture_at_entry` at
+all, so a backfill for an older position never rings it): manual add, broker sync, the
+market-hours sweep and an on-demand page open each route through it, and the per-day claim is
+what turns "however many fills today" into exactly one line.
 """
 from __future__ import annotations
 
@@ -165,6 +176,12 @@ SRC_UCT_SCANS = "engine.get_candidates / engine.candidate_tickers"
 SRC_SCREENS = "user_definitions.list_for_user + screener.scan_store.hits"
 SRC_FINGERPRINT = "journal_two.tech_fingerprint.compute"
 
+#: The bell -- one in-app notice per member per ET day for a new fill (lane 13E-2).
+BELL_SOURCE = "notebook_entry_context_new_fill"
+BELL_TITLE = "New fill captured"
+BELL_MESSAGE = "A new fill's market context was captured in your Notebook."
+BELL_VIEW_URL = "/journal?j2tab=positions"
+
 _DDL = (
     """CREATE TABLE IF NOT EXISTS j2_entry_context (
         user_id         TEXT NOT NULL,
@@ -181,6 +198,14 @@ _DDL = (
         PRIMARY KEY (user_id, symbol, entry_day_et)
     )""",
     "CREATE INDEX IF NOT EXISTS idx_j2_entry_context_day ON j2_entry_context(entry_day_et)",
+    # Lane 13E-2's bell dedup -- the claim table for "one new-fill notice a day". No name
+    # column (address_space.saved_object_tables only counts an owned, NAMED table).
+    """CREATE TABLE IF NOT EXISTS j2_entry_context_bell_log (
+        user_id     TEXT NOT NULL,
+        day         TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        PRIMARY KEY (user_id, day)
+    )""",
 )
 
 
@@ -509,14 +534,57 @@ def freeze(user_id: str, symbol: str, entry_day: str, *, capture_kind: str, trig
         return {"frozen": cur.rowcount == 1, "context": _serialize(_row(c, user_id, sym, day))}
 
 
+def _deliver_bell(user_id: str, day: str) -> None:
+    """The in-app bell ONLY -- same channel note_tasks._deliver_in_app uses, `info` severity
+    (below the Discord threshold), never email."""
+    from api.services.alerts import add_alert
+    add_alert(BELL_SOURCE, BELL_TITLE, BELL_MESSAGE, severity="info",
+             data={"source": BELL_SOURCE, "day": day, "research_url": BELL_VIEW_URL}, user_id=user_id)
+
+
+def notify_new_fill(user_id: str, day: str, *, conn: sqlite3.Connection | None = None,
+                    deliver=None) -> bool:
+    """ONE in-app bell per member per ET day for a freshly captured fill.
+
+    Claims atomically -- an ``INSERT OR IGNORE`` on ``(user_id, day)``, the same idiom `freeze`
+    uses for the context row itself -- so of however many entries freeze for one member on one
+    day, only the first one delivers. A delivery that raises releases the claim, so a LATER
+    freeze that same day retries it; this never raises itself, so a bell failure can never fail
+    the capture that triggered it. Returns whether a bell was actually sent (tests only; no
+    caller branches on it)."""
+    deliver = deliver or _deliver_bell
+    try:
+        with _Conn(conn) as c:
+            cur = c.execute(
+                "INSERT OR IGNORE INTO j2_entry_context_bell_log (user_id, day, created_at)"
+                " VALUES (?, ?, ?)", (str(user_id), day, _now_iso()))
+            c.commit()
+            if cur.rowcount == 0:
+                return False
+            try:
+                deliver(str(user_id), day)
+            except Exception:  # noqa: BLE001 -- a bell failure must never surface
+                c.execute("DELETE FROM j2_entry_context_bell_log WHERE user_id = ? AND day = ?",
+                         (str(user_id), day))
+                c.commit()
+                return False
+            return True
+    except Exception:  # noqa: BLE001 -- never fails the capture that asked for it
+        log.warning("[entry_context] bell notify failed for %s", user_id, exc_info=True)
+        return False
+
+
 def capture_at_entry(user_id: str, symbol: str, entry_date: Any, *, trigger: str,
                      entry_estimated: bool = False, conn: sqlite3.Connection | None = None,
-                     memo: dict | None = None, today: str | None = None) -> dict:
+                     memo: dict | None = None, today: str | None = None, notify: bool = True,
+                     notify_deliver=None) -> dict:
     """Freeze the context if, and only if, this entry's day is TODAY (ET).
 
     ``{"status": "frozen" | "already_frozen" | "not_entry_day" | "entry_day_unknown", ...}``.
     A past day is never captured here (it reads "not captured"); a carried-in broker holding
-    (`entry_estimated`) has no entry day to key."""
+    (`entry_estimated`) has no entry day to key. A FRESH freeze (status "frozen", never
+    "already_frozen") also rings the one-a-day bell (`notify_new_fill`) -- `notify=False` is
+    for a caller that never wants one (none exists today; the seam is here for 13F/future)."""
     if entry_estimated:
         return {"status": "entry_day_unknown"}
     day = entry_day_for(entry_date)
@@ -527,6 +595,8 @@ def capture_at_entry(user_id: str, symbol: str, entry_date: Any, *, trigger: str
         return {"status": "not_entry_day", "entryDay": day}
     out = freeze(user_id, symbol, day, capture_kind="at_entry", trigger=trigger, conn=conn,
                  memo=memo, capture_day=today)
+    if out["frozen"] and notify:
+        notify_new_fill(user_id, today, conn=conn, deliver=notify_deliver)
     return {"status": "frozen" if out["frozen"] else "already_frozen", "entryDay": day,
             "context": out["context"]}
 
