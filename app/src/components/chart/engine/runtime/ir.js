@@ -80,6 +80,7 @@ export const EXPR = Object.freeze({
   // constant, because a slot's past lives in a ring of bounded depth and an
   // offset past it would answer `na` where Pine answers a number.
   HIST_DYN: 'histDyn',
+  HIST_SLOT_DYN: 'histSlotDyn',
   BINARY: 'binary',
   UNARY: 'unary',
   TERNARY: 'ternary',
@@ -230,6 +231,10 @@ export function validateIr(p) {
     }
   }
 
+  /** ⭐ RT3 — the function whose body is being walked (`null` = the main
+   *  program), so a frame-relative history index is checked against that
+   *  function's own per-site entries rather than the main program's. */
+  let walkingFn = null
   const walkExpr = (e, where) => {
     if (!isObj(e) || typeof e.kind !== 'string') throw new IrError(`${where}: not an expression node — ${JSON.stringify(e)}`)
     switch (e.kind) {
@@ -388,6 +393,40 @@ export function validateIr(p) {
             + `${JSON.stringify(e.of && e.of.kind)} — a variable's past lives in a ring `
             + 'whose depth is fixed before bar 0, so an offset only known while the bar '
             + 'is running could reach past it')
+        }
+        walkExpr(e.of, `${where}.of`)
+        walkExpr(e.back, `${where}.back`)
+        return
+      case EXPR.HIST_SLOT_DYN:
+        // ⭐⭐ RT3 — `x[i]` OVER A RING, WITH `i` STATICALLY BOUNDED. The front
+        // end proved the offset never exceeds `depth` (a loop counter whose
+        // bounds fold, constant arithmetic over it) and sized the ring to that
+        // bound; this checks the claim is consistent with the plan, so a ring
+        // shallower than the proof is a compiler bug rather than a run of `na`.
+        if (!e.of || e.of.kind !== EXPR.READ) {
+          throw new IrError(`${where}: a bounded dynamic offset reads a variable's ring, got ${JSON.stringify(e.of && e.of.kind)}`)
+        }
+        if (!Number.isInteger(e.depth) || e.depth < 1) {
+          throw new IrError(`${where}: a bounded dynamic offset carries the depth its bound proved, got ${JSON.stringify(e.depth)}`)
+        }
+        if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+          throw new IrError(`${where}: a bounded dynamic offset must name the HISTORY slot the front end `
+            + `allocated, got ${JSON.stringify(e.slot)} against ${(p.history || []).length} history slots`)
+        }
+        {
+          // ⛔ THE RING IT READS: in the main program the entry IS `slot`; in a
+          // function body `slot` is FRAME-RELATIVE and every call site's block
+          // holds that function's ring at `historyBase + slot`.
+          const entries = walkingFn === null
+            ? [p.history[e.slot]]
+            : (p.callSites || []).filter((cs) => cs.fn === walkingFn && Number.isInteger(cs.historyBase))
+              .map((cs) => p.history[cs.historyBase + e.slot])
+          for (const h of entries) {
+            if (!h || e.depth > h.depth) {
+              throw new IrError(`${where}: reads \`${h ? h.name : '?'}\` up to ${e.depth} bars back but its ring `
+                + `was planned for depth ${h ? h.depth : 'none'}`)
+            }
+          }
         }
         walkExpr(e.of, `${where}.of`)
         walkExpr(e.back, `${where}.back`)
@@ -588,8 +627,10 @@ export function validateIr(p) {
     if (!Number.isInteger(fn.persistCount) || fn.persistCount < 0) {
       throw new IrError(`${at}: persistCount must be a count`)
     }
+    walkingFn = i
     walkStmts(fn.body || [], `${at}.body`)
     walkExpr(fn.result, `${at}.result`)
+    walkingFn = null
   })
 
   // ⛔ EVERY CALL SITE'S PERSISTENT BLOCK IS ITS OWN, AND THE VALIDATOR SAYS SO.
@@ -774,6 +815,11 @@ export const readGlobal = (slot) => ({ kind: EXPR.READ, slot, global: true })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
 /** `e[n]` over a MATERIALISED series, where `n` is an expression. */
 export const histDyn = (of, back) => ({ kind: EXPR.HIST_DYN, of, back })
+/** ⭐⭐ RT3 — `x[n]` over a value the RUNTIME produces, where `n` is an expression
+ *  the front end proved lies in `0..depth` (`pineRuntimeFrontend.js::offsetRange`).
+ *  `slot` is the history-slot index, sized to at least `depth`. */
+export const histSlotDyn = (varSlot, historySlot, back, depth) => (
+  { kind: EXPR.HIST_SLOT_DYN, of: read(varSlot), slot: historySlot, back, depth })
 /** `x[n]` over a value the RUNTIME produces. `slot` is the history-slot index —
  *  a different address space from the variable slot, because only some variables
  *  bear history and allocating a ring for every one of them is the `HISTORY_VALUES`

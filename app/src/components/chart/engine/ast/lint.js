@@ -576,7 +576,16 @@ export function astReach(ast, opts = {}) {
           // freshness gate exists because a scalar's zero hides a day-old value;
           // a clock leaf is read off the bar being drawn, so `freshness.js`
           // answers `live` and this window is the whole truth.
-          reachOf.set(node, ownWindow(clockNames[node.name], []))
+          const clockWindow = ownWindow(clockNames[node.name], [])
+          // ⭐ RT4 — A CLOCK LEAF THAT READS THE FETCH'S RIGHT EDGE SAYS SO, in the
+          // same words a call's declared forward reach is said in (below), so the
+          // badge names the leaf instead of falling back to "could not bound".
+          if (!isUnknown(clockWindow.forward) && clockWindow.forward !== 0) {
+            reasons.push(isUnbounded(clockWindow.forward)
+              ? `\`${node.name}\` declares an UNBOUNDED forward reach — no bar makes this value final`
+              : `\`${node.name}\` reads ${clockWindow.forward} bar${clockWindow.forward === 1 ? '' : 's'} ahead of the bar it writes`)
+          }
+          reachOf.set(node, clockWindow)
           break
         }
         if (own(scalarNames, node.name)) {

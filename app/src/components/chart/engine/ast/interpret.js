@@ -3148,8 +3148,17 @@ function barCumFrom(bars, args) {
   return out
 }
 
+/** `vwapOf(source)` — Pine's `ta.vwap(source)`: the SAME session accumulator
+ *  (`computeVWAP`, its session boundary and all), weighting `source` instead of
+ *  the typical price. `args[0]` is the evaluated column, aligned with `bars`.
+ *  H3 (2026-10-02); the translator admits only a bar price series as `source`
+ *  (`pine.js`, the `key === 'vwap'` branch), witnessed by
+ *  `vw-clock-vwap-spy-5-ext-2026-09-28` (V08 + V09) and
+ *  `groupb-round-max-vwap-spy-1d-2026-09-10` (N14 + N12). */
+const barVwapOf = (bars, args) => computeVWAP(bars, args[0] || [])
+
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
+  vwap: barVwap, vwapOf: barVwapOf, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 
@@ -3252,6 +3261,46 @@ export const UNARY = Object.freeze({
 })
 
 export const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
+
+/** ⭐⭐ RT3 — PINE'S CONDITION RULE, IN ONE PLACE: a value read AS A CONDITION
+ *  (a `?:` test, an `if`, an operand of `and` / `or` / `not`) that is `na` is
+ *  FALSE; 0 is false; any other number is true.
+ *
+ *  `TERNARY` above answers `NaN` for a `NaN` test, and that is right for what it
+ *  serves — the columnar lane's `{0,1,NaN}` domain, where `NaN` can mean "not
+ *  computable yet" (a probe value, a window that starts mid-history). It is NOT
+ *  Pine's answer where `NaN` IS Pine's `na`, and two lanes now read Pine's:
+ *    - the host lane's listing pass (`pineBoolAt`, H1), and
+ *    - the per-bar runtime lane (`runtime/lowerIr.js`, RT3), whose `NaN` is
+ *      always Pine's `na` because it runs every bar from the listing.
+ *
+ *  The rule, and where each version of it stands:
+ *    - v4: MEASURED. Two committed vendor captures take the else branch on an
+ *      `na` test (`qqe-signals` RDDT 1D bar 73: `cross(…) ? 1 : … :
+ *      nz(trend[1], 1)` in warm-up; `pivot-point-supertrend` RDDT 1D bar 517:
+ *      `ph ? ph : pl ? pl : na` with `ph` na). v4 casts a number to `bool`
+ *      implicitly, `na` to false.
+ *    - v5: the same implicit cast (`na` → false) for a number; a v5 `bool` can
+ *      itself be `na`, and an `if` / `?:` on it takes the false branch.
+ *    - v6: "`bool` values can no longer be `na`" (TradingView's v6 migration
+ *      guide), and `bool(na)` is false — so any `NaN` this engine holds where
+ *      v6 reads a condition stands for false.
+ *    - v1–v3 (and a script with no `//@version`, which Pine reads as v1): no
+ *      capture and no rule this engine has read. NOT claimed — the runtime lane
+ *      keeps `TERNARY`'s answer there and the member door declines it by name
+ *      (`runtime:na-test`). */
+export const pineBool = (v) => (isNan(v) || v === 0 ? 0 : 1)
+
+/** The first Pine version whose `na` condition this engine reads as false (see
+ *  `pineBool`). Below it, nothing is claimed. */
+export const NA_CONDITION_FALSE_FROM_VERSION = 4
+
+/** Does this script's version read an `na` condition as false (`pineBool`)? The
+ *  version is the LEXED pragma (`lexed.version`), never re-detected. */
+export const naConditionIsFalse = (version) => {
+  const v = Number(version)
+  return Number.isFinite(v) && v >= NA_CONDITION_FALSE_FROM_VERSION
+}
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
@@ -6232,13 +6281,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     const pineBoolAt = (x, j) => {
       if (x.type === 'call') {
         const c = toColumn(evalNode(x), length)
-        return c[j] !== c[j] ? 0 : c[j]
+        return pineBool(c[j])
       }
       if (x.name === '!') return pineBoolAt(x.args[0], j) ? 0 : 1
       if (x.name === '&&') return pineBoolAt(x.args[0], j) && pineBoolAt(x.args[1], j) ? 1 : 0
       if (x.name === '||') return pineBoolAt(x.args[0], j) || pineBoolAt(x.args[1], j) ? 1 : 0
+      // ⭐ RT3 — the ONE rule (`pineBool`), shared with the runtime lane.
       const c = toColumn(evalNode(x), length)
-      return c[j] !== c[j] ? 0 : c[j]
+      return pineBool(c[j])
     }
     /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
     let heldLatch = false

@@ -1153,8 +1153,15 @@ def _et_zone():
 VWAP_MIN_INSTANT = 631152000
 
 
-def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
+def compute_vwap_raw(bars: List[dict], price: Optional[List[MaybeNum]] = None) -> List[MaybeNum]:
     """Session-anchored VWAP, unrounded. Mirrors ``computeVWAP``.
+
+    ⭐ H3 (2026-10-02) -- ``price``: the price the ONE session accumulator
+    weights. ``None`` (every existing caller) is the typical price
+    ``(h + l + c) / 3`` exactly as before; a column aligned with ``bars`` is
+    Pine's ``ta.vwap(source)`` (``ast_interpret._fn_vwap_of``). A non-finite
+    price blanks the rest of its session, the next session starts clean --
+    ``computeVWAP``'s rule, byte for byte.
 
     ⛔ REFUSES THE WHOLE COLUMN when any bar's ``t`` is not a real instant —
     see ``VWAP_MIN_INSTANT``. Both doors are closed by the one check: the alert
@@ -1201,6 +1208,7 @@ def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
     cum_pv = 0.0
     cum_vol = 0.0
     current_day = None
+    broken = False
     memo_hour = None
     memo_key = None
     zone = _et_zone()
@@ -1219,7 +1227,14 @@ def compute_vwap_raw(bars: List[dict]) -> List[MaybeNum]:
             cum_pv = 0.0
             cum_vol = 0.0
             current_day = day_key
-        tp = (bar["h"] + bar["l"] + bar["c"]) / 3
+            broken = False
+        if price is not None:
+            tp = price[i]
+            if broken or tp is None or isinstance(tp, bool) or not isfinite(tp):
+                broken = True
+                continue
+        else:
+            tp = (bar["h"] + bar["l"] + bar["c"]) / 3
         v = float(bar.get("v") or 0)
         cum_pv += tp * v
         cum_vol += v

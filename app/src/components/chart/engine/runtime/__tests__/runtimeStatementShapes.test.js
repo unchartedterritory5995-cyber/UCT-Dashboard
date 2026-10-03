@@ -146,13 +146,19 @@ describe('E — an output call reads its VALUE argument, not its first', () => {
 
 describe('F — the one-argument `ta.highest(n)` / `ta.lowest(n)`', () => {
   it('reaches exactly what the explicit `high` / `low` spelling reaches', () => {
+    // ⚰️ Both spellings REFUSED here (`f(len)` sizes the window from a frame
+    // slot, and the price source was misread as "a mutable GLOBAL"). RT3: with
+    // the length fixed for the call site (C35), a window over a source the
+    // columnar lane holds is that lane's column — so both now COMPILE, and the
+    // rail is that they draw the same thing as each other and as the call with
+    // the number pasted in.
     for (const [short, explicit] of [['ta.highest(len)', 'ta.highest(high, len)'], ['ta.lowest(len)', 'ta.lowest(low, len)']]) {
-      const a = refusal(`f(len) =>\n    ${short}\nplot(f(3))`)
-      const b = refusal(`f(len) =>\n    ${explicit}\nplot(f(3))`)
-      expect(a.guard).toBe(b.guard)
-      expect(a.message).toBe(b.message)
-      // the explicit source is named in the answer — it is NOT the old arity refusal
-      expect(a.message).not.toMatch(/given 1/)
+      const a = run(`f(len) =>\n    ${short}\nplot(f(3))`).outputs[0]
+      const b = run(`f(len) =>\n    ${explicit}\nplot(f(3))`).outputs[0]
+      const pasted = run(`plot(${explicit.replace('len', '3')})`).outputs[0]
+      expect(a).toEqual(b)
+      expect(a).toEqual(pasted)
+      expect(a.filter((v) => Number.isFinite(v)).length).toBe(N - 2) // non-vacuity
     }
   })
 })
