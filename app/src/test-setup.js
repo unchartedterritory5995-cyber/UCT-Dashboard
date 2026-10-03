@@ -31,6 +31,20 @@ import { configure } from '@testing-library/react'
 configure({ asyncUtilTimeout: 4000 })
 import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
+import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
+import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+
+// ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
+// Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
+// graded. The suites that exercise the runtime LANE still turn it on the way they
+// always have (`vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')`), so they run
+// here as a PERMITTED member with EVERY script graded, and keep measuring the lane
+// rather than these two doors. ⛔ The doors themselves are railed with both reset,
+// in `components/chart/engine/__tests__/runtimeSwitchOn.test.js`.
+beforeEach(() => {
+  __permitRuntimePaneForTests()
+  __allowEveryRuntimeScriptForTests()
+})
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers

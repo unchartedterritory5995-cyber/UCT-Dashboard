@@ -1281,7 +1281,7 @@ def _live_def_count(c: sqlite3.Connection, user_id: Any) -> int:
 # ─── the write path ──────────────────────────────────────────────────────────
 
 def save(user_id: Any, def_id: str, definition: dict,
-         limits: Any = None) -> dict:
+         limits: Any = None, *, role: Any = None) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
     Returns ``{def_id, version, rev, rev_bumped, migrated, notified, ast_hash,
@@ -1331,7 +1331,10 @@ def save(user_id: Any, def_id: str, definition: dict,
     # the migration — applies to it.
     from api.services import runtime_definitions
     if runtime_definitions.is_runtime(definition):
-        return _save_runtime(user_id, def_id, definition, limits)
+        # ⭐ GT — `role` is the SAVING member's (the router's `user["role"]`).
+        # Only the runtime door reads it (`PINE_RUNTIME_STAGE`); a caller that
+        # does not pass it is treated as a member, never as an admin.
+        return _save_runtime(user_id, def_id, definition, limits, role=role)
     if not isinstance(compute, dict) or compute.get("kind") != "ast":
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
@@ -1621,14 +1624,19 @@ def save(user_id: Any, def_id: str, definition: dict,
     }
 
 
-def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any) -> dict:
+def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
+                  role: Any = None) -> dict:
     """RT1 — append a version of a RUNTIME-LANE document.
 
-    The same table, the same version/tombstone rules, the same count cap and the
-    same 64 KiB cap as a formula — and none of the tree machinery, because there
-    is no tree. ⛔ THREE REFUSALS FIRST, each the sentence the member door shows:
-    the store not taking runtime documents (`PINE_RUNTIME_SAVE_ENABLED` off), the
-    script on the kill list, and a malformed document.
+    The same table, the same version/tombstone rules and the same count cap as a
+    formula — and none of the tree machinery, because there is no tree. ⛔ The
+    size cap is the RUNTIME one (GT, D2: `runtime_definitions.
+    RUNTIME_MAX_DEFINITION_BYTES`, 128 KiB), not the formula's 64 KiB.
+    ⛔ FIVE REFUSALS FIRST, each the sentence the member door shows: the store not
+    taking runtime documents (`PINE_RUNTIME_SAVE_ENABLED` off), the saving member
+    not permitted at this stage (GT, D1: `PINE_RUNTIME_STAGE`), the script on the
+    kill list, the script not on the starter allowlist (GT, D6), and a malformed
+    document.
 
     `ast_hash` holds the runtime handle (`runtime:sha256:<source hash>`), so the
     sweep's `compute.kind` filter and every reader keyed on that column see at a
@@ -1643,17 +1651,27 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any) -> d
             "this store does not accept scripts drawn bar by bar yet — the runtime "
             f"lane's save door is switched off ({runtime_definitions.SAVE_ENV}). The "
             "preview still draws it; nothing was saved.")
-    why = runtime_definitions.killed(def_id, (definition.get("compute") or {}).get("source"))
+    # ⭐ GT (D1) — THE SAME PER-MEMBER QUESTION THE PANE ASKS, asked of the SAVER.
+    refused = runtime_definitions.save_permission(role)
+    if refused:
+        raise ValueError(f"{refused}. Nothing else of yours was touched.")
+    source = (definition.get("compute") or {}).get("source")
+    why = runtime_definitions.killed(def_id, source)
     if why:
         raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
+    # ⭐ GT (D6) — the starter allowlist: only a script graded MATCH is stored.
+    ungraded = runtime_definitions.not_graded(source)
+    if ungraded:
+        raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
     runtime_definitions.validate(definition)
 
     new_hash = runtime_definitions.handle(definition)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     size = len(blob.encode("utf-8"))
-    if size > MAX_DEFINITION_BYTES:
+    cap = runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES
+    if size > cap:
         raise ValueError(
-            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
+            f"definition exceeds {cap} bytes ({size}) — this "
             "store names its caps rather than inheriting `user_preferences`', "
             "which has none")
     repaint = json.dumps(runtime_definitions.repaint_stamp(definition), sort_keys=True,
@@ -2001,7 +2019,7 @@ def resolve_share(token: str) -> dict:
     }
 
 
-def install_share(user_id: Any, token: str, limits: Any = None) -> dict:
+def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = None) -> dict:
     """Install a shared definition as the recipient's OWN copy.
 
     ⭐⭐ A COPY, NEVER A REFERENCE, and the provenance rides ON the copy. `origin`
@@ -2027,7 +2045,7 @@ def install_share(user_id: Any, token: str, limits: Any = None) -> dict:
         "ast_hash": resolved["origin_ast_hash"],
         "table_version": resolved["table_version"],
     }
-    out = save(user_id, def_id, doc, limits=limits)
+    out = save(user_id, def_id, doc, limits=limits, role=role)
     out["origin"] = doc["origin"]
     return out
 

@@ -17,6 +17,14 @@ build, as the synthetic smoke account, and changes nothing:
              main thread keeps painting (frame-gap instrument, with a deliberate
              400 ms block as the control that must be SEEN).
   4. KILL    `GET /api/user-definitions/runtime-kill` answers 200 with a list.
+  5. STAGE   (GT) the per-member gate as THIS account receives it:
+             `/api/auth/me` -> `pine_runtime_pane_enabled` (driven by
+             `PINE_RUNTIME_STAGE`), and the starter allowlist (`allow` on the
+             kill read) carrying adx-and-di-for-v4's hash. Reported always;
+             `--expect-pane on|off` turns a mismatch into FAILED. The smoke
+             account is an ADMIN, so `off` is expected at stage off and `on` at
+             admins or all; with `on` the allowlist must carry the graded script
+             (an empty one would draw nothing).
 
 ⛔ READ-ONLY. One POST (the login, as `hub_nav_smoke.py` signs in); no definition is
 saved, no preference written. ⛔ The smoke account only (`SMOKE_EMAIL` /
@@ -31,6 +39,8 @@ EXIT CODES (the `hub_nav_smoke.py` convention, and H15 reads them):
                      ⛔ Not a pass and not a failure; never a rollback trigger.
 
     python tools/runtime_pane_smoke.py --base https://uctintelligence.com --auth
+    python tools/runtime_pane_smoke.py --auth --expect-pane off   # stage off: nothing changed
+    python tools/runtime_pane_smoke.py --auth --expect-pane on    # stage admins / all
     python tools/runtime_pane_smoke.py --self-check     # prove the helpers can fail
 """
 from __future__ import annotations
@@ -95,6 +105,22 @@ def walk_bundle(fetch, base: str, cap: int = 600) -> dict:
     return {"chunks": n, "flag": flag, "worker": worker, "truncated": bool(queue)}
 
 
+def stage_verdict(expect: str | None, pane, allow, graded_hash: str) -> list[str]:
+    """GT: what is BROKEN about the per-member gate as this account sees it.
+    `expect` None = report only. ⛔ A non-boolean `pane` is a server that does
+    not send the key (an older build) — broken whenever anything is expected."""
+    broken = []
+    if expect is None:
+        return broken
+    if not isinstance(pane, bool):
+        return [f"/api/auth/me carries no boolean pine_runtime_pane_enabled (got {pane!r})"]
+    if pane != (expect == "on"):
+        broken.append(f"pine_runtime_pane_enabled is {pane} for this account, expected {expect}")
+    if expect == "on" and not any(isinstance(e, str) and graded_hash.startswith(e) for e in (allow or [])):
+        broken.append("the starter allowlist does not carry the graded script (the lane would draw nothing)")
+    return broken
+
+
 def _fetch(url: str) -> str:
     # ⚠️ Cloudflare 1010-blocks raw client UAs on this origin (CLAUDE.md); send a browser one.
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (uct runtime_pane_smoke)"})
@@ -136,7 +162,7 @@ PAGE_RUN = """async ({workerUrl, def, budget}) => {
 }"""
 
 
-def run(base: str, auth: bool) -> int:
+def run(base: str, auth: bool, expect_pane: str | None = None) -> int:
     say = print
     if not auth or not os.environ.get("SMOKE_EMAIL") or not os.environ.get("SMOKE_PASSWORD"):
         say("INCONCLUSIVE: needs --auth with SMOKE_EMAIL / SMOKE_PASSWORD (the bars and the kill list are signed-in reads)")
@@ -173,6 +199,12 @@ def run(base: str, auth: bool) -> int:
         kill = page.request.get(f"{base}/api/user-definitions/runtime-kill")
         kill_ok = kill.ok and isinstance((kill.json() or {}).get("kill"), list)
         say(f"[4] runtime-kill: HTTP {kill.status}, list {'present' if kill_ok else 'MISSING'}")
+        me = page.request.get(f"{base}/api/auth/me")
+        pane = (me.json() or {}).get("pine_runtime_pane_enabled") if me.ok else None
+        allow = (kill.json() or {}).get("allow") if kill.ok else None
+        graded = d["meta"]["runtimeSourceHash"]
+        say(f"[5] stage: pine_runtime_pane_enabled={pane!r} for this account; allowlist {allow!r}; "
+            f"graded script {'listed' if any(isinstance(e, str) and graded.startswith(e) for e in (allow or [])) else 'NOT listed'}")
         r = page.evaluate(PAGE_RUN, {"workerUrl": f"{base}/{walk['worker']}", "def": plain, "budget": BUDGET_MS})
         browser.close()
     say(f"[3] run: {r['bars']} RDDT daily bars from {r['firstBar']}; worker {r['ms']:.0f} ms; "
@@ -182,7 +214,7 @@ def run(base: str, auth: bool) -> int:
     if r["control"] < 350:
         say("INCONCLUSIVE: the frame-gap control did not see its own 400 ms block")
         return 2
-    broken = []
+    broken = stage_verdict(expect_pane, pane, allow, graded)
     if not kill_ok:
         broken.append("kill endpoint")
     if not r["ok"] or r["columns"] == 0 or r["finiteColumns"] < r["columns"]:
@@ -213,6 +245,13 @@ def self_check() -> int:
     w = walk_bundle(lambda u: pages.get(u, ""), "https://x")
     if not (w["flag"] and w["worker"] == "assets/runtimeWorker-9.js" and w["chunks"] == 3):
         bad.append(f"walk_bundle did not follow lazy chunks: {w}")
+    g = "d0853c4724651a1d"
+    if stage_verdict("on", True, [g[:12]], g) or stage_verdict("off", False, [], g) or stage_verdict(None, None, None, g):
+        bad.append("stage_verdict refused a correct answer")
+    if not stage_verdict("on", False, [g[:12]], g) or not stage_verdict("off", True, [], g):
+        bad.append("stage_verdict accepted the wrong per-member answer")
+    if not stage_verdict("on", True, [], g) or not stage_verdict("on", None, [g], g):
+        bad.append("stage_verdict accepted an empty allowlist or a missing key")
     w2 = walk_bundle(lambda u: pages.get(u, ""), "https://x", cap=1)
     if not w2["truncated"]:
         bad.append("walk_bundle did not report a capped walk as truncated")
@@ -227,10 +266,12 @@ def main(argv=None) -> int:
     ap.add_argument("--base", default=PROD)
     ap.add_argument("--auth", action="store_true")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--expect-pane", choices=("on", "off"), default=None,
+                    help="GT: the per-member gate this (admin) account must receive")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
-    return run(a.base.rstrip("/"), a.auth)
+    return run(a.base.rstrip("/"), a.auth, a.expect_pane)
 
 
 if __name__ == "__main__":

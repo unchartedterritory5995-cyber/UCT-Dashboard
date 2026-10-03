@@ -32,7 +32,7 @@ import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
-import { runtimeKillOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
@@ -945,6 +945,12 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // the store and comes back the moment it is unlisted.
   const killed = runtimeKillOf({ source, defId: id })
   if (killed) return decline('runtime:killed', killed)
+  // ⭐⭐ GT (2026-10-02, owner ruling D6) — THE STARTER ALLOWLIST, right after the
+  // kill list: only a script graded MATCH against a TradingView capture (the
+  // server's list, latched from the kill-list read) is drawn bar by bar. Every
+  // other script declines by name and the member reads the host lane's sentence.
+  const notGraded = runtimeNotGradedOf({ source })
+  if (notGraded) return decline('runtime:not-yet-graded', notGraded)
   // ⭐⭐ RT2 — THE DOCUMENT'S REPAINT CLASS, STATED (`runtimeRepaintOf`): the
   // host linter's three-word vocabulary, by the host's reach -> class rule, over
   // the reads the program makes. Every row carries it as its `mode` and as its

@@ -176,6 +176,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 76 | H4 (lane brief, wave 16) LOOPS, ruling R7 (section H4): every loop shape is served on the RUNTIME lane, which already runs a counted `for`; nothing is folded on the host lane (an exact closed form needs every window element defined, which a loop does not guarantee). Removed the walls in front of the loop: **(1)** a call-site length that is constant arithmetic (`vl3 + vl4`) folds as a loop bound already did, `/` and `%` refused; **(2)** a helper ending in `if` around a `for` is valueless (C18's rule), reading it refuses by name; **(3)** `array.size(array.from(..))` is the argument count, effect-free elements only, never through a shadowing slot; **(4)** a refused row's `display.none` / `offset` reach the runtime document (two spreads dropped them) | `df9e500ac1` + the H4 docs commit | 29 / 47 unchanged | host 75 / screener 66 unchanged | member door off / on 54 / 79, 0 rows; on + runtime 85 -> **84**: wyckoff-accumulation-distribution withdrawn (its `offset = -pivotLen` markers were drawn on the wrong bar), kalman / NW / volume-divergence past their loop walls onto the per-bar colour and `pivotlow` walls; harness dir 202 x on / off / runtime: 0 entries changed (MATCH 56 / 41 / 62); `vendorHarness.h4Loops` 13 hand replays on 631 RDDT bars; 10 / 10 mutations red; Q-H4a queued |
 | 77 | RF (lane brief, wave 16) the runtime pane made ready to switch on, and the switch-on plan (section RF, `docs/pine/runtime-pane-switch-on-plan.md`): every stop of a run is named (`runtime:limit`, `runtime:failed`, `runtime:worker-unresponsive` / `-failed`, `runtime:load-failed`) and said on the disclosure strip (no surface rendered a column error before); a dead or hung worker answers its jobs by name and is never re-run on the main thread (watchdog 20 s, 3 starts per tab, newest-run coalescing); a kill takes the installed copy off an open tab; a runtime document names the bar colours it does not draw (3 of 6 omitted them silently since B1). Off-main-thread proved in real Chromium (worst frame gap 17 ms, control 383 ms). Store round trip on the six real documents. No flag, budget or limit moved | `caa526cd31`, `54c5e82ea7`, `828dc181b8`, `f64f9cfdf0`, docs | not re-graded (no routing change); runtime on: adx-and-di MATCH, inside-bar DIVERGE on paints only (plots + objects MATCH) | unchanged | member door 55 / 80 / **86**, 0 rows changed by RF (no routing change); runtime-only 6: 1 graded MATCH, 1 paints-DIVERGE, 4 no capture |
 | 79 | F3 drawing divergences on the host object lane (section F3): `str.tostring(x, format.mintick)` rounds to the witnessed tick and keeps its decimals; words around a pattern (`"Swing H  (#,###.####)"`) are read; a non-literal format is carried named (`na` prints `NaN`, a finite value withheld); a drawing the door withholds is graded as a named gap (`withheld`), not "no drawing program". trend-targets RDDT objects MATCH, swing-highlow-zigzag RDDT MATCH; multicator / atr-trailing / pmax labels withheld by name; zigzag SPY lines are a window (35 of 52 below the window) | F3 commits on `pine/f3-drawing-divergences` | `pineTextFormat.js`, `pine.js` text reader, `objectProgram.js` binding, `objectRuntime.js` formatter; harness `ourSide.js` + `compare.mjs` | object MATCH 117/133 -> 118/135 (on/runtime), capture MATCH 73/79 -> 74/80, census 55/80/86 unchanged, 0 MATCH -> DIVERGE | table in section F3 |
+| 80 | GT (lane brief, wave 16) the owner's switch-on rulings for the runtime pane (section GT, `docs/pine/runtime-pane-switch-on-plan.md` *GT operator steps*): D1 a per-member stage `PINE_RUNTIME_STAGE` (off / admins / all; per request; default off pinned) on the auth payload (`pine_runtime_pane_enabled`), latched per tab, required WITH the build flag, and asked of the saving member at the store; D2 runtime documents capped at 128 KiB (formulas 64 KiB; trend-targets saves); D6 the starter allowlist (`api/data/pine_runtime_allowlist.json` + `PINE_RUNTIME_ALLOWLIST`; adx-and-di-for-v4 only; others decline `runtime:not-yet-graded` with the host sentence; empty = none; stored rows served stamped); RT4 follow-up: a direction-B row is served with `repaint_notice` and the Builder shows it, the stored label never flipped. D3/D4/D5 unchanged. Nothing flipped | `40c82dc9ec`, `50e7b8b76c`, docs | not re-graded (no routing change for a permitted member with the list open) | unchanged | with the stage on, the runtime-only 6 attach 1 (adx-and-di-for-v4) until more are graded; 0 for every member while the stage is off |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -6328,3 +6329,69 @@ runtime run has no drawing program; its offset barcolor is withheld, a paint); f
 and UDT colour fields on the host lane (value grammar, not drawing) plus a family-scoped withhold of the HUD;
 nothing smaller would MATCH. (2) `format.mintick` on a getter (`{t:'val'}`) is still refused; no capture
 asks for it. (3) Grouping (`1,234.5`) and `format.mintick` >= 1000 wait for a capture that shows them.
+
+## GT - the runtime pane's switch-on rulings: a per-member stage, the starter allowlist, the runtime cap, and the repaint-label notice (2026-10-02, step 80)
+
+Branch `pine/gt-runtime-switch-on`, base `integrate/wave16-2026-10-02` (`67809e4882`). Implements the
+owner's rulings of 2026-10-02 on RF's open decisions (`docs/pine/runtime-pane-switch-on-plan.md`).
+**Nothing flipped**: no Railway variable was set, nothing pushed to master or production. The
+operator steps, in order, with rollback, are the plan's new section *GT operator steps*.
+
+### What was built
+
+| ruling | server | client | rails |
+|---|---|---|---|
+| **D1** admins first, then everyone | `PINE_RUNTIME_STAGE` (`off` / `admins` / `all`) read PER REQUEST in `runtime_definitions.stage` / `pane_permitted`, default `off` pinned in source and declared as `PINE_RUNTIME_MODE_FLAGS` (the mode-flag index derives it); an unrecognised value is `off`. Rides `_access_payload` as `pine_runtime_pane_enabled`, resolved for the member (no new endpoint, never raises). The SAVE door asks the saving member the same question: the router passes `user["role"]` into `user_definitions.save(role=...)` on POST, PUT and the shared install; a missing role is a member's | `runtimePaneEnabled()` = build flag (`runtimePaneBuilt`) AND the per-member answer, LATCHED per tab (`latchRuntimePanePermission`, first payload wins, disagreements counted; nothing latched = not permitted). `AuthContext.applyServerFlags` feeds every auth path | `tests/test_pine_runtime_switch_on.py` (D1 block), `engine/__tests__/runtimeSwitchOn.test.js` (D1 block) |
+| **D2** runtime cap 128 KiB | `runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES` used by `_save_runtime`; formulas keep `MAX_DEFINITION_BYTES` (64 KiB) | - | trend-targets (83,875 B) saves and reloads identically; a document padded past 128 KiB is refused with the runtime number; a formula between 64 and 128 KiB is still refused at 64 KiB |
+| **D3 / D4 / D5** | unchanged by ruling (1,000 ms budget, bar-colour disclosure, 20,000-bar intraday limit) | unchanged | no number moved |
+| **D6** starter allowlist | `api/data/pine_runtime_allowlist.json` (adx-and-di-for-v4 only, sha256 `d0853c47...`, evidence named) ∪ `PINE_RUNTIME_ALLOWLIST`, read per call; ids are not entries; empty union = none; unreadable file = nothing (fail closed). An ungraded script is refused at save; a stored one is SERVED stamped `meta.runtimeNotGraded` (never deleted or rewritten); the runtime-kill read carries `allow` | the allowlist is latched from the same read as the kill list (`MemberPane`); `memberPaneDefinition` declines a script not on it right after the kill list as `runtime:not-yet-graded` with the HOST lane's sentence; nothing latched = nothing graded; the install door refuses the server's stamp | both files (D6 blocks); `tests/test_runtime_definitions.py` and `tests/test_runtime_document_round_trip.py` open the two new doors for their own (shape / round-trip) rails |
+| **RT4 follow-up** the member is told | `user_definition_relint.member_notice` turns a direction-B finding (stored label LOOSER than today's measurement) into `repaint_notice` on the served row (list and get), memoised per stored version; the stored label is never touched | `BuilderSheet` shows the server's sentence, verbatim, when its owner opens that definition (`data-testid="repaint-label-notice"`) | server: a pre-fix `islast` row carries the notice and keeps `non-repainting`, a stable-leaf row and a fresh save carry none; client: `BuilderSheet.repaintNotice.test.jsx` (rendered text, with a control) |
+
+Also: `tools/runtime_pane_smoke.py` gains check **[5] STAGE** (`--expect-pane on|off`: the smoke
+account is an admin, so `off` at stage off and `on`, with the graded script listed, at admins or
+all), railed by `tests/test_runtime_pane_smoke.py`. `PINE_RUNTIME_SAVE_ENABLED` and
+`PINE_RUNTIME_STAGE` are declared in `docs/feature_flags.json` (`dark`); the first had no entry and
+kept `tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared` **red on the
+wave-16 base** (measured before any GT edit). `VITE_PINE_RUNTIME_PANE_ENABLED`'s entry now says the
+pane needs both halves. `src/test-setup.js` permits the pane and grades every script before each
+test, so the lane's own suites keep measuring the lane; GT's rails reset both and measure the doors
+in their production state.
+
+### Mutations (each alone; bytes captured and restored, sha verified; unmutated control green)
+
+Server (`tests/test_pine_runtime_switch_on.py`, 30): stage default `all` (red); the stage captured at
+import (13 red); `admins` admits members (red); save ignores the permission (red); save ignores the
+allowlist (red); the allowlist admits every hash (red); a served ungraded row not stamped (red);
+runtime cap = formula cap (red); formula cap doubled (red); the router drops the role (red); the
+notice never served (red); a notice on every row (red). Client (`runtimeSwitchOn.test.js`, 15): the
+gate ignores the permission (4 red); latch last-wins (1); nothing latched = permitted (4); the door
+skips the allowlist (2); an empty list = everything (1); the install door ignores the stamp (1);
+MemberPane never latches `allow` (1); AuthContext never latches (1); ids admitted to the allowlist
+(1). Notice render removed (`BuilderSheet.repaintNotice.test.jsx`, 1 red).
+
+### Tests (totals lines)
+
+pytest: `test_pine_runtime_switch_on.py` 30 passed; `test_runtime_definitions.py` +
+`test_runtime_document_round_trip.py` 38 passed; `test_feature_flag_ledger.py` +
+`test_vite_flag_ledger.py` + `test_dockerfile_vite_build_args.py` + `test_visibility_flag_ledger.py`
+294 passed; `test_feature_status.py`, `test_charts_list_subscribe_flag.py`, `test_hub_preview_flag.py`,
+`test_breadth_dc_flags.py`, `test_user_definition_relint.py`, `test_user_definitions.py`,
+`test_runtime_repaint.py` 251 passed; `test_runtime_pane_smoke.py` 7 passed. vitest
+(`--maxWorkers=1`): `runtimeSwitchOn.test.js` 15 passed; 11 runtime / object / vendor-harness files
+128 passed; 14 more (member-pane doors, kill switch, round trip, library door, `src/context`) 114
+passed; a batch of 10 (`runtimePaneSafety.test.jsx`, `runtimeAsync`, `runtimeWallsC23`,
+`simpleArgWindow`, `runtimeErrorNotice`, `chartClockNotice`, the kill switch, the round trip, the
+library door, `memberPaneGate`) 9 files passed and `memberPaneGate.test.js` timed out at 15 s under
+load, then passed alone with `--testTimeout=200000` (two whole-source sweeps over a flag GT does
+not touch); `BuilderSheet.repaintNotice.test.jsx` + `BuilderSheet.edit.test.jsx` 22 passed;
+`components/screener/reachable.test.js` 17 passed. The shared `node_modules` RF found broken was
+whole for this lane (373 entries; jsdom suites ran).
+
+### Open
+
+- The allowlist identity is the sha256 of the source **as written**: a member's copy of
+  adx-and-di-for-v4 that differs by one byte (line endings, trailing newline) declines
+  `runtime:not-yet-graded`. How often a pasted copy matches the corpus bytes: not measured.
+- How many production definitions carry a direction-B label (and so the new notice): not measured.
+- A runtime document saved by an admin at stage `admins` stays in the store when the stage returns
+  to `off`; it is not drawn (the client gate) and not deleted, by design.

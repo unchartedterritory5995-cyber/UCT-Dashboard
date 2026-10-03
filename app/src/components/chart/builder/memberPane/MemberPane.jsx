@@ -47,7 +47,7 @@ import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { setRuntimeKillList, RUNTIME_KILL_PATH } from '../../engine/runtimeKill'
+import { setRuntimeKillList, setRuntimeAllowList, RUNTIME_KILL_PATH } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
@@ -111,6 +111,9 @@ export default function MemberPane({
       .then((d) => {
         if (!alive || !d) return
         setRuntimeKillList(d.kill)
+        // ⭐ GT (D6) — the starter allowlist rides the same read. Until it lands
+        // the lane declines every script (nothing graded), never the reverse.
+        setRuntimeAllowList(d.allow)
         setKillVersion((n) => n + 1)
       })
       .catch(() => { /* the list stays as it was; the save door still checks */ })
