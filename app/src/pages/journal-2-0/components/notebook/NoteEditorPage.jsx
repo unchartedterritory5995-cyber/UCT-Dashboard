@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
-  Suspense, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+  Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState,
 } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -729,10 +729,12 @@ function stripTrailingEmptyParagraph(doc) {
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
   // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
-  // Notebook puts focus -- 'title' for a note the member just made (typing the
-  // title is the next act), 'landmark' for a note that already exists (the
-  // note's heading, which is not editable), null for an open aimed inside the
-  // note (a task, a page, an excerpt), which places focus itself.
+  // Notebook puts focus -- 'title' for a note the member just made with a
+  // title or a template (typing/reviewing the title is the next act),
+  // 'landmark' for a note that already exists (the note's heading, which is
+  // not editable), 'body' (13Q-2) for a note the member just made BLANK (no
+  // title, no template -- the next act is writing), null for an open aimed
+  // inside the note (a task, a page, an excerpt), which places focus itself.
   openFocus = null, onOpenFocused = null,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
@@ -965,13 +967,24 @@ export default function NoteEditorPage({
   // caret in the title, a reader's Space typed into the title and autosave wrote
   // it, and a phone raised its keyboard over the note on every open. A heading
   // takes no text: Space scrolls, and the screen reader says the note's name.
-  // Only a note the member just MADE focuses its title.
+  // Only a note the member just MADE focuses its title -- and 13Q-2: only when
+  // it is NOT blank. A bare "+ New note" has nothing in the title worth a
+  // look first, so `openFocus === 'body'` (NotebookTab's `blank` computation)
+  // places the caret straight into the body instead -- handled in a SEPARATE
+  // effect below (near `editorRef.current = editor`), because the title/
+  // landmark refs below are DOM nodes ready on the first render `openFocus`
+  // is set, while the editor is an ASYNC TipTap instance that can still be
+  // `null` on that same render; sharing one effect/dependency array for both
+  // would bail out while `editorRef.current` is still null and then never
+  // retry, since nothing in THIS effect's deps changes once `editor` finally
+  // resolves. `openFocusDoneRef` is the ONE claim both effects honour, so
+  // whichever of the two branches applies still fires exactly once.
   const titleInputRef = useRef(null)
   const landmarkRef = useRef(null)
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocusDoneRef.current) return
+    if (!openFocus || openFocus === 'body' || openFocusDoneRef.current) return
     const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
     if (!target) return
     openFocusDoneRef.current = true
@@ -2312,7 +2325,13 @@ export default function NoteEditorPage({
     editorProps: {
       // Wave 8 (8A): TipTap makes the body role="textbox" with no name, so a
       // screen reader announced a bare "edit text". It is the note's body.
-      attributes: { class: styles.proseEditor, 'aria-label': 'Note body' },
+      // 13Q-2: an explicit `tabindex="0"` is a no-op for a real browser's tab
+      // order (a `contenteditable` region is already focusable and already in
+      // it) but it is NOT a no-op for `editor.commands.focus()` in jsdom, which
+      // this file's own test harness and `focusableWithin`'s `[tabindex]`
+      // selector both need to recognise the body as focusable at all --
+      // without it `openFocus="body"` (Q1's fix) silently focused nothing.
+      attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         if (!items) return false
@@ -2362,6 +2381,35 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // 13Q-2: the 'body' half of the openFocus contract above -- deliberately its
+  // own effect, depending on `editor` itself (not just `openFocus`/`note`), so
+  // it retries once the async TipTap instance actually exists rather than
+  // firing once against a still-null `editorRef.current` and going quiet.
+  // `editor.commands.focus('end')` (not a bare DOM `.focus()`) because the
+  // ProseMirror root carries no caret position of its own to restore --
+  // TipTap's own command is what actually places one, at the end of a
+  // genuinely blank document.
+  // ⛔⛔ `useLayoutEffect`, NOT `useEffect` -- measured, not guessed. The
+  // 13Q-1 instrument's own check for "is the member's keyboard focus in the
+  // body" (`focus_in_editor`) runs the instant `.ProseMirror` is PAINTED
+  // (Playwright's own visibility poll), with no settle wait of its own (a
+  // member would not wait either). A PASSIVE `useEffect` fires only after the
+  // browser paints -- strictly later -- so by the time it set focus, the
+  // check (and a real member's very next keystroke) had already landed
+  // against an unfocused page. Measured live twice: a same-frame `useEffect`
+  // call AND a double-`requestAnimationFrame`-delayed one (the AskPanel
+  // pattern for a DIFFERENT race -- losing to a focus-stealer, not to paint
+  // itself) both left the caret on document.body
+  // (`docs/notebook/evidence/wave13-13q2/after-q1-run{1,2}`). `useLayoutEffect`
+  // runs synchronously after the DOM mutation, before paint, which is the only
+  // place that can still beat a check keyed on the paint itself.
+  useLayoutEffect(() => {
+    if (openFocus !== 'body' || openFocusDoneRef.current) return
+    if (!editor || editor.isDestroyed) return
+    openFocusDoneRef.current = true
+    editor.commands.focus('end')
+    onOpenFocused?.()
+  }, [openFocus, editor, onOpenFocused])
   const unreadable = useUnreadableNote(editor)
   // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.
   useEffect(() => {

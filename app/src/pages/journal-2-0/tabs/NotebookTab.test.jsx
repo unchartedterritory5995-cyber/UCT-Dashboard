@@ -45,7 +45,14 @@ vi.mock('../components/notebook/NoteCard', () => ({
   ),
 }))
 vi.mock('../components/notebook/NoteEditorPage', () => ({
-  default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
+  // `data-open-focus` surfaces NotebookTab's own `openFocus` decision (13Q-2:
+  // 'body' for a blank note, 'title' for a templated/typed one, 'landmark' for
+  // an existing note reopened) -- a real NoteEditorPage would apply it itself,
+  // which is covered by NoteEditorPage.wave13Q2focus.test.jsx; this mock keeps
+  // these tests about the TAB's wiring (what it decides), not the editor's.
+  default: ({ noteId, openFocus }) => (
+    <div data-testid="note-editor" data-note-id={noteId} data-open-focus={openFocus ?? ''} />
+  ),
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({
   // Shallow mock — a real "onImported" trigger button lets tests fire the
@@ -185,6 +192,50 @@ describe('NotebookTab — template picker', () => {
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.title).toBe('')
     expect(lastPostBody.bodyJson).toBeUndefined()
+  })
+
+  // 13Q-2 (13Q click-budget fix, Q1 "new blank note, cursor in body"): a bare
+  // blank note has nothing in the title worth a look first, so it opens with
+  // focus in the BODY, not the title -- cutting the 4 extra real Tab presses
+  // (keys) / 1 extra click (mouse, taps) the instrument measured reaching the
+  // body by hand after a fresh=true open always landed on the title (I-1).
+  it('13Q-2: the primary "+ New note" button opens with focus in the BODY, not the title', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'body')
+  })
+
+  it('13Q-2: a TEMPLATE pick still opens with focus on the TITLE (I-1 unchanged)', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Daily Game Plan' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
+  })
+
+  it('13Q-2: a "Blank note" TEMPLATE CARD pick (no body, but a typed title) still opens on the TITLE', async () => {
+    // The picker's own "Blank note" card posts no bodyJson (same request shape
+    // as the bare button above) but DOES carry a non-empty title in general use
+    // -- this fixture's title is '' either way, so the real discriminator this
+    // case exists to prove is read from `createNote`'s OWN `blank` computation
+    // (`!title && !bodyJson`) rather than from the server's response, which the
+    // next test pins directly.
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /Blank note/ }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'body')
+  })
+
+  it('13Q-2: ?new=blank deep link (the command palette\'s "New Note") also focuses the BODY', async () => {
+    renderTab('/journal/notebook?new=blank')
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'body')
+  })
+
+  it('13Q-2: a non-blank ?new=<template> deep link still focuses the TITLE', async () => {
+    renderTab('/journal/notebook?new=earnings-play&ticker=gh')
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
   })
 
   it('opens the editor for the created note after a template pick', async () => {
