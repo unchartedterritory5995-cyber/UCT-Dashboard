@@ -153,16 +153,6 @@ class R2Target:
         self.cl.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType="application/json")
 
 
-def target_from_env():
-    """MCAP_PIT_PUBLISH_TARGET = r2 | local:<dir>. No default: publication is always an explicit choice."""
-    t = os.environ.get("MCAP_PIT_PUBLISH_TARGET", "")
-    if t == "r2":
-        return R2Target()
-    if t.startswith("local:") and len(t) > 6:
-        return LocalTarget(t[6:])
-    raise PublishError("MCAP_PIT_PUBLISH_TARGET must be 'r2' or 'local:<dir>'")
-
-
 # ── write-once helpers ──────────────────────────────────────────────────────────────────────────────────────────────
 def put_once(target, key: str, body: bytes) -> str:
     """'written' | 'existing' (identical bytes already there). Different bytes under the key -> PublishError."""

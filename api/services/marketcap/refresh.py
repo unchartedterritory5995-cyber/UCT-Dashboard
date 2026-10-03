@@ -64,7 +64,7 @@ class Config:
         self.sources = self.raw.get("sources", {})
         self.review = self.raw.get("review", {})
         self.policy = self.raw.get("policy", {})
-        self.target_spec = self.raw.get("target", os.environ.get("MCAP_PIT_PUBLISH_TARGET", ""))
+        self.target_spec = self.raw.get("target", "")          # only the provisioned config decides where to publish
         self.workers = int(self.raw.get("workers", 16))
 
     def target(self):
