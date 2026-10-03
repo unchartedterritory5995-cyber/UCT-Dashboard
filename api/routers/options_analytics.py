@@ -180,3 +180,37 @@ def vol_vrp(sym: str, _user: dict = Depends(require_paid)):
 def option_monitor(sym: str, _user: dict = Depends(require_paid)):
     from api.services.options_analytics import vol
     return _blocking(vol.monitor, _sym(sym))
+
+
+# ── FT-009 straddle history · FT-007 daily implied vs actual · FT-010 IV crush ──
+# Our options log only. Plain `def`: the store mirrors R2 and reads gzip.
+
+def _log(fn, sym: str) -> dict:
+    try:
+        return fn(_sym(sym))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 -- surfaced by name, never as an empty history
+        raise HTTPException(status_code=503,
+                            detail=f"The options log is unavailable: {type(e).__name__}") from e
+
+
+@router.get("/api/research/options-history/{sym}/straddle",
+            dependencies=[Depends(_switch("OPTIONS_STRADDLE_HISTORY_ENABLED"))])
+def options_history_straddle(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import log_history
+    return _log(log_history.straddle_history, sym)
+
+
+@router.get("/api/research/options-history/{sym}/daily-move",
+            dependencies=[Depends(_switch("OPTIONS_DAILY_MOVE_ENABLED"))])
+def options_history_daily_move(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import log_history
+    return _log(log_history.daily_move, sym)
+
+
+@router.get("/api/research/options-history/{sym}/iv-crush",
+            dependencies=[Depends(_switch("OPTIONS_IV_CRUSH_ENABLED"))])
+def options_history_iv_crush(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import log_history
+    return _log(log_history.iv_crush, sym)

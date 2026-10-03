@@ -7,6 +7,7 @@ import VolSurfacePanel from './VolSurfacePanel'
 import IvHistoryPanel from './IvHistoryPanel'
 import PositioningPanel from '../../optionsAnalytics/PositioningPanel'
 import { IvRankBadge, OptionMonitorStrip, VolStatsPanel } from '../../optionsAnalytics/VolPanels'
+import OptionsHistoryPanel from '../../optionsAnalytics/OptionsHistoryPanel'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -115,6 +116,7 @@ export default function OptionsChainTab({ sym, volSurface = false }) {
       <PayoffPanel rows={rows} spot={Number(d.spot)} />
       {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <IvHistoryPanel sym={s} />
+      <OptionsHistoryPanel sym={s} />
       <VolStatsPanel sym={s} />
       <PositioningPanel sym={s} />
       <p className={styles.muted} data-testid="chain-source">
