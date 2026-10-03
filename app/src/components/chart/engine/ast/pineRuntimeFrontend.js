@@ -36,6 +36,8 @@ import {
   constantTestValue,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
+// ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
+import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import { bindConstsFor, foldBound } from './bind.js'
@@ -914,6 +916,21 @@ export function paramTypeHeads(toks, arrow) {
 }
 
 export function buildRuntimeIr(source, opts = {}) {
+  const holder = { link: null }
+  const built = buildRuntimeIrLinked(source, opts, holder)
+  const link = holder.link
+  // ⭐⭐ L1 — present only when a library was linked, so every other result is
+  // byte-identical. A refusal inside a library's code points at the member's
+  // import line and names the library; spliced names read `alias.name`.
+  if (!link || !link.libraries.length || !built || typeof built !== 'object') return built
+  const out = { ...built, libraries: link.libraries.map((l) => ({
+    path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+  })) }
+  if (out.refusal) out.refusal = remapLibraryLocation(out.refusal, link)
+  return out
+}
+
+function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
   const diagnostics = { statements: 0, columns: 0, slots: 0, families: {} }
@@ -952,6 +969,8 @@ export function buildRuntimeIr(source, opts = {}) {
 
   let lexed
   try { lexed = lexPine(source) } catch (e) { return fail(e, diagnostics) }
+  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
+  holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
 
   let stmts
@@ -5496,6 +5515,9 @@ export function buildRuntimeIr(source, opts = {}) {
       // imported library's SOURCE, which this engine does not fetch.
       if (word === 'import') {
         note('runtime:library')
+        // ⭐ L1 — the linker served every import it could; this one it could not,
+        // and the member is told which library and why.
+        const why = first.libraryRefusal ? ` — ${first.libraryRefusal}` : ''
         // ⭐ QUOTE THE LINE THE MEMBER WROTE. The tokens lose the path's slashes to
         // punctuation, so `toks.map(t => t.value).join(' ')` renders
         // `import TradingView / ta / 7 as tvta` — a spelling that appears in no
@@ -5503,7 +5525,7 @@ export function buildRuntimeIr(source, opts = {}) {
         const raw = String(source).split('\n')[(first.line || 1) - 1] || ''
         const shown = raw.trim().slice(0, 72)
         throw new RuntimeRefusal('runtime:library',
-          shown ? `\`${shown}\`` : '`import`', locate(first))
+          `${shown ? `\`${shown}\`` : '`import`'}${why}`, locate(first))
       }
       if (word === 'export') {
         throw new RuntimeRefusal('runtime:declaration', `\`${word}\``, locate(first))

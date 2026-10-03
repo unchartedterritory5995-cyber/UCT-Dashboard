@@ -24,6 +24,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import UIcon from '../../ui/UIcon'
 import { translatePine } from '../engine/ast/pine'
+import { usePineLibraries } from './usePineLibraries'
 import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
@@ -285,6 +286,9 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // levels box empty. That is the same failure this whole wave is about — a
       // carriage that stops one door short — committed inside the wave fixing it.
       presentation: t.presentation || null,
+      // ⭐ L1 — the imported libraries this translation linked, with their licence
+      // and attribution, which the member is shown (forwarded by name: see above).
+      libraries: t.libraries || [],
     }
   }
 
@@ -514,6 +518,9 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // and without, on every corpus script) because the mint tags a literal the
   // fold already produced, non-enumerably.
   const [chosen, setChosen] = useState(null)
+  // ⭐ L1 — the libraries this text imports, fetched into the registry; the report
+  // below re-runs when they arrive.
+  const libRevision = usePineLibraries(text)
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
   const areaRef = useRef(null)
@@ -581,7 +588,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       if (!overridden) setAuthorKnobs((next.outputs || []).map((o) => o.pasteInputs || []))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
-  }, [text, settings, inspect])
+  }, [text, settings, inspect, libRevision])
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
@@ -985,6 +992,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
             {report.declaration ? ` · ${report.declaration}()` : ''}
             {report.title ? ` · “${report.title}”` : ''}
           </p>
+          {Array.isArray(report.libraries) && report.libraries.length > 0 && (
+            <p className={styles.meta} data-testid="pine-libraries">
+              {`Uses imported ${report.libraries.length === 1 ? 'library' : 'libraries'}: `}
+              {report.libraries.map((l) => `${l.path} (${l.licence}${l.attribution ? ` · ${l.attribution}` : ''})`).join('; ')}
+            </p>
+          )}
 
           {/* ⛔ THE REFUSAL SHOWS WHENEVER THERE IS ONE, AND `translatePine`
               carries one exactly when it is not `ok`. Gating this on "no column

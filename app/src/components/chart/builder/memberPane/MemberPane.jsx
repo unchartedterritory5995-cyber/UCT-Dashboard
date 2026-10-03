@@ -48,6 +48,7 @@ import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import { usePineLibraries } from '../usePineLibraries'
 import styles from './MemberPane.module.css'
 
 const noop = () => {}
@@ -96,9 +97,13 @@ export default function MemberPane({
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
   // frame budget.
+  // ⭐ L1 — an `import`ed library arrives from the server's store; the build
+  // re-runs once it is in the registry (`revision`).
+  const libRevision = usePineLibraries(live ? source : '')
   const built = useMemo(
     () => (live ? memberPaneDefinition({ source, id: defId }) : null),
-    [live, source, defId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [live, source, defId, libRevision],
   )
   const [installed, setInstalled] = useState(null)
 

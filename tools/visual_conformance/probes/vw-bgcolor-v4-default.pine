@@ -1,0 +1,20 @@
+//@version=4
+study("UCTPROBE_VW_BGCOLOR_V4_DEFAULT", overlay = true)
+
+// --- 2026-10-02 B1 - a v3/v4 `bgcolor` with NO `transp` ---
+//
+// Pine v4 documents `transp` on `bgcolor` as optional; no committed capture shows the value it takes
+// when omitted, so the door withholds such a paint (`paint:v4-default-transp`). Written by
+// volume-profile-v054beta (`bgcolor(highlight and not session ? color.silver : na)`).
+//
+// CAPTURE: AMEX:SPY 1D, after the close. The capture's `styleState[plot_k].transparency` for each
+// row IS the reading - no pixels needed.
+//
+//   T1  bgcolor(color.red)                       no transp   -> styleState transparency = ?
+//   T2  bgcolor(color.red, transp = 0)           control     -> 0
+//   T3  bgcolor(close > open ? color.lime : na)  conditional, no transp -> transparency = ?
+
+bgcolor(color.red, title = "T1")
+bgcolor(color.red, transp = 0, title = "T2")
+bgcolor(close > open ? color.lime : na, title = "T3")
+plot(close, "control")

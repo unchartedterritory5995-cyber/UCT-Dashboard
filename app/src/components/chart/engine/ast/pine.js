@@ -169,6 +169,9 @@ import {
   inputCallSites, sourceOrdinalOf, scriptKey, legacyLaneOf, decodeLegacyLane, paramIdFor, paramIdNumber,
 } from './paramIdSource.js'
 import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
+// ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
+// registry holds that version (`pineLibraries.js`).
+import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -2539,6 +2542,11 @@ const CHART_ONLY_CALLS = Object.freeze(new Set([
   'bgcolor', 'barcolor', 'fill', 'hline', 'alert',
 ]))
 
+/** ⭐ B1 — the two chart-only calls the HOST lane now carries as paint
+ *  (`presentation.paints`, see `resolvePaints`). Still in `CHART_ONLY_CALLS`:
+ *  the screener lane keeps ignoring them, as TradingView's screener does. */
+export const PAINT_CALLS = Object.freeze(new Set(['bgcolor', 'barcolor']))
+
 // --------------------------------------------------------------------------- //
 // the derived function index
 // --------------------------------------------------------------------------- //
@@ -4361,6 +4369,9 @@ let OTHER_SYMBOL_SINK = null
  *  it as `lowerTf` and the member door stamps `meta.lowerTf`, which is what a
  *  chart fetches intraday bars for (`engine/lowerTf.js::lowerTfWindowsOf`). */
 let LOWER_TF_SINK = null
+/** ⭐ L1 — the library link of the translation in progress (`linkLibraries`), read
+ *  back by `translatePine` to place library refusals on the member's import line. */
+let LIBRARY_LINK_SINK = null
 
 /** ⭐ C41 — does this resolved operand hold an `ltf` read? Asked only of the side a
  *  constant test may never take (the resolver's `ternary` and `and`/`or` cases),
@@ -13352,8 +13363,67 @@ const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
  *  reading them as refusals would say the translation FAILED where it in fact
  *  succeeded and declined to draw.
  */
-const chartOnlyNote = (word) => `\`${word}\` paints on a chart; TradingView's own screener `
-  + 'reads plot() and alertcondition() and nothing else, so this line is ignored here too'
+// ⭐⭐ B1 (step 61) — THE ONE AUTHORITY FOR THE `pine:chart-only` SENTENCE.
+//
+// ⚰️ It was ONE sentence for every call on every lane: "`x` paints on a chart;
+// TradingView's own screener reads plot() and alertcondition() and nothing else,
+// so this line is ignored here too". True of the screener for every call — and
+// false on the HOST lane the moment B1 drew `bgcolor` / `barcolor`, and already
+// false of a `fill` whose band C1-B carries and of an `hline` whose level Wave B
+// carries to the builder. A member read "ignored" beside a band they could see.
+//
+// ⭐ The sentence is now a function of WHAT THIS DOOR DID WITH THE CALL: the lane
+// (`how.lane`), where the call stands (`how.site`: top level, assigned to a name,
+// or inside a block), and the outcome only resolution knows (`how.level` — an
+// `hline` whose price folded; `how.band` — a `fill` both of whose edges are
+// carried plots; `how.paint` — the resolved `bgcolor` / `barcolor` record).
+// Every emission site asks THIS function; none writes a sentence of its own.
+// `chartOnly.test.js` rails each sentence against what the door actually does.
+const SCREEN_READS = 'a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it'
+export function chartOnlySentence(word, how = {}) {
+  const code = `\`${word}\``
+  const host = how.lane === 'host'
+  // `alert()` is legal anywhere, and it does the same nothing everywhere.
+  if (word === 'alert') {
+    return '`alert()` sends an alert on TradingView and draws nothing; this door delivers no '
+      + "script's `alert()`, and a screen reads `alertcondition()`, not `alert()`, so this line does nothing here"
+  }
+  // Pine accepts every other chart-only call at the top level only.
+  if (how.site === 'nested') {
+    return `${code} inside a block is not ${host ? 'drawn' : 'read'} here — Pine accepts it only at a script's top level`
+  }
+  if (word === 'bgcolor' || word === 'barcolor') {
+    const what = word === 'bgcolor' ? "a chart's background" : "a chart's candles"
+    if (!host) return `${code} paints ${what}; this door does not carry it, and ${SCREEN_READS} either`
+    const p = how.paint
+    if (!p) return `${code} is not drawn here: it could not be read as a paint`
+    if (p.withheld) return `${code} is not drawn here: ${p.withheld.reason}`
+    if (p.hidden) return `${code} has \`display = display.none\`, so it is not drawn — TradingView does not draw it either`
+    if (p.na) return `${code}'s colour is \`na\`, so it paints no bar — as on TradingView`
+    return word === 'bgcolor'
+      ? `${code} is drawn: it shades the background behind this script, bar by bar; it is not a column, so ${SCREEN_READS}`
+      : `${code} is drawn: it recolours the chart's own candles, bar by bar; it is not a column, so ${SCREEN_READS}`
+  }
+  if (word === 'hline') {
+    if (host) return `${code} is not drawn on this chart: this door does not carry a horizontal level yet, and ${SCREEN_READS} either`
+    if (how.site === 'top' && how.level) return `${code} draws a horizontal level; this door carries it as a level line for a chart, and ${SCREEN_READS}`
+    return `${code} draws a horizontal level; ${how.site === 'bound' ? 'assigned to a name it' : 'its price is not a fixed number this door can read, so it'} is not carried, and ${SCREEN_READS} either`
+  }
+  if (word === 'fill') {
+    if (how.site === 'top' && how.band) {
+      return host
+        ? `${code} is carried as the band between its two plots; it is not a column, so ${SCREEN_READS}`
+        : `${code} shades the band between two plots; this door carries it as that band for a chart, and ${SCREEN_READS}`
+    }
+    const why = how.site === 'bound' ? 'a `fill` assigned to a name is not read' : 'its two edges are not both plots this door carries'
+    return host ? `${code} is not drawn: ${why}` : `${code} shades the band between two plots; ${why}, so it is not carried, and ${SCREEN_READS} either`
+  }
+  // `plotshape` / `plotchar` at the top level are OUTPUTS (`OUTPUT_CALLS`) and
+  // never reach a chart-only note; a name this table does not know is said
+  // conservatively, never as drawn.
+  return `${code} is not ${host ? 'drawn' : 'read'} here, and ${SCREEN_READS} either`
+}
+const chartOnlyNote = (word, how) => chartOnlySentence(word, how)
 
 function noteOf(code, message, tok) {
   return { code, message, ...(locate(tok) || { line: null, column: null, index: null, token: null }) }
@@ -21674,6 +21744,8 @@ export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
   const outerPeriodSink = PERIOD_READ_SINK
   const outerLowerSink = LOWER_TF_SINK
+  const outerLibrarySink = LIBRARY_LINK_SINK
+  LIBRARY_LINK_SINK = null
   const sink = new Map()
   const lowerSink = new Set()
   LOWER_TF_SINK = lowerSink
@@ -21681,14 +21753,30 @@ export function translatePine(source, opts = {}) {
   OTHER_SYMBOL_SINK = sink
   PERIOD_READ_SINK = periodSink
   let t
+  let libraryLink = null
   try {
     t = translatePineResult(source, opts)
   } finally {
+    libraryLink = LIBRARY_LINK_SINK
     OTHER_SYMBOL_SINK = outerSink
     PERIOD_READ_SINK = outerPeriodSink
     LOWER_TF_SINK = outerLowerSink
+    LIBRARY_LINK_SINK = outerLibrarySink
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
+  // only when a library was linked, so every other result is byte-identical. A
+  // refusal located inside a library's code is moved to the member's own import
+  // line and names the library and its line; spliced names read `alias.name`.
+  if (libraryLink && libraryLink.libraries.length) {
+    t.libraries = libraryLink.libraries.map((l) => ({
+      path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+    }))
+    const fix = (r) => remapLibraryLocation(r, libraryLink)
+    if (t.refusal) t.refusal = fix(t.refusal)
+    if (Array.isArray(t.refusals)) t.refusals = t.refusals.map(fix)
+    if (Array.isArray(t.notes)) t.notes = t.notes.map(fix)
+  }
   // ⭐⭐ C29 — THE CHART-PERIOD VALUES THIS TRANSLATION FOLDED, with each one's
   // value at every rung, so the bind can refuse a chart whose period differs
   // (`engine/periodReads.js`). Present only when a read was folded, so every
@@ -21742,7 +21830,10 @@ export function translatePine(source, opts = {}) {
  *  source call has one ordinal, one id and one entry, however many node objects
  *  or outputs reach it); `counter` only counts entries, for `firstTimeMark`. */
 function newParamMint(tokens, opts) {
-  const sites = inputCallSites(tokens)
+  // ⭐ L1 — the script's OWN tokens: a linked library adds no input call, and its
+  // tokens must never change which frozen entry this script is.
+  const own = tokens.unlinked || tokens
+  const sites = inputCallSites(own)
   const ordinalAt = new Map()
   sites.forEach((site, i) => ordinalAt.set(`${site.line}:${site.column}`, i + 1))
   return {
@@ -21751,7 +21842,7 @@ function newParamMint(tokens, opts) {
     metadata: [],
     sites,
     ordinalAt,
-    legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(tokens)], legacyLaneOf(opts)),
+    legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(own)], legacyLaneOf(opts)),
   }
 }
 
@@ -21798,6 +21889,12 @@ function translatePineResult(source, opts = {}) {
    *  Resolved to output indexes after the outputs are known, because a fill may
    *  legally appear before either plot it joins. */
   const fills = []
+  /** ⭐ B1 — every top-level `bgcolor(…)` / `barcolor(…)` the script writes, on the
+   *  HOST lane only, in source order. Read once, after the walk (`resolvePaints`). */
+  const paints = []
+  /** ⭐ B1 (step 61) — the `pine:chart-only` notes whose sentence depends on an
+   *  outcome resolved after the walk (a `fill`'s band, a paint's record). */
+  const chartOnlyPending = []
 
   let lexed
   try {
@@ -21806,6 +21903,9 @@ function translatePineResult(source, opts = {}) {
     const r = fromError(err)
     return { ...blank, refusal: r, refusals: [r] }
   }
+  // ⭐⭐ L1 — an imported library's exports become this script's own definitions.
+  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
+  LIBRARY_LINK_SINK = lexed.libraryLink || null
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   beginPaletteScope(version)
@@ -22312,7 +22412,9 @@ function translatePineResult(source, opts = {}) {
       continue
     }
     if (word === 'import' || word === 'export') {
-      hardRefusals.push(refusalValue('pine:module', REFUSALS['pine:module'], locate(first)))
+      // ⭐ L1 — an import the linker could not serve says WHICH library and why.
+      const why = word === 'import' && first.libraryRefusal ? ` — ${first.libraryRefusal}` : ''
+      hardRefusals.push(refusalValue('pine:module', `${REFUSALS['pine:module']}${why}`, locate(first)))
       continue
     }
 
@@ -22721,7 +22823,8 @@ function translatePineResult(source, opts = {}) {
       if (rhs[0].kind === 'ident' && CHART_ONLY_CALLS.has(rhs[0].value) && isPunct(rhs[1], '(')) {
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
           `\`${nameTok.value}\` holds a \`${rhs[0].value}\` handle, which is a chart object rather than a number`)
-        notes.push(noteOf('pine:chart-only', chartOnlyNote(rhs[0].value), rhs[0]))
+        notes.push(noteOf('pine:chart-only',
+          chartOnlyNote(rhs[0].value, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'bound' }), rhs[0]))
         continue
       }
       if (env.has(nameTok.value) && env.get(nameTok.value).kind === 'opaque') continue
@@ -22848,6 +22951,7 @@ function translatePineResult(source, opts = {}) {
       // call is still not a column, and the member's disclosure list should keep
       // saying so.
       if (word === 'hline') {
+        let hlineLevel = false
         try {
           const hargs = parseArguments(new Cursor(toks.slice(2)))
           const positional = hargs.filter((a) => !a.name)
@@ -22855,6 +22959,7 @@ function translatePineResult(source, opts = {}) {
           const titleArg = hargs.find((a) => a.name === 'title') || positional[1]
           const v = numberValue(priceArg && priceArg.value)
           if (v !== null) {
+            hlineLevel = true
             levels.push({
               value: v,
               title: titleArg && titleArg.value && titleArg.value.type === 'string'
@@ -22863,7 +22968,8 @@ function translatePineResult(source, opts = {}) {
             })
           }
         } catch { /* a level this grammar cannot fold stays an ignored line */ }
-        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        notes.push(noteOf('pine:chart-only',
+          chartOnlyNote(word, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: hlineLevel }), first))
         continue
       }
       // ⭐⭐ C1-B — `fill(handleA, handleB, color = …)` IS THE BAND.
@@ -22877,6 +22983,7 @@ function translatePineResult(source, opts = {}) {
       // now carried, but the call is still not a column, and the member's
       // disclosure list should go on saying so.
       if (word === 'fill') {
+        let fillRec = null
         try {
           const fargs = parseArguments(new Cursor(toks.slice(2)))
           const positional = fargs.filter((a) => !a.name)
@@ -22903,14 +23010,43 @@ function translatePineResult(source, opts = {}) {
             // ⛔ `env` TRAVELS WITH THE ARGUMENTS. The colour expression must be read
             // in the scope it was WRITTEN in, not in whatever scope the walk happens
             // to be holding when the fills are finally resolved.
-            fills.push({ a: a.name, b: b.name, args: fargs, env })
+            fillRec = { a: a.name, b: b.name, args: fargs, env }
+            fills.push(fillRec)
           }
         } catch { /* a fill this grammar cannot read stays an ignored line */ }
-        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        // ⭐ the sentence waits for `resolveFillHandles`: whether the band is
+        // carried is known only once both edges are (`sayChartOnly` below).
+        const fillHow = { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', band: false }
+        const fillNote = noteOf('pine:chart-only', chartOnlyNote(word, fillHow), first)
+        notes.push(fillNote)
+        chartOnlyPending.push({ note: fillNote, word, how: fillHow, fillRec })
+        continue
+      }
+      // ⭐⭐ B1 — `bgcolor(…)` AND `barcolor(…)` ARE CARRIED ON THE HOST LANE.
+      //
+      // A chart door draws them: the bar's background in the script's pane, and
+      // the chart's own candles. The arguments are stashed with the scope they were
+      // written in (a later `:=` must not reach back into them) and read ONCE after
+      // the walk by `resolvePaints`, through the same `outputPresentation` a plot's
+      // colour goes through — one colour reader. ⛔ The screener lane is unchanged:
+      // TradingView's screener reads no paint, so it stays an ignored line there.
+      // ⛔ The chart-only note is still emitted, as `hline` / `fill` keep theirs:
+      // the call is still not a column.
+      if (PAINT_CALLS.has(word) && isHostLane(opts)) {
+        let pargs = null
+        try { pargs = parseArguments(new Cursor(toks.slice(2))) } catch { pargs = null }
+        const paintRec = { kind: word, args: pargs, env: new Map(env), tok: first }
+        paints.push(paintRec)
+        // ⭐ the sentence waits for `resolvePaints` (drawn / withheld / hidden / `na`)
+        const paintHow = { lane: 'host', site: 'top', paint: null }
+        const paintNote = noteOf('pine:chart-only', chartOnlyNote(word, paintHow), first)
+        notes.push(paintNote)
+        chartOnlyPending.push({ note: paintNote, word, how: paintHow, paint: paintRec })
         continue
       }
       if (CHART_ONLY_CALLS.has(word)) {
-        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        notes.push(noteOf('pine:chart-only',
+          chartOnlyNote(word, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top' }), first))
         continue
       }
       if (ns === 'strategy') {
@@ -23100,7 +23236,8 @@ function translatePineResult(source, opts = {}) {
           const key = at ? `${at.line}:${at.column}` : null
           if (key && !seen.has(key)) {
             seen.add(key)
-            notes.push(noteOf('pine:chart-only', chartOnlyNote(h[0].value), h[0]))
+            notes.push(noteOf('pine:chart-only',
+              chartOnlyNote(h[0].value, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'nested' }), h[0]))
           }
         }
         visitNested(s.sub)
@@ -24025,6 +24162,35 @@ function translatePineResult(source, opts = {}) {
 
   const objectPass = runObjectPass()
 
+  // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`), read once, with every name
+  // settled and a resolver of their own (as the fills below get theirs). Host lane
+  // only: `paints` is empty on the screener lane by construction.
+  const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version }) : null
+  // ⭐ B1 (step 61) — the deferred sentences, said once the outcome is known. A
+  // fill not yet resolved (the no-output return below has no plots) keeps its
+  // `band: false` sentence, which is then the true one.
+  const sayChartOnly = () => {
+    for (const p of chartOnlyPending) {
+      if (p.paint) p.how.paint = paintRecs ? paintRecs[paints.indexOf(p.paint)] || null : null
+      if (p.fillRec) p.how.band = carriedFills.has(p.fillRec)
+      p.note.message = chartOnlySentence(p.word, p.how)
+    }
+  }
+  const carriedFills = new Set()
+  sayChartOnly()
+  // A paint that DRAWS: carried and not hidden by the author (`display.none`).
+  const paintDraws = !!(paintRecs && paintRecs.some((p) => !p.withheld && !p.hidden && !p.na))
+  // ⛔ NO PARTIAL CREDIT for a script whose paint is its only output: one paint
+  // withheld by name and the picture is not the one TradingView draws.
+  const paintsClean = !!(paintRecs && paintRecs.every((p) => !p.withheld))
+  // ⛔ …AND NOTHING ELSE THE SCRIPT DRAWS MAY HAVE BEEN LOST. A script whose lines
+  // and boxes all dropped (an EMPTY program is not a clean one) would otherwise be
+  // admitted on its paint alone — measured: `volume-profile-auto-line-v2` makes the
+  // candles transparent with `barcolor` so its profile can be seen, and with the
+  // profile lost that is a chart with nothing on it.
+  const objectsLost = !!(objectPass.diagnostics
+    && ((objectPass.diagnostics.droppedOps || 0) > 0 || objectPass.diagnostics.failed === true))
+
   // ⭐⭐ NO COLUMN TO SCREEN ON IS NOT THE SAME FACT AS NOTHING TO DRAW.
   //
   // ⚰⚰ THIS RETURNED BEFORE THE OBJECT PASS RAN, so a script that draws a
@@ -24063,14 +24229,18 @@ function translatePineResult(source, opts = {}) {
     // with the verdict so a pane is never told a refusal came from nowhere.
     const cleanObjectOnly = draws
       && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
-    if (isHostLane(opts) && cleanObjectOnly) {
-      // fall through — `objectOnlyCleanWin` decides, below
+    // ⭐ B1 — a script whose only output is a carried paint draws something too:
+    // the same fall-through, decided below by `paintOnlyWin`. Its objects, if it
+    // writes any, must be a clean program — a dirty one refuses as it always did.
+    const paintOnly = paintDraws && paintsClean && !objectsLost
+    if (isHostLane(opts) && (cleanObjectOnly || paintOnly)) {
+      // fall through — `objectOnlyCleanWin` / `paintOnlyWin` decide, below
     } else {
     const guard = draws ? 'pine:objects-only' : 'pine:no-output'
     const r = refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels },
+      presentation: { overlay, levels, ...(paintRecs ? { paints: paintRecs } : {}) },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
@@ -24122,9 +24292,16 @@ function translatePineResult(source, opts = {}) {
     && !!(objectPass.program && Array.isArray(objectPass.program.ops) && objectPass.program.ops.length > 0)
     && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
 
+  // ⭐⭐ B1 — A SCRIPT WHOSE ONLY OUTPUT IS ITS PAINT (`bgcolor` / `barcolor`) IS
+  // A HOST-LANE ACCEPT on the same bar the object-only win is held to: every paint
+  // carried (none withheld by name), and any object program it also writes clean.
+  // ⛔ The screener lane never reaches it: there is still no column to filter on.
+  const paintOnlyWin = isHostLane(opts) && resolved.length === 0 && paintDraws && paintsClean
+    && !objectsLost
+
   let noContent = null
   if (!blocked && usable.length === 0 && refusals.length === 0
-      && !(isHostLane(opts) && objectOnlyCleanWin)) {
+      && !(isHostLane(opts) && (objectOnlyCleanWin || paintOnlyWin))) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
     // Ordered most-specific first: a passthrough says the meaning was in
     // presentation, a constant says the column cannot move, and only an
@@ -24174,7 +24351,13 @@ function translatePineResult(source, opts = {}) {
   // survived", the object lane's own version of `refusals.length === 0`.
   const strictOk = (resolved.length > 0 && refusals.length === 0 && !blocked)
     || (objectOnlyCleanWin && !blocked)
+    || (paintOnlyWin && !blocked)
   const ok = strict ? strictOk : lenientOk
+
+  // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
+  // `fill` sentences can say whether each band was carried (B1, step 61).
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills })
+  sayChartOnly()
 
   const result = {
     ok,
@@ -24201,7 +24384,10 @@ function translatePineResult(source, opts = {}) {
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
       // uncarried for the whole of a6.
-      fills: resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver() }),
+      fills: presentationFills,
+      // ⭐ B1 — present only for a host-lane script that writes a paint, so every
+      // other result keeps its exact shape.
+      ...(paintRecs ? { paints: paintRecs } : {}),
     },
     // ⭐⭐ C3B — THE OBJECT PROGRAM, beside the columns and never inside them.
     // `null` when the script draws no graphical objects, which is 14 of the
@@ -25810,6 +25996,166 @@ function colourGradientRule(node, env, ctx, depth = 0) {
  * fill that quietly carries nothing is indistinguishable from a fill whose author
  * wrote no colour — and those are different facts.
  */
+/** ⭐⭐ B1 — `bgcolor(…)` / `barcolor(…)` → the paints a chart door draws.
+ *
+ *  Pine's signatures (the positional order is the version's own):
+ *    v5 / v6  bgcolor(color, offset, editable, show_last, title, display, overlay)
+ *             barcolor(color, offset, editable, show_last, title, display)
+ *    v3 / v4  bgcolor(color, transp, offset, editable, show_last, title)
+ *             barcolor(color, offset, editable, show_last, title)
+ *
+ *  THE COLOUR goes through `outputPresentation` — the one colour reader a plot,
+ *  a fill and a marker share — so a paint carries exactly what a plot would: a
+ *  static colour (+ opacity), a two-colour test, a palette and its index column
+ *  (`cond ? c : na` is a palette with a transparent entry: no shading on that
+ *  bar), or a `color.from_gradient` position. A colour that reader cannot say is
+ *  WITHHELD by name, never drawn in a guessed colour: for a paint the colour is
+ *  the whole drawing, so R-G's "keep the line" has nothing to keep.
+ *
+ *  WITNESSED (committed captures, `tests/fixtures/vendor/harness`): `display =
+ *  display.none` (atr-support-and-resistance, drawn by nobody), `transp =` on v4
+ *  (fvg-trend) and v5 (btc-charlie), static / two-colour / chain / `na`-gated /
+ *  palette-less colours on both calls. NOT WITNESSED, so withheld by name with
+ *  `tools/visual_conformance/probes/vw-bgcolor-barcolor.pine` queued: a non-zero
+ *  or `na` `offset`, `show_last`, any other `display`, `overlay` / `force_overlay`,
+ *  and a v3/v4 `bgcolor` with no `transp` (its documented default of 90 has no
+ *  capture).
+ *
+ *  ⛔ NOTHING MINTS. Every rule resolves with the resolver's `paramMint` held at
+ *  null (R36): a paint added to a script must not create a parameter and renumber
+ *  every id after it. A declared input still resolves to its identifier. */
+const PAINT_SIGNATURES = Object.freeze({
+  modern: Object.freeze({
+    bgcolor: Object.freeze(['color', 'offset', 'editable', 'show_last', 'title', 'display', 'overlay']),
+    barcolor: Object.freeze(['color', 'offset', 'editable', 'show_last', 'title', 'display']),
+  }),
+  legacy: Object.freeze({
+    bgcolor: Object.freeze(['color', 'transp', 'offset', 'editable', 'show_last', 'title']),
+    barcolor: Object.freeze(['color', 'offset', 'editable', 'show_last', 'title']),
+  }),
+})
+const PAINT_PROBE = 'tools/visual_conformance/probes/vw-bgcolor-barcolor.pine'
+
+function resolvePaint(p, ctx) {
+  const at = locate(p.tok)
+  const rec = { kind: p.kind, line: at ? at.line : null }
+  const withhold = (code, why) => ({ ...rec, withheld: { code, reason: why } })
+  if (!Array.isArray(p.args)) return withhold('paint:arguments', `\`${p.kind}(…)\`'s arguments could not be read`)
+  const legacy = Number.isInteger(ctx.version) && ctx.version <= 4
+  const sig = (legacy ? PAINT_SIGNATURES.legacy : PAINT_SIGNATURES.modern)[p.kind]
+  const named = new Map()
+  let pos = 0
+  for (const a of p.args) {
+    const name = a.name || sig[pos++]
+    // `transp =` by NAME is accepted on every version's `bgcolor` (v5 still
+    // compiles it: btc-charlie's `transp=70`, witnessed); by POSITION only where
+    // the version's signature places it.
+    const known = sig.includes(name) || (a.name === 'transp' && p.kind === 'bgcolor')
+      || a.name === 'force_overlay'
+    if (!name || !known || named.has(name)) {
+      return withhold('paint:argument', `\`${p.kind}(…)\` has an argument this door does not read`
+        + (a.name ? ` (\`${a.name}\`)` : ''))
+    }
+    named.set(name, a.value)
+  }
+  const title = named.get('title')
+  if (title && title.type === 'string') rec.title = title.value
+  const display = named.get('display')
+  if (display) {
+    if (display.type === 'name' && display.name === 'display.none') rec.hidden = true
+    else if (!(display.type === 'name' && display.name === 'display.all')) {
+      return withhold('paint:display', `a \`display\` other than \`display.all\` / \`display.none\` has no capture (${PAINT_PROBE})`)
+    }
+  }
+  for (const [k, code] of [['show_last', 'paint:show-last'], ['overlay', 'paint:overlay'], ['force_overlay', 'paint:overlay']]) {
+    if (named.has(k)) return withhold(code, `\`${k}\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+  }
+  if (named.has('offset')) {
+    const off = named.get('offset')
+    if (!(off && off.type === 'number' && Number(off.value) === 0)) {
+      return withhold('paint:offset', `an \`offset\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+    }
+  }
+  if (rec.hidden) return rec
+  const colour = named.get('color')
+  if (!colour) return withhold('paint:colour', `\`${p.kind}(…)\` names no colour`)
+  if (legacy && p.kind === 'bgcolor' && !named.has('transp') && !isNaColourLeaf(colour)) {
+    return withhold('paint:v4-default-transp',
+      `a v${ctx.version} \`bgcolor\` with no \`transp\` takes a default transparency no capture shows (${PAINT_PROBE})`)
+  }
+  const args = [{ name: 'color', value: colour }]
+  if (named.has('transp')) args.push({ name: 'transp', value: named.get('transp') })
+  const r = ctx.resolver
+  const minted = r ? r.paramMint : null
+  if (r) r.paramMint = null
+  let pres = {}
+  try {
+    pres = outputPresentation(args, { env: p.env, resolver: r, kind: p.kind }) || {}
+  } catch {
+    pres = { colorDynamic: true }
+  } finally {
+    if (r) r.paramMint = minted
+  }
+  const carried = typeof pres.color === 'string' || !!pres.colorCondition || !!pres.colorIndex || !!pres.colorGradient
+  if (!carried || pres.colorDynamic) {
+    return withhold('paint:colour', `\`${p.kind}\`'s colour is an expression this door cannot carry yet`)
+  }
+  // `na` (and a colour whose default settles on `na`) arrives as TradingView's
+  // `rgba(0,0,0,0)`: for a paint that is NO paint — no shading, the candle's own
+  // colour — never a transparent override.
+  if (pres.color === '#000000' && pres.opacity === 0 && !pres.colorIndex && !pres.colorCondition) {
+    return { ...rec, na: true }
+  }
+  if (typeof pres.color === 'string') rec.color = pres.color
+  if (Number.isFinite(pres.opacity)) rec.opacity = pres.opacity
+  if (pres.colorCondition && typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string') {
+    rec.colorUp = pres.colorUp
+    rec.colorDown = pres.colorDown
+    rec.colorCondition = pres.colorCondition
+  }
+  if (Array.isArray(pres.colorPalette) && pres.colorIndex) {
+    rec.colorPalette = pres.colorPalette.slice()
+    rec.colorIndex = pres.colorIndex
+  }
+  if (pres.colorGradient) rec.colorGradient = pres.colorGradient
+  // ⭐ A RULE WHOSE DECIDING TREE IS A CONSTANT IS ONE COLOUR, said as one: an
+  // input left at its default often pins a chain to one entry for every bar
+  // (atr-support-and-resistance's "High Volume Candles" is `2` — its `na` entry).
+  // Carried as a rule it would cost a column that never moves; folded here it is
+  // a static colour, or `na` (no paint at all).
+  const constIdx = rec.colorIndex && rec.colorIndex.ast && rec.colorIndex.ast.type === 'num'
+    ? rec.colorIndex.ast.value : null
+  if (Number.isInteger(constIdx) && Array.isArray(rec.colorPalette)) {
+    const entry = rec.colorPalette[constIdx]
+    delete rec.colorPalette
+    delete rec.colorIndex
+    if (typeof entry !== 'string' || entry === TRANSPARENT_PALETTE_ENTRY) {
+      delete rec.opacity
+      return { ...rec, na: true }
+    }
+    rec.color = entry
+  }
+  return rec
+}
+
+function resolvePaints(paints, ctx) {
+  const out = paints.map((p) => {
+    try { return resolvePaint(p, ctx) } catch (err) {
+      const at = locate(p.tok)
+      return { kind: p.kind, line: at ? at.line : null,
+        withheld: { code: 'paint:arguments', reason: String((err && err.message) || err) } }
+    }
+  })
+  // ⭐ the inputs the paints' colours read, as a fill's are (`_colourInputs`).
+  const r = ctx && ctx.resolver
+  if (r && r.usedInputs && r.usedInputs.size) {
+    const stamped = [...r.usedInputs.values()]
+      .map((e) => (e.name && r.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
+    Object.defineProperty(out, '_colourInputs', { value: stamped, enumerable: false })
+  }
+  return out
+}
+
 function resolveFillHandles(fills, outputs, resolved, ctx) {
   if (!fills.length) return []
   const byHandle = new Map()
@@ -25834,6 +26180,7 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
+    if (ctx && ctx.carried) ctx.carried.add(f)
     out.push({
       a: ai,
       b: bi,
@@ -26095,7 +26442,7 @@ function outputPresentation(args, ctx) {
       // ⭐⭐ C37 — A GRADIENT BETWEEN TWO STATIC COLOURS, on a `plot` — see
       // `colourGradientRule`. Tried LAST, and only for a colour nothing above
       // could say, so every colour this door already carried keeps its bytes.
-      if (!carried && kind === 'plot' && ctx && ctx.resolver && ctx.env) {
+      if (!carried && (kind === 'plot' || PAINT_CALLS.has(kind)) && ctx && ctx.resolver && ctx.env) {
         const g = colourGradientRule(c.value, ctx.env, ctx)
         if (g) {
           const r = ctx.resolver

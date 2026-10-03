@@ -2677,6 +2677,42 @@ def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list
     return kept
 
 
+# ⚰️ 2026-10-02: three web deploys in a row (13:37, 13:53, 13:58 CT) logged
+# "Waiting for application startup." and never "startup complete": the lifespan
+# froze HERE, inside this boot LOG LINE, on _resolve_active_set_for_patterns()
+# (a DISTINCT scan of every daily bar + one last-bar lookup per name), run
+# synchronously on a cold volume while the boot's own WAL checkpointer, bars
+# reconciliation and R2 push loops were already writing. Railway's 600s
+# healthcheck killed each container; with the old one already stopped the site
+# was down 13:40 -> ~15:04. The 06:40 boot of the same code finished in 18s.
+# The count is information, never a gate: it gets a few seconds on a daemon
+# thread and otherwise prints `unresolved(timeout)`. The job itself still
+# resolves its set when it runs.
+PV_CONTRACT_COUNT_TIMEOUT_S = 3.0
+
+
+def _bounded_active_set_count(timeout_s: float) -> str:
+    """len(_resolve_active_set_for_patterns()) as a string, or
+    'unresolved(<reason>)'. Never blocks longer than timeout_s; never raises."""
+    import threading
+    box: dict = {}
+
+    def _run():
+        try:
+            box["n"] = len(_resolve_active_set_for_patterns())
+        except Exception as e:  # noqa: BLE001
+            box["err"] = type(e).__name__
+
+    t = threading.Thread(target=_run, name="pv-contract-count", daemon=True)
+    t.start()
+    t.join(timeout_s)
+    if t.is_alive():
+        return "unresolved(timeout)"
+    if "err" in box:
+        return f"unresolved({box['err']})"
+    return str(box.get("n", "unresolved(none)"))
+
+
 def _pattern_vision_contract_line() -> str:
     """The pattern-vision contract, every token read from the SAME place the
     running code reads it, each suffixed with its provenance.
@@ -2701,10 +2737,7 @@ def _pattern_vision_contract_line() -> str:
     def _sig(fn, name):
         return inspect.signature(fn).parameters[name].default
 
-    try:
-        active_n = str(len(_resolve_active_set_for_patterns()))
-    except Exception as e:  # a contract line must never be why boot failed
-        active_n = f"unresolved({type(e).__name__})"
+    active_n = _bounded_active_set_count(PV_CONTRACT_COUNT_TIMEOUT_S)
     skip = _sig(_pv_orch.judge_ticker, "force") is False
     conf_only = getattr(_sig(_pv_endpoint, "confirmed_only"), "default", None)
     return ("[startup] pattern-vision: on "
@@ -9058,6 +9091,8 @@ from api.routers import indicator_vision as indicator_vision_router  # noqa: E40
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 from api.routers import indicator_telemetry as indicator_telemetry_router  # noqa: E402
 app.include_router(indicator_telemetry_router.router)  # /api/indicator-telemetry/event — Phase One Track C, client half (import_submitted/compile_finished only)
+from api.routers import pine_libraries as pine_libraries_router  # noqa: E402
+app.include_router(pine_libraries_router.router)  # /api/pine/libraries/* — L1: an imported Pine library's source + licence, from a data-dir store (never git)
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)

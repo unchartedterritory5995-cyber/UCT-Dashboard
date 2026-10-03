@@ -124,7 +124,9 @@ describe('a6.0 — `color.rgb`\'s literal alpha reaches presentation', () => {
     const t = translatePine(src, { strict: true })
     const note = (t.notes || []).find((n) => n.code === 'pine:chart-only' && n.line === 118)
     expect(note, 'the fill at 118 is noted').toBeTruthy()
-    expect(note.message).toMatch(/paints on a chart/)
+    // ⭐ B1 (step 61): the sentence says what the HOST lane does with this call —
+    // Clouds' fill at 118 joins two carried plots, so its band is carried.
+    expect(note.message).toMatch(/^`fill` is carried as the band between its two plots/)
     expect(Object.hasOwn(note, 'color') || Object.hasOwn(note, 'colour'),
       'the note does not carry a colour, and does not need to').toBe(false)
   })

@@ -83,6 +83,7 @@ import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
+import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
@@ -4238,6 +4239,10 @@ export default function StockChart({
   // destroying+recreating the price series (that recreation re-fit the price scale =
   // the "chart shakes up/down when I change a color" bug). Type/theme still recreate.
   const netColorsRef = useRef({})
+  // ⭐ B1 — Pine `barcolor` overrides (`time → colour`) the engine computed, read
+  // LIVE by the price series' wrap (`engine/barColours.js`). A ref, never state:
+  // a recolour must not re-render this component.
+  const barColoursRef = useRef(null)
   // {high,low} of the last bar + the bar before it — for the Sunrise inside-bar check
   // on the developing (live) bar (setData tracks these inline for historical bars).
   const lastNetBarRef = useRef(null)
@@ -11290,6 +11295,10 @@ export default function StockChart({
         }
         priceSeries.__uctNetWrap = true
       }
+      // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
+      // from `barColoursRef` (time → colour). Installed once per series, AFTER the
+      // net-change wrap so it runs first and the net wrap keeps its colour.
+      if (isOhlcType(cs.chartType)) wrapSeriesForBarColours(priceSeries, () => barColoursRef.current)
       prevChartTypeRef.current = _priceStyleKey
     }
 
@@ -12742,6 +12751,20 @@ export default function StockChart({
         historyFromListing,
         adjustTime,
         applyData: _applyData,
+        // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
+        // own is drawn on the price pane, through the candles' series.
+        priceSeries: () => candleSeriesRef.current,
+        // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
+        // they CHANGE; the candles are re-applied from their own remembered data
+        // (one `update` of the last bar when only it changed). No React state.
+        // ⛔ NOT A SEVENTH DEVELOPING-BAR WRITER (`singleWriterIndex.test.js`): the
+        // re-apply writes back the LAST bar the writers themselves wrote (the wrap's
+        // raw copy tracks every `update`), recoloured — never a new price.
+        setBarColours: (map) => {
+          const prev = barColoursRef.current
+          barColoursRef.current = map
+          try { reapplyBarColours(candleSeriesRef.current, prev, map) } catch { /* series mid-swap */ }
+        },
         // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
         // other chart-library capability the binder uses: a host that cannot
         // provide it draws no lines, labels or boxes and everything else — the
