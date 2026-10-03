@@ -16,7 +16,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { gradeCapture, loadCapture, HARNESS_DIR, REPO, enterDoorState, withDoorState, doorGates, ambientDoorState } from './harness'
+import { gradeCapture, loadCapture, HARNESS_DIR, REPO, enterDoorState, withDoorState, doorGates, ambientDoorState, doorStateMismatch } from './harness'
 import { __resetRuntimePanePermission } from '../../runtimePaneGate'
 import { __resetRuntimeAllowList } from '../../runtimeKill'
 
@@ -51,6 +51,15 @@ describe('RT8 — the door state is entered, never inherited', () => {
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     expect(withDoorState('on', (g) => g)).toMatchObject({ objectsOnly: true, runtime: false })
     expect(withDoorState('off', (g) => g)).toMatchObject({ objectsOnly: false, runtime: false })
+  })
+
+  it('a run whose gates disagree with its state is refused, never measured (the cold-latch case)', () => {
+    expect(doorStateMismatch('runtime', { objectsOnly: true, runtime: false })).toMatch(/door state runtime not entered/)
+    expect(doorStateMismatch('on', { objectsOnly: true, runtime: true })).toMatch(/not entered/)
+    expect(doorStateMismatch('off', { objectsOnly: true, runtime: false })).toMatch(/not entered/)
+    // control: agreeing gates pass
+    expect(doorStateMismatch('runtime', { objectsOnly: true, runtime: true })).toBe(null)
+    expect(doorStateMismatch('off', { objectsOnly: false, runtime: false })).toBe(null)
   })
 
   it('refuses an unknown state by name', () => {

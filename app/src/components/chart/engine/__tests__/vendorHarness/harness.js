@@ -163,14 +163,23 @@ export function doorGates() {
   }
 }
 
+/** ⛔ The state must be the one asked for, or the run is not measuring it: the
+ *  sentence saying how the gates disagree, or null when they agree. */
+export function doorStateMismatch(state, gates) {
+  const want = { off: [false, false], on: [true, false], runtime: [true, true] }[state]
+  if (!want || !gates || gates.objectsOnly !== want[0] || gates.runtime !== want[1]) {
+    return `door state ${state} not entered: gates read ${JSON.stringify(gates)}`
+  }
+  return null
+}
+
 /** Run `fn` in one door state; the env stubs are undone after. */
 export function withDoorState(state, fn) {
   const gates = enterDoorState(state)
-  // ⛔ the state must be the one asked for, or the run is not measuring it
-  const want = { off: [false, false], on: [true, false], runtime: [true, true] }[state]
-  if (gates.objectsOnly !== want[0] || gates.runtime !== want[1]) {
+  const wrong = doorStateMismatch(state, gates)
+  if (wrong) {
     vi.unstubAllEnvs()
-    throw new Error(`door state ${state} not entered: gates read ${JSON.stringify(gates)}`)
+    throw new Error(wrong)
   }
   try {
     return fn(gates)

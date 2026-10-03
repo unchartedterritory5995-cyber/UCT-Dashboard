@@ -962,6 +962,92 @@ function runtimePaintColour(kind, version, ro) {
   return { ok: true, colorPacked: t !== null && t > 0 ? { transparency: t } : {} }
 }
 
+/** ⭐⭐ RT8 (step 87) — THE RUNTIME DOCUMENT'S FILLS.
+ *
+ *  The runtime lane already emits each `fill(p1, p2, colour)` as an output whose
+ *  per-bar value IS the band's colour (a packed integer, `na` where Pine's colour
+ *  is `na`), with the two edges as runtime output indices
+ *  (`pineRuntimeFrontend.js::emitFill`). This puts the band on the document the
+ *  way the host lane does (`plots[].fill = {with}`), coloured by a hidden colour
+ *  column (`colorMode` + `colorPacked`, the RT6 reader), so the renderer that
+ *  draws a host band draws this one — a `na` bar is a gap (R30), as TradingView
+ *  leaves it unpainted.
+ *
+ *  GRADED against the per-bar fill colorers TradingView records
+ *  (`vendorHarness.rt8Followups.test.js`). Withheld BY NAME, each with its reason:
+ *   · a script below v5 — a v4 `fill` takes a `transp` (style transparency) whose
+ *     default no capture here pins (TradingView keeps a fill palette entry opaque);
+ *   · `show_last`, `fillgaps`, or a `display` other than `display.all`/`none` —
+ *     where or whether TradingView draws the band, which a run does not answer;
+ *   · an edge this document does not draw (offset, a withheld colour);
+ *   · a band on a pair of edges whose rows both carry one already (a row carries one).
+ *  A `display.none` fill draws nothing on TradingView either and is not named.
+ *
+ *  ⛔ The band's colour is set on the BUILT plot (`fillOf`), as RT6's row colour
+ *  is: `buildDefinition` projects only the host lane's fill colour forms.
+ *
+ *  @returns {{withheld: Array<{label: string, why: string}>, drawn: number, fillOf: Map}} */
+function runtimeFillsOf({ probe, version, rows, derivedRows, outputs, hiddenByOut, withheldOut, colourKeyOf, mintKey, mode }) {
+  const fills = []
+  probe.outputs.forEach((ro, k) => { if (ro && ro.call === 'fill') fills.push({ ro, k }) })
+  const result = { withheld: [], drawn: 0, fillOf: new Map() }
+  if (!fills.length) return result
+  const keyOfOut = new Map()
+  for (const [key, out] of Object.entries(outputs)) {
+    if (!keyOfOut.has(out)) keyOfOut.set(out, key)
+  }
+  const byKey = new Map([...rows, ...derivedRows].map((r) => [r.key, r]))
+  const anchorKeyOf = (out) => {
+    if (keyOfOut.has(out)) {
+      const key = keyOfOut.get(out)
+      const row = byKey.get(key)
+      // ⛔ a colour column is not an edge — only a row that computes a value is
+      return row && row.colourFor === undefined ? key : null
+    }
+    const h = hiddenByOut.get(out)
+    if (!h) return null
+    const key = mintKey()
+    outputs[key] = out
+    keyOfOut.set(out, key)
+    const row = {
+      key, label: '', source: '0', ast: { type: 'num', value: 0 }, mode, readback: '',
+      style: 'line',
+      // ⛔ HIDDEN: an edge the author hid draws no line — it is only a band's edge.
+      hidden: true,
+      output: h.index,
+    }
+    derivedRows.push(row)
+    byKey.set(key, row)
+    return key
+  }
+  fills.forEach(({ ro, k }, i) => {
+    const label = ro.title ? `\`${ro.title}\`` : `\`fill\` ${i + 1}${Number.isInteger(ro.line) ? ` (line ${ro.line})` : ''}`
+    const hold = (why) => { result.withheld.push({ label, why }) }
+    if (ro.display === 'none') return
+    if (!(Number.isInteger(version) && version >= 5)) {
+      hold(`the fill rules of a v${version ?? '1'} script (its \`transp\`) have no capture here`)
+      return
+    }
+    if (ro.display === 'unread') { hold('its `display =` is not `display.all` or `display.none`'); return }
+    if (ro.showLast) { hold('it is drawn only on its last bars (`show_last`), and this lane does not cut a band'); return }
+    if (ro.fillGaps) { hold('it is drawn across the gaps in its edges (`fillgaps`), and this lane does not bridge a gap'); return }
+    for (const edge of [ro.upper, ro.lower]) {
+      if (withheldOut.has(edge)) { hold(`its edge \`${withheldOut.get(edge)}\` is not drawn`); return }
+    }
+    const a = anchorKeyOf(ro.upper)
+    const b = anchorKeyOf(ro.lower)
+    if (!a || !b || a === b) { hold('an edge of it is not a plot this document draws'); return }
+    const rowA = byKey.get(a)
+    const rowB = byKey.get(b)
+    const host = !rowA.fill ? { row: rowA, with: b } : (!rowB.fill ? { row: rowB, with: a } : null)
+    if (!host) { hold('both of its edges already carry a band, and a row carries one'); return }
+    host.row.fill = { with: host.with, colorMode: `column:${colourKeyOf(k)}`, colorPacked: {} }
+    result.fillOf.set(host.row.key, host.row.fill)
+    result.drawn += 1
+  })
+  return result
+}
+
 /** CAP round 4 — a v4 `bgcolor` with no `transp` (`vw-bgcolor-v4-default`). */
 const V4_BGCOLOR_DEFAULT_TRANSP = 90
 
@@ -1090,20 +1176,30 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const seen = new Map()
   const carried = []
   const withheld = []
+  // ⭐ RT8 — what a `fill` edge needs to know about each runtime plot output: a
+  // HIDDEN one can still be an edge (Pine fills to a `display.none` plot), a
+  // WITHHELD one cannot (its column is not drawn where TradingView draws it).
+  const hiddenByOut = new Map()
+  const withheldOut = new Map()
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
+    const out = runtimeByKind.get(o.kind)[ord]
     // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
     // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
-    if (o.hidden || o._authorHidden === true) continue
+    if (o.hidden || o._authorHidden === true) {
+      if (!runtimeRowOffset(o)) hiddenByOut.set(out, { o, index })
+      else withheldOut.set(out, o.title || `${o.kind} ${ord + 1}`)
+      continue
+    }
     const label = o.title || `${o.kind} ${ord + 1}`
     if (runtimeRowOffset(o)) {
       withheld.push({ label, why: 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it' })
+      withheldOut.set(out, label)
       continue
     }
-    const out = runtimeByKind.get(o.kind)[ord]
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
-    if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
+    if (!pres.ok) { withheld.push({ label, why: pres.why }); withheldOut.set(out, label); continue }
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput })
   }
   if (!carried.length && !ownObjects) {
@@ -1163,6 +1259,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // disclosures read it; nothing computes from it.
       output: index,
     }
+  })
+  // ⭐⭐ RT8 (step 87) — THE FILLS, FROM THE SAME RUN. `runtimeFillsOf` sets each
+  // carried band on one of its edge rows (minting a hidden anchor row for an edge
+  // the author hid), coloured by the run's own colour column.
+  const fillsOut = runtimeFillsOf({
+    probe, version: t && t.version, rows, derivedRows: colourRows, outputs, hiddenByOut, withheldOut,
+    colourKeyOf, mintKey: () => keyAt(drawnRows.length + colourRows.length), mode: repaint.mode,
   })
   // ⭐⭐ RT6 — THE PAINTS (`bgcolor` / `barcolor`), FROM THE SAME RUN. The runtime
   // lane already emits each paint's colour per bar (its output IS the colour);
@@ -1249,6 +1352,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // (`colorMode` + `colorPacked`), set on the built plot because `buildDefinition`
   // projects only the host lane's three colour forms.
   definition.plots = definition.plots.map((pl) => (pl && packedOf.has(pl.key) ? { ...pl, ...packedOf.get(pl.key) } : pl))
+  // ⭐⭐ RT8 — each carried band, with its colour column, on the built plot.
+  definition.plots = definition.plots.map((pl) => (pl && fillsOut.fillOf.has(pl.key) ? { ...pl, fill: { ...fillsOut.fillOf.get(pl.key) } } : pl))
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
@@ -1299,6 +1404,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { p, why } of paintWithheld) {
     const pname = `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}`
     notes.push({ name: pname, note: `${pname} is not drawn: ${why}.` })
+  }
+  // ⭐ RT8 — a fill this document withholds is named on its own line with its
+  // reason. ⚰️ Before RT8 a runtime document's fills were undrawn and UNSAID: the
+  // `fill` entry of `RUNTIME_UNDRAWN_KINDS` below reads `t.outputs`, and the host
+  // translation lists a fill under `presentation.fills`, never as an output.
+  for (const { label, why } of fillsOut.withheld) {
+    notes.push({ name: label, note: `${label} is not drawn: ${why}. Nothing is drawn for it rather than a guess.` })
   }
   const undrawn = [...new Set([
     ...(t.outputs || [])

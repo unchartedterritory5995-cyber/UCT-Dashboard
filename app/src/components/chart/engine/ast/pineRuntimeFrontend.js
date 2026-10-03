@@ -6018,6 +6018,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: 'fill', upper, lower })
     out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
+    // ⭐⭐ RT8 (step 87) — WHAT THE CALL SAID AROUND ITS COLOUR, for the runtime
+    // pane's door (`memberPaneDefinition.js::runtimeFillsOf`), asked only by the
+    // pane's own builds (`plotColours`, as `describeColour`), so every other build
+    // keeps its exact output table. The colour IS this output (a packed integer per
+    // bar); what the door still needs is WHETHER and HOW TradingView draws the
+    // band: `display`, `show_last`, `fillgaps`, and the title it is listed under.
+    if (wantColours) {
+      const desc = outputs[outputs.length - 1]
+      if (at && Number.isInteger(at.line)) desc.line = at.line
+      const titleNode = named.has('title') ? named.get('title')
+        : (positional.length > 3 && !named.has('color') ? argOf(positional[3]) : null)
+      if (titleNode && titleNode.type === 'string') desc.title = titleNode.value
+      const displayNode = named.get('display')
+      if (displayNode) {
+        const dn = displayNode.type === 'name' ? displayNode.name : null
+        desc.display = dn === 'display.none' ? 'none' : (dn === 'display.all' ? 'all' : 'unread')
+      }
+      if (named.has('show_last')) desc.showLast = true
+      // `false` parses as the number 0 (`pine.js`); anything else may bridge a gap
+      const gaps = named.get('fillgaps')
+      if (gaps && !(gaps.type === 'number' && Number(gaps.value) === 0)) {
+        desc.fillGaps = true
+      }
+    }
   }
 
   // ⚰️ A REFUSAL WITH `line: null` IS NOT AN ACCEPTABLE FINAL STATE.
