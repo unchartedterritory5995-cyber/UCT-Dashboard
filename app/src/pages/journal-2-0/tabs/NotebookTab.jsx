@@ -1475,6 +1475,44 @@ export default function NotebookTab() {
       // Wave 12 (12B-2): a template's definitions start empty, and the Properties
       // section hides an empty property -- so the new note shows them (this tab only).
       if (revealPropertyIds?.length) rememberTemplateReveal(created?.id, revealPropertyIds)
+      // 13Q-Q1check -- PRIME useJ2Note's SWR CACHE WITH WHAT THIS POST ALREADY
+      // RETURNED, before NoteEditorPage ever mounts and asks for it.
+      //
+      // Without this, `useJ2Note(noteId)`'s useSWR has nothing cached for a
+      // note that did not exist a moment ago, so NoteEditorPage's FIRST render
+      // sees `note: null` -- and `useEditor` is deliberately keyed on
+      // `[note?.id]` (see NoteEditorPage.jsx's own comment on that hook call:
+      // the editor must be rebuilt once the real note arrives, or an
+      // ALREADY-templated note would flash empty and risk autosaving a
+      // ProseMirror repair transaction). For a note THIS function just made,
+      // that rebuild is pure cost: `note?.id` silently flips from `undefined`
+      // to `created.id` a render or two after mount, React tears down the
+      // first (empty) TipTap editor instance and builds a second one, and the
+      // 'body' openFocus effect's one `editor.commands.focus('end')' call
+      // -- a useLayoutEffect, correctly beating first paint, exactly as its
+      // own long comment documents -- fires against whichever instance is
+      // current on ITS render. On a freshly-created note that is reliably the
+      // EPHEMERAL first one: its DOM node is gone by the time the command's
+      // own deferred view.focus() rAF would have run, so the caret is lost
+      // with no error and no trace on the instance that survives.
+      //
+      // Measured (R-RAW, addInitScript focusin/MutationObserver recorder, 10
+      // reps x 2 widths, no harness help):
+      // docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/results.json
+      // -- a second `.ProseMirror` identity is added AND removed in the same
+      // batch every single rep, and `.ProseMirror` never receives a `focusin`
+      // event at all, in any rep. That is this rebuild, caught directly.
+      //
+      // Seeding the cache here (the exact shape `useJ2Note`'s fetcher
+      // returns -- `{note: ...}`, never revalidated, since this response IS
+      // the freshest possible copy) means `note` is already the real object
+      // on NoteEditorPage's FIRST render: `useEditor` builds the ONE stable
+      // instance from the start, the rebuild never happens, and the existing
+      // single-call effect (unchanged) lands on it directly. This is the same
+      // state a member reopening an already-viewed note gets from SWR's
+      // ordinary cache hit -- not a new code path, just reaching the
+      // already-tested one sooner.
+      globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
