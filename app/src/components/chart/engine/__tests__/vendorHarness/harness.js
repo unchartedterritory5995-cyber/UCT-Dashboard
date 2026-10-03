@@ -16,6 +16,10 @@ import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
 import { gradePaints } from './paintColours'
+import { vi } from 'vitest'
+import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
+import { runtimePaneEnabled, runtimePanePermitted, __permitRuntimePaneForTests } from '../../runtimePaneGate'
+import { runtimeAllowList, __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -117,4 +121,67 @@ export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
     results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [] })
   }
   return { results, inventory, table: renderSummary(results), files: files.length }
+}
+
+// ─── ⭐⭐ RT8 (step 87) — THE DOOR STATE IS SET, NEVER INHERITED ──────────────
+//
+// GT made the runtime pane need TWO answers: the build flag AND a per-member
+// permission latched in module state (`runtimePaneGate.js`), plus a graded script
+// (`runtimeKill.js` allowlist). `src/test-setup.js` grants both in a `beforeEach`.
+// ⛔ A grade made OUTSIDE a test body (the corpus CLI graded in its `describe`
+// body, at collection time) runs before that hook: the permission is unlatched, the
+// runtime lane declines every script, and a "runtime" run silently reports the
+// objects-only numbers (measured at 476412b297: MATCH 79 / DIVERGE 80 /
+// INCONCLUSIVE 136 with `VITE_PINE_RUNTIME_PANE_ENABLED=1`, the same as without).
+//
+// So every measurement names its state and this helper ENTERS it: both build
+// flags stubbed explicitly, and for `runtime` the member permitted and every
+// script graded HERE, in the state, not by a hook it may run before. It returns
+// the gates' own answers so a run can record (and a rail can check) what the
+// door really saw.
+export const DOOR_STATES = Object.freeze(['off', 'on', 'runtime'])
+
+/** Enter one door state (the caller restores with `vi.unstubAllEnvs()`). */
+export function enterDoorState(state) {
+  if (!DOOR_STATES.includes(state)) throw new Error(`unknown door state ${JSON.stringify(state)}`)
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', state === 'off' ? '' : '1')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', state === 'runtime' ? '1' : '')
+  if (state === 'runtime') {
+    __permitRuntimePaneForTests()
+    __allowEveryRuntimeScriptForTests()
+  }
+  return doorGates()
+}
+
+/** What the door's own gates answer right now. */
+export function doorGates() {
+  return {
+    objectsOnly: objectsOnlyPaneEnabled(),
+    runtime: runtimePaneEnabled(),
+    runtimePermitted: runtimePanePermitted(),
+    runtimeAllow: runtimeAllowList().join(','),
+  }
+}
+
+/** Run `fn` in one door state; the env stubs are undone after. */
+export function withDoorState(state, fn) {
+  const gates = enterDoorState(state)
+  // ⛔ the state must be the one asked for, or the run is not measuring it
+  const want = { off: [false, false], on: [true, false], runtime: [true, true] }[state]
+  if (gates.objectsOnly !== want[0] || gates.runtime !== want[1]) {
+    vi.unstubAllEnvs()
+    throw new Error(`door state ${state} not entered: gates read ${JSON.stringify(gates)}`)
+  }
+  try {
+    return fn(gates)
+  } finally {
+    vi.unstubAllEnvs()
+  }
+}
+
+/** The state an ambient environment asks for (the CLI's default when
+ *  `VENDOR_HARNESS_STATE` is unset): the two build flags as set in the process. */
+export function ambientDoorState(env = process.env) {
+  if (env.VITE_PINE_RUNTIME_PANE_ENABLED === '1') return 'runtime'
+  return env.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED === '1' ? 'on' : 'off'
 }
