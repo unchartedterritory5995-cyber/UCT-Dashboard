@@ -960,6 +960,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const probe = own.probe || probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
+    // RT5: a drawing the value build cannot hold is the drawing build's to explain.
+    if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold

@@ -1329,7 +1329,104 @@ function buildRuntimeIrLinked(source, opts, holder) {
       owner,
       ...(index === undefined ? {} : { index }),
     })
+    slotDepth.push(condDepth)
     return slots.length - 1
+  }
+
+  // ⭐⭐ RT5 — CONDITIONAL-CALL HISTORY (C34, capture `vw-fn-series-history`).
+  // Inside a block or function body that does not run on every bar, Pine keeps
+  // a PER-CALL-SITE history: a local's `[1]`, `bar_index[k]` and every `ta.*`
+  // see only the bars the block ran on (TradingView answers NaN / a one-bar
+  // window where this lane's column route would answer from every bar). The
+  // chart's own series (`close[k]`, `volume`, `hl2`…) stay the chart's.
+  // ⛔ ONLY UNDER `objectsInRun`: the drawing build is new, so refusing here can
+  // move nothing that already attached; the plot lane keeps its own behaviour
+  // and its own measurements. Refused by name, never approximated.
+  let condDepth = 0
+  const slotDepth = []
+  // The chart's own series keep the chart's history everywhere (S01-S07, B02,
+  // B03); `bar_index[k]` is the chart's in a global block (A13, C06) but the
+  // CALL SITE's inside a function body (S02, B01, H05).
+  const CHART_HISTORY = new Set(['open', 'high', 'low', 'close', 'volume', 'time', 'timeclose',
+    'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+  // A value made only of the chart's own series, constants and pointwise
+  // arithmetic has the chart's history wherever it is read.
+  const chartPure = (c, frame) => {
+    if (!c || typeof c !== 'object') return false
+    if (c.type === 'num') return true
+    if (c.type === 'series') return CHART_HISTORY.has(c.name) || (!frame && c.name === 'barindex')
+    if (c.type === 'op' || c.type === 'offset') return (c.args || []).every((a) => chartPure(a, frame))
+    if (c.type === 'call') {
+      const spec = TABLE.functions[c.name]
+      return !!(spec && isPointwise(spec)) && (c.args || []).every((a) => chartPure(a, frame))
+    }
+    return false
+  }
+  const statefulTree = (n, frame = owner !== null) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'offset') return !chartPure((n.args || [])[0], frame)
+
+    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live') return true
+    if (n.type === 'call') {
+      const spec = TABLE.functions[n.name]
+      if (!spec || !isPointwise(spec)) return true
+    }
+    return (n.args || []).some((a) => statefulTree(a, frame))
+  }
+  const conditionalHistoryGuard = (what, at) => {
+    if (!(objectsInRun && condDepth > 0)) return
+    note('runtime:conditional-history')
+    throw new RuntimeRefusal('runtime:conditional-history',
+      `${what} inside a block or function that does not run on every bar — Pine keeps that history per call site`, at)
+  }
+  let armDepth = 0
+  const lowerArm = (n, scope) => { armDepth += 1; try { return lowerExpr(n, scope) } finally { armDepth -= 1 } }
+  const topLevelHistory = (value) => {
+    if (!(objectsInRun && condDepth === 0)) return false
+    try { return statefulTree(makeResolver().resolve(value)) } catch { return false }
+  }
+  const readsFrameName = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name') { const b = env.get(n.name); return !!(b && b.frame) }
+    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(readsFrameName) : (v && typeof v === 'object' && v.type ? readsFrameName(v) : false)))
+  }
+  // A user function folded into a column (`f(x) => x[1]`) loses its frame in the
+  // canonical tree: `f(close)` reads as `close[1]`. Its history belongs to the
+  // CALL SITE, so the call is judged on what its body adds around its arguments.
+  const userCallHasHistory = (n) => {
+    if (!(objectsInRun && condDepth > 0) || !n || typeof n !== 'object') return false
+    if (n.type === 'call' && typeof n.name === 'string' && definedNames.has(n.name)) {
+      try {
+        const whole = makeResolver().resolve(n)
+        const argCanon = new Set()
+        for (const a of n.args || []) {
+          const an = a && a.type ? a : a && a.value
+          if (an) argCanon.add(JSON.stringify(makeResolver().resolve(an)))
+        }
+        const strip = (c) => {
+          if (!c || typeof c !== 'object') return c
+          if (argCanon.has(JSON.stringify(c))) return { type: 'num', value: 0 }
+          return c.args ? { ...c, args: c.args.map(strip) } : c
+        }
+        if (statefulTree(strip(whole), true)) return true
+      } catch { return true }
+    }
+    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(userCallHasHistory)
+      : (v && typeof v === 'object' && v.type ? userCallHasHistory(v) : false)))
+  }
+  // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
+  // is a string the drawing layer reads, never a column.
+  const containsObjectEnum = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
+    return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
+      : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  const slotHistoryGuard = (slot, at) => {
+    if (slot !== null && slot !== undefined
+      && (slots[slot].owner !== null || slotDepth[slot] > 0)) {
+      conditionalHistoryGuard(`\`${slots[slot].name}[…]\``, at)
+    }
   }
 
   /** Frame-relative counts for the owner currently being compiled. */
@@ -1349,6 +1446,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // subsystem and lose the real next dependency.
       throw e
     }
+    if (statefulTree(canonical)) {
+      if (owner !== null) functions[owner].rt5History = true
+      conditionalHistoryGuard('a series with history', at)
+    }
+    if (userCallHasHistory(node)) conditionalHistoryGuard('a function whose body keeps history', at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
@@ -1890,6 +1992,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    * `recvNode` (method form) is the object, prepended as the first argument.
    */
   const lowerObjectCall = (fn, argList, tok, scope, recvNode = null) => {
+    // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
+    // taken arm. A drawing made in an arm would be made on every bar.
+    if (armDepth > 0) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
         + 'than drawn as something else', tok)
@@ -2855,7 +2960,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const saved = new Map(env)
     inliningNow.add(name)
     try {
-      inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at }))
+      inl.params.forEach((p, i) => env.set(p, { kind: 'expr', node: args[i], at, frame: true }))
       // ⭐⭐ THE STATEMENT FORM — a body the substitution reader will not take.
       //
       // A `var` is frame state and an `if` is control flow; neither can become
@@ -2928,7 +3033,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       // ⛔ IN ORDER: a later binding may read an earlier one, exactly as the
       // author wrote them.
-      for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at })
+      for (const ln of inl.lines) env.set(ln.name, { kind: 'expr', node: ln.node, at, frame: true })
       // ⭐ A `[a, b, …]` RESULT IS A TUPLE, and `lowerExpr` has no case for a
       // collection — that conversion lives in `lowerResult`, the FUNCTION-result
       // path this inlining replaces. Mirrored here rather than routed through
@@ -3748,6 +3853,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // this run prints (`str.tostring`), which the columnar lane refuses.
         && !objectAllName(node)
         && !(objectsInRun && containsRunTostring(node))
+        && !(objectsInRun && containsObjectEnum(node))
         // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
         // drawing enums one line up. Handling `order.*` in the name branch is
         // not enough on its own: the ROUTE decision runs FIRST, so without this
@@ -4134,10 +4240,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (holdsColour(node, scope)) {
           return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
-            lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+            lowerArm(node.yes, scope), lowerArm(node.no, scope))
         }
-        return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+        return ternary(lowerExpr(node.test, scope), lowerArm(node.yes, scope), lowerArm(node.no, scope))
       case 'offset': {
+        // RT5: a parameter's or a body local's `[k]` is the CALL SITE's history.
+        if (readsFrameName(node.arg)) conditionalHistoryGuard('the history of a parameter or a body local', locate(node.tok))
         // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS
         // BAR. The columnar lane owns price history everywhere else, but it
         // has no column of another symbol's bars — and building one would be
@@ -4183,6 +4291,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
+            slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
           const varSlot = scope.lookup(node.arg.name)
@@ -4195,6 +4304,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
+          slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
           // FRAME-RELATIVE, exactly like a persist slot: the runtime adds the call
@@ -4217,6 +4327,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const offAt = locate(node.tok)
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
         if (offExpr && needsRuntime(offExpr, scope)) {
+          // RT5: a run-time offset into a COLUMN reads that column's own history;
+          // only `bar_index` changes meaning inside a function body (S02, B01).
+          if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
+            functions[owner].rt5History = true
+          }
           return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
         }
         const back = Number(node.n)
@@ -4420,6 +4535,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             try {
               return lowerInlineCall(node.name, fn.inlineBody, node, scope, opts)
             } catch { /* fall through to the shared frame, and its refusal */ }
+          }
+          if (fn.rt5History || (fn.historyLocals || []).length || (fn.windowLocals || []).length
+            || (fn.carriedLocals || []).length) {
+            conditionalHistoryGuard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
           }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
@@ -4702,6 +4821,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             widx = windowsMain.length
             windowsMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           const call = windowCall(widx, read(varSlot))
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
@@ -4937,6 +5057,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             aidx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
         }
         // ⭐⭐ `ta.crossover` / `ta.crossunder` OVER RUNTIME STATE.
@@ -4981,6 +5102,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // and the pair is NOT symmetric. The VM hands them to the step in
           // this order; `crossFamily.test.js` asserts swapping them changes the
           // answer rather than merely the types.
+          conditionalHistoryGuard('a stateful built-in', null)
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         // ⭐⭐ PINE'S `ta.valuewhen` — THE Nth MOST RECENT FIRING.
@@ -5034,6 +5156,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const idx = carried2Main.length
           carried2Main.push({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
           // ⭐ CONDITION THEN SOURCE — the order `lowerIr` walks them in.
+          conditionalHistoryGuard('a stateful built-in', null)
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         // ⭐⭐ PINE'S `ta.barssince` — UNBOUNDED, AND ONE ARGUMENT.
@@ -5096,6 +5219,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             aidx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
@@ -5128,6 +5252,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             idx = carriedMain.length
             carriedMain.push(entry)
           }
+          conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(idx, lowerExpr(given[0], scope))
         }
                 // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
@@ -5756,6 +5881,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
+    // RT5: every list but the root runs only on some bars (or per call).
+    if (!rootHoist) condDepth += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
@@ -6601,8 +6728,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // every case green, because nothing can produce a record while reading
         // no slot. `frontend-needsRuntime-ctor` is the mutation that holds the
         // surviving half.
-        if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
+        // RT5: under `objectsInRun` a TOP-LEVEL binding that carries history is a
+        // SLOT, evaluated on every bar where it is written, never a macro that a
+        // block would expand (and so evaluate) only on the bars the block runs.
+        if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
+          && !topLevelHistory(value)) {
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
@@ -6851,6 +6982,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     } finally {
       stmtHoistSink = outerStmtSink
+      if (!rootHoist) condDepth -= 1
     }
     return out
   }
@@ -6913,6 +7045,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const prevOwner = owner
     const prevGuard = guardOuter
     const prevFrameConsts = frameConsts
+    // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
+    const prevCondDepth = condDepth
+    condDepth = -1
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -7155,6 +7290,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       owner = prevOwner
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
+      condDepth = prevCondDepth
     }
   }
 

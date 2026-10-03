@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_VW_RT5_ARM_DRAW_BLOCK_HISTORY", overlay = true, max_labels_count = 500)
+
+// ─── 2026-10-02 RT5 — TWO THINGS THE RUNTIME LANE REFUSES BY NAME ───────────────
+//
+// The runtime lane evaluates BOTH arms of `?:` on every bar, and gives a block
+// local's `[1]` from a ring committed on every bar. Both are refused by name
+// under the drawing build (`runtime:object-op` "a drawing call inside one arm of
+// `?:`", `runtime:conditional-history`). These rows turn the Pine argument into
+// a vendor rail, so either can be SERVED instead of refused.
+//
+// ⛔ CAPTURE: NYSE:RDDT 1D, from the listing (all history), defaults.
+//   T01: the label text multiset — one label per UP bar (Pine runs only the arm
+//        it picks), never one per bar.
+//   T02: the handle a ternary arm returns — present on UP bars, `na` on the rest.
+//   B01: a block local's `[1]` — the PREVIOUS EXECUTION's value (the bar_index
+//        of the previous UP bar), against B00, the chart's bar_index.
+
+t = close > open ? label.new(bar_index, high, "T01|" + str.tostring(bar_index)) : na
+plot(na(t) ? 0 : 1, "T02_arm_handle_present")
+
+float b1 = na
+if close > open
+    bx = bar_index
+    b1 := bx[1]
+plot(b1, "B01_block_local_prev_exec")
+plot(bar_index, "B00_bar_index_CONTROL")

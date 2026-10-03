@@ -29,7 +29,7 @@ export function runtimeOwnObjectsOf({ source, t }) {
   const probe = probeRuntimeProgram(source, { objectsInRun: true })
   if (!probe.ok) {
     const r = probe.refusal || {}
-    return { probe: null, why: `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}` }
+    return { probe: null, guard: r.guard || 'runtime', why: `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}` }
   }
   if (!(probe.objectOps > 0)) return { probe: null, why: null }
   return { probe }

@@ -120,10 +120,13 @@ describe.skipIf(!RUN)('RT5 — runtime objects vs captures', () => {
       const fams = d.ok ? Object.keys(v.held).filter((k) => v.held[k] || d.held[k]) : []
       const agree = d.ok ? Object.fromEntries(fams.map((k) => [k, d.held[k] === v.held[k]])) : null
       const labelTexts = d.ok && v.texts.labels.length ? sameMultiset(d.texts.labels, v.texts.labels) : null
+      const onlyIn = (a, b) => { const m = new Map(); for (const x of b) m.set(x, (m.get(x) || 0) + 1); const out = []; for (const x of a) { if (m.get(x)) m.set(x, m.get(x) - 1); else out.push(x) } return out }
+      const textDiff = d.ok && labelTexts === false
+        ? { ours: onlyIn(d.texts.labels, v.texts.labels).slice(0, 6), vendor: onlyIn(v.texts.labels, d.texts.labels).slice(0, 6) } : null
       rows.push({
         file: f, fromListing: !!(cap.history && cap.history.startsAtBar0), bars: (cap.bars && cap.bars.rows || []).length,
         door, direct: d.ok ? { ms: d.ms, status: d.status, reason: d.reason, withheld: d.withheld, held: d.held } : d,
-        vendor: v.held, agree, labelTexts,
+        vendor: v.held, agree, labelTexts, textDiff,
       })
     }
     if (OUT) fs.writeFileSync(OUT, JSON.stringify(rows, null, 1))
