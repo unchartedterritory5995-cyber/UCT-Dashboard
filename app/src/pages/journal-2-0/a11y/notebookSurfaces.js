@@ -103,6 +103,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/SaveTranscriptPassage.jsx': { recipe: 'save-transcript-passage' },
   'components/notebook/TranscriptDoors.jsx': { coveredBy: 'ticker-research-transcript' },
   'components/notebook/PassedSetups.jsx': { recipe: 'passed-setups' },
+  // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
+  // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.
+  'components/notebook/ResurfaceVersionSheet.jsx': { recipe: 'resurface-version' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },

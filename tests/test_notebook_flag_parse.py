@@ -54,6 +54,7 @@ from api.services.journal_two import transcript_capture, passed_setups
 from api.services.journal_two import chart_plan
 from api.services.journal_two import entry_context
 from api.services.journal_two import visual_playbook
+from api.services.journal_two import note_levels
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -134,6 +135,8 @@ def _server_gates() -> dict:
         "NOTEBOOK_PASSED_SETUPS_ENABLED": passed_setups.enabled,
         # Wave 13 lane 13I-2: the visual playbook router's own gate function.
         "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": visual_playbook.enabled,
+        # Wave 13 lane 13D: the resurfacing scan's own gate function.
+        "AWARENESS_NOTE_RESURFACE_ENABLED": note_levels.enabled,
     }
 
 

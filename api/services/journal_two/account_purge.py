@@ -168,6 +168,12 @@ _DIRECT_USER_TABLES = (
     # where the door never ran this is a "no such table" no-op. (13G-1 transcript passages
     # are ordinary j2_note_documents / pages / excerpts rows, already purged above.)
     "j2_passed_setups",
+    # Wave 13 (lane 13D, resurfacing) -- the member's level index (a projection of their
+    # notes through plan_extract) and the ledger of which of their notes came back and when.
+    # Self-ensured by note_levels.py (never db.py), so on a pod where the scan's resurfacing
+    # pass never ran this is a "no such table" no-op.
+    "j2_note_levels",
+    "j2_note_resurface_fires",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

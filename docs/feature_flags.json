@@ -255,6 +255,15 @@
       ],
       "note": "MEMBER-VISIBLE, live 2026-09-23: a 6th Awareness Engine rule (G-074, competitive gap ledger) -- when a position hits its stop AND the member has any research on that symbol, an additional in-app/email/Discord insight nudges them to review it, separate from the existing stop_hit alert. Deliberately its own flag, not folded into AWARENESS_ENGINE_ENABLED, so it can be rolled back alone if it proves noisy. Owner decision: flipped on 2026-09-22 (Patrick: \"yes turn it on\"). Verified live in the running process via railway ssh, not just --kv."
     },
+    "AWARENESS_NOTE_RESURFACE_ENABLED": {
+      "member_facing": {
+        "label": "Your notes come back when it matters",
+        "where": "Dashboard (Compass noticed) and the Notebook"
+      },
+      "status": "dark",
+      "where": [],
+      "note": "Wave 13 lane 13D, 2026-10-03. Enablement gate for resurfacing: Awareness Engine rules R7-R9 (api/services/awareness/rules.py, appended after R1-R6, which are byte-identical and pinned by tests/test_awareness_resurface.py) bring a member's note back as an IN-APP insight when its ticker touches a level the note named (within 0.5%, or crossed since the last cycle), moves 8% or more on the day, or reaches a Review Date or catalyst/event/earnings date property (on the day or up to 3 days after). The notice opens the note at the VERSION that first named the level (?note=<id>&resurfaceVersion=<version>), shown read-only in a sheet beside the live note. Levels come only from plan_extract.note_levels (the one reader of plan levels) through the projection index j2_note_levels (api/services/journal_two/note_levels.py, rebuilt by watermark inside the scan, never in the save path, never a writer into notes); prices only from the shared live-price cache (never a per-note fetch). Delivery is in-app only: every importance is 7 or less and the pass has no delivery branch (no email, no Discord). At most 2 a member a day under their OWN sub-cap in voice_proactive_service.add_insight (MAX_RESURFACE_PER_USER_PER_DAY), outside the shared 8-a-day count, and one per level per day from the ledger j2_note_resurface_fires. Both tables are purged with the account. Checked per cycle inside run_awareness_scan, so AWARENESS_ENGINE_ENABLED (and COMPASS_AUTOMATION_ENABLED for the schedule) must also be on. Rides the auth payload as awareness_note_resurface_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request, latched per tab, which gates the note's sheet. Zero model calls. Unset means OFF and that is the decision: dark until the owner flips it. Rollback: unset or 0 on web."
+    },
     "BARSPACK_ENABLED": {
       "status": "armed",
       "where": [

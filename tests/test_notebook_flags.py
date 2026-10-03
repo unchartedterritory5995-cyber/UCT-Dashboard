@@ -56,6 +56,8 @@ NOTEBOOK_KEYS = [
     "notebook_passed_setups_enabled",
     # Wave 13 lane 13I-2: the visual playbook, tag suggestion and before/after — an enablement gate.
     "notebook_visual_playbook_enabled",
+    # Wave 13 lane 13D: resurfacing (Awareness R7-R9 + the note door's sheet) — an enablement gate.
+    "awareness_note_resurface_enabled",
 ]
 
 

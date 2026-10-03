@@ -236,6 +236,9 @@ NOT_REHEARSED = {
     "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "dark (wave 13 13I-2): the visual playbook grid, the setup-tag "
                                         "suggestion at insert and the trade page's before/after; "
                                         "waits for the wave-13 PR and the owner's arming order (P6)",
+    # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
+    "AWARENESS_NOTE_RESURFACE_ENABLED": "dark (wave 13 13D): the awareness scan's resurfacing pass; "
+                                        "its evidence is an insight row from a scan cycle",
 }
 
 

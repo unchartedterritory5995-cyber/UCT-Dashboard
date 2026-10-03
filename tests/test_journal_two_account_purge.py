@@ -159,6 +159,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # j2_passed_setups, likewise: passed_setups.py self-ensures it (wave 13 lane 13G-1).
     from api.services.journal_two import passed_setups as psu
     psu.ensure_schema(conn)
+    # j2_note_levels / j2_note_resurface_fires, likewise: note_levels.py self-ensures them
+    # on the awareness scan's resurfacing pass (wave 13 lane 13D).
+    from api.services.journal_two import note_levels as nlv
+    nlv.ensure_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

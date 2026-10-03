@@ -60,6 +60,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_transcript_capture_enabled: false, // wave 13 lane 13G-1: a transcript passage into a note — absent ⇒ OFF
   notebook_passed_setups_enabled: false, // wave 13 lane 13G-1: the passed-setups journal — absent ⇒ OFF
   notebook_visual_playbook_enabled: false, // wave 13 lane 13I-2: visual playbook, tag suggestion, before/after — absent ⇒ OFF
+  awareness_note_resurface_enabled: false, // wave 13 lane 13D: resurfacing ("what you wrote then" sheet) — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 
