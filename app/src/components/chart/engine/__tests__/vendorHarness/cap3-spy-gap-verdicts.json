@@ -68,23 +68,12 @@
       "script": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [],
         "objects": [
-          "DIVERGE",
-          [
-            [
-              "lines",
-              100,
-              42
-            ],
-            [
-              "labels",
-              56,
-              22
-            ]
-          ]
+          "MATCH",
+          []
         ],
         "paints": null
       },
