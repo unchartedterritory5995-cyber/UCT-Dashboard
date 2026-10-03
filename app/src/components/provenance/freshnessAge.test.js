@@ -555,8 +555,11 @@ describe('the age authority has named consumers, and only those', () => {
       .map(key)
     // TERM-006 (2026-10-02): `FreshnessBadge.jsx` reads a named class's cadence WORDS from the
     // authority — it is the renderer, not a panel, and still decides nothing.
+    // TERM-059 follow-ups 2-4 (2026-10-03): the Monitor's AAII, CBOE P/C and CNN F/G
+    // columns ask too, through `pages/breadth/sentimentAge.js`.
     expect(importers.sort(), 'a panel adopted (or dropped) the age ruling; name it here by path')
-      .toEqual(['app/src/components/provenance/FreshnessBadge.jsx', 'app/src/pages/breadth/naaimAge.js'])
+      .toEqual(['app/src/components/provenance/FreshnessBadge.jsx', 'app/src/pages/breadth/naaimAge.js',
+                'app/src/pages/breadth/sentimentAge.js'])
   })
 
   it('and the adopter is itself rendered by a page, not a helper nobody calls', () => {

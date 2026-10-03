@@ -69,6 +69,20 @@
       ],
       "note": "ARMED on web 2026-10-02 16:05Z (owner-run --set; deploy 94d46235 SUCCESS 16:08Z, fresh boot). Verified as the smoke account: /api/artifact-versions/status 200 enabled=true kinds screen/layout/watchlist retain 10. COV-06 (version history on user-authored artefacts), ENABLEMENT GATE, default OFF, read per call in api/services/artifact_versions.py::is_enabled(). SERVICE: web. What it arms: (1) every committed save of a member's saved screen (api/services/screener/saved_screens.py create/update) and of a member's OWN user-scope named chart layout (api/services/charts_layout_service.py upsert) is snapshotted into the artifact_versions table of the TERM-021 store FILE (/data/workspace_docs.db, path read from workspace_doc_store._DB_PATH - same file and nightly backup, its own table; workspace_doc_versions is untouched), after a pre-write baseline of the value the save replaced; (2) GET /api/artifact-versions/{screen|layout}/{id}, GET .../{version} and POST .../restore (compare-and-set on base_version, 409 on a stale base), owner-scoped (somebody else's artefact is 404), screens paid (402); (3) the History control in the Screener's My screens rows and in the /charts Layout Dock's right-click menu, which render nothing unless the list route answers 200. Retention: newest 10 per artefact (Bloomberg MNRS), after coalescing a save superseded by the next save within 60 s (named layouts auto-save ~400 ms after each arrangement change); a baseline, a restore and the version a restore replaced are never coalesced; every removal is recorded in artifact_version_prune_log, and retention runs only while armed. A restore writes the old stored TEXT back verbatim through the artefact's own store and appends it as a NEW version, so it is itself undoable; it never restores a screen's publication (is_public/share_token) or a layout's name. Unset: no I/O, no file opened or created, saves byte-identical, every route 404, the UI control absent (tests/test_artifact_versions.py). NOT ARMED: no owner decision yet; nothing blocks it technically, but STORE_BACKUP must keep covering workspace_docs (it does today). REVERSAL: unset it and redeploy web if the unset does not restart it. The rows are LEFT IN PLACE; never delete them to undo an arming. FOLLOW-UPS (lane/cov-06-10-followups): (a) WATCHLISTS are versioned too (kind 'watchlist', api/services/watchlist_service.py): a whole-list snapshot {name, description, items_json} after every committed edit (add / bulk add / remove / reorder / note / rename), same 60 s coalescing and newest 10; never the flagged shadow list, an admin INDEX list, or a LINKED list. (b) DELETE KEEPS A TOMBSTONE: a delete while armed appends the removed content (baseline first if it was never versioned) and a 'delete' row, so the history outlives the artefact; GET /api/artifact-versions/{kind}/deleted lists them and POST /{kind}/{id}/undelete recreates one under its old id from any kept version, compare-and-set, unpublished / unshared (a layout's live share link is revoked by an appended row). UI: Recently deleted in the Screens menu, the Layout library and Watchlists My Lists; Version history on a list's header menu. No new table. Rails: tests/test_artifact_versions_followups.py, app/src/components/artifactHistory/RecentlyDeleted.test.jsx, app/src/pages/Watchlists.versions.test.jsx."
     },
+    "RSS_SERIES_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": ["web", "terminal-next-monitor"],
+      "owner": "TERMINAL-NEXT Lane P (TERM-014)",
+      "note": "TERM-014 (FB-OBS-03), built dark. On WEB it makes the 60 s memwatch loop (api/main.py _web_memwatch) RETAIN each [mem] sample in /data/rss_series.db (api/services/rss_series.py: RSS, threads, deployment id, and a cheap per-subsystem census of TTLCache entries and live threads per name prefix); unset, record() returns before any I/O and no file is created. On TERMINAL-NEXT-MONITOR it arms the weekday 09:20 ET `memory` job, which reads tools/rss_slope_report.py through /api/terminal-next/report/memory-slope and posts the slope to the ADMIN channel (ALERT on an OBS-4 ceiling: RSS > 3,500 MB or threads > 200; INSUFFICIENT samples is not an alert). Retention OBS-5: newest 400 rows, nothing older than 90 days, declared in api/services/store_retention.py as rss_series; the prune asks may_prune first. Not armed: no owner decision yet, and the reading itself needs TERM-007's quiet window. Reversal: unset it on both services; the rows are LEFT IN PLACE and age out under their declared rule, never deleted to undo an arming."
+    },
+    "WATCHLIST_ENTITY_KEYS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-03",
+      "where": ["web"],
+      "owner": "TERMINAL-NEXT Lane P (Entity Master UC-2)",
+      "note": "Entity Master UC-2, built dark (api/services/watchlist_entity_keys.py). Armed: a watchlist row added through watchlist_service.add_item / bulk_add_items is keyed ONCE, that day, to its Entity Master entity in a side store /data/watchlist_entity_keys.db (never auth.db: no schema change there), and get_watchlist / list_user_watchlists decorate member lists (never the prebuilt INDEX lists, at most 500 rows a call) with entity_id, display_sym and entity_marker ('renamed' / 'delisted'); `sym` and the COV-06 snapshot are untouched. An ambiguous or unknown ticker keys to NULL and renders as before. Unset: no I/O, no file created, rows byte-identical. Arming needs the Entity Master seeded on web (ENTITY_MASTER_* checkpoints) and a frontend that reads display_sym (not built: the Watchlists page is another lane's surface). Retention: declared in store_retention as member data, never swept. REVERSAL: unset it; key rows are LEFT IN PLACE, never deleted to undo an arming."
+    },
     "BREADTH_V2_PRODUCER_ENABLED": {
       "status": "dark",
       "where": ["breadth-v2-runner"],
@@ -2543,6 +2557,32 @@
       "baked_measured_on": "e6ca532c6 — same commit, same reason",
       "last_changed": "2026-09-13 (row added; the flag itself has never been on)",
       "note": "PLACEMENT, not a feature gate, and NOT the member-pane flag despite the word 'volume' in both names — read by app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled, it decides whether a definition already overlaid on the volume pane gets its OWN pane and right axis instead of the shared left one. Turning it on does nothing for uncharted-volume.pine. The collision cost a full re-read of resolvePlacement to rule out, which is why both flags now say in writing what the other one is not. Same Dockerfile ARG gap, fixed in the same commit."
+    }
+  },
+  "knobs": {
+    "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "IMPLIED_ENRICHMENT_CUTOVER": {
+      "repo": "uct-dashboard",
+      "read_at": "api/routers/calendar.py::_cutover_on (read per call; == '1' is on)",
+      "kind": "cutover",
+      "status": "pending",
+      "since": "2026-08-04",
+      "note": "Calendar expected-move enrichment: unset/anything but '1' keeps the legacy delayed yfinance straddle; '1' switches to the in-house Massive chain (api/services/implied_move.py) with its typed refusals (ATM bound |K-S|/S <= 0.10). Built in the 2026-08-04 research-redesign P2 plan, default OFF, and never ledgered, so whether the refusal layer is live was NOT DETERMINABLE from the repo (tech-debt TD-37, TD-57). Flipping it is the OWNER'S call (COMPLETION-LEDGER X-16); the plan's precondition is a validation on a dense chain (NVDA/TSLA class) first. Reversal: unset it."
+    },
+    "D5_CP4_DUAL_COMPUTE_SAMPLE_RATE": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/bars_sanitize.py::_DUAL_COMPUTE_SAMPLE_RATE (read at import; float, default 0.05)",
+      "kind": "sample_rate",
+      "status": "armed",
+      "default": "0.05",
+      "note": "D5 CP4 dual-compute of split detection (FMP vs the D5 corporate-actions source) on a SAMPLED fraction of serve-time sanitize calls in production; every call under pytest. Log-only, never raises, never changes what is served (FMP stays the value of record until CP7). The default IS the decision: 5% of calls, with no Railway override recorded. Status armed because the path runs at its default with nothing set; set 0 to stop sampling."
+    },
+    "WIRE_SURFACE_LINE_ENABLED": {
+      "repo": "morning-wire",
+      "read_at": "morning-wire morning_wire_engine.py (CONFIG.get or os.environ, == '1' is on). NOT read in this repo, so feature_flag_index cannot see it",
+      "kind": "gate (other repo)",
+      "status": "dark",
+      "note": "TERM-085: one sentence under the wire's regime banner naming the surface it came from; this repo carries only the styling (app/src/pages/MorningWire.module.css .rd-surface). Default OFF in the engine. Ledgered HERE because morning-wire has no flag ledger and the dashboard renders its output; arming is a morning-wire config change on the local engine box (CONFIG or env), the owner's call. Reversal: unset it; the dashboard renders nothing when the engine emits no line."
     }
   }
 }

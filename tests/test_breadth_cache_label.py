@@ -125,6 +125,10 @@ def test_the_delegated_window_reports_the_plain_tier_not_a_miss(app_env, caplog)
     # Evict ONLY the pre-rendered body entry, leaving the plain reader's cache warm.
     env_cache = app_env["cache"]
     env_cache.invalidate(app_env["rm"]._body_cache_key(90, "", "le"))
+    # TERM-082: the route's bounded last-good slot would otherwise answer first
+    # (tier `stale`, railed in test_breadth_monitor_serve_stale.py). Forget it too,
+    # so this case still reaches the plain reader it is about.
+    app_env["rm"]._history_stale().forget(app_env["rm"]._body_cache_key(90, "", "le"))
 
     second = _get(app_env, 90, caplog)
     assert second["read_ran"] is False, (

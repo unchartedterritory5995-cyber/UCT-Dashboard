@@ -4679,6 +4679,9 @@ async def lifespan(app: FastAPI):
                 _rss = _process_rss_mb()
                 if _rss is not None:
                     print(f"[mem] rss_mb={_rss} threads={threading.active_count()}")
+                    # TERM-014: retain the sample (dark: RSS_SERIES_ENABLED unset => no I/O).
+                    from api.services import rss_series as _rss_series
+                    _rss_series.record(_rss, threading.active_count())
             except Exception:
                 pass
             _mw_time.sleep(60)
