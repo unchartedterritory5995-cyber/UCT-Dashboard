@@ -3517,6 +3517,10 @@ export function validateUserDefinitions(rawDefs) {
   const base = registerDefinitions(rawDefs)
   const errors = [...base.errors]
   const defs = []
+  // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or
+  // the latched list): `installUserDefinitions` takes an already-installed copy
+  // of each off this tab, so a kill reaches an open chart on its next read.
+  const killedIds = []
 
   for (const def of base.defs) {
     const kind = def.compute.kind
@@ -3534,6 +3538,7 @@ export function validateUserDefinitions(rawDefs) {
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
       if (killed) {
         errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        killedIds.push(def.id)
         continue
       }
       defs.push(def)
@@ -3558,7 +3563,7 @@ export function validateUserDefinitions(rawDefs) {
     defs.push(def)
   }
 
-  return { defs, errors }
+  return { defs, errors, killedIds }
 }
 
 const _registered = registerDefinitions(RAW_DEFS)
@@ -3783,8 +3788,17 @@ function installKey(def) {
  *          `getDefinition` will now answer with — never the input documents.
  */
 export function installUserDefinitions(rawDefs) {
-  const { defs, errors } = validateUserDefinitions(rawDefs)
+  const { defs, errors, killedIds } = validateUserDefinitions(rawDefs)
   const installed = []
+  // ⛔ RF — A KILL TAKES THE INSTALLED COPY OFF THIS TAB. Before RF a re-read
+  // that served a listed runtime document (same id and version, now stamped
+  // `meta.runtimeKilled`) was refused here while the copy installed before the
+  // kill stayed in `_userById` and kept drawing until a full page reload. The
+  // stored row is untouched (the server never deletes it); only this tab's
+  // installed copy goes, and the binder draws nothing for the instance.
+  for (const id of killedIds || []) {
+    if (_userById.has(id)) { _userById.delete(id); _generation += 1 }
+  }
   for (const def of defs) {
     if (_byId.has(def.id)) {
       errors.push(
