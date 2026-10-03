@@ -208,11 +208,22 @@ def open_note(pg, base, nid):
 
 
 def type_slash(pg, text: str, option: str, touch: bool):
+    # Click NEAR THE TOP-LEFT of the editor, never its default (geometric-center) target.
+    # `.ProseMirror` is the whole note's contenteditable root, and once a chart embed (with its
+    # Plan panel, if open) has mounted INSIDE it as a NodeView, the element's bounding box spans
+    # the embed too -- its center can land on the embed's own non-editable chrome
+    # (`contentEditable={false}`: the toolbar, the Plan panel, the chart body), which focuses
+    # that DIV instead of placing a text cursor. Measured:
+    # docs/notebook/evidence/wave13-13h2/walk-run14-multiple-prosemirror -- document.activeElement
+    # was a plain DIV, not .ProseMirror, after exactly this click, and the following
+    # Control+End/Enter/typed text went nowhere (no slash menu ever opened). The note always
+    # seeds with a real paragraph at the top ({"type": "paragraph", "content": [{"type": "text",
+    # "text": "The plan:"}]}), so a few px from the top-left is always real editable text.
     pm = pg.locator(".ProseMirror").first
     if touch:
-        pm.tap()
+        pm.tap(position={"x": 10, "y": 10})
     else:
-        pm.click()
+        pm.click(position={"x": 10, "y": 10})
     pg.keyboard.press("Control+End")
     pg.keyboard.press("Enter")
     pg.keyboard.type(text, delay=25)
@@ -261,7 +272,7 @@ def press(btn, touch):
         btn.click()
 
 
-def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
+def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=None, nid=None) -> int:
     """Draw mode -> Horizontal Line -> one click/tap per line, at three heights.
 
     Run 2 found the embed back in its plain toolbar after the Draw press. A probe (same build)
@@ -328,8 +339,29 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
             pg.touchscreen.tap(x, y)
         else:
             pg.mouse.click(x, y)
-        pg.wait_for_timeout(400)
         placed += 1
+        # V390 run 9/10/11/14: all three taps ran with no exception, yet a flat 400ms wait found
+        # the server still holding 0 "horizontal" annotations after EVERY tap, and the final
+        # count (after Done) was 1, not 3. WAIT for the count to actually reach `placed` (up to
+        # 10s) rather than a blind timeout, and name where it stalls if it never gets there --
+        # settling first is what distinguishes "autosave is just slower on touch" (the count
+        # eventually catches up) from "the tap did not register a new line" (it never does).
+        if req is not None and nid is not None:
+            settle_end = time.time() + 10.0
+            lines_now = []
+            while time.time() < settle_end:
+                n = read_note(req, base, nid)
+                embs = embeds((n or {}).get("bodyJson") or {})
+                lines_now = [d for d in (embs[0].get("annotations") or []) if d.get("type") == "horizontal"] if embs else []
+                if len(lines_now) >= placed:
+                    break
+                time.sleep(0.3)
+            w.raw.setdefault(f"{tag}_lines_after_tap", []).append(
+                {"attempt": placed, "stored_count": len(lines_now), "reached_in_10s": len(lines_now) >= placed,
+                 "class": pg.evaluate("() => { const f = document.querySelector('[data-widget-embed-view=\"chart\"]'); "
+                                      "return f ? f.className : null }")})
+        else:
+            pg.wait_for_timeout(400)
     press(toolbar_button(pg, frame, "Done", touch), touch)
     return placed
 
@@ -371,7 +403,7 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
     w.shot(pg, f"{tag}-1-chart")
 
     # 2 -- draw three lines, then mark their roles in the panel
-    placed = draw_three_lines(pg, frame, touch, w, tag)
+    placed = draw_three_lines(pg, frame, touch, w, tag, req=req, base=base, nid=nid)
     stored, drew = wait_stored(req, base, nid, lambda e: len([d for d in (e[0].get("annotations") or [])
                                                                if d.get("type") == "horizontal"]) >= 3)
     lines = [d for d in (stored[0].get("annotations") or []) if d.get("type") == "horizontal"] if stored else []
