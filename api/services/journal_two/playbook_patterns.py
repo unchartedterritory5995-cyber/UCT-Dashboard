@@ -147,6 +147,14 @@ def notes_before_trade(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Ro
                             (nid, user_id)).fetchone()
         if note is None:
             continue
+        # NOT redundant with the post_entry check below, even though every hand-made note has
+        # created_at == updated_at: notes.py's importer (`_import_date` on `n.get("createdAt")` /
+        # `n.get("updatedAt")`) sets the two independently from external source metadata, so an
+        # imported row can carry created_at after entry with updated_at before it. On that shape
+        # `_note_state_at` alone would read the current body as a valid pre-entry state
+        # (post_entry False) -- this check is what excludes it. Mutation-pinned:
+        # tests/test_notebook_playbook.py::
+        # test_a_notes_own_created_at_gates_it_even_when_updated_at_predates_entry
         created = plan_grading._parse_ts(note["created_at"])  # noqa: SLF001 -- the one timestamp reader
         if created is None or created > cutoff:
             continue   # written after the trade: not a "before" note
