@@ -24,3 +24,6 @@
 .table th { color: var(--text-muted); font-weight: 600; }
 .cellPos { background: color-mix(in srgb, var(--gain) calc(var(--heat, 0) * 60%), transparent); }
 .cellNeg { background: color-mix(in srgb, var(--loss) calc(var(--heat, 0) * 60%), transparent); }
+/* lane/o-options-remainders: the 3D surface's cells (FT-018) and a clickable tide (FT-057). */
+.mesh { stroke: var(--border); stroke-width: 0.5; }
+.clickable { cursor: pointer; }

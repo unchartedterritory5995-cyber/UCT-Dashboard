@@ -44,6 +44,9 @@ describe('BacktestPanel with FT-011 switched on', () => {
     fireEvent.change(screen.getByLabelText('Entry anchor'), { target: { value: 'earnings' } })
     expect(screen.queryByLabelText('Entry days before expiry')).toBeNull()
     expect(screen.queryByLabelText('Take profit')).toBeNull()
+    // one session in, one out: the stop-loss rule is withdrawn too, and no stray brace is painted
+    expect(screen.queryByLabelText('Stop loss')).toBeNull()
+    expect(screen.getByTestId('backtest').textContent).not.toContain('}')
     fireEvent.click(screen.getByTestId('backtest-simulate'))
     await screen.findByTestId('backtest-result')
     expect(postBody).toEqual({ strategy: 'long_straddle', anchor: 'earnings', offset: 0, width: 0 })

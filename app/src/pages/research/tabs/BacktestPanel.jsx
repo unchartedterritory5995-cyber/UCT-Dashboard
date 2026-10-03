@@ -126,7 +126,7 @@ export default function BacktestPanel({ sym }) {
             {EXIT_PCTS.map((p) => <option key={p} value={p}>+{p}%</option>)}
           </select>
         </label>}
-        <label>Exit at loss{' '}
+        {!earnings && <label>Exit at loss{' '}
           <select aria-label="Stop loss" value={sl} onChange={(e) => setSl(e.target.value)}>
             <option value="">hold to expiry</option>
             {EXIT_PCTS.map((p) => <option key={p} value={p}>-{p}%</option>)}
