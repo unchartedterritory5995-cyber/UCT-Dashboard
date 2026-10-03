@@ -1,0 +1,145 @@
+{
+ "tool": "tools/notebook_w13g2_walk.py",
+ "base": "http://127.0.0.1:8665",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13g2-walk-out1\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 04:29:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 04:30:34",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 04:30:52",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13g2-walk-out1\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13g2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T04-29-49.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me[notebook_thesis_chips_enabled]=True"
+  },
+  {
+   "id": "STEP0_no_thesis_indicator_today",
+   "verdict": "PASS",
+   "detail": "List chips=0, Table chips=0, batch requests=[]"
+  },
+  {
+   "id": "W1_list_chips_with_distance_1200",
+   "verdict": "PASS",
+   "detail": "NVDA='+4.8% above stop' (want '+4.8% above stop'); AMD='+7.5% above stop' (want '+7.5% above stop'); batch requests=1"
+  },
+  {
+   "id": "W2_preview_exact_seeded_levels",
+   "verdict": "PASS",
+   "detail": "text='+4.8% above stop\\nNVDA thesis (walk)\\nACTIVE\\nEntry\\n$310.00\\nStop\\n$295.00\\nTarget\\n$330.00\\nOpen note'; href='/journal/notebook?note=95e1d29d5f714090822c28a62bc0762a'"
+  },
+  {
+   "id": "W3_table_chips_with_distance_1200",
+   "verdict": "PASS",
+   "detail": "NVDA='+4.8% above stop'; AMD='+7.5% above stop'; batch requests=1"
+  },
+  {
+   "id": "W4_keyboard_focus_opens_escape_closes",
+   "verdict": "PASS",
+   "detail": "focus opened preview=True; Escape closed it=True; focus returned to='Thesis note: Active, +4.8% above stop. Open preview.'"
+  },
+  {
+   "id": "W5_phone_390_tap_opens",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs 390; chip min height 44"
+  },
+  {
+   "id": "W6_gate_off_client",
+   "verdict": "PASS",
+   "detail": "List chips absent=True; Table chips absent=True; requests=[]"
+  },
+  {
+   "id": "W7_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W8_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "seed_ids": {
+   "nvda_note": "95e1d29d5f714090822c28a62bc0762a",
+   "amd_note": "e85b36bb6c1f41e68ce644c8c5a901bd"
+  },
+  "project_child": "PROJECTED 2",
+  "auth_me_flag": true,
+  "STEP0": {
+   "chips_list_off": 0,
+   "chips_table_off": 0,
+   "requests": []
+  },
+  "W1": {
+   "nvda_text": "+4.8% above stop",
+   "amd_text": "+7.5% above stop",
+   "expect_nvda": "+4.8% above stop",
+   "expect_amd": "+7.5% above stop",
+   "batch_requests": [
+    "http://127.0.0.1:8665/api/j2/thesis-chips"
+   ]
+  },
+  "W2": {
+   "popover_text": "+4.8% above stop\nNVDA thesis (walk)\nACTIVE\nEntry\n$310.00\nStop\n$295.00\nTarget\n$330.00\nOpen note",
+   "href": "/journal/notebook?note=95e1d29d5f714090822c28a62bc0762a"
+  },
+  "W3": {
+   "nvda_text": "+4.8% above stop",
+   "amd_text": "+7.5% above stop",
+   "batch_requests": [
+    "http://127.0.0.1:8665/api/j2/thesis-chips"
+   ]
+  },
+  "W4": {
+   "focused_opened": true,
+   "closed_after_escape": true,
+   "focus_after": "Thesis note: Active, +4.8% above stop. Open preview."
+  },
+  "W5": {
+   "geometry": {
+    "sw": 390,
+    "cw": 390,
+    "count": 1,
+    "minH": 44
+   }
+  },
+  "W6": {
+   "no_chips_list": true,
+   "no_chips_table": true,
+   "requests": []
+  }
+ }
+}
