@@ -1,0 +1,266 @@
+/* Wave 13 lane 13J: the active setups board, its cards and find more like this.
+   Same section/row idiom as ReportingSoon.module.css; every control is a real button with
+   the 44 px floor on touch (phone AND tablet, styles/tapFloor.test.js). */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 20px 40px;
+  max-width: 1400px;
+  box-sizing: border-box;
+}
+.pageTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.board,
+.similar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.title,
+.sectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.scope {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.quiet,
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.symbol {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ut-gold);
+}
+.stateChip {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.stateChip[data-state='triggered'] {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.stateChip[data-state='invalidated'] {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.45);
+}
+.days {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.distance {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12.5px;
+  color: var(--text-bright);
+}
+.levelLabel {
+  color: var(--text-muted);
+}
+.last {
+  color: var(--text-muted);
+}
+.chart {
+  position: relative;
+  height: 220px;
+  min-width: 0;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.02));
+}
+.chartWait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.noteLink {
+  font-size: 12.5px;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.action:hover:not(:disabled) {
+  border-color: rgba(220, 187, 94, 0.5);
+}
+.action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.templateList,
+.matchList,
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.templateRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-height: 44px;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.chipText {
+  font-size: 12px;
+  color: var(--text-bright);
+}
+.match {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.matchHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.matchRank {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 18px;
+}
+.score {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.reasons {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+.allFields summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.fieldList {
+  padding: 4px 0 0 12px;
+  font-size: 12px;
+  color: var(--text-bright);
+}
+
+@media (max-width: 1024px) {
+  .action,
+  .allFields summary,
+  .noteLink {
+    min-height: var(--tap-min, 44px);
+  }
+  .noteLink {
+    display: inline-flex;
+    align-items: center;
+  }
+  .allFields summary {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 12px 16px 32px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -239,6 +239,11 @@ NOT_REHEARSED = {
     # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
     "AWARENESS_NOTE_RESURFACE_ENABLED": "dark (wave 13 13D): the awareness scan's resurfacing pass; "
                                         "its evidence is an insight row from a scan cycle",
+    # Wave 13 lane 13J. Two dark pages behind their own gates; walked by the lane, not rehearsed.
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": "dark (wave 13 13J): the active setups board page; waits for "
+                                     "the owner to arm it after its real-browser walk",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": "dark (wave 13 13J): find more like this (nightly precompute + "
+                                     "read-only routes); waits for the owner to arm it",
 }
 
 

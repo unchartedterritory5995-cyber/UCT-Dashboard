@@ -213,6 +213,12 @@ NOTEBOOK_FLAGS = {
     # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
     # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
     "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
+    # Wave 13 lane 13J: the active setups board, and find more like this. Each router's gate
+    # (journal_two/setups_board.enabled, journal_two/similar_matches.enabled) reads its variable
+    # through flag_on, per request, and so does the nightly matches job; the payload keys are
+    # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

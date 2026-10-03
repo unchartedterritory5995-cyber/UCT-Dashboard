@@ -119,6 +119,8 @@ const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurf
 const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
 const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
 const TickerResearchSurface = lazy(() => import('./pages/journal-2-0/surfaces/TickerResearchSurface'))
+// Wave 13 lane 13J: the active setups board + find more like this (dark behind its own flags).
+const SetupsBoard = lazy(() => import('./pages/journal-2-0/components/notebook/SetupsBoard'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -688,6 +690,9 @@ export default function App() {
                       purpose page, deliberately NOT nested inside
                       NotebookTab's own three-pane shell. */}
                   <Route path="notebook/research/:symbol" element={<TickerResearchSurface />} />
+                  {/* Wave 13 lane 13J: the setups board. The page reads its two flags itself and
+                      fetches nothing while both are off; every route it calls 404s while dark. */}
+                  <Route path="notebook/setups" element={<SetupsBoard />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />

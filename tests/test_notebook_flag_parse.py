@@ -55,6 +55,8 @@ from api.services.journal_two import chart_plan
 from api.services.journal_two import entry_context
 from api.services.journal_two import visual_playbook
 from api.services.journal_two import note_levels
+from api.services.journal_two import setups_board
+from api.services.journal_two import similar_matches
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -137,6 +139,9 @@ def _server_gates() -> dict:
         "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": visual_playbook.enabled,
         # Wave 13 lane 13D: the resurfacing scan's own gate function.
         "AWARENESS_NOTE_RESURFACE_ENABLED": note_levels.enabled,
+        # Wave 13 lane 13J: the setups-board and similar-names routers' own gate functions.
+        "NOTEBOOK_SETUPS_BOARD_ENABLED": setups_board.enabled,
+        "NOTEBOOK_FIND_SIMILAR_ENABLED": similar_matches.enabled,
     }
 
 

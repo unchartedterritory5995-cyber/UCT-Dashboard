@@ -174,6 +174,10 @@ _DIRECT_USER_TABLES = (
     # pass never ran this is a "no such table" no-op.
     "j2_note_levels",
     "j2_note_resurface_fires",
+    # Wave 13 (lane 13J, find more like this) -- the nightly matches for the member's tagged
+    # chart blocks. Self-ensured by similar_matches.py (never db.py), so on a pod where the
+    # job never ran this is a "no such table" no-op.
+    "j2_similar_matches",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

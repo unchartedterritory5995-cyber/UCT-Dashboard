@@ -1,0 +1,156 @@
+{
+ "tool": "tools/notebook_w13j_walk.py",
+ "base": "http://127.0.0.1:8645",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13j\\walk-b5848eb968\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 23:43:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 23:45:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 23:46:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13j\\walk-b5848eb968\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13j\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T23-42-48.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gates_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_setups_board_enabled=True notebook_find_similar_enabled=True"
+  },
+  {
+   "id": "W_seed_nightly_wrote_rows",
+   "verdict": "PASS",
+   "detail": "nightly seed report: {'ran': True, 'asOf': '2026-10-02', 'universe': 1, 'universeTruncated': False, 'members': 1, 'templates': 1, 'rows': 1, 'thin': 0, 'deferred': 0, 'errors': 0, 'patternReads': 1, 'seconds': 0.337}"
+  },
+  {
+   "id": "W1_board_order_and_distances_1200",
+   "verdict": "PASS",
+   "detail": "order=[{'sym': 'ZQVA', 'state': 'waiting'}, {'sym': 'ZQVB', 'state': 'watching'}, {'sym': 'ZQVC', 'state': 'invalidated'}]; distances=['2.00% to the entry · 0.40R', '10.00% to the entry', 'Through the stop · 10.00% from the entry · 2.00R']"
+  },
+  {
+   "id": "W2_every_card_mounts_its_chart",
+   "verdict": "PASS",
+   "detail": "3 of 3 cards mounted a chart (the cap is not stressed at n=3 -- see SetupsBoard.test.jsx and the mutation proof for that); 3 /api/bars/ requests, first at -0.1s after paint"
+  },
+  {
+   "id": "W3_find_similar_by_keyboard",
+   "verdict": "PASS",
+   "detail": "42 Tab presses reached the button; Enter opened the sheet=True"
+  },
+  {
+   "id": "W4_match_reasons",
+   "verdict": "PASS",
+   "detail": "match row text: '1\\nCRWD\\n80 match\\n\\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\\n\\nEvery field compared'"
+  },
+  {
+   "id": "W5_templates_list_match_count",
+   "verdict": "PASS",
+   "detail": "templates row: 'ZQVA\\nVCP\\n1 names, 2026-10-02\\nFind more like this'"
+  },
+  {
+   "id": "W7_no_universe_scan_from_the_browser",
+   "verdict": "PASS",
+   "detail": "/api/scans/** hits from this page: []"
+  },
+  {
+   "id": "W6_phone_390",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs clientWidth 390; button height 44; tap opened the sheet=True"
+  },
+  {
+   "id": "W8_gate_off_client",
+   "verdict": "PASS",
+   "detail": "setups-board / similar-names requests with both flags off: []"
+  },
+  {
+   "id": "W9_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W10_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "auth_me_flags": {
+   "notebook_setups_board_enabled": true,
+   "notebook_find_similar_enabled": true
+  },
+  "seed_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "nightly_seed_report": {
+   "ran": true,
+   "asOf": "2026-10-02",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 1,
+   "rows": 1,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.337
+  },
+  "board_order_1200": [
+   {
+    "sym": "ZQVA",
+    "state": "waiting"
+   },
+   {
+    "sym": "ZQVB",
+    "state": "watching"
+   },
+   {
+    "sym": "ZQVC",
+    "state": "invalidated"
+   }
+  ],
+  "distances_1200": [
+   "2.00% to the entry · 0.40R",
+   "10.00% to the entry",
+   "Through the stop · 10.00% from the entry · 2.00R"
+  ],
+  "mounted_charts_1200": 3,
+  "match_text_1200": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared",
+  "templates_row_1200": "ZQVA\nVCP\n1 names, 2026-10-02\nFind more like this",
+  "phone_geometry": {
+   "sw": 390,
+   "cw": 390,
+   "button_h": 44
+  }
+ }
+}
