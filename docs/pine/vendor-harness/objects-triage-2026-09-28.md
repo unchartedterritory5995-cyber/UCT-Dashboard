@@ -171,6 +171,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
 | 75 | CAP2 coverage audit (section CAP2): census on the wave-16 tree (objects pane on 80 / 266, +runtime 86); the attached scripts with no TradingView capture (22 + the wave-16 attach cpr-with-mas) captured on NYSE:RDDT 1D from the listing and AMEX:SPY 1D, verify_capture.mjs PASS 50/50, graded in `vendorHarness.coverageAudit` (47 tests): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, supertrend-explorer refused by TradingView. Queues: RT3 Q-NL-a/b (`or`/`not` read na as false, v4 and v5), H3 Q-H3a/b/c, CAP row 9 (lower-tf "30"/"1", 1M, CAVA lookahead) | `2ad89eaa9c`..`89dfd5ac8f` + rail | no engine change | attached with a capture: 61 / 79 -> 79 / 80 (on), all runtime attaches but supertrend-explorer | table in section CAP2 |
+| 79 | F3 drawing divergences on the host object lane (section F3): `str.tostring(x, format.mintick)` rounds to the witnessed tick and keeps its decimals; words around a pattern (`"Swing H  (#,###.####)"`) are read; a non-literal format is carried named (`na` prints `NaN`, a finite value withheld); a drawing the door withholds is graded as a named gap (`withheld`), not "no drawing program". trend-targets RDDT objects MATCH, swing-highlow-zigzag RDDT MATCH; multicator / atr-trailing / pmax labels withheld by name; zigzag SPY lines are a window (35 of 52 below the window) | F3 commits on `pine/f3-drawing-divergences` | `pineTextFormat.js`, `pine.js` text reader, `objectProgram.js` binding, `objectRuntime.js` formatter; harness `ourSide.js` + `compare.mjs` | object MATCH 117/133 -> 118/135 (on/runtime), capture MATCH 73/79 -> 74/80, census 55/80/86 unchanged, 0 MATCH -> DIVERGE | table in section F3 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5876,3 +5877,76 @@ Converging prefixes on SPY are window effects, not maths.
   the chart is `na` on the listing day and the first intrabar after it (the second symbol C41 asked for).
 - Not taken: CAP rows 10-16 (no probes exist; 16 is not a TradingView capture), row 7 and anything needing a
   forming bar (next RTH session). H2 / RT5 / F1 / L2 pushed no capture queue at audit time.
+
+## F3 - drawing divergences on the host object lane: `str.tostring` formats, and withheld drawings named (2026-10-02, step 79)
+
+Lane F3, branch `pine/f3-drawing-divergences` (from `integrate/wave16-2026-10-02` `3f9c35aebd`). Brief: the
+DRAWING (object) divergences CAP2 found on scripts that attach in production; fix to MATCH or withhold by name.
+Plot values belong to F2; runtime-native objects to RT5.
+
+**One cause behind two of them.** The object lane printed a number through `str.tostring` with a format it
+did not read, and printed something anyway (or refused the whole create):
+
+| format | was | now | witness |
+|---|---|---|---|
+| `format.mintick` | read as "no format": ten decimals, `177.5276604489` | rounded to the symbol's tick, the tick's decimals, trailing zeros KEPT (`pineTextFormat.js::tickNumberText`); the node carries `tick: 'syminfo.mintick'` and the binding settles it from the witnessed tick table (`objectProgram.js::bindObjectProgram`, re-settled per binding, never kept from another symbol); unsettled, >= 1000, an exact tie or a negative zero is WITHHELD | 11 labels whose own `y` is the printed number: trend-targets RDDT + SPY, trend-lines-supports-and-resistances RDDT (`263.4999` -> `"263.50"`), htf-candle-footprint RDDT |
+| words around a pattern, `"Swing H  (#,###.####)"` | refused on a getter (`create:label` lost); `String(n)` on a series (the words gone) | Java DecimalFormat prefix / suffix + grouping (`tostringPatternOf` / `formatPatternedNumber`); WITHHELD: a separator that would appear, a negative under a prefix, `%` `‰` `¤` `'` `;` | swing-highlow-zigzag RDDT + SPY, both labels |
+| a non-literal format (`format.volume`, `format.percent`, a script's own `f_tickFormat()`) | ten decimals | carried with the format NAMED (`fmtUnread`, `objectDiagnostics.textFormatUnread`): `na` prints `NaN` (witnessed under a computed format: position-size-calculator RDDT, `"Position Size : NaN"`), any finite value WITHHELD | position-size-calculator RDDT |
+
+The `str.tostring` renderings now live in `pineTextFormat.js` beside `str.format`'s (the plain `#`/`0` path
+moved there unchanged as `formatPlainNumber`), so the grammar the translator admits and what the runtime
+draws are one module; the runtime pane reads values through the same object program, so both lanes take it.
+
+**Per script** (door state as CAP2: objects pane on; runtime pane for the runtime-only attaches):
+
+| script | cause | F3 | objects before -> after |
+|---|---|---|---|
+| trend-targets-algoalpha RDDT (runtime) | `format.mintick` read as no format | FIXED (tick) | DIVERGE (labels text) -> **MATCH** (5 lines, 5 labels, 15 colour slots); the capture still DIVERGEs on the barcolor: a runtime-lane document carries no `paints` (F1/RT) |
+| trend-targets-algoalpha SPY (runtime) | the run declines `runtime:history-start` (R-W fallback rule: the window is not from the listing) | confirmed, not loosened | unchanged |
+| swing-highlow-zigzag RDDT | `"Swing H  (#,###.####)"` on a getter refused | FIXED (affix grammar) | DIVERGE -> **MATCH**, whole capture MATCH |
+| swing-highlow-zigzag SPY | labels: same; lines 52 vs 12: a WINDOW - TradingView ran the script over SPY's whole history and the zigzag segments it never deletes carry 1993-2019 prices; 35 of its 52 lines lie wholly below the window's lowest low (218.26) | labels FIXED; lines are not an engine divergence | labels 2/0 -> 2/2 with TradingView's text; lines 52/12 unchanged (pinned with the proof) |
+| multicator-table RDDT / SPY | the object gate withholds the whole program (`pine:object-removal-lost`: HUD lists lose pushes - `visibleRange` is a tuple function - that a later `box.delete`/`label.delete` reads); 43 of 60 cell texts read `math.round_to_mintick`, `format.volume` or a `ThemePalette` UDT field; border/frame/cell colours read UDT fields | WITHHELD by name (the door's own "its drawings are not shown" sentence) | DIVERGE "no drawing program" -> DIVERGE, `withheld: pine:object-removal-lost` |
+| atr-trailing-stop RDDT / SPY | the info label's text reads an unbounded `ta.barssince` (`pine:function`), its `x` is `timenow` | WITHHELD by name | `withheld: pine:object-ops-refused` |
+| pmax-explorer RDDT / SPY | the screener label lists 38 other symbols' states (`request.security` per symbol, `pine:request`) | WITHHELD by name | `withheld: pine:object-ops-refused` |
+
+**Harness.** A drawing the door WITHHELD is a named gap, not a script without a drawing program:
+`ourSide.js::drawingWithheldBy` (host lane only) names the object gate's guard, or `pine:object-ops-refused`
+when the program kept none of the steps it attempted (drop keys + reader-level names);
+`compare.mjs::compareObjects` grades it DIVERGE with `withheld` and the reason - the rule `comparePaints`
+applies to a withheld paint. Also renamed on the way: auto-trendline (F1), dual-view-htf-candlestick,
+trend-lines-supports-and-resistances. Verdicts unchanged.
+
+**Measured** (worktree `.claude/worktrees/f3`; harness sweep = every capture under `tests/fixtures/vendor`,
+285 graded files x 2 door states, `--maxWorkers=1`, node environment):
+
+| | base `3f9c35aebd` | F3 |
+|---|---|---|
+| member-door census off / on / +runtime | 55 / 80 / 86 | 55 / 80 / 86 |
+| object verdict MATCH (on / runtime) | 117 / 133 | **118 / 135** |
+| capture verdict MATCH (on / runtime) | 73 / 79 | **74 / 80** |
+| MATCH -> anything else | - | **0** |
+
+The one MATCH -> DIVERGE the first cut produced (position-size-calculator: its `tostring(abs(size),
+f_tickFormat())` was refused, and TradingView prints `NaN` there) is why a non-literal format is carried
+with `na` drawn rather than refused.
+
+**Rails.** `strTostringFormat.vendor.test.js` (25: A tick against 11 vendor labels, B affix against the
+zigzag labels, C every withheld case, D translator, E binding, F runtime end-to-end + position-size MATCH);
+`vendorHarness.coverageAudit` re-pinned (zigzag RDDT joins MATCH; atr / multicator / pmax controls name the
+withholding; zigzag SPY control proves the window; trend-targets control reads objects MATCH); three older
+pins re-stated where F3 changed a refusal on purpose (`objectRuntime.test.js` grouping now withheld,
+`c33ObjectReads` / `objectForInLoops` use `%` as the still-refused format). Mutations, each red, each
+restored by captured bytes (sha checked): tick marker dropped; tick decimals trimmed; affix dropped;
+grouping not withheld; unread format drawn; stale tick kept on re-bind; getter grammar not extended;
+comparator ignoring `withheld`.
+
+**For RT5 (runtime-native drawing), not built here:** wyckoff-accumulation-distribution (RDDT 12 / SPY 22
+boxes: `trendBox := box.new(...)` then `box.set_bgcolor` / `box.set_text` in a `pine:state` script - the
+runtime run has no drawing program; its offset barcolor is withheld, a paint); fibonacci-dolphintradebot
+(RDDT 7 lines + 7 labels from the zigzag held in `array.new_float` - `pine:collection` - via `var line` /
+`var label` registers).
+
+**Open.** (1) multicator's tables could be drawn alone only with `math.round_to_mintick`, `format.volume`
+and UDT colour fields on the host lane (value grammar, not drawing) plus a family-scoped withhold of the HUD;
+nothing smaller would MATCH. (2) `format.mintick` on a getter (`{t:'val'}`) is still refused; no capture
+asks for it. (3) Grouping (`1,234.5`) and `format.mintick` >= 1000 wait for a capture that shows them.
