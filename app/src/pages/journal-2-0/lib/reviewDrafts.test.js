@@ -5,6 +5,15 @@ import {
 } from './reviewDrafts'
 import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 
+// `widgetSlotNode` (widgetEmbedCore.js) falls back to the symbol's LIVE workspace
+// drawings whenever a caller does not pass its own `annotations` array. Mock the
+// store so this file can prove the frozen review chart's explicit `annotations: []`
+// is what keeps those drawings OUT -- a clean test environment's real store would
+// return `[]` on its own and the guard's removal would go unnoticed otherwise.
+vi.mock('../../../components/chart/drawingsStore', () => ({
+  peekDrawings: () => [{ id: 'd1', type: 'trendline', points: [[0, 0], [1, 1]] }],
+}))
+
 // ── fixtures: known n and dollars, mirroring the backend's own enriched-trade /
 // finding shape (api/services/journal_two/leak_finder.py's `_finding`). ──────────────
 

@@ -129,12 +129,36 @@ def test_size_up_after_loss_flags_a_big_risk_trade_right_after_a_loss():
 
 def test_size_up_after_loss_never_fires_on_a_placeholder_stop():
     # stop == entry is the broker-mirror placeholder (placeholder_stop.is_placeholder_stop);
-    # it must never be read as "zero risk, therefore a huge multiple".
+    # it must never be read as "zero risk, therefore a huge multiple". At EXACT equality the
+    # raw distance is already 0 (excluded by the detector's own `risk > 0` filter regardless
+    # of the placeholder guard) -- so this fixture alone cannot prove the guard is load-bearing.
     loss = trade(1, exit_="2026-09-29T10:00:00+00:00", r=-1.0, pnl_net=-100.0, result="Loss",
                 stop=99.0, entry_price=100.0, shares=100.0)
     placeholder = trade(2, exit_="2026-09-29T11:00:00+00:00", r=-1.0, pnl_net=-50.0, result="Loss",
                        stop=100.0, entry_price=100.0, shares=500.0)  # stop == entry
     trades = [loss, placeholder]
+    found = leak_finder.find_leaks(trades, baseline=baseline_of(trades))
+    assert all(f["kind"] != "size_up_after_loss" for f in found)
+
+
+def test_size_up_after_loss_never_fires_on_a_NEAR_placeholder_stop_even_with_huge_shares():
+    # placeholder_stop.is_placeholder_stop has a tolerance window (PLACEHOLDER_STOP_ABS_TOL =
+    # 0.001): a stop WITHIN that window of entry is still a placeholder even though the raw
+    # |entry - stop| is not exactly zero. With a large enough share count that tiny distance
+    # alone would clear the 1.5x-median threshold -- this is what actually proves the guard
+    # (not just the detector's own `risk > 0` filter) is doing the work.
+    normal = [
+        trade(i, exit_=f"2026-09-2{i}T19:00:00+00:00", r=0.1, pnl_net=10.0, result="Win",
+             stop=99.0, entry_price=100.0, shares=100.0)
+        for i in range(5)
+    ]
+    loss = trade(90, exit_="2026-09-29T10:00:00+00:00", r=-1.0, pnl_net=-100.0, result="Loss",
+                stop=99.0, entry_price=100.0, shares=100.0)
+    near_placeholder = trade(
+        91, exit_="2026-09-29T11:00:00+00:00", r=-1.0, pnl_net=-1.0, result="Loss",
+        stop=100.0005, entry_price=100.0, shares=1_000_000.0,  # |diff| = 0.0005, within tolerance
+    )
+    trades = [*normal, loss, near_placeholder]
     found = leak_finder.find_leaks(trades, baseline=baseline_of(trades))
     assert all(f["kind"] != "size_up_after_loss" for f in found)
 
