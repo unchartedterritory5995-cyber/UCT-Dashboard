@@ -6,15 +6,24 @@
  * Enter/Space activation) so three equivalent openers reach the same preview:
  *   - hover (desktop, `pointer: fine`);
  *   - tap (the chip IS the button -- the touch tier is <=1024px, so this is the only
- *     door on a phone or tablet; a tap both focuses it and fires the click below);
+ *     door on a phone or tablet);
  *   - keyboard: Tab to the chip opens it on FOCUS ALONE (mirroring hover, so a
- *     keyboard-only or switch-control member never needs a second keypress), Escape
- *     closes it and returns focus to the chip. Enter/Space still work (the button's
- *     native activation) -- from an already-open, focus-opened chip that TOGGLES it
- *     closed, the same as a second click would.
+ *     keyboard-only or switch-control member never needs a second keypress). Escape
+ *     closes it and returns focus to the chip.
  * A hover-only affordance would be invisible to a keyboard or switch-control member and
  * to every touch device at once -- the exact gap `feedback_browser_testing_core` and the
  * mobile system's `.hoverReveal` rule both exist to catch.
+ *
+ * ⛔⛔ CLICK ONLY OPENS -- IT NEVER TOGGLES CLOSED. Measured in the real-browser walk
+ * (tools/notebook_w13g2_walk.py, W5): a tap on a touch device is not one event, it is a
+ * W3C-specified COMPATIBILITY SEQUENCE -- touchstart, touchend, then synthetic mouseover
+ * (which the browser also derives a mouseenter from) and mousedown (which moves FOCUS to
+ * the tapped button) BEFORE mouseup and click. A chip that opened on hover/focus and
+ * TOGGLED on click would therefore open and then immediately close again on every single
+ * tap, on every real touch device -- invisible to jsdom, which fires none of that
+ * sequence for a bare `fireEvent.click`. Pointer-enter/leave are also gated on
+ * `pointerType !== 'touch'` so the synthetic pointer events in that same sequence cannot
+ * open it either; closing is Escape, or the existing click-outside handler below.
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -55,8 +64,8 @@ export default function ThesisChip({ chip, currentPrice }) {
       /* a stable selector for the real-browser walk (tools/notebook_w13g2_walk.py) --
          the note this chip reads, never a styling hook. */
       data-thesis-chip={chip.noteId}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onPointerEnter={(e) => { if (e.pointerType !== 'touch') setOpen(true) }}
+      onPointerLeave={(e) => { if (e.pointerType !== 'touch') setOpen(false) }}
     >
       <button
         type="button"
@@ -66,7 +75,7 @@ export default function ThesisChip({ chip, currentPrice }) {
         aria-describedby={open ? popId : undefined}
         aria-label={`Thesis note: ${meta ? meta.label : 'no status set'}${
           chip.stop != null ? `, ${label}` : ''}. Open preview.`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(true)}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && open) {

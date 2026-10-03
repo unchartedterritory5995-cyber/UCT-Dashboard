@@ -33,12 +33,18 @@ describe('ThesisChip', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
-  it('opens the preview on HOVER (mouseEnter), closed by default', () => {
+  it('opens the preview on real MOUSE hover (pointerType "mouse"), closed by default', () => {
     renderChip()
     expect(screen.queryByText('NVDA swing plan')).not.toBeInTheDocument()
-    fireEvent.mouseEnter(screen.getByRole('button'))
+    fireEvent.pointerEnter(screen.getByRole('button'), { pointerType: 'mouse' })
     expect(screen.getByText('NVDA swing plan')).toBeInTheDocument()
-    fireEvent.mouseLeave(screen.getByRole('button').closest('span'))
+    fireEvent.pointerLeave(screen.getByRole('button').closest('span'), { pointerType: 'mouse' })
+    expect(screen.queryByText('NVDA swing plan')).not.toBeInTheDocument()
+  })
+
+  it('a TOUCH pointerenter never opens it (only a real tap/click does)', () => {
+    renderChip()
+    fireEvent.pointerEnter(screen.getByRole('button'), { pointerType: 'touch' })
     expect(screen.queryByText('NVDA swing plan')).not.toBeInTheDocument()
   })
 
@@ -46,9 +52,22 @@ describe('ThesisChip', () => {
     renderChip()
     fireEvent.click(screen.getByRole('button'))
     expect(screen.getByText('NVDA swing plan')).toBeInTheDocument()
-    // a second click toggles it closed
+    // CLICK ONLY OPENS -- a second click must NOT toggle it closed (see the file-top
+    // comment: a real tap IS a click preceded by synthetic mouseenter/focus, so a
+    // toggling click closes itself on every single tap on a real device).
     fireEvent.click(screen.getByRole('button'))
-    expect(screen.queryByText('NVDA swing plan')).not.toBeInTheDocument()
+    expect(screen.getByText('NVDA swing plan')).toBeInTheDocument()
+  })
+
+  it('REGRESSION (W5, tools/notebook_w13g2_walk.py): the full touch-compatibility '
+    + 'sequence -- a touch pointerenter, then focus, then click -- leaves it OPEN, '
+    + 'never closed. A toggling click failed this on every real touch device.', () => {
+    renderChip()
+    const btn = screen.getByRole('button')
+    fireEvent.pointerEnter(btn, { pointerType: 'touch' })
+    fireEvent.focus(btn)
+    fireEvent.click(btn)
+    expect(screen.getByText('NVDA swing plan')).toBeInTheDocument()
   })
 
   it('opens on KEYBOARD FOCUS alone (Tab to it) -- the keyboard mirror of hover, so a '
