@@ -1,0 +1,95 @@
+/* Wave 13 lane 13E-2 — the Entry-context card on the position and trade detail pages. */
+.card {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #101013);
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text, #e8e6e1);
+}
+
+.lateBadge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--warn, #d4a017);
+  color: var(--warn, #d4a017);
+}
+
+.muted { color: var(--text-muted, #8a8a8a); font-size: 13px; margin: 0; }
+
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent, #dcbb5e);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border, #2a2a2e);
+}
+.row:nth-child(-n+2) { border-top: 0; }
+
+.label {
+  min-width: 140px;
+  color: var(--text-muted, #8a8a8a);
+  font-weight: 600;
+}
+
+.value { color: var(--text, #e8e6e1); display: inline-flex; align-items: center; gap: 6px; }
+.valueMuted { color: var(--text-muted, #8a8a8a); }
+
+.asOf {
+  font-size: 11px;
+  color: var(--text-muted, #8a8a8a);
+  margin-left: auto;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted, #8a8a8a);
+}
+.dotGreen { background: var(--gain, #22c55e); }
+.dotAmber { background: var(--warn, #d4a017); }
+.dotOrange { background: #f97316; }
+.dotRed { background: var(--loss, #ef4444); }
+
+/* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: 1fr; }
+  .row:nth-child(-n+2) { border-top: 1px solid var(--border, #2a2a2e); }
+  .row:first-child { border-top: 0; }
+  .linkBtn { display: inline-flex; align-items: center; min-height: var(--tap-min, 44px); }
+  .asOf { margin-left: 0; }
+}

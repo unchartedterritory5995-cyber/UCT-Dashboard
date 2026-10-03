@@ -40,6 +40,7 @@ import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
+import EntryContextCard from '../EntryContextCard'
 import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
@@ -595,6 +596,10 @@ export default function TradeDetailPage() {
       {trade.id != null && (
         <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
       )}
+      {/* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
+          position page showed (the backend key is symbol + entry day, not an id), so the card
+          stays after the trade closes. Dark behind notebook_entry_context_enabled. */}
+      {trade.id != null && <EntryContextCard kind="trade" id={trade.id} />}
 
       <div className={styles.outcomeGrid}>
         <div className={styles.outcomeCell}>
