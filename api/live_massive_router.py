@@ -2675,7 +2675,16 @@ def recent_massive_alerts(
     # BOUNDED TTL (6h) — NOT never-expire, so the T+1 backfill/gap-fill that
     # mutates a past date is eventually picked up.
     _fresh_ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
-    if hit is not None and now - hit[0] < _fresh_ttl:
+
+    def _servable(entry):
+        """Fresh, and not a past date's RTH-capped snapshot once the market has
+        closed (the full-day cap applies then — see _compute_recent_core)."""
+        if entry is None or time.time() - entry[0] >= _fresh_ttl:
+            return False
+        return is_today or _in_market_hours() or \
+            not (entry[1].get("status") or {}).get("scan_capped")
+
+    if _servable(hit):
         return hit[1]
     lock = _recent_lock_for(ck)
     if not is_today:
@@ -2686,8 +2695,11 @@ def recent_massive_alerts(
         # non-warmed historical key was cold on EVERY poll and never filled.
         # (Auto-push stays inert on historical: _compute_recent passes live=False.)
         with lock:
+            # Re-check SERVABILITY, not mere presence (fixed 2026-10-03): returning
+            # any h2 made an expired entry unrefreshable — the 6h TTL never actually
+            # expired, so a pre-heal snapshot lived until the next restart.
             h2 = _recent_cache.get(ck)
-            if h2 is not None:
+            if _servable(h2):
                 return h2[1]
             payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
             _recent_cache[ck] = (time.time(), payload)
@@ -2836,6 +2848,13 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             # only 20000 = recent ~half-day, so min() left the morning's rare-tier
             # prints out of range and tier=alpha returned 0). Set it wide; the
             # Color index keeps the full-day scan fast (~2-3s).
+            sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
+        elif today != _today_mdyyyy() and not _in_market_hours():
+            # PAST date, market closed (2026-10-03): no live ingestion to starve,
+            # so give the ALL FLOW tape full-day coverage like curated/tier. The
+            # 20000 cap cut healed 10/2 off at ~1:14 PM — a heal inserts the whole
+            # day, so "newest 20000 ids" was only the afternoon. During RTH the
+            # cap below still applies and status.scan_capped tells the page.
             sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
         else:
             # 2026-07-09 (Ravi flagged "missing flow"): the default ALL FLOW tape
@@ -3098,6 +3117,9 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     # _compute_recent wrapper (MAIN process) so this stays offloadable to a subprocess.
     return all_alerts, {
         "rows_scanned": len(rows),
+        # Scan hit its LIMIT → older prints of the day were never read. The page
+        # says so instead of silently showing a partial day.
+        "scan_capped": len(rows) >= sql_limit,
         "skipped_unclassified_side": skipped_unclassified,
         "skipped_below_min_grade": skipped_low_grade,
         "skipped_off_tier": skipped_off_tier,
@@ -3222,6 +3244,7 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     status["tier_filter"] = tier
     status["curated"] = curated
     status["rows_scanned"] = meta.get("rows_scanned", 0)
+    status["scan_capped"] = bool(meta.get("scan_capped", False))
     status["skipped_unclassified_side"] = meta.get("skipped_unclassified_side", 0)
     status["skipped_below_min_grade"] = meta.get("skipped_below_min_grade", 0)
     status["skipped_off_tier"] = meta.get("skipped_off_tier", 0)

@@ -60,3 +60,48 @@ def test_bump_without_date_leaves_caches_alone(monkeypatch):
     c = _seed(monkeypatch)
     gf._bump_version()
     assert ("10/2/2026", 2) in c["_worker_history_cache"]
+
+
+# ── /recent historical cache: expiry + RTH-capped snapshots ───────────────────
+
+def _recent(lmr_mod):
+    return lmr_mod.recent_massive_alerts(
+        limit=500, min_grade="D", target_date="10/2/2026", sort_by="recent",
+        tier=None, curated=False, symbol=None, lookback_days=1)
+
+
+def _wire(monkeypatch, *, market_open):
+    calls = []
+
+    def fake_compute(today, *a, **k):
+        calls.append(today)
+        return {"status": {"scan_capped": market_open}, "alerts": [len(calls)]}
+
+    monkeypatch.setattr(lmr, "_recent_cache", {})
+    monkeypatch.setattr(lmr, "_compute_recent", fake_compute)
+    monkeypatch.setattr(lmr, "_log_startup_if_new", lambda: None)
+    monkeypatch.setattr(lmr, "_today_mdyyyy", lambda: "10/5/2026")
+    monkeypatch.setattr(lmr, "_in_market_hours", lambda *a: market_open)
+    return calls
+
+
+def test_historical_recent_entry_expires_after_ttl(monkeypatch):
+    calls = _wire(monkeypatch, market_open=False)
+    _recent(lmr)
+    assert len(calls) == 1
+    _recent(lmr)                       # fresh → served from cache
+    assert len(calls) == 1
+    (ck, (ts, payload)), = lmr._recent_cache.items()
+    lmr._recent_cache[ck] = (ts - lmr._HISTORICAL_TTL - 1, payload)
+    _recent(lmr)                       # expired → recomputed (was: served forever)
+    assert len(calls) == 2
+
+
+def test_rth_capped_snapshot_recomputes_after_close(monkeypatch):
+    calls = _wire(monkeypatch, market_open=True)
+    assert _recent(lmr)["status"]["scan_capped"] is True
+    _recent(lmr)                       # still RTH → capped entry is fine
+    assert len(calls) == 1
+    monkeypatch.setattr(lmr, "_in_market_hours", lambda *a: False)
+    _recent(lmr)                       # closed → full-day recompute
+    assert len(calls) == 2
