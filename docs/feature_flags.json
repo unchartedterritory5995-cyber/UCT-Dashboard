@@ -1391,6 +1391,12 @@
       ],
       "note": "ARMED on web 2026-10-02 16:05Z (owner-run --set; deploy 94d46235 SUCCESS 16:08Z, fresh boot). Verified as the smoke account: auth seasonality_enabled=true; /api/research/seasonality/AAPL 200. COV-01 (roadmap RM-L11): the Research > Seasonality tab and GET /api/research/seasonality/{sym}: monthly and weekday return distributions from the UCT daily bar store, each bucket with its n, months seen fewer than 5 times marked thin, partial first/last months excluded, the covered window stated. No vendor or licence question (the roadmap's own note). ENABLEMENT GATE, default OFF, read per request on the auth payload (seasonality_enabled); unset = the route 404s before identity and the tab is absent. Arm: railway variables --service web --set SEASONALITY_ENABLED=1 (owner). Rollback = set it to 0."
     },
+    "BROKER_ESTIMATES_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-071 (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Estimates by contributor and GET /api/research/broker-estimates/{sym}. Per upcoming fiscal quarter from FMP /stable/analyst-estimates (period=quarter): EPS and revenue MEAN beside the number of estimates (numAnalystsEps / numAnalystsRevenue), high, low and dispersion (high - low) / |mean|; beside it the firms that most recently acted on the stock, by name, from the Analyst Ratings tab's cached FMP grades read (cache only, labelled as rating actions). Contributor-level estimates are returned 'unavailable' with the reason: FMP returns consensus aggregates only on this plan. Request path: an in-process cache; a miss is read on the module's own one-thread worker and answered pending. MERGE POINT: lane/cov-05-07-09 COV-07 estimate_history already snapshots this endpoint daily with n_eps/n_rev; once merged, read the consensus from its newest snapshot and render beside its Estimate history tab. ENABLEMENT GATE, default OFF, read per request on the auth payload (broker_estimates_enabled, present only when on); unset = the route 404s before identity and nothing is read. Arm: railway variables --service web --set BROKER_ESTIMATES_ENABLED=1 (owner). Rollback = unset it."
+    },
     "EARNINGS_REACTION_PANEL_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

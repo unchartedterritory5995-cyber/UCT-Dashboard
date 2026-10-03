@@ -248,6 +248,7 @@ _RESEARCH_DEPTH_SURFACES = (
     ("events_timeline_enabled", "events_timeline"),
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
+    ("broker_estimates_enabled", "broker_estimates"),
 )
 
 

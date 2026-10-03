@@ -14,6 +14,7 @@ export const RESEARCH_DEPTH_KEYS = [
   'events_timeline_enabled',
   'ftd_dataset_enabled',
   'mention_series_enabled',
+  'broker_estimates_enabled',
 ]
 
 export function readResearchDepth(d) {

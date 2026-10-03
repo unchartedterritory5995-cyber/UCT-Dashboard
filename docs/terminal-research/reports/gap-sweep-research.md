@@ -42,3 +42,26 @@ Router: `api/routers/research_depth.py`. Client gate list:
 | 4 | FT-068 (FTD) | `FTD_DATASET_ENABLED` | `GET /api/research/ftd/{sym}` | SEC cnsfails files via `fundamentals_pit.sec_client`, ingested by job `ftd_ingest`; per-date balances, window stated, trailer reconciled |
 | 5 | FT-080 | `MENTION_SERIES_ENABLED` | `GET /api/research/mention-series/{sym}` | #main-chat mention store (buzz.db): per-ET-day mentions, people, share of room; polarity unavailable with the reason |
 | 3 | FT-064 | `EVENTS_TIMELINE_ENABLED` | `GET /api/research/events/{sym}` | Per event: earnings payload, UCT catalyst engine (catalysts.db), filing-search index, #main-chat mention store; each source's read state returned |
+| 6 | FT-071 | `BROKER_ESTIMATES_ENABLED` | `GET /api/research/broker-estimates/{sym}` | FMP `/stable/analyst-estimates` (quarter) consensus with `# Ests` beside the mean, high/low, dispersion; named firms from the cached FMP grades read, labelled as rating actions |
+
+Rows 4 and 5 are listed above row 3 because they were added in build order.
+
+### FT-071 merge point
+
+`lane/cov-05-07-09` (COV-07 Estimate history, `303c83ea8`, not merged at the time of
+writing) snapshots the same FMP endpoint daily and already stores `n_eps` / `n_rev`.
+When it merges: `broker_estimates._fetch_rows` should read that store's newest
+snapshot instead of calling FMP (one vendor read per symbol per day, not two), and the
+panel should render beside its Estimate history tab. Recorded in the module docstring
+and in the payload's `merge_point` field.
+
+## Still open, and why
+
+| Row | What is missing | Why it is not built |
+|---|---|---|
+| FT-067 | Congressional / political-disclosure trading | The brief asks for a probe of the FMP plan's senate/house endpoints first. This lane has no FMP credential (reading it was refused by the session's permission rules), so the probe was not run and the plan's coverage is unverified. The public fallbacks are not clean: the Senate eFD site requires accepting a terms-of-use agreement per session, the House Clerk publishes PTRs as per-filer PDFs, and the Ethics in Government Act restricts obtaining or using these reports for a commercial purpose other than by news and communications media (as this lane reads it; it needs counsel, not an engineer's reading). Building on either was not judged lawful-and-robots-clear without that review. **Next step:** the owner (or a lane with the key) runs `GET /stable/senate-trades?symbol=AAPL` and `/stable/house-trades?symbol=AAPL`; a 200 with rows unblocks an adapter in `fmp_client` plus a panel in this tab. |
+| FT-068 (FEC) | FEC campaign-finance dataset | FEC data is keyed by committee and contributor, not by ticker, and the FEC API needs an api.data.gov key. A per-ticker FEC view needs an employer/PAC-to-issuer mapping that does not exist in this repo. Recorded open rather than approximated. |
+| FT-068 (13F/insider as feeds) | Market-wide feed and screener views | Insider and 13F ship per ticker (Ownership tab). The market-wide feed of filings is the sibling lane's COV-09 Filings feed; not duplicated here. |
+| FT-071 (contributor level) | An EPS estimate attributed to a named analyst | Not on the FMP plan: `/stable/analyst-estimates` returns aggregates only (the recorded fixture carries `epsAvg/epsHigh/epsLow/numAnalystsEps`, no contributor). The panel returns `contributors: unavailable` with that reason. |
+| FT-080 (polarity) | A positive/negative ratio | The mention store keeps no message text by design (`api/services/buzz_store.py:3`). The panel returns `polarity: unavailable` with that reason. |
+| FT-005 (implied vol term) | An annualised implied-vol series per print | The panel shows the next print's implied MOVE from the front ATM straddle (expiry, strike, both marks) and realized vol; a historical implied-vol per past print needs stored chain snapshots this pod does not keep. |

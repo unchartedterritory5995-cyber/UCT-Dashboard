@@ -9,6 +9,7 @@ FastAPI's 404 before identity is read, exactly like seasonality and COV-04.
   EVENTS_TIMELINE_ENABLED          GET /api/research/events/{sym}             FT-064
   FTD_DATASET_ENABLED              GET /api/research/ftd/{sym}                FT-068 (FTD)
   MENTION_SERIES_ENABLED           GET /api/research/mention-series/{sym}     FT-080
+  BROKER_ESTIMATES_ENABLED         GET /api/research/broker-estimates/{sym}   FT-071
 
 Every handler is a plain `def`: each one reads local SQLite stores, which is
 blocking I/O, and an `async def` that awaits nothing would run it ON the event
@@ -123,3 +124,17 @@ def mention_series_route(sym: str, days: int = Query(default=90, ge=7, le=365),
                          _user: dict = Depends(require_paid)):
     from api.services import mention_series as svc
     return svc.series(_sym(sym), days=days)
+
+
+# ── FT-071 estimates by contributor (EEB) ───────────────────────────────────
+
+def _broker_estimates_armed() -> None:
+    from api.services import broker_estimates
+    if not broker_estimates.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/broker-estimates/{sym}", dependencies=[Depends(_broker_estimates_armed)])
+def broker_estimates_route(sym: str, _user: dict = Depends(require_paid)):
+    from api.services import broker_estimates as svc
+    return svc.view(_sym(sym))
