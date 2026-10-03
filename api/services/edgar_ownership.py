@@ -296,6 +296,45 @@ def form4_rows(doc: dict) -> list[dict]:
     return rows
 
 
+def form4_owner_roles(doc: dict) -> list[dict]:
+    """A parsed Form 4 -> one row per reporting owner with the ROLE the filing
+    declares (director / officer + title / 10% owner / other), whatever the
+    transaction codes were. COV-05 (Research People) reads these: a grant or a
+    gift still states who the insider is, so this is NOT limited to P/S rows."""
+    issuer_cik = (doc.get("issuer") or {}).get("cik")
+    url = filing_index_url(issuer_cik, doc["accession"]) if issuer_cik else None
+    out = []
+    for o in doc.get("owners") or []:
+        if not o.get("name"):
+            continue
+        out.append({
+            "name": o["name"],
+            "cik": o.get("cik"),
+            "role": _owner_title(o) or "Not stated in the filing",
+            "is_director": bool(o.get("is_director")),
+            "is_officer": bool(o.get("is_officer")),
+            "is_ten_percent": bool(o.get("is_ten_percent")),
+            "officer_title": o.get("officer_title"),
+            "filing_date": doc.get("filing_date") or "",
+            "accession": doc["accession"],
+            "form": doc.get("form"),
+            "url": url,
+        })
+    return out
+
+
+def merge_owner_roles(rows: list[dict]) -> list[dict]:
+    """One row per reporting owner (keyed by owner CIK, else name), keeping the
+    NEWEST filing's declared role -- a director who became CEO reads as CEO."""
+    best: dict[str, dict] = {}
+    for r in rows:
+        k = r.get("cik") or r["name"].upper()
+        cur = best.get(k)
+        if cur is None or (r["filing_date"], r["accession"]) > (cur["filing_date"], cur["accession"]):
+            best[k] = r
+    return sorted(best.values(), key=lambda r: (r["filing_date"], r["accession"]), reverse=True)
+
+
 def list_form4_filings(submissions: dict, *, since: str) -> dict:
     """Form 4 / 4/A entries in a submissions document filed on/after `since`,
     newest first. `index_short` is True when the submissions `recent` block
@@ -392,6 +431,7 @@ def fetch_form4_activity(sym: str, *, today: Optional[date] = None,
     to_read = listed[:MAX_FILINGS]
 
     rows: list[dict] = []
+    owner_roles: list[dict] = []
     unread: list[dict] = []
     other_issuer = 0
     read = 0
@@ -421,6 +461,7 @@ def fetch_form4_activity(sym: str, *, today: Optional[date] = None,
             other_issuer += 1
             continue
         rows.extend(form4_rows(doc))
+        owner_roles.extend(form4_owner_roles(doc))
         ep = _accepted_epoch(f.get("accepted"))
         if ep is not None and (newest_accepted is None or ep > newest_accepted):
             newest_accepted = ep
@@ -430,6 +471,9 @@ def fetch_form4_activity(sym: str, *, today: Optional[date] = None,
         "sym": sym,
         "cik": cik,
         "rows": rows,
+        # COV-05: every reporting owner's declared role, from every Form 4 read
+        # (not only the P/S rows above), newest filing per owner.
+        "owner_roles": merge_owner_roles(owner_roles),
         "window_days": WINDOW_DAYS,
         "since": since,
         "filings_listed": len(listed),

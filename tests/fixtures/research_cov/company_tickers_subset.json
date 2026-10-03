@@ -1,0 +1,877 @@
+{
+ "1": {
+  "cik_str": 320193,
+  "ticker": "AAPL",
+  "title": "Apple Inc."
+ },
+ "28": {
+  "cik_str": 70858,
+  "ticker": "BAC",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "86": {
+  "cik_str": 2012383,
+  "ticker": "BLK",
+  "title": "BlackRock, Inc."
+ },
+ "217": {
+  "cik_str": 1061219,
+  "ticker": "EPD",
+  "title": "ENTERPRISE PRODUCTS PARTNERS L.P."
+ },
+ "313": {
+  "cik_str": 320187,
+  "ticker": "NKE",
+  "title": "NIKE, Inc."
+ },
+ "393": {
+  "cik_str": 1335258,
+  "ticker": "LYV",
+  "title": "Live Nation Entertainment, Inc."
+ },
+ "460": {
+  "cik_str": 73124,
+  "ticker": "NTRS",
+  "title": "NORTHERN TRUST CORP"
+ },
+ "490": {
+  "cik_str": 1094285,
+  "ticker": "TDY",
+  "title": "TELEDYNE TECHNOLOGIES INC"
+ },
+ "558": {
+  "cik_str": 1943896,
+  "ticker": "RBRK",
+  "title": "Rubrik, Inc."
+ },
+ "576": {
+  "cik_str": 940944,
+  "ticker": "DRI",
+  "title": "DARDEN RESTAURANTS INC"
+ },
+ "578": {
+  "cik_str": 1874178,
+  "ticker": "RIVN",
+  "title": "Rivian Automotive, Inc. / DE"
+ },
+ "613": {
+  "cik_str": 1177394,
+  "ticker": "SNX",
+  "title": "TD SYNNEX CORP"
+ },
+ "618": {
+  "cik_str": 1665918,
+  "ticker": "USFD",
+  "title": "US Foods Holding Corp."
+ },
+ "619": {
+  "cik_str": 920760,
+  "ticker": "LEN",
+  "title": "LENNAR CORP /NEW/"
+ },
+ "638": {
+  "cik_str": 1274494,
+  "ticker": "FSLR",
+  "title": "FIRST SOLAR, INC."
+ },
+ "698": {
+  "cik_str": 38777,
+  "ticker": "BEN",
+  "title": "FRANKLIN TEMPLETON INC"
+ },
+ "816": {
+  "cik_str": 63754,
+  "ticker": "MKC",
+  "title": "MCCORMICK & CO INC"
+ },
+ "869": {
+  "cik_str": 1326380,
+  "ticker": "GME",
+  "title": "GameStop Corp."
+ },
+ "940": {
+  "cik_str": 1506293,
+  "ticker": "PINS",
+  "title": "PINTEREST, INC."
+ },
+ "1065": {
+  "cik_str": 1170010,
+  "ticker": "KMX",
+  "title": "CARMAX INC"
+ },
+ "1202": {
+  "cik_str": 23217,
+  "ticker": "CAG",
+  "title": "CONAGRA BRANDS INC."
+ },
+ "1220": {
+  "cik_str": 1521036,
+  "ticker": "LNTH",
+  "title": "Lantheus Holdings, Inc."
+ },
+ "1231": {
+  "cik_str": 1370637,
+  "ticker": "ETSY",
+  "title": "ETSY INC"
+ },
+ "1514": {
+  "cik_str": 1699136,
+  "ticker": "WHD",
+  "title": "Cactus, Inc."
+ },
+ "1636": {
+  "cik_str": 2067129,
+  "ticker": "NP",
+  "title": "Neptune Insurance Holdings Inc."
+ },
+ "1749": {
+  "cik_str": 1544522,
+  "ticker": "FRSH",
+  "title": "Freshworks Inc."
+ },
+ "1751": {
+  "cik_str": 1040470,
+  "ticker": "AEHR",
+  "title": "AEHR TEST SYSTEMS"
+ },
+ "1766": {
+  "cik_str": 16160,
+  "ticker": "CALM",
+  "title": "CAL-MAINE FOODS INC"
+ },
+ "1841": {
+  "cik_str": 1549084,
+  "ticker": "CHRN",
+  "title": "ChronoScale Holdings Corp"
+ },
+ "1890": {
+  "cik_str": 1832332,
+  "ticker": "AVAH",
+  "title": "Aveanna Healthcare Holdings, Inc."
+ },
+ "1910": {
+  "cik_str": 1526243,
+  "ticker": "PPTA",
+  "title": "PERPETUA RESOURCES CORP."
+ },
+ "1962": {
+  "cik_str": 805928,
+  "ticker": "AXGN",
+  "title": "Axogen, Inc."
+ },
+ "2061": {
+  "cik_str": 1933414,
+  "ticker": "MLYS",
+  "title": "Mineralys Therapeutics, Inc."
+ },
+ "2070": {
+  "cik_str": 1265131,
+  "ticker": "HTH",
+  "title": "Hilltop Holdings Inc."
+ },
+ "2316": {
+  "cik_str": 876167,
+  "ticker": "PRGS",
+  "title": "PROGRESS SOFTWARE CORP /MA"
+ },
+ "2337": {
+  "cik_str": 2143673,
+  "ticker": "UROY",
+  "title": "Uranium Royalty Corp."
+ },
+ "2349": {
+  "cik_str": 1172052,
+  "ticker": "SAFT",
+  "title": "SAFETY INSURANCE GROUP INC"
+ },
+ "2368": {
+  "cik_str": 1370053,
+  "ticker": "ANAB",
+  "title": "ANAPTYSBIO, INC"
+ },
+ "2431": {
+  "cik_str": 1796280,
+  "ticker": "ORIC",
+  "title": "Oric Pharmaceuticals, Inc."
+ },
+ "2503": {
+  "cik_str": 1591588,
+  "ticker": "GOLD",
+  "title": "Gold.com, Inc."
+ },
+ "2648": {
+  "cik_str": 1588978,
+  "ticker": "PRCT",
+  "title": "PROCEPT BioRobotics Corp"
+ },
+ "3074": {
+  "cik_str": 901243,
+  "ticker": "MUA",
+  "title": "BLACKROCK MUNIASSETS FUND, INC."
+ },
+ "3114": {
+  "cik_str": 1921603,
+  "ticker": "WHK",
+  "title": "WhiteHawk Minerals Corp."
+ },
+ "3125": {
+  "cik_str": 2101698,
+  "ticker": "ELMT",
+  "title": "Elmet Group Co."
+ },
+ "3175": {
+  "cik_str": 1543418,
+  "ticker": "TMQ",
+  "title": "Trilogy Metals Inc."
+ },
+ "3262": {
+  "cik_str": 1774342,
+  "ticker": "NMCO",
+  "title": "Nuveen Municipal Credit Opportunities Fund"
+ },
+ "3329": {
+  "cik_str": 1682745,
+  "ticker": "VRRM",
+  "title": "VERRA MOBILITY Corp"
+ },
+ "3582": {
+  "cik_str": 1963685,
+  "ticker": "RR",
+  "title": "RICHTECH ROBOTICS INC."
+ },
+ "3639": {
+  "cik_str": 818972,
+  "ticker": "LEO",
+  "title": "BNY MELLON STRATEGIC MUNICIPALS, INC."
+ },
+ "3642": {
+  "cik_str": 1270131,
+  "ticker": "SCD",
+  "title": "LMP CAPITAL & INCOME FUND INC."
+ },
+ "3722": {
+  "cik_str": 1113809,
+  "ticker": "BBW",
+  "title": "BUILD-A-BEAR WORKSHOP INC"
+ },
+ "3788": {
+  "cik_str": 2079013,
+  "ticker": "HCAC",
+  "title": "Hall Chadwick Acquisition Corp"
+ },
+ "3909": {
+  "cik_str": 2134856,
+  "ticker": "XTER",
+  "title": "Karman Line Acquisition Corp."
+ },
+ "3910": {
+  "cik_str": 1015383,
+  "ticker": "POWW",
+  "title": "Outdoor Holding Co"
+ },
+ "3977": {
+  "cik_str": 855887,
+  "ticker": "DSM",
+  "title": "BNY MELLON STRATEGIC MUNICIPAL BOND FUND, INC."
+ },
+ "4058": {
+  "cik_str": 1873529,
+  "ticker": "KLC",
+  "title": "KinderCare Learning Companies, Inc."
+ },
+ "4075": {
+  "cik_str": 1938338,
+  "ticker": "GLTK",
+  "title": "GlobalTech Corp"
+ },
+ "4167": {
+  "cik_str": 1852551,
+  "ticker": "NVA",
+  "title": "Nova Minerals Corp"
+ },
+ "4186": {
+  "cik_str": 96536,
+  "ticker": "TAYD",
+  "title": "TAYLOR DEVICES, INC."
+ },
+ "4285": {
+  "cik_str": 55234,
+  "ticker": "GAMG",
+  "title": "Global Asset Management Group, Inc."
+ },
+ "4320": {
+  "cik_str": 1565381,
+  "ticker": "DMB",
+  "title": "BNY Mellon Municipal Bond Infrastructure Fund, Inc."
+ },
+ "4348": {
+  "cik_str": 1430306,
+  "ticker": "TNXP",
+  "title": "Tonix Pharmaceuticals Holding Corp."
+ },
+ "4351": {
+  "cik_str": 1261166,
+  "ticker": "NRO",
+  "title": "NEUBERGER REAL ESTATE SECURITIES INCOME FUND INC"
+ },
+ "4358": {
+  "cik_str": 1228509,
+  "ticker": "EHI",
+  "title": "WESTERN ASSET GLOBAL HIGH INCOME FUND INC."
+ },
+ "4398": {
+  "cik_str": 10329,
+  "ticker": "BSET",
+  "title": "BASSETT FURNITURE INDUSTRIES INC"
+ },
+ "4447": {
+  "cik_str": 2137679,
+  "ticker": "OCLT",
+  "title": "OceanLight Acquisition Corp"
+ },
+ "4491": {
+  "cik_str": 1419275,
+  "ticker": "RTB",
+  "title": "RTB Digital, Inc."
+ },
+ "4492": {
+  "cik_str": 1649096,
+  "ticker": "CLPR",
+  "title": "Clipper Realty Inc."
+ },
+ "4512": {
+  "cik_str": 1504234,
+  "ticker": "BGX",
+  "title": "Blackstone Long-Short Credit Income Fund"
+ },
+ "4644": {
+  "cik_str": 1075880,
+  "ticker": "KZIA",
+  "title": "KAZIA THERAPEUTICS LTD"
+ },
+ "4656": {
+  "cik_str": 1351636,
+  "ticker": "SSTI",
+  "title": "SOUNDTHINKING, INC."
+ },
+ "4709": {
+  "cik_str": 1861795,
+  "ticker": "DH",
+  "title": "Definitive Healthcare Corp."
+ },
+ "4788": {
+  "cik_str": 1680873,
+  "ticker": "HFFG",
+  "title": "HF Foods Group Inc."
+ },
+ "4903": {
+  "cik_str": 894556,
+  "ticker": "CITR",
+  "title": "CitroTech Inc."
+ },
+ "4949": {
+  "cik_str": 1738699,
+  "ticker": "WKEY",
+  "title": "Wisekey International Holding S.A."
+ },
+ "4969": {
+  "cik_str": 1658678,
+  "ticker": "BSEM",
+  "title": "BioStem Technologies, Inc."
+ },
+ "4979": {
+  "cik_str": 1871638,
+  "ticker": "BZAI",
+  "title": "Blaize Holdings, Inc."
+ },
+ "5044": {
+  "cik_str": 844985,
+  "ticker": "POSC",
+  "title": "POSITRON CORP"
+ },
+ "5072": {
+  "cik_str": 12239,
+  "ticker": "DOMH",
+  "title": "Dominari Holdings Inc."
+ },
+ "5104": {
+  "cik_str": 1891856,
+  "ticker": "GENK",
+  "title": "GEN Restaurant Group, Inc."
+ },
+ "5145": {
+  "cik_str": 5981,
+  "ticker": "AVD",
+  "title": "AMERICAN VANGUARD CORP"
+ },
+ "5167": {
+  "cik_str": 1970743,
+  "ticker": "RMXI",
+  "title": "RMX INDUSTRIES, INC."
+ },
+ "5174": {
+  "cik_str": 1711141,
+  "ticker": "LEEEF",
+  "title": "Leef Brands Inc."
+ },
+ "5317": {
+  "cik_str": 1667313,
+  "ticker": "ZDGE",
+  "title": "Zedge, Inc."
+ },
+ "5345": {
+  "cik_str": 1054102,
+  "ticker": "IDXG",
+  "title": "INTERPACE BIOSCIENCES, INC."
+ },
+ "5390": {
+  "cik_str": 1838716,
+  "ticker": "GNTA",
+  "title": "Genenta Science S.p.A."
+ },
+ "5500": {
+  "cik_str": 1852973,
+  "ticker": "BRLS",
+  "title": "Borealis Foods Inc."
+ },
+ "5528": {
+  "cik_str": 1099160,
+  "ticker": "BBGI",
+  "title": "BEASLEY BROADCAST GROUP INC"
+ },
+ "5535": {
+  "cik_str": 40570,
+  "ticker": "JOB",
+  "title": "GEE Group Inc."
+ },
+ "5654": {
+  "cik_str": 1468492,
+  "ticker": "HSCS",
+  "title": "HeartSciences Inc."
+ },
+ "5799": {
+  "cik_str": 1892316,
+  "ticker": "LDDD",
+  "title": "Longduoduo Co Ltd"
+ },
+ "5877": {
+  "cik_str": 1847986,
+  "ticker": "DFLI",
+  "title": "Dragonfly Energy Holdings Corp."
+ },
+ "5936": {
+  "cik_str": 1757715,
+  "ticker": "ATER",
+  "title": "Aterian, Inc."
+ },
+ "5962": {
+  "cik_str": 1104038,
+  "ticker": "VRME",
+  "title": "VerifyMe, Inc."
+ },
+ "5985": {
+  "cik_str": 885307,
+  "ticker": "JCTC",
+  "title": "JEWETT CAMERON TRADING CO LTD"
+ },
+ "5992": {
+  "cik_str": 1117057,
+  "ticker": "PLAG",
+  "title": "Planet Green Holdings Corp."
+ },
+ "6008": {
+  "cik_str": 1839285,
+  "ticker": "HCTI",
+  "title": "Healthcare Triangle, Inc."
+ },
+ "6100": {
+  "cik_str": 1840317,
+  "ticker": "VEEA",
+  "title": "VEEA INC."
+ },
+ "6125": {
+  "cik_str": 1840425,
+  "ticker": "OSRH",
+  "title": "OSR Health, Inc."
+ },
+ "6133": {
+  "cik_str": 1309082,
+  "ticker": "CEIN",
+  "title": "Viking Global Technologies, Inc."
+ },
+ "6185": {
+  "cik_str": 2033770,
+  "ticker": "DAIC",
+  "title": "CID Holdco, Inc."
+ },
+ "6186": {
+  "cik_str": 1787518,
+  "ticker": "DFNS",
+  "title": "T3 Defense Inc."
+ },
+ "6251": {
+  "cik_str": 885462,
+  "ticker": "GURE",
+  "title": "GULF RESOURCES, INC."
+ },
+ "6335": {
+  "cik_str": 1083220,
+  "ticker": "XELB",
+  "title": "XCel Brands, Inc."
+ },
+ "6355": {
+  "cik_str": 1019034,
+  "ticker": "BKYI",
+  "title": "BIO KEY INTERNATIONAL INC"
+ },
+ "6372": {
+  "cik_str": 1756180,
+  "ticker": "NCRA",
+  "title": "NOCERA, INC."
+ },
+ "6392": {
+  "cik_str": 105744,
+  "ticker": "GBR",
+  "title": "New Concept Energy, Inc."
+ },
+ "6440": {
+  "cik_str": 1828673,
+  "ticker": "HCWB",
+  "title": "HCW Biologics Inc."
+ },
+ "6456": {
+  "cik_str": 1402328,
+  "ticker": "SBFM",
+  "title": "Sunshine Biopharma Inc."
+ },
+ "6470": {
+  "cik_str": 1641631,
+  "ticker": "XAIR",
+  "title": "Beyond Air, Inc."
+ },
+ "6472": {
+  "cik_str": 1514183,
+  "ticker": "SILO",
+  "title": "Silo Pharma, Inc."
+ },
+ "6605": {
+  "cik_str": 1831979,
+  "ticker": "SDST",
+  "title": "Stardust Power Inc."
+ },
+ "6622": {
+  "cik_str": 1830072,
+  "ticker": "IPW",
+  "title": "iPower Inc."
+ },
+ "6643": {
+  "cik_str": 1864531,
+  "ticker": "VSEE",
+  "title": "VSEE HEALTH, INC."
+ },
+ "6658": {
+  "cik_str": 2141983,
+  "ticker": "ALLN",
+  "title": "Allarity Acquisition Corp."
+ },
+ "6671": {
+  "cik_str": 1566826,
+  "ticker": "LGMK",
+  "title": "LogicMark, Inc."
+ },
+ "6721": {
+  "cik_str": 1716621,
+  "ticker": "VTAK",
+  "title": "Catheter Precision, Inc."
+ },
+ "6748": {
+  "cik_str": 1425627,
+  "ticker": "SOBR",
+  "title": "SOBR Safe, Inc."
+ },
+ "6789": {
+  "cik_str": 1877461,
+  "ticker": "CBDW",
+  "title": "1606 CORP."
+ },
+ "6806": {
+  "cik_str": 1883984,
+  "ticker": "ALCE",
+  "title": "Aedis Energy Inc."
+ },
+ "6832": {
+  "cik_str": 2115027,
+  "ticker": "BAGZ",
+  "title": "Cryptex Digital Market Cap ETF"
+ },
+ "6932": {
+  "cik_str": 2107968,
+  "ticker": "WQEY",
+  "title": "WISeKey International Corp."
+ },
+ "7273": {
+  "cik_str": 1802369,
+  "ticker": "ADRX",
+  "title": "ADARx Pharmaceuticals, Inc."
+ },
+ "7332": {
+  "cik_str": 2140589,
+  "ticker": "LARS",
+  "title": "Laris Growth Acquisition Corp."
+ },
+ "7364": {
+  "cik_str": 810766,
+  "ticker": "CIK",
+  "title": "CREDIT SUISSE ASSET MANAGEMENT INCOME FUND, INC."
+ },
+ "7478": {
+  "cik_str": 70858,
+  "ticker": "BML-PG",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "7483": {
+  "cik_str": 70858,
+  "ticker": "BML-PL",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "7484": {
+  "cik_str": 70858,
+  "ticker": "BAC-PB",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "7487": {
+  "cik_str": 70858,
+  "ticker": "BAC-PK",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "7581": {
+  "cik_str": 920760,
+  "ticker": "LEN-B",
+  "title": "LENNAR CORP /NEW/"
+ },
+ "7605": {
+  "cik_str": 63754,
+  "ticker": "MKC-V",
+  "title": "MCCORMICK & CO INC"
+ },
+ "7857": {
+  "cik_str": 2079013,
+  "ticker": "HCACU",
+  "title": "Hall Chadwick Acquisition Corp"
+ },
+ "7994": {
+  "cik_str": 1738699,
+  "ticker": "WSKEF",
+  "title": "Wisekey International Holding S.A."
+ },
+ "8262": {
+  "cik_str": 1831979,
+  "ticker": "SDSTW",
+  "title": "Stardust Power Inc."
+ },
+ "8286": {
+  "cik_str": 1722556,
+  "ticker": "BGFR",
+  "title": "BestGofer Inc."
+ },
+ "8484": {
+  "cik_str": 1061219,
+  "ticker": "EPDU",
+  "title": "ENTERPRISE PRODUCTS PARTNERS L.P."
+ },
+ "8514": {
+  "cik_str": 1468492,
+  "ticker": "HSCSW",
+  "title": "HeartSciences Inc."
+ },
+ "8583": {
+  "cik_str": 1847986,
+  "ticker": "DFLIW",
+  "title": "Dragonfly Energy Holdings Corp."
+ },
+ "8658": {
+  "cik_str": 73124,
+  "ticker": "NTRSO",
+  "title": "NORTHERN TRUST CORP"
+ },
+ "8763": {
+  "cik_str": 1883984,
+  "ticker": "ACLEW",
+  "title": "Aedis Energy Inc."
+ },
+ "8764": {
+  "cik_str": 1883984,
+  "ticker": "ADIS",
+  "title": "Aedis Energy Inc."
+ },
+ "8799": {
+  "cik_str": 1938338,
+  "ticker": "GLTKD",
+  "title": "GlobalTech Corp"
+ },
+ "8939": {
+  "cik_str": 2134856,
+  "ticker": "XTERU",
+  "title": "Karman Line Acquisition Corp."
+ },
+ "8940": {
+  "cik_str": 2134856,
+  "ticker": "XTERW",
+  "title": "Karman Line Acquisition Corp."
+ },
+ "9117": {
+  "cik_str": 2137679,
+  "ticker": "OCLTR",
+  "title": "OceanLight Acquisition Corp"
+ },
+ "9118": {
+  "cik_str": 2137679,
+  "ticker": "OCLTW",
+  "title": "OceanLight Acquisition Corp"
+ },
+ "9119": {
+  "cik_str": 2137679,
+  "ticker": "OCLTU",
+  "title": "OceanLight Acquisition Corp"
+ },
+ "9202": {
+  "cik_str": 1787518,
+  "ticker": "DFNSW",
+  "title": "T3 Defense Inc."
+ },
+ "9210": {
+  "cik_str": 1015383,
+  "ticker": "POWWP",
+  "title": "Outdoor Holding Co"
+ },
+ "9319": {
+  "cik_str": 1840317,
+  "ticker": "VEEAW",
+  "title": "VEEA INC."
+ },
+ "9328": {
+  "cik_str": 1864531,
+  "ticker": "VSEEW",
+  "title": "VSEE HEALTH, INC."
+ },
+ "9329": {
+  "cik_str": 1864531,
+  "ticker": "VSEED",
+  "title": "VSEE HEALTH, INC."
+ },
+ "9365": {
+  "cik_str": 1852551,
+  "ticker": "NVA-WT",
+  "title": "Nova Minerals Corp"
+ },
+ "9611": {
+  "cik_str": 2079013,
+  "ticker": "HCACR",
+  "title": "Hall Chadwick Acquisition Corp"
+ },
+ "9641": {
+  "cik_str": 1326380,
+  "ticker": "GME-WT",
+  "title": "GameStop Corp."
+ },
+ "9698": {
+  "cik_str": 1402328,
+  "ticker": "SBFMW",
+  "title": "Sunshine Biopharma Inc."
+ },
+ "9716": {
+  "cik_str": 1774342,
+  "ticker": "NMCO-RI",
+  "title": "Nuveen Municipal Credit Opportunities Fund"
+ },
+ "9745": {
+  "cik_str": 1054102,
+  "ticker": "IDXGD",
+  "title": "INTERPACE BIOSCIENCES, INC."
+ },
+ "9949": {
+  "cik_str": 1852973,
+  "ticker": "BRLSW",
+  "title": "Borealis Foods Inc."
+ },
+ "10008": {
+  "cik_str": 1840425,
+  "ticker": "OSRHW",
+  "title": "OSR Health, Inc."
+ },
+ "10046": {
+  "cik_str": 70858,
+  "ticker": "BAC-PM",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10047": {
+  "cik_str": 70858,
+  "ticker": "BAC-PN",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10048": {
+  "cik_str": 70858,
+  "ticker": "BAC-PO",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10049": {
+  "cik_str": 70858,
+  "ticker": "BAC-PP",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10050": {
+  "cik_str": 70858,
+  "ticker": "BAC-PQ",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10051": {
+  "cik_str": 70858,
+  "ticker": "BAC-PS",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10054": {
+  "cik_str": 70858,
+  "ticker": "BAC-PL",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10055": {
+  "cik_str": 70858,
+  "ticker": "MER-PK",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10056": {
+  "cik_str": 70858,
+  "ticker": "BACRP",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10057": {
+  "cik_str": 70858,
+  "ticker": "BAC-PE",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10058": {
+  "cik_str": 70858,
+  "ticker": "BML-PH",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10059": {
+  "cik_str": 70858,
+  "ticker": "BML-PJ",
+  "title": "BANK OF AMERICA CORP /DE/"
+ },
+ "10166": {
+  "cik_str": 2033770,
+  "ticker": "DAICW",
+  "title": "CID Holdco, Inc."
+ },
+ "10329": {
+  "cik_str": 2033264,
+  "ticker": "VDTA",
+  "title": "Vertical Data Inc."
+ },
+ "10381": {
+  "cik_str": 1871638,
+  "ticker": "BZAIW",
+  "title": "Blaize Holdings, Inc."
+ }
+}

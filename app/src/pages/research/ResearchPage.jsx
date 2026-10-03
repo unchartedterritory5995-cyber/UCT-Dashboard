@@ -24,6 +24,9 @@ import HistoryTab from './tabs/HistoryTab'
 import OptionsChainTab from './tabs/OptionsChainTab'
 import SeasonalityTab from './tabs/SeasonalityTab'
 import FilingChangesTab from './tabs/FilingChangesTab'
+import PeopleTab from './tabs/PeopleTab'
+import EstimateHistoryTab from './tabs/EstimateHistoryTab'
+import FilingsFeedTab from './tabs/FilingsFeedTab'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -111,7 +114,13 @@ import styles from './ResearchPage.module.css'
 // on the market-view side of the MY RESEARCH boundary. Ships DARK behind
 // DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled), same
 // mechanism and polarity as the Flow tab.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filing changes', 'Ask AI', 'My Research']
+//
+// COV-05 / COV-07 / COV-09 (roadmap RM-L19): "People" sits with Ownership (who
+// runs and holds the company), "Estimate history" right after Estimates (how the
+// consensus got where it is), and "Filings feed" beside Filings (what SEC has
+// received, live, per ticker and market-wide). Each is DARK behind its own flag:
+// RESEARCH_PEOPLE_ENABLED, ESTIMATE_HISTORY_ENABLED, FILINGS_FEED_ENABLED.
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Estimate history', 'Analyst Ratings', 'Ratings', 'Ownership', 'People', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filings feed', 'Filing changes', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -122,6 +131,7 @@ const SECTION_TO_TAB = {
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
   'decision-record': 'Decision Record',
+  people: 'People', 'estimate-history': 'Estimate history', 'filings-feed': 'Filings feed',
   history: 'History',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
@@ -129,7 +139,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -159,7 +169,11 @@ export default function ResearchPage() {
     // COV-01: seasonality, dark behind SEASONALITY_ENABLED.
     (t !== 'Seasonality' || seasonalityEnabled === true) &&
     // COV-04: filing-to-filing blackline, dark behind FILING_BLACKLINE_ENABLED.
-    (t !== 'Filing changes' || filingBlacklineEnabled === true))
+    (t !== 'Filing changes' || filingBlacklineEnabled === true) &&
+    // COV-05 / COV-07 / COV-09: each dark behind its own flag.
+    (t !== 'People' || researchPeopleEnabled === true) &&
+    (t !== 'Estimate history' || estimateHistoryEnabled === true) &&
+    (t !== 'Filings feed' || filingsFeedEnabled === true))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -212,6 +226,9 @@ export default function ResearchPage() {
       {active === 'Seasonality' && <SeasonalityTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Filing changes' && <FilingChangesTab sym={sym} />}
+      {active === 'People' && <PeopleTab sym={sym} />}
+      {active === 'Estimate history' && <EstimateHistoryTab sym={sym} />}
+      {active === 'Filings feed' && <FilingsFeedTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />

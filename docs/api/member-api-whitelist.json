@@ -2306,6 +2306,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/estimate-history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2313,6 +2319,18 @@
     {
       "method": "GET",
       "path": "/api/research/expected-move/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/filings-feed",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/filings-feed/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2379,6 +2397,12 @@
     {
       "method": "GET",
       "path": "/api/research/ownership/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/people/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },

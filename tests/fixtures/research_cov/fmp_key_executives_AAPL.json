@@ -1,0 +1,182 @@
+[
+ {
+  "title": "Vice President of Corporate Development",
+  "name": "Adrian Perica",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1974,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President of Software Engineering",
+  "name": "Craig Federighi",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1969,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President of Services and Health",
+  "name": "Eduardo H. Cue",
+  "pay": 2807461,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1964,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President of Worldwide Marketing",
+  "name": "Greg Joswiak",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Chief Executive Officer & Director",
+  "name": "John Ternus",
+  "pay": 16759518,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1976,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Chief Hardware Officer",
+  "name": "Johny Srouji",
+  "pay": 4162279,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1965,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President & Chief Financial Officer",
+  "name": "Kevan Parekh",
+  "pay": 4034174,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1972,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Vice President of Worldwide Sales",
+  "name": "Michael Fenger",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Executive Chairman of the Board",
+  "name": "Timothy D. Cook",
+  "pay": 16759518,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1961,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "VP & MD of Greater China",
+  "name": "Isabel Ge Mahe",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1974,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Secretary",
+  "name": "Katherine L. Adams",
+  "pay": 5022482,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1964,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Vice President of Worldwide Communications",
+  "name": "Kristin Huguet Quayle",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Head of Kid's Programming",
+  "name": "Tara Sorensen",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Director of Investor Relations",
+  "name": "Suhasini Chandramouli",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": null,
+  "yearBorn": null,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President & General Counsel",
+  "name": "Jennifer G. Newstead",
+  "pay": 5022182,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1970,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Principal Accounting Officer",
+  "name": "Ben Borders",
+  "pay": null,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1981,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior VP & Chief Operating Officer",
+  "name": "Sabih Khan",
+  "pay": 5021905,
+  "currencyPay": "USD",
+  "gender": "male",
+  "yearBorn": 1967,
+  "titleSince": null,
+  "active": true
+ },
+ {
+  "title": "Senior Vice President of Retail & People",
+  "name": "Deirdre O'Brien",
+  "pay": 5037867,
+  "currencyPay": "USD",
+  "gender": "female",
+  "yearBorn": 1967,
+  "titleSince": null,
+  "active": true
+ }
+]

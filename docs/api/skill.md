@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (539)
+## Endpoints (542)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -399,19 +399,22 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/blackline/{sym}` | paid | research |
 | GET | `/api/research/company-news/{sym}` | paid | research |
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research |
+| GET | `/api/research/estimate-history/{sym}` | paid | research |
 | GET | `/api/research/estimates/{sym}` | paid | research |
 | GET | `/api/research/expected-move/{sym}` | paid | research |
+| GET | `/api/research/filings-feed` | paid | research |
+| GET | `/api/research/filings-feed/{sym}` | paid | research |
 | GET | `/api/research/financial-history/{sym}` | paid | research |
 | GET | `/api/research/financials/{sym}` | paid | research |
 | GET | `/api/research/history/{sym}` | paid | research |
 | GET | `/api/research/iv-history/{sym}` | paid | research |
 | GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research |
 | GET | `/api/research/news/{sym}` | paid | research |
-| GET | `/api/research/options/{sym}/backtest/{job}` | paid | research |
 | GET | `/api/research/options/{sym}/chain` | paid | research |
 | GET | `/api/research/options/{sym}/expirations` | paid | research |
 | GET | `/api/research/options/{sym}/surface` | paid | research |
 | GET | `/api/research/ownership/{sym}` | paid | research |
+| GET | `/api/research/people/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |
 | GET | `/api/research/seasonality/{sym}` | paid | research |

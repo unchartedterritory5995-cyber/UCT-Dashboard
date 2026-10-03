@@ -8158,6 +8158,37 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] malloc_trim job registration failed (non-fatal): {e}")
 
+        # COV-07 / COV-09 (RM-L19): both jobs are ALWAYS registered and check their own
+        # flag on every run (ESTIMATE_HISTORY_ENABLED / FILINGS_FEED_ENABLED), so arming
+        # either one takes effect without a scheduler change and unset does nothing at all.
+        try:
+            from apscheduler.triggers.interval import IntervalTrigger as _FeedInterval
+
+            def _estimate_history_job():
+                from api.services import estimate_history as _eh
+                r = _eh.run_daily()
+                if not r.get("skipped"):
+                    print(f"[scheduler] estimate history snapshot: {r}")
+
+            def _filings_feed_job():
+                from api.services import filings_feed as _ff
+                _ff.poll_market()
+
+            _scheduler.add_job(
+                _estimate_history_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=20, timezone=_ET),
+                id="estimate_history_daily", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            from api.services import filings_feed as _ff_mod
+            _scheduler.add_job(
+                _filings_feed_job,
+                trigger=_FeedInterval(minutes=max(1, _ff_mod.POLL_MINUTES)),
+                id="filings_feed_poll", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)")
+        except Exception as e:
+            print(f"[startup] COV-07/09 job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -9117,6 +9148,8 @@ from api.routers import options_chain as options_chain_router  # noqa: E402  (BR
 app.include_router(options_chain_router.router)
 from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01, dark)
 app.include_router(seasonality_router.router)
+from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-05/07/09, dark)
+app.include_router(research_cov_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)

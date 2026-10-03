@@ -492,3 +492,30 @@ describe('Filing changes tab (COV-04, dark)', () => {
     expect(screen.getByText(/Loading filing changes/)).toBeInTheDocument()
   })
 })
+
+// COV-05 / COV-07 / COV-09 (RM-L19) -- three tabs, each DARK behind its own flag.
+describe.each([
+  ['People', 'researchPeopleEnabled', 'people', /Loading people/],
+  ['Estimate history', 'estimateHistoryEnabled', 'estimate-history', /Loading estimate history/],
+  ['Filings feed', 'filingsFeedEnabled', 'filings-feed', /Loading filings/],
+])('%s tab (RM-L19, dark)', (label, flag, section, loading) => {
+  beforeEach(() => { auth.isPaid = true; auth[flag] = false })
+  afterEach(() => { auth[flag] = false })
+
+  it('is ABSENT from the strip when its flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument()
+  })
+
+  it('its ?section= deep link falls through to Overview when off', () => {
+    renderWithProviders(<ResearchPage />, { route: `/research/AAPL?section=${section}` })
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and opens when its flag is on', () => {
+    auth[flag] = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByText(loading)).toBeInTheDocument()
+  })
+})
