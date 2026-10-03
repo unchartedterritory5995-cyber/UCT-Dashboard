@@ -168,7 +168,12 @@ TICK_WALKBACK = 20
 
 def tick_test_side(avg_price: float, prior) -> str:
     """prior = (last_px, prev_distinct_px, flat_run) for the contract just before
-    the event, or None when the event is the contract's first print."""
+    the event, or None when the event is the contract's first print.
+
+    Measured 2026-10-03 against 10/1's live NBBO sides (3,509 matched prints
+    >= $100K): avg-vs-prior agrees 69.1% (sweeps 72.2%) at 95% coverage. Tried
+    and rejected: first-trade-vs-prior 68.1%; the event's own price walk 54%
+    (~coin flip). ~70% is the ceiling without quotes in the tape."""
     if not prior:
         return ""
     last_px, prev_distinct, flat_run = prior
