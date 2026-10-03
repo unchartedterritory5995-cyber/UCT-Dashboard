@@ -74,7 +74,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -1092,9 +1092,16 @@ export function createBinder({ chart, LWC }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
-  const noteRuntimeErrorStop = (instanceId, cols) => {
+  const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
     const stop = cols ? runtimeErrorStopOf(cols) : null
-    const sentence = stop && stop.reached ? stop.sentence : null
+    let sentence = stop && stop.reached ? stop.sentence : null
+    // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
+    // why on the same strip (`nativeRegistry.runtimeRunStopOf`): history-start,
+    // the time budget, a VM limit, a failed worker. Never an empty pane alone.
+    if (!sentence && def) {
+      const ran = runtimeRunStopOf(def, cols)
+      if (ran) sentence = ran.sentence
+    }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
     else stoppedIds.delete(instanceId)
@@ -1223,6 +1230,13 @@ export function createBinder({ chart, LWC }) {
       // when there is a sentence to take down. Zero calls when none was published.
       pruneClock('plots', null)
       pruneClock('objects', null)
+      // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
+      // that drew nothing binds NO series, so `held` is empty exactly when there
+      // is a "not drawn because …" sentence to take down. Zero calls when none.
+      if (stoppedIds.size) {
+        for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+        stoppedIds.clear()
+      }
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1530,7 +1544,7 @@ export function createBinder({ chart, LWC }) {
       }
       runCols.set(inst.instanceId, cols)
       // ⭐ C43 — reached on this chart at these settings, or no longer reached
-      noteRuntimeErrorStop(inst.instanceId, cols)
+      noteRuntimeErrorStop(inst.instanceId, cols, def)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
       // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
       // columns the decision was made for; a registry without the report (a test

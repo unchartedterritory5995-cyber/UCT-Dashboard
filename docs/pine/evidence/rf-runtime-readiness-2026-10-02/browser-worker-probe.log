@@ -1,0 +1,26 @@
+adx-and-di-for-v4                  D 5000    #1: worker   136.1 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 10 frames
+adx-and-di-for-v4                  D 5000    #2: worker    99.1 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 8 frames
+adx-and-di-for-v4                  5m 32000  #1: worker   181.3 ms (post 15 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 13 frames
+adx-and-di-for-v4                  5m 32000  #2: worker   213.4 ms (post 14 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 15 frames
+delta-rsi-oscillator-strategy      D 5000    #1: worker   114.1 ms (post 2 ms) runtime:failed; main longest task 0 ms, max frame gap 17 ms over 9 frames
+delta-rsi-oscillator-strategy      D 5000    #2: worker    65.4 ms (post 2 ms) runtime:failed; main longest task 0 ms, max frame gap 17 ms over 6 frames
+delta-rsi-oscillator-strategy      5m 32000  #1: worker   599.3 ms (post 15 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 37 frames
+delta-rsi-oscillator-strategy      5m 32000  #2: worker   158.4 ms (post 16 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 12 frames
+fibonacci-dolphintradebot          D 5000    #1: worker  1240.8 ms (post 2 ms) runtime:time-budget; main longest task 0 ms, max frame gap 17 ms over 77 frames
+fibonacci-dolphintradebot          D 5000    #2: worker  1191.3 ms (post 2 ms) runtime:time-budget; main longest task 0 ms, max frame gap 17 ms over 73 frames
+fibonacci-dolphintradebot          5m 32000  #1: worker   471.6 ms (post 14 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 30 frames
+fibonacci-dolphintradebot          5m 32000  #2: worker   620.6 ms (post 14 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 39 frames
+inside-bar-range-mother-candle-bre D 5000    #1: worker   114.1 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 8 frames
+inside-bar-range-mother-candle-bre D 5000    #2: worker    83.7 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 7 frames
+inside-bar-range-mother-candle-bre 5m 32000  #1: worker   286.3 ms (post 15 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 19 frames
+inside-bar-range-mother-candle-bre 5m 32000  #2: worker   170.6 ms (post 15 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 12 frames
+trend-targets-algoalpha            D 5000    #1: worker   183.6 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 13 frames
+trend-targets-algoalpha            D 5000    #2: worker   172.3 ms (post 2 ms) ok; main longest task 0 ms, max frame gap 17 ms over 12 frames
+trend-targets-algoalpha            5m 32000  #1: worker   369.2 ms (post 15 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 24 frames
+trend-targets-algoalpha            5m 32000  #2: worker   292.0 ms (post 17 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 20 frames
+wyckoff-accumulation-distribution  D 5000    #1: worker   271.1 ms (post 2 ms) runtime:failed; main longest task 0 ms, max frame gap 17 ms over 19 frames
+wyckoff-accumulation-distribution  D 5000    #2: worker   194.7 ms (post 2 ms) runtime:failed; main longest task 0 ms, max frame gap 17 ms over 14 frames
+wyckoff-accumulation-distribution  5m 32000  #1: worker   757.2 ms (post 13 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 47 frames
+wyckoff-accumulation-distribution  5m 32000  #2: worker   633.0 ms (post 14 ms) runtime:limit; main longest task 0 ms, max frame gap 17 ms over 40 frames
+control: longest task 0 ms, max frame gap 383 ms
+VERDICT: OFF-MAIN-THREAD (worst main-thread frame gap during worker runs: 17 ms)

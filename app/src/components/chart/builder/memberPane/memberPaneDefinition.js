@@ -1110,9 +1110,21 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + `${repaint.reads.map((r) => `\`${r.name}\``).join(', ')} (${repaint.reads.map((r) => r.why).join('; ')}).`,
     })
   }
-  const undrawn = [...new Set((t.outputs || [])
-    .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
-    .map((o) => o.kind))]
+  // ⛔ RF — THE PAINTS ARE COUNTED TOO. Since B1 a `bgcolor` / `barcolor` is no
+  // longer an entry of `t.outputs`: it is `t.presentation.paints`. This list was
+  // written (RT1) against `t.outputs` only, so after B1 a runtime document that
+  // draws none of its script's bar colours said NOTHING about them — measured on
+  // inside-bar-range (two `barcolor`s TradingView paints; the vendor harness
+  // grades its paints DIVERGE). A paint the author hid or coloured `na` draws
+  // nothing on TradingView either and is not named; every other one is.
+  const unpainted = ((t.presentation || {}).paints || [])
+    .filter((p) => p && !p.hidden && !p.na && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, p.kind))
+  const undrawn = [...new Set([
+    ...(t.outputs || [])
+      .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
+      .map((o) => o.kind),
+    ...unpainted.map((p) => p.kind),
+  ])]
   if (undrawn.length) {
     notes.push({
       name: 'Not drawn by this pane',

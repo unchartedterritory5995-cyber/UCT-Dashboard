@@ -116,6 +116,12 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 /** The guard a run that passes the budget carries. */
 export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'
 
+/** ⭐ RF — the guard a run stopped by one of the VM's declared limits carries. */
+export const RUNTIME_LIMIT_GUARD = 'runtime:limit'
+
+/** ⭐ RF — the guard a run that threw something unexpected carries. */
+export const RUNTIME_FAILED_GUARD = 'runtime:failed'
+
 /** The memo key for one run: the definition, its compute handle, and everything
  *  in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
 function runKey(def, ctx) {
@@ -230,6 +236,25 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
       throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${budgetMs} ms to draw `
         + `bar by bar (it had reached bar ${finished + 1} of ${rows.length}), which is this pane's budget `
         + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
+    }
+    // ⭐⭐ RF — EVERY OTHER STOP OF THE RUN IS NAMED TOO. A VM limit
+    // (`limits.js`: loop iterations, collection sizes, …) and an unexpected throw
+    // used to reach the registry as a bare `Error` — guard `engine:error`, message
+    // `LOOP_ITERATIONS_EXCEEDED — ceiling …` — which is not a sentence a member
+    // can read. The script's own `runtime.error` (C43) keeps its own path.
+    if (err && err.name !== 'runtime.error' && !err.guard) {
+      if (err instanceof RuntimeLimitError) {
+        throw refusal(RUNTIME_LIMIT_GUARD, `this script passed one of the limits a script drawn bar by bar `
+          + `runs under (${err.limit}: at most ${err.ceiling}, it reached ${err.reached}) on bar ${finished + 1} `
+          + `of ${rows.length}, so it is stopped and nothing is drawn rather than part of it.`)
+      }
+      // A collection / record / VM error words its own reason (`collections.js`:
+      // "array.max of an empty array — …"); it is kept, with the bar it stopped on.
+      const failed = refusal(RUNTIME_FAILED_GUARD, `this script stopped on bar ${finished + 1} of ${rows.length} `
+        + `when drawn bar by bar (${String((err && err.message) || err).slice(0, 400)}), so nothing is drawn `
+        + 'rather than part of it.')
+      failed.cause = (err && err.name) || 'Error'
+      throw failed
     }
     throw err
   }
