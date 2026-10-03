@@ -17,6 +17,10 @@ import AskPanel from './AskPanel'
 import AiActionsBox from './AiActionsPanel'
 import ReportingSoon from './ReportingSoon'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
+import {
+  reviewDraftsEnabled, draftDailyReview, draftWeeklyReview, draftMonthlyReview,
+  todayDayIso, mondayOfIso, thisMonthIso,
+} from '../../lib/reviewDrafts'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -58,6 +62,52 @@ function NoteRow({ note, onOpen, reason }) {
         {reason || <span className={styles.rowDate}>{relativeDate(note.updatedAt)}</span>}
       </span>
     </button>
+  )
+}
+
+// Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
+// themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
+// is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
+function ReviewDraftsHomeBox({ onOpenNote }) {
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+  if (!reviewDraftsEnabled()) return null
+
+  const run = async (period, fn) => {
+    if (busy) return
+    setBusy(period)
+    setError(null)
+    try {
+      const { note } = await fn()
+      onOpenNote(note)
+    } catch {
+      setError(`Could not draft the ${period} review — try again.`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>Reviews that write themselves</h3>
+      </div>
+      <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
+          onClick={() => run('daily', () => draftDailyReview({ day: todayDayIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
+          onClick={() => run('weekly', () => draftWeeklyReview({ weekStart: mondayOfIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
+          onClick={() => run('monthly', () => draftMonthlyReview({ month: thisMonthIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
+        </button>
+      </div>
+      {error && <p className={styles.sampleError} role="alert">{error}</p>}
+    </div>
   )
 }
 
@@ -315,6 +365,10 @@ export default function ResearchHome({
   const passedBox = passedSetupsEnabled()
     ? <Suspense fallback={null}><PassedSetups /></Suspense>
     : null
+  // Wave 13 lane 13F: "Reviews that write themselves" -- the FOURTH child of the same
+  // fragment in every return below, for the same reason as the three boxes above (a
+  // home that flips between quiet and full must not remount it mid-draft).
+  const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} />
 
   if (nothingToShow && homeError) {
     return (
@@ -322,6 +376,7 @@ export default function ResearchHome({
         {aiBox}
         {prepBox}
         {passedBox}
+        {reviewBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
@@ -336,6 +391,7 @@ export default function ResearchHome({
         {aiBox}
         {prepBox}
         {passedBox}
+        {reviewBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <p>Nothing needs your attention right now.</p>
@@ -350,6 +406,7 @@ export default function ResearchHome({
     {aiBox}
     {prepBox}
     {passedBox}
+    {reviewBox}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still

@@ -29,8 +29,8 @@
  * NO emoji — every glyph is a `<UIcon>`.
  */
 
-import { useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import RiskExitsSection from '../analytics/RiskExitsSection'
 import PlaybookSection from './PlaybookSection'
@@ -43,6 +43,11 @@ import { planGradingEnabled } from '../../hooks/usePlanGrade'
 import useScope from '../../hooks/useScope'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { useFeatureFlag } from '../../featureFlags'
+import {
+  reviewDraftsEnabled, draftDailyReview, draftWeeklyReview, draftMonthlyReview,
+  todayDayIso, mondayOfIso, thisMonthIso,
+} from '../../lib/reviewDrafts'
+import { compassScope } from '../../hooks/compassScope'
 import styles from './InsightsHub.module.css'
 
 // The six hub sections. `key` is the `?ins=` value; order = the sub-nav order.
@@ -57,6 +62,9 @@ const SECTIONS = [
 // Wave 13 lane 13A: the Discipline section exists only while notebook_plan_grading_enabled is
 // latched on (dark by default), so the six sections above are unchanged with the flag off.
 const DISCIPLINE_SECTION = { key: 'discipline', label: 'Discipline' }
+// Wave 13 lane 13F: the Reviews section (one click drafts a daily/weekly/monthly review note)
+// exists only while notebook_review_drafts_enabled is latched on (dark by default).
+const REVIEWS_SECTION = { key: 'reviews', label: 'Reviews' }
 const DEFAULT_SECTION = 'playbook'
 
 export default function InsightsHub({ analytics }) {
@@ -77,7 +85,11 @@ export default function InsightsHub({ analytics }) {
   const { apiParams } = useScope()
   const { accountId } = useJ2SelectedAccount()
 
-  const sections = planGradingEnabled() ? [...SECTIONS, DISCIPLINE_SECTION] : SECTIONS
+  const sections = [
+    ...SECTIONS,
+    ...(planGradingEnabled() ? [DISCIPLINE_SECTION] : []),
+    ...(reviewDraftsEnabled() ? [REVIEWS_SECTION] : []),
+  ]
   const raw = searchParams.get('ins')
   const active = sections.some((s) => s.key === raw) ? raw : DEFAULT_SECTION
 
@@ -143,6 +155,7 @@ export default function InsightsHub({ analytics }) {
             />
           ))}
         {active === 'discipline' && <DisciplineRecord accountId={accountId} />}
+        {active === 'reviews' && <ReviewDraftsSection accountId={accountId} />}
         {active === 'coach' &&
           (verdictScoreOn ? (
             <VerdictScorecard accountId={accountId} apiParams={apiParams} />
@@ -154,6 +167,76 @@ export default function InsightsHub({ analytics }) {
             />
           ))}
       </div>
+    </div>
+  )
+}
+
+// ── Reviews that write themselves (wave 13 lane 13F) — the "Home" door ──────────
+//
+// One click per period. The data is the backend's (api/services/journal_two/
+// review_drafts.py + leak_finder.py); this only calls the lib and navigates to
+// whatever note it landed — daily appends to the member's own daily note, weekly
+// and monthly create a new tagged note through the Notebook's one create door.
+
+function ReviewDraftsSection({ accountId }) {
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(null) // 'daily' | 'weekly' | 'monthly' | null
+  const [error, setError] = useState(null)
+
+  const run = useCallback(async (period, fn) => {
+    if (busy) return
+    setBusy(period)
+    setError(null)
+    try {
+      const { note } = await fn()
+      navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
+    } catch {
+      setError(`Could not draft the ${period} review — try again.`)
+    } finally {
+      setBusy(null)
+    }
+  }, [busy, navigate])
+
+  const scope = compassScope(accountId)
+
+  return (
+    <div className={styles.comingSoon} data-testid="review-drafts-section">
+      <UIcon name="book" size={26} className={styles.comingSoonGlyph} />
+      <h4 className={styles.comingSoonTitle}>Reviews that write themselves</h4>
+      <p className={styles.comingSoonText}>
+        One click drafts the trades and P&amp;L, the discipline record, setup changes,
+        links to plans and prior reviews, the best and worst trade, and any leaks —
+        from your own numbers, never generated.
+      </p>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="touchTarget"
+          onClick={() => run('daily', () => draftDailyReview({ accountId: scope, day: todayDayIso() }))}
+          disabled={Boolean(busy)}
+        >
+          {busy === 'daily' ? 'Drafting…' : 'Draft today’s recap'}
+        </button>
+        <button
+          type="button"
+          className="touchTarget"
+          onClick={() => run('weekly', () => draftWeeklyReview({ accountId: scope, weekStart: mondayOfIso() }))}
+          disabled={Boolean(busy)}
+        >
+          {busy === 'weekly' ? 'Drafting…' : 'Draft this week’s review'}
+        </button>
+        <button
+          type="button"
+          className="touchTarget"
+          onClick={() => run('monthly', () => draftMonthlyReview({ accountId: scope, month: thisMonthIso() }))}
+          disabled={Boolean(busy)}
+        >
+          {busy === 'monthly' ? 'Drafting…' : 'Draft this month’s review'}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 12, marginTop: 10 }}>{error}</p>
+      )}
     </div>
   )
 }

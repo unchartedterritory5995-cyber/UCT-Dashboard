@@ -228,6 +228,10 @@ NOTEBOOK_FLAGS = {
     # reads the same variable through flag_on, per request; the payload key is
     # `notebook_playbook_enabled`.
     "NOTEBOOK_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (My Playbook, lane 13B)
+    # Wave 13 lane 13F: reviews that write themselves, with the leak finder. The service's gate
+    # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
+    # the payload key is `notebook_review_drafts_enabled`.
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
