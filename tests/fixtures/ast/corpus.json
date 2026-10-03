@@ -2517,6 +2517,21 @@
       }
     },
     {
+      "id": "vwap_of_close_session",
+      "source": "vwapOf(close)",
+      "why": "(2026-10-02, H3) Pine's `ta.vwap(close)`: the SAME session accumulator as `vwap()` -- one `computeVWAP` / `compute_vwap_raw`, its ET-day boundary and all -- weighting the close instead of the typical price. These 579 bars cross the Friday 20:00 ET print that is 00:00 UTC, so a second accumulator with its own boundary would move this case and not `vwap_session`. Graded against TradingView on `vw-clock-vwap-spy-5-ext-2026-09-28` (V08 + V09) in `vendorHarness.h3VwapSource.test.js` and `tests/test_ast_vwap_of.py`.",
+      "ast": {
+        "type": "call",
+        "name": "vwapOf",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
       "id": "avwap_from_a_mid_series_instant",
       "source": "avwap(1762189200)",
       "why": "the same accumulator restarted at an INSTANT -- 2025-11-03 12:00 ET, the middle of this corpus's second ET session -- which is the only anchor a closed-table formula can spell, because the table has exactly two argument kinds and no string literal. ⛔ THE COLUMN IS BLANK BEFORE THE ANCHOR AND EXACT AFTER IT, never a partial accumulation of the bars that came first, so a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ The anchor is INSIDE the series on purpose: an anchor before the first bar is NOT COMPUTABLE by declaration, because 'the first bar at or after it' would be whichever bar the caller happened to fetch",

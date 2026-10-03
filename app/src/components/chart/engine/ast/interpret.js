@@ -3148,8 +3148,17 @@ function barCumFrom(bars, args) {
   return out
 }
 
+/** `vwapOf(source)` — Pine's `ta.vwap(source)`: the SAME session accumulator
+ *  (`computeVWAP`, its session boundary and all), weighting `source` instead of
+ *  the typical price. `args[0]` is the evaluated column, aligned with `bars`.
+ *  H3 (2026-10-02); the translator admits only a bar price series as `source`
+ *  (`pine.js`, the `key === 'vwap'` branch), witnessed by
+ *  `vw-clock-vwap-spy-5-ext-2026-09-28` (V08 + V09) and
+ *  `groupb-round-max-vwap-spy-1d-2026-09-10` (N14 + N12). */
+const barVwapOf = (bars, args) => computeVWAP(bars, args[0] || [])
+
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
+  vwap: barVwap, vwapOf: barVwapOf, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 
