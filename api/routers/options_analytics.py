@@ -214,3 +214,37 @@ def options_history_daily_move(sym: str, _user: dict = Depends(require_paid)):
 def options_history_iv_crush(sym: str, _user: dict = Depends(require_paid)):
     from api.services.options_analytics import log_history
     return _log(log_history.iv_crush, sym)
+
+
+# ── FT-003 probability · FT-016 contract drill · FT-002 multi-leg builder ──────
+# Plain `def`: the vendor chain and contract aggregates block.
+
+@router.get("/api/research/options/{sym}/probability",
+            dependencies=[Depends(_switch("OPTIONS_PROBABILITY_ENABLED"))])
+def options_probability(sym: str,
+                        expiration: str = Query("", max_length=10, pattern=r"^(\d{4}-\d{2}-\d{2})?$"),
+                        probability: float = Query(0.6827, ge=0.5, le=0.999),
+                        _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import chain_tools
+    try:
+        return chain_tools.probability(_sym(sym), expiration, probability)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=f"Option chain unavailable: {e}") from e
+
+
+@router.get("/api/research/options/{sym}/contract/{occ}",
+            dependencies=[Depends(_switch("OPTIONS_PRICER_ENABLED"))])
+def options_contract(sym: str, occ: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import chain_tools
+    try:
+        return chain_tools.contract_history(_sym(sym), occ)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.get("/api/research/options/{sym}/builder",
+            dependencies=[Depends(_switch("OPTIONS_MULTI_LEG_ENABLED"))])
+def options_builder(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import chain_tools
+    _sym(sym)
+    return chain_tools.builder_config()

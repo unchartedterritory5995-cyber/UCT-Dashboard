@@ -8,6 +8,7 @@ import IvHistoryPanel from './IvHistoryPanel'
 import PositioningPanel from '../../optionsAnalytics/PositioningPanel'
 import { IvRankBadge, OptionMonitorStrip, VolStatsPanel } from '../../optionsAnalytics/VolPanels'
 import OptionsHistoryPanel from '../../optionsAnalytics/OptionsHistoryPanel'
+import { ProbabilityPanel, ContractDrill, ContractPicker, PositionBuilder } from '../../optionsAnalytics/ChainTools'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -46,6 +47,8 @@ export function atmStrike(rows, spot) {
 export default function OptionsChainTab({ sym, volSurface = false }) {
   const s = (sym || '').toUpperCase().trim()
   const [picked, setPicked] = useState('')
+  // FT-016: a clicked quote opens the contract drill (renders nothing while OPTIONS_PRICER_ENABLED is off)
+  const [drill, setDrill] = useState(null)
   const exps = useSWR(s ? `/api/research/options/${encodeURIComponent(s)}/expirations` : null, sectionFetcher,
     { revalidateOnFocus: false })
   const expiration = picked || ''
@@ -105,15 +108,19 @@ export default function OptionsChainTab({ sym, volSurface = false }) {
             {rows.map((r) => (
               <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
                   data-testid={r.strike === atm ? 'atm-row' : undefined}>
-                {COLS.map(([k, , how]) => <td key={`c-${k}`}>{fmt(r.call?.[k], how)}</td>)}
+                {COLS.map(([k, , how]) => <td key={`c-${k}`} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
                 <td className={styles.strike}>{fmt(r.strike, 2)}</td>
-                {COLS.map(([k, , how]) => <td key={`p-${k}`}>{fmt(r.put?.[k], how)}</td>)}
+                {COLS.map(([k, , how]) => <td key={`p-${k}`} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <ContractPicker sym={s} rows={rows} onPick={setDrill} />
+      {drill && <ContractDrill key={drill.contract} sym={s} contract={drill} spot={Number(d.spot)} onClose={() => setDrill(null)} />}
       <PayoffPanel rows={rows} spot={Number(d.spot)} />
+      <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
+      <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
       {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <IvHistoryPanel sym={s} />
       <OptionsHistoryPanel sym={s} />
