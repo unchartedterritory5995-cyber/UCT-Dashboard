@@ -60,6 +60,14 @@ from urllib.parse import parse_qs, urlparse
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
 import notebook_perf_harness as h  # noqa: E402  -- imports no api.* (asserted at the end)
+# ⛔ docs/runbooks/rig-credential-hygiene.md: a Playwright/HTTP exception embeds the request's
+# own headers, Cookie included. Run 8 of this lane's walk hit exactly the documented incident
+# shape -- an APIRequestContext ECONNRESET's call log carried a live sandbox `uct_session=...`
+# value straight into V1200_traceback. Every exception captured into raw evidence below goes
+# through this ONE scrubber (never a second copy) -- `secret_scrub.brief` for a one-line
+# capture, `secret_scrub.scrub` for a full traceback, BEFORE any truncation (truncating first
+# can cut a credential in half and leave a fragment the scrubber's full-token pattern misses).
+from secret_scrub import brief, scrub  # noqa: E402
 
 MEMBER = ("w13h2@local.dev", "LocalTest2026!", "w13h2")
 FLAG_KEY = "notebook_chart_plan_enabled"
@@ -152,7 +160,7 @@ class Walk:
         try:
             pg.screenshot(path=str(p), full_page=True)
         except Exception as e:  # noqa: BLE001 -- a screenshot is evidence, never the walk
-            self.raw.setdefault("screenshot_errors", []).append(f"{name}: {str(e)[:200]}")
+            self.raw.setdefault("screenshot_errors", []).append(f"{name}: {brief(e, 200)}")
         return p.name
 
     def dump(self, name, data):
@@ -314,7 +322,7 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
                          has_touch=touch, reduced_motion="reduce", storage_state=state)
     install_bars_route(ctx, served)
     pg = ctx.new_page()
-    pg.on("pageerror", lambda e: errors.append(f"{tag}: {str(e)[:300]}"))
+    pg.on("pageerror", lambda e: errors.append(f"{tag}: {scrub(str(e))[:300]}"))
     note = req.post(base + "/api/j2/notes", data={"title": f"Chart plan walk {width}", "bodyJson": {
         "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "The plan:"}]}]}})
     nid = note.json()["note"]["id"]
@@ -375,7 +383,7 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
         pg.wait_for_function("() => { const e = document.querySelector('[data-plan-value=\"shares\"]'); "
                              "return e && e.textContent.trim() !== '—' }", timeout=30000)
     except Exception as e:  # noqa: BLE001
-        w.raw[f"{tag}_size_wait_error"] = str(e)[:300]
+        w.raw[f"{tag}_size_wait_error"] = scrub(str(e))[:300]
     vals = {k: (panel.locator(f'[data-plan-value="{k}"]').first.inner_text() if panel.locator(f'[data-plan-value="{k}"]').count() else None)
             for k in ("rr", "rps", "acct", "shares")}
     label_el = panel.locator("[data-sized-by]")
@@ -403,7 +411,7 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
         stop_row.get_by_text("Alert armed").first.wait_for(state="visible", timeout=30000)
         armed_ui = True
     except Exception as e:  # noqa: BLE001
-        w.raw[f"{tag}_arm_wait_error"] = str(e)[:300]
+        w.raw[f"{tag}_arm_wait_error"] = scrub(str(e))[:300]
         w.raw[f"{tag}_panel_text_after_arm"] = panel.inner_text()[:1500]
     alerts = req.get(base + "/api/watchlist-alerts").json()
     w.dump(f"{tag}-alerts-list.json", alerts)
@@ -427,7 +435,7 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
         pg.get_by_text(re.compile(r"^1 bar after the note")).first.wait_for(state="visible", timeout=10000)
         ok5 = True
     except Exception as e:  # noqa: BLE001
-        w.raw[f"{tag}_replay_error"] = str(e)[:300]
+        w.raw[f"{tag}_replay_error"] = scrub(str(e))[:300]
     w.raw[f"{tag}_replay_status"] = dlg.inner_text()[:600] if dlg.count() else None
     w.record(f"{tag}-5_replay_step_forward", ok5, "dialog opened at the note's as-of; Step -> '1 bar after the note'")
     w.shot(pg, f"{tag}-5-replay")
@@ -508,14 +516,14 @@ def run(base: str, w: Walk) -> None:
                 walk_viewport(br, state, base, req, w, width, errors, served)
             except Exception as e:  # noqa: BLE001 -- recorded; the other viewport still runs
                 import traceback
-                w.record(f"V{width}-x_walk_raised", False, f"{type(e).__name__}: {str(e)[:300]}")
-                w.raw[f"V{width}_traceback"] = traceback.format_exc()[-3000:]
+                w.record(f"V{width}-x_walk_raised", False, brief(e, 300))
+                w.raw[f"V{width}_traceback"] = scrub(traceback.format_exc())[-3000:]
 
         # W9 -- /mtf NVDA W at 1200
         c9 = br.new_context(viewport={"width": 1200, "height": 900}, reduced_motion="reduce", storage_state=state)
         install_bars_route(c9, served)
         p9 = c9.new_page()
-        p9.on("pageerror", lambda e: errors.append(f"W9: {str(e)[:300]}"))
+        p9.on("pageerror", lambda e: errors.append(f"W9: {scrub(str(e))[:300]}"))
         n9 = req.post(base + "/api/j2/notes", data={"title": "Weekly stack walk", "bodyJson": {
             "type": "doc", "content": [{"type": "paragraph"}]}}).json()["note"]["id"]
         try:
@@ -527,7 +535,7 @@ def run(base: str, w: Walk) -> None:
             p9.wait_for_timeout(1500)
             w.shot(p9, "W9-mtf-weekly")
         except Exception as e:  # noqa: BLE001
-            w.record("W9_mtf_weekly_stack", False, f"{type(e).__name__}: {str(e)[:300]}")
+            w.record("W9_mtf_weekly_stack", False, brief(e, 300))
         c9.close()
 
         # W10 -- gate OFF in the client (the auth payload answers false)
@@ -544,7 +552,7 @@ def run(base: str, w: Walk) -> None:
         po = off.new_page()
         plan_reqs: list[str] = []
         po.on("request", lambda r: plan_reqs.append(r.url) if "/api/j2/chart-plan/" in r.url else None)
-        po.on("pageerror", lambda e: errors.append(f"W10: {str(e)[:300]}"))
+        po.on("pageerror", lambda e: errors.append(f"W10: {scrub(str(e))[:300]}"))
         try:
             open_note(po, base, w.raw.get("V1200_note"))
             fr = frame_of(po, 0)
@@ -566,7 +574,7 @@ def run(base: str, w: Walk) -> None:
                      f"chart-plan requests={plan_reqs}")
             w.shot(po, "W10-gate-off-1200")
         except Exception as e:  # noqa: BLE001
-            w.record("W10_gate_off_client", False, f"{type(e).__name__}: {str(e)[:300]}")
+            w.record("W10_gate_off_client", False, brief(e, 300))
         off.close()
 
         w.raw["bars_fixture_served"] = served
@@ -615,11 +623,11 @@ def main(argv=None) -> int:
             try:
                 run(base, w)
             except h.SetupFailed as e:
-                not_run = str(e)[:300]
+                not_run = scrub(str(e))[:300]
             except Exception as e:  # noqa: BLE001 -- recorded; the sandbox is still stopped
                 import traceback
-                failure = f"the walk raised {type(e).__name__}: {str(e)[:400]}"
-                w.raw["traceback"] = traceback.format_exc()[-3000:]
+                failure = f"the walk raised {brief(e, 400)}"
+                w.raw["traceback"] = scrub(traceback.format_exc())[-3000:]
             box.wait_checkpoint(h.POST_BOOT, 60)
     finally:
         box.stop()
