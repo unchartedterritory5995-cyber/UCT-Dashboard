@@ -166,6 +166,10 @@ export function execute(program, ctx, limits, opts) {
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
+  // ⭐ RT7 — the script's `//@version`, for the one collection rule that depends on it
+  // (`collections.js::at`: v6 counts a negative index from the end). Unset (a caller
+  // that is not a run) reads as "not v6", which keeps the stop.
+  if (budget.pineVersion === undefined && Number.isFinite(program.version)) budget.pineVersion = program.version
 
   const code = program.code
   const consts = program.consts
