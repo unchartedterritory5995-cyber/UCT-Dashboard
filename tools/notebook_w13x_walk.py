@@ -630,13 +630,17 @@ def run_walk(base: str, art: Path) -> None:
             for loc, nm in ((ai, "AI panel"), (prep, "Reporting soon"), (review_box, "review box")):
                 loc.first.wait_for(state="visible", timeout=30000)
             prep_text = prep.inner_text()
-            active_text = active.locator("xpath=..").inner_text()
+            # `active` is the <h3> itself; its OWN section (heading + rows) is two levels up
+            # (ResearchHome.jsx's Section: a `.section` div wrapping a `.sectionHeader` div
+            # -- the heading's direct parent -- beside a sibling `.rows` div). One level of
+            # `..` reads only the header and never the note row (run 2's false negative).
+            active_text = active.locator("xpath=../..").inner_text()
             pg.screenshot(path=str(art / "W1-home-1200.png"), full_page=True)
             ok = "$AMD" in prep_text and "NVDA" in active_text and today_btn.count() >= 1
             record("W1_research_home_1200", "PASS" if ok else "FAIL",
                    reporting_soon_text=prep_text[:300], active_theses_text=active_text[:300],
                    today_button_present=today_btn.count() >= 1, screenshot="W1-home-1200.png")
-            state["home_page"] = pg
+            pg.close()
         w1()
 
         # ── W2: the thesis note -- fingerprint panel (applied tag), chart-plan panel ────────
@@ -690,7 +694,7 @@ def run_walk(base: str, art: Path) -> None:
                    applied_setup_tag=applied_tag, chart_plan_rows=plan_rows,
                    chart_plan_panel_values=plan_values, chart_plan_panel_error=plan_error,
                    screenshot="W2-note-1200.png")
-            state["note_page"] = pg
+            pg.close()
         w2()
 
         # ── W3: resurfacing -- the note opens at the version that named the stop ────────────
@@ -745,6 +749,7 @@ def run_walk(base: str, art: Path) -> None:
             record("W4_position_and_thesis_chip_1200", "PASS" if ok else "FAIL",
                    entry_context_text=card_text[:300], thesis_chip_present=chip_present,
                    thesis_chip_text=chip_text[:200], screenshot="W4b-positions-list-chip-1200.png")
+            pg.close()
         w4()
 
         # ── W5: close into a trade; the SAME card persists; the plan-grade card resolves ───
@@ -790,22 +795,30 @@ def run_walk(base: str, art: Path) -> None:
                    grade_status=g.get("status"), grade_checks={k: g.get("checks", {}).get(k, {}).get("state")
                    for k in ("entry", "stop", "size", "target")}, checks_rendered=checks_count,
                    grade_text=grade_text[:400], before_after_present=ba_present, screenshot="W5-trade-1200.png")
-            state["trade_page"] = pg
+            pg.close()
         w5()
 
         # ── W6: Insights, three sections, with every other flag also on ────────────────────
         @guarded("W6_insights_1200")
         def w6():
             rows = {}
+            testids = {"playbook": "open-my-playbook", "reviews": "review-drafts-section",
+                      "discipline": "discipline-record"}
             for key, text in (("playbook", "Playbook"), ("reviews", "Reviews"), ("discipline", "Discipline")):
                 pg = new_page(member, f"W6-{key}")
                 pg.goto(base + f"/journal/insights?ins={key}", wait_until="domcontentloaded")
                 h._dismiss_intro(pg)
                 tab = pg.get_by_role("button", name=text, exact=True)
                 tab.wait_for(state="visible", timeout=30000)
-                present = pg.get_by_test_id("open-my-playbook").count() > 0 if key == "playbook" else \
-                    pg.get_by_test_id("review-drafts-section").count() > 0 if key == "reviews" else \
-                    pg.get_by_test_id("discipline-record").count() > 0
+                # Wait for the SECTION'S OWN content, not just the tab -- each section mounts
+                # asynchronously after the tab switch (run 2's discipline false-negative: the
+                # tab was visible well before DisciplineRecord's own data fetch resolved).
+                present = False
+                try:
+                    pg.get_by_test_id(testids[key]).first.wait_for(state="visible", timeout=30000)
+                    present = True
+                except Exception as e:  # noqa: BLE001 -- recorded as absent, not fatal to the row
+                    state[f"W6_{key}_error"] = str(e)[:300]
                 rows[key] = present
                 pg.screenshot(path=str(art / f"W6-insights-{key}-1200.png"))
                 pg.close()
@@ -843,7 +856,7 @@ def run_walk(base: str, art: Path) -> None:
             ok = "ZQVA" in cards and nvda_excluded and matched
             record("W7_setups_board_1200", "PASS" if ok else "FAIL", cards=cards, nvda_excluded=nvda_excluded,
                    crwd_matched=matched, match_text=match_text[:300], screenshot="W7-board-1200.png")
-            state["board_page"] = pg
+            pg.close()
         w7()
 
         # ── W8: earnings prep -- AMD's prep note, alongside NVDA's own seeded stores ────────
@@ -912,6 +925,7 @@ def run_walk(base: str, art: Path) -> None:
             record("W10_passed_setups_1200", "PASS" if present else "FAIL",
                    passed_setups_seed=state.get("post_seed", {}).get("passed_setups"),
                    amd_row_present=present, screenshot="W10-passed-1200.png")
+            pg.close()
         w10()
 
         # ── W11: 390 px, one pass across the same surfaces, SCOPED to wave-13 containers ────
