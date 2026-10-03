@@ -10,6 +10,8 @@
  */
 import { useState } from 'react'
 import { useDisciplineRecord } from '../../hooks/usePlanGrade'
+// R3's wording has ONE client home (lane 13B, `lib/sampleSize.js`); this card reads it from there.
+import { WORDING } from '../../lib/sampleSize'
 import styles from './DisciplineRecord.module.css'
 
 const ROWS = [
@@ -30,7 +32,7 @@ export function RateCell({ stat }) {
   if (stat.band === 'too_few') {
     return (
       <details className={styles.reveal}>
-        <summary className={styles.summary}>too few to judge</summary>
+        <summary className={styles.summary}>{WORDING.too_few}</summary>
         <span className={styles.revealed}>{pctText(stat.rate)} ({frac})</span>
       </details>
     )
@@ -40,7 +42,7 @@ export function RateCell({ stat }) {
     return (
       <span>
         <span className={styles.rate}>{pctText(stat.rate)}</span>
-        <span className={styles.muted}> ({frac}) · thin sample, likely {pctText(lo)} to {pctText(hi)}</span>
+        <span className={styles.muted}> ({frac}) · {WORDING.thin}, likely {pctText(lo)} to {pctText(hi)}</span>
       </span>
     )
   }

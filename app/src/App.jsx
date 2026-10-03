@@ -136,6 +136,9 @@ const ShareTargetPage = lazy(() => import('./pages/journal-2-0/components/notebo
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
+// Wave 13 lane 13B: My Playbook (dark behind notebook_playbook_enabled; the page sends the member
+// back to Insights while it is off, and its API answers 404).
+const J2MyPlaybook = lazy(() => import('./pages/journal-2-0/components/insights/MyPlaybook'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
@@ -701,6 +704,8 @@ export default function App() {
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
                 <Route path="/journal-2-0/trade/:id" element={<J2TradeDetailPage />} />
+                {/* Wave 13 lane 13B: My Playbook, reached from Insights > Playbook. */}
+                <Route path="/journal-2-0/playbook" element={<J2MyPlaybook />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

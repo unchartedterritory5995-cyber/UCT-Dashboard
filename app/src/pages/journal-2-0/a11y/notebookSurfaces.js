@@ -204,4 +204,8 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'components/insights/DisciplineRecord.jsx': { recipe: 'discipline-record', railFile: 'a11y/planGrading.a11y.test.jsx' },
   // The Unplanned chip lives in the Trade Journal table; the recipe renders the table with it.
   'components/TradesTable.jsx': { recipe: 'trades-table-unplanned', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  // Wave 13 lane 13B: My Playbook and its door in Insights > Playbook (dark behind
+  // notebook_playbook_enabled); rail a11y/myPlaybook.a11y.test.jsx.
+  'components/insights/MyPlaybook.jsx': { recipe: 'my-playbook', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
+  'components/insights/PlaybookSection.jsx': { recipe: 'playbook-section-door', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
 })
