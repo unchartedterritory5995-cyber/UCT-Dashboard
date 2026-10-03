@@ -150,6 +150,10 @@ export default function ResearchHome({
   // Fix I-3: what the sample's "Remove it" pre-check needs from the Notebook -- the notes
   // this device holds as blocked (useBlockedNotes), and a title for each held note it names.
   blockedNoteIds = null, titleOf = () => null,
+  // Wave 13 lane 13Q-3 (click-budget fix, Q5): NotebookTab's own `openToday` -- the SAME
+  // function its All Notes list header's "Today" button already calls (one authority, never
+  // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
+  onOpenToday = null,
 }) {
   const { home, isLoading, error: homeError, refresh: refreshHome } = useNotebookHome()
   const navigate = useNavigate()
@@ -321,6 +325,11 @@ export default function ResearchHome({
           <button type="button" className="btn btn-ghost" onClick={onImport}>
             <UIcon name="upload" size={14} gold={false} /> Import notes
           </button>
+          {onOpenToday && (
+            <button type="button" className="btn btn-ghost" onClick={onOpenToday} title="Open today's daily note (Ctrl+Alt+D)">
+              <UIcon name="sun" size={14} gold={false} /> Today
+            </button>
+          )}
           {onboarding && isPaid && !sample && (
             <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}>
               <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
@@ -369,6 +378,21 @@ export default function ResearchHome({
   // fragment in every return below, for the same reason as the three boxes above (a
   // home that flips between quiet and full must not remount it mid-draft).
   const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} />
+  // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three
+  // boxes above -- rendered in EVERY non-first-run, non-loading state (quiet-with-error,
+  // quiet, and the full home) so a member landing on bare-root Research Home always has a
+  // one-press door to Today, whatever else is or isn't on the page that day.
+  const todayBox = onOpenToday ? (
+    <button
+      type="button"
+      className="btn btn-ghost"
+      onClick={onOpenToday}
+      title="Open today's daily note (Ctrl+Alt+D)"
+      style={{ marginBottom: 10 }}
+    >
+      <UIcon name="sun" size={14} gold={false} /> Today
+    </button>
+  ) : null
 
   if (nothingToShow && homeError) {
     return (
@@ -379,6 +403,7 @@ export default function ResearchHome({
         {reviewBox}
         <div className={styles.quietState}>
           {sampleNotice}
+          {todayBox}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -394,6 +419,7 @@ export default function ResearchHome({
         {reviewBox}
         <div className={styles.quietState}>
           {sampleNotice}
+          {todayBox}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -409,6 +435,7 @@ export default function ResearchHome({
     {reviewBox}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
+      {todayBox}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}

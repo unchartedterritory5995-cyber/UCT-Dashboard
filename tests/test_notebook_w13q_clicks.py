@@ -82,6 +82,28 @@ class FakeLocator:
     def element_handle(self, timeout=None):
         return object()
 
+    def filter(self, visible=None):
+        return self
+
+    def count(self):
+        return 1
+
+    def focus(self):
+        pass  # the owning FakePage's `evaluate` governs the focus predicate, not this call
+
+
+class FakeEmptyLocator:
+    """A locator that matches nothing -- `use_skip_link`'s "no skip link offered" case."""
+
+    def __init__(self):
+        self.first = self
+
+    def filter(self, visible=None):
+        return self
+
+    def count(self):
+        return 0
+
 
 class FakePage:
     """Stands in for a Playwright Page. `found_after` is the number of REAL Tab presses the
@@ -93,6 +115,19 @@ class FakePage:
         self.keyboard = FakeKeyboard()
         self.found_after = found_after
         self.check_calls = 0
+        self.brought_to_front = 0
+        # 13Q-3: whether a `get_by_role("link", ...)` lookup (use_skip_link's own query)
+        # should find a visible match. Off by default -- most existing tests never call it.
+        self.skip_link_available = False
+        self.get_by_role_calls: list[tuple] = []
+
+    def get_by_role(self, role, name=None):
+        self.get_by_role_calls.append((role, name))
+        found = self.skip_link_available if role == "link" else False
+        return FakeLocator() if found else FakeEmptyLocator()
+
+    def locator(self, selector):
+        return FakeLocator()
 
     def evaluate(self, expr, arg=None):
         # tab_to_locator's handle-stash call ("h => { window.__w13qTarget = h }") -- matched by
@@ -113,6 +148,9 @@ class FakePage:
 
     def screenshot(self, path=None):
         Path(path).write_bytes(b"")
+
+    def bring_to_front(self):
+        self.brought_to_front += 1
 
 
 class FakeContext:
@@ -267,6 +305,137 @@ def test_tab_to_cap_is_exact_one_short_of_found_still_caps():
     assert m.tabs == 5
 
 
+# ── focus_editor_body: 13Q-3's Q1 instrument-foreground compensation ───────────────────
+#
+# A SECOND, deeper layer of 13Q-2's Q1 diagnosis: bring_to_front() (run_one) makes the page
+# genuinely foreground (measured: document.hasFocus()===true, visibilityState==='visible'),
+# but a freshly-mounted editor's FIRST script-triggered .focus() call still silently fails in
+# this harness; a SECOND attempt on the SAME editor instance succeeds. Measured both ways
+# against the real sandbox (never these fakes): without bring_to_front() two attempts still
+# fail; with it, one extra attempt succeeds -- neither alone is sufficient. Evidence:
+# docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
+
+class FakeBodyLocator:
+    """The `.ProseMirror` locator `focus_editor_body` holds as `pm` -- tracks whether ITS OWN
+    `.focus()` (Playwright's dedicated API, never a product-internals reach-in) was called."""
+
+    def __init__(self, page):
+        self.first = self
+        self._page = page
+
+    def wait_for(self, state=None, timeout=None):
+        pass
+
+    def focus(self):
+        self._page.pm_focus_calls += 1
+
+    def click(self, timeout=None):
+        pass
+
+    def tap(self, timeout=None):
+        pass
+
+    def scroll_into_view_if_needed(self, timeout=None):
+        pass
+
+
+class FakeBodyCompensationPage:
+    """Models exactly the one fact this branch depends on: `focus_in_editor`'s check lands
+    only AFTER `pm.focus()` has been called -- the "known harness artifact resolves on a
+    second attempt" shape, proved against the real sandbox above."""
+
+    def __init__(self):
+        self.pm_focus_calls = 0
+        self.check_calls = 0
+        self.keyboard = FakeKeyboard()
+
+    def locator(self, selector):
+        assert selector == ".ProseMirror"
+        return FakeBodyLocator(self)
+
+    def evaluate(self, expr, arg=None):
+        self.check_calls += 1
+        return self.pm_focus_calls > 0
+
+    def wait_for_timeout(self, ms):
+        pass
+
+
+def test_focus_editor_body_keys_compensation_skips_the_real_tab_walk_when_it_resolves():
+    """When the product's own first attempt doesn't land, Playwright's OWN .focus() is tried
+    ONCE, never counted as a step, and the expensive real Tab walk is SKIPPED entirely once it
+    confirms the body is reachable -- proved against the REAL function."""
+    page = FakeBodyCompensationPage()
+    m = w13q.Meter(page, "keys")
+    w13q.focus_editor_body(m)
+    assert page.pm_focus_calls == 1
+    assert m.tabs == 0                    # the real Tab walk never ran
+    assert m.count() == 0                 # the trailing "End" (caret placement) is setup, not counted
+    assert any("instrument foreground compensation" in s["do"] for s in m.steps)
+
+
+def test_focus_editor_body_keys_falls_back_to_the_real_tab_walk_when_compensation_does_not_help():
+    """THE CONTROL: if Playwright's own .focus() does NOT resolve it either, this is a genuine
+    reachability defect, not the known harness artifact -- the real Tab walk still runs and is
+    measured, never silently skipped. Proved with the EXISTING FakePage/FakeLocator (whose
+    `.focus()` is an inert no-op, so nothing here can "accidentally" resolve it) and a target
+    that is only found after real presses."""
+    page = FakePage(found_after=4)
+    m = w13q.Meter(page, "keys")
+    w13q.focus_editor_body(m)
+    assert m.tabs == 4                    # the real walk ran and found it after 4 presses
+    assert not any("instrument foreground compensation" in s.get("do", "") for s in m.steps)
+
+
+def test_focus_editor_body_mouse_and_taps_never_use_the_compensation():
+    """Pointer modes already land in the body via a real click/tap (focus-stealing prevention
+    does not apply to synthetic pointer input) -- this branch is keys-only."""
+    for mode in ("mouse", "taps"):
+        page = FakeBodyCompensationPage()
+        m = w13q.Meter(page, mode)
+        w13q.focus_editor_body(m)
+        assert page.pm_focus_calls == 0
+
+
+# ── use_skip_link: 13Q-3's "take the door a real keyboard member would" ─────────────────
+
+def test_use_skip_link_does_nothing_in_mouse_or_taps_mode():
+    """A pointer member never 'uses' a skip link -- they already click/tap the real control
+    directly. Proved for BOTH pointer modes against the real function."""
+    for mode in ("mouse", "taps"):
+        pg = FakePage()
+        pg.skip_link_available = True
+        m = w13q.Meter(pg, mode)
+        used = w13q.use_skip_link(m, r"Skip to notes? list")
+        assert used is False
+        assert m.count() == 0
+        assert pg.get_by_role_calls == []  # never even looked for one
+
+
+def test_use_skip_link_returns_false_when_none_is_offered():
+    pg = FakePage(found_after=0)
+    pg.skip_link_available = False
+    m = w13q.Meter(pg, "keys")
+    used = w13q.use_skip_link(m, r"Skip to notes? list")
+    assert used is False
+    assert m.tabs == 0 and m.keys == 0
+    assert pg.get_by_role_calls == [("link", None)] or pg.get_by_role_calls[0][0] == "link"
+
+
+def test_use_skip_link_presses_it_for_real_in_keys_mode_when_one_is_offered():
+    """Taking a skip link is itself `press()`'s existing keys-mode behaviour (Tab-to-locator,
+    for real, then Enter) -- `use_skip_link` is the decision to call it on a skip link, not a
+    new counting mechanism, so the SAME counters apply."""
+    pg = FakePage(found_after=2)
+    pg.skip_link_available = True
+    m = w13q.Meter(pg, "keys")
+    used = w13q.use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
+    assert used is True
+    assert m.tabs == 2            # the real presses to reach the link
+    assert m.keys == 1            # the Enter that activates it
+    assert m.steps[-1] == {"do": "key", "key": "Enter", "on": "activate Skip to notes list"}
+
+
 # ── run_one: the verdict the plan actually reads ────────────────────────────────────────
 
 def _flow(fid: str, run=None, unbuilt: str | None = None) -> w13q.Flow:
@@ -286,6 +455,35 @@ def _run_one(flow, mode, width, tmp_path, *, br=_UNSET):
     browser = FakeBrowser(FakePage()) if br is _UNSET else br
     errors: list = []
     return w13q.run_one(browser, {}, "http://127.0.0.1:0", flow, mode, width, _ctx(), tmp_path, errors), errors
+
+
+def test_run_one_brings_the_fresh_page_to_the_front_before_running_the_flow(tmp_path):
+    """13Q-3 (Q1 fix): Chromium silently ignores a script-triggered .focus() call on a page
+    that has never been brought to the front, while synthetic clicks/taps/keypresses are
+    unaffected -- diagnosed in 13Q-2 (q1-focus-foreground-diagnosis), fixed in `run_one` for
+    the 13Q-owning lane. The real `run_one` must call `page.bring_to_front()` on the page it
+    just created, before the flow runs -- proved against the real function, not a restatement."""
+    page = FakePage()
+    flow = _flow("Q1", run=lambda cx, pg, m, width: {"ok": True})
+    row, _ = _run_one(flow, "keys", "1200", tmp_path, br=FakeBrowser(page))
+    assert page.brought_to_front == 1
+    assert row["verdict"] == "PASS"
+
+
+def test_run_one_brings_to_front_BEFORE_the_flow_runs_not_after(tmp_path):
+    """The control for the test above: a bring_to_front() called AFTER the flow already ran
+    would not help a flow whose own first action depends on being foreground (Q1's body
+    focus). The flow records whether the page was already foregrounded when it started."""
+    page = FakePage()
+    seen = {}
+
+    def run(cx, pg, m, width):
+        seen["brought_to_front_already"] = pg.brought_to_front
+        return {"ok": True}
+
+    flow = _flow("Q1", run=run)
+    _run_one(flow, "keys", "1200", tmp_path, br=FakeBrowser(page))
+    assert seen["brought_to_front_already"] == 1
 
 
 def test_run_one_under_budget_is_PASS(tmp_path):
@@ -384,6 +582,76 @@ def test_run_one_unbuilt_flow_is_inconclusive_before_touching_the_browser(tmp_pa
     assert row["reason"] == "lane 13B (My Playbook) is not on this tree"
     assert row["measured"] is None
     assert errors == []
+
+
+# ── _trade_row: the Q6/Q13 phone-width locator fix ──────────────────────────────────────
+#
+# 13Q-3 finding: the COMMITTED file's `alt` locator was `has_text=re.compile(rf"\b{sym}\b")`,
+# but the actual bytes on disk were two literal BACKSPACE control characters (0x08) around
+# `{sym}`, not the two characters backslash+b -- a pattern that can never match ordinary page
+# text. At 1200px this was invisible because `row` (a real `<tr>`) always matched first; at
+# 390px the Trades surface renders `TradeCard` BUTTONS, never `<tr>`, so `alt` was the ONLY
+# path and it was permanently dead -- exactly 13Q-2's "never once varies" signature. Fixed by
+# using the plain string (the same substring semantics `row` already uses), never a regex.
+
+class FakeTradeRowLocator:
+    def __init__(self, found: bool):
+        self._found = found
+
+    def filter(self, visible=None):
+        return self
+
+    def count(self):
+        return 1 if self._found else 0
+
+
+class FakeTradeRowPage:
+    """Records every `.locator(selector, has_text=...)` call so a test can assert the ACTUAL
+    argument Playwright received -- a `re.Pattern` could look identical to a human reading the
+    source while differing completely in the compiled bytes, which is exactly how this bug
+    survived review."""
+
+    def __init__(self, *, tr_matches: bool, alt_matches: bool):
+        self.tr_matches = tr_matches
+        self.alt_matches = alt_matches
+        self.queries: list[tuple[str, object]] = []
+
+    def locator(self, selector, has_text=None):
+        self.queries.append((selector, has_text))
+        return FakeTradeRowLocator(self.tr_matches if selector == "tr" else self.alt_matches)
+
+    def wait_for_timeout(self, ms):
+        pass
+
+
+def test_trade_row_alt_query_is_a_plain_string_never_a_compiled_pattern():
+    """The regression guard: a re.compile(...) here is exactly how the backspace corruption
+    hid in the source for a whole lane. Asserting the TYPE of the argument Playwright actually
+    received catches a reintroduced regex even if it compiles and even if it looks right."""
+    pg = FakeTradeRowPage(tr_matches=False, alt_matches=True)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    alt_queries = [q for q in pg.queries if q[0] != "tr"]
+    assert len(alt_queries) == 1
+    assert alt_queries[0][1] == "CRWD"
+    assert isinstance(alt_queries[0][1], str)
+
+
+def test_trade_row_finds_the_card_at_phone_width_where_there_is_no_tr():
+    """The exact Q6/Q13 390px shape: no `<tr>` at all (TradeCard renders a `<button>`), so
+    `alt` is the only path -- this is the case the backspace bug made permanently fail."""
+    pg = FakeTradeRowPage(tr_matches=False, alt_matches=True)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+
+
+def test_trade_row_prefers_the_real_table_row_when_one_exists():
+    """The 1200px shape: a real `<tr>` is found first; `alt` is never even needed, and this
+    must keep working unchanged by the fix."""
+    pg = FakeTradeRowPage(tr_matches=True, alt_matches=False)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    assert pg.queries[0][0] == "tr"
 
 
 # ── table_md rendering ───────────────────────────────────────────────────────────────────
