@@ -925,6 +925,14 @@ def main():
         start_worker_scheduler()
     except Exception as e:
         log.warning(f"fundamentals_v5 scheduler failed to start (non-fatal): {e}")
+    # Market Cap V1 (PIT share state): scheduled FULL refresh -> gates -> private immutable publication. The WORKER is
+    # the ONE owner (its volume holds every production source); dark unless MCAP_PIT_REFRESH=1 and the refresh root
+    # is provisioned; runs in a child process; never moves the authority pointer on its own (refresh.py policy).
+    try:
+        from api.services.marketcap.schedule import start_worker_scheduler as start_mcap_scheduler
+        start_mcap_scheduler()
+    except Exception as e:
+        log.warning(f"marketcap_v1 scheduler failed to start (non-fatal): {e}")
     # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
     # into a static R2 artifact so browsers pre-seed IndexedDB for instant
     # first-view charts. Dark until BARSPACK_ENABLED=1; zero provider cost.
