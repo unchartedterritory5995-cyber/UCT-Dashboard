@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (563)
+## Endpoints (565)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -60,12 +60,14 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/breadth-monitor/{date_str}/drill/{metric_key}` | paid | market-analytics |
 | GET | `/api/breadth-symbols` | member | market-analytics |
 | GET | `/api/breadth/industries/status` | paid | market-analytics |
+| GET | `/api/calendar/date-status` | paid | research |
 | GET | `/api/calendar/day-metrics` | paid | research |
 | GET | `/api/calendar/day-metrics-batch` | paid | research |
 | GET | `/api/calendar/dividends` | paid | research |
 | GET | `/api/calendar/enrichment` | paid | research |
 | GET | `/api/calendar/enrichment-batch` | paid | research |
 | GET | `/api/calendar/implied-moves` | paid | research |
+| GET | `/api/calendar/index-events` | paid | research |
 | GET | `/api/calendar/ipos` | paid | research |
 | GET | `/api/calendar/most-anticipated.png` | paid | research |
 | GET | `/api/calendar/my-sets` | paid | research |

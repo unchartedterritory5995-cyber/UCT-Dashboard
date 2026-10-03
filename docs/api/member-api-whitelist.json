@@ -272,6 +272,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/calendar/date-status",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/calendar/day-metrics",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -303,6 +309,12 @@
     {
       "method": "GET",
       "path": "/api/calendar/implied-moves",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calendar/index-events",
       "rate_limit_family": "research",
       "tier": "paid"
     },
