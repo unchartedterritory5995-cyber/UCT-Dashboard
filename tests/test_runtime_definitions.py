@@ -66,6 +66,13 @@ def store(tmp_path, monkeypatch):
     rev.init_schema()
     monkeypatch.delenv(rt.SAVE_ENV, raising=False)
     monkeypatch.delenv(rt.KILL_ENV, raising=False)
+    monkeypatch.delenv(rt.ALLOW_ENV, raising=False)
+    # ⭐ GT — the rails here are about the save door's SHAPE checks, so the two
+    # doors GT put in front of it are opened: the stage for everyone, and the
+    # starter allowlist answered "graded" for these synthetic sources.
+    # `test_pine_runtime_switch_on.py` rails both doors themselves.
+    monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
+    monkeypatch.setattr(rt, "not_graded", lambda source: None)
     return tmp_path
 
 
@@ -179,11 +186,12 @@ def test_KILL_is_never_a_delete_the_served_row_is_stamped_the_stored_row_is_not(
 
 
 def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch):
-    assert client.get("/api/user-definitions/runtime-kill").json() == {"kill": [], "save_enabled": False}
+    allow = rt.allow_list()
+    assert client.get("/api/user-definitions/runtime-kill").json() ==         {"kill": [], "allow": allow, "save_enabled": False}
     monkeypatch.setenv(rt.KILL_ENV, f"{DEF_ID}, not-an-entry, {'A' * 64}")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     got = client.get("/api/user-definitions/runtime-kill").json()
-    assert got == {"kill": [DEF_ID, "a" * 64], "save_enabled": True}
+    assert got == {"kill": [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True}
 
 
 # ─── nothing that needs a tree admits a runtime row ──────────────────────────
