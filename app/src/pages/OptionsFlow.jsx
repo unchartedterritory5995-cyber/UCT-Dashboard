@@ -86,6 +86,7 @@ import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoad
 import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
 import MarketTidePanel from "./optionsAnalytics/MarketTidePanel";  // FT-056, dark: renders nothing until OPTIONS_MARKET_TIDE_ENABLED
+import StrategyScreensPanel from "./optionsAnalytics/StrategyScreensPanel";  // FT-072/073, dark: OPTIONS_STRATEGY_SCREENS_ENABLED
 
 // buildCharts counts its own runs (flowCompute.chartsBuildStats). flowCompute
 // must stay worker-safe -- it also runs in the flow Web Worker and in node --
@@ -5286,6 +5287,7 @@ export default function OptionsFlowDashboard() {
         {tab==="Market Read" && (
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <MarketTidePanel />
+            <StrategyScreensPanel />
             {/* Flow Intelligence Summary */}
             {FD && D.clean_confirmed && (()=>{
               // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes

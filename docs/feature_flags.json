@@ -211,6 +211,12 @@
       "where": [],
       "note": "FT-039 (lane/gaps-options). GET /api/research/options/{sym}/stance?contract=<OCC>&direction=bullish|bearish: a decomposed, narrating fit score (0-5) for one contract against a stated directional style, from five 0-1 sub-scores - iv_regime (1 - our IV rank/100; NOT computed below 20 logged sessions, and said so), greeks_fit, dte_fit, liquidity, earnings_timing - with a plain-language explanation naming every component used and not used, its method (weights ours and uncalibrated) and a standing disclaimer (not advice, places nothing). Shown beside the contract drill when a quote is clicked. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the block renders nothing. Set (paid). Plain def route. Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_STRATEGY_SCREENS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-072 / FT-073 (lane/gaps-options). GET /api/options-screener/strategies (catalog) and /api/options-screener/strategy/{covered_calls|cash_secured_puts|bull_put_spreads|bear_call_spreads|bull_call_spreads}?underlyings=&limit=: one screener per option strategy, SQL over COV-02's per-session screen file (lane/cov-02-03, api/services/research/options_screener.py: get_store().screen_db(latest session)), imported lazily - until COV-02 is merged the screens answer 503 'the COV-02 screen store is not on this build', never an empty screen. Every result names its session, says it is the end-of-day snapshot, states the fill (short legs at the logged bid, long at the ask) and the candidates read; yields, credits, debits and breakevens are computed. Panel on Options Flow > Market Read under Market Tide. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the panel renders nothing. Set (paid). Plain def routes. Arm only after COV-02 is merged and its options-screen job has built a session. Rollback: set 0 (a DELETE does not restart web)."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",

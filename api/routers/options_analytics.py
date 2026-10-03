@@ -267,3 +267,35 @@ def options_stance(sym: str, contract: str = Query(..., max_length=32),
         raise HTTPException(status_code=422, detail=str(e)) from e
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=f"Option chain unavailable: {e}") from e
+
+
+# ── FT-072 / FT-073 strategy screens over COV-02's screen file ──────────────────
+# Same prefix as COV-02's own router (/api/options-screener/*, lane/cov-02-03); separate paths.
+
+@router.get("/api/options-screener/strategies",
+            dependencies=[Depends(_switch("OPTIONS_STRATEGY_SCREENS_ENABLED"))])
+def options_strategy_catalog(_user: dict = Depends(require_paid)):
+    from api.services.options_analytics import strategy_screens as ss
+    return {"strategies": [{"id": k, **v} for k, v in ss.STRATEGIES.items()],
+            "data_basis": ss.DATA_BASIS, "fill": ss.FILL}
+
+
+@router.get("/api/options-screener/strategy/{name}",
+            dependencies=[Depends(_switch("OPTIONS_STRATEGY_SCREENS_ENABLED"))])
+def options_strategy_screen(name: str, underlyings: str = Query("", max_length=600),
+                            limit: int = Query(50, ge=1, le=100), _user: dict = Depends(require_paid)):
+    """Plain `def`: SQLite over a mirrored, gzipped screen file."""
+    from api.services.options_analytics import strategy_screens as ss
+    syms = [s for s in (u.strip() for u in underlyings.split(",")) if s]
+    if len(syms) > 50:
+        raise HTTPException(status_code=422, detail="at most 50 underlyings per screen")
+    syms = [_sym(s) for s in syms]
+    try:
+        return ss.run(name, underlyings=syms or None, limit=limit)
+    except ss.BadQuery as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except ss.NoStore as e:
+        raise HTTPException(status_code=503, detail=f"Strategy screens unavailable: {e}") from e
+    except Exception as e:  # noqa: BLE001 -- surfaced by name, never an empty screen
+        raise HTTPException(status_code=503,
+                            detail=f"The screen file is unavailable: {type(e).__name__}") from e
