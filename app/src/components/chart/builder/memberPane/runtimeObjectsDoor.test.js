@@ -12,7 +12,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 import { memberPaneDefinition } from './memberPaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
-import { runtimeObjectsOf, drawsRuntimeObjects } from '../../engine/runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../engine/runtime/runtimeObjects'
 import { computeRuntimeColumns } from '../../engine/runtime/runtimeColumns'
 
 const H = '//@version=6\nindicator("t", overlay = true)\n'
@@ -102,4 +102,23 @@ describe('RT5 — a drawing-only runtime document', () => {
     const cols = computeRuntimeColumns(installed[0], BARS.slice(0, 100), ctx)
     expect(runtimeObjectsOf(cols).live.filter((o) => o.family === 'label')).toHaveLength(2)
   })
+
+  it('a run whose drawings fail keeps its plots; the drawings are withheld by name', () => {
+    flags(true)
+    const src = `${H.replace('overlay = true)', 'overlay = true, calc_bars_count = 100)')}var float acc = 0\nacc += close\nplot(acc)\n`
+      + 'if bar_index % 50 == 0\n    label.new(bar_index, close, str.tostring(acc, "#"))\n'
+    const r = build(src)
+    expect(r.ok).toBe(true)
+    expect(r.definition.compute.objects).toBe(true)
+    const { installed } = registry.installUserDefinitions([r.definition])
+    const cols = computeRuntimeColumns(installed[0], BARS, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+    const key = Object.keys(cols)[0]
+    expect(key).toBeTruthy()
+    let acc = 0
+    const want = BARS.map((b) => (acc += b.c))
+    expect(cols[key][259]).toBeCloseTo(want[259], 6)
+    expect(runtimeObjectsOf(cols)).toBeNull()
+    expect(runtimeObjectsWithheldOf(cols).guard).toBe('runtime:calc-bars-count')
+  })
 })
+

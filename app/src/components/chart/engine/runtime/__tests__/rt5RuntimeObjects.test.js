@@ -143,3 +143,19 @@ describe('RT5 — a drawing call in one arm of ?: refuses by name', () => {
     expect(ofFamily(fin, 'label')).toHaveLength(30)
   })
 })
+
+describe('RT5 — a comma line of statements is split, as the host lane splits it', () => {
+  it('`label.delete(a[1]), label.delete(b[1])` deletes both, each bar', () => {
+    const { fin } = run('a = label.new(bar_index, high, "a")\nb = label.new(bar_index, low, "b")\n'
+      + 'label.delete(a[1]), label.delete(b[1])\n')
+    expect(ofFamily(fin, 'label').map((l) => l.props.text).sort()).toEqual(['a', 'b'])
+  })
+
+  it('control: a mixed line (`v := close, label.new(...)`) runs both statements', () => {
+    const { fin } = run('var float v = na\nif bar_index % 50 == 0\n    v := close, label.new(bar_index, v)\n')
+    const labels = ofFamily(fin, 'label')
+    expect(labels).toHaveLength(6)
+    expect(labels[1].props.y).toBeCloseTo(BARS[50].c, 9)
+  })
+})
+

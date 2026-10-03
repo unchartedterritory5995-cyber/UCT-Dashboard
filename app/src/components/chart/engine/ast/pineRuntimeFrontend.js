@@ -1403,18 +1403,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
       : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
   }
-  const DRAW_HEAD = /^(line|label|box|table|linefill)\.[a-z_0-9]+$/
-  const splitDrawingCommas = (list) => {
-    const out = []
-    for (const st of list || []) {
-      const segs = splitCommaStatements([st], { isPunct })
-      const drawing = segs.length > 1 && segs.every((x) => x.header && x.header[0]
-        && x.header[0].kind === 'ident' && DRAW_HEAD.test(String(x.header[0].value)))
-      if (drawing) out.push(...segs)
-      else out.push(st)
-    }
-    return out
-  }
+  // The host object lane's own split, one authority: a top-level comma between
+  // statements with no block beneath (never a definition, never inside brackets).
+  const splitDrawingCommas = (list) => splitCommaStatements(list, { isPunct })
   const slotHistoryGuard = (slot, at) => {
     if (slot !== null && slot !== undefined
       && (slots[slot].owner !== null || slotDepth[slot] > 0)) {
@@ -6186,9 +6177,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
 
   const lowerStmts = (list0, scope, rootHoist = false) => {
-    // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of drawing STATEMENTS
-    // (the host object lane's own split, `objectFnInline.splitCommaStatements`),
-    // split only where every segment is a drawing call.
+    // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
+    // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
