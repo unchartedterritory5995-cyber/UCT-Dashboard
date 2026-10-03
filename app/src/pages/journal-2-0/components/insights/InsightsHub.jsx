@@ -200,7 +200,7 @@ function ReviewDraftsSection({ accountId }) {
   const scope = compassScope(accountId)
 
   return (
-    <div className={styles.comingSoon}>
+    <div className={styles.comingSoon} data-testid="review-drafts-section">
       <UIcon name="book" size={26} className={styles.comingSoonGlyph} />
       <h4 className={styles.comingSoonTitle}>Reviews that write themselves</h4>
       <p className={styles.comingSoonText}>
