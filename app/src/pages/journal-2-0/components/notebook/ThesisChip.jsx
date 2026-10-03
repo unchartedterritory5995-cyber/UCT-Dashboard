@@ -2,13 +2,16 @@
  * Wave 13 lane 13G-2 -- the thesis chip: thesis status + distance to the note's stop,
  * with a preview of the note (title, levels, a link in).
  *
- * HOVER IS NOT THE ONLY DOOR. The chip is a real `<button>` (free Enter/Space activation,
- * free focus ring) so three equivalent openers reach the same preview:
+ * HOVER IS NOT THE ONLY DOOR. The chip is a real `<button>` (free focus ring, free
+ * Enter/Space activation) so three equivalent openers reach the same preview:
  *   - hover (desktop, `pointer: fine`);
  *   - tap (the chip IS the button -- the touch tier is <=1024px, so this is the only
- *     door on a phone or tablet);
- *   - keyboard: Tab to the chip, Enter/Space opens it (the button's native behaviour),
- *     Escape closes it and returns focus to the chip.
+ *     door on a phone or tablet; a tap both focuses it and fires the click below);
+ *   - keyboard: Tab to the chip opens it on FOCUS ALONE (mirroring hover, so a
+ *     keyboard-only or switch-control member never needs a second keypress), Escape
+ *     closes it and returns focus to the chip. Enter/Space still work (the button's
+ *     native activation) -- from an already-open, focus-opened chip that TOGGLES it
+ *     closed, the same as a second click would.
  * A hover-only affordance would be invisible to a keyboard or switch-control member and
  * to every touch device at once -- the exact gap `feedback_browser_testing_core` and the
  * mobile system's `.hoverReveal` rule both exist to catch.
