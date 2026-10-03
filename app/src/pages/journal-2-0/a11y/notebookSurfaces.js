@@ -93,6 +93,9 @@ export const SURFACES = Object.freeze({
   // Wave 13 lane 13C: Reporting soon on Research Home (dark behind
   // notebook_earnings_prep_enabled); rail a11y/earningsPrep.a11y.test.jsx.
   'components/notebook/ReportingSoon.jsx': { recipe: 'reporting-soon' },
+  // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
+  // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.
+  'components/notebook/ResurfaceVersionSheet.jsx': { recipe: 'resurface-version' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },

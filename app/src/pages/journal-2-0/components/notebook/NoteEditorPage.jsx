@@ -138,6 +138,9 @@ const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 // Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
 // renders it, and only a chart card on it ever loads the chart.
 const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
+// Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
+// `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
+const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -1706,6 +1709,21 @@ export default function NoteEditorPage({
   // review would have nothing to render. The anchor is passed down to the
   // review panel, which owns the only place a review can truthfully be shown.
   const reviewAnchor = reviewTargetFromParams(searchParams)
+  // ⭐ Wave 13 lane 13D: a resurfacing insight's door. Dark behind
+  // `awareness_note_resurface_enabled` (latched per tab) -- off, the parameter is ignored.
+  // Only the editor the `?note=` door opened answers it (a side pane holds another note).
+  const resurfaceParam = searchParams.get('resurfaceVersion')
+  const routedNote = searchParams.get('note')
+  const resurfaceVersionId = resurfaceParam
+    && notebookFlag('awareness_note_resurface_enabled') === true
+    && (!routedNote || routedNote === noteId) ? resurfaceParam : null
+  const clearResurfaceParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('resurfaceVersion')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const clearReviewParam = useCallback(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -4574,6 +4592,11 @@ export default function NoteEditorPage({
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {resurfaceVersionId && (
+        <Suspense fallback={null}>
+          <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />
+        </Suspense>
+      )}
       {voiceNoteOpen && voiceNoteOn && (
         <Suspense fallback={null}>
           <VoiceNoteDialog
