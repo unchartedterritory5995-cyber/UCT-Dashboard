@@ -1,0 +1,597 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 13,
+    "fixed": 4,
+    "unchanged": 162,
+    "missing": 0,
+    "baseline": 166,
+    "current": 178,
+    "current_ran": 36647,
+    "new_flaky": 3,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 9,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 166 = unchanged 162 + fixed 4 + missing 0  |  current 178 = unchanged 162 + new 13 + new-but-flaky 3",
+  "invalid_because": [],
+  "baseline_run_id": "36927227543",
+  "current_run_id": "37087272461",
+  "baseline_sha": "22f07e1bd2487383788ac632dddb8c80502d79ff",
+  "current_sha": "529338e612bf5651342cfe007c46abf9e3c45c1d",
+  "commit_range": "22f07e1bd2487383788ac632dddb8c80502d79ff..529338e612bf5651342cfe007c46abf9e3c45c1d",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_c45_withheld_doors|test_the_question_is_not_vacuous_and_can_answer_no",
+    "pytest|tests.test_c45_withheld_doors|test_the_whole_series_question_per_lane[tree3-alert3-sweep3]",
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_paywall_gate_free_tier|test_nothing_NEW_on_the_free_page_became_paid_without_a_recorded_verdict",
+    "pytest|tests.test_rate_limit_policy|test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME",
+    "pytest|tests.test_rate_limit_policy|test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one",
+    "pytest|tests.test_rate_limit_policy|test_vi_every_route_of_the_REAL_app_is_declared_or_exempt",
+    "pytest|tests.test_rate_limit_policy|test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_requirement_tags|test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers",
+    "pytest|tests.test_requirement_tags|test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[company_about.get_profile-ok]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_c45_withheld_doors|test_the_question_is_not_vacuous_and_can_answer_no": {
+      "class": "test-file-change",
+      "commits": [
+        "b49693f87"
+      ],
+      "workstreams": [
+        {
+          "commit": "b49693f87",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_c45_withheld_doors|test_the_whole_series_question_per_lane[tree3-alert3-sweep3]": {
+      "class": "test-file-change",
+      "commits": [
+        "b49693f87"
+      ],
+      "workstreams": [
+        {
+          "commit": "b49693f87",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_feature_flag_ledger.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_notebook_bridges_pin_the_root.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_notebook_switch_rehearsal.py or anything it imports"
+    },
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous": {
+      "class": "test-file-change",
+      "commits": [
+        "88e68c94e"
+      ],
+      "workstreams": [
+        {
+          "commit": "88e68c94e",
+          "workstream": "origin/lane/brk01-inc3",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_paywall_gate_free_tier|test_nothing_NEW_on_the_free_page_became_paid_without_a_recorded_verdict": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rate_limit_policy|test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rate_limit_policy|test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rate_limit_policy|test_vi_every_route_of_the_REAL_app_is_declared_or_exempt": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rate_limit_policy|test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy": {
+      "class": "imported-file-change",
+      "commits": [
+        "8881660a4",
+        "dd7bf82c3",
+        "60d27e3de",
+        "30b181001",
+        "f473d00b3",
+        "7db89ec83",
+        "a30aa584c",
+        "d5ecfb2f0",
+        "d5ca005e9"
+      ],
+      "workstreams": [
+        {
+          "commit": "8881660a4",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd7bf82c3",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "60d27e3de",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "30b181001",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f473d00b3",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7db89ec83",
+          "workstream": "integrate/terminal-fixes",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "a30aa584c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ecfb2f0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d5ca005e9",
+          "workstream": "integrate/wave14-2026-10-02",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "pytest|tests.test_requirement_tags|test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers": {
+      "class": "test-file-change",
+      "commits": [
+        "b98b163e1"
+      ],
+      "workstreams": [
+        {
+          "commit": "b98b163e1",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_requirement_tags|test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained": {
+      "class": "test-file-change",
+      "commits": [
+        "b98b163e1"
+      ],
+      "workstreams": [
+        {
+          "commit": "b98b163e1",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[company_about.get_profile-ok]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_term072_fmp_parity.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 22f07e1bd..529338e61 touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    }
+  }
+}
