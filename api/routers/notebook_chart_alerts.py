@@ -5,6 +5,8 @@ at a drawn level. A THIN ADAPTER over engines that already exist.
                                    inputs + Compass's `size_a_trade` answer (a long, paid)
   POST /api/j2/chart-plan/alerts   arm a price alert at a drawn level or trendline in one of the
                                    member's notes, THROUGH THE EXISTING watchlist-alert route
+  GET  /api/j2/chart-plan/benchmarks?symbol=   (13H-2) the `/vs` choices: SPY, QQQ, the
+                                   stock's sector ETF and theme ETF -- a read
 
   * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_CHART_PLAN_ENABLED` off answers the one 404 for
     every route before the session or the body is read.
@@ -101,6 +103,16 @@ def size(body: dict = Depends(_member_body), user: dict = Depends(get_current_us
     compass = chart_plan.compass_size(plan["entry"], plan["stop"], account["accountSize"],
                                       account["riskPct"], paid=is_paid_user(user))
     return {"plan": plan, "account": account, "compass": compass}
+
+
+@router.get("/benchmarks")
+def benchmarks(symbol: str = "", _user: dict = Depends(get_current_user_with_plan)):
+    """Wave 13 lane 13H-2: the `/vs` choices for one stock -- SPY, QQQ, its sector ETF and its
+    theme ETF, each from an existing authority (`chart_plan.benchmark_options`). A read; a
+    stock with no known sector or theme ETF gets a reason instead of an invented benchmark."""
+    if not chart_plan.clean_symbol(symbol):
+        raise HTTPException(status_code=422, detail=BAD_BODY_SENTENCE)
+    return chart_plan.benchmark_options(symbol)
 
 
 def _note_body(user_id: str, note_id: str) -> Any:

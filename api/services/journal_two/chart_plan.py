@@ -210,3 +210,109 @@ def compass_size(entry: Any, stop: Any, account_size: Any, risk_pct: Any, *,
         if k in res:
             out[k] = res[k]
     return out
+
+
+# ── /vs: the benchmarks a stock is compared against (wave 13 lane 13H-2) ──────────────────────
+#
+# The note's `/vs` insert puts a stock beside SPY, QQQ, its sector ETF or its theme ETF. The
+# broad pair is fixed; the other two are LOOKED UP here, from authorities that already exist:
+#   * sector ETF: the stock's sector (the nightly screener row, else the 24h-cached ticker meta)
+#     mapped through `sector_strength.SECTOR_ETFS`, the one sector->SPDR table the app uses;
+#   * theme ETF: `groups.resolve_primary_theme` (the theme ticker_meta and /charts Groups show)
+#     and that theme's own `etf_ticker` from the taxonomy.
+# ⛔ Nothing here is guessed. A stock with no known sector, or whose theme carries no ETF, gets
+# no option for it and a reason saying so: an invented benchmark would be a chart that compares
+# the member's stock against something nobody chose.
+
+#: The two broad benchmarks, always offered (unless the stock IS one of them).
+BROAD_BENCHMARKS = (("SPY", "S&P 500"), ("QQQ", "Nasdaq 100"))
+
+#: Provider sector names -> the `SECTOR_ETFS` key they mean. yfinance/FMP say "Healthcare",
+#: "Financial Services", "Consumer Cyclical"...; GICS says "Health Care", "Financials",
+#: "Consumer Discretionary"... Both map to the one table; nothing else is restated.
+_SECTOR_ALIASES = {
+    "information technology": "Technology", "technology": "Technology",
+    "financial services": "Financials", "financials": "Financials", "financial": "Financials",
+    "energy": "Energy",
+    "healthcare": "Healthcare", "health care": "Healthcare",
+    "industrials": "Industrials",
+    "consumer cyclical": "Consumer Discretionary", "consumer discretionary": "Consumer Discretionary",
+    "consumer defensive": "Consumer Staples", "consumer staples": "Consumer Staples",
+    "basic materials": "Materials", "materials": "Materials",
+    "real estate": "Real Estate",
+    "utilities": "Utilities",
+    "communication services": "Communication Services", "communications": "Communication Services",
+}
+
+
+def sector_etf(sector: Any) -> tuple[str, str] | None:
+    """(ETF, sector name) for a provider's sector string, or None when it is not one of the
+    eleven the table knows."""
+    from api.services.sector_strength import SECTOR_ETFS  # noqa: PLC0415 -- the one table
+    if not isinstance(sector, str) or not sector.strip():
+        return None
+    key = _SECTOR_ALIASES.get(sector.strip().lower())
+    etf = SECTOR_ETFS.get(key) if key else None
+    return (etf, key) if etf else None
+
+
+def _stock_sector(symbol: str) -> str | None:
+    """The stock's sector: the nightly screener row (local), else the cached ticker meta."""
+    try:
+        from api.services.screener import snapshot_db  # noqa: PLC0415
+        row = snapshot_db.get_row(symbol) or {}
+        if isinstance(row.get("sector"), str) and row["sector"].strip():
+            return row["sector"].strip()
+    except Exception:  # noqa: BLE001 -- an unreadable snapshot falls through to the meta
+        pass
+    try:
+        from api.services import ticker_meta  # noqa: PLC0415
+        s = (ticker_meta.get_ticker_meta(symbol) or {}).get("sector")
+        return s.strip() if isinstance(s, str) and s.strip() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _stock_theme_etf(symbol: str) -> tuple[str, str] | None:
+    """(theme ETF, theme name) for the stock's primary theme, or None."""
+    from api.services import groups, theme_db  # noqa: PLC0415
+    row = groups.resolve_primary_theme(symbol) or {}
+    theme_id = row.get("theme_id")
+    if not theme_id:
+        return None
+    for t in (theme_db.get_all_themes() or {}).get("themes", []):
+        if t.get("id") == theme_id:
+            etf = clean_symbol(t.get("etf_ticker"))
+            return (etf, t.get("name") or row.get("theme_name") or "") if etf else None
+    return None
+
+
+def benchmark_options(symbol: Any, *, sector_fn=None, theme_fn=None) -> dict[str, Any]:
+    """The `/vs` choices for one stock. Never raises.
+
+    -> {"symbol", "options": [{"key", "symbol", "label"}], "missing": {key: reason}}
+    `sector_fn` / `theme_fn` are seams, resolved at CALL time (a module patch reaches them)."""
+    sym = clean_symbol(symbol)
+    if not sym:
+        return {"symbol": None, "options": [], "missing": {}}
+    sector_fn = sector_fn or _stock_sector
+    theme_fn = theme_fn or _stock_theme_etf
+    options = [{"key": etf, "symbol": etf, "label": name} for etf, name in BROAD_BENCHMARKS if etf != sym]
+    missing: dict[str, str] = {}
+    try:
+        sec = sector_etf(sector_fn(sym))
+    except Exception:  # noqa: BLE001
+        sec = None
+    if sec and sec[0] != sym:
+        options.append({"key": "sector", "symbol": sec[0], "label": f"{sec[1]} sector"})
+    else:
+        missing["sector"] = f"No sector ETF is known for {sym}"
+    try:
+        theme = theme_fn(sym)
+    except Exception:  # noqa: BLE001
+        theme = None
+    if theme and theme[0] != sym and all(o["symbol"] != theme[0] for o in options):
+        options.append({"key": "theme", "symbol": theme[0], "label": f"{theme[1]} theme".strip()})
+    elif not theme:
+        missing["theme"] = f"No theme ETF is known for {sym}"
+    return {"symbol": sym, "options": options, "missing": missing}
