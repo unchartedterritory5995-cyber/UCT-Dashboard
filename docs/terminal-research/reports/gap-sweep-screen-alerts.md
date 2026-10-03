@@ -32,4 +32,33 @@ The matrix is stale in two places. It marks FT-027 and FT-028 GAP, but a count e
 3. Outbound signed webhooks for S7 fires, plus one routing rule with suspend-all (FT-033, FT-036).
 4. Scan to watchlist (FT-027), chart-pattern presets (FT-022), S7 per-alert expiry (FT-035).
 
-Results are recorded per surface below as each lands.
+## Step 2: what was built
+
+Each surface is dark behind its own flag, registered `pending` in `docs/feature_flags.json`. Every route uses `require_paid` and is a plain `def`.
+
+| Row(s) | Flag | Commit | What |
+|---|---|---|---|
+| FT-041 / 042 / 043 | `DATA_EXPORTS_ENABLED` | `00fb3f00` | CSV and Excel for the screener, a watchlist, the option chain (also needs `OPTIONS_CHAIN_ENABLED`), news, and chart bars, under `/api/exports/*`. Each builder reads the function the page itself reads and writes only the columns the page shows; news carries no article body. Limits: 6 per minute and `EXPORT_DAILY_CAP` (default 25) per member per ET day, stored in `daily_usage_counters`. A failed export gives its charge back. Cells that start like a formula are escaped. The Excel writer has no new dependency. The screener toolbar gets an Excel button, and the watchlist menu gets Export Excel. |
+| FT-026 / 028 / 029 | `SCREENER_LOGIC_ENABLED` | `15d19772` | A `logic` node on the spec: all / any / none / not, up to depth 4 and 25 criteria, ANDed with the flat list. Every leaf goes through `build_where`, and a value we cannot evaluate passes "none of". The `where` grammar supports k/m/b/t/%, and/or/not with parentheses, between, in / not in, contains, and field-to-field comparison, at `GET /api/screener/grammar` and `POST /api/screener/grammar/parse`. The count now returns `as_of`. The screener rail gets a Criteria box. |
+| FT-033 / 036 | `ALERT_WEBHOOKS_ENABLED`, `ALERT_ROUTING_RULE_ENABLED` | `4812df1f` | **Webhooks:** signed (HMAC-SHA256, `t=`/`v1=`), up to 3 per member, secret encrypted with crypto_box and shown once. SSRF checks run at create time and again at send time: https only, port 443, no private addresses, no redirects. A fire only queues a delivery; a scheduler job sends it, retrying at 1, 2, 4, 8 and 16 minutes, then marking it failed. Each member can send up to `WEBHOOK_HOURLY_CAP` per hour. **Routing:** one rule per member covers email, push and webhook, plus suspend/resume. A suspended alert's fire is still written to `alert_fires` with `{routing: suspended}`. |
+| FT-027 / 022 / 035 | `SCREENER_PROMOTE_ENABLED`, `SCREENER_PATTERN_PRESETS_ENABLED`, `ALERT_LIFECYCLE_ENABLED` | `37ca6b44` | **Watchlist:** the whole result set goes into a new or existing list, up to 500 names, and the response says when it was truncated. **Presets:** 18 chart-pattern presets, each matching the pattern token exactly, with a rail against the detector registry. **Expiry:** an alert past its expiry is suspended, never deleted. |
+| FT-024 / 030 | `SCREENER_NL_COMPILE_ENABLED` (also needs `SCREENER_LOGIC_ENABLED`) | `20f30762` | English is compiled into the grammar. The model only writes a criteria string, and that string goes through the member parser, with one repair attempt and then a refusal. The member sees the criteria (editable), an explanation, and the assumptions made. Limits: `SCREENER_NL_DAILY_CAP` (30) per member, then the population cap. |
+
+### Still open, and why
+
+- **FT-034, the five missing trigger kinds.** Rating change has no S7 type, and the other seven S7 types are still dark comparison sweeps owned by the S7 gate programme. Promoting them is that programme's call, not this lane's.
+- **FT-035 remind and reverse-crossover.**
+  - Remind needs a read-state on every channel, and only in-app has one.
+  - Reverse-crossover is per-type and lives in the price-level evaluator, which is still dark.
+- **FT-036 for the TERM-048 price-alert bridge.** `_deliver_via_s7` has its own fan-out, so the routing rule does not apply to it yet.
+- **FT-027 alert on a filter-list screen.** Nightly enter/leave alerts exist for definition scans only. Doing the same for a spec needs a membership snapshot per saved screen.
+- **FT-029 scope prefixes and arithmetic** (`$AAPL`, `#list`, `size * price`). The parser refuses these and says why.
+- **FT-037 / 038 SMS and Telegram.** Not trivial (bot token, chat linking, a new vendor), so skipped as allowed.
+- **Options-flow export.** Flow rows are served by flow-worker, which is outside this lane.
+- **Grouped logic in the URL.** Grouped logic is not carried in the screener URL yet; a saved screen does carry it.
+
+### Pre-existing reds fixed or found
+
+- `tests/test_screener_saved.py::test_every_valid_op_declares_its_operands` was red on the base because `not_in` had no operands. Fixed.
+- `docs/api/member-api-whitelist.json` and `skill.md` had drifted on the base. Regenerated.
+- `tests/test_screener_filters.py` has two view-visibility failures that this lane did not touch, so they were left alone.
