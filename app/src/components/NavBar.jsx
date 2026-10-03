@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import UIcon from './ui/UIcon'
 import { NAV_GROUPS } from './navGroups'
 import { FREE_PAGES } from '../constants/freePages'
+import useRovingTabIndex from '../hooks/useRovingTabIndex'
 import styles from './NavBar.module.css'
 import uctLogo from './intro/assets/compass-mark.png'
 
@@ -105,6 +106,17 @@ export default function NavBar({ onOpenPalette }) {
   // during market hours); its aliveness shows inside /community via The Tape.
   const floorUnread = (communityUnread?.total || 0) + (communityStatus?.mentions_unseen || 0)
 
+  // Wave 13 (13Q-4): NAV_ITEMS (~19 links, the shared chrome every page's
+  // Tab order walks through before reaching that page's own controls — see
+  // docs/notebook/wave13-13q2.md §4) becomes ONE Tab stop. Arrow keys (Up/
+  // Down — the rail is a VERTICAL list) + Home/End move focus among them;
+  // Enter/Space still activate the native <a>/<button> exactly as before.
+  // NAV_ITEMS itself, every route, label and the visible order are untouched —
+  // this only ever adds `tabIndex`/`data-roving-item`/`onFocus` to the
+  // elements renderItem() already returns.
+  const { containerProps: navRovingContainerProps, itemProps: navRovingItemProps } =
+    useRovingTabIndex({ orientation: 'vertical' })
+
   // One item's row — pulled out of the group loop below so grouping doesn't
   // duplicate the locked/badge logic per group.
   function renderItem(item) {
@@ -121,6 +133,7 @@ export default function NavBar({ onOpenPalette }) {
           to="/subscribe"
           className={`${styles.item} ${styles.locked}`}
           aria-label={`${item.label} — unlock with Pro`}
+          {...navRovingItemProps(item.to)}
         >
           <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
           <span className={styles.label}>{item.label}</span>
@@ -136,6 +149,7 @@ export default function NavBar({ onOpenPalette }) {
           [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
         }
         aria-label={item.label}
+        {...navRovingItemProps(item.to)}
       >
         <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
         <span className={styles.label}>{item.label}</span>
@@ -155,7 +169,7 @@ export default function NavBar({ onOpenPalette }) {
   }
 
   return (
-    <nav data-testid="nav-sidebar" className={styles.nav}>
+    <nav data-testid="nav-sidebar" className={styles.nav} {...navRovingContainerProps}>
       <Link
         to="/landing"
         className={styles.brand}
