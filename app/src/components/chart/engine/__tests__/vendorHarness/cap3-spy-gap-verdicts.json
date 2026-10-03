@@ -1,0 +1,1619 @@
+{
+  "about": "CAP3 (step 81): AMEX:SPY 1D captures of the census runtime-state attaches that lacked one. signature = cap3Signature(gradeCapture(...).verdict), written by cap3SpyGaps.measure.test.js (CAP3_SPY_MEASURE=1), never by hand. state = the door state the script attaches in (on = objects pane; runtime = runtime pane too). library = the script imports a library: graded (and pinned) only with PINE_LIBRARY_STORE set, as every committed rail runs with an empty registry.",
+  "captures": [
+    {
+      "id": "adx-and-di-for-v4-spy-1d-2026-10-03",
+      "script": "corpus/committed/adx-and-di-for-v4__932.pine",
+      "state": "runtime",
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "DI+",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            "DI-",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "ADX",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+      "script": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+      "state": "runtime",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Shapes",
+            "DIVERGE",
+            2,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      },
+      "library": false
+    },
+    {
+      "id": "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03",
+      "script": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              100,
+              42
+            ],
+            [
+              "labels",
+              56,
+              22
+            ]
+          ]
+        ],
+        "paints": null
+      },
+      "library": true
+    },
+    {
+      "id": "artemis-oscillator-pro-spy-1d-2026-10-03",
+      "script": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "VP Bull",
+            "MATCH",
+            1800
+          ],
+          [
+            "VP Bear",
+            "MATCH",
+            1800
+          ],
+          [
+            "VP Base",
+            "MATCH",
+            1800
+          ],
+          [
+            "DRM Oscillator",
+            "DIVERGE",
+            29,
+            "value",
+            225,
+            "converging-prefix"
+          ],
+          [
+            "Signal Line",
+            "DIVERGE",
+            36,
+            "value",
+            221,
+            "converging-prefix"
+          ],
+          [
+            "Bull Cross Dot",
+            "DIVERGE",
+            47,
+            "value",
+            13,
+            "scattered"
+          ],
+          [
+            "Bear Cross Dot",
+            "DIVERGE",
+            76,
+            "value",
+            12,
+            "scattered"
+          ],
+          [
+            "OB Level",
+            "MATCH",
+            1800
+          ],
+          [
+            "OS Level",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              171,
+              33
+            ],
+            [
+              "labels",
+              198,
+              38
+            ],
+            [
+              "tableCells",
+              21,
+              15
+            ]
+          ]
+        ],
+        "paints": "MATCH"
+      },
+      "library": false
+    },
+    {
+      "id": "atr-bands-spy-1d-2026-10-03",
+      "script": "corpus/committed/atr-bands__ad60b125e6.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Upper ATR Band",
+            "DIVERGE",
+            3,
+            "value",
+            37,
+            "converging-prefix"
+          ],
+          [
+            "Lower ATR Band",
+            "DIVERGE",
+            3,
+            "value",
+            38,
+            "converging-prefix"
+          ],
+          [
+            "Upper Take-Profit Band",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower Take-Profit Band",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "atr-support-and-resistance-spy-1d-2026-10-03",
+      "script": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Impulse Up",
+            "MATCH",
+            1800
+          ],
+          [
+            "Impulse Down",
+            "MATCH",
+            1800
+          ],
+          [
+            "RSI Mid Line Support",
+            "DIVERGE",
+            15,
+            "na",
+            4,
+            "scattered"
+          ],
+          [
+            "RSI Mid Line Resistance",
+            "DIVERGE",
+            16,
+            "na",
+            3,
+            "scattered"
+          ],
+          [
+            "RSI Overbought",
+            "MATCH",
+            1800
+          ],
+          [
+            "RSI Oversold",
+            "MATCH",
+            1800
+          ],
+          [
+            "Ran Previous High",
+            "MATCH",
+            1800
+          ],
+          [
+            "Ran Previous Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "Moving Average",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              306,
+              0
+            ],
+            [
+              "boxes",
+              54,
+              0
+            ]
+          ]
+        ],
+        "paints": "DIVERGE"
+      },
+      "library": false
+    },
+    {
+      "id": "atr-trailing-stoploss-spy-1d-2026-10-03",
+      "script": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR Trailing Stoploss",
+            "DIVERGE",
+            15,
+            "value",
+            47,
+            "converging-prefix"
+          ],
+          [
+            "BUY",
+            "MATCH",
+            1800
+          ],
+          [
+            "SELL",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      },
+      "library": false
+    },
+    {
+      "id": "auto-trendline-dojiemoji-spy-1d-2026-10-03",
+      "script": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "HH",
+            "MATCH",
+            1800
+          ],
+          [
+            "LH",
+            "MATCH",
+            1800
+          ],
+          [
+            "LL",
+            "MATCH",
+            1800
+          ],
+          [
+            "HL",
+            "MATCH",
+            1800
+          ],
+          [
+            "Crossed upper trendline",
+            "MATCH",
+            1800
+          ],
+          [
+            "Crossed lower trendline",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "average-day-range-adr-pivots-spy-1d-2026-10-03",
+      "script": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "ADR 1 Resistance",
+            "MATCH",
+            1800
+          ],
+          [
+            "ADR 1 Support ",
+            "MATCH",
+            1800
+          ],
+          [
+            "ADR 2 Resistance",
+            "MATCH",
+            1800
+          ],
+          [
+            "ADR 2 Support ",
+            "MATCH",
+            1800
+          ],
+          [
+            "MA 1",
+            "MATCH",
+            1800
+          ],
+          [
+            "MA 2",
+            "MATCH",
+            1800
+          ],
+          [
+            "MA 3",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03",
+      "script": "corpus/committed/black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              22,
+              8
+            ]
+          ]
+        ],
+        "paints": null
+      },
+      "library": true
+    },
+    {
+      "id": "btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03",
+      "script": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Consolidated EMA",
+            "MATCH",
+            1800
+          ],
+          [
+            "Fast EMA",
+            "DIVERGE",
+            12,
+            "value",
+            90,
+            "converging-prefix"
+          ],
+          [
+            "Slow EMA",
+            "DIVERGE",
+            25,
+            "value",
+            196,
+            "converging-prefix"
+          ],
+          [
+            "Bull",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bear",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      },
+      "library": false
+    },
+    {
+      "id": "candlestick-patterns-identified-update-1-17-26-spy-1d-2026-10-03",
+      "script": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Doji",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bearish Harami",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bullish Harami",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bearish Engulfing",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bullish Engulfing",
+            "MATCH",
+            1800
+          ],
+          [
+            "Piercing Line",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bullish Belt",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bullish Kicker",
+            "MATCH",
+            1800
+          ],
+          [
+            "Bearish Kicker",
+            "MATCH",
+            1800
+          ],
+          [
+            "Hanging Man",
+            "MATCH",
+            1800
+          ],
+          [
+            "Evening Star",
+            "MATCH",
+            1800
+          ],
+          [
+            "Morning Star",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shooting Star",
+            "MATCH",
+            1800
+          ],
+          [
+            "Hammer",
+            "MATCH",
+            1800
+          ],
+          [
+            "Inverted Hammer",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "contraction-box-doji-lines-spy-1d-2026-10-03",
+      "script": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              204,
+              178
+            ],
+            [
+              "boxes",
+              53,
+              54
+            ]
+          ]
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "cumulative-volume-delta-spy-1d-2026-10-03",
+      "script": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Plot",
+            "DIVERGE",
+            14,
+            "value",
+            130,
+            "converging-prefix"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            14,
+            "value",
+            127,
+            "converging-prefix"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            28,
+            "value",
+            129,
+            "converging-prefix"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            14,
+            "value",
+            148,
+            "converging-prefix"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "donchian-channels-spy-1d-2026-10-03",
+      "script": "corpus/committed/donchian-channels__5df15aaa23.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Basis",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper Donchian",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper Donchian | Inner",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper .786",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper Mid",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper.702",
+            "MATCH",
+            1800
+          ],
+          [
+            "Upper .382",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower .382",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower .702",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower Mid",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower .786",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower Donchian | Inner",
+            "MATCH",
+            1800
+          ],
+          [
+            "Lower Donchian",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      },
+      "library": false
+    },
+    {
+      "id": "dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03",
+      "script": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "HTF MA",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "elliott-wave-3-finder-v2-spy-1d-2026-10-03",
+      "script": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Plot",
+            "DIVERGE",
+            35,
+            "value",
+            336,
+            "converging-prefix"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03",
+      "script": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Fast EMA",
+            "DIVERGE",
+            8,
+            "value",
+            51,
+            "converging-prefix"
+          ],
+          [
+            "Mid EMA",
+            "DIVERGE",
+            21,
+            "value",
+            161,
+            "converging-prefix"
+          ],
+          [
+            "Slow EMA",
+            "DIVERGE",
+            55,
+            "value",
+            402,
+            "converging-prefix"
+          ],
+          [
+            "F×M ▲",
+            "MATCH",
+            1800
+          ],
+          [
+            "F×M ▼",
+            "DIVERGE",
+            39,
+            "na",
+            2,
+            "scattered"
+          ],
+          [
+            "F×S ▲",
+            "MATCH",
+            1800
+          ],
+          [
+            "F×S ▼",
+            "MATCH",
+            1800
+          ],
+          [
+            "M×S ▲",
+            "MATCH",
+            1800
+          ],
+          [
+            "M×S ▼",
+            "MATCH",
+            1800
+          ],
+          [
+            "Squeeze Start",
+            "DIVERGE",
+            140,
+            "value",
+            2,
+            "scattered"
+          ],
+          [
+            "Squeeze Release ▲",
+            "MATCH",
+            1800
+          ],
+          [
+            "Squeeze Release ▼",
+            "MATCH",
+            1800
+          ],
+          [
+            "Squeeze Release ◆",
+            "DIVERGE",
+            141,
+            "value",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              48,
+              37
+            ]
+          ]
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "engulfingcandle-spy-1d-2026-10-03",
+      "script": "corpus/committed/engulfingcandle__0df91dc775.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "bullish",
+            "MATCH",
+            1800
+          ],
+          [
+            "bearish",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "extrapolated-pivot-connector-spy-1d-2026-10-03",
+      "script": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Pivot High's",
+            "MATCH",
+            1800
+          ],
+          [
+            "Pivot Low's",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "fib-retracement-spy-1d-2026-10-03",
+      "script": "corpus/committed/fib-retracement__8XcLscnekw.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "fibonacci-pivot-points-cc-spy-1d-2026-10-03",
+      "script": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "PP",
+            "MATCH",
+            1800
+          ],
+          [
+            "R1",
+            "MATCH",
+            1800
+          ],
+          [
+            "R2",
+            "MATCH",
+            1800
+          ],
+          [
+            "R3",
+            "MATCH",
+            1800
+          ],
+          [
+            "S1",
+            "MATCH",
+            1800
+          ],
+          [
+            "S2",
+            "MATCH",
+            1800
+          ],
+          [
+            "S3",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "heat-map-seasons-spy-1d-2026-10-03",
+      "script": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              31,
+              30
+            ]
+          ]
+        ],
+        "paints": "DIVERGE"
+      }
+    },
+    {
+      "id": "high-low-open-mid-ranges-spy-1d-2026-10-03",
+      "script": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "labels",
+              504,
+              502
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
+      "script": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              6,
+              0
+            ],
+            [
+              "labels",
+              3,
+              0
+            ],
+            [
+              "boxes",
+              11,
+              3
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "htf-liquidity-dashboard-tfo-spy-1d-2026-10-03",
+      "script": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              30,
+              3
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "ict-ipda-look-back-spy-1d-2026-10-03",
+      "script": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "ict-killzones-pivots-tfo-spy-1d-2026-10-03",
+      "script": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ],
+          [
+            "Chars",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "institutional-smc-order-flow-matrix-pro-spy-1d-2026-10-03",
+      "script": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              198,
+              34
+            ],
+            [
+              "labels",
+              449,
+              81
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "k-clustering-spy-1d-2026-10-03",
+      "script": "corpus/committed/k-clustering__8e82f5aa4b.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              9,
+              0
+            ],
+            [
+              "tableCells",
+              8,
+              5
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "keltner-center-of-gravity-channel-spy-1d-2026-10-03",
+      "script": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "extra high line",
+            "MATCH",
+            1800
+          ],
+          [
+            "outerhigh",
+            "DIVERGE",
+            272,
+            "value",
+            62,
+            "converging-prefix"
+          ],
+          [
+            "innerhigh",
+            "MATCH",
+            1800
+          ],
+          [
+            "coghigh",
+            "MATCH",
+            1800
+          ],
+          [
+            "coglow",
+            "MATCH",
+            1800
+          ],
+          [
+            "innerlow",
+            "MATCH",
+            1800
+          ],
+          [
+            "outerlow",
+            "DIVERGE",
+            272,
+            "value",
+            64,
+            "converging-prefix"
+          ],
+          [
+            "extra low line",
+            "MATCH",
+            1800
+          ],
+          [
+            "Up Trend",
+            "MATCH",
+            1800
+          ],
+          [
+            "Down Trend",
+            "MATCH",
+            1800
+          ],
+          [
+            "Support/Resistance Level",
+            "MATCH",
+            1800
+          ],
+          [
+            "outhi",
+            "MATCH",
+            1800
+          ],
+          [
+            "inhi",
+            "MATCH",
+            1800
+          ],
+          [
+            "coghi",
+            "MATCH",
+            1800
+          ],
+          [
+            "cogl",
+            "MATCH",
+            1800
+          ],
+          [
+            "inlow",
+            "MATCH",
+            1800
+          ],
+          [
+            "outlow",
+            "MATCH",
+            1800
+          ],
+          [
+            "HMA",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "keltner-channels-bands-spy-1d-2026-10-03",
+      "script": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Basis",
+            "DIVERGE",
+            20,
+            "value",
+            152,
+            "converging-prefix"
+          ],
+          [
+            "Upper 1",
+            "DIVERGE",
+            20,
+            "value",
+            151,
+            "converging-prefix"
+          ],
+          [
+            "Lower 1",
+            "DIVERGE",
+            20,
+            "value",
+            153,
+            "converging-prefix"
+          ],
+          [
+            "Upper 2",
+            "DIVERGE",
+            20,
+            "value",
+            150,
+            "converging-prefix"
+          ],
+          [
+            "Lower 2",
+            "DIVERGE",
+            20,
+            "value",
+            154,
+            "converging-prefix"
+          ],
+          [
+            "Upper 3",
+            "DIVERGE",
+            20,
+            "value",
+            148,
+            "converging-prefix"
+          ],
+          [
+            "Lower 3",
+            "DIVERGE",
+            20,
+            "value",
+            155,
+            "converging-prefix"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "linear-regression-channel-tradingfinder-existing-trend-lines-spy-1d-2026-10-03",
+      "script": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "liquidation-levels-spy-1d-2026-10-03",
+      "script": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "L1 Long",
+            "MATCH",
+            1800
+          ],
+          [
+            "L2 Long",
+            "MATCH",
+            1800
+          ],
+          [
+            "L3 Long",
+            "MATCH",
+            1800
+          ],
+          [
+            "L4 Long",
+            "MATCH",
+            1800
+          ],
+          [
+            "L5 Long",
+            "MATCH",
+            1800
+          ],
+          [
+            "L1 Short",
+            "MATCH",
+            1800
+          ],
+          [
+            "L2 Short",
+            "MATCH",
+            1800
+          ],
+          [
+            "L3 Short",
+            "MATCH",
+            1800
+          ],
+          [
+            "L4 Short",
+            "MATCH",
+            1800
+          ],
+          [
+            "L5 Short",
+            "MATCH",
+            1800
+          ],
+          [
+            null,
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "liquidity-engulfing-candles-upslidedown-spy-1d-2026-10-03",
+      "script": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Strategy Signal",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "liquidity-heatmap-nephew-sam-spy-1d-2026-10-03",
+      "script": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "labels",
+              421,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    }
+  ]
+}
