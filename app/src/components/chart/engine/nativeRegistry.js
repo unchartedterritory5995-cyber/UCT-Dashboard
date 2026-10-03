@@ -3534,7 +3534,13 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐ GT (D6) — a stored row whose script is not on the server's starter
+      // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
+      // way: kept in the store, drawn again once the script is listed. The server
+      // stamp is the authority here (a saved pane must not wait on the preview's
+      // read of the list to learn it may draw).
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
+        || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
       if (killed) {
         errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)

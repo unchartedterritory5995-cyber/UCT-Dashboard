@@ -6,11 +6,19 @@ thread, and drawn when everything it would draw is exact
 (`memberPaneDefinition.js::runtimeLaneDefinition`). It is dark behind three
 switches, and **this document flips none of them** — the owner decides.
 
+> ⭐ **GT (2026-10-02): the owner's rulings D1–D6 are implemented** on
+> `pine/gt-runtime-switch-on` — a per-member stage (`PINE_RUNTIME_STAGE`), the
+> starter allowlist, the 128 KiB runtime cap, and the repaint-label notice. The
+> exact operator steps, in order, with rollback, are **[GT operator steps](#gt-operator-steps)**
+> at the end of this file; the RF sections below are kept as the evidence they were.
+
 | switch | where | kind | what it does | rollback |
 |---|---|---|---|---|
 | `VITE_PINE_RUNTIME_PANE_ENABLED` | build arg (`Dockerfile.web`), read by `engine/runtimePaneGate.js` | BUILD-TIME, default off | the member door offers refused scripts to the runtime lane; the install door admits `compute.kind: 'runtime'` documents | **a deploy**: rebuild with the flag unset |
 | `PINE_RUNTIME_SAVE_ENABLED` | `web` env, `api/services/runtime_definitions.py` | per request, default off | the store accepts runtime documents (else refuses with its own sentence, which `MemberPane` renders) | unset the variable (verify a new boot) |
 | `PINE_RUNTIME_KILL_LIST` | `web` env, same module | per request, empty | a listed script (definition id `u_`+12 hex, or the sha256 / a >=12-hex prefix of its source) is not drawn by the runtime lane and cannot be saved; nothing is deleted | edit the variable — **no deploy** |
+| `PINE_RUNTIME_STAGE` (GT) | `web` env, same module | per request, **default `off`** | `off` / `admins` / `all`: who the pane is for. Rides the auth payload as `pine_runtime_pane_enabled`; the client needs BOTH it and the build flag; the save door asks the saving member the same question | set `off` — **no code deploy** |
+| `PINE_RUNTIME_ALLOWLIST` + `api/data/pine_runtime_allowlist.json` (GT) | `web` env ∪ committed file | per request | while the stage is on, only a listed script (source sha256 / >=12-hex prefix) is drawn, saved or served; others decline `runtime:not-yet-graded`; empty = none. Holds adx-and-di-for-v4 only | remove the line / entry |
 
 Evidence for every number below is in `docs/pine/evidence/rf-runtime-readiness-2026-10-02/`
 and in the RF section of `docs/pine/vendor-harness/objects-triage-2026-09-28.md`.
@@ -46,11 +54,11 @@ see blockers), fetched only when a runtime pane computes.
 | P3 | The member SEES why a runtime pane is empty | **MET (RF)** | the binder publishes the stop on the disclosure strip (was rendered nowhere before RF) |
 | P4 | A worker that dies or hangs leaves the chart usable and never re-runs on the main thread | **MET (RF)** | watchdog 20 s, start cap 3 per tab, coalescing per pane |
 | P5 | A runtime landing cannot loop its host (H14) | **MET** | bounded renders under the real `useServerColumns` + one run in flight per pane (`runtimePaneSafety`) |
-| P6 | Save/load round trip with the save switch on | **MET for 5 of 6** | `tests/test_runtime_document_round_trip.py`; trend-targets refused by the size cap (D2) |
+| P6 | Save/load round trip with the save switch on | **MET for 6 of 6 (GT, D2)** | `tests/test_runtime_document_round_trip.py`; trend-targets saves under the 128 KiB runtime cap |
 | P7 | Kill list reaches an open tab, deletes nothing | **MET (RF)** | `engine/__tests__/runtimeKillSwitch.test.js` + the pytest above; reach = the next read of `/api/user-definitions` (page load or the chart remounting), not mid-session |
 | P8 | Everything a runtime document does not draw is disclosed | **MET (RF)** | bar colours (3 of 6 documents) were silently omitted since B1; now named |
-| P9 | Every newly-attached script is graded on a TradingView capture | **NOT MET** | 1 MATCH, 1 paints-DIVERGE, 4 no capture (hand to CAP2) |
-| P10 | A staged (admins-first) rollout exists | **NOT MET** | see Stage A below — needs a client cohort gate |
+| P9 | Every newly-attached script is graded on a TradingView capture | **MET BY CONSTRUCTION (GT, D6)** | only allowlisted scripts are served; the list holds the 1 MATCH (adx-and-di-for-v4); the other 5 decline `runtime:not-yet-graded` until CAP2 grades them |
+| P10 | A staged (admins-first) rollout exists | **MET (GT, D1)** | `PINE_RUNTIME_STAGE` per member, per request; `tests/test_pine_runtime_switch_on.py`, `engine/__tests__/runtimeSwitchOn.test.js` |
 | P11 | A full suite gate on the landing tree | **NOT MET here** | the shared `node_modules` lost jsdom's and the app's dependencies mid-session (see blockers) |
 
 ## Staged rollout
@@ -131,6 +139,13 @@ brief forbids production); `--self-check` proves its helpers can fail.
 
 ## Decisions for the owner
 
+> ⭐ **RULED 2026-10-02 (owner), built by GT:** D1 admins first, then everyone, with the kill
+> list as the safety net (`PINE_RUNTIME_STAGE`, per member, per request, default off); D2 the
+> store's cap for RUNTIME documents is 128 KiB, formulas keep 64 KiB; D3 keep the 1,000 ms
+> budget; D4 keep disclosing omitted bar colours; D5 keep the 20,000-bar intraday limit; D6 a
+> starter allowlist holding only adx-and-di-for-v4, extended one line at a time as captures grade
+> MATCH. D3/D4/D5 needed no code: GT moved none of those numbers. The questions as RF put them:
+
 - **D1** Stage A cohort gate: build it (spec above) or go straight to an allowlisted Stage B/C.
 - **D2** trend-targets-algoalpha's document (~84 KB) exceeds the store's 64 KiB cap: raise the
   cap for runtime documents, slim the document (it carries the host object program), or accept
@@ -148,3 +163,83 @@ brief forbids production); `--self-check` proves its helpers can fail.
   `@asamuzakjp/css-color`, `@adobe/css-tools` and `@discord/embedded-app-sdk` during this
   session (all were present when RF's 22:27 run passed). jsdom tests and `vite build` cannot
   run until it is reinstalled — not done here (lane rule: never `npm ci` the shared install).
+
+## GT operator steps
+
+Owner rulings of 2026-10-02, as built on `pine/gt-runtime-switch-on` (section **GT** of
+`docs/pine/vendor-harness/objects-triage-2026-09-28.md`, step 80). Nothing here has been run
+against production by the lane; the integrator ships, and these steps are the owner's/operator's.
+
+### What decides whether a member sees a runtime pane
+
+```
+pane draws through the runtime lane  =  VITE_PINE_RUNTIME_PANE_ENABLED baked '1'   (build)
+                                      AND pine_runtime_pane_enabled for THIS member (auth payload,
+                                          from PINE_RUNTIME_STAGE: off | admins | all, per request)
+                                      AND the script's source sha256 on the starter allowlist
+                                          (api/data/pine_runtime_allowlist.json + PINE_RUNTIME_ALLOWLIST)
+                                      AND the script not on PINE_RUNTIME_KILL_LIST
+saving a runtime document            =  PINE_RUNTIME_SAVE_ENABLED=1 AND the same stage check of the
+                                          SAVING member AND not killed AND allowlisted AND <= 128 KiB
+```
+
+The client latches the per-member answer for the tab's life (first auth payload wins, like the
+Notebook's flags): a change reaches a member on their **next authenticated request or reload**,
+never a tab mid-session. Nothing latched = not permitted; nothing on the allowlist = nothing drawn.
+
+### How a production build receives the `VITE_*` flag (confirmed, not assumed)
+
+`web` builds from `Dockerfile.web` (`railway.web.json`). `Dockerfile.web` declares
+`ARG VITE_PINE_RUNTIME_PANE_ENABLED` and passes it into the frontend build (lines 113 and 136 at
+this commit), so a Railway **variable on `web`** becomes the build arg; an undeclared one is dropped
+in silence. `tests/test_dockerfile_vite_build_args.py` + `tests/test_vite_flag_ledger.py` hold that
+and run in the `master deploy gate` (`.github/workflows/master-deploy-gate.yml`). `web` deploys from
+`production`, promoted after that gate. The flag is read as `=== '1'`.
+
+### The flip, in order
+
+| # | step | command / check | what proves it |
+|---|---|---|---|
+| 0 | GT (and RF) land on master; master deploy gate green; promoted to `production` | `git merge-base --is-ancestor <GT sha> origin/production` | ancestry, never a push log |
+| 1 | **Deploy with the build flag ON and the stage OFF.** Set the stage explicitly so "off on purpose" is distinguishable from "unset" | `railway variables --service web --set "PINE_RUNTIME_STAGE=off"`, then `railway variables --service web --set "VITE_PINE_RUNTIME_PANE_ENABLED=1"` (a build variable: the rebuild is the deploy) | a NEW boot (`/api/health` `uptime_seconds` reset); never `--kv` alone |
+| 2 | **Verify nothing changed for anyone** | `python tools/runtime_pane_smoke.py --auth --expect-pane off` → `[1] flag ON`, `[5] pine_runtime_pane_enabled=False`; `python tools/hub_nav_smoke.py --auth` | exit 0 from both (stage off = no member, not even admins) |
+| 3 | **Stage admins** | `railway variables --service web --set "PINE_RUNTIME_STAGE=admins"`; read it IN-PROCESS (`railway ssh` → `/opt/venv/bin/python -c "import os;print(os.environ.get('PINE_RUNTIME_STAGE'))"`) | the running process has `admins` |
+| 3b | (optional) the save door | `railway variables --service web --set "PINE_RUNTIME_SAVE_ENABLED=1"` | same in-process read |
+| 4 | **Smoke as the admin smoke account** | `python tools/runtime_pane_smoke.py --auth --expect-pane on` and `python tools/hub_nav_smoke.py --auth` | exit 0: flag ON, worker chunk, ADX run finite inside the budget with the main thread painting, kill read OK, `[5] pine_runtime_pane_enabled=True` with the graded script listed |
+| 5 | **Later: everyone** | `railway variables --service web --set "PINE_RUNTIME_STAGE=all"`, then step 4 again | exit 0 |
+| 6 | Record each flip | `docs/feature_flags.json`: `PINE_RUNTIME_STAGE` / `VITE_PINE_RUNTIME_PANE_ENABLED` / `PINE_RUNTIME_SAVE_ENABLED` → `armed`, `where: ["web"]`, the flip time in the note, in the same docs push | the ledger, not memory |
+
+⚠️ `railway variables --set` has been measured both to stage and to redeploy (CLAUDE.md); either
+way, verify a new boot and the value in-process. A restart of `web` is an `/api/*` blip
+(`docs/runbooks/deploy-windows.md`). Exit codes are H15's: **1 = roll back first**, 2 = inconclusive
+(never a rollback trigger).
+
+### Widening the allowlist (as CAP2 grades scripts MATCH)
+
+One line, either place: add `{"slug", "sha256", "source", "evidence"}` to
+`api/data/pine_runtime_allowlist.json` (a commit + deploy; the evidence names the capture), or
+append the sha256 (or a >=12-hex prefix) to `PINE_RUNTIME_ALLOWLIST` on `web` (no code deploy). The
+server reads the union per request. ⛔ Only a script graded **MATCH** against a TradingView capture.
+⚠️ The identity is the sha256 of the source **as written**: a member's copy of a graded script that
+differs by one byte (line endings, a trailing newline, a renamed input) is a different script and
+declines `runtime:not-yet-graded`. How often a pasted copy matches the corpus bytes: **not measured**.
+
+### Rollback
+
+| what | lever | cost |
+|---|---|---|
+| everyone / the admins | `railway variables --service web --set "PINE_RUNTIME_STAGE=off"` | **no code deploy**; reaches each member on their next authenticated request or reload (an open tab keeps its latched answer until reload); the variable set itself may restart `web` |
+| one script | add its sha256 / id to `PINE_RUNTIME_KILL_LIST`, or take it off the allowlist | no code deploy; reaches each member on the next read of their definitions / the member door's next kill read |
+| the save door | `railway variable delete PINE_RUNTIME_SAVE_ENABLED --service web`, then `railway redeploy --service web --yes` (a delete does not restart) | saved rows stay; served (and drawn while the pane is on) |
+| the whole pane | `railway variable delete VITE_PINE_RUNTIME_PANE_ENABLED --service web`, then `railway redeploy --service web --yes` | **a deploy** (rebuild); an open tab keeps its bundle until reload |
+
+⛔ Nothing in any rollback deletes a member's saved definition.
+
+### The repaint-label notice (RT4 follow-up)
+
+A formula saved before `3a77b89423` that reads one of the nine last-bar clock leaves keeps its stored
+`non-repainting`. The store now serves `repaint_notice` beside such a row
+(`user_definition_relint.member_notice`, the relint pass's direction B), and the Builder shows the
+sentence when its owner opens it. The stored label is never flipped; no variable controls this. How
+many production rows carry it: **not measured** (the relint pass counts them when run against
+production).
