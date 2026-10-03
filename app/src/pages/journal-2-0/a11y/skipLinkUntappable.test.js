@@ -15,6 +15,13 @@ import { dirname, resolve } from 'node:path'
 const here = dirname(fileURLToPath(import.meta.url))
 const CSS_PATH = resolve(here, '../tabs/NotebookTab.module.css')
 const SHELL_CSS_PATH = resolve(here, '../../../components/Layout.module.css')
+// Wave 13 lane 13Q-3: the editor's OWN "Skip to editor toolbar" link (NoteEditorPage.jsx),
+// same H14 hazard class -- a second skip link in a second module can paint over something a
+// tap was meant to hit exactly the same way the first one did.
+const EDITOR_CSS_PATH = resolve(here, '../components/notebook/NoteEditorPage.module.css')
+// Wave 13 lane 13Q-3: the folder panel's OWN "Skip to folder navigation" link
+// (FolderSidebar.jsx) -- same H14 hazard class, third module.
+const SIDEBAR_CSS_PATH = resolve(here, '../components/notebook/FolderSidebar.module.css')
 
 function rules(css) {
   const out = []
@@ -116,6 +123,74 @@ describe("the app shell's own skip link never takes a tap meant for something el
   it('focused, the transform is removed so a keyboard member sees where focus went', () => {
     for (const r of focusedShell) {
       expect(decl(r.body, 'transform'), `${r.selector}: transform`).toBe('none')
+    }
+  })
+})
+
+// ── The editor's own "Skip to editor toolbar" (NoteEditorPage.module.css) ──
+describe("the editor's own skip link never takes a tap meant for something else", () => {
+  const all = rules(readFileSync(EDITOR_CSS_PATH, 'utf8'))
+  const link = all.filter((r) => /\.skipLink\b/.test(r.selector))
+  const base = link.find((r) => r.selector === '.skipLink' && decl(r.body, 'position') === 'absolute')
+  const focused = link.filter((r) => /\.skipLink:focus\b/.test(r.selector))
+
+  it('non-vacuity: the base rule and a focused rule are both present', () => {
+    expect(base, 'the positioned .skipLink rule').toBeTruthy()
+    expect(focused.length).toBeGreaterThan(0)
+  })
+
+  it('unfocused, it is invisible and pointer-transparent', () => {
+    expect(decl(base.body, 'opacity')).toBe('0')
+    expect(decl(base.body, 'pointer-events')).toBe('none')
+  })
+
+  it('no other unfocused rule makes it visible or tappable again', () => {
+    for (const r of link.filter((x) => !/:focus/.test(x.selector))) {
+      const op = decl(r.body, 'opacity')
+      expect(op === null || op === '0', `${r.selector}: opacity ${op}`).toBe(true)
+      const pe = decl(r.body, 'pointer-events')
+      expect(pe === null || pe === 'none', `${r.selector}: pointer-events ${pe}`).toBe(true)
+    }
+  })
+
+  it('focused, it shows and takes the pointer, so a keyboard member sees where focus went', () => {
+    for (const r of focused) {
+      expect(decl(r.body, 'opacity'), `${r.selector}: opacity`).toBe('1')
+      expect(decl(r.body, 'pointer-events'), `${r.selector}: pointer-events`).toBe('auto')
+    }
+  })
+})
+
+// ── The folder panel's own "Skip to folder navigation" (FolderSidebar.module.css) ──
+describe("the folder panel's own skip link never takes a tap meant for something else", () => {
+  const all = rules(readFileSync(SIDEBAR_CSS_PATH, 'utf8'))
+  const link = all.filter((r) => /\.skipLink\b/.test(r.selector))
+  const base = link.find((r) => r.selector === '.skipLink' && decl(r.body, 'position') === 'absolute')
+  const focused = link.filter((r) => /\.skipLink:focus\b/.test(r.selector))
+
+  it('non-vacuity: the base rule and a focused rule are both present', () => {
+    expect(base, 'the positioned .skipLink rule').toBeTruthy()
+    expect(focused.length).toBeGreaterThan(0)
+  })
+
+  it('unfocused, it is invisible and pointer-transparent', () => {
+    expect(decl(base.body, 'opacity')).toBe('0')
+    expect(decl(base.body, 'pointer-events')).toBe('none')
+  })
+
+  it('no other unfocused rule makes it visible or tappable again', () => {
+    for (const r of link.filter((x) => !/:focus/.test(x.selector))) {
+      const op = decl(r.body, 'opacity')
+      expect(op === null || op === '0', `${r.selector}: opacity ${op}`).toBe(true)
+      const pe = decl(r.body, 'pointer-events')
+      expect(pe === null || pe === 'none', `${r.selector}: pointer-events ${pe}`).toBe(true)
+    }
+  })
+
+  it('focused, it shows and takes the pointer, so a keyboard member sees where focus went', () => {
+    for (const r of focused) {
+      expect(decl(r.body, 'opacity'), `${r.selector}: opacity`).toBe('1')
+      expect(decl(r.body, 'pointer-events'), `${r.selector}: pointer-events`).toBe('auto')
     }
   })
 })

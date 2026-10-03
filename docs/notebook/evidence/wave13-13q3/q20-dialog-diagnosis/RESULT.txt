@@ -1,0 +1,41 @@
+13Q-3 Q20(b) diagnosis: why does selecting "Chart" from the Insert-widget dialog
+(WidgetPalette.jsx) hit the 600-press Tab cap at 390 px while it costs 2 at 1200 px?
+
+debug_q20_widget_dialog_tab_order.py dumped every focusable node in DOM order (identical at
+both widths -- confirmed by direct query) and then pressed ONE real Tab from "Insert widget"
+with the dialog open, at 390 px:
+
+  activeElement now: {'tag': 'BUTTON', 'name': 'Insert widget', 'inFormatRun': '_r_c_-d',
+    'inToolbar': True, 'inDialog': False, 'dataFormatOpenOnRow': 'true', 'tabIndex': 0}
+  after 1 real Tab: {'tag': 'BUTTON', 'name': 'Aa\nFormat', 'inFormatRun': None,
+    'inToolbar': True, 'inDialog': False, 'dataFormatOpenOnRow': 'true', 'tabIndex': 0}
+
+Tab from "Insert widget" (the LAST focusable element in the toolbar, confirmed by a direct
+querySelectorAll dump: index 94 = Insert widget, 95 = the dialog's own Close button, 96 =
+Chart, ...) lands BACKWARD on "Format" (the toggle BEFORE it in DOM) instead of forward into
+the dialog -- at 390 px only. At 1200 px the identical querySelectorAll order is used and the
+real Tab correctly advances from "Insert widget" to the dialog's Close button, then Chart
+(measured cost: 2).
+
+The dialog never moves focus into itself on open (`WidgetPalette.jsx`'s only `useEffect`
+focused `symRef` once a TYPE was picked, never the type-list view) -- so BOTH widths depend
+entirely on the browser's own natural forward-tab order to reach the dialog, and that natural
+order is unreliable specifically around the `.formatRun` spans toggling `display:none` ->
+`display:contents` at runtime (phone only; at 1200px `.formatRun` is `display:contents` from
+first paint, no runtime toggle ever happens, which is consistent with the desktop case never
+hitting this).
+
+FIX (WidgetPalette.jsx): move focus into the dialog explicitly on open (the first type button
+when the type list shows, matching the EXISTING precedent of auto-focusing `symRef` once a
+type is picked) -- this removes the dependency on the browser's natural tab order entirely
+at every width, rather than only at the one width where it happened to already work.
+
+Verified after the fix, same script, same width:
+
+  activeElement now: {'tag': 'BUTTON', 'name': 'Chart\nFrozen snapshot — your chart setti',
+    'inFormatRun': None, 'inToolbar': False, 'inDialog': True, 'tabIndex': 0}
+  after 1 real Tab: {'tag': 'BUTTON', 'name': 'MTF stack\n...', 'inDialog': True}
+
+"Chart" is now focused the instant the dialog opens -- 0 Tab presses needed to select it
+(better than desktop's pre-fix 2), at every width, with no dependency on the toggled-display
+tab-order quirk.

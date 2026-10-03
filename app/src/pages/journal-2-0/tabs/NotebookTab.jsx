@@ -2004,6 +2004,11 @@ export default function NotebookTab() {
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
+            // Wave 13 lane 13Q-3 (click-budget fix, Q5): the SAME openToday handler the
+            // All Notes list header already uses below -- one authority, never a second
+            // day-note opener -- so the bare-root Research Home reaches Today in one
+            // click/tap instead of "All notes" -> "Today" (2).
+            onOpenToday={openToday}
           />
         ) : (
           <>

@@ -183,3 +183,53 @@ describe('ResearchHome — G-064 insert from "My Notebook"', () => {
     __resetNotebookFlags()
   })
 })
+
+// Wave 13 lane 13Q-3 (click-budget fix, Q5): "today's daily note" from bare-root Research
+// Home cost 2 (go through "All notes" first) against a budget of 1. `onOpenToday` is
+// NotebookTab's OWN `openToday` handler, passed through unchanged -- never a second
+// day-note opener -- so this is tested as "the prop is rendered and wired", not reimplemented.
+describe('ResearchHome — Today action (13Q-3)', () => {
+  it('first-run: no Today button when onOpenToday is not passed (back-compat)', () => {
+    renderHome({ hasAnyNotes: false, onOpenToday: undefined })
+    expect(screen.queryByRole('button', { name: /^Today$/ })).toBeNull()
+  })
+
+  it('first-run: a Today button appears beside the other actions and calls onOpenToday', () => {
+    const onOpenToday = vi.fn()
+    renderHome({ hasAnyNotes: false, onOpenToday })
+    const btn = screen.getByRole('button', { name: /^Today$/ })
+    fireEvent.click(btn)
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+  })
+
+  it('quiet state (notes exist, nothing qualifies for a section): Today is offered', () => {
+    const onOpenToday = vi.fn()
+    renderHome({ hasAnyNotes: true, onOpenToday })
+    expect(screen.getByText('Nothing needs your attention right now.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^Today$/ }))
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+  })
+
+  it('quiet state with a failed load: Today is still offered (not gated on a successful read)', () => {
+    hookResult = { home: EMPTY, isLoading: false, error: new Error('boom'), refresh: vi.fn() }
+    renderHome({ hasAnyNotes: true, onOpenToday: vi.fn() })
+    expect(screen.getByRole('button', { name: /^Today$/ })).toBeTruthy()
+  })
+
+  it('full home (a section has content): Today is offered alongside it', () => {
+    const onOpenToday = vi.fn()
+    hookResult = {
+      home: { ...EMPTY, favorites: [{ id: 'n1', title: 'Fav note', updatedAt: '2026-09-01T00:00:00Z' }] },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    renderHome({ onOpenToday })
+    expect(screen.getByText('Favorites')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^Today$/ }))
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+  })
+
+  it('no Today button in the quiet state when onOpenToday is not passed (back-compat)', () => {
+    renderHome({ hasAnyNotes: true, onOpenToday: undefined })
+    expect(screen.queryByRole('button', { name: /^Today$/ })).toBeNull()
+  })
+})

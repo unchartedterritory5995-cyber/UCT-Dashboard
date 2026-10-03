@@ -37,6 +37,7 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import {
@@ -960,6 +961,17 @@ export default function NoteEditorPage({
   // stale the moment the header wraps — review finding).
   const chromeRef = useRef(null)
   const pageRef = useRef(null)
+  // Wave 13 lane 13Q-3 (click-budget fix): a second skip link, landing BEFORE the header so a
+  // keyboard member reaches the Ask toggle, Export (inside More note actions) and Insert
+  // widget -- all of which sit in the sticky chrome, ABOVE the title -- without first tabbing
+  // through the shared app nav AND past where "Skip to note" already lands (the note's title,
+  // itself further down than this chrome). Visually hidden until it takes focus, same pattern
+  // as NotebookTab.jsx's own skip link and `paneHeading`.
+  const toolbarSkipRef = useRef(null)
+  const skipToToolbar = (e) => {
+    e.preventDefault()
+    toolbarSkipRef.current?.focus()
+  }
   // Wave 8 (8A, A4): focus has somewhere to land -- the note on an explicit
   // open, the Ask toggle when Ask closes (see `askRowRef` below).
   // ⛔⛔ Final-review fix I-1: an EXISTING note's open lands on the note's
@@ -3829,6 +3841,12 @@ export default function NoteEditorPage({
         }
       />
       <div className={styles.chrome} ref={chromeRef}>
+      <SkipLinkPortal>
+        <a href="#notebook-editor-toolbar" className={styles.skipLink} onClick={skipToToolbar}>
+          Skip to editor toolbar
+        </a>
+      </SkipLinkPortal>
+      <h2 ref={toolbarSkipRef} tabIndex={-1} className="sr-only">Editor toolbar</h2>
       <header className={styles.header}>
         {showBack && (
           <button type="button" className={styles.backBtn} onClick={onBack}>

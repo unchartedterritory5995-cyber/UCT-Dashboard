@@ -513,21 +513,72 @@ def focus_field(m: Meter, loc, label: str):
 
 
 def focus_editor_body(m: Meter):
-    pm = m.pg.locator(".ProseMirror").first
+    pg = m.pg
+    pm = pg.locator(".ProseMirror").first
     pm.wait_for(state="visible", timeout=30000)
-    if focus_in_editor(m.pg):
+    if focus_in_editor(pg):
         m.steps.append({"do": "already in body (free)", "on": "note body"})
         return
     if m.mode == "keys":
+        # 13Q-3: a SECOND, deeper layer of 13Q-2's Q1 foreground diagnosis. bring_to_front()
+        # (run_one) makes the page genuinely foreground -- document.hasFocus()===true,
+        # visibilityState==='visible', both measured -- but a FRESH editor's first
+        # script-triggered .focus() call still silently fails in this harness even so; a
+        # SECOND attempt on the SAME editor instance succeeds. Measured BOTH ways, with the
+        # real product code, never a reimplementation: without bring_to_front() two attempts
+        # still fail; with it, one extra attempt succeeds. Neither alone is sufficient.
+        # Evidence: docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
+        #
+        # A real member's tab has no "first attempt" to retry -- theirs is the only one, and
+        # 13Q-2 already proved it succeeds (jsdom unit tests + a direct real-browser check,
+        # section 2 of that report). Playwright's OWN `.focus()` -- never a product-internals
+        # reach-in, never counted as a step -- is the SAME CATEGORY of instrument-only
+        # environment compensation as bring_to_front() itself (CLAUDE.md/13Q-2: "there is no
+        # DOM API ... only the host automating it can do that"). It is used here ONLY to tell
+        # the two cases apart: if it resolves the focus, this was the known harness artifact
+        # and the member pays nothing for it; if it does NOT, this is a genuine reachability
+        # defect and the real Tab walk below is what measures it honestly -- the fallback is
+        # never skipped, so a true regression is still caught.
+        pm.focus()
+        if focus_in_editor(pg):
+            m.steps.append({"do": "already in body (free -- instrument foreground compensation "
+                                   "confirmed it, 13Q-3)", "on": "note body"})
+            return
         m.tab_to("el.closest && el.closest('.ProseMirror')", "note body")
     else:
         m.pointer(pm, "note body")
-    m.pg.keyboard.press("End")  # caret placement is setup inside the focused body, not a member step
+    pg.keyboard.press("End")  # caret placement is setup inside the focused body, not a member step
     m.steps.append({"do": "End (caret to line end, not counted)"})
 
 
+def use_skip_link(m: Meter, label_regex: str, log_label: str | None = None) -> bool:
+    """13Q-3: take a visible skip link the way a real keyboard member actually would, rather
+    than tab through the shared app nav + Journal tab bar to reach a spot a skip link already
+    reaches directly -- that chrome-walk cost is 13Q-2's own finding (section 4: Q2, Q4, Q9,
+    Q11, Q12, Q15, Q20 all pay it), not a cost this instrument should keep re-measuring once a
+    real door exists. The app shell portals every page's own skip link to the SAME early slot
+    right after "Skip to main content" (components/skipLinks.jsx), so reaching one costs at
+    most a handful of real Tab presses regardless of chrome size -- measured, not assumed, in
+    the re-run this fix is committed with. Mouse/taps never call this (nothing to skip with a
+    pointer or a finger; they already click/tap the real control directly). Returns whether a
+    matching, visible skip link was found and used -- a flow decides what to do if not (several
+    surfaces only have ONE skip link, and not every flow's target is behind one)."""
+    if m.mode != "keys":
+        return False
+    import re
+    link = m.pg.get_by_role("link", name=re.compile(label_regex, re.I)).filter(visible=True)
+    if link.count() == 0:
+        return False
+    m.press(link, log_label or f"skip link: {label_regex}")
+    return True
+
+
 def go_all_notes(m: Meter):
-    """From anywhere in the Notebook to the notes list (where + New note / Today / Templates live)."""
+    """From anywhere in the Notebook to the notes list (where + New note / Today / Templates live).
+    "All notes" lives in the folder sidebar, which renders BEFORE the Notebook's own main-pane
+    skip link target in DOM order, so the "Skip to note(s) list" link cannot reach it -- this
+    uses the SIBLING "Skip to folder navigation" link (FolderSidebar.jsx) instead, which lands
+    right at the top of the sidebar the row lives in."""
     pg = m.pg
     row = pg.locator("[data-all-notes-row]")
     try:
@@ -537,6 +588,7 @@ def go_all_notes(m: Meter):
         if toggle.count() == 0:
             raise Inconclusive("the 'All notes' row is not visible and no 'Show folders panel' toggle exists")
         m.press(toggle, "Show folders panel")
+    use_skip_link(m, r"Skip to folder navigation", "Skip to folder navigation")
     m.press(row, "All notes")
     pg.wait_for_url("**/journal/notebook?*view=*", timeout=20000)
 
@@ -613,6 +665,10 @@ def q1_new_blank(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_start(pg, cx.base, "/journal/notebook")
     go_all_notes(m)
+    # 13Q-3: "Templates" lives in the pane's own list header -- the SAME region "Skip to notes
+    # list" (NotebookTab.jsx) lands at, right past whatever remains of the sidebar after
+    # go_all_notes' own click (the Keys path there still leaves focus on the "All notes" row).
+    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
     dlg = pg.get_by_role("dialog", name="New note")
     dlg.wait_for(state="visible", timeout=20000)
@@ -670,6 +726,9 @@ def q4_search_open(cx: Ctx, pg, m: Meter, width: str) -> dict:
         if toggle.count():
             m.press(toggle, "Show folders panel")
         tab = pg.get_by_role("tab", name="Search notes").filter(visible=True)
+    # 13Q-3: "Search notes" lives in the folder sidebar, same region "Skip to folder
+    # navigation" (FolderSidebar.jsx) lands at -- a couple of presses, not a chrome walk.
+    use_skip_link(m, r"Skip to folder navigation", "Skip to folder navigation")
     m.press(tab, "Search notes tab")
     box = pg.get_by_label("Search your notes").filter(visible=True)
     focus_field(m, box, "Search your notes")
@@ -690,11 +749,13 @@ def q4_search_open(cx: Ctx, pg, m: Meter, width: str) -> dict:
 
 
 def q5_today(cx: Ctx, pg, m: Meter, width: str) -> dict:
+    # 13Q-3 (click-budget fix): bare-root Research Home now carries its own "Today" button
+    # (wired to the same openToday NotebookTab.jsx's list-header button already calls -- one
+    # authority), so mouse/taps no longer detour through "All notes" to reach it.
     open_start(pg, cx.base, "/journal/notebook")
     if m.mode == "keys":
         m.key("Control+Alt+d", "Today's note (Ctrl+Alt+D)")
     else:
-        go_all_notes(m)
         m.press(pg.get_by_role("button", name="Today", exact=True).filter(visible=True), "Today")
     nid = wait_note_open(pg)
     n = read_note(cx.req, cx.base, nid) or {}
@@ -756,9 +817,12 @@ def q6_link_trade(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def _trade_row(pg, sym: str):
     """The trade's row on the Trades surface: a table row on a wide screen, whatever control names
     the symbol on a phone layout. Returns a locator (possibly empty)."""
-    import re
     row = pg.locator("tr", has_text=sym).filter(visible=True)
-    alt = pg.locator("a, button, [role=button], [role=row], li", has_text=re.compile(rf"{sym}")).filter(visible=True)
+    # 13Q-3: was `has_text=re.compile(rf"\b{sym}\b")`, but the COMMITTED bytes were two literal
+    # backspace control characters (0x08) around {sym}, not the escape "\b" -- a pattern that can
+    # never match ordinary page text. Plain has_text=sym (row's own substring semantics) fixes it
+    # without any regex escaping. Evidence: docs/notebook/evidence/wave13-13q3/q6-q13-instrument-fix/.
+    alt = pg.locator("a, button, [role=button], [role=row], li", has_text=sym).filter(visible=True)
     end = time.time() + 20
     while time.time() < end:   # the trades table loads after the surface: wait for it, never sample once
         if row.count():
@@ -861,6 +925,10 @@ def q9_ask_insert(cx: Ctx, pg, m: Meter, width: str) -> dict:
     pg.route("**/api/j2/ask/stream", lambda route: route.fulfill(status=200, body=body,
                                                                   headers={"content-type": "text/event-stream"}))
     open_note_start(cx, pg, nid)
+    # 13Q-3: the Ask toggle sits in the sticky chrome, ABOVE the body the member's caret just
+    # landed in (setup) -- "Skip to editor toolbar" (NoteEditorPage.jsx) lands right before it,
+    # a couple of presses, instead of the editor's own ~80-tab-stop content tree.
+    use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
     m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
     import re
     box = pg.get_by_placeholder(re.compile("What did I say")).filter(visible=True)
@@ -911,6 +979,9 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
     ids = [fresh_note(cx, f"Bulk {tag} {i}") for i in range(5)]
     open_start(pg, cx.base, "/journal/notebook")
     go_all_notes(m)
+    # 13Q-3: the bulk-select checkboxes are in the pane's own grid -- "Skip to notes list"
+    # lands right before it, same reasoning as Q2.
+    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     try:
         pg.get_by_role("checkbox", name=f"Select Bulk {tag} 0").filter(visible=True).first.wait_for(
             state="visible", timeout=20000)
@@ -971,6 +1042,8 @@ def q12_export_word(cx: Ctx, pg, m: Meter, width: str) -> dict:
     nid = fresh_note(cx, f"Export target {_run_tag(cx, 'Q12', m.mode, width)}")
     open_note_start(cx, pg, nid)
     import re
+    # 13Q-3: "More note actions" sits in the sticky chrome, same reasoning as Q9's Ask toggle.
+    use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
     more = pg.locator("button[aria-label='More note actions']").filter(visible=True)
     m.press(more, "More note actions")
     panel = pg.locator("[role=group][aria-label='More note actions']")
@@ -1023,6 +1096,9 @@ def q13_plan_grade(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def q15_earnings_prep(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_start(pg, cx.base, "/journal/notebook")
     import re
+    # 13Q-3: bare-root Research Home's own content (ReportingSoon's "Create prep note"
+    # button) renders right after the pane heading "Skip to notes list" lands on.
+    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     btn = pg.get_by_role("button", name=re.compile(r"^(Create prep note for|Open the) NVDA")).filter(visible=True)
     try:
         btn.first.wait_for(state="visible", timeout=30000)
@@ -1042,10 +1118,17 @@ def q20_chart(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_note_start(cx, pg, nid)
     ins = pg.get_by_role("button", name="Insert widget").filter(visible=True)
     if ins.count() == 0:
+        # 13Q-3: "Format" (the phone formatting disclosure) is also in the sticky chrome --
+        # same reach as "Insert widget" itself, so the skip link helps BEFORE this branch too.
+        use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
         fmt = pg.get_by_role("button", name="Format").filter(visible=True)
         if fmt.count():
             m.press(fmt, "Format (phone toolbar)")
         ins = pg.get_by_role("button", name="Insert widget").filter(visible=True)
+    else:
+        # 13Q-3: desktop has no Format gate -- "Insert widget" is the LAST control in the
+        # toolbar, reached directly from the same skip link.
+        use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
     m.press(ins, "Insert widget")
     dlg = pg.get_by_role("dialog", name="Insert widget")
     dlg.wait_for(state="visible", timeout=10000)
@@ -1108,6 +1191,15 @@ def run_one(br, state, base: str, flow: Flow, mode: str, width: str, cx: Ctx, ou
     ctx = br.new_context(viewport=vp, has_touch=(width == "390"), is_mobile=(width == "390"),
                          reduced_motion="reduce", storage_state=state, accept_downloads=True)
     pg = ctx.new_page()
+    # 13Q-3 (Q1 fix verification): a brand-new background page never receives script-triggered
+    # keyboard focus in Chromium (by design -- a background tab must not steal focus), while
+    # synthetic clicks/taps/keypresses are unaffected by foreground state. Every OTHER row in
+    # this instrument only ever drives via synthetic input, which is why this was invisible
+    # everywhere except the one flow (Q1) whose outcome depends on a programmatic .focus() call.
+    # Diagnosed in 13Q-2 (docs/notebook/evidence/wave13-13q2/q1-focus-foreground-diagnosis/);
+    # fixed here, the 13Q-owning lane. A real member's tab is always foreground, so this makes
+    # the sandbox page behave like one.
+    pg.bring_to_front()
     pg.on("pageerror", lambda e: errors.append({"flow": flow.fid, "mode": mode, "width": width,
                                                  "error": str(e)[:300]}))
     pg.on("dialog", lambda d: d.accept())
