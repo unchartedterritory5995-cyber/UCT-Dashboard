@@ -27,6 +27,8 @@ import FilingChangesTab from './tabs/FilingChangesTab'
 import PeopleTab from './tabs/PeopleTab'
 import EstimateHistoryTab from './tabs/EstimateHistoryTab'
 import FilingsFeedTab from './tabs/FilingsFeedTab'
+import DepthTab from './depth/DepthTab'
+import { anyResearchDepth } from './depth/researchDepthFlags'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -120,13 +122,14 @@ import styles from './ResearchPage.module.css'
 // consensus got where it is), and "Filings feed" beside Filings (what SEC has
 // received, live, per ticker and market-wide). Each is DARK behind its own flag:
 // RESEARCH_PEOPLE_ENABLED, ESTIMATE_HISTORY_ENABLED, FILINGS_FEED_ENABLED.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Estimate history', 'Analyst Ratings', 'Ratings', 'Ownership', 'People', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filings feed', 'Filing changes', 'Ask AI', 'My Research']
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Estimate history', 'Analyst Ratings', 'Ratings', 'Ownership', 'People', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filings feed', 'Filing changes', 'Depth', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
   'filing-changes': 'Filing changes',
+  depth: 'Depth',
   overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', options: 'Options', seasonality: 'Seasonality', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
@@ -139,7 +142,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -173,7 +176,10 @@ export default function ResearchPage() {
     // COV-05 / COV-07 / COV-09: each dark behind its own flag.
     (t !== 'People' || researchPeopleEnabled === true) &&
     (t !== 'Estimate history' || estimateHistoryEnabled === true) &&
-    (t !== 'Filings feed' || filingsFeedEnabled === true))
+    (t !== 'Filings feed' || filingsFeedEnabled === true) &&
+    // lane gaps-research: the Depth tab exists while ANY of its panels' flags is on;
+    // each panel inside it is gated by its own flag (depth/researchDepthFlags.js).
+    (t !== 'Depth' || anyResearchDepth(researchDepth)))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -229,6 +235,7 @@ export default function ResearchPage() {
       {active === 'People' && <PeopleTab sym={sym} />}
       {active === 'Estimate history' && <EstimateHistoryTab sym={sym} />}
       {active === 'Filings feed' && <FilingsFeedTab sym={sym} />}
+      {active === 'Depth' && <DepthTab sym={sym} flags={researchDepth} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />

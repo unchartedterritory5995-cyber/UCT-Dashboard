@@ -1,0 +1,61 @@
+// FT-064 — the events panel, asserted on rendered text.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, cleanup } from '@testing-library/react'
+import { SWRConfig } from 'swr'
+import DepthTab from './DepthTab'
+
+const OK = {
+  ticker: 'AAPL', state: 'ok', reason: null, offset_unit: 'weekdays (Mon-Fri; exchange holidays are not removed)',
+  prints: [{ date: '2026-04-28', label: 'Q2', state: 'reported' }],
+  events: [
+    { date: '2026-04-24', kind: 'uct_catalyst', title: 'UCT catalyst engine: Earnings', detail: null,
+      source: 'UCT catalyst engine (catalysts.db)', print_date: '2026-04-28', print_label: 'Q2', print_state: 'reported', offset: -2, stage: 'T-2' },
+    { date: '2026-04-28', kind: 'earnings', title: 'Reported Q2', detail: 'EPS 1.1 vs 1.0 estimate',
+      source: 'earnings payload (earnings_intel)', print_date: '2026-04-28', print_label: 'Q2', print_state: 'reported', offset: 0, stage: 'T' },
+  ],
+  sources: { earnings: { state: 'ok', events: 1 }, uct_catalyst: { state: 'ok', events: 1 }, filing: { state: 'empty', events: 0 }, room_spike: { state: 'error', error: 'OperationalError' } },
+}
+let body
+beforeEach(() => {
+  body = OK
+  global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) }))
+})
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
+
+const renderTab = (flags = { events_timeline_enabled: true }) => render(
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <DepthTab sym="aapl" flags={flags} />
+  </SWRConfig>,
+)
+
+describe('EventsPanel', () => {
+  it('is not rendered when its flag is off', () => {
+    renderTab({})
+    expect(screen.queryByTestId('events-panel')).not.toBeInTheDocument()
+  })
+
+  it('stages each event against its print, newest first, and names its source', async () => {
+    renderTab()
+    const rows = await screen.findAllByTestId('event-row')
+    expect(rows[0].textContent).toContain('T Q2')
+    expect(rows[1].textContent).toContain('T-2 Q2')
+    expect(rows[1].textContent).toContain('UCT catalyst engine (catalysts.db)')
+  })
+
+  it('a source that could not be read is called missing, not absent', async () => {
+    renderTab()
+    expect((await screen.findByTestId('events-source-errors')).textContent).toContain('Could not read: Room')
+  })
+
+  it('prints the offset unit', async () => {
+    renderTab()
+    expect((await screen.findByTestId('events-unit')).textContent).toMatch(/holidays are not removed/)
+  })
+
+  it('unstaged events say why', async () => {
+    body = { ...OK, state: 'unstaged', reason: 'no reported or scheduled print on file', events: [] , sources: {} }
+    renderTab()
+    expect((await screen.findByTestId('events-unstaged')).textContent).toMatch(/no reported or scheduled print/)
+    expect(screen.getByTestId('events-empty')).toBeInTheDocument()
+  })
+})

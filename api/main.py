@@ -8188,6 +8188,36 @@ async def lifespan(app: FastAPI):
             print("[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)")
         except Exception as e:
             print(f"[startup] COV-07/09 job registration failed (non-fatal): {e}")
+        # Research depth (lane gaps-research): each job is ALWAYS registered and checks its
+        # own surface flag on every run, so arming takes effect without a scheduler change
+        # and unset does nothing at all.
+        try:
+            def _filing_search_reindex_job():
+                from api.services import filing_search as _fs
+                r = _fs.run_reindex()
+                if not r.get("skipped"):
+                    print(f"[scheduler] filing search reindex: {r}")
+
+            _scheduler.add_job(
+                _filing_search_reindex_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=3, minute=40, timezone=_ET),
+                id="filing_search_reindex", max_instances=1, replace_existing=True, coalesce=True,
+            )
+
+            def _ftd_ingest_job():
+                from api.services import ftd_dataset as _ftd
+                r = _ftd.run_ingest()
+                if not r.get("skipped"):
+                    print(f"[scheduler] SEC fails-to-deliver ingest: {r}")
+
+            _scheduler.add_job(
+                _ftd_ingest_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=10, timezone=_ET),
+                id="ftd_ingest", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] research depth jobs scheduled (flag-gated per run)")
+        except Exception as e:
+            print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
@@ -9152,6 +9182,8 @@ from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01
 app.include_router(seasonality_router.router)
 from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-05/07/09, dark)
 app.include_router(research_cov_router.router)
+from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
+app.include_router(research_depth_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)

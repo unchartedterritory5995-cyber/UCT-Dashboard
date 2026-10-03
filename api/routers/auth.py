@@ -266,6 +266,33 @@ def _options_screener_flag() -> dict:
         return {}
 
 
+# Research > Depth panels (lane gaps-research): payload key -> the service module whose
+# `is_enabled()` is that surface's ONE gate (the same reader its routes' dark gate uses).
+_RESEARCH_DEPTH_SURFACES = (
+    ("filing_search_enabled", "filing_search"),
+    ("earnings_reaction_panel_enabled", "earnings_reaction_panel"),
+    ("events_timeline_enabled", "events_timeline"),
+    ("ftd_dataset_enabled", "ftd_dataset"),
+    ("mention_series_enabled", "mention_series"),
+    ("broker_estimates_enabled", "broker_estimates"),
+)
+
+
+def _research_depth_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
+    this payload is byte-identical to before the lane. The client reads `=== true`.
+    Never raises; a surface whose module cannot be read is simply absent."""
+    import importlib
+    out = {}
+    for key, mod in _RESEARCH_DEPTH_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
 def _options_vol_surface_enabled() -> bool:
     """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
     surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
@@ -607,6 +634,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
         **_options_screener_flag(),
+        **_research_depth_flags(),
         **_charts_list_subscribe_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────

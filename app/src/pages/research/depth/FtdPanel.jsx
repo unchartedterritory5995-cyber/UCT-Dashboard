@@ -1,0 +1,63 @@
+import useSWR from 'swr'
+import { depthFetcher } from './depthFetch'
+import styles from './Depth.module.css'
+
+// FT-068 — SEC fails-to-deliver as its own dataset. DARK behind FTD_DATASET_ENABLED.
+//
+// ⛔ Each figure is a BALANCE on a settlement date, never summed across days.
+// ⛔ "No fails reported in the window" and "nothing ingested yet" are different
+//    facts and read differently.
+// ⛔ The window covered is always stated; SEC data is weeks old by design.
+
+const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('en-US'))
+const usd = (n) => (n == null ? '—' : `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
+
+export default function FtdPanel({ sym }) {
+  const s = (sym || '').toUpperCase().trim()
+  const { data, error } = useSWR(s ? `/api/research/ftd/${encodeURIComponent(s)}` : null,
+    depthFetcher, { revalidateOnFocus: false })
+
+  let body
+  if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.</div>
+  else if (!data) body = <div className={styles.note}>Loading fails to deliver…</div>
+  else if (data.paywalled) body = <div className={styles.note}>Fails to deliver requires a paid plan.</div>
+  else if (data.state === 'not_ingested') body = <div className={styles.note} data-testid="ftd-not-ingested">{data.reason}.</div>
+  else if (data.state === 'none_reported') body = <div className={styles.note} data-testid="ftd-none">{data.reason}.</div>
+  else {
+    const pts = [...(data.points || [])].reverse()
+    body = (
+      <div data-testid="ftd">
+        <p className={styles.lede} data-testid="ftd-summary">
+          Latest balance {fmt(data.latest.quantity)} shares ({usd(data.latest.value)}) on {data.latest.settle_date};
+          {' '}largest in the window {fmt(data.peak.quantity)} on {data.peak.settle_date}; reported on {data.days_reported} settlement dates
+          {' '}between {data.window.from} and {data.window.through}.
+        </p>
+        {data.mismatched_files?.length > 0 && (
+          <p className={styles.error} data-testid="ftd-mismatch">Files whose row count did not match their trailer: {data.mismatched_files.join(', ')}.</p>
+        )}
+        <div className={styles.scroll}>
+          <table className={styles.grid}>
+            <thead><tr><th scope="col">Settlement date</th><th scope="col">Fails (shares)</th><th scope="col">Price</th><th scope="col">Value</th></tr></thead>
+            <tbody>
+              {pts.slice(0, 60).map((p) => (
+                <tr key={p.settle_date} data-testid="ftd-row">
+                  <th scope="row">{p.settle_date}</th><td>{fmt(p.quantity)}</td>
+                  <td>{p.price == null ? '—' : p.price.toFixed(2)}</td><td>{usd(p.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <section className={styles.panel} data-testid="ftd-panel">
+      <h3 className={styles.panelTitle}>Fails to deliver (SEC)</h3>
+      {body}
+      {data && !data.paywalled && !error && (
+        <p className={styles.muted} data-testid="ftd-basis">{data.basis} Source: {data.source}.</p>
+      )}
+    </section>
+  )
+}

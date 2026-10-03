@@ -517,5 +517,22 @@ describe.each([
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(screen.getByText(loading)).toBeInTheDocument()
+// lane gaps-research -- the Depth tab exists only while one of its panels' flags is on
+// (each key rides the auth payload only when on; researchDepthFlags.js).
+describe('Depth tab (lane gaps-research, dark per panel)', () => {
+  beforeEach(() => { auth.isPaid = true; auth.researchDepth = undefined })
+  afterEach(() => { auth.researchDepth = undefined })
+
+  it('is ABSENT from the strip when every panel flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=depth' })
+    expect(screen.queryByRole('button', { name: 'Depth' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and shows only the armed panel when one flag is on', () => {
+    auth.researchDepth = { filing_search_enabled: true }
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Depth' }))
+    expect(screen.getByTestId('filing-search')).toBeInTheDocument()
   })
 })

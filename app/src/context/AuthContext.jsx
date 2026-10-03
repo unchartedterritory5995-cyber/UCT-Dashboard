@@ -4,6 +4,7 @@ import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
+import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 
 export const AuthContext = createContext(null)
 
@@ -47,6 +48,8 @@ export function AuthProvider({ children }) {
   const [researchPeopleEnabled, setResearchPeopleEnabled] = useState(false)
   const [estimateHistoryEnabled, setEstimateHistoryEnabled] = useState(false)
   const [filingsFeedEnabled, setFilingsFeedEnabled] = useState(false)
+  // Research > Depth: one boolean per surface, all false until the payload says otherwise.
+  const [researchDepth, setResearchDepth] = useState(() => readResearchDepth(null))
   const [cohortsWithdrawn, setCohortsWithdrawn] = useState([])
   // RM-N11 item 4's client half: the EFFECTIVE cohort list `_access_payload`
   // serves (`rollout_gate.client_cohorts` -- kill switch evaluated first, so a
@@ -123,6 +126,8 @@ export function AuthProvider({ children }) {
     ['estimate_history_enabled', (d) => d.estimate_history_enabled === true, setEstimateHistoryEnabled],
     ['filings_feed_enabled', (d) => d.filings_feed_enabled === true, setFilingsFeedEnabled],
     ['cohorts', (d) => (Array.isArray(d.cohorts) ? d.cohorts.filter((c) => typeof c === 'string') : []), setCohorts],
+    // Research > Depth: several keys, each present only when on (researchDepthFlags.js).
+    ['research_depth', readResearchDepth, setResearchDepth],
     ['cohorts_withdrawn', (d) => (Array.isArray(d.cohorts_withdrawn) ? d.cohorts_withdrawn : []), setCohortsWithdrawn],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
@@ -333,7 +338,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
