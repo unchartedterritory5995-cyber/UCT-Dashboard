@@ -71,6 +71,8 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     built = buildRuntimeIr(String(source || ''), {
       bars: [], inputs: {}, ...(objectsInRun ? { objectsInRun: true } : { objectTrees: [] }),
       ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      // ⭐ RT6 — the pane's own build: each plot's `color =` is an output too.
+      plotColours: true,
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -92,7 +94,10 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
   // bars, so the member door declines a program that has any.
   return {
     ok: true,
-    outputs: program.outputs.map((o) => ({ call: o.call })),
+    // ⭐ RT6 — each descriptor carries what the door needs to carry a colour:
+    // `colour` (`{output}` or `{refused}`), `of` (a colour output's plot),
+    // `transp`, `colourOpaque`, `line`. Absent unless the call said something.
+    outputs: program.outputs.map((o) => ({ ...o })),
     naTests: naTestsOf(program),
     requests: (built.ir.requests || []).length,
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
@@ -226,6 +231,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
     pane: true,
+    // ⭐ RT6 — the same build the door probed: each plot's `color =` is an
+    // output too, appended after every other, so `compute.outputs` indices a
+    // document minted before RT6 still name the same columns.
+    plotColours: true,
     ...(symbol ? { symbol } : {}),
     ...(tf ? { basePeriod: tf, tf } : {}),
     ...clock,

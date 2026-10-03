@@ -12,8 +12,10 @@ the server half, with `PINE_RUNTIME_SAVE_ENABLED` ON in a TEST (never production
 * the repaint class is RE-DERIVED server side (RT2) and equals what the door
   stated — and a document that lies about it in either direction is refused;
 * a member's edit (a new source) appends a version and bumps `rev`;
-* a document over the store's size cap is refused BY NAME — measured here:
-  trend-targets-algoalpha's document is larger than `MAX_DEFINITION_BYTES`;
+* a document over the store's size cap is refused BY NAME. ⭐ GT (D2): a
+  RUNTIME document's cap is `runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES`
+  (128 KiB), so trend-targets-algoalpha (~84 KB, over the formula's 64 KiB)
+  now SAVES; a document padded past 128 KiB is refused with that number;
 * with the switch OFF the store refuses every one with its own sentence;
 * a kill-listed script is served stamped (and the client install door refuses
   the stamp), and comes back unchanged when unlisted — nothing deleted.
@@ -45,8 +47,10 @@ def _blob_size(definition: dict) -> int:
                           ensure_ascii=False).encode("utf-8"))
 
 
-FITS = [d for d in DOCS if _blob_size(d["definition"]) <= svc.MAX_DEFINITION_BYTES]
-TOO_BIG = [d for d in DOCS if _blob_size(d["definition"]) > svc.MAX_DEFINITION_BYTES]
+FITS = [d for d in DOCS if _blob_size(d["definition"]) <= rt.RUNTIME_MAX_DEFINITION_BYTES]
+TOO_BIG = [d for d in DOCS if _blob_size(d["definition"]) > rt.RUNTIME_MAX_DEFINITION_BYTES]
+#: GT (D2) — the documents the FORMULA cap would refuse and the runtime cap admits.
+OVER_FORMULA_CAP = [d for d in DOCS if _blob_size(d["definition"]) > svc.MAX_DEFINITION_BYTES]
 
 
 @pytest.fixture
@@ -55,6 +59,12 @@ def store(tmp_path, monkeypatch):
     svc._init_db()
     monkeypatch.delenv(rt.SAVE_ENV, raising=False)
     monkeypatch.delenv(rt.KILL_ENV, raising=False)
+    # ⭐ GT — this file proves the STORE's round trip on all six real documents,
+    # so it opens the two doors GT added in front of it: the stage for everyone
+    # and every one of the six on the allowlist. `test_pine_runtime_switch_on.py`
+    # rails those doors themselves (who, and which scripts).
+    monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
+    monkeypatch.setenv(rt.ALLOW_ENV, ",".join(d["definition"]["meta"]["runtimeSourceHash"] for d in DOCS))
     return tmp_path
 
 
@@ -74,6 +84,10 @@ def test_the_fixture_is_the_six_runtime_only_documents():
     assert all(d["definition"]["compute"]["kind"] == "runtime" for d in DOCS)
     assert len(FITS) + len(TOO_BIG) == len(DOCS)
     assert len(FITS) >= 1
+    # ⭐ GT (D2): all six now fit, and the one the formula cap refused is the
+    # measured trend-targets document — if this moves, re-read D2.
+    assert TOO_BIG == []
+    assert [d["slug"] for d in OVER_FORMULA_CAP] == ["trend-targets-algoalpha"]
 
 
 @pytest.mark.parametrize("doc", FITS, ids=[d["slug"][:30] for d in FITS])
@@ -85,7 +99,12 @@ def test_ON_a_saved_runtime_document_reloads_identically_with_its_class_rederive
     # RT2: the class is re-derived from the source, and equals what the door stated
     derived = runtime_repaint.runtime_repaint_of(d["compute"]["source"])["mode"]
     assert derived == d["meta"]["repaint"]
-    assert set(row["repaint"].values()) == {derived}
+    if d["compute"]["outputs"]:
+        assert set(row["repaint"].values()) == {derived}
+    else:
+        # RT5: a document that draws ONLY its own objects carries no row to label;
+        # the class still rides meta.repaint (asserted above), and it must draw.
+        assert d["compute"].get("objects") is True
     assert set(row["repaint"]) == set(d["compute"]["outputs"])
     # reload: byte-for-byte the document that was saved
     assert svc.get(USER, d["id"])["definition"] == d
@@ -108,6 +127,9 @@ def test_an_edit_to_the_source_is_a_new_version_and_a_new_rev(store, monkeypatch
     d = copy.deepcopy(doc["definition"])
     first = svc.save(USER, d["id"], copy.deepcopy(d))
     d["compute"]["source"] += "\n// a member's edit\n"
+    # ⭐ GT (D6): an edited source is a DIFFERENT script to the allowlist (its
+    # sha256 moves), so it is graded on its own line before it can be stored.
+    monkeypatch.setenv(rt.ALLOW_ENV, rt.source_hash(d["compute"]["source"]))
     second = svc.save(USER, d["id"], d)
     assert (second["version"], second["rev"], second["rev_bumped"]) == \
         (first["version"] + 1, first["rev"] + 1, True)
@@ -115,14 +137,27 @@ def test_an_edit_to_the_source_is_a_new_version_and_a_new_rev(store, monkeypatch
     assert svc.get(USER, d["id"], 1)["definition"]["compute"]["source"] == doc["definition"]["compute"]["source"]
 
 
-@pytest.mark.parametrize("doc", TOO_BIG, ids=[d["slug"][:30] for d in TOO_BIG])
-def test_a_runtime_document_over_the_size_cap_is_refused_by_name(store, monkeypatch, doc):
-    """Measured: the store refuses these by its own sentence. The member door
-    offers them as saveable, so the member reads this sentence on Save."""
+@pytest.mark.parametrize("doc", OVER_FORMULA_CAP, ids=[d["slug"][:30] for d in OVER_FORMULA_CAP])
+def test_GT_D2_a_runtime_document_over_the_FORMULA_cap_saves_under_the_runtime_cap(store, monkeypatch, doc):
+    """⭐ GT (D2): RF measured trend-targets refused by the 64 KiB formula cap.
+    A runtime document's cap is 128 KiB, so it saves and reloads identically."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     d = doc["definition"]
-    with pytest.raises(ValueError, match=rf"definition exceeds {svc.MAX_DEFINITION_BYTES} bytes"):
-        svc.save(USER, d["id"], copy.deepcopy(d))
+    assert svc.MAX_DEFINITION_BYTES < _blob_size(d) <= rt.RUNTIME_MAX_DEFINITION_BYTES
+    assert svc.save(USER, d["id"], copy.deepcopy(d))["appended"] is True
+    assert svc.get(USER, d["id"])["definition"] == d
+
+
+def test_GT_D2_a_runtime_document_over_the_RUNTIME_cap_is_refused_by_name(store, monkeypatch):
+    """The runtime cap is still a cap: a real document padded past 128 KiB is
+    refused with the runtime number in the sentence, and nothing is stored."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = copy.deepcopy(FITS[0]["definition"])
+    pad = rt.RUNTIME_MAX_DEFINITION_BYTES - _blob_size(d) + 64
+    d["meta"]["description"] = (d["meta"].get("description") or "") + "x" * pad
+    assert _blob_size(d) > rt.RUNTIME_MAX_DEFINITION_BYTES
+    with pytest.raises(ValueError, match=rf"definition exceeds {rt.RUNTIME_MAX_DEFINITION_BYTES} bytes"):
+        svc.save(USER, d["id"], d)
     assert svc.get(USER, d["id"]) is None
 
 

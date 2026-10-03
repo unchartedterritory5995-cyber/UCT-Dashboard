@@ -13,9 +13,9 @@
 //   - v4 `?:`: MEASURED (the two v4 captures; the vendor rail is
 //     `vendorHarness.rt1RuntimeFallback.test.js`).
 //   - v5/v6 `?:`, v6 `not`: argued from Pine (`pineBool`'s comment).
-//   - v4/v5 `or` / `not` over a value that can be `na`: NOT SETTLED — counted
-//     (`naTestsOf`), so the member door declines the script by name. `and`
-//     is settled wherever it is tested, so it is not counted.
+//   - v4/v5 `and` / `or` / `not` over a value that can be `na`: MEASURED by
+//     F2 (Q-NL captures `rt3-na-logic` / `-v4`) — the `na` operand is false,
+//     the answer never `na`; no longer counted.
 //   - below v4: nothing claimed — `TERNARY`'s `na`, counted.
 //
 // Every assertion runs the RUNTIME lane end to end from Pine source, and each
@@ -29,6 +29,7 @@ import { lowerIrProgram, naTestsOf } from '../lowerIr.js'
 import { execute } from '../vm.js'
 
 const N = 6
+const NL = String.fromCharCode(10)
 // open alternates 100/101 and close climbs from 100, so `close > open` is
 // false on bars 0-1 and true from bar 2.
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -97,21 +98,44 @@ describe('⭐ `and` stays eager and is settled wherever it is tested — never c
   })
 })
 
-describe('⛔ v4/v5 `or` / `not` over a value that can be `na`: COUNTED, never claimed', () => {
-  it.each([4, 5])('v%i `or`: counted', (v) => {
-    expect(runPine(v, `${NA_FIRST}plot((x or false) ? 1 : 2)\n`).naTests).toBe(1)
+describe('⭐⭐ F2 — v4/v5 `and` / `or` / `not` over a value that can be `na`: SETTLED (Q-NL), the `na` operand reads as false', () => {
+  // MEASURED (CAP2 `rt3-na-logic` v5 / `-v4`, RDDT 1D from the listing): an `na`
+  // operand of `and` / `or` / `not` is FALSE and the answer is never `na`.
+  // `x` is `na` on bar 0 and 99..104 after (truthy), so bar 0 answers by the rule
+  // and bars 1..5 are the control.
+  it.each([4, 5])('v%i `or`: `(x or false)` on an `na` x is false — 2 on bar 0, uncounted', (v) => {
+    const { out, naTests } = runPine(v, `${NA_FIRST}plot((x or false) ? 1 : 2)
+`)
+    expect(out[0]).toBe(2)
+    expect(out.slice(1)).toEqual(Array(N - 1).fill(1))
+    expect(naTests).toBe(0)
   })
-  it.each([4, 5])('v%i `not`: counted', (v) => {
-    expect(runPine(v, `${NA_FIRST}plot((not x) ? 1 : 2)\n`).naTests).toBe(1)
+  it.each([4, 5])('v%i `not`: `(not x)` on an `na` x is true — 1 on bar 0, uncounted', (v) => {
+    const { out, naTests } = runPine(v, `${NA_FIRST}plot((not x) ? 1 : 2)
+`)
+    expect(out[0]).toBe(1)
+    expect(out.slice(1)).toEqual(Array(N - 1).fill(2))
+    expect(naTests).toBe(0)
+  })
+  it.each([4, 5])('v%i: `na(x or false)` and `na(not x)` are never `na`', (v) => {
+    expect(runPine(v, `${NA_FIRST}plot(na(x or false) ? 1 : 2)
+`).out).toEqual(Array(N).fill(2))
+    expect(runPine(v, `${NA_FIRST}plot(na(not x) ? 1 : 2)
+`).out).toEqual(Array(N).fill(2))
   })
   it('control: an `or` / `not` over comparisons is 0/1 and not counted', () => {
-    expect(runPine(5, `${NA_FIRST}plot((x > open or not (x < open)) ? 1 : 2)\n`).naTests).toBe(0)
+    expect(runPine(5, `${NA_FIRST}plot((x > open or not (x < open)) ? 1 : 2)
+`).naTests).toBe(0)
   })
   it('v6: a `bool` cannot be `na` — `b[1]` on bar 0 is false — so `not b[1]` there is true, uncounted', () => {
     // b = [F, F, T, T, T, T]; b[1] = [false (held as NaN), F, F, T, T, T]
-    const { out, naTests } = runPine(6, 'bool b = false\nb := close > open\nc = b[1]\nplot(not c ? 1 : 2)\n')
+    const { out, naTests } = runPine(6, 'bool b = false' + NL + 'b := close > open' + NL + 'c = b[1]' + NL + 'plot(not c ? 1 : 2)' + NL)
     expect(out).toEqual([1, 1, 1, 2, 2, 2]) // bars 1-5 are the control: a real `b[1]`
     expect(naTests).toBe(0)
+  })
+  it('⛔ off the listing the shared `logical` / `!` stand: `not x` on bar 0 is `na`', () => {
+    expect(Number.isNaN(runPine(5, `${NA_FIRST}plot((not x) ? 1 : 2)
+`, false).out[0])).toBe(true)
   })
 })
 

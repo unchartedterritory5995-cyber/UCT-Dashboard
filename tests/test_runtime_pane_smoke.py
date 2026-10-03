@@ -49,3 +49,24 @@ def test_the_smoke_document_is_in_the_fixture():
     mod = _load()
     docs = json.loads(mod.FIXTURE.read_text(encoding="utf-8"))["documents"]
     assert any(d["slug"] == mod.SMOKE_SLUG for d in docs)
+
+
+def test_GT_the_stage_check_says_yes_and_no():
+    """GT: `--expect-pane` turns the per-member gate into a verdict. It must fail
+    on the wrong answer, on a missing key, and on an allowlist without the graded
+    script; and report-only (no expectation) never fails."""
+    mod = _load()
+    g = "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499"
+    assert mod.stage_verdict("on", True, [g], g) == []
+    assert mod.stage_verdict("off", False, [g], g) == []
+    assert mod.stage_verdict(None, "anything", None, g) == []
+    assert mod.stage_verdict("on", False, [g], g)
+    assert mod.stage_verdict("off", True, [g], g)
+    assert mod.stage_verdict("on", None, [g], g)
+    assert mod.stage_verdict("on", True, [], g)
+
+
+def test_GT_the_self_check_fails_when_the_stage_check_is_broken():
+    mod = _load()
+    mod.stage_verdict = lambda expect, pane, allow, graded_hash: []
+    assert mod.self_check() == 1

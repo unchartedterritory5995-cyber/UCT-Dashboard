@@ -32,7 +32,7 @@ import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
-import { runtimeKillOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
@@ -846,6 +846,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
  *  in its disclosure when the script writes one (`RUNTIME_UNDRAWN_KINDS`). */
 const RUNTIME_ROW_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
 
+/** ⭐ RT6 — the host paint withholdings a runtime document can lift: the colour
+ *  (the run computes it) and a v4 `bgcolor`'s default transparency (CAP round 4
+ *  measured it: 90). Every other code is about WHERE or WHETHER TradingView draws
+ *  the paint, which a run does not answer. */
+const RUNTIME_PAINT_COLOUR_CODES = new Set(['paint:colour', 'paint:v4-default-transp'])
+
 /** ⭐ RT1 — what the host translation lists and a runtime document does NOT draw.
  *  Said to the member by name rather than left to look like the whole script. */
 const RUNTIME_UNDRAWN_KINDS = Object.freeze({
@@ -881,18 +887,83 @@ const RUNTIME_UNDRAWN_KINDS = Object.freeze({
  *  and the vendor harness grades a wrong colour DIVERGE — a wrong drawing, which
  *  this lane must not introduce.
  *
- *  @returns {{ok: true, p: object} | {ok: false, why: string}} */
-function runtimeRowPresentation(o, version) {
+ *  ⭐⭐ RT6 — A PER-BAR COLOUR IS NOW CARRIED, FROM THE SAME RUN. The runtime
+ *  lane computes the plot's `color =` as an output of the run that computes its
+ *  value (`pineRuntimeFrontend.js::describeColour`, `plotColours`), so the row
+ *  reads its colour per bar from a hidden column (`colorPacked`), drawn by the
+ *  renderer the host lane's rows use (`pool.columnColorsForPlot` →
+ *  `binder.pointColour`). Pine's `na` colour draws nothing there. Still WITHHELD
+ *  BY NAME, each with its reason: a colour this lane could not compute; a shape
+ *  (`plotshape` / `plotchar`) — the marker layer reads two colours, not a column;
+ *  a script below v4 (no capture of its colour rules); a `transp =` this door
+ *  cannot read, or one over a colour that may carry its own transparency (the
+ *  vendor folds a style transparency into an OPAQUE colour only, and which bars
+ *  are opaque is not provable here).
+ *
+ *  @param {object} o  the host output
+ *  @param {number|null} version  the script's Pine version
+ *  @param {object} [ro]  the runtime lane's descriptor for the same output
+ *  @returns {{ok: true, p: object, colourOutput?: number} | {ok: false, why: string}} */
+function runtimeRowPresentation(o, version, ro = null) {
   if (o.refusal && !o.presentation) {
     return { ok: false, why: 'its colour and style could not be read from the call' }
   }
   const raw = o.presentation || {}
   if (raw.colorDynamic || raw.colorDynamicArity !== undefined || raw.colorUp !== undefined
     || raw.colorDown !== undefined || raw.colorPalette !== undefined || raw.colorGradient !== undefined) {
-    return { ok: false, why: 'its colour changes from bar to bar, which a script drawn bar by bar does not carry yet' }
+    const packed = runtimeRowColour(o, version, ro)
+    if (!packed.ok) return packed
+    const p = { ...raw }
+    for (const k of ['color', 'opacity', 'colorDynamic', 'colorDynamicArity', 'colorUp', 'colorDown',
+      'colorCondition', 'colorPalette', 'colorIndex', 'colorGradient', 'colorNaGated']) delete p[k]
+    p.colorPacked = packed.colorPacked
+    return { ok: true, p, colourOutput: packed.colourOutput }
   }
   return { ok: true, p: tradingViewDefaultColour(o, version) }
 }
+
+/** ⭐⭐ RT6 — the run's colour column for a row whose colour changes per bar, or
+ *  the reason it is withheld. One reader for the plot rows; the paints have their
+ *  own (`runtimePaintColour`) because their style transparency differs. */
+function runtimeRowColour(o, version, ro) {
+  const why = (w) => ({ ok: false, why: `its colour changes from bar to bar, and ${w}` })
+  if (o.kind !== 'plot') return why('a shape whose colour changes per bar is not carried by this lane yet')
+  if (!(Number.isInteger(version) && version >= 4)) {
+    return why(`the colour rules of a v${version ?? '1'} script have no capture here`)
+  }
+  const c = ro && ro.colour
+  if (!c || !Number.isInteger(c.output)) {
+    return why(c && c.refused ? `this lane could not compute it (${c.refused})` : 'this lane could not find its `color =`')
+  }
+  if (ro.transp === 'unread') return why('its `transp =` is not a whole number written in the call')
+  const t = Number.isInteger(ro.transp) ? ro.transp : null
+  if (t !== null && t > 0 && ro.colourOpaque !== true) {
+    return why('its `transp =` applies over a colour that may carry its own transparency, which no capture shows')
+  }
+  return { ok: true, colourOutput: c.output, colorPacked: t !== null && t > 0 ? { transparency: t } : {} }
+}
+
+/** ⭐⭐ RT6 — a `bgcolor` / `barcolor`'s colour from the run (the paint's output
+ *  IS its colour), with its style transparency: `transp =` as written, or — CAP
+ *  round 4, `vw-bgcolor-v4-default-spy-1d-2026-10-02`: a v3/v4 `bgcolor` with no
+ *  `transp` draws at transparency 90 (`styleState` T1/T3 = 90, T2 = 0). Folded
+ *  into an opaque colour only, so it is carried only over a colour provably
+ *  opaque on every bar. */
+function runtimePaintColour(kind, version, ro) {
+  if (!(Number.isInteger(version) && version >= 4)) {
+    return { ok: false, why: `the paint rules of a v${version ?? '1'} script have no capture here` }
+  }
+  if (ro.transp === 'unread') return { ok: false, why: 'its `transp =` is not a whole number written in the call' }
+  let t = Number.isInteger(ro.transp) ? ro.transp : null
+  if (t === null && kind === 'bgcolor' && version <= 4) t = V4_BGCOLOR_DEFAULT_TRANSP
+  if (t !== null && t > 0 && ro.colourOpaque !== true) {
+    return { ok: false, why: 'a transparency applies over a colour that may carry its own, which no capture shows' }
+  }
+  return { ok: true, colorPacked: t !== null && t > 0 ? { transparency: t } : {} }
+}
+
+/** CAP round 4 — a v4 `bgcolor` with no `transp` (`vw-bgcolor-v4-default`). */
+const V4_BGCOLOR_DEFAULT_TRANSP = 90
 
 /** ⭐ RT1 — a plot drawn away from its own bar (`offset`). A runtime document
  *  draws each value ON the bar that computed it; a shifted plot would be drawn
@@ -945,6 +1016,12 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // the store and comes back the moment it is unlisted.
   const killed = runtimeKillOf({ source, defId: id })
   if (killed) return decline('runtime:killed', killed)
+  // ⭐⭐ GT (2026-10-02, owner ruling D6) — THE STARTER ALLOWLIST, right after the
+  // kill list: only a script graded MATCH against a TradingView capture (the
+  // server's list, latched from the kill-list read) is drawn bar by bar. Every
+  // other script declines by name and the member reads the host lane's sentence.
+  const notGraded = runtimeNotGradedOf({ source })
+  if (notGraded) return decline('runtime:not-yet-graded', notGraded)
   // ⭐⭐ RT2 — THE DOCUMENT'S REPAINT CLASS, STATED (`runtimeRepaintOf`): the
   // host linter's three-word vocabulary, by the host's reach -> class rule, over
   // the reads the program makes. Every row carries it as its `mode` and as its
@@ -1024,9 +1101,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       withheld.push({ label, why: 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it' })
       continue
     }
-    const pres = runtimeRowPresentation(o, t && t.version)
+    const out = runtimeByKind.get(o.kind)[ord]
+    const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
     if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
-    carried.push({ o, index, p: pres.p, out: runtimeByKind.get(o.kind)[ord] })
+    carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput })
   }
   if (!carried.length && !ownObjects) {
     return decline(withheld.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', withheld.length
@@ -1034,9 +1112,37 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       : 'the script declares nothing a chart row draws')
   }
   const outputs = {}
-  const rows = carried.slice(0, CARRY_MAX).map(({ o, index, p, out }, i) => {
+  const drawnRows = carried.slice(0, CARRY_MAX)
+  // ⭐⭐ RT6 — THE COLOUR COLUMNS, minted AFTER the drawn rows (a derived column
+  // never competes for an author's slot — the host lane's `conditionRows` rule):
+  // one hidden row per run colour output, each mapped to that output index.
+  // `colourKeyOf` is shared by the plot rows and the paints below.
+  const colourRows = []
+  const colourKeyByOutput = new Map()
+  const colourKeyOf = (outputIndex) => {
+    if (colourKeyByOutput.has(outputIndex)) return colourKeyByOutput.get(outputIndex)
+    const key = keyAt(drawnRows.length + colourRows.length)
+    outputs[key] = outputIndex
+    colourKeyByOutput.set(outputIndex, key)
+    colourRows.push({
+      key,
+      label: '',
+      source: '0',
+      ast: { type: 'num', value: 0 },
+      mode: repaint.mode,
+      readback: '',
+      style: 'line',
+      // ⛔ HIDDEN: a colour column draws nothing itself; the row that names it does.
+      hidden: true,
+      colourFor: outputIndex,
+    })
+    return key
+  }
+  const packedOf = new Map()
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput }, i) => {
     const key = keyAt(i)
     outputs[key] = out
+    if (Number.isInteger(colourOutput)) packedOf.set(key, { colorMode: `column:${colourKeyOf(colourOutput)}`, colorPacked: p.colorPacked })
     return {
       key,
       label: o.title || '',
@@ -1058,6 +1164,50 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       output: index,
     }
   })
+  // ⭐⭐ RT6 — THE PAINTS (`bgcolor` / `barcolor`), FROM THE SAME RUN. The runtime
+  // lane already emits each paint's colour per bar (its output IS the colour);
+  // the host translation's paint records (`t.presentation.paints`, B1) say what
+  // the call wrote around it — its line, title, `display`, `offset`, `show_last`.
+  // Paired by kind and source order, the rule the host and the vendor harness
+  // use (Pine allows these calls only at global scope); a count that disagrees
+  // carries none of that kind. A paint the host withheld for a reason OTHER than
+  // its colour (an offset, `show_last`, an argument it cannot read, …) stays
+  // withheld here: the run computes a colour, not where TradingView draws it.
+  const docPaints = []
+  const paintWithheld = []
+  {
+    const hostPaints = ((t.presentation || {}).paints || []).filter(Boolean)
+    for (const kind of ['bgcolor', 'barcolor']) {
+      const hk = hostPaints.filter((p) => p.kind === kind)
+      const rk = runtimeByKind.get(kind) || []
+      if (!hk.length) continue
+      if (hk.length !== rk.length) {
+        for (const p of hk) {
+          if (p.hidden || p.na) continue
+          paintWithheld.push({ p, why: `the two lanes disagree on how many \`${kind}\` calls the script has (${hk.length} against ${rk.length})` })
+        }
+        continue
+      }
+      hk.forEach((p, i) => {
+        // A paint its author hid, or coloured `na`, draws nothing on TradingView either.
+        if (p.hidden || p.na) return
+        if (p.withheld && !RUNTIME_PAINT_COLOUR_CODES.has(p.withheld.code)) {
+          paintWithheld.push({ p, why: p.withheld.reason })
+          return
+        }
+        const ro = probe.outputs[rk[i]]
+        const c = runtimePaintColour(kind, t && t.version, ro)
+        if (!c.ok) { paintWithheld.push({ p, why: c.why }); return }
+        docPaints.push({
+          kind,
+          ...(Number.isInteger(p.line) ? { line: p.line } : {}),
+          ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+          colorMode: `column:${colourKeyOf(rk[i])}`,
+          colorPacked: c.colorPacked,
+        })
+      })
+    }
+  }
   const objectsGate = paneObjectsGate(t)
   const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
@@ -1078,7 +1228,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       mode: repaint.mode,
       readback: '',
       inputs: withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null),
-      plots: rows,
+      plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true)
         ? { target: 'price' }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
@@ -1095,6 +1245,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // row, `buildDefinition`) say the class this document was minted with.
   definition.plots = (definition.plots || []).map((pl) => (
     pl && Object.prototype.hasOwnProperty.call(outputs, pl.key) ? { ...pl, forward: repaint.forward } : pl))
+  // ⭐⭐ RT6 — a row whose colour the run computes names its colour column
+  // (`colorMode` + `colorPacked`), set on the built plot because `buildDefinition`
+  // projects only the host lane's three colour forms.
+  definition.plots = definition.plots.map((pl) => (pl && packedOf.has(pl.key) ? { ...pl, ...packedOf.get(pl.key) } : pl))
+  // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
+  // when there are any, so every other runtime document keeps its exact shape.
+  if (docPaints.length) definition.paints = docPaints
   // ⭐ THE IMPLEMENTATION IS THE SCRIPT ITSELF, and nothing of the placeholder
   // survives: a `runtime` compute block may not carry the `ast` lane's keys.
   definition.compute = {
@@ -1137,13 +1294,16 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // inside-bar-range (two `barcolor`s TradingView paints; the vendor harness
   // grades its paints DIVERGE). A paint the author hid or coloured `na` draws
   // nothing on TradingView either and is not named; every other one is.
-  const unpainted = ((t.presentation || {}).paints || [])
-    .filter((p) => p && !p.hidden && !p.na && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, p.kind))
+  // ⭐⭐ RT6 — a paint this document DRAWS is off that list; one it withholds is
+  // named on its own line with its reason, the sentence the host lane writes.
+  for (const { p, why } of paintWithheld) {
+    const pname = `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}`
+    notes.push({ name: pname, note: `${pname} is not drawn: ${why}.` })
+  }
   const undrawn = [...new Set([
     ...(t.outputs || [])
       .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
-    ...unpainted.map((p) => p.kind),
   ])]
   if (undrawn.length) {
     notes.push({
