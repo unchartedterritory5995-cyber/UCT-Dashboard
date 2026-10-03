@@ -32,11 +32,17 @@ logger = logging.getLogger(__name__)
 _COLOR_RANK = {"WHITE": 0, "YELLOW": 1, "MAGENTA": 2, "ORANGE": 3, "#FF0000": 4}
 
 
-def run_patches_backfill(patches_path: str, target_date: str) -> dict:
+def run_patches_backfill(patches_path: str, target_date: str,
+                         match_window_sec: int = 60) -> dict:
     """Apply offline-computed patches to production FlowDB rows.
 
     patches_path: path to JSON file with patches dict
     target_date: 'M/D/YYYY' format (e.g. '6/25/2026')
+    match_window_sec: max |patch time - row time| for a match. 60 suits patches
+        whose event boundaries differ from the rows'. Tape-derived patches start
+        on the same first trade as the rows (heal path passes 1): a wide window
+        lets a patch from a DIFFERENT trade claim a row — 10/2 AVGO 355C 11/6's
+        $3.06M sweep took a 7-lot's "BB" from 14s earlier.
 
     Returns stats dict.
     """
@@ -135,13 +141,13 @@ def run_patches_backfill(patches_path: str, target_date: str) -> dict:
             sorted_patches = sorted(contract_patches, key=lambda x: time_key(x[0]))
             sorted_prod = sorted(prod_rows, key=lambda x: time_key(x[0]))
 
-            # Match patches to production rows by time (within 60-sec window)
+            # Match patches to production rows by time (within match_window_sec)
             # Greedy nearest-time matching
             used_prod = set()
             for pt_time, patch in sorted_patches:
                 pt_secs = time_key(pt_time)
                 best_match = None
-                best_diff = 61  # 60s + 1 cutoff
+                best_diff = match_window_sec + 1
                 for i, (rt, rowid, side, color, oi_str) in enumerate(sorted_prod):
                     if i in used_prod:
                         continue

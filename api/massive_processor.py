@@ -157,6 +157,36 @@ SWEEP_BREADTH_OVERRIDE = 4
 # of stray [233]/[236]. Extends the 7/10 breadth override (single-leg only) to ML.
 ML_MIN_SIZE_FRAC = float(os.environ.get("ML_MIN_SIZE_FRAC", "0.20"))
 
+# Tick-test side for flat-file events (no NBBO in the trades file). Same rule as
+# the heal's Phase-2i tick test (flow_heal_enrich._tick_test_contract): compare the
+# event's avg price to the last raw print BEFORE it; on a flat tick, use the
+# direction of the last differing price within TICK_WALKBACK prints.
+TICK_STRONG_PCT = 5.0
+TICK_MIN_PCT = 0.5
+TICK_WALKBACK = 20
+
+
+def tick_test_side(avg_price: float, prior) -> str:
+    """prior = (last_px, prev_distinct_px, flat_run) for the contract just before
+    the event, or None when the event is the contract's first print."""
+    if not prior:
+        return ""
+    last_px, prev_distinct, flat_run = prior
+    if last_px <= 0:
+        return ""
+    diff_pct = (avg_price - last_px) / last_px * 100
+    if diff_pct > TICK_STRONG_PCT:
+        return "AA"
+    if diff_pct > TICK_MIN_PCT:
+        return "A"
+    if diff_pct < -TICK_STRONG_PCT:
+        return "BB"
+    if diff_pct < -TICK_MIN_PCT:
+        return "B"
+    if prev_distinct is None or flat_run > TICK_WALKBACK:
+        return ""
+    return "A" if last_px > prev_distinct else "B"
+
 
 def _as_conditions(v) -> tuple[int, ...]:
     """Normalize a print's OPRA condition code(s) to a tuple of ints.
@@ -312,9 +342,17 @@ class TradeAggregator:
     PRICE_EPS = 0.0001
 
     def __init__(self, min_premium: float = 10_000, min_volume: int = 50,
-                 high_premium_escape: float = None):
+                 high_premium_escape: float = None, tick_side: bool = False):
         self.min_premium = min_premium
         self.min_volume = min_volume
+        # tick_side (2026-10-03): stamp each event's side by tick test at emission
+        # (flat-file fills only — the live worker classifies by NBBO itself). The
+        # heal used to tick-test at 100ms and then greedily match the results to
+        # rows within 60s, which gave AVGO 355C 11/6's $3.06M 10:56:53 sweep the
+        # "BB" of an unrelated 7-lot 14s earlier. Same event boundaries → no match.
+        self.tick_side = tick_side
+        self._tick: dict[str, tuple] = {}     # ticker -> (last_px, prev_distinct, flat_run)
+        self._prior: dict[str, tuple] = {}    # ticker -> _tick state when its bucket opened
         # High-premium escape (2026-07-07, audit F3): the volume floor and the
         # premium floor were an AND, so an expensive low-lot institutional print
         # — small in CONTRACT count but large in DOLLARS (e.g. a $120K 20-lot
@@ -367,10 +405,25 @@ class TradeAggregator:
                 # Gap too large -- close the old burst, start a new one
                 self._complete(bucket)
                 self._pending[key] = [trade]
+                self._open_bucket(key)
             else:
                 bucket.append(trade)
         else:
             self._pending[key] = [trade]
+            self._open_bucket(key)
+        if self.tick_side:
+            st = self._tick.get(key)
+            if st is None:
+                self._tick[key] = (trade.price, None, 0)
+            elif abs(trade.price - st[0]) > 0.001:
+                self._tick[key] = (trade.price, st[0], 0)
+            else:
+                self._tick[key] = (st[0], st[1], st[2] + 1)
+
+    def _open_bucket(self, key: str) -> None:
+        """Snapshot the contract's tick state as of the print before this burst."""
+        if self.tick_side:
+            self._prior[key] = self._tick.get(key)
 
     def flush_stale(self, now_ns: int) -> None:
         """Close buckets whose last trade is older than now_ns - WINDOW_MS."""
@@ -406,6 +459,11 @@ class TradeAggregator:
     def _complete(self, trades: list[RawTrade]) -> None:
         """Turn a closed bucket into an AggEvent (if it passes filters)."""
         evt = self._aggregate(trades)
+        if evt is not None and self.tick_side and trades:
+            prior = self._prior.pop(trades[0].ticker, None)
+            if evt.type_ != 'ML/':
+                evt.side = tick_test_side(evt.avg_price, prior)
+                evt.side_method = "tick" if evt.side else "none"
         if evt is not None:
             self._ready.append(evt)
             self._stats['emitted'] += 1
@@ -660,6 +718,7 @@ def batch_process(
     min_premium: float = 10_000,
     min_volume: int = 50,
     flush_interval_rows: int = 10_000,
+    tick_side: bool = False,
 ) -> tuple[list[AggEvent], dict]:
     """
     Process a sorted-by-timestamp DataFrame of raw OPRA trades.
@@ -674,7 +733,8 @@ def batch_process(
     if 'sip_timestamp' not in df.columns:
         raise ValueError("DataFrame must have sip_timestamp column")
 
-    agg = TradeAggregator(min_premium=min_premium, min_volume=min_volume)
+    agg = TradeAggregator(min_premium=min_premium, min_volume=min_volume,
+                          tick_side=tick_side)
     events: list[AggEvent] = []
     last_ts = 0
 
