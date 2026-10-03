@@ -1,0 +1,167 @@
+{
+ "tool": "tools/notebook_w13d_mutation.py",
+ "head": "f1a25da4737577de04bb4a98bef7d0e904ddec7b",
+ "control": {
+  "rails": [
+   "tests/test_awareness_resurface.py::test_R1_to_R6_output_is_unchanged_on_a_fixture",
+   "tests/test_awareness_resurface.py::test_R1_to_R6_source_is_byte_identical_to_the_pre_13D_blob",
+   "tests/test_awareness_resurface.py::test_R7_fires_inside_the_band_and_not_just_off_it",
+   "tests/test_awareness_resurface.py::test_R8_fires_at_8_percent_and_not_just_under",
+   "tests/test_awareness_resurface.py::test_a_new_day_rearms_the_level",
+   "tests/test_awareness_resurface.py::test_account_purge_takes_both_tables_and_only_that_member",
+   "tests/test_awareness_resurface.py::test_flag_off_the_pass_never_runs_and_no_link_is_attached",
+   "tests/test_awareness_resurface.py::test_levels_come_only_from_plan_extract",
+   "tests/test_awareness_resurface.py::test_no_deliver_alert_payload_is_reachable_even_at_importance_10",
+   "tests/test_awareness_resurface.py::test_resurfacing_rows_never_spend_a_shared_slot",
+   "tests/test_awareness_resurface.py::test_with_the_shared_cap_full_a_resurfacing_still_fires_and_the_sub_cap_is_two"
+  ],
+  "rc": 0,
+  "totals": "11 passed, 1433 warnings in 46.38s",
+  "seconds": 58.5,
+  "tail": ":test_a_new_day_rearms_the_level\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    is_coroutine = asyncio.iscoroutinefunction(dependant.call)\n\ntests/test_awareness_resurface.py::test_a_new_day_rearms_the_level\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n11 passed, 1433 warnings in 46.38s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+ },
+ "mutations": [
+  {
+   "id": "M1-R1-edited",
+   "claim": "R1-R6 are byte-identical (S7 is absorbing them)",
+   "path": "api/services/awareness/rules.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_R1_to_R6_source_is_byte_identical_to_the_pre_13D_blob",
+    "tests/test_awareness_resurface.py::test_R1_to_R6_output_is_unchanged_on_a_fixture"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "2 failed, 1431 warnings in 4.35s",
+   "seconds": 63.9,
+   "tail": "eprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_R1_to_R6_source_is_byte_identical_to_the_pre_13D_blob\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_R1_to_R6_source_is_byte_identical_to_the_pre_13D_blob\nFAILED tests/test_awareness_resurface.py::test_R1_to_R6_output_is_unchanged_on_a_fixture\n2 failed, 1431 warnings in 4.35s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M2-subcap-uses-shared-count",
+   "claim": "a full shared 8/day budget never blocks a resurfacing; the sub-cap is 2",
+   "path": "api/services/voice_proactive_service.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_with_the_shared_cap_full_a_resurfacing_still_fires_and_the_sub_cap_is_two"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1431 warnings in 7.38s",
+   "seconds": 40.7,
+   "tail": "cationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_with_the_shared_cap_full_a_resurfacing_still_fires_and_the_sub_cap_is_two\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_with_the_shared_cap_full_a_resurfacing_still_fires_and_the_sub_cap_is_two\n1 failed, 1431 warnings in 7.38s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M3-shared-count-includes-resurfacing",
+   "claim": "resurfacing rows never spend a shared slot",
+   "path": "api/services/voice_proactive_service.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_resurfacing_rows_never_spend_a_shared_slot"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1431 warnings in 8.62s",
+   "seconds": 40.8,
+   "tail": "on\\Python314\\site-packages\\pytest_asyncio\\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_resurfacing_rows_never_spend_a_shared_slot\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_resurfacing_rows_never_spend_a_shared_slot\n1 failed, 1431 warnings in 8.62s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M4-touch-band-widened",
+   "claim": "R7 fires inside the 0.5% band and not just off it",
+   "path": "api/services/awareness/rules.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_R7_fires_inside_the_band_and_not_just_off_it"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1431 warnings in 5.34s",
+   "seconds": 38.1,
+   "tail": "ython314\\site-packages\\pytest_asyncio\\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_R7_fires_inside_the_band_and_not_just_off_it\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_R7_fires_inside_the_band_and_not_just_off_it\n1 failed, 1431 warnings in 5.34s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M5-big-move-threshold-lowered",
+   "claim": "R8 fires at 8% and not just under",
+   "path": "api/services/awareness/rules.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_R8_fires_at_8_percent_and_not_just_under"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1431 warnings in 6.53s",
+   "seconds": 46.1,
+   "tail": "Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_R8_fires_at_8_percent_and_not_just_under\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_R8_fires_at_8_percent_and_not_just_under\n1 failed, 1431 warnings in 6.53s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M6-resurface-through-the-delivering-path",
+   "claim": "no deliver_alert_payload is reachable from resurfacing",
+   "path": "api/services/awareness/engine.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_no_deliver_alert_payload_is_reachable_even_at_importance_10"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1433 warnings in 24.30s",
+   "seconds": 58.2,
+   "tail": " 3.16; use inspect.iscoroutinefunction() instead\n    is_coroutine = asyncio.iscoroutinefunction(dependant.call)\n\ntests/test_awareness_resurface.py::test_no_deliver_alert_payload_is_reachable_even_at_importance_10\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_no_deliver_alert_payload_is_reachable_even_at_importance_10\n1 failed, 1433 warnings in 24.30s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M7-ledger-ignored",
+   "claim": "one per level per day (a second cross the same day is silent)",
+   "path": "api/services/awareness/engine.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_a_new_day_rearms_the_level"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1433 warnings in 10.69s",
+   "seconds": 37.9,
+   "tail": "inefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    is_coroutine = asyncio.iscoroutinefunction(dependant.call)\n\ntests/test_awareness_resurface.py::test_a_new_day_rearms_the_level\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_a_new_day_rearms_the_level - a...\n1 failed, 1433 warnings in 10.69s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M8-purge-misses-the-index",
+   "claim": "account purge covers j2_note_levels",
+   "path": "api/services/journal_two/account_purge.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_account_purge_takes_both_tables_and_only_that_member"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1433 warnings in 13.16s",
+   "seconds": 37.0,
+   "tail": "oval in Python 3.16; use inspect.iscoroutinefunction() instead\n    is_coroutine = asyncio.iscoroutinefunction(dependant.call)\n\ntests/test_awareness_resurface.py::test_account_purge_takes_both_tables_and_only_that_member\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_account_purge_takes_both_tables_and_only_that_member\n1 failed, 1433 warnings in 13.16s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M9-flag-gate-removed",
+   "claim": "inert while the flag is off",
+   "path": "api/services/awareness/engine.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_flag_off_the_pass_never_runs_and_no_link_is_attached"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1433 warnings in 11.44s",
+   "seconds": 40.4,
+   "tail": "oval in Python 3.16; use inspect.iscoroutinefunction() instead\n    is_coroutine = asyncio.iscoroutinefunction(dependant.call)\n\ntests/test_awareness_resurface.py::test_flag_off_the_pass_never_runs_and_no_link_is_attached\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_flag_off_the_pass_never_runs_and_no_link_is_attached\n1 failed, 1433 warnings in 11.44s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  },
+  {
+   "id": "M10-a-second-level-reader",
+   "claim": "levels are read only through plan_extract",
+   "path": "api/services/journal_two/note_levels.py",
+   "rails": [
+    "tests/test_awareness_resurface.py::test_levels_come_only_from_plan_extract"
+   ],
+   "killed": true,
+   "restored_verified_against_HEAD": true,
+   "rc": 1,
+   "totals": "1 failed, 1431 warnings in 3.92s",
+   "seconds": 31.5,
+   "tail": "ata\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead\n    return asyncio.iscoroutinefunction(func)\n\ntests/test_awareness_resurface.py::test_levels_come_only_from_plan_extract\n  C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16\n    return asyncio.get_event_loop_policy()\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED tests/test_awareness_resurface.py::test_levels_come_only_from_plan_extract\n1 failed, 1431 warnings in 3.92s\nC:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\pytest_asyncio\\plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n"
+  }
+ ],
+ "verdict": "PASS: control green, 10 of 10 killed"
+}
