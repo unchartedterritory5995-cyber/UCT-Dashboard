@@ -3164,6 +3164,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/user-definitions/runtime-kill",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/user-definitions/{def_id}",
       "rate_limit_family": "screener",
       "tier": "paid"
