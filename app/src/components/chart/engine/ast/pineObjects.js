@@ -589,6 +589,8 @@ export function collectObjectOps(stmts, h) {
       }
       pendingFold = null
     }
+    // ⭐ O1 — the getter aliases standing in THIS statement list (`getterAliasStep`).
+    const getterAliases = new Map()
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     const walkItems = splitCommaStatements(list, h)
     for (let wi = 0; wi < walkItems.length; wi += 1) {
@@ -620,6 +622,11 @@ export function collectObjectOps(stmts, h) {
         t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries }).toks
         noteOnceLines(st)
       }
+      // ⭐ O1 (step 67) — a getter read through a local (`top = box.get_top(b)` …
+      // `if x > top`) is the getter read at the `if` while nothing in between can
+      // change the object (see `getterAliasStep`). Only this `if`'s own condition
+      // tokens are rewritten; `st` keeps its header.
+      t = getterAliasStep(st, t, getterAliases)
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -696,6 +703,29 @@ export function collectObjectOps(stmts, h) {
           const pushed = pushOfDrawCall(t, headOf)
           if (pushed) {
             walk(pushed, guards, inLoop, localScope)
+            continue
+          }
+          // ⭐⭐ O1 (step 67) — `[x =] cond ? f(…) : na`: a drawing helper as the
+          // THEN arm of a `?:` whose ELSE arm is `na`, its value bound to a name
+          // nothing reads (or to no name). Pine runs only the arm `?:` picks
+          // (vendor capture `options-max-pain-calculator-backquant-rddt-1d-2026-09-28`,
+          // C18), and takes the ELSE arm when the test is `na` (RT1's two
+          // captures), so `f` runs exactly on the bars where `cond` is true — the
+          // bars `if cond` runs its body on (`na` is false there). With the bound
+          // value never read, the statement IS
+          //
+          //     if cond
+          //         f(…)
+          //
+          // and is inlined under that guard, the walk's own `if` entry. Same
+          // equivalence `emitTernaryCreate` carries for a built-in `<family>.new`.
+          // ⛔ Refused, as before, for anything else: a `var` / `:=` binding, a
+          // name read anywhere else in the script, an ELSE arm other than `na`,
+          // a test that itself draws.
+          const tern = ternaryDrawArm(t, headOf)
+          if (tern) {
+            inlineAt(tern.head, tern.call, 1, null,
+              [...guards, { toks: tern.cond, negate: false, locals: localScope }], inLoop, st, localScope)
             continue
           }
         }
@@ -2440,6 +2470,167 @@ export function collectObjectOps(stmts, h) {
     }
     diagnostics.pushedDrawCalls = (diagnostics.pushedDrawCalls || 0) + 1
     return [assign, push]
+  }
+
+  /** ⭐⭐ O1 (step 67) — A GETTER READ THROUGH A LOCAL.
+   *
+   *  `top = box.get_top(sbox)` … `if OBBearMitigation > top` (sonarlab-order-blocks):
+   *  Pine evaluates the getter where the binding stands and the `if` reads the
+   *  number. While no statement between them can change `sbox` or what it holds —
+   *  no object operation, no call to a function or method that draws, no
+   *  reassignment of the local or of the handle — reading the getter AT the `if`
+   *  answers the same number, and that is the form this reader already serves
+   *  (C16: `if low < box.get_bottom(b)` in a loop over a list, graded on
+   *  `institutional-smc-order-flow-matrix-pro`). So the `if`'s condition tokens
+   *  get the getter in place of the local.
+   *
+   *  ⛔ Exactly: the binding is `[<type>] name = <family>.get_<prop>(<handle>)`
+   *  or `name = <handle>.get_<prop>()` with a bare handle name, in the SAME
+   *  statement list as the `if`, above it; a local read with a history offset
+   *  (`top[1]`) is not rewritten (the local's history is not the getter's); an
+   *  `else if` is not rewritten. Any statement with an object effect anywhere in
+   *  it (header or nested body) clears every alias for the statements after it.
+   *  Called once per statement, in order: rewrite (an `if`), then forget, then
+   *  learn. */
+  const OBJECT_EFFECT_NS = new Set([...OBJECT_NAMESPACES, 'polyline'])
+  const tokenHasObjectEffect = (tk) => {
+    if (!tk || tk.kind !== 'ident') return false
+    const v = String(tk.value)
+    if (drawFns.has(v)) return true
+    const dot = v.lastIndexOf('.')
+    if (dot <= 0) return false
+    const m = v.slice(dot + 1)
+    const ns = v.slice(0, v.indexOf('.'))
+    if (OBJECT_EFFECT_NS.has(ns)) return !m.startsWith('get_')
+    return /^set_/.test(m) || m === 'delete' || m === 'copy' || drawMethods.has(m)
+  }
+  const statementHasObjectEffect = (s) => {
+    if (!s) return false
+    if ((s.header || []).some(tokenHasObjectEffect)) return true
+    return (s.sub || []).some(statementHasObjectEffect)
+  }
+  const reassignedNames = (s, out = new Set()) => {
+    const ts = (s && s.header) || []
+    for (let i = 1; i < ts.length; i += 1) {
+      if (ts[i - 1].kind === 'ident' && ts[i].kind === 'punct' && (ts[i].value === ':=' || isMutator(ts[i]))) {
+        out.add(String(ts[i - 1].value))
+      }
+    }
+    for (const c of (s && s.sub) || []) reassignedNames(c, out)
+    return out
+  }
+  const getterAliasOf = (ts) => {
+    const eq = h.findTop(ts, (x) => h.isPunct(x, '='))
+    if (eq <= 0 || ts.slice(0, eq).some((x) => x.kind !== 'ident')) return null
+    if (ts[0].kind === 'ident' && (ts[0].value === 'var' || ts[0].value === 'varip')) return null
+    const rhs = ts.slice(eq + 1)
+    const head = rhs[0]
+    if (!head || head.kind !== 'ident' || !h.isPunct(rhs[1], '(') || closeOf(rhs, 1) !== rhs.length - 1) return null
+    const v = String(head.value)
+    const dot = v.lastIndexOf('.')
+    if (dot <= 0 || !v.slice(dot + 1).startsWith('get_')) return null
+    const ns = v.slice(0, dot)
+    let handle = null
+    if (OBJECT_NAMESPACES.includes(ns)) {
+      if (rhs.length !== 4 || rhs[2].kind !== 'ident' || String(rhs[2].value).includes('.')) return null
+      handle = String(rhs[2].value)
+    } else {
+      if (rhs.length !== 3 || ns.includes('.')) return null
+      handle = ns
+    }
+    return { name: String(ts[eq - 1].value), handle, rhs }
+  }
+  function getterAliasStep(st, t, aliases) {
+    let out = t
+    if (aliases.size && t[0] && t[0].kind === 'ident' && t[0].value === 'if') {
+      const offsetRead = new Set()
+      for (let i = 1; i < t.length; i += 1) {
+        if (t[i].kind === 'ident' && aliases.has(String(t[i].value)) && h.isPunct(t[i + 1], '[')) offsetRead.add(String(t[i].value))
+      }
+      let changed = false
+      const next = [t[0]]
+      for (let i = 1; i < t.length; i += 1) {
+        const tk = t[i]
+        const a = tk.kind === 'ident' ? aliases.get(String(tk.value)) : null
+        if (!a || offsetRead.has(a.name) || h.isPunct(t[i + 1], '(')) { next.push(tk); continue }
+        const at = (x) => ({ ...x, line: tk.line, column: tk.column, index: tk.index })
+        next.push(at({ kind: 'punct', value: '(' }), ...a.rhs.map(at), at({ kind: 'punct', value: ')' }))
+        changed = true
+      }
+      if (changed) {
+        out = next
+        diagnostics.getterAliasReads = (diagnostics.getterAliasReads || 0) + 1
+      }
+    }
+    if (statementHasObjectEffect(st)) aliases.clear()
+    else {
+      const re = reassignedNames(st)
+      for (const [name, a] of [...aliases]) if (re.has(name) || re.has(a.handle)) aliases.delete(name)
+    }
+    const al = getterAliasOf(st.header || [])
+    if (al) {
+      // a new binding of a name (or of a handle an alias reads) replaces what stood before
+      for (const [name, a] of [...aliases]) if (name === al.name || a.handle === al.name) aliases.delete(name)
+      aliases.set(al.name, al)
+    } else {
+      const decl = h.findTop(st.header || [], (x) => h.isPunct(x, '='))
+      if (decl > 0) {
+        const nm = String((st.header[decl - 1] || {}).value)
+        for (const [name, a] of [...aliases]) if (name === nm || a.handle === nm) aliases.delete(name)
+      }
+    }
+    return out
+  }
+
+  /** ⭐ O1 — how many times each identifier is written anywhere in the script
+   *  (every statement, every nested body), counted once. A name a binding gives
+   *  that appears exactly once is read by nothing. */
+  let identCounts = null
+  const identCount = (name) => {
+    if (!identCounts) {
+      identCounts = new Map()
+      const visit = (list) => {
+        for (const s of list || []) {
+          for (const tk of (s && s.header) || []) {
+            if (tk && tk.kind === 'ident') identCounts.set(tk.value, (identCounts.get(tk.value) || 0) + 1)
+          }
+          visit(s && s.sub)
+        }
+      }
+      visit(stmts)
+    }
+    return identCounts.get(name) || 0
+  }
+
+  /** ⭐⭐ O1 — `[<type>] x = cond ? f(…) : na` or `cond ? f(…) : na` as a whole
+   *  statement, where `f(…)` is a call `headOf` names (a function or method that
+   *  draws), the ELSE arm is the bare `na`, the test draws nothing, and `x` (if
+   *  any) is written nowhere else in the script → `{cond, head, call}`; else
+   *  null. See the call site for why that statement is `if cond` + `f(…)`. */
+  function ternaryDrawArm(t, headOf) {
+    if (!t.length || (t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip'))) return null
+    if (h.findTop(t, (x) => h.isPunct(x, ':=')) >= 0) return null
+    const asIdx = h.findTop(t, (x) => h.isPunct(x, '='))
+    let rhs = t
+    if (asIdx >= 0) {
+      if (asIdx === 0) return null
+      const lhs = t.slice(0, asIdx)
+      if (lhs.some((x) => x.kind !== 'ident')) return null
+      if (identCount(String(lhs[lhs.length - 1].value)) !== 1) return null
+      rhs = t.slice(asIdx + 1)
+    }
+    const split = splitTernary(rhs)
+    if (!split || !split.cond.length) return null
+    if (split.alt.length !== 1 || split.alt[0].kind !== 'ident' || split.alt[0].value !== 'na') return null
+    const call = split.then
+    const head = call.length >= 3 ? headOf(call[0]) : null
+    if (!head || !h.isPunct(call[1], '(') || closeOf(call, 1) !== call.length - 1) return null
+    if ((drawMethods.size && (callsMethodAny(split.cond, drawMethods) || callsAny(split.cond, drawMethods)))
+        || (drawFns.size && callsAny(split.cond, drawFns))) return null
+    if (split.cond.some((x) => x.kind === 'ident' && nsOf(String(x.value))
+        && OBJECT_NAMESPACES.includes(nsOf(String(x.value))))) return null
+    diagnostics.ternaryDrawCalls = (diagnostics.ternaryDrawCalls || 0) + 1
+    return { cond: split.cond, head, call }
   }
 
   /** ⭐ C34 — a body inlined into a loop this reader does not run: what it

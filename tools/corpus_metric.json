@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-10-03",
   "scripts": 266,
-  "host_ok": 73,
-  "screener_ok": 64,
+  "host_ok": 77,
+  "screener_ok": 65,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -261,14 +261,10 @@
     },
     {
       "file": "auto-trendline-dojiemoji__c21f83602c.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
@@ -774,11 +770,9 @@
     },
     {
       "file": "fib-retracement__8XcLscnekw.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -1748,14 +1742,10 @@
     },
     {
       "file": "pa-zigzag-fibonacci-fan__2001.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:reassign"
-      ],
-      "screenerGuards": [
-        "pine:reassign"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "parabolic-sar__xoeoPMOWGJ.pine",
@@ -2294,13 +2284,11 @@
     },
     {
       "file": "sonarlab-order-blocks__0df0d45ee6.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2619,10 +2607,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {

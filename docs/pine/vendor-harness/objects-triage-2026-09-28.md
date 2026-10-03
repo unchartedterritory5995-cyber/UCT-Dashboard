@@ -165,6 +165,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 62 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
 | 64 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
 | 65 | RT2 (lane brief, wave 12) the runtime document STATES its repaint class instead of declining (section RT2): `engine/runtime/runtimeRepaint.js` gives the host linter's three classes by the host's `modeFromReach`, as the worst reach over the reads the program makes (lexed code, never comments/strings), from ONE table (`runtimeRepaint.json`) read by the JS door and the Python save door (`api/services/runtime_repaint.py`), held to one answer per corpus script (`tests/fixtures/runtime_repaint/corpus.json`). A clock leaf's reach is the HOST linter's (`astReach` over `closedTable.json`) joined with a right-edge finding (islast / islastconfirmedhistory 1; lastbarindex / lastbartime / lastbar* unbounded), proved by moving the fetch through `computeClock`. Every drawn row carries the class as `mode` and `forward`; the store refuses a declared class that disagrees. A request the lowering does not fold is declined by name (`runtime:request`) at the door and at the run. No budget or flag moved | `0b2f2a809b`, `b31eae3ec8`, `a210db44dd` (wave 10 `e4e24524ef` already an ancestor) | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall, unchanged | translation census unchanged | 0 entries change on the 47 (all three states) and the harness dir (pane on / off). Harness dir, runtime on: 2 entries change (the two `vw-int-array-avg` probes, INCONCLUSIVE -> DIVERGE on OBJECTS only: they now route to the runtime document and the host objects it carries are graded; no plot compared, no plot drawn). Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71 -> 71**: of the 127 `repaint-unstated`, **0** attach - each now names its real wall (library 27, call-undeclared-builtin-state 11, pine:request 9, ...); repaint-unstated 127 -> 0 |
+| 67 | O1 (lane brief, wave 15) the drawing-only scripts: why each of the 33 `pine:no-output` and 6 `pine:object-removal-lost` scripts draws nothing (section O1). Triage: the first wall per script, read off `o1DrawingOnly.measure.test.js`; ten causes, largest G1 collections / UDTs 11, G2 loop-computed values 6, G4 data 5; the runtime fallback draws plot rows only, so it serves none of them. New read-only diagnostics `createDropWhy` / `guardRefusalWhy`. **G7:** `[x =] cond ? f(…) : na` with `f` a drawing helper and `x` read nowhere is `if cond` + `f(…)` (argued from Pine: `?:` runs only the arm it picks, C18's capture; `na` test → ELSE arm, RT1's). **G8:** `a := x, b := y` on one line splits as two lines (Pine's grammar). **G2b:** a getter read through a local (`top = box.get_top(b)` … `if x > top`) is the getter read at the `if` while nothing between can move the object. **G2a:** a first-match `for … if c(i): x := i; break` over literal bounds is the chained `?:` it computes | `69ec7f8963` (triage), `09a77a0fdb` (G7), `41561a52c7` (G8), `83422ea9c8` (G2b), `c82c14ad0c` (G2a) | 0 entries change in the committed harness dir (objects MATCH 73, overall 52 of 138, pane on), every step | translation census host 71 → 75, screener 64 → 65 (`fib-retracement`, `auto-trendline-dojiemoji`, `pa-zigzag-fibonacci-fan`, `sonarlab-order-blocks`) | member door on 75 → **79** / 266, off 52 → 54, on + runtime 78 → 82: `fib-retracement` (G7; 7 lines + 7 labels held to its Pine semantics on RDDT 1D vendor bars), `auto-trendline-dojiemoji` and `pa-zigzag-fibonacci-fan` (G8; each equals its two-line spelling, which attached at base; pa-zigzag host = runtime lane on every RDDT bar), `sonarlab-order-blocks` (G2a + G2b; every held box one its step-by-step Pine semantics keeps, on RDDT, AAPL and BRK.A vendor bars); no capture of any of the four (Q-O1a–d queued); 0 previously attached scripts lost |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, every refusal of each script read off `translatePine`, each candidate fix tried as a source rewrite to find the next wall before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions) | (served shapes: section H3) | - | - | census at base: member door off 52 / on 75 / on + runtime 78 of 266 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -5081,6 +5082,229 @@ Remaining runtime declines on the corpus (flag on): `runtime:repaint-unstated` 1
 fibonacci-dolphintradebot, pivot-point-supertrend, qqe-signals, supertrend-strategy,
 trend-targets-algoalpha), `function-global-state` 4, `statement` 4, `withheld-all` 3, others <= 3.
 
+## O1 - drawing-only scripts the member door refuses `pine:no-output`: why each draws nothing (2026-10-02, step 67)
+
+Branch `pine/o1-drawing-only`, base `integrate/wave15-2026-10-02` (`a09ae5dbed`). Lane brief: the
+33 corpus scripts the member door refuses `pine:no-output` (objects-only pane ON, as in
+production) and the 6 it refuses `pine:object-removal-lost`. A script reaches `pine:no-output`
+when it offers no plot AND its host object program kept no op (`pine.js`, the `resolved.length
+=== 0` return); `pine:objects-only` with a lost removal becomes `pine:object-removal-lost` at
+`paneGate`.
+
+### The instrument
+
+`__tests__/vendorHarness/o1DrawingOnly.measure.test.js` (opt-in, `O1_TRIAGE=1
+O1_TRIAGE_OUT=<json>`): every corpus script the door refuses with either guard, through
+`enterMemberDoor` (the census's own door), with the host translation's `objectDiagnostics` and the
+runtime lane's answer for the same script (runtime pane ON: `runtimeDeclined`). Two diagnostics are
+new, both read-only (nothing decides from them): `createDropWhy` - the refusal sentence behind a
+`create:<family>` drop, which used to be a bare count - and `guardRefusalWhy` - the sentence behind
+each `guardRefusals` entry. Census at base (`memberDoorCensus.measure.test.js`, runtime state on):
+off 52 / 266, **on 75 / 266**, on + runtime 78 / 266; `pine:no-output` 33, `pine:object-removal-lost` 6.
+
+### The runtime lane cannot draw any of the 39, structurally
+
+`memberPaneDefinition.js::runtimeLaneDefinition` builds rows from PLOT outputs only and takes its
+objects from the HOST program (`t.objects`); a script with no plot ends at `runtime:nothing-drawn`
+even when every earlier check passes (`visualizing-displacement-tfo` is the one that gets that far).
+`runtime/objectLane.js` is not on the member door's path. What the fallback says first, for the record:
+
+| runtime decline | n | scripts |
+|---|---|---|
+| `runtime:repaint-unstated` (RT2's area) | 26 | every script not listed below |
+| `runtime:call-undeclared-builtin-state` (RT3's) | 2 | ipda-standard-deviations, previous-day-high-and-low-separators |
+| `runtime:statement` (RT3's) | 2 | market-structure-inducements, session-tpo-profile |
+| `pine:builtin` | 2 | power-of-3-ict-01, scalping-strategy-with-williams-r |
+| `pine:function` / `pine:statement` (front end) | 2 | ict-killzone-index-version, trendline-pivots-quantvue |
+| `runtime:function-global-state` (RT3's) | 1 | auto-harmonic-patterns-open-source |
+| `runtime:history-dynamic-offset` (RT3's) | 1 | support-and-resistance |
+| `runtime:block-value` | 1 | fvg-detector-tradingfinder |
+| `runtime:object-op` | 1 | sonarlab-order-blocks |
+| `runtime:nothing-drawn` | 1 | visualizing-displacement-tfo |
+
+So this lane works on the HOST object program. A runtime-lane drawing door (objects from
+`runtime/objectLane.js`, no plot required) is a separate admission and is not built here.
+
+### Cause table: the first wall that empties each drawing (host object lane)
+
+"First wall" = the first entry of `guardRefusalWhy`, else of `createDropWhy`, else the dominant
+`dropReasons` key, read at base off `o1DrawingOnly.measure.test.js`. A script usually has more
+walls behind its first; the ones measured behind it are named.
+
+| cause | n | scripts (first wall; walls behind it) |
+|---|---|---|
+| **G1** a collection / UDT / method the host lane cannot follow (`pine:collection`, `pine:type`, `fn:receiver`, `coll:diverged`) | 11 | auto-harmonic-patterns-open-source (`zigzagratios` written in a function; getters `line.get_x2` as coordinates), order-blocks (`pvh1_price` block-valued; arrays written in blocks), zigzag-multi-time-frame-with-fibonacci (`zigzag` written in a block), mgi-levels-suite (arrays created with values; methods on UDT receivers x137), multi-timeframe-fvg-tfo (arrays read by a conditionally called helper), volumized-order-blocks-flux-charts (a UDT list never pushed in the reader's view; method receiver), footprint-iq-pro-tradingiq (`FD.tickLevels.size` on a UDT field; `timeframe.in_seconds`), ict-institutional-order-flow-fadi (UDT pivots; 7 helper calls under a condition reading history, `fn:conditional-history`), ipda-standard-deviations (UDT + `chart.point`; a method `unshift(line.new(...))` in an expression), higher-time-frame-fair-value-gap (UDT field `htfBar.consistentUpdates` reassigned; `polyline.new`), volume-delta-oi-delta-kioseff (`label.all` loop; block-valued counters; two requests) |
+| **G2** a value a loop computes (running total, arg-min, break-search; ruling R7) read by a drawing | 6 | trendlinesample (`lowest_x1` arg-min over `for j = shortPeriod + 1 to longPeriod`), support-and-resistance (`r` / `s` running totals in a `for`; unbounded `ta.barssince`), volume-profile-v054beta (`POC` / `VAH` / `VAL` from a `for`), session-tpo-profile (a running total with no window), sonarlab-order-blocks (`last_green` = first index in `for i = 4 to 15` with `break`; `box.get_top` in a delete guard), fibonacci-retracement-statistics-by-volprofex (`while`-built lists; `trendCount` undefined to the reader) |
+| **G3** a user function's own mutable state read by its drawing (`pine:state` "reassigned inside", block-valued `if`) | 4 | fvg-detector-tradingfinder (`DDFVG` in `FVGDetector`; hoisting the once-called body to the top level by hand moves it to the next wall, an `if` / `switch` used as a value - measured, not kept), market-structure-inducements (`BeChoCh_B` in `Structure`), fair-value-gap (`currenttop` in `f_gapCheck`, box getters in its loop; `input.timeframe` text), market-sessions-and-volume-profile (`vah` / `val` in `drawCurZone`; arrays; `ta.highest` with a non-literal length) |
+| **G4** another symbol, a watchlist or another timeframe the door does not serve | 5 | correlation-matrix (7 FX pairs, withheld since C49; its `label.new` sits in a comma line the reader marks unsupported, so the program is null with 0 drops), mtf-watchlist-charts-anan (4 symbols x `drawChart` state), strong-start-rvol-dashboard (a 40-symbol watchlist; `table.clear`), screener-mean-reversion-channel (40 `request.security`), tehthomas-aligned-timeframe-fair-value-gaps (`htfTime` request) |
+| **G5** the clock: `time(<tf>, <session>)` / `time(<tf>)` outside what C30 / C49 serve | 4 | asianrange-and-killzones (`"1900-0001"` wraps midnight: no capture holds a bar after 20:00), power-of-3-ict-01 (`"1900-0100"`, same; `str.tonumber`), ict-killzone-index-version (a session read on another timeframe), volume-profile-auto-line-v2 (`time(<tf>)` off the served list; then `line.get_y1` getters in loops) |
+| **G6** a builtin the grammar does not hold | 4 | previous-day-high-and-low-separators (`dayofweek(time[1])`, `weekofyear`), volume-open-interest-footprint (`chart.left_visible_bar_time`: the visible range), market-profile-with-tpo (`syminfo.type`; `for`-built counts), scalping-strategy-with-williams-r (`str.tostring(timeframe.period)`; its one label has `y = na`, which TradingView does not draw) |
+| **G7** a drawing helper called inside an expression: `cond ? f(...) : na` (`fn:in-expression`) | 1 | fib-retracement (4 calls; 130 ops otherwise converted, 0 other drops; the 4 lost bodies hold `line.delete` / `label.delete`, hence `object-removal-lost`) |
+| **G8** comma-joined reassignments `a := x, b := y` are not split (the splitter takes `=` bindings only) | 1 | trendline-pivots-quantvue (`utlX1 := utlX2, utlY1 := utlY2`; behind it: `for l in` body locals `src` / `first` unread in guards, `line.get_*` getters of the iterated handle) |
+| **G9** a user function returning a tuple | 1 | linear-regression-channel-breakout-strategy (`[slope, ...] = get_channel(...)`) |
+| **G10** nothing a pane can draw | 2 | one-indicator-multiple-max-40-checked-symbols (`alert()` only: TradingView draws nothing either - a correct end state), visualizing-displacement-tfo (its only output is `barcolor(..., offset = require_fvg ? -1 : na)`, withheld by B1's offset rule) |
+
+Every G2 / G3 wall is a known lane wall (R7, C34, the inliner's state rule), every G4 one is data
+(C26 / C49), every G5 one waits on a capture (C30 / C49), and the RT-owned runtime walls are left
+to RT2 / RT3. The two causes that are EXACT from Pine's own grammar and cost no new evidence are
+G7 and G8; they are taken first, one commit each (below).
+
+### O1 G7 - a drawing helper as the THEN arm of `?:` whose ELSE arm is `na`
+
+`pineObjects.js::ternaryDrawArm`: `[<type>] x = cond ? f(…) : na`, or the bare statement
+`cond ? f(…) : na`, where `f(…)` is the whole THEN arm and a function or method that draws, the ELSE
+arm is the bare `na`, the test itself draws nothing, and `x` is written nowhere else in the script,
+is inlined as `f(…)` under the guard `cond` — the walk's own `if` entry.
+
+**Argued from Pine, not from a capture of these scripts.** `?:` runs only the arm it picks (vendor
+capture `options-max-pain-calculator-backquant-rddt-1d-2026-09-28`, C18) and takes the ELSE arm on an
+`na` test (RT1's two captures), which is what `if` does with `na`; with the bound value never read,
+the statement is `if cond` + `f(…)`. The same equivalence `emitTernaryCreate` has carried for a
+built-in `<family>.new` since 2026-09-22 (`objectTernaryCreate.test.js`).
+**Still refused, by name (`fn:in-expression`):** a `var` initialiser (it runs once, on the first
+bar), a `:=` reassignment, a bound name read anywhere else, an ELSE arm other than `na`, a call that
+is not the whole arm, a test that draws.
+
+Measured (base = the triage commit `69ec7f8963`):
+
+| | before | after |
+|---|---|---|
+| member door, objects off / on / on + runtime | 52 / 75 / 78 | 52 / **76** / **79** — 1 row each: `fib-retracement` (objects-only refusal → attaches; flag off its sentence becomes the clean-objects-only one) |
+| previously attached scripts lost | - | **0** |
+| committed harness dir, objects pane on (138 graded) | overall MATCH 52, objects MATCH 73 / DIVERGE 18 | identical, **0 entries changed** |
+| translation census (`corpus_metric.json`) | host 71 / screener 64 | host **72** / 64 — the `fib-retracement` row only |
+
+`fib-retracement` on NYSE:RDDT 1D vendor bars (`adx-and-di-for-v4-rddt-1d-2026-09-27`, its OHLC only):
+7 lines and 7 labels, each at the level `highest(100)` / `lowest(100)` / `highestbars` /
+`lowestbars` give from those bars, from `bar_index[-FL]` to the last bar, texts
+`"0.236 ( 152.4096372 )"` etc. — computed independently in
+`vendorHarness.o1FibRetracement.test.js`, not read off the engine. With `ExtraFibs` false the four
+ternary calls never run (7, not 8). Capture queued: Q-O1a (probe
+`vw-ternary-draw-helper.pine`), Q-O1b (the script itself, both input states) —
+`capture-queue-2026-10-02-o1-drawing-only.md`.
+Rails: `ast/o1DrawingOnly.test.js` (same program in both spellings, the guard is the test, five
+refusals kept), `vendorHarness.o1FibRetracement.test.js`; 7 mutations, each red. The control in
+`pineObjectOnlyHostAccept.test.js` that used `fib-retracement` as its partial-program specimen now
+uses `fair-value-gap` (draws and drops; non-vacuity asserted) — the rule did not move.
+
+### O1 G8 - comma-joined reassignments split as separate lines
+
+`pine.js::blockStatements` split a comma line only when EVERY segment was a `=` binding
+(`isBindingSegment`), so `recent_dn2 := recent_dn1, i_recent_dn2 := i_recent_dn1` stayed one
+statement the walk could not read. A segment `name <mutator> expr` (`:=`, `+=`, …;
+`isReassignSegment`) now splits too, beside a binding or another reassignment. The all-or-nothing
+rule is unchanged: one segment of any other shape (a call) and nothing splits. **Exact from Pine's
+grammar**: comma-joined statements run left to right, which is what separate lines do. Both lanes
+read the split (the object reader's `splitCommaStatements` already did).
+
+Measured (base = the G7 commit `09a77a0fdb`):
+
+| | before | after |
+|---|---|---|
+| member door, objects off / on / on + runtime | 52 / 76 / 79 | **54 / 78 / 81** — `auto-trendline-dojiemoji` and `pa-zigzag-fibonacci-fan` attach (plots; the first also draws its trendlines); `trendline-pivots-quantvue` `pine:no-output` → `pine:object-removal-lost` (13 ops now convert; its `for l in` locals and `line.get_*` getters remain) |
+| previously attached scripts lost | - | **0** |
+| committed harness dir, objects pane on (138) | overall MATCH 52, objects MATCH 73 | identical, **0 entries changed** |
+| translation census | host 72 / screener 64 | host **74** / screener **65** — exactly those three rows |
+
+**Why the two attaching scripts are not a guess.** At the triage base, the TWO-LINE spelling of each
+(its comma lines broken onto lines by hand) already attached through the member door; only the
+published comma spelling did not. Their translation now equals that spelling's
+(`vendorHarness.o1CommaReassign.test.js`, comma lines split in the test). For `pa-zigzag-fibonacci-fan`
+the host lane and the per-bar runtime lane — two independent evaluators — agree on every bar of
+NYSE:RDDT 1D vendor bars (9 plots, 2,770 finite values, 0 disagreements). `auto-trendline-dojiemoji`'s
+runtime front end refuses it (`pine:block`), so it has the first half only. No TradingView capture of
+either exists.
+`corpusMetric.test.js`'s lane balance (`screener >= host - strategies`) held only because few
+objects-only scripts were clean; it now also takes out host rows the screener refuses
+`pine:objects-only` BY CONTRACT (the same row-wise test C50 uses for strategies) — 74 host,
+65 screener, 8 strategy-only, 9 objects-only.
+Rails: `ast/o1DrawingOnly.test.js` (+4: same translation two spellings, binding + reassignment,
+all-or-nothing kept), `vendorHarness.o1CommaReassign.test.js` (3); 5 mutations (one on the lane-balance exclusion), each red.
+
+### O1 G2b - a getter read through a local is the getter read at the `if`
+
+Behind sonarlab-order-blocks' first wall (G2, below) stands a second: `top = box.get_top(sbox)` …
+`if OBBearMitigation > top` in a loop over its list of boxes refused `pine:drawing` — the object
+reader serves the getter written INSIDE the condition (C16: `if low < box.get_bottom(b)`, graded on
+`institutional-smc-order-flow-matrix-pro`) but not read through a local.
+`pineObjects.js::getterAliasStep`: a binding `[<type>] name = <family>.get_<prop>(<handle>)` (or
+`<handle>.get_<prop>()`) in a statement list, read in the condition of a later `if` in the SAME list,
+has that `if`'s condition tokens rewritten to the getter while no statement between them can change
+the object: none with an object effect anywhere in it (a `line.` / `label.` / `box.` / `table.` /
+`linefill.` / `polyline.` call other than a getter, a `set_*` / `delete` / `copy` method, a function
+or method that draws) and none reassigning the local or the handle. **Argued from Pine:** the getter
+is evaluated where the binding stands; with nothing between able to move the object, evaluating it at
+the `if` answers the same number. Not rewritten: a history read of the local (`top[1]`), an
+`else if`, anything after a statement with an object effect.
+
+Measured alone (base = the G8 commit `41561a52c7`): member door 54 / 78 / 81, **0 rows changed** in
+any state; committed harness dir 0 entries changed. It moves a script only with G2a (below).
+Rails: `ast/o1DrawingOnly.test.js` (+6: same program as the inline getter, a second alias between,
+three refusals kept); 4 mutations: 3 red, 1 fail-closed survivor named — dropping the `top[1]`
+exclusion rewrites to `(box.get_top(b))[1]`, which the getter-history rule (C14) refuses anyway.
+
+### O1 G2a - a first-match search loop is the chained `?:` it computes
+
+`pine.js::rewriteFirstMatchLoops`, run on the statement tree before either walk (host lane only; the
+runtime lane runs loops itself):
+
+    for i = 4 to 15 by 1                 last_green := (close[4] > open[4]) ? 4
+        if close[i] > open[i]      →         : (close[5] > open[5]) ? 5 : … : last_green
+            last_green := i
+            break
+
+**Exact from Pine:** the loop evaluates the tests in order, stops at the first that holds and leaves
+the variable as it was when none does; the chain evaluates the same tests in the same order and
+stops at the same one. An `na` test is false in the `if` and takes the next arm of the `?:` (RT1's
+captures). **Only that shape:** integer-literal bounds (`by` a positive literal and ascending, or no
+`by`, either direction), at most 64 passes, a body of ONE `if` (no `else`) whose block is exactly
+`X := <counter>` then `break`, a test with no call, no assignment, no `X`. Anything else is left
+alone. The rewritten statement keeps the assignment's own `X` / `:=` tokens (the reassignment ledger
+`reassignedNames` is read off the token stream and names those objects).
+
+Measured (base = the G2b commit `83422ea9c8`):
+
+| | before | after |
+|---|---|---|
+| member door, objects off / on / on + runtime | 54 / 78 / 81 | 54 / **79** / **82** — `sonarlab-order-blocks` attaches (G2a + G2b; flag off its sentence becomes the clean-objects-only one) |
+| previously attached scripts lost | - | **0** |
+| committed harness dir, objects pane on (138) | overall MATCH 52, objects MATCH 73 | identical, **0 entries changed** |
+| translation census | host 74 / screener 65 | host **75** / 65 — the sonarlab row only |
+
+**No capture of sonarlab exists.** `vendorHarness.o1Sonarlab.test.js` recomputes the script step by step from the vendor's bars of
+three committed captures (NYSE:RDDT 1D and AAPL 1D from the listing, BRK.A 1D not from the listing)
+and requires every box the door holds at the last bar to be one of the newest K the script keeps
+alive (TradingView's collector removes the oldest; K = 5, 17, 24 is the engine's C7 collector),
+`right == left`. It discriminates: a reference with sensitivity 0 or with a bottom-crossing
+mitigation goes red. ⚠️ Its one reading not settled by a capture: `sens = input.int(28)` then
+`sens /= 100` is read as 0.28 (the engine, and the reference) — TradingView's operators page says
+int division "is always a number with a fractional value", and the script's own tooltip ("Lower the
+sensitivity to show more order blocks") only makes sense that way; an `int` variable taking a
+fractional `/=` is not witnessed. Queued: Q-O1c.
+Rails: `ast/o1DrawingOnly.test.js` (+7: same plot two spellings, `by` and descending, four shapes left
+alone), `vendorHarness.o1Sonarlab.test.js` (3); 8 mutations: 7 red (incl. both rules on the sonarlab
+rail and two reference perturbations), 1 equivalent survivor named (accepting a body longer than two
+statements still requires `break` second, and anything after `break` never runs).
+
+### O1 - where the branch leaves the 39 (base `a09ae5dbed` → tip `c82c14ad0c`)
+
+| | base | tip |
+|---|---|---|
+| member door attach, objects off / on / on + runtime | 52 / 75 / 78 | 54 / **79** / **82** |
+| `pine:no-output` / `pine:object-removal-lost` | 33 / 6 | **31 / 6** — out: `fib-retracement` (G7), `sonarlab-order-blocks` (G2a + G2b); `trendline-pivots-quantvue` moved no-output → removal-lost (G8) |
+| attached from outside the 39 | - | `auto-trendline-dojiemoji` (was `pine:state`), `pa-zigzag-fibonacci-fan` (was `pine:reassign`), both G8 |
+| previously attached scripts lost | - | 0, every state |
+| committed harness dir (138), objects pane on | overall MATCH 52, objects 73 | identical, 0 entries changed |
+| …objects pane on + runtime pane on | overall 53, objects 78 | identical, 0 entries changed |
+| …objects pane off | overall 39, objects 60 | identical, 0 entries changed |
+| translation census (`corpus_metric.json`) | host 71 / screener 64 | host 75 / screener 65 |
+
+What is left of the 37, by the cause table above: G1 collections / UDTs 11, G2 loop values 5
+(running totals, ruling R7), G4 data 5, G3 a function's own state 4, G5 the clock 4 (capture-bound),
+G6 builtins 4, G9 a user tuple 1, G10 2, and `trendline-pivots-quantvue` (for-in locals + getters of
+the iterated handle). Tried and NOT kept: hoisting a once-called top-level function's body
+(fvg-detector, market-structure-inducements) — measured, each next wall is a block-valued `if` /
+a `string` state (`pine:text-value`), so nothing moves.
 ## Wave 15 integration (2026-10-02) - L1 + B1 + H1 + RT1, and what H1 re-admitted
 
 Branch `integrate/wave15-2026-10-02`. Six-shard gate: 6 NEW against the baseline, 125 no

@@ -64,8 +64,15 @@ describe('⭐⭐ an object-only script (no plot, no alertcondition) with a clean
   })
 
   it('⛔ CONTROL — a script with SOME real object output but ALSO some drops stays correctly refused (no partial credit)', () => {
-    const src = fs.readFileSync(path.join(CORPUS, 'fib-retracement__8XcLscnekw.pine'), 'utf8')
+    // ⚰️ The fixture was `fib-retracement` until O1 (step 67, G7) read its four
+    // `x = ExtraFibs ? Fib_line(…) : na` calls and its program came out CLEAN —
+    // the rule here did not move; the specimen stopped being one. `fair-value-gap`
+    // draws AND drops (its `input.timeframe` label text, `f_gapCheck`'s state).
+    const src = fs.readFileSync(path.join(CORPUS, 'fair-value-gap__1048fa103a.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
+    // ⛔ non-vacuity: the specimen really is partial — some ops kept, some dropped
+    expect(t.objects && t.objects.ops.length).toBeGreaterThan(0)
+    expect(t.objectDiagnostics.droppedOps).toBeGreaterThan(0)
     expect(t.ok, 'partial object output must not be reported as a full pass').toBe(false)
     // ⭐ `pine:objects-only`, NOT `pine:no-output` — ruled in the 2026-09-23 merge.
     // Both facts are true here and they are DIFFERENT facts: this script offers no
