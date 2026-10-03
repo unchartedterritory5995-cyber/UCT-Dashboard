@@ -1,0 +1,82 @@
+[
+  {
+    "mutation": "M1-alert-id-not-namespaced",
+    "file": "app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 14 passed (15)"
+    ],
+    "failed_tests": [
+      "\u00d7 arms through 13H-1 adapter with the chart-namespaced drawing id and the line geometry 431ms"
+    ],
+    "restored_matches_HEAD_blob": true,
+    "git_diff_quiet_after_restore": true,
+    "at": "2026-10-02T21:29:42.917206"
+  },
+  {
+    "mutation": "M2-touch-family-not-claimed",
+    "file": "app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 14 passed (15)"
+    ],
+    "failed_tests": [
+      "\u00d7 pointerdown, mousedown and touchstart on the panel never reach an ancestor; a sibling still does 39ms"
+    ],
+    "restored_matches_HEAD_blob": true,
+    "git_diff_quiet_after_restore": true,
+    "at": "2026-10-02T21:29:53.876012"
+  },
+  {
+    "mutation": "M3-embed-doors-ignore-the-gate",
+    "file": "app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 2 passed (3)"
+    ],
+    "failed_tests": [
+      "\u00d7 gate OFF: no Plan, no Replay, and the panel is never mounted 665ms"
+    ],
+    "restored_matches_HEAD_blob": true,
+    "git_diff_quiet_after_restore": true,
+    "at": "2026-10-02T21:30:04.301779"
+  },
+  {
+    "mutation": "M4-slash-vs-ignores-the-gate",
+    "file": "app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 9 passed (10)"
+    ],
+    "failed_tests": [
+      "\u00d7 OFF (and never latched): no /vs, and /mtf refuses the weekly token 11ms"
+    ],
+    "restored_matches_HEAD_blob": true,
+    "git_diff_quiet_after_restore": true,
+    "at": "2026-10-02T21:30:15.011543"
+  },
+  {
+    "mutation": "M5-panel-sizes-without-the-server-reading",
+    "file": "app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.jsx",
+    "exit": 1,
+    "killed": true,
+    "totals": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 14 passed (15)"
+    ],
+    "failed_tests": [
+      "\u00d7 Compass answered for a paid long: its shares, its label 4036ms"
+    ],
+    "restored_matches_HEAD_blob": true,
+    "git_diff_quiet_after_restore": true,
+    "at": "2026-10-02T21:30:30.768627"
+  }
+]

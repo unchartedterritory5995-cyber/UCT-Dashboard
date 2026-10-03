@@ -1,0 +1,42 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w13h2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx (3 tests | 1 failed) 1162ms
+     × gate OFF: no Plan, no Replay, and the panel is never mounted 665ms
+     ✓ gate ON: Plan toggles the panel open, Replay opens the replay, the note id reaches it 294ms
+     ✓ gate ON but the public share page, a frozen chart, a reader, or a non-chart widget: no doors 199ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  21:29:59
+   Duration  3.82s (transform 831ms, setup 340ms, import 806ms, tests 1.16s, environment 1.09s)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx > the chart-plan doors on a note chart > gate OFF: no Plan, no Replay, and the panel is never mounted
+AssertionError: expected <button type="button" …(3)></button> to be null
+
+- Expected: 
+null
+
++ Received: 
+<button
+  aria-expanded="false"
+  class="_toolBtn_aa9710 "
+  title="Trade plan — mark drawn lines as entry, stop or target; size it; arm alerts"
+  type="button"
+>
+  Plan
+</button>
+
+ ❯ src/pages/journal-2-0/components/notebook/WidgetEmbedView.chartPlan.test.jsx:60:60
+     58|     render(<WidgetEmbedView node={{ attrs: chartAttrs() }} selected={f…
+     59|     await screen.findByTestId('chart-embed-stub')
+     60|     expect(screen.queryByRole('button', { name: 'Plan' })).toBeNull()
+       |                                                            ^
+     61|     expect(screen.queryByRole('button', { name: 'Replay' })).toBeNull()
+     62|     expect(screen.queryByTestId('plan-panel-stub')).toBeNull()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
