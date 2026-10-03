@@ -1,0 +1,63 @@
+{
+  "id": "M7-quote-not-verified",
+  "rail": "a passage not on the turn is refused and nothing is written",
+  "path": "api/services/journal_two/transcript_capture.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:51:39"
+}
+
+--- CONTROL (unmutated) ---
+.                                                                        [100%]
+1 passed in 14.65s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_a_passage_that_is_not_on_the_turn_is_refused_and_nothing_is_written ___
+
+client = <starlette.testclient.TestClient object at 0x0000024F67067230>
+app = <fastapi.applications.FastAPI object at 0x0000024F67067620>
+gate_on = None
+index_db = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-15943/test_a_passage_that_is_not_on_0/transcript_index.db')
+
+    def test_a_passage_that_is_not_on_the_turn_is_refused_and_nothing_is_written(client, app, gate_on, index_db):
+        _store()
+        note_id = _note(A)
+        as_user(app, A)
+        for passage, turn in (("gross margin was 75.0%", 2),            # altered
+                              ("Blackwell demand is extraordinary.", 2),  # a real quote, wrong turn
+                              ("GROSS MARGIN WAS 72.4%", 2)):             # case is part of a quote
+            r = _save(client, note_id, passage=passage, turn=turn)
+>           assert r.status_code == 422, (passage, r.text)
+E           AssertionError: ('gross margin was 75.0%', '{"detail":"Turn 2 of this call was saved earlier in a different form, and this passage is not in it. Your note is unchanged."}')
+E           assert 409 == 422
+E            +  where 409 = <Response [409 Conflict]>.status_code
+
+tests\test_notebook_transcript_capture.py:288: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpc97p4nfv.db
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_transcript_capture.py::test_a_passage_that_is_not_on_the_turn_is_refused_and_nothing_is_written
+1 failed in 24.25s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
