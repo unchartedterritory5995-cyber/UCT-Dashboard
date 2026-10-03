@@ -268,7 +268,10 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
     routes = _server_surfaces(real_app)
     tagged = [p for p in people if p["id"] in (TAGGED_MEMBER, TAGGED_ADMIN)]
 
-    # 1. ALIVE FIRST — every surface answers for every tagged person.
+    # 1. ALIVE FIRST — every surface answers for every tagged person. The T3 grammar
+    # routes also sit behind their OWN dark flag; it stays ON throughout, so the only
+    # variable this test moves is the master switch.
+    monkeypatch.setenv("TERMINAL_GRAMMAR_ENABLED", "1")
     monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
     for person in tagged:
         assert _alive_violations(client, state, routes, person) == [], (
@@ -306,6 +309,19 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
             "back — the 'kill' destroyed something")
 
 
+#: The acknowledged server census (sorted, as `_server_surfaces` returns it).
+T3_GRAMMAR_ROUTES = [
+    ("DELETE", "/api/terminal/aliases/{name}"),
+    ("DELETE", "/api/terminal/commands/stats"),
+    ("GET", "/api/terminal/aliases"),
+    ("GET", "/api/terminal/commands/stats"),
+    ("GET", "/api/terminal/compare-target"),
+    ("GET", "/api/terminal/move/{sym}"),
+    ("POST", "/api/terminal/commands/event"),
+    ("PUT", "/api/terminal/aliases/{name}"),
+]
+
+
 def test_the_census_is_stated_not_hidden(real_app):
     """⚠️ HONESTY ABOUT THE DENOMINATOR. Today no served route mounts a cohort
     gate, so the payload field is the only live Terminal-Next surface and the
@@ -317,8 +333,17 @@ def test_the_census_is_stated_not_hidden(real_app):
     derived, not typed), and updating this set is the author acknowledging a
     member-reachable surface now exists — which is the moment the tier-4
     rollback branch and the member-impact paragraph are owed.
+
+    2026-10-02 (TERMINAL-NEXT lane T3, branch `lane/t3-shell-grammar`): the FIRST
+    cohort-gated routes, acknowledged here deliberately. They are the shell's own
+    grammar store (`api/routers/terminal_grammar.py`): owner-scoped command counts,
+    member aliases, MOVE + since-last-visit, and the sector comparison target. Each
+    also carries a paid 402. They are reachable only by a member the terminal-next
+    cohort admits, and die with the master switch (the rail above proves it). ⚠️ Still
+    OWED before any merge toward master: the tier-4 rollback branch and the
+    member-impact paragraph.
     """
-    assert _server_surfaces(real_app) == [], (
+    assert _server_surfaces(real_app) == T3_GRAMMAR_ROUTES, (
         "a served route now sits behind a cohort gate. The master rail below "
         "already requires it to die with the switch thrown; update this census "
         "deliberately:\n  " + "\n  ".join(f"{m} {p}" for m, p in _server_surfaces(real_app)))

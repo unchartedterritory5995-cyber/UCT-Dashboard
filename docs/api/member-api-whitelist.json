@@ -3448,6 +3448,10 @@
     "/api/options/vol/{sym}/term-structure",
     "/api/options/vol/{sym}/vrp",
     "/api/pine/libraries",
-    "/api/pine/libraries/{author}/{name}/{version}"
+    "/api/pine/libraries/{author}/{name}/{version}",
+    "/api/terminal/aliases",
+    "/api/terminal/commands/stats",
+    "/api/terminal/compare-target",
+    "/api/terminal/move/{sym}"
   ]
 }

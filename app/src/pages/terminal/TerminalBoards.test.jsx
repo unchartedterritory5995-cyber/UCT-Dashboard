@@ -4,6 +4,10 @@
 // "Back to my layout" returns, a bare ticker opens its preset, density persists, and the
 // keep-the-classic-calendar choice narrows the cohort redirect. Same harness as
 // TerminalShell.test.jsx (kept separate so lane T3's edits there never collide with these).
+//
+// The last block proves lane T3's grammar speaks T2's CHANNEL model at the shell: `@B` and
+// `@2` resolve through `layout.channels`/`panelChannel`, `?cmd=` reads the panel's security
+// from its channel, a `B:` address still opens a board on the one run path, and row <GO>.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useEffect, useReducer } from 'react'
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react'
@@ -52,7 +56,9 @@ vi.mock('./panels', async (importOriginal) => {
     PANEL_IMPORTERS: {},
     panelComponent: (name) => {
       if (!stubs.has(name)) {
-        stubs.set(name, function Stub({ sym, volSurface, tf, focusCode }) {
+        stubs.set(name, function Stub({ sym, volSurface, tf, focusCode, onRows }) {
+          // The Help stub publishes a numbered list, as the real HelpPanel does (row <GO>).
+          useEffect(() => { if (name === 'Help') onRows?.(['AMD FA', 'TSLA GP']) }, [onRows])
           if (sym === 'BOOM') throw new Error(`stub ${name} blew up`)
           return (
             <div data-testid={`stub-${name}`}>
@@ -202,5 +208,90 @@ describe('lane T2 — the shell wires the board model', () => {
     store.prefs = {}
     renderAt('/calendar')
     expect(screen.queryByTestId('legacy-calendar')).toBe(null)
+  })
+})
+
+import { channelTarget, panelCommandText } from './TerminalShell'
+import { addChannel, setPanelChannel } from './boardModel'
+
+const cmdOf = () => new URLSearchParams(screen.getByTestId('where').textContent.split('?')[1] || '').get('cmd')
+
+describe('T3 on T2 — the grammar addresses CHANNELS', () => {
+  it('channelTarget: a letter resolves through layout.channels + panelChannel; a number is a slot', () => {
+    let board = countOf(DEFAULT_LAYOUT, 4)                            // CAL·A, DES·A, GP·A, CN·B
+    const { layout: withE, id } = addChannel(board)
+    board = setPanelChannel(withE, 2, id, {})                          // panel 3 joins channel E
+    expect(id).toBe('E')
+    expect(channelTarget('B', board)).toEqual({ index: 3 })
+    expect(channelTarget('E', board)).toEqual({ index: 2 })            // a terminal-own channel
+    expect(channelTarget('A', board)).toEqual({ index: 0 })
+    expect(channelTarget('2', board)).toEqual({ index: 1 })
+    expect(channelTarget('Q', board).error).toContain('no group Q')
+    expect(channelTarget('C', board).error).toContain('No panel on screen is linked to Group C')
+    expect(channelTarget('4', countOf(board, 2)).error).toContain('not on screen')
+    expect(channelTarget('B', countOf(board, 3)).error).toContain('Group B')  // B's panel is off screen
+  })
+
+  it("panelCommandText reads the security from the panel's channel (syms), or its own when unlinked", () => {
+    const p = { id: 'p1', code: 'GP', channel: 'E', sym: 'IGNORED', args: ['W'] }
+    expect(panelCommandText(p, { E: 'nvda' })).toBe('NVDA GP W')
+    expect(panelCommandText({ ...p, channel: null }, {})).toBe('IGNORED GP W')
+    expect(panelCommandText({ id: 'p2', code: 'BRD', channel: 'A' }, { A: 'NVDA' })).toBe('BRD')
+  })
+
+  it('@B TICKER FUNC lands on the panel joined to channel B, sets B, and leaves A alone', async () => {
+    store.prefs = { terminal_layout: JSON.stringify(countOf(DEFAULT_LAYOUT, 4)), charts_workspace_groups: JSON.stringify({ A: 'AAPL' }) }
+    renderAt('/terminal')
+    await type('@B NVDA FA')
+    const target = screen.getByTestId('terminal-panel-3')
+    expect(target.getAttribute('data-channel')).toBe('B')
+    expect(target.getAttribute('data-code')).toBe('FA')
+    expect(target.getAttribute('data-focused')).toBe('true')
+    expect(await within(target).findByTestId('stub-Financials')).toHaveTextContent('Financials:NVDA')
+    expect(screen.getByTestId('terminal-panel-0').getAttribute('data-code')).toBe('CAL')
+    expect(JSON.parse(store.prefs.charts_workspace_groups)).toEqual({ A: 'AAPL', B: 'NVDA' })
+    expect(cmdOf()).toBe('NVDA FA')                                   // ?cmd= from the CHANNEL's security
+  })
+
+  it('@2 reaches a panel on a terminal-own channel (E): its security lives in the board record', async () => {
+    const { layout: withE } = addChannel(countOf(DEFAULT_LAYOUT, 4))
+    store.prefs = { terminal_layout: JSON.stringify(setPanelChannel(withE, 1, 'E', {})) }
+    renderAt('/terminal')
+    await type('@2 MSFT FA')
+    const target = screen.getByTestId('terminal-panel-1')
+    expect(target.getAttribute('data-channel')).toBe('E')
+    expect(await within(target).findByTestId('stub-Financials')).toHaveTextContent('Financials:MSFT')
+    const saved = JSON.parse(store.prefs.terminal_layout)
+    expect(saved.channels.find((c) => c.id === 'E').sym).toBe('MSFT')
+    expect(cmdOf()).toBe('MSFT FA')
+  })
+
+  it('@C with no panel on C is said, and nothing moves', async () => {
+    store.prefs = { terminal_layout: JSON.stringify(countOf(DEFAULT_LAYOUT, 4)) }
+    renderAt('/terminal')
+    const before = store.prefs.terminal_layout
+    await type('@C NVDA FA')
+    expect(screen.getByTestId('terminal-notice').textContent).toContain('No panel on screen is linked to Group C')
+    expect(store.prefs.terminal_layout).toBe(before)
+  })
+
+  it('a B: address arriving as ?cmd= goes down the one run path and opens the board', async () => {
+    const saved = saveBoard(emptyLibrary(), 'Earnings morning', countOf(DEFAULT_LAYOUT, 3), {}, 1)
+    store.prefs = { terminal_boards: JSON.stringify(saved.library) }
+    renderAt('/terminal?cmd=B%3Aearnings-morning')
+    expect(screen.getByTestId('terminal-grid').getAttribute('data-count')).toBe('3')
+    expect(screen.getByTestId('terminal-boards-button').textContent).toContain('Earnings morning')
+  })
+
+  it("row <GO>: a number runs that row of the FOCUSED panel's numbered list", async () => {
+    renderAt('/terminal')
+    await type('HELP')
+    expect(await screen.findByTestId('stub-Help')).toBeTruthy()
+    await type('2')
+    const panel = screen.getByTestId('terminal-panel-0')
+    expect(panel.getAttribute('data-code')).toBe('GP')
+    expect(await within(panel).findByTestId('stub-Chart')).toHaveTextContent('Chart:TSLA')
+    await type('9')
+    expect(screen.getByTestId('terminal-notice').textContent).toContain('no numbered list')
   })
 })

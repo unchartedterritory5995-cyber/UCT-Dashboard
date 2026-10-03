@@ -54,6 +54,13 @@ export const FUNCTIONS = [
     ticker: { panel: 'News', section: 'news' } },
   { code: 'CATS', label: 'Catalyst history', group: 'Security',
     ticker: { panel: 'Catalysts', section: 'catalysts' } },
+  // V15 (lane T3): "why is it moving" over the EXISTING watchlist-intelligence + catalyst
+  // services, plus what is new since this member's last MOVE visit. WIIM is its alias code.
+  // Dark at the server (TERMINAL_GRAMMAR_ENABLED): unset, the panel says it is not enabled.
+  { code: 'MOVE', label: 'Why is it moving (+ since last visit)', group: 'Security',
+    ticker: { panel: 'Move' } },
+  { code: 'WIIM', label: 'Why is it moving (same as MOVE)', group: 'Security',
+    ticker: { panel: 'Move' } },
   { code: 'TECH', label: 'Technical read', group: 'Security',
     ticker: { panel: 'Technical', section: 'technical', flag: 'researchTechnicalTabEnabled' } },
   { code: 'FA', label: 'Financials', group: 'Security',
@@ -249,7 +256,8 @@ export function suggest(token, limit = 5) {
   return scored.slice(0, limit).map(([, , code]) => code)
 }
 
-function editDistance(a, b) {
+/** Exported (lane T3) so the published ranking's "close spelling" class uses THIS metric. */
+export function editDistance(a, b) {
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
   for (let j = 1; j <= b.length; j++) dp[0][j] = j
   for (let i = 1; i <= a.length; i++) {

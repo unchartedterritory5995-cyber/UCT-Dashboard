@@ -44,6 +44,74 @@
   border-color: var(--accent);
 }
 
+/* T3: the column that holds the interpreted-parse echo ABOVE the input (IA §7.4). */
+.cmdBlock {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.echo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-height: 16px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.echo:empty {
+  min-height: 0;
+}
+
+.echoText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.echoShape {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  color: var(--text-faint, var(--text-muted));
+}
+
+.echo_ok { color: var(--text); }
+.echo_ask { color: var(--accent); }
+.echo_warn { color: var(--warn, #f59e0b); }
+.echo_error { color: var(--danger, #f87171); }
+
+.helpTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.helpTable td,
+.helpTable th {
+  padding: 2px var(--space-sm) 2px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.helpRule {
+  margin: var(--space-xs) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rowNum {
+  min-width: 2ch;
+  color: var(--text-faint, var(--text-muted));
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
 .cmdPrompt {
   color: var(--accent);
   font-family: var(--font-mono);

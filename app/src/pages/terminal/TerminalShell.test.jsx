@@ -192,7 +192,8 @@ describe('the command line drives the focused panel', () => {
   it('V13: a surface function EMBEDS the page in the panel (panel-set id), with a Full page link', async () => {
     renderAt('/terminal')
     await type('BRD')
-    expect(screen.getByTestId('where').textContent).toBe('/terminal')
+    // V6d: the shell stays on /terminal and the URL now carries the panel's command.
+    expect(screen.getByTestId('where').textContent).toBe('/terminal?cmd=BRD')
     const panel = screen.getByTestId('terminal-panel-0')
     expect(await within(panel).findByTestId('stub-surfaceBreadth')).toBeTruthy()
     expect(within(panel).getByRole('link', { name: 'Full page' }).getAttribute('href')).toBe('/breadth')

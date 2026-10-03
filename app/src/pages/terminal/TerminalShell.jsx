@@ -19,6 +19,12 @@
 //
 // Phone (≤640): a single panel — the focused one — under a pinned command line, with the
 // function list in a Sheet. Touch tier (≤1024): every control is at least `--tap-min`.
+//
+// Lane T3 (the grammar): ONE parser (parseCommand.js) behind this command line AND the
+// Ctrl/Cmd-K palette; channel targeting (`@B …`), row <GO>, ASK → AI Search, member aliases,
+// comparison modes, the interpreted-parse echo, a published ranking fed by server-side
+// command counts, Alt+1..4 panel focus, and ⭐ EVERY COMMAND IS A URL: `?cmd=` reflects the
+// focused panel and re-runs on load and on back/forward (the URL-state block below).
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -28,6 +34,7 @@ import Sheet from '../../components/mobile/Sheet'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
 import parseCommand from './parseCommand'
@@ -77,10 +84,50 @@ function PanelCrashed({ code }) {
   )
 }
 
+/** Pure: the command text that reproduces a stored panel — what `?cmd=` carries. The
+ *  security comes from the panel's CHANNEL (`syms`, the channel-id → security map), or from
+ *  the panel itself when it is unlinked. */
+export function panelCommandText(panel, syms) {
+  if (!panel || !BY_CODE[panel.code]) return ''
+  const sym = BY_CODE[panel.code].ticker ? panelSym(panel, syms) : null
+  return [sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
+}
+
+/** Pure: which visible panel a command channel addresses. `@1`…`@4` is a panel slot; a
+ *  letter is a channel id on this board (`layout.channels`; A–D are the /charts groups), and
+ *  addresses the first visible panel that joined that channel (`panelChannel`). */
+export function channelTarget(channel, layout) {
+  const visible = layout.panels.slice(0, layout.count)
+  if (/^\d$/.test(channel)) {
+    const i = Number(channel) - 1
+    return i >= 0 && i < visible.length ? { index: i }
+      : { error: `Panel ${channel} is not on screen (this board shows ${visible.length}).` }
+  }
+  const ch = channelOf(layout, channel)
+  if (!ch) return { error: `This board has no group ${channel}.` }
+  const i = visible.findIndex((p) => panelChannel(p) === ch.id)
+  return i >= 0 ? { index: i } : { error: `No panel on screen is linked to ${ch.name}.` }
+}
+
+/** The telemetry key for a command: its code or alias, or its kind. Never a ticker or text. */
+export function telemetryKey(cmd) {
+  if (!cmd?.ok) return null
+  if (cmd.alias) return cmd.alias
+  if (cmd.type === 'function') return cmd.code
+  return { ask: 'ASK', address: 'ADDR', row: 'ROW' }[cmd.type] || null
+}
+
 /** Pure: is this input a bare ticker (the one form a per-ticker preset may answer)? */
 export function isBareTicker(text, cmd) {
   return !!(cmd?.ok && cmd.type === 'function' && cmd.code === 'DES' && cmd.sym
     && String(text || '').trim().split(/\s+/).length === 1)
+}
+
+/** Which list a panel's published rows belong to: the panel and what it is showing. A
+ *  popped-out panel shows no list here. */
+function rowsOwner(panel) {
+  if (!panel || panel.popout) return null
+  return `${panel.id}|${panel.code}|${(panel.args || []).join(' ')}`
 }
 
 function channelOf(layout, id) {
@@ -88,8 +135,8 @@ function channelOf(layout, id) {
 }
 
 function Panel({
-  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onClose, onDuplicate,
-  onPopout, onBringBack, canClose, isPhone, standalone,
+  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
+  onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -97,6 +144,11 @@ function Panel({
   const full = fullHref(r)
   const linkable = isLinkable(panel)
   const dot = channel?.color || 'var(--border)'
+  // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list),
+  // tagged with what it is showing so a list it no longer shows cannot be run.
+  const owner = rowsOwner(panel)
+  const rowsProp = useMemo(() => (focused && onRows ? (rows) => onRows(rows, owner) : undefined),
+    [focused, onRows, owner])
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''}`}
@@ -161,8 +213,10 @@ function Panel({
           >
             <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
               {r.name === 'Help'
-                ? <Comp {...r.props} onRun={onRun} />
-                : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
+                ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                : r.name === 'Move'
+                  ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
             </Suspense>
           </ErrorBoundary>
         )}
@@ -210,8 +264,48 @@ export default function TerminalShell() {
   const focus = Math.min(layout.focus, count - 1)
   const libraryWritable = libraryStatus !== 'unreadable' && libraryStatus !== 'newer'
 
+  // The focused panel's numbered list (row <GO>): the command strings it published.
+  // Tagged with the publishing panel (`rowsOwner`), so row <GO> never runs a stale list.
+  const rowsRef = useRef({ owner: null, rows: [] })
+  const onRows = useCallback((rows, owner) => {
+    rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [] }
+  }, [])
+
+  // V6b / V17: the member's aliases and command counts (server-owned, owner-scoped). A failed
+  // read leaves the grammar working without them — never an error on the command line.
+  const [aliases, setAliases] = useState({})
+  const [stats, setStats] = useState({})
+  const loadAliases = useCallback(() => jsonFetcher('/api/terminal/aliases')
+    .then((d) => setAliases(d?.aliases && typeof d.aliases === 'object' ? d.aliases : {}))
+    .catch(() => {}), [])
+  const loadStats = useCallback(() => jsonFetcher('/api/terminal/commands/stats')
+    .then((d) => setStats(d?.stats && typeof d.stats === 'object' ? d.stats : {}))
+    .catch(() => {}), [])
+  useEffect(() => { loadAliases(); loadStats() }, [loadAliases, loadStats])
+  const aliasesRef = useRef(aliases)
+  aliasesRef.current = aliases
+
+  const countCommand = useCallback((cmd) => {
+    const key = telemetryKey(cmd)
+    if (!key) return
+    jsonFetcher('/api/terminal/commands/event', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }),
+    }).then(() => setStats((s) => ({ ...s, [key]: { n: (s[key]?.n || 0) + 1, last: Date.now() / 1000 } })))
+      .catch(() => {})
+  }, [])
+  const resetRanking = useCallback(() => jsonFetcher('/api/terminal/commands/stats', { method: 'DELETE' })
+    .then(() => {
+      setStats({})
+      setNotice({ kind: 'info', text: 'Personal ranking reset: suggestions now follow the published order alone.' })
+    })
+    .catch(() => setNotice({ kind: 'error', text: 'Could not reset your ranking just now; nothing was changed.' })), [])
+
+  // Set by a member-typed command, read by the URL sync: their command earns a history entry.
+  const userRunRef = useRef(false)
+
   const openCalendarPath = useCallback((extra) => {
     const p = new URLSearchParams(location.search)
+    p.delete('cmd')   // the calendar owns this URL; a stale shell command must not ride along
     // `null` removes a param (`CAL TODAY` clears `?week=` back to the current week).
     for (const [k, v] of Object.entries(extra || {})) { if (v == null) p.delete(k); else p.set(k, v) }
     const q = p.toString()
@@ -261,19 +355,70 @@ export default function TerminalShell() {
     return true
   }, [openSnapshot])
 
-  const run = useCallback((text) => {
+  /** Run one command line. Returns the panel text it put in a panel, or null. A board
+   *  address (`B:<slug>`) opens that board; everything else goes through the ONE parser. */
+  const run = useCallback((text, { fromUrl = false } = {}) => {
     const raw = String(text ?? '').trim()
     setNotice(null)
-    if (BOARD_ADDRESS_RE.test(raw)) { openNamed(raw); return }
-    const cmd = parseCommand(text)
+    if (BOARD_ADDRESS_RE.test(raw)) { openNamed(raw); return null }
+    const cmd = parseCommand(raw, { aliases: aliasesRef.current })
     if (!cmd.ok) {
       if (cmd.error !== 'empty') setNotice({ kind: 'error', text: cmd.error, sym: cmd.sym, suggestions: cmd.suggestions || [] })
-      return
+      return null
+    }
+    if (cmd.type.startsWith('alias-')) {
+      // ⛔ Never from a URL: a shared link must not define or delete an alias for its clicker.
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'Aliases are defined at the command line, not from a link.' })
+        return null
+      }
+      if (cmd.type === 'alias-list') {
+        const list = Object.entries(aliasesRef.current)
+        setNotice({ kind: 'info', text: list.length
+          ? `Your aliases: ${list.map(([n, e]) => `${n} = ${e}`).join(' · ')}`
+          : 'You have no aliases yet. ALIAS NAME = command saves one.' })
+        return null
+      }
+      const path = `/api/terminal/aliases/${encodeURIComponent(cmd.name)}`
+      const req = cmd.type === 'alias-define'
+        ? jsonFetcher(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expansion: cmd.expansion }) })
+        : jsonFetcher(path, { method: 'DELETE' })
+      req.then(() => {
+        setNotice({ kind: 'info', text: cmd.type === 'alias-define'
+          ? `Saved alias ${cmd.name} = ${cmd.expansion}` : `Removed alias ${cmd.name}.` })
+        loadAliases()
+      }).catch((err) => setNotice({ kind: 'error', text: cmd.type === 'alias-delete'
+        ? `You have no alias ${cmd.name}.`
+        : err?.status === 409 ? `${cmd.name} is refused: it is a real ticker (or you are at the alias limit). An alias may never shadow a security.`
+          : `${cmd.name} was not saved just now; try again.` }))
+      return null
+    }
+    if (cmd.type === 'row') {
+      // Only the list the focused panel shows NOW: a list published by a panel since closed,
+      // replaced, popped out or unfocused is not addressable.
+      const lay = layoutRef.current
+      const owner = rowsOwner(lay.panels[Math.min(lay.focus, lay.count - 1)])
+      const rows = owner && rowsRef.current.owner === owner ? rowsRef.current.rows : []
+      const target = rows[cmd.n - 1]
+      if (!target) {
+        setNotice({ kind: 'error', text: rows.length
+          ? `There is no row ${cmd.n} here (rows 1-${rows.length}).`
+          : 'The focused panel has no numbered list. HELP shows one.' })
+        return null
+      }
+      countCommand(cmd)
+      return run(target)
+    }
+    countCommand(cmd)
+    if (cmd.type === 'ask') {
+      navigate(`/ai-search?q=${encodeURIComponent(cmd.question)}`)
+      return null
     }
     if (cmd.type === 'address') {
       if (auth.addressSpaceEnabled !== true) {
         setNotice({ kind: 'error', text: `Saved-item addresses (${cmd.address}) are not enabled for your account yet.` })
-        return
+        return null
       }
       jsonFetcher(`/api/address/resolve?a=${encodeURIComponent(cmd.address)}`)
         .then((row) => {
@@ -281,17 +426,22 @@ export default function TerminalShell() {
           else setNotice({ kind: 'error', text: `Nothing at ${cmd.address}.` })
         })
         .catch(() => setNotice({ kind: 'error', text: `Nothing at ${cmd.address} that you can open.` }))
-      return
+      return null
     }
 
     // A per-ticker preset (V14): a bare ticker opens the member's board for it.
     if (isBareTicker(raw, cmd)) {
       const board = presetFor(libraryRef.current, cmd.sym)
-      if (board) { openNamed(board, { sym: cmd.sym }); return }
+      if (board) { openNamed(board, { sym: cmd.sym }); return null }
     }
 
     const cur = layoutRef.current
-    const at = Math.min(cur.focus, cur.count - 1)
+    let at = Math.min(cur.focus, cur.count - 1)
+    if (cmd.channel) {
+      const t = channelTarget(cmd.channel, cur)
+      if (t.error) { setNotice({ kind: 'error', text: t.error }); return null }
+      at = t.index
+    }
     const panel = cur.panels[at]
     let sym = cmd.sym
     let { variant, scope, reason, ignoredTicker } = variantFor(cmd.code, !!sym)
@@ -301,33 +451,45 @@ export default function TerminalShell() {
     }
     if (!variant) {
       setNotice({ kind: 'error', text: `${cmd.code} needs a ticker — e.g. NVDA ${cmd.code}.` })
-      return
+      return null
     }
     if (!flagOn(auth, variant.flag)) {
       setNotice({ kind: 'error', text: `${cmd.code} is not enabled for your account yet.` })
-      return
+      return null
     }
     setFunctionRecents(pushFunctionRecent(cmd.code))
+    if (cmd.code === 'CMP' && cmd.compareMode === 'sector' && variant.door) {
+      // V18: vs sector — the server resolves the security's sector ETF, then the SAME door.
+      setNotice({ kind: 'info', text: `Finding ${sym}'s sector ETF…` })
+      jsonFetcher(`/api/terminal/compare-target?sym=${encodeURIComponent(sym)}&mode=sector`)
+        .then((d) => {
+          const to = d?.comparator ? fillDoor(variant.door, { sym, args: [d.comparator] }) : null
+          if (to) navigate(to)
+          else setNotice({ kind: 'error', text: `No sector ETF is known for ${sym}.` })
+        })
+        .catch(() => setNotice({ kind: 'error', text: `No sector ETF is known for ${sym}; try ${sym} CMP XLK.` }))
+      return null
+    }
     if (variant.door) {
       const to = fillDoor(variant.door, { sym, args: cmd.args })
       if (!to) {
         setNotice({ kind: 'error', text: `${cmd.code} needs ${variant.needsArg || 'a ticker'}.` })
-        return
+        return null
       }
       // A door leaves the shell, so an argument it cannot carry would vanish with no one to
       // say so: refuse instead, and say which token (V6a, never silent).
       const leftover = applyArgs(variant, cmd.args)
       if (leftover.ignored.length) {
         setNotice({ kind: 'error', text: argsEcho(cmd.code, leftover) })
-        return
+        return null
       }
       navigate(to)
-      return
+      return null
     }
     const name = panelNameFor(variant)
     if (!name) {
       setNotice({ kind: 'error', text: `${cmd.code} has no panel on this release.` })
-      return
+      return null
     }
     // V6a: every token after the code is APPLIED or said to be NOT applied, never dropped.
     const applied = applyArgs(variant, cmd.args)
@@ -362,11 +524,54 @@ export default function TerminalShell() {
     if (name === 'Calendar') {
       const extra = { ...applied.params, ...(variant.params?.earnings && sym ? { earnings: sym } : {}) }
       openCalendarPath(Object.keys(extra).length ? extra : null)
+      return null
     }
-  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, save])
+    return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
+  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, save, countCommand, loadAliases])
 
-  // A deep link `/terminal?cmd=NVDA%20GP` runs once and is stripped (TERM-038's door hook).
-  useDoorParam('cmd', run, { ready: !loading && !popoutToken })
+  const runTyped = useCallback((text) => { userRunRef.current = true; return run(text) }, [run])
+
+  // ── V6d: EVERY COMMAND IS A URL ──────────────────────────────────────────────
+  // `?cmd=` reflects the focused panel. An arriving `?cmd=` (a link, a palette pick, back/
+  // forward) runs; the shell then writes the focused panel's command back. ⛔ H14: each
+  // effect writes only when the URL and the panel DISAGREE; a pending URL command blocks the
+  // write-back until its panel has caught up; a URL-owning panel (the calendar) is never
+  // written over; and a write budget stops any ping-pong cold.
+  const runRef = useRef(run)
+  runRef.current = run
+  const urlCmdRef = useRef(undefined)      // the last `?cmd=` value acted on or written
+  const pendingRef = useRef(null)          // the panel text an arriving URL command will show
+  const writesRef = useRef([])
+  const urlCmd = new URLSearchParams(location.search).get('cmd')
+  // A pop-out window is one frozen panel: it neither runs nor writes `?cmd=`.
+  useEffect(() => {
+    if (loading || popoutToken || !urlCmd || urlCmd === urlCmdRef.current) return
+    urlCmdRef.current = urlCmd
+    pendingRef.current = runRef.current(urlCmd, { fromUrl: true }) || null
+  }, [loading, popoutToken, urlCmd])
+
+  const focusedPanel = layout.panels[focus]
+  const focusedText = panelCommandText(focusedPanel, syms)
+  const focusedOwnsUrl = URL_OWNING_PANELS.has(resolvePanel(focusedPanel, syms, auth).name)
+  useEffect(() => {
+    if (loading || popoutToken || focusedOwnsUrl || !focusedText) return
+    if (pendingRef.current && pendingRef.current !== focusedText) return
+    pendingRef.current = null
+    if (urlCmd === focusedText) { urlCmdRef.current = urlCmd; return }
+    const now = Date.now()
+    writesRef.current = writesRef.current.filter((t) => now - t < 2000)
+    if (writesRef.current.length >= 6) {
+      console.warn('[terminal] ?cmd= write budget spent; URL sync paused (H14)')
+      return
+    }
+    writesRef.current.push(now)
+    const p = new URLSearchParams(location.search)
+    p.set('cmd', focusedText)
+    urlCmdRef.current = focusedText
+    const push = userRunRef.current
+    userRunRef.current = false
+    navigate({ pathname: location.pathname, search: `?${p.toString()}`, hash: location.hash }, { replace: !push })
+  }, [loading, popoutToken, focusedOwnsUrl, focusedText, urlCmd, location.pathname, location.search, location.hash, navigate])
 
   // A share link `/terminal?board=<token>` opens that board once (V3), offering to keep it.
   const applyShared = useCallback((token) => {
@@ -458,10 +663,21 @@ export default function TerminalShell() {
     else if (a.id === 'save-shared') onSaveBoard(a.name)
   }
 
+  // V4: Alt+1..4 focuses that panel — from the command line too (declared inEditable).
+  const setFocusRef = useRef(null)
+  setFocusRef.current = (i) => { if (i < count) setFocus(i) }
+  useEffect(() => registerShortcuts({
+    'terminal.panel1': (e) => { e.preventDefault(); setFocusRef.current?.(0) },
+    'terminal.panel2': (e) => { e.preventDefault(); setFocusRef.current?.(1) },
+    'terminal.panel3': (e) => { e.preventDefault(); setFocusRef.current?.(2) },
+    'terminal.panel4': (e) => { e.preventDefault(); setFocusRef.current?.(3) },
+  }), [])
+
   const railGroups = useMemo(() => FUNCTION_GROUPS.map((g) => ({
     g, fns: FUNCTIONS.filter((f) => f.group === g),
   })), [])
   const focusedCode = layout.panels[focus]?.code
+  const helpProps = { onResetRanking: resetRanking, hasStats: Object.keys(stats).length > 0 }
   const guarded = layoutStatus === 'unreadable' || layoutStatus === 'newer'
 
   // ── a popped-out panel: one frozen panel, no board, nothing written ──
@@ -486,7 +702,7 @@ export default function TerminalShell() {
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
       <div className={styles.bar}>
-        <CommandLine onSubmit={run} inputRef={inputRef} />
+        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
         {isPhone && (
           <button type="button" className={styles.barBtn} onClick={() => setSheet('functions')} data-testid="terminal-fn-button">
             Functions
@@ -552,7 +768,7 @@ export default function TerminalShell() {
               Did you mean
               {notice.suggestions.map((c) => (
                 <button key={c} type="button" className={styles.chip}
-                  onClick={() => run(notice.sym ? `${notice.sym} ${c}` : c)}>{c}</button>
+                  onClick={() => runTyped(notice.sym ? `${notice.sym} ${c}` : c)}>{c}</button>
               ))}
             </span>
           )}
@@ -574,7 +790,7 @@ export default function TerminalShell() {
                     key={f.code}
                     type="button"
                     className={`${styles.railItem} ${focusedCode === f.code ? styles.railItemOn : ''}`}
-                    onClick={() => run(f.code)}
+                    onClick={() => runTyped(f.code)}
                     title={f.label}
                     data-testid={`terminal-rail-${f.code}`}
                   >
@@ -602,7 +818,9 @@ export default function TerminalShell() {
                   const r = e.currentTarget.getBoundingClientRect?.() || { left: 0, bottom: 0 }
                   setChannelMenu({ index: i, anchor: { x: r.left, y: r.bottom + 4 } })
                 }}
-                onRun={run}
+                onRun={runTyped}
+                onRows={onRows}
+                helpProps={helpProps}
                 onClose={() => onClose(i)}
                 onDuplicate={() => onDuplicate(i)}
                 onPopout={() => onPopout(i)}
@@ -631,7 +849,7 @@ export default function TerminalShell() {
         ] : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
-        <HelpPanel onRun={(code) => { setSheet(null); run(code) }} />
+        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} />
       </Sheet>
       <Sheet open={sheet === 'boards'} onClose={() => setSheet(null)} title="Boards">
         <BoardsMenu
@@ -655,7 +873,7 @@ export default function TerminalShell() {
           onRun={(textOrSym, channelId) => {
             if (channelId) { retargetChannel(textOrSym, channelId); return }
             setSheet(null)
-            run(textOrSym)
+            runTyped(textOrSym)
           }}
           onOpenBoard={(b) => { setSheet(null); openNamed(b) }}
           onToggleFavorite={(code) => saveLibrary(toggleFavorite(library, code))}
