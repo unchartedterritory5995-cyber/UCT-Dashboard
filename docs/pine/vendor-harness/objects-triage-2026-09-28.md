@@ -170,6 +170,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
+| 72 | RT5 (lane brief, wave 16) the RUNTIME lane draws a script's objects ITSELF when the host object program would draw nothing (section RT5): `runtime/objectStore.js` (C7 collector, table one-per-position, linefill dies with its lines, version capacities), `OP.OBJECT`, `compute.objects: true`, the binder draws the run's own payload. Refused by name under the drawing build: `runtime:conditional-history`, a drawing call in one arm of `?:` (`runtime:object-op`). Census unchanged (0 moved, 0 lost); 17 of 19 direct-run captures agree, 2 not comparable. | RT5 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5803,3 +5804,76 @@ sentence, pine.derived, h3VwapSource) Tests 195 passed (195); pytest test_ast_in
 2. **The nested-helper cost** (first row above): keep the correct `pine:state` at ~3 s of translation for that one
    script, or revert `d0a85007e0` and keep the fast, wrongly worded `pine:cycle`.
 3. **`alma` in v4** and **`fixnan`**: rulings, with Q-H3c queued for the first.
+
+## RT5 - the runtime lane draws its own objects (2026-10-02, step 72)
+
+Branch `pine/rt5-runtime-objects` (from `pine/o1-drawing-only` `633b9a7c54`, merged with
+`integrate/wave16-2026-10-02` `666ea1c854`). Dark: behind `VITE_PINE_RUNTIME_PANE_ENABLED`.
+
+**What is served.** When `runtimeLaneDefinition` takes a document and the HOST object program
+would draw nothing (absent, empty, or withheld for a lost removal), and the run builds WITH its
+drawings (`buildRuntimeIr({objectsInRun})`, lowering at least one drawing op), the document is
+minted `compute.objects: true` and its objects come from the SAME run that computes its columns
+(RT4's ruling holds by construction: no run, no drawing). Families: line, label, box, table
+(+cells), linefill. Withheld by name: polyline / `chart.point` (the chart has no polyline). The
+store is `engine/runtime/objectStore.js` and reuses the host's measured rules: C7 collector
+(above cap + 5, oldest go until cap, same-bar creations and variable-held objects spared, an
+array/UDT-held object reached withholds the family), one table per position (newest wins), one
+linefill per line pair and it dies with its lines, bar coordinates truncated toward zero (C48),
+`na` colour `#00000000`, per-version capacities. `str.tostring` is served in the run for the
+literal `#`/`0` formats only (`objectRuntime.formatNumber`, lifted, unchanged). A drawing-only
+document carries a hidden anchor row; the server accepts `objects: true` with no outputs.
+
+**Refused by name (drawing build only, so nothing that already attached can move):**
+* `runtime:conditional-history` - a `ta.*` call, a block local's `[k]`, a parameter's or body
+  local's `[k]`, or `bar_index[k]` inside a function body, read inside a block or call that does
+  not run on every bar. Witnessed: `vw-call-site-history-*` (C01-C05, D01/D02 diverge from the
+  every-bar plots; A13/C06 `bar_index[k]` and A14 `volume[5]` are the chart's) and
+  `vw-fn-series-history` (S02 `bar_index[k]` NaN in a function, S01/S03-S07 the chart's, C01/C02
+  NaN). The chart's own series (`open..ohlc4`, `hlcc4`, `time`, `time_close`) and arithmetic over
+  them keep the chart's history anywhere; `bar_index[k]` keeps it in a global block. A function
+  is judged at its call site (its body is compiled at depth 0). A TOP-LEVEL binding that carries
+  history is a slot evaluated on every bar, never a macro a block expands (and so evaluates)
+  only when it runs - this is what keeps `atr-support-and-resistance` and `trendlines` building.
+* `runtime:object-op` "a drawing call inside one arm of `?:`" - this lane evaluates both arms
+  every bar (`liquidity-pools`: 502 labels against TradingView's 91 before the refusal). The
+  host lane's G7 equivalence (O1) would serve it as `if`; Q-RT5a asks the vendor first.
+
+**Measured** (`rt5RuntimeObjects.measure.test.js`, `RT5_MEASURE=1`, 67 captures with object
+records; direct = the drawing build run on the capture's own bars, counts per family + label
+texts as a multiset):
+* 19 build; **17 agree** on every family count (and label texts where recorded): the six
+  `vw-object-gc-{a,b,c}` 1D/1W (the collector, id for id), `vw-int-array-avg(-neg)`,
+  `vw-tf-period` 1D/1W/1M, `options-max-pain-calculator-backquant` (tables + cells),
+  `fibonacci-pivot-points-cc`, `ultimate-pivot-points`, `contraction-box-doji-lines`,
+  `makuchaku039s-trade-tools-fair-value-gaps`, `atr-support-and-resistance`, `trendlines`.
+* 2 not comparable: `vw-runtime-error-spy-1d` (54 vs 50 labels, texts `2100..` vs `6000..`): the
+  capture's bars do not start at the listing (bar_index 0 here is TradingView's ~3,700), so the
+  collector's phase and the printed `bar_index` differ - the door refuses that history (R-W).
+* Refused by name instead of drawing wrong: `liquidity-pools` (`?:` arm), the three
+  `vw-call-site` / `vw-fn-series` captures (`runtime:conditional-history`).
+* Door verdicts in the runtime state: identical before/after (MATCH 40, DIVERGE 20,
+  INCONCLUSIVE 2, none 5); every capture's objects still come from the host lane, because every
+  capture's host program draws.
+* Timing (direct run, objects included): 8,473 bars 336-350 ms (gc probes), 4,800 bars 532 ms,
+  632 bars <= 557 ms.
+
+**Census** (`memberDoorCensus.measure.test.js`, `VENDOR_BATCH_CENSUS_RUNTIME=1`, 266 files):
+before off 54 / on 79 / runtime 82; after off 54 / on 79 / runtime 82 - **0 moved, 0 lost**.
+Of the O1 drawing-only scripts, three now fail on a named runtime wall instead of the old
+`runtime:object-op`: `trendlinesample` (`runtime:conditional-history`, `sup[1]` of a drawing
+handle inside `if barstate.islast`), `trendline-pivots-quantvue` (`runtime:loop`, `for ... in`),
+`order-blocks` (`runtime:na-test`). None of the corpus attaches through RT5 yet: the scripts it
+would serve are walled first by the runtime lane's other walls (libraries, undeclared builtin
+state, dynamic offsets, statements).
+
+**Rails:** `runtime/__tests__/rt5RuntimeObjects.test.js` (13), `builder/memberPane/
+runtimeObjectsDoor.test.js` (5), `tests/test_runtime_definitions.py` (22). Mutations, each
+restored from captured bytes and sha-verified: guard off, top-level macro, `?:` arm drawing,
+call-site function check, `bar_index` in a global block, chart-history set emptied, door host
+check, door routing, collector at cap instead of cap + 5, server `objects` value, server empty
+outputs - each turns its rail red. One guard was REMOVED on its mutation (a user-function
+"folded into a column" check that left every rail green).
+
+**Capture queue:** `capture-queue-2026-10-02-rt5-runtime-objects.md` (Q-RT5a,
+`probes/vw-rt5-arm-draw-block-history.pine`): a drawing in a `?:` arm, and a block local's `[1]`.
