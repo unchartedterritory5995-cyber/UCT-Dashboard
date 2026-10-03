@@ -22,6 +22,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
+import { loadPineLibraryStore } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+import { clearPineLibraries } from '../../ast/pineLibraryStore'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -303,5 +305,135 @@ describe('CAP2 coverage audit — INCONCLUSIVE', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02').v.reason).toMatch(/pine:state/)
     expect(grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02').v.reason).toMatch(/pine:tuple/)
     expect(grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02').v.reason).toMatch(/pine:collection/)
+  }, T)
+})
+
+// ─── CAP3 (2026-10-03, step 81) — the standing capture lane's queue ─────────────
+// Captured on the same rig and route as CAP2 (unsaved Create-new drafts, the editor's
+// sha256 read back equal to the committed file, `tv_capture.js`, a hash-receipted
+// clipboard, `verify_capture.mjs` VERDICT: PASS). `rolling-vwap` imports
+// PineCoders/ConditionalAverages/2: production's library store holds it, every committed
+// rail's registry is empty, so its door grade is opt-in (`PINE_LIBRARY_STORE=<scratch
+// store>`, L1's loader) and the empty-registry refusal is pinned.
+const col3 = (cap, title) => {
+  const plot = cap.study.plots.find((p) => p.title === title)
+  const at = cap.plotValues.fields.indexOf(plot.id)
+  return cap.plotValues.rows.map((r) => r[at])
+}
+const STORE_DIR = process.env.PINE_LIBRARY_STORE || ''
+describe('CAP3 — Q-L2a rolling-vwap (runtime lane, library linked)', () => {
+  it('vendor: RDDT from the listing (636 bars, startsAtBar0) and SPY 1800 bars; the source is the corpus file', () => {
+    const r = grade('rolling-vwap-rddt-1d-2026-10-03', 'runtime').cap
+    expect(r.history.startsAtBar0).toBe(true)
+    expect(r.bars.count).toBe(636)
+    expect(r.source.sha256).toBe('232f76befd87476a05ced1cf39efc7c5b4cd4600ffb30e2baf0f67079a3bb73a')
+    expect(grade('rolling-vwap-spy-1d-2026-10-03', 'runtime').cap.bars.count).toBe(1800)
+  }, T)
+  it('empty registry (every rail; production before its store loads): the door refuses on the import, by name', () => {
+    expect(grade('rolling-vwap-rddt-1d-2026-10-03', 'runtime').v.reason).toMatch(/ConditionalAverages/)
+  }, T)
+  describe.skipIf(!STORE_DIR)('with the library store (opt-in PINE_LIBRARY_STORE)', () => {
+    const graded = new Map()
+    const gradeStore = (id) => {
+      if (!graded.has(id)) {
+        loadPineLibraryStore(STORE_DIR)
+        vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+        vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+        const cap = loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
+        graded.set(id, gradeCapture(cap).verdict)
+        vi.unstubAllEnvs()
+        clearPineLibraries()
+      }
+      return graded.get(id)
+    }
+    it('⭐ RDDT: all 7 plots MATCH TradingView on all 636 bars', () => {
+      const v = gradeStore('rolling-vwap-rddt-1d-2026-10-03')
+      expect(v.plots.length).toBe(7)
+      for (const p of v.plots) {
+        expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
+        expect(p.stats.compared, p.title).toBe(636)
+      }
+    }, T)
+    it.fails('RDDT: MATCH overall', () => {
+      expect(gradeStore('rolling-vwap-rddt-1d-2026-10-03').verdict).toBe('MATCH')
+    }, T)
+    it('control: the one divergence is the info table cell — TradingView writes "1M", our run draws the table with no cell', () => {
+      const o = gradeStore('rolling-vwap-rddt-1d-2026-10-03').objects
+      expect(o.counts.find((c) => c.family === 'tables')).toMatchObject({ vendor: 1, ours: 1 })
+      expect(o.counts.find((c) => c.family === 'tableCells')).toMatchObject({ vendor: 1, ours: 0 })
+      expect(o.texts.find((t) => t.family === 'tableCells text').onlyVendor).toEqual(['1M'])
+    }, T)
+    it('SPY (a window not from the listing): the run declines by name (runtime:history-start) — no column, nothing drawn', () => {
+      const v = gradeStore('rolling-vwap-spy-1d-2026-10-03')
+      expect(v.verdict).toBe('INCONCLUSIVE')
+      expect(v.plots.every((p) => /no column/.test(p.reason || ''))).toBe(true)
+      expect(v.objects.reason).toMatch(/runtime:history-start/)
+    }, T)
+  })
+})
+
+describe('CAP3 — Q-RT5a vw-rt5-arm-draw-block-history, NYSE:RDDT 1D from the listing (vendor witness)', () => {
+  const cap = () => grade('vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03').cap
+  it('T01/T02: a label.new in the THEN arm of ?: is made only on the bars that arm runs — 308 labels, one per UP bar; the handle is present exactly on UP bars', () => {
+    const c = cap()
+    expect(c.history.startsAtBar0).toBe(true)
+    const up = c.bars.rows.map((b) => b[4] > b[1])
+    expect(up.filter(Boolean).length).toBe(308)
+    expect(c.objects.counts.labels).toBe(308)
+    const t02 = col3(c, 'T02_arm_handle_present')
+    expect(t02.every((x, i) => (x === 1) === up[i])).toBe(true)
+  }, T)
+  it('B01: a block local [1] inside a global if is the PREVIOUS EXECUTION value (the previous UP bar bar_index), na on the first UP bar and on every non-UP bar; B00 is bar_index', () => {
+    const c = cap()
+    const up = c.bars.rows.map((b) => b[4] > b[1])
+    let prev = null
+    const want = up.map((u, i) => { const e = u ? prev : null; if (u) prev = i; return e })
+    expect(col3(c, 'B01_block_local_prev_exec')).toEqual(want)
+    expect(col3(c, 'B00_bar_index_CONTROL')).toEqual(c.bars.rows.map((_, i) => i))
+  }, T)
+  it('door on this tree: refused by name (pine:drawing) — the RT5 branch is what this capture grades', () => {
+    expect(grade('vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03', 'runtime').v.reason).toMatch(/pine:drawing/)
+  }, T)
+})
+
+describe('CAP3 — Q-H4a vw-h4-loops (vendor witness)', () => {
+  // A hand replay of the probe's Pine semantics, independent of the engine.
+  function replay(bars) {
+    const C = bars.map((b) => b[4]); const O = bars.map((b) => b[1])
+    let st = null
+    return C.map((_, t) => {
+      let norm = 0; let s = 0; let ok = true
+      for (let i = 0; i < 13; i++) {
+        const w = (13 - i) * 13; norm += w
+        if (t - i < 0) { ok = false; break }
+        s += C[t - i] * w * (C[t - i] < O[t - i] ? -1 : 1)
+      }
+      if (st === null) st = [C[t], C[t], C[t]]
+      st = st.map((x) => x + 0.5 * (C[t] - x))
+      return { L1: ok ? s / norm : null, L2: st[0], L3: t >= 2 ? C[t] + C[t - 1] + C[t - 2] : null }
+    })
+  }
+  const same = (a, b) => (a === null || b === null ? a === b : Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a)))
+  it('RDDT from the listing: L1 / L2 / L3 equal the hand replay on all 636 bars (L1 from bar 12, L3 from bar 2; n = 3 on every bar)', () => {
+    const c = grade('vw-h4-loops-rddt-1d-2026-10-03').cap
+    expect(c.history.startsAtBar0).toBe(true)
+    const r = replay(c.bars.rows)
+    const l1 = col3(c, 'L1 wsum(close, a+b)'); const l2 = col3(c, 'L2 seeded filter'); const l3 = col3(c, 'L3 sum of last n closes')
+    expect(l1.findIndex((x) => x !== null)).toBe(12)
+    expect(l3.findIndex((x) => x !== null)).toBe(2)
+    expect(r.every((x, i) => same(l1[i], x.L1) && same(l2[i], x.L2) && same(l3[i], x.L3))).toBe(true)
+    expect(new Set(col3(c, 'L3 n'))).toEqual(new Set([3]))
+  }, T)
+  it('SPY (1800 bars, not from the listing): the replay agrees once the warm-up the earlier history supplies is past (L1 from bar 12, L2 within 22 bars, L3 from bar 2)', () => {
+    const c = grade('vw-h4-loops-spy-1d-2026-10-03').cap
+    const r = replay(c.bars.rows)
+    const l1 = col3(c, 'L1 wsum(close, a+b)'); const l2 = col3(c, 'L2 seeded filter'); const l3 = col3(c, 'L3 sum of last n closes')
+    const bad = (col, k) => col.map((x, i) => (same(x, r[i][k]) ? -1 : i)).filter((i) => i >= 0)
+    expect(bad(l1, 'L1')).toEqual([...Array(12).keys()])
+    expect(Math.max(...bad(l2, 'L2'))).toBeLessThan(22)
+    expect(bad(l3, 'L3')).toEqual([0, 1])
+  }, T)
+  it('door on this tree: refused by name (pine:block, the `for` in wsum) — the H4 branch is what this capture grades', () => {
+    expect(grade('vw-h4-loops-rddt-1d-2026-10-03', 'runtime').v.reason).toMatch(/pine:block/)
   }, T)
 })
