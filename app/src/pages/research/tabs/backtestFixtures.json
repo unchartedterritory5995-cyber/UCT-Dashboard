@@ -1,0 +1,964 @@
+{
+ "_readme": "BRK-01 inc 4: payloads recorded from api/services/options_backtest.run_backtest over tests/fixtures/options_backtest/spy_replay.json (synthetic-shaped vendor, see record.py).",
+ "full": {
+  "basis": "A historical simulation, not advice. One contract per leg, every fill at the mid of the bid and ask, before commissions and fees. Entry prices are option QUOTES at the entry close, never trade prints; the expiry value is intrinsic from the underlying's close.",
+  "computed_at": "2026-10-02T21:00:00+00:00",
+  "excluded": [
+   {
+    "entry": "2025-10-10",
+    "expiry": "2025-11-21",
+    "reason": "no contracts listed for this expiration at entry"
+   },
+   {
+    "entry": "2025-12-03",
+    "expiry": "2026-01-16",
+    "reason": "no two-sided quote for the 560 call at the entry close"
+   },
+   {
+    "entry": "2026-02-05",
+    "expiry": "2026-03-20",
+    "reason": "no two-sided quote for the 580 call at the entry close"
+   }
+  ],
+  "excluded_count": 3,
+  "expirations_considered": 12,
+  "iv_source": "computed",
+  "iv_source_text": "IV is COMPUTED here, not the vendor's: a Black-Scholes inversion of the entry mid (European exercise, no dividends, a flat 4.0% rate, calendar days to expiry). Massive keeps no historical IV.",
+  "not_run": [],
+  "not_run_count": 0,
+  "params": {
+   "dte": 30,
+   "offset": 0,
+   "stop_loss_pct": null,
+   "strategy": "long_call",
+   "sym": "SPY",
+   "take_profit_pct": null,
+   "width": 0
+  },
+  "risk_free_rate": 0.04,
+  "strategy_label": "Long call",
+  "summary": {
+   "avg_pnl": -123.33,
+   "best": 3512.0,
+   "max_drawdown": -4462.0,
+   "median_pnl": -1554.0,
+   "n": 9,
+   "total_pnl": -1110.0,
+   "win_rate": 0.4444,
+   "wins": 4,
+   "worst": -1808.0
+  },
+  "summary_reason": null,
+  "sym": "SPY",
+  "trades": [
+   {
+    "debit": 1693.0,
+    "entry_close": 565.63,
+    "entry_date": "2025-09-05",
+    "exit": {
+     "date": "2025-10-17",
+     "kind": "expiry",
+     "underlying_close": 584.09,
+     "value": 1909.0
+    },
+    "expiry": "2025-10-17",
+    "legs": [
+     {
+      "ask": 16.98,
+      "bid": 16.88,
+      "iv_computed": 0.2,
+      "mid": 16.93,
+      "quote_time": "2025-09-05T19:59:58Z",
+      "side": 1,
+      "strike": 565.0,
+      "ticker": "O:SPY251017C00565000",
+      "type": "call"
+     }
+    ],
+    "pnl": 216.0,
+    "pnl_pct": 12.8
+   },
+   {
+    "debit": 1720.0,
+    "entry_close": 556.27,
+    "entry_date": "2025-11-06",
+    "exit": {
+     "date": "2025-12-19",
+     "kind": "expiry",
+     "underlying_close": 585.44,
+     "value": 3044.0
+    },
+    "expiry": "2025-12-19",
+    "legs": [
+     {
+      "ask": 17.25,
+      "bid": 17.15,
+      "iv_computed": 0.2,
+      "mid": 17.2,
+      "quote_time": "2025-11-06T20:59:58Z",
+      "side": 1,
+      "strike": 555.0,
+      "ticker": "O:SPY251219C00555000",
+      "type": "call"
+     }
+    ],
+    "pnl": 1324.0,
+    "pnl_pct": 77.0
+   },
+   {
+    "debit": 1700.0,
+    "entry_close": 602.71,
+    "entry_date": "2026-01-07",
+    "exit": {
+     "date": "2026-02-20",
+     "kind": "expiry",
+     "underlying_close": 561.94,
+     "value": 0.0
+    },
+    "expiry": "2026-02-20",
+    "legs": [
+     {
+      "ask": 17.05,
+      "bid": 16.95,
+      "iv_computed": 0.2,
+      "mid": 17.0,
+      "quote_time": "2026-01-07T20:59:58Z",
+      "side": 1,
+      "strike": 605.0,
+      "ticker": "O:SPY260220C00605000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1700.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 1581.0,
+    "entry_close": 558.43,
+    "entry_date": "2026-03-05",
+    "exit": {
+     "date": "2026-04-17",
+     "kind": "expiry",
+     "underlying_close": 610.93,
+     "value": 5093.0
+    },
+    "expiry": "2026-04-17",
+    "legs": [
+     {
+      "ask": 15.86,
+      "bid": 15.76,
+      "iv_computed": 0.2,
+      "mid": 15.81,
+      "quote_time": "2026-03-05T20:59:58Z",
+      "side": 1,
+      "strike": 560.0,
+      "ticker": "O:SPY260417C00560000",
+      "type": "call"
+     }
+    ],
+    "pnl": 3512.0,
+    "pnl_pct": 222.1
+   },
+   {
+    "debit": 1808.0,
+    "entry_close": 595.71,
+    "entry_date": "2026-04-02",
+    "exit": {
+     "date": "2026-05-15",
+     "kind": "expiry",
+     "underlying_close": 588.82,
+     "value": 0.0
+    },
+    "expiry": "2026-05-15",
+    "legs": [
+     {
+      "ask": 18.13,
+      "bid": 18.03,
+      "iv_computed": 0.2,
+      "mid": 18.08,
+      "quote_time": "2026-04-02T19:59:58Z",
+      "side": 1,
+      "strike": 595.0,
+      "ticker": "O:SPY260515C00595000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1808.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 1686.0,
+    "entry_close": 602.88,
+    "entry_date": "2026-05-06",
+    "exit": {
+     "date": "2026-06-18",
+     "kind": "expiry",
+     "underlying_close": 570.22,
+     "value": 0.0
+    },
+    "expiry": "2026-06-18",
+    "legs": [
+     {
+      "ask": 16.91,
+      "bid": 16.81,
+      "iv_computed": 0.2,
+      "mid": 16.86,
+      "quote_time": "2026-05-06T19:59:58Z",
+      "side": 1,
+      "strike": 605.0,
+      "ticker": "O:SPY260618C00605000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1686.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 1620.0,
+    "entry_close": 568.2,
+    "entry_date": "2026-06-03",
+    "exit": {
+     "date": "2026-07-17",
+     "kind": "expiry",
+     "underlying_close": 609.91,
+     "value": 3991.0
+    },
+    "expiry": "2026-07-17",
+    "legs": [
+     {
+      "ask": 16.25,
+      "bid": 16.15,
+      "iv_computed": 0.2,
+      "mid": 16.2,
+      "quote_time": "2026-06-03T19:59:58Z",
+      "side": 1,
+      "strike": 570.0,
+      "ticker": "O:SPY260717C00570000",
+      "type": "call"
+     }
+    ],
+    "pnl": 2371.0,
+    "pnl_pct": 146.4
+   },
+   {
+    "debit": 1718.0,
+    "entry_close": 599.2,
+    "entry_date": "2026-07-10",
+    "exit": {
+     "date": "2026-08-21",
+     "kind": "expiry",
+     "underlying_close": 601.64,
+     "value": 164.0
+    },
+    "expiry": "2026-08-21",
+    "legs": [
+     {
+      "ask": 17.23,
+      "bid": 17.13,
+      "iv_computed": 0.1999,
+      "mid": 17.18,
+      "quote_time": "2026-07-10T19:59:58Z",
+      "side": 1,
+      "strike": 600.0,
+      "ticker": "O:SPY260821C00600000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1554.0,
+    "pnl_pct": -90.5
+   },
+   {
+    "debit": 1785.0,
+    "entry_close": 618.91,
+    "entry_date": "2026-08-06",
+    "exit": {
+     "date": "2026-09-18",
+     "kind": "expiry",
+     "underlying_close": 574.37,
+     "value": 0.0
+    },
+    "expiry": "2026-09-18",
+    "legs": [
+     {
+      "ask": 17.9,
+      "bid": 17.8,
+      "iv_computed": 0.2,
+      "mid": 17.85,
+      "quote_time": "2026-08-06T19:59:58Z",
+      "side": 1,
+      "strike": 620.0,
+      "ticker": "O:SPY260918C00620000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1785.0,
+    "pnl_pct": -100.0
+   }
+  ],
+  "unmarked_exit_checks": 0,
+  "vendor_requests": {
+   "budget": 400,
+   "used": 24
+  },
+  "window": {
+   "ends": "2026-10-01",
+   "first_entry": "2025-09-05",
+   "lookback_months": 12,
+   "starts": "2025-10-02",
+   "text": "Lookback of 12 months: monthly expirations after 2025-10-02. The first simulated entry is 2025-09-05."
+  }
+ },
+ "small": {
+  "basis": "A historical simulation, not advice. One contract per leg, every fill at the mid of the bid and ask, before commissions and fees. Entry prices are option QUOTES at the entry close, never trade prints; the expiry value is intrinsic from the underlying's close.",
+  "computed_at": "2026-10-02T21:00:00+00:00",
+  "excluded": [],
+  "excluded_count": 0,
+  "expirations_considered": 12,
+  "iv_source": "computed",
+  "iv_source_text": "IV is COMPUTED here, not the vendor's: a Black-Scholes inversion of the entry mid (European exercise, no dividends, a flat 4.0% rate, calendar days to expiry). Massive keeps no historical IV.",
+  "not_run": [
+   {
+    "expiry": "2025-10-17",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2025-11-21",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2025-12-19",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2026-01-16",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2026-02-20",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2026-03-20",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2026-04-17",
+    "reason": "the vendor request budget ran out"
+   },
+   {
+    "expiry": "2026-05-15",
+    "reason": "the vendor request budget ran out"
+   }
+  ],
+  "not_run_count": 8,
+  "params": {
+   "dte": 30,
+   "offset": 0,
+   "stop_loss_pct": null,
+   "strategy": "long_call",
+   "sym": "SPY",
+   "take_profit_pct": null,
+   "width": 0
+  },
+  "risk_free_rate": 0.04,
+  "strategy_label": "Long call",
+  "summary": null,
+  "summary_reason": "Only 4 trades could be simulated; a sample under 6 is too small to summarise.",
+  "sym": "SPY",
+  "trades": [
+   {
+    "debit": 1686.0,
+    "entry_close": 602.88,
+    "entry_date": "2026-05-06",
+    "exit": {
+     "date": "2026-06-18",
+     "kind": "expiry",
+     "underlying_close": 570.22,
+     "value": 0.0
+    },
+    "expiry": "2026-06-18",
+    "legs": [
+     {
+      "ask": 16.91,
+      "bid": 16.81,
+      "iv_computed": 0.2,
+      "mid": 16.86,
+      "quote_time": "2026-05-06T19:59:58Z",
+      "side": 1,
+      "strike": 605.0,
+      "ticker": "O:SPY260618C00605000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1686.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 1620.0,
+    "entry_close": 568.2,
+    "entry_date": "2026-06-03",
+    "exit": {
+     "date": "2026-07-17",
+     "kind": "expiry",
+     "underlying_close": 609.91,
+     "value": 3991.0
+    },
+    "expiry": "2026-07-17",
+    "legs": [
+     {
+      "ask": 16.25,
+      "bid": 16.15,
+      "iv_computed": 0.2,
+      "mid": 16.2,
+      "quote_time": "2026-06-03T19:59:58Z",
+      "side": 1,
+      "strike": 570.0,
+      "ticker": "O:SPY260717C00570000",
+      "type": "call"
+     }
+    ],
+    "pnl": 2371.0,
+    "pnl_pct": 146.4
+   },
+   {
+    "debit": 1718.0,
+    "entry_close": 599.2,
+    "entry_date": "2026-07-10",
+    "exit": {
+     "date": "2026-08-21",
+     "kind": "expiry",
+     "underlying_close": 601.64,
+     "value": 164.0
+    },
+    "expiry": "2026-08-21",
+    "legs": [
+     {
+      "ask": 17.23,
+      "bid": 17.13,
+      "iv_computed": 0.1999,
+      "mid": 17.18,
+      "quote_time": "2026-07-10T19:59:58Z",
+      "side": 1,
+      "strike": 600.0,
+      "ticker": "O:SPY260821C00600000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1554.0,
+    "pnl_pct": -90.5
+   },
+   {
+    "debit": 1785.0,
+    "entry_close": 618.91,
+    "entry_date": "2026-08-06",
+    "exit": {
+     "date": "2026-09-18",
+     "kind": "expiry",
+     "underlying_close": 574.37,
+     "value": 0.0
+    },
+    "expiry": "2026-09-18",
+    "legs": [
+     {
+      "ask": 17.9,
+      "bid": 17.8,
+      "iv_computed": 0.2,
+      "mid": 17.85,
+      "quote_time": "2026-08-06T19:59:58Z",
+      "side": 1,
+      "strike": 620.0,
+      "ticker": "O:SPY260918C00620000",
+      "type": "call"
+     }
+    ],
+    "pnl": -1785.0,
+    "pnl_pct": -100.0
+   }
+  ],
+  "unmarked_exit_checks": 0,
+  "vendor_requests": {
+   "budget": 10,
+   "used": 10
+  },
+  "window": {
+   "ends": "2026-10-01",
+   "first_entry": "2026-05-06",
+   "lookback_months": 12,
+   "starts": "2025-10-02",
+   "text": "Lookback of 12 months: monthly expirations after 2025-10-02. The first simulated entry is 2026-05-06."
+  }
+ },
+ "spread": {
+  "basis": "A historical simulation, not advice. One contract per leg, every fill at the mid of the bid and ask, before commissions and fees. Entry prices are option QUOTES at the entry close, never trade prints; the expiry value is intrinsic from the underlying's close.",
+  "computed_at": "2026-10-02T21:00:00+00:00",
+  "excluded": [
+   {
+    "entry": "2025-11-03",
+    "expiry": "2025-11-21",
+    "reason": "no contracts listed for this expiration at entry"
+   }
+  ],
+  "excluded_count": 1,
+  "expirations_considered": 12,
+  "iv_source": "computed",
+  "iv_source_text": "IV is COMPUTED here, not the vendor's: a Black-Scholes inversion of the entry mid (European exercise, no dividends, a flat 4.0% rate, calendar days to expiry). Massive keeps no historical IV.",
+  "not_run": [],
+  "not_run_count": 0,
+  "params": {
+   "dte": 14,
+   "offset": 0,
+   "stop_loss_pct": null,
+   "strategy": "bull_call",
+   "sym": "SPY",
+   "take_profit_pct": null,
+   "width": 2
+  },
+  "risk_free_rate": 0.04,
+  "strategy_label": "Bull call spread",
+  "summary": {
+   "avg_pnl": -3.82,
+   "best": 605.0,
+   "max_drawdown": -1200.0,
+   "median_pnl": -421.0,
+   "n": 11,
+   "total_pnl": -42.0,
+   "win_rate": 0.4545,
+   "wins": 5,
+   "worst": -453.0
+  },
+  "summary_reason": null,
+  "sym": "SPY",
+  "trades": [
+   {
+    "debit": 426.0,
+    "entry_close": 594.49,
+    "entry_date": "2025-09-29",
+    "exit": {
+     "date": "2025-10-17",
+     "kind": "expiry",
+     "underlying_close": 584.09,
+     "value": 0.0
+    },
+    "expiry": "2025-10-17",
+    "legs": [
+     {
+      "ask": 10.91,
+      "bid": 10.81,
+      "iv_computed": 0.2,
+      "mid": 10.86,
+      "quote_time": "2025-09-29T19:59:58Z",
+      "side": 1,
+      "strike": 595.0,
+      "ticker": "O:SPY251017C00595000",
+      "type": "call"
+     },
+     {
+      "ask": 6.65,
+      "bid": 6.55,
+      "iv_computed": 0.2,
+      "mid": 6.6,
+      "quote_time": "2025-09-29T19:59:58Z",
+      "side": -1,
+      "strike": 605.0,
+      "ticker": "O:SPY251017C00605000",
+      "type": "call"
+     }
+    ],
+    "pnl": -426.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 434.0,
+    "entry_close": 555.32,
+    "entry_date": "2025-12-01",
+    "exit": {
+     "date": "2025-12-19",
+     "kind": "expiry",
+     "underlying_close": 585.44,
+     "value": 1000.0
+    },
+    "expiry": "2025-12-19",
+    "legs": [
+     {
+      "ask": 10.6,
+      "bid": 10.5,
+      "iv_computed": 0.2,
+      "mid": 10.55,
+      "quote_time": "2025-12-01T20:59:58Z",
+      "side": 1,
+      "strike": 555.0,
+      "ticker": "O:SPY251219C00555000",
+      "type": "call"
+     },
+     {
+      "ask": 6.26,
+      "bid": 6.16,
+      "iv_computed": 0.1999,
+      "mid": 6.21,
+      "quote_time": "2025-12-01T20:59:58Z",
+      "side": -1,
+      "strike": 565.0,
+      "ticker": "O:SPY251219C00565000",
+      "type": "call"
+     }
+    ],
+    "pnl": 566.0,
+    "pnl_pct": 130.4
+   },
+   {
+    "debit": 422.0,
+    "entry_close": 593.75,
+    "entry_date": "2025-12-26",
+    "exit": {
+     "date": "2026-01-16",
+     "kind": "expiry",
+     "underlying_close": 602.15,
+     "value": 715.0
+    },
+    "expiry": "2026-01-16",
+    "legs": [
+     {
+      "ask": 11.47,
+      "bid": 11.37,
+      "iv_computed": 0.2,
+      "mid": 11.42,
+      "quote_time": "2025-12-26T20:59:58Z",
+      "side": 1,
+      "strike": 595.0,
+      "ticker": "O:SPY260116C00595000",
+      "type": "call"
+     },
+     {
+      "ask": 7.25,
+      "bid": 7.15,
+      "iv_computed": 0.2001,
+      "mid": 7.2,
+      "quote_time": "2025-12-26T20:59:58Z",
+      "side": -1,
+      "strike": 605.0,
+      "ticker": "O:SPY260116C00605000",
+      "type": "call"
+     }
+    ],
+    "pnl": 293.0,
+    "pnl_pct": 69.4
+   },
+   {
+    "debit": 421.0,
+    "entry_close": 588.72,
+    "entry_date": "2026-01-30",
+    "exit": {
+     "date": "2026-02-20",
+     "kind": "expiry",
+     "underlying_close": 561.94,
+     "value": 0.0
+    },
+    "expiry": "2026-02-20",
+    "legs": [
+     {
+      "ask": 11.35,
+      "bid": 11.25,
+      "iv_computed": 0.1999,
+      "mid": 11.3,
+      "quote_time": "2026-01-30T20:59:58Z",
+      "side": 1,
+      "strike": 590.0,
+      "ticker": "O:SPY260220C00590000",
+      "type": "call"
+     },
+     {
+      "ask": 7.14,
+      "bid": 7.04,
+      "iv_computed": 0.2,
+      "mid": 7.09,
+      "quote_time": "2026-01-30T20:59:58Z",
+      "side": -1,
+      "strike": 600.0,
+      "ticker": "O:SPY260220C00600000",
+      "type": "call"
+     }
+    ],
+    "pnl": -421.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 395.0,
+    "entry_close": 557.8,
+    "entry_date": "2026-03-02",
+    "exit": {
+     "date": "2026-03-20",
+     "kind": "expiry",
+     "underlying_close": 574.74,
+     "value": 1000.0
+    },
+    "expiry": "2026-03-20",
+    "legs": [
+     {
+      "ask": 9.4,
+      "bid": 9.3,
+      "iv_computed": 0.1999,
+      "mid": 9.35,
+      "quote_time": "2026-03-02T20:59:58Z",
+      "side": 1,
+      "strike": 560.0,
+      "ticker": "O:SPY260320C00560000",
+      "type": "call"
+     },
+     {
+      "ask": 5.45,
+      "bid": 5.35,
+      "iv_computed": 0.1999,
+      "mid": 5.4,
+      "quote_time": "2026-03-02T20:59:58Z",
+      "side": -1,
+      "strike": 570.0,
+      "ticker": "O:SPY260320C00570000",
+      "type": "call"
+     }
+    ],
+    "pnl": 605.0,
+    "pnl_pct": 153.2
+   },
+   {
+    "debit": 459.0,
+    "entry_close": 586.45,
+    "entry_date": "2026-03-27",
+    "exit": {
+     "date": "2026-04-17",
+     "kind": "expiry",
+     "underlying_close": 610.93,
+     "value": 1000.0
+    },
+    "expiry": "2026-04-17",
+    "legs": [
+     {
+      "ask": 12.7,
+      "bid": 12.6,
+      "iv_computed": 0.2,
+      "mid": 12.65,
+      "quote_time": "2026-03-27T19:59:58Z",
+      "side": 1,
+      "strike": 585.0,
+      "ticker": "O:SPY260417C00585000",
+      "type": "call"
+     },
+     {
+      "ask": 8.11,
+      "bid": 8.01,
+      "iv_computed": 0.2,
+      "mid": 8.06,
+      "quote_time": "2026-03-27T19:59:58Z",
+      "side": -1,
+      "strike": 595.0,
+      "ticker": "O:SPY260417C00595000",
+      "type": "call"
+     }
+    ],
+    "pnl": 541.0,
+    "pnl_pct": 117.9
+   },
+   {
+    "debit": 453.0,
+    "entry_close": 611.19,
+    "entry_date": "2026-04-27",
+    "exit": {
+     "date": "2026-05-15",
+     "kind": "expiry",
+     "underlying_close": 588.82,
+     "value": 0.0
+    },
+    "expiry": "2026-05-15",
+    "legs": [
+     {
+      "ask": 12.1,
+      "bid": 12.0,
+      "iv_computed": 0.2001,
+      "mid": 12.05,
+      "quote_time": "2026-04-27T19:59:58Z",
+      "side": 1,
+      "strike": 610.0,
+      "ticker": "O:SPY260515C00610000",
+      "type": "call"
+     },
+     {
+      "ask": 7.57,
+      "bid": 7.47,
+      "iv_computed": 0.2,
+      "mid": 7.52,
+      "quote_time": "2026-04-27T19:59:58Z",
+      "side": -1,
+      "strike": 620.0,
+      "ticker": "O:SPY260515C00620000",
+      "type": "call"
+     }
+    ],
+    "pnl": -453.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 460.0,
+    "entry_close": 571.72,
+    "entry_date": "2026-05-29",
+    "exit": {
+     "date": "2026-06-18",
+     "kind": "expiry",
+     "underlying_close": 570.22,
+     "value": 22.0
+    },
+    "expiry": "2026-06-18",
+    "legs": [
+     {
+      "ask": 12.25,
+      "bid": 12.15,
+      "iv_computed": 0.2,
+      "mid": 12.2,
+      "quote_time": "2026-05-29T19:59:58Z",
+      "side": 1,
+      "strike": 570.0,
+      "ticker": "O:SPY260618C00570000",
+      "type": "call"
+     },
+     {
+      "ask": 7.65,
+      "bid": 7.55,
+      "iv_computed": 0.2,
+      "mid": 7.6,
+      "quote_time": "2026-05-29T19:59:58Z",
+      "side": -1,
+      "strike": 580.0,
+      "ticker": "O:SPY260618C00580000",
+      "type": "call"
+     }
+    ],
+    "pnl": -438.0,
+    "pnl_pct": -95.2
+   },
+   {
+    "debit": 417.0,
+    "entry_close": 578.55,
+    "entry_date": "2026-06-26",
+    "exit": {
+     "date": "2026-07-17",
+     "kind": "expiry",
+     "underlying_close": 609.91,
+     "value": 1000.0
+    },
+    "expiry": "2026-07-17",
+    "legs": [
+     {
+      "ask": 11.06,
+      "bid": 10.96,
+      "iv_computed": 0.1999,
+      "mid": 11.01,
+      "quote_time": "2026-06-26T19:59:58Z",
+      "side": 1,
+      "strike": 580.0,
+      "ticker": "O:SPY260717C00580000",
+      "type": "call"
+     },
+     {
+      "ask": 6.89,
+      "bid": 6.79,
+      "iv_computed": 0.2,
+      "mid": 6.84,
+      "quote_time": "2026-06-26T19:59:58Z",
+      "side": -1,
+      "strike": 590.0,
+      "ticker": "O:SPY260717C00590000",
+      "type": "call"
+     }
+    ],
+    "pnl": 583.0,
+    "pnl_pct": 139.8
+   },
+   {
+    "debit": 440.0,
+    "entry_close": 620.24,
+    "entry_date": "2026-08-03",
+    "exit": {
+     "date": "2026-08-21",
+     "kind": "expiry",
+     "underlying_close": 601.64,
+     "value": 0.0
+    },
+    "expiry": "2026-08-21",
+    "legs": [
+     {
+      "ask": 11.77,
+      "bid": 11.67,
+      "iv_computed": 0.2,
+      "mid": 11.72,
+      "quote_time": "2026-08-03T19:59:58Z",
+      "side": 1,
+      "strike": 620.0,
+      "ticker": "O:SPY260821C00620000",
+      "type": "call"
+     },
+     {
+      "ask": 7.37,
+      "bid": 7.27,
+      "iv_computed": 0.1999,
+      "mid": 7.32,
+      "quote_time": "2026-08-03T19:59:58Z",
+      "side": -1,
+      "strike": 630.0,
+      "ticker": "O:SPY260821C00630000",
+      "type": "call"
+     }
+    ],
+    "pnl": -440.0,
+    "pnl_pct": -100.0
+   },
+   {
+    "debit": 452.0,
+    "entry_close": 590.98,
+    "entry_date": "2026-08-28",
+    "exit": {
+     "date": "2026-09-18",
+     "kind": "expiry",
+     "underlying_close": 574.37,
+     "value": 0.0
+    },
+    "expiry": "2026-09-18",
+    "legs": [
+     {
+      "ask": 12.54,
+      "bid": 12.44,
+      "iv_computed": 0.1999,
+      "mid": 12.49,
+      "quote_time": "2026-08-28T19:59:58Z",
+      "side": 1,
+      "strike": 590.0,
+      "ticker": "O:SPY260918C00590000",
+      "type": "call"
+     },
+     {
+      "ask": 8.02,
+      "bid": 7.92,
+      "iv_computed": 0.2,
+      "mid": 7.97,
+      "quote_time": "2026-08-28T19:59:58Z",
+      "side": -1,
+      "strike": 600.0,
+      "ticker": "O:SPY260918C00600000",
+      "type": "call"
+     }
+    ],
+    "pnl": -452.0,
+    "pnl_pct": -100.0
+   }
+  ],
+  "unmarked_exit_checks": 0,
+  "vendor_requests": {
+   "budget": 400,
+   "used": 35
+  },
+  "window": {
+   "ends": "2026-10-01",
+   "first_entry": "2025-09-29",
+   "lookback_months": 12,
+   "starts": "2025-10-02",
+   "text": "Lookback of 12 months: monthly expirations after 2025-10-02. The first simulated entry is 2025-09-29."
+  }
+ }
+}
