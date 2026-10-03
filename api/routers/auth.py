@@ -331,6 +331,30 @@ def _research_notice_flags() -> dict:
     return out
 
 
+# Calendar depth (Lane R): payload key -> the service module whose `is_enabled()` is
+# that surface's ONE gate. ⛔ Mirrored by `app/src/pages/calendar/depth/calendarDepthFlags.js`,
+# whose rail reads THIS tuple rather than restating it.
+_CALENDAR_DEPTH_SURFACES = (
+    ("earnings_date_status_enabled", "earnings_date_status"),
+    ("index_rebalance_events_enabled", "index_rebalance_calendar"),
+    ("calendar_order_explain_enabled", "calendar_order_explain"),
+)
+
+
+def _calendar_depth_flags() -> dict:
+    """Same form as `_research_depth_flags`: keys present ONLY when on, so every surface
+    unset => the payload is byte-identical to before. Never raises."""
+    import importlib
+    out = {}
+    for key, mod in _CALENDAR_DEPTH_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
 def _options_vol_surface_enabled() -> bool:
     """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
     surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
@@ -674,6 +698,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_options_screener_flag(),
         **_research_depth_flags(),
         **_research_notice_flags(),
+        **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
         **_lane_r_client_flags(),
     }

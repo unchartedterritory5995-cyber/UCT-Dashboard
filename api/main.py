@@ -9228,6 +9228,8 @@ from api.routers import research_notices as research_notices_router  # noqa: E40
 app.include_router(research_notices_router.router)
 from api.routers import research_calls_depth as research_calls_depth_router  # noqa: E402  (Lane R D-5, dark per surface)
 app.include_router(research_calls_depth_router.router)
+from api.routers import calendar_depth as calendar_depth_router  # noqa: E402  (Lane R D-1/D-2/D-3, dark per surface)
+app.include_router(calendar_depth_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
 from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)
