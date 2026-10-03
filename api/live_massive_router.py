@@ -2843,13 +2843,14 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # The Color index keeps even a full-day scan reasonable. Env-tunable.
         # (Permanent instant-everywhere fix = store tier/grade as SQL columns at
         # write time so these filter in SQL; after-close, Ravi-area.)
+        past_closed = today != _today_mdyyyy() and not _in_market_hours()
         if curated or tier:
             # OVERRIDE up to full-day coverage (not min — tier's base sql_limit is
             # only 20000 = recent ~half-day, so min() left the morning's rare-tier
             # prints out of range and tier=alpha returned 0). Set it wide; the
             # Color index keeps the full-day scan fast (~2-3s).
             sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
-        elif today != _today_mdyyyy() and not _in_market_hours():
+        elif past_closed:
             # PAST date, market closed (2026-10-03): no live ingestion to starve,
             # so give the ALL FLOW tape full-day coverage like curated/tier. The
             # 20000 cap cut healed 10/2 off at ~1:14 PM — a heal inserts the whole
@@ -2898,19 +2899,33 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         if only_symbols:
             sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
             sym_params = [str(s).upper() for s in only_symbols]
-        cur = conn.execute(f"""
-            SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                   Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                   Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-              FROM flow
-             WHERE {source_clause}
-               AND CreatedDate = ?{sym_clause}
-               AND (Color IN ('MAGENTA', 'YELLOW')
-                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-             ORDER BY id DESC
-             LIMIT ?
-        """, (today, *sym_params, override_sql_floor, sql_limit))
-        rows = cur.fetchall()
+        def _scan(src_clause):
+            return conn.execute(f"""
+                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                  FROM flow
+                 WHERE {src_clause}
+                   AND CreatedDate = ?{sym_clause}
+                   AND (Color IN ('MAGENTA', 'YELLOW')
+                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                 ORDER BY id DESC
+                 LIMIT ?
+            """, (today, *sym_params, override_sql_floor, sql_limit)).fetchall()
+
+        if etf_enabled and past_closed:
+            # PAST date, market closed: one LIMIT PER SOURCE (2026-10-03). A heal
+            # inserts the sources one after another, not interleaved — healed 10/2
+            # has 42.5k stock + 69.3k index rows, indexes all at higher ids, so a
+            # shared 80000 LIMIT gave indexes 69.3k slots and cut stocks off at
+            # 1:52 PM. Live days interleave by time, so RTH keeps the shared LIMIT.
+            per_source = [_scan("source = 'stocks'"), _scan("source = 'indexes'")]
+            scan_capped = any(len(p) >= sql_limit for p in per_source)
+            rows = sorted(per_source[0] + per_source[1],
+                          key=lambda r: r["id"], reverse=True)
+        else:
+            rows = _scan(source_clause)
+            scan_capped = len(rows) >= sql_limit
         # Clean-directional gate (dark): FULL-TAPE session long-build ledger —
         # cumulative ASK-side volume per contract from EVERY sided print today
         # (NOT just the curated/above-floor rows fetched above), so a sell's
@@ -3119,7 +3134,8 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         "rows_scanned": len(rows),
         # Scan hit its LIMIT → older prints of the day were never read. The page
         # says so instead of silently showing a partial day.
-        "scan_capped": len(rows) >= sql_limit,
+        "scan_capped": scan_capped,
+        "scan_capped_rth": scan_capped and not past_closed,
         "skipped_unclassified_side": skipped_unclassified,
         "skipped_below_min_grade": skipped_low_grade,
         "skipped_off_tier": skipped_off_tier,
@@ -3245,6 +3261,7 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     status["curated"] = curated
     status["rows_scanned"] = meta.get("rows_scanned", 0)
     status["scan_capped"] = bool(meta.get("scan_capped", False))
+    status["scan_capped_rth"] = bool(meta.get("scan_capped_rth", False))
     status["skipped_unclassified_side"] = meta.get("skipped_unclassified_side", 0)
     status["skipped_below_min_grade"] = meta.get("skipped_below_min_grade", 0)
     status["skipped_off_tier"] = meta.get("skipped_off_tier", 0)
