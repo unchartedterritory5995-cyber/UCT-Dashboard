@@ -170,6 +170,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
+| 75 | CAP2 coverage audit (section CAP2): census on the wave-16 tree (objects pane on 80 / 266, +runtime 86); the attached scripts with no TradingView capture (22 + the wave-16 attach cpr-with-mas) captured on NYSE:RDDT 1D from the listing and AMEX:SPY 1D, verify_capture.mjs PASS 50/50, graded in `vendorHarness.coverageAudit` (47 tests): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, supertrend-explorer refused by TradingView. Queues: RT3 Q-NL-a/b (`or`/`not` read na as false, v4 and v5), H3 Q-H3a/b/c, CAP row 9 (lower-tf "30"/"1", 1M, CAVA lookahead) | `2ad89eaa9c`..`89dfd5ac8f` + rail | no engine change | attached with a capture: 61 / 79 -> 79 / 80 (on), all runtime attaches but supertrend-explorer | table in section CAP2 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5803,3 +5804,75 @@ sentence, pine.derived, h3VwapSource) Tests 195 passed (195); pytest test_ast_in
 2. **The nested-helper cost** (first row above): keep the correct `pine:state` at ~3 s of translation for that one
    script, or revert `d0a85007e0` and keep the fast, wrongly worded `pine:cycle`.
 3. **`alma` in v4** and **`fixnan`**: rulings, with Q-H3c queued for the first.
+
+## CAP2 - coverage audit (2026-10-02)
+
+Lane CAP2, branch `pine/cap2-coverage-audit` (from `integrate/wave16-2026-10-02` 304a6ec692, wave-16 tip
+666ea1c854 merged in at 310a2ab38a). Question: of the corpus scripts the member door ATTACHES, which have
+never been graded against TradingView, and what does the harness say once they are?
+
+**Census** (`memberDoorCensus.measure.test.js`, `VENDOR_BATCH_CENSUS_RUNTIME=1`): base tree off 54 / on 79 /
++runtime 85 of 266; wave-16 tree off 55 / on 80 / +runtime 86 (the one new attach:
+`cpr-with-mas-super-trend-vwap-by-guruprasadmeduri`). Joined to every capture under `tests/fixtures/vendor`
+by `source.sha256` == the corpus file's sha256: 61 of 79 attached scripts already had a capture; 18 did not,
+plus 4 of the 6 runtime-only attaches. List, most-boosted first: `cap2-coverage-list-2026-10-02.json`.
+
+**Captures.** Each script added to the rig (`01f1AcIj`) as an unsaved draft (Monaco buffer written and
+read back by sha256, binding gate exactly one `Add to chart` / zero `Update on chart`), read with
+`tv_capture.js`, moved by the clipboard with the page receipt (chars + FNV-1a over UTF-16 code units)
+re-checked on the shell side, assembled by `verify_capture.mjs` - all 50 CAP2 captures re-verified
+`VERDICT: PASS (50/50)`. NYSE:RDDT 1D from the listing (636 bars, `startsAtBar0`) and AMEX:SPY 1D (1800 bars
+from 2019-08-06, not from the listing) for every non-trivial script. `tv_capture.js` gained an opt-in
+`allowEmptyPlots` (a study whose only plot is `plot(na)` and that holds drawings). Every study removed
+after its capture; the rig was left at 0 studies, 0 drawings, NYSE:RDDT 1D.
+
+**Verdicts** (`vendorHarness.coverageAudit.test.js`, 47 tests; MATCH = `expect`, DIVERGE = `it.fails` +
+a control naming the bars). Door state: objects pane on; runtime pane on for the runtime-only four.
+
+| script | capture(s) | verdict (plots / objects) | diverging items, bars, family |
+|---|---|---|---|
+| atr-bands | rddt | MATCH / MATCH | - |
+| cdc-btc-rainbow-road | spy (RDDT not capturable: SMA 730 > 636 bars, TradingView holds 0 rows) | MATCH / - | - |
+| macd-shortlong-strategy-...-input-optimizer | rddt | MATCH / - | - |
+| rsi-horizontal-resistance-levels | rddt, spy | - / MATCH (5 lines, colours) | - |
+| tradingview-alerts-to-mt4-mt5-strategy-example | rddt | MATCH / MATCH (table cells, colours) | - |
+| tradingview-alerts-to-mt4-mt5-forex-... | rddt | MATCH / - | - |
+| atr-trailing-stop-by-ceyhun | rddt, spy | RDDT plots MATCH; SPY DIVERGE / DIVERGE | SPY Slow Trail na-vs-value 949 bars from 522 (scattered), BUY from 554 (14), SELL from 531 (16), barcolor from bar 0; both: 1 label not drawn (no drawing program) |
+| cpr-with-mas-super-trend-vwap | rddt, spy | DIVERGE / - | VWAP na on ours: RDDT all 636 bars, SPY 960..1799; SPY CP/BC/TC/D-S1/D-R1 colour on bar 1 only (TradingView transparent); SPY EMA converging prefix 50..412 |
+| implied-volatility-suite | rddt, spy | DIVERGE (colour) / - | Volatility Data values agree; per-bar colour differs from 364 (RDDT) / 412 (SPY), persistent (ours gold #c9a84c, TradingView #ff5252) |
+| multicator-table | rddt, spy | plots MATCH / DIVERGE | TradingView 72 drawings (2 tables, 60 cells, 5 boxes, 5 labels); our script has no drawing program |
+| optimized-keltner-channels-sltp-strategy | rddt, spy | DIVERGE | RDDT two untitled plots na vs 0 on bar 0 only; SPY Upper/Basis/Lower converging prefixes (window, not a maths delta) |
+| pmax-explorer | rddt, spy | RDDT PMax / MA MATCH; SPY DIVERGE / DIVERGE | SPY PMax na-vs-value 1139 bars 512..1799 (persistent), MA converging prefix 10..84; screener label not drawn; Buy/Sell UNMAPPED (repeated titles) |
+| supertrend-strategy | rddt, spy | plots MATCH / paints DIVERGE | barcolor withheld (expression colour) |
+| support-and-resistance | rddt, spy | RDDT MATCH; SPY DIVERGE | SPY both plots na vs value bars 20..51 (window start, fixnan pivots) |
+| support-and-resistance-multi-time-frame | rddt, spy | DIVERGE | RDDT Resistance Weekly na 15 bars from 161, Support Weekly 3 from 476; SPY all six levels, Support Monthly na 735..1799 persistent |
+| swing-highlow-zigzag-chartprime | rddt, spy | - / DIVERGE | Swing H / Swing L labels not drawn (2 vs 0); SPY lines 52 vs 12 |
+| twin-range-filter | rddt, spy | SPY MATCH; RDDT DIVERGE | RDDT Long na-vs-1 on 5 bars from 177, Short on 6 from 171 |
+| trend-targets-algoalpha (runtime) | rddt, spy | RDDT plots MATCH / DIVERGE; SPY declined | RDDT label text full precision vs tick-rounded ("TP1 ▸ 177.5276604489" vs "177.53"), barcolor not drawn; SPY `runtime:history-start` |
+| wyckoff-accumulation-distribution (runtime) | rddt, spy | DIVERGE | 12 / 22 boxes not drawn (no drawing program); offset barcolor withheld; 8 plots no column |
+| fibonacci-dolphintradebot (runtime) | rddt, spy | RDDT chars MATCH / DIVERGE | 14 drawings (fib lines + labels) not drawn |
+| delta-rsi-oscillator-strategy (runtime) | rddt, spy | INCONCLUSIVE | the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short |
+| opening-range-initial-balance-opening-price | rddt | INCONCLUSIVE | 11 of 15 items UNMAPPED (TradingView repeats titles Shapes / OR Low / IB Low); intraday script on a daily chart |
+| supertrend-explorer | - | refused BY TradingView | "Invalid symbol: {symbol}" at default inputs (one of 38 hard-coded `input.symbol` tickers no longer resolves) |
+
+Counts, by script (23): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, vendor-refused 1. The fix work the
+DIVERGE rows name, by family: drawings with no drawing program (multicator, pmax label, atr-trailing label,
+wyckoff, fibonacci-dolphin, zigzag labels); na where TradingView carries a value (cpr VWAP on a daily chart,
+pmax PMax, atr-trailing SPY, S/R-MTF higher-timeframe levels, twin-range RDDT signals); colour (IV suite,
+cpr bar 1); text precision (trend-targets labels); withheld barcolor (supertrend-strategy, wyckoff).
+Converging prefixes on SPY are window effects, not maths.
+
+**Queues taken.**
+- RT3 Q-NL-a/b (`rt3-na-logic.pine` v5 and `rt3-na-logic-v4.pine`, RDDT 1D): `or` / `not` read an `na` operand
+  as FALSE in both v5 and v4, and the result is never `na` (B04/B05 = 2). Our door today: B02, B03, B07
+  diverge (na where TradingView answers), B04/B05 diverge - the queue's first branch is the fix.
+- H3 Q-H3a `h3-vwap-source` SPY 1D (1800): every S-row valued on every bar. Q-H3b the same on SPY 5 regular
+  (1300 bars, 13 resets). Q-H3c `h3-alma-v4`: v4 bare `alma` compiles; A03..A06 within 4.5e-13 of the
+  reference on SPY, exact on RDDT; first value bar 8. Our door refuses both probes whole (`pine:arity` for
+  S09, `pine:block` for the probe's own reference `for`), so the vendor readings stand alone.
+- CAP row 9: `vw-lower-tf-1-30.pine` on SPY 1D - `"30"` last-intrabar close/time and `security_lower_tf`
+  size equal TradingView's own 30m bars on 641 / 641 days, `"1"` on 23 / 23 (1m history 258 days); both
+  probes on SPY 1M from 1993-01; `vw-lower-tf.pine` on NYSE:CAVA 1D from the listing: `lookahead_on` below
+  the chart is `na` on the listing day and the first intrabar after it (the second symbol C41 asked for).
+- Not taken: CAP rows 10-16 (no probes exist; 16 is not a TradingView capture), row 7 and anything needing a
+  forming bar (next RTH session). H2 / RT5 / F1 / L2 pushed no capture queue at audit time.
