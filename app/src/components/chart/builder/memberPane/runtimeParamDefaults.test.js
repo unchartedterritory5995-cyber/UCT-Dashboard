@@ -141,9 +141,37 @@ plot(g())
     expect(r.refusal.message).toMatch(/default is `high`/)
   })
 
-  it('⛔ a required parameter behind an optional one is not this shape', () => {
-    expect(paramDefaultsOf(...headerOf(`${HEAD}f(a = 1, b) => a + b\n`))).toBe(null)
+  it('⛔ a default that names anything but a built-in is not this shape', () => {
     expect(paramDefaultsOf(...headerOf(`${HEAD}f(b, a = 1) => a + b\n`)).names).toEqual(['b', 'a'])
     expect(paramDefaultsOf(...headerOf(`${HEAD}f(b, a = other) => a + b\n`))).toBe(null)
+  })
+
+  it("⭐ a REQUIRED parameter behind an optional one (MLExtensions' header): every argument written draws", () => {
+    // `filter_volatility(simple int minLength=1, simple int maxLength=10, bool
+    // useVolatilityFilter)` is published and compiles on TradingView. A call
+    // that writes all three never reads a default.
+    expect(paramDefaultsOf(...headerOf(`${HEAD}f(a = 1, b) => a + b\n`)).names).toEqual(['a', 'b'])
+    const src = `${HEAD}fv(simple int minLength=1, simple int maxLength=10, bool useFilter) =>
+    useFilter ? ta.atr(minLength) - ta.atr(maxLength) : 0.0
+plot(fv(2, 6, true), "V")
+`
+    // (the comparison header declares a default on every parameter, so both
+    // sides are the runtime lane's — a header with none is the host lane's)
+    const pasted = `${HEAD}fv(simple int minLength=1, simple int maxLength=10, bool useFilter=false) =>
+    useFilter ? ta.atr(minLength) - ta.atr(maxLength) : 0.0
+plot(fv(2, 6, true), "V")
+`
+    const a = draw(src)
+    expect(a).toEqual(draw(pasted))
+    expect(finite(a[0])).toBeGreaterThan(N - 10)
+  })
+
+  it('⛔ …and leaving the REQUIRED one out is still the arity refusal it always was', () => {
+    const src = `${HEAD}fv(simple int a = 1, bool on) => on ? a : 0
+plot(fv(2))
+`
+    const r = buildRuntimeIr(src, { tf: 'D', ...runtimeClockOpts(false) })
+    expect(r.ok).toBe(false)
+    expect(r.refusal.message).toMatch(/takes 2 arguments, given 1/)
   })
 })

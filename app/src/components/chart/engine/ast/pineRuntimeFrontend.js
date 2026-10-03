@@ -945,8 +945,15 @@ export function paramTypeHeads(toks, arrow) {
  *      writes it as the argument. ⛔ The call site refuses it by name when the
  *      caller's scope binds that name to something else.
  *  ⛔ Anything else (`len = other`, a call, an expression) is not this shape and
- *  the header keeps the refusal it had; so does a required parameter behind an
- *  optional one (reachable only by name). */
+ *  the header keeps the refusal it had.
+ *
+ *  ⭐ L2 — A REQUIRED PARAMETER BEHIND AN OPTIONAL ONE IS READ TOO
+ *  (`MLExtensions.filter_volatility(simple int minLength=1, simple int
+ *  maxLength=10, bool useVolatilityFilter)`, published and compiling on
+ *  TradingView). Only an omitted TRAILING argument is ever completed, and only
+ *  while each one omitted declares a default, so a call that leaves such a
+ *  parameter out still meets the arity refusal it always had; a call that
+ *  writes every argument never reads a default at all. */
 const BAR_SERIES_DEFAULTS = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index'])
 export function paramDefaultsOf(toks, arrow) {
   if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
@@ -984,8 +991,6 @@ export function paramDefaultsOf(toks, arrow) {
       try { node = parseWholeExpression(rest) } catch { return null }
       if (!node) return null
       any = true
-    } else if (any) {
-      return null
     }
     names.push(name)
     defaults.push(node)
