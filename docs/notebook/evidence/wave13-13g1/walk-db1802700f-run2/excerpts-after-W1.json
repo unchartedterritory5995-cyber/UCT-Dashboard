@@ -1,0 +1,22 @@
+[
+ {
+  "id": "fadd6c6470f0409abdb6770dfa663ec0",
+  "noteId": "69884f016b5f410985ba3663e0e763bd",
+  "documentId": "3c64284496584f3fbf56c829795eb140",
+  "documentName": "NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript",
+  "attachmentUrl": null,
+  "sourceKind": "web",
+  "sourceUrl": null,
+  "captureType": "web_passage",
+  "pageNumber": 2,
+  "capturedText": "gross margin was 72.4%",
+  "quotePrefix": "Colette Kress: Revenue was a record, up 56% year over year. Data center revenue grew\nsequentially, and ",
+  "quoteSuffix": ".",
+  "charStart": 103,
+  "charEnd": 125,
+  "textOrigin": "web_passage",
+  "annotation": null,
+  "createdAt": "2026-10-03T03:16:02.069864+00:00",
+  "modifiedAt": null
+ }
+]
