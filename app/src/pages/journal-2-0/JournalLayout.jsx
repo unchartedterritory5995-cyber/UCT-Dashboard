@@ -26,6 +26,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
+import useRovingTabIndex from '../../hooks/useRovingTabIndex'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
@@ -50,7 +51,9 @@ import styles from './JournalLayout.module.css'
 // Free tier sees a designed teaser, per spec §61), disabled + lock glyph when
 // the user isn't paid. Community + Accounts are reachable routes but NOT
 // primary nav items (they live in the header/overflow — A5 refines them).
-const PRIMARY_NAV = [
+// Exported so JournalLayout.rovingNav.test.jsx can walk it without retyping
+// the list a second time (mirrors NavBar.jsx's NAV_ITEMS export).
+export const PRIMARY_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
   { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
@@ -119,6 +122,18 @@ export default function JournalLayout() {
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
+
+  // Wave 13 (13Q-4): the 6-item primary nav (Today/Trades/Calendar/Notebook/
+  // Insights/Compass) becomes ONE Tab stop, with Arrow keys (Left/Right — a
+  // horizontal tab row) + Home/End moving focus among the items. The 13Q
+  // click-budget instrument found that reaching anything past this bar (and
+  // past NavBar's own, separately-fixed, left rail) cost a full forward Tab
+  // walk through every item one at a time — docs/notebook/wave13-13q2.md §4.
+  // No role, label, route or visible order changes: `renderItem`'s existing
+  // <NavLink>/<button disabled> elements only gain tabIndex/data-roving-item/
+  // onFocus from `itemProps`.
+  const { containerProps: primaryNavRovingProps, itemProps: primaryNavItemProps } =
+    useRovingTabIndex({ orientation: 'horizontal' })
 
   // One-shot, flag-gated localStorage migration (Task A6). No-op for P4 (surfaces
   // regroup the SAME components, so every pref key still resolves) — the real
@@ -191,7 +206,11 @@ export default function JournalLayout() {
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
-        <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
+        <nav
+          className={`${styles.nav} ${styles.navDesktop}`}
+          aria-label="Journal sections"
+          {...primaryNavRovingProps}
+        >
           {PRIMARY_NAV.map((item) => {
             const locked = item.paidOnly && !isPaid
             if (locked) {
@@ -203,6 +222,7 @@ export default function JournalLayout() {
                   className={`${styles.navItem} ${styles.navItemLocked}`}
                   data-locked="true"
                   title="Compass — upgrade to unlock AI coaching"
+                  {...primaryNavItemProps(item.to, { disabled: true })}
                 >
                   <UIcon name={item.icon} size={16} />
                   {item.label}
@@ -220,6 +240,7 @@ export default function JournalLayout() {
                 className={({ isActive }) =>
                   `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
                 }
+                {...primaryNavItemProps(item.to)}
               >
                 <UIcon name={item.icon} size={16} />
                 {item.label}
