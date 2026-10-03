@@ -93,6 +93,12 @@ export const SURFACES = Object.freeze({
   // Wave 13 lane 13C: Reporting soon on Research Home (dark behind
   // notebook_earnings_prep_enabled); rail a11y/earningsPrep.a11y.test.jsx.
   'components/notebook/ReportingSoon.jsx': { recipe: 'reporting-soon' },
+  // Wave 13 lane 13J: the active setups board and find more like this (dark behind
+  // notebook_setups_board_enabled / notebook_find_similar_enabled, on their own route);
+  // rail a11y/setupsBoard.a11y.test.jsx.
+  'components/notebook/SetupsBoard.jsx': { recipe: 'setups-board' },
+  'components/notebook/BoardCard.jsx': { coveredBy: 'setups-board' },
+  'components/notebook/SimilarNames.jsx': { recipe: 'similar-names' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },
