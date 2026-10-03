@@ -2,7 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'r
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams, embedRenderHeight, makeCrosshairBus,
+  retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
@@ -58,6 +58,12 @@ const EMBED_COMPONENTS = {
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
+
+// Wave 13 lane 13H-2: the chart plan panel (roles on drawn levels, R:R + size, alerts at a
+// level) and "what happened next" bar replay. Lazy, like every live embed, and only mounted
+// while 13H-1's gate (`notebook_chart_plan_enabled`) is on -- so the Notebook's first-open
+// bytes do not move and a gate-off tab never loads it.
+const ChartPlanPanel = lazyLeaf(() => import('./ChartPlanPanel'))
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
 // error inside a live embed drops the block to its archived image (or the
@@ -160,6 +166,9 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // Toolbar collapse toggle (per the charts "Hide toolbar" affordance).
   const [toolbarOpen, setToolbarOpen] = useState(true)
   const [resizing, setResizing] = useState(false)
+  // 13H-2: the plan panel and the replay modal (view state; their writes are explicit actions).
+  const [planOpen, setPlanOpen] = useState(false)
+  const [replayOpen, setReplayOpen] = useState(false)
 
   // Public share page (SharedNotePage stamps shareView before the editor
   // view exists): every embed renders its ARCHIVED IMAGE — a public reader
@@ -540,6 +549,10 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotate, editor])
 
+  // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
+  const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
+    && editor?.isEditable !== false && !frozen && chartPlanEnabled()
+
   let body = archived
   if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
@@ -666,6 +679,28 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               Aftermath
             </button>
           )}
+          {/* 13H-2: the drawn plan (roles, R:R + size, alerts) and "what happened next". */}
+          {!annotate && planDoors && (
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${planOpen ? styles.toolBtnActive : ''}`}
+              onClick={() => setPlanOpen((o) => !o)}
+              aria-expanded={planOpen}
+              title="Trade plan — mark drawn lines as entry, stop or target; size it; arm alerts"
+            >
+              Plan
+            </button>
+          )}
+          {!annotate && planDoors && (
+            <button
+              type="button"
+              className={styles.toolBtn}
+              onClick={() => setReplayOpen(true)}
+              title="What happened next — replay bar by bar from this note's date"
+            >
+              Replay
+            </button>
+          )}
           {/* Re-capture only where a NEW capture can actually happen — for
               image-only widget types the archive IS the capture, and clearing
               it would permanently destroy the only image with nothing to
@@ -715,6 +750,20 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
+      {planDoors && inView && (
+        <EmbedErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <ChartPlanPanel
+              attrs={attrs}
+              noteId={editor?.storage?.uctJournalWidgets?.noteId || null}
+              updateAttributes={updateAttributes}
+              open={planOpen}
+              replayOpen={replayOpen}
+              onCloseReplay={() => setReplayOpen(false)}
+            />
+          </Suspense>
+        </EmbedErrorBoundary>
+      )}
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
       {/* Bottom-right resize handle (editable + not drawing) — works on live

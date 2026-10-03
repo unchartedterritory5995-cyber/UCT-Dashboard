@@ -285,23 +285,11 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
-  // ── WAVE 13 CHART PLAN — FOUNDATION BUILT, PANEL NOT YET MOUNTED (2026-10-02) ─
-  //
-  // Lane 13H-1 is the foundation and mounts nothing BY PLAN (WAVE-13-PLAN.md,
-  // A.13H: "13H-1 schema, 13H-2 features"). `chartPlan.js` is the pure writer
-  // and sizing library the 13H-2 plan panel (`ChartPlanPanel.jsx`) imports, and
-  // `planLevels.js` is 13A-1's client half of the plan-level write interface,
-  // which chartPlan.js imports. Their consumers today are their own rails
-  // (chartPlan.test.js, exportFormats.roundtrip.test.js, and the Node-run
-  // tests/test_notebook_chart_plan.py). Expiry: 13H-2 lands the panel (or 13A-2
-  // imports planLevels.js); then drop the entry that became reachable.
-  // ⚠️ If 13A parks planLevels.js in its own block, keep ONE entry, not two.
-  'app/src/pages/journal-2-0/lib/chartPlan.js':
-    'WAVE 13 13H-1 chart-plan library (ta shape, role writer, starter sizing): '
-    + 'the 13H-2 plan panel mounts it. Mount it or delete it; then drop this entry.',
-  'app/src/pages/journal-2-0/lib/planLevels.js':
-    'WAVE 13 13A-1 plan-level write builders, reached via chartPlan.js: the '
-    + '13H-2 panel (or 13A-2) mounts it. Mount it or delete it; then drop this entry.',
+  // WAVE 13 CHART PLAN (13H-1, 2026-10-02) — unparked by 13H-2 on 2026-10-03.
+  // `lib/chartPlan.js` and `lib/planLevels.js` stood here from 13H-1 (2026-10-02)
+  // until the plan panel mounted them: App.jsx → … → WidgetEmbedView.jsx →
+  // lazy ChartPlanPanel.jsx → chartPlan.js → planLevels.js. Removed in the same
+  // change that made them reachable, which is this block's own rule.
   // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
   //
   // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
@@ -825,7 +813,8 @@ const PARKING_EXPIRES = {
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
   'TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED (2026-09-29)': '2026-11-30',   // landed 2026-09-29 with the derivation itself; the first surface-panel mount resolves it
-  'WAVE 13 CHART PLAN — FOUNDATION BUILT, PANEL NOT YET MOUNTED (2026-10-02)': '2026-10-31',   // lane 13H-1; 13H-2's ChartPlanPanel.jsx mount resolves it
+  // (WAVE 13 CHART PLAN's expiry, 2026-10-31, was deleted 2026-10-03 with its block:
+  // 13H-2 mounted ChartPlanPanel.jsx, so the parking note had nothing left to outlive.)
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
