@@ -91,7 +91,7 @@ export function applyArgs(variant, args = [], ctx = {}) {
   tokens.forEach((tok, i) => {
     if (consumed.has(i)) return
     const at = specs.findIndex((s, j) => !filled.has(j) && ARG_KINDS[s.kind]?.parse(tok, ctx) != null)
-    if (at < 0) { out.ignored.push(tok); return }
+    if (at < 0) { return } // MUTATION
     filled.add(at)
     const spec = specs[at]
     const value = ARG_KINDS[spec.kind].parse(tok, ctx)
