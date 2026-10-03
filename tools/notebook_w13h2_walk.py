@@ -244,7 +244,12 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
       if (pm && !pm.__h2) { pm.__h2 = 1;
         pm.addEventListener('focus', () => window.__h2ev.push(['pm-focus', performance.now() | 0,
           (new Error().stack || '').split('\\n').slice(1, 14).join(' | ').slice(0, 1600)]), true);
-        pm.addEventListener('blur', () => window.__h2ev.push(['pm-blur', performance.now() | 0]), true); }
+        pm.addEventListener('blur', () => window.__h2ev.push(['pm-blur', performance.now() | 0]), true);
+        const tgt = (e) => { const t = e.target; return t && t.nodeType === 1
+          ? (t.tagName + '.' + String(t.className || '').slice(0, 40) + '[' + (t.getAttribute('aria-label') || '').slice(0, 30) + ']') : String(t) };
+        for (const ty of ['mousedown', 'mouseup', 'pointerdown', 'click'])
+          document.addEventListener(ty, (e) => window.__h2ev.push([ty, performance.now() | 0, tgt(e), e.isTrusted,
+            e.isTrusted ? '' : (new Error().stack || '').split('\n').slice(1, 8).join(' | ').slice(0, 800)]), true); }
       const f = document.querySelector('[data-widget-embed-view="chart"]');
       if (f && !f.__h2) { f.__h2 = 1; new MutationObserver(() => window.__h2ev.push(['class',
         f.className.includes('annotating') ? 'annotating' : 'plain', performance.now() | 0]))
