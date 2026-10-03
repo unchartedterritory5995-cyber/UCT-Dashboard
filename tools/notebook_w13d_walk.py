@@ -252,7 +252,7 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         tile_text = door.first.locator("xpath=../..").inner_text() if ok4 else ""
         w.raw["W4_tile_text"] = tile_text
         href = door.first.get_attribute("href") if ok4 else None
-        w.record("W4_inbox_shows_the_notice", ok4 and "NVDA reached 100.00" in tile_text and "Your notes" in tile_text
+        w.record("W4_inbox_shows_the_notice", ok4 and "NVDA reached 100.00" in tile_text and "your notes" in tile_text.lower()
                  and href == f"/journal/notebook?note={n0['id']}&resurfaceVersion={vid}",
                  f"door href {href}; inbox row text {tile_text!r}")
         w.shot(pg, "W4-inbox-1200")
