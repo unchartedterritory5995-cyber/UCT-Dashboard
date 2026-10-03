@@ -1008,7 +1008,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
-    if (o.hidden) continue
+    // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
+    // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
+    if (o.hidden || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     if (runtimeRowOffset(o)) {
       withheld.push({ label, why: 'it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it' })

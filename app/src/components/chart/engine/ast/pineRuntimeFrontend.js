@@ -3297,7 +3297,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  (`bind.js::foldScalar`, `n - 1`, `len * 2`); `{frameName}` when a frame name
    *  a call site could fix stopped it; `null` otherwise. */
   const constValueOf = (e, scope) => {
-    let n = e
+    let n = substFromSizes(e, scope)
     if (owner !== null && scope) {
       let foreign = null
       const sub = (x, d) => {
@@ -3803,6 +3803,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
+    }
+    // ⭐ H4 — `array.size(array.from(a, b, …))` is the argument count on every bar
+    // (`fromLiteralSizeOf`). Lowered as that number only when every element is a
+    // bare name or a literal, so skipping their evaluation skips no effect.
+    // A NAME the script binds once to that call is the same number (`size`), and
+    // so is either one inside a larger expression (`for i = 0 to n - 1`).
+    {
+      const folded = substFromSizes(node, scope)
+      if (folded !== node) {
+        if (folded.type === 'number') return num(folded.value)
+        node = folded
+      }
     }
     // ⭐ THE ROUTE DECISION, ASKED ONCE PER SUBTREE. A pure subtree becomes one
     // column no matter how large it is, which is what keeps a stateful program
@@ -5504,6 +5516,27 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return true
   }
 
+  /** ⭐⭐ H4 — DOES THIS STATEMENT LIST END IN A LOOP, directly or in ANY arm of a
+   *  trailing `if` chain? Pine's value for such a list, on a bar that takes that
+   *  arm, is the loop's last evaluated expression, which this lane does not carry
+   *  (C18) — so a function whose body ends this way is compiled VALUELESS: every
+   *  statement lowered, and a call that READS the result refused by name at the
+   *  call site. Called on a line of its own (`kalman-price-filter-backquant`'s
+   *  `f_init(pricesource)`: `if na(…)` over a `for` that seeds two arrays), the
+   *  value is discarded in Pine too, and nothing is lost.
+   *  ⛔ ONE arm is enough, on purpose: an arm that ends in a loop has no carried
+   *  value, so reading the chain's value on ANY bar could meet it. */
+  const endsInLoop = (list) => {
+    if (!list || !list.length) return false
+    const last = blockKeywordOf(list[list.length - 1])
+    if (last === 'for' || last === 'while') return true
+    let k = list.length - 1
+    while (k >= 0 && blockKeywordOf(list[k]) === 'else') k -= 1
+    if (k < 0 || blockKeywordOf(list[k]) !== 'if') return false
+    for (let j = k; j < list.length; j += 1) if (endsInLoop(list[j].sub)) return true
+    return false
+  }
+
   /** ⭐⭐ ONE ARM OF A VALUE-POSITION BLOCK — the rule, in ONE place.
    *
    *  ⛔ EXTRACTED, NOT COPIED. Pine's `if` is an expression in three positions
@@ -7137,7 +7170,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const armToks = arm ? arm.toks : sw.fallback
           // no arm and no default: a `switch` that matches nothing is `na`
           result = armToks ? lowerResult(parseWholeExpression(armToks), fnScope) : naValue()
-        } else if (lastWord === 'while' || lastWord === 'for'
+        } else if (endsInLoop(lines)
           // ⭐ R1 — A BODY THAT ENDS IN A VOID COLLECTION CALL (`array.set(…)`,
           // `delta-rsi-oscillator-strategy`'s `matrix_set`) returns nothing in
           // Pine; it is the loop case's twin, compiled VALUELESS by the same rule
@@ -7157,7 +7190,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // on a line of its own, the result is discarded and nothing is lost.
           body = lowerStmts(lines, fnScope)
           record.valueless = true
-          record.valuelessEnd = (lastWord === 'while' || lastWord === 'for') ? null
+          record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
         } else if (chainAt >= 0) {
@@ -7399,9 +7432,96 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default and cannot see the member's choice.
     const text = fixedTextOf(n, scope)
     if (text !== null) return { value: null, text }
+    const fromCount = (n && n.type === 'name' && scope && scope.lookup(n.name) !== null) ? null : fromLiteralSizeOf(n)
+    if (fromCount !== null) return { value: fromCount }
     let canonical
     try { canonical = makeFrozenResolver().resolve(n) } catch { return { value: null } }
-    return { value: canonical && canonical.type === 'num' && Number.isFinite(canonical.value) ? canonical.value : null }
+    if (canonical && canonical.type === 'num') return { value: Number.isFinite(canonical.value) ? canonical.value : null }
+    // ⭐⭐ H4 — CONSTANT ARITHMETIC OVER WHAT RESOLVED, as `constValueOf` already
+    // folds it for a loop bound and an offset: `pine_wma(v, vl1 + vl2)` with both
+    // inputs at their values is ONE number for that call site, exactly as
+    // `pine_wma(v, vl1)` is. Without this the two readers disagreed — a counter's
+    // range folded `len - 1` while the call site that fixes `len` refused `a + b`
+    // (`volume-divergence-by-mm`, `vl3 = vl1 + vl2`).
+    // ⛔ NOT `/` OR `%`: Pine's integer division is version-dependent (v6 returns a
+    // fraction where v4/v5 truncate a `const int` quotient), and a length or a loop
+    // bound folded the wrong way is a wrong window, not a refusal. Those keep the
+    // refusal they had.
+    if (!canonical || !arithmeticIsExact(canonical)) return { value: null }
+    try {
+      const v = foldScalar(canonical, {})
+      return { value: Number.isFinite(v) ? v : null }
+    } catch (err) {
+      if (err instanceof NotFoldable) return { value: null }
+      throw err
+    }
+  }
+
+  /** ⭐ H4 — `array.size(array.from(e1, …, eN))` is N, before bar 0.
+   *
+   *  Pine: `array.from` returns a NEW array holding exactly its arguments, so the
+   *  size of that array is the argument count on every bar, whatever the values
+   *  are (an `na` element is still an element). Read through a name the script
+   *  binds ONCE (`env`: never a reassigned name, a `var` or a frame name — those
+   *  are slots). `nadaraya-watson-rational-quadratic-kernel-non-repainting` writes
+   *  `size = array.size(array.from(src))` and passes it as a loop bound.
+   *  ⛔ Nothing else: a named argument, a spread, any other array source.
+   *  @returns {number|null} */
+  const fromLiteralSizeOf = (node, depth = 0, plainOnly = false) => {
+    if (!node || typeof node !== 'object' || depth > 8) return null
+    if (node.type === 'name' && typeof node.name === 'string') {
+      const bound = env.get(node.name)
+      return bound && bound.kind === 'expr' ? fromLiteralSizeOf(bound.node, depth + 1, plainOnly) : null
+    }
+    if (node.type !== 'call' || node.name !== 'array.size' || !Array.isArray(node.args) || node.args.length !== 1) return null
+    const a0 = node.args[0]
+    if (!a0 || a0.name) return null
+    const inner = a0.value !== undefined ? a0.value : a0
+    if (!inner || inner.type !== 'call' || inner.name !== 'array.from' || !Array.isArray(inner.args)) return null
+    if (!inner.args.length || inner.args.some((a) => !a || a.name)) return null
+    // `plainOnly` (the LOWERING asks it): every element a bare name or a literal,
+    // so not evaluating them skips no effect a call inside one could have.
+    if (plainOnly && !inner.args.every((a) => {
+      const v = a.value !== undefined ? a.value : a
+      return v && (v.type === 'name' || v.type === 'number' || v.type === 'string')
+    })) return null
+    return inner.args.length
+  }
+
+  /** ⭐ H4 — `node` with every `array.size(array.from(…))` (and every once-bound
+   *  name holding one) replaced by its count as a `number` node; the SAME object
+   *  when nothing is replaced. Only the effect-free spelling (`plainOnly`). */
+  const substFromSizes = (node, scope = null, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return node
+    // ⛔ a name a SLOT holds (a parameter, a local, a reassigned name) is not the
+    // once-bound global of the same spelling — never fold a shadowing name.
+    if (node.type === 'name' && scope && scope.lookup(node.name) !== null) return node
+    if ((node.type === 'call' && node.name === 'array.size') || node.type === 'name') {
+      const n = fromLiteralSizeOf(node, 0, true)
+      return n !== null ? { type: 'number', value: n, tok: node.tok } : node
+    }
+    if (node.type === 'binary') {
+      const l = substFromSizes(node.left, scope, depth + 1)
+      const r = substFromSizes(node.right, scope, depth + 1)
+      return l === node.left && r === node.right ? node : { ...node, left: l, right: r }
+    }
+    if (node.type === 'unary') {
+      const a = substFromSizes(node.arg, scope, depth + 1)
+      return a === node.arg ? node : { ...node, arg: a }
+    }
+    return node
+  }
+
+  /** ⭐ H4 — a canonical tree whose every operator folds the same in every Pine
+   *  version: no division, no remainder (see `constantArgOf`). */
+  const arithmeticIsExact = (t, depth = 0) => {
+    if (!t || typeof t !== 'object' || depth > 64) return false
+    if (t.type === 'num') return true
+    if (t.type === 'op') {
+      if (t.name === '/' || t.name === '%') return false
+      return (t.args || []).every((a) => arithmeticIsExact(a, depth + 1))
+    }
+    return false
   }
 
   /** ⭐ C35 / C47 — a call-site constant as the PARSE node that reads it. */
