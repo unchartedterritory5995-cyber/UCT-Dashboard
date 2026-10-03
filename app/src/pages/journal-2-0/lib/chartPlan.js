@@ -116,9 +116,18 @@ export const UNIQUE_PLAN_ROLES = Object.freeze(['entry', 'stop'])
 
 const finitePositive = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null)
 
-/** The price a level drawing sits at, from its own anchor (the overlay's shape). */
+/** The price a level drawing sits at: its own `price` field first, else its anchor
+ *  (`points[0].price`) -- the SAME precedence `plan_extract.py`'s `_annotation_price` reads
+ *  (CLAUDE.md "a second authority over one value"; this is the one reader's sibling, not a
+ *  second one). `withPlanRole` strips `price` the moment a drawing has an anchor, so the two
+ *  fields are never both live on one drawing -- a dragged line's `points` stays the only
+ *  authority for it, and a role set with no drawing to anchor to (`planLevels.planAnnotation
+ *  (role, price)`, 13H's own documented write shape for a level with no canvas geometry) is
+ *  still readable here instead of silently reading as "no levels drawn". Found by the wave-13
+ *  integration walk (13X): a role-bearing annotation seeded in exactly this shape -- the same
+ *  shape 13A's and 13J's own fixtures use -- rendered zero rows in this panel. */
 export function drawingLevelPrice(drawing) {
-  return finitePositive(drawing?.points?.[0]?.price)
+  return finitePositive(drawing?.price) ?? finitePositive(drawing?.points?.[0]?.price)
 }
 
 /** Can this drawing carry a plan role? A flat level, in the PRICE pane, at a real price. A line
