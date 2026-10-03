@@ -533,6 +533,11 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
 // families vendor vs ours). Most SPY value divergences are converging prefixes: the
 // 1800-bar window does not start at SPY's listing, so a recursive series (EMA, RMA)
 // seeds differently (CAP2 records the same); the signature says which.
+/** ⛔ Scripts whose DRAWN COUNTS read the wall clock (`timenow`): black-scholes computes
+ *  days-to-expiry from now, so its table cells change with the hour the rail runs
+ *  (measured: 8 cells at capture, 6 the next morning). A test that reads the clock is a
+ *  function of the hour; for these the control pins everything except those counts. */
+const WALL_CLOCK = new Set(['black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03'])
 const CAP3_SPY = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-spy-gap-verdicts.json'), 'utf8')).captures
 const gradeRow = (row) => {
   if (row.library) loadPineLibraryStore(STORE_DIR)
@@ -567,7 +572,15 @@ describe('CAP3 — SPY 1D captures of the census gap list', () => {
       }, T)
     }
     run(`control: ${row.id} (${row.state}) — the grade is the measured signature (${row.signature && row.signature.verdict})`, () => {
-      expect(cap3Signature(gradeRow(row))).toEqual(row.signature)
+      const got = cap3Signature(gradeRow(row))
+      if (WALL_CLOCK.has(row.id)) {
+        // ⛔ the drawing COUNTS depend on the hour the test runs (see WALL_CLOCK);
+        // everything that does not is still pinned
+        const strip = (s) => ({ ...s, objects: s.objects ? [s.objects[0]] : null })
+        expect(strip(got)).toEqual(strip(row.signature))
+      } else {
+        expect(got).toEqual(row.signature)
+      }
     }, T)
   }
 })
