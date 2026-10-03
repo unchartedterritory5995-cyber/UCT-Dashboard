@@ -920,6 +920,79 @@ export function paramTypeHeads(toks, arrow) {
   return out
 }
 
+/** ⭐⭐ L2 — `f(a, series float src = hl2, simple int n = 5) =>`: A HEADER WHOSE
+ *  TRAILING PARAMETERS DECLARE DEFAULTS, read for THIS lane's frame.
+ *  `{ names, defaults }` — `defaults[k]` the parsed default of parameter `k`, or
+ *  null where it declares none — or null when the header is not that shape.
+ *
+ *  Pine: a call that omits a trailing argument runs the body with the declared
+ *  default (TradingView capture Q-L1, `vw-library-import`: `highestSince(cond)`
+ *  equals `highestSince(cond, high)` on every bar). Nearly every published
+ *  library export declares defaults, so this header is the first wall an
+ *  imported library meets in this lane.
+ *
+ *  ⭐ AN OMITTED ARGUMENT IS COMPILED AS THE DEFAULT WRITTEN AT THE CALL — the
+ *  call site passes it like any argument (`completeUserArgs`). That is exact
+ *  only for a default whose value cannot depend on WHERE it is read, so only
+ *  these shapes are taken:
+ *    · a literal: a number (or `-number`), a quoted string, `true`, `false`,
+ *      `na`, a `#hex` colour;
+ *    · a dotted built-in constant (`color.red`, `display.all`) — a dotted name
+ *      no script can bind;
+ *    · one of Pine's built-in bar series (`BAR_SERIES_DEFAULTS`) — read at the
+ *      call it is the same bar's value the body would read, and its history
+ *      inside the body is the series' own history, exactly as when the member
+ *      writes it as the argument. ⛔ The call site refuses it by name when the
+ *      caller's scope binds that name to something else.
+ *  ⛔ Anything else (`len = other`, a call, an expression) is not this shape and
+ *  the header keeps the refusal it had; so does a required parameter behind an
+ *  optional one (reachable only by name). */
+const BAR_SERIES_DEFAULTS = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index'])
+export function paramDefaultsOf(toks, arrow) {
+  if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return null
+  const segs = []
+  let cur = []
+  let depth = 0
+  for (const t of toks.slice(2, close)) {
+    if (isPunct(t, '(') || isPunct(t, '[')) depth += 1
+    else if (isPunct(t, ')') || isPunct(t, ']')) depth -= 1
+    if (depth === 0 && isPunct(t, ',')) { segs.push(cur); cur = []; continue }
+    cur.push(t)
+  }
+  if (cur.length) segs.push(cur)
+  const names = []
+  const defaults = []
+  let any = false
+  for (const seg of segs) {
+    const eq = seg.findIndex((t) => isPunct(t, '='))
+    const head = eq >= 0 ? seg.slice(0, eq) : seg
+    // the head is `[type words…] name` — every token a word, the last the name
+    if (!head.length || head.some((t) => t.kind !== 'ident' || String(t.value).includes('.'))) return null
+    const name = String(head[head.length - 1].value)
+    let node = null
+    if (eq >= 0) {
+      const rest = seg.slice(eq + 1)
+      const one = rest.length === 1 ? rest[0] : null
+      const ok = (one && (one.kind === 'number' || one.kind === 'string' || one.kind === 'colour'
+          || (one.kind === 'ident' && (one.value === 'true' || one.value === 'false' || one.value === 'na'
+            || BAR_SERIES_DEFAULTS.has(String(one.value))
+            || /^(color|display|shape|location|size|position|text|xloc|yloc|extend|line|label|plot|hline|font|order|currency|scale|format)\.[a-z_]+$/.test(String(one.value))))))
+        || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number')
+      if (!ok) return null
+      try { node = parseWholeExpression(rest) } catch { return null }
+      if (!node) return null
+      any = true
+    } else if (any) {
+      return null
+    }
+    names.push(name)
+    defaults.push(node)
+  }
+  return any ? { names, defaults } : null
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   const built = buildRuntimeIrLinked(source, opts, holder)
@@ -1228,6 +1301,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** name → the refusal its DEFINITION hit, re-raised at the first call site.
    *  See the deferral in the statement walk for why a definition is not fatal. */
   const deferredFnRefusals = new Map()
+  /** ⭐ L2 — name → the declared default of each parameter (null where none). */
+  const fnDefaultsByName = new Map()
+  /** ⭐ L2 — a call to a function declaring defaults, with every omitted trailing
+   *  argument written in as its default (`paramDefaultsOf`). A bar-series default
+   *  is refused by name when the caller's scope binds that name to something
+   *  else: the default means Pine's built-in, and the caller's binding is not it.
+   *  More arguments than parameters, or an omitted one with no default, are left
+   *  for the arity check the call already has. */
+  const completeUserArgs = (node, scope) => {
+    const defaults = fnDefaultsByName.get(node.name)
+    const given = node.args || []
+    if (!defaults || given.length >= defaults.length || given.some((a) => a && a.name)) return node
+    const added = []
+    for (let k = given.length; k < defaults.length; k += 1) {
+      const d = defaults[k]
+      if (!d) return node
+      if (d.type === 'name' && BAR_SERIES_DEFAULTS.has(d.name)
+        && (scope.lookup(d.name) !== null || env.has(d.name) || (guardOuter && guardOuter.lookup(d.name) !== null))) {
+        throw new RuntimeRefusal('runtime:function',
+          `\`${node.name}\` is called without its argument whose default is \`${d.name}\`, and this script binds `
+          + `its own \`${d.name}\` where it calls it — the default is Pine's built-in, not that binding`,
+          locate(node.tok))
+      }
+      added.push({ name: null, value: d, tok: node.tok })
+    }
+    return { ...node, args: [...given, ...added] }
+  }
   /** ⭐ C35 — name → the definition's `{st, toks, arrow}`, kept for a definition
    *  whose held refusal a call site may settle (`simpleSpecialisation`). */
   const deferredFnDefs = new Map()
@@ -4388,6 +4488,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⛔ A DEFERRED REFUSAL COMES BACK HERE, AT THE CALL. The definition
         // could not be compiled; this is the first line that actually needs it,
         // so this is where a member is told.
+        // ⭐ L2 — an omitted trailing argument IS its declared default, written in
+        // before any path below counts or lowers the arguments.
+        if (fnDefaultsByName.has(node.name)) node = completeUserArgs(node, scope)
         let specIndex = null
         if (deferredFnRefusals.has(node.name)) {
           const held = deferredFnRefusals.get(node.name)
@@ -6953,8 +7056,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call was refused for an arity nobody wrote. The declared-type walk below
     // is the one that knows a word followed by a name is a type; a type this
     // script DECLARED is removed from the list, nothing else is.
-    const rawParams = functionParams(toks, arrow)
-    const params = rawParams === null ? null : (() => {
+    // ⭐ L2 — a header declaring defaults (`paramDefaultsOf`), read only when the
+    // plain reader refuses it, so every header that compiled before reads the same.
+    const withDefaults = functionParams(toks, arrow) === null ? paramDefaultsOf(toks, arrow) : null
+    const rawParams = withDefaults ? withDefaults.names : functionParams(toks, arrow)
+    const params = rawParams === null ? null : withDefaults ? rawParams : (() => {
       const typed = paramTypeHeads(toks, arrow)
       const typeWords = new Set([...typed.values()].map((t) => t.word))
       return rawParams.filter((p) => !(udtTypes.has(p) && typeWords.has(p) && !typed.has(p)))
@@ -6975,6 +7081,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐ REGISTERED BEFORE ITS BODY IS COMPILED, so a self-call is caught as
     // RECURSION by name rather than reaching a depth limit and reporting
     // exhaustion for what is actually a Pine rule violation (§19).
+    // ⭐ L2 — the declared defaults, by NAME, so a call site completes an omitted
+    // trailing argument before anything counts it (`completeUserArgs`) — kept
+    // before the body compiles, so a definition whose body is HELD still has them.
+    if (withDefaults && !spec) fnDefaultsByName.set(nameTok.value, withDefaults.defaults)
     const fnIndex = functions.length
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
@@ -7270,11 +7380,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const def = deferredFnDefs.get(node.name)
     const culprit = held.frameName
     if (!def || typeof culprit !== 'string') return null
-    const rawParams = functionParams(def.toks, def.arrow)
+    // ⭐ L2 — a header declaring defaults is read by its own reader, as in
+    // `defineFunction` (whose call site has already written the defaults in).
+    const withDefaults = functionParams(def.toks, def.arrow) === null ? paramDefaultsOf(def.toks, def.arrow) : null
+    const rawParams = withDefaults ? withDefaults.names : functionParams(def.toks, def.arrow)
     if (!rawParams) return null
     const typed = paramTypeHeads(def.toks, def.arrow)
     const typeWords = new Set([...typed.values()].map((t) => t.word))
-    const params = rawParams.filter((p) => !(udtTypes.has(p) && typeWords.has(p) && !typed.has(p)))
+    const params = withDefaults ? rawParams : rawParams.filter((p) => !(udtTypes.has(p) && typeWords.has(p) && !typed.has(p)))
     if (!params.includes(culprit)) return null
     if (node.args.some((a) => a && a.name)) return null
     const args = node.args.map((a) => (a && a.value !== undefined ? a.value : a))

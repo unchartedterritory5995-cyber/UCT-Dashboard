@@ -197,7 +197,9 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
     // by the same name, so the guard is still reachable.
-    ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
+    // ⚰️ L2 (2026-10-02): `f(x = 3)` — a LITERAL default — now reads
+    // (`paramDefaultsOf`); a default that is an expression still refuses here.
+    ['a function with a default parameter', `${head}f(x = close * 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
     // ⚰️ WAS `[a, b] = ta.macd(close, 12, 26, 9)`. A UDF tuple and a
     // destructuring both LOWER now (runtime/__tests__/tuples.test.js), so that
     // line reaches the columnar lane and refuses `pine:arity` — its own,
