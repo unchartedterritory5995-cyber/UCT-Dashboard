@@ -134,6 +134,37 @@ describe('RT6 — fvg-trend against its TradingView capture (RDDT 1D)', () => {
   })
 })
 
+describe('RT6 — the style-transparency rules, on fvg-trend\'s own source (v4)', () => {
+  const variant = (from, to, mustAttach = true) => {
+    flagsOn()
+    const src = corpus('fvg-trend')
+    expect(src).toContain(from)
+    const d = memberPaneDefinition({ source: src.replace(from, to), id: DEF_ID })
+    if (mustAttach) expect(d.ok, d.reason).toBe(true)
+    return d
+  }
+  it('⭐ a v4 `bgcolor` with NO `transp` takes TradingView\'s default 90 (CAP round 4, vw-bgcolor-v4-default)', () => {
+    const d = variant(', transp=90)', ')')
+    expect(d.definition.paints).toEqual([expect.objectContaining({ kind: 'bgcolor', colorPacked: { transparency: 90 } })])
+  })
+  it('⛔ a transparency over a colour that may carry its own is WITHHELD by name — paint and plot alike', () => {
+    const p = variant('bgcolor(fvgCounter > 0 ? color.green : color.red, transp=90)',
+      'bgcolor(fvgCounter > 0 ? color.new(color.green, 50) : color.red, transp=90)')
+    expect(p.definition.paints).toBeUndefined()
+    expect(p.notes.map((n) => n.note).join(' | ')).toMatch(/`bgcolor` \(line \d+\) is not drawn: a transparency applies over a colour that may carry its own/)
+    const q = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
+      'color=(fvgCounter > 0 ? color.new(color.green, 50) : color.red), transp=30, title="fvgCounter"', false)
+    // its one drawn row withheld, the document declines, naming why
+    expect(q.ok).toBe(false)
+    expect(q.runtimeDeclined.why).toMatch(/`fvgCounter`: .*`transp =` applies over a colour that may carry its own/)
+    // CONTROL — the same plot over fixed colours carries the transparency
+    const r = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
+      'color=(fvgCounter > 0 ? color.green : color.red), transp=30, title="fvgCounter"')
+    expect(r.withheld).not.toContain('fvgCounter')
+    expect(r.definition.plots.find((x) => x.label === 'fvgCounter').colorPacked).toEqual({ transparency: 30 })
+  })
+})
+
 describe('RT6 — the five loop scripts with no capture, held to a hand replay of their colour rule', () => {
   it('kalman-price-filter: `color.new(barColour, 40)` over a `var` trend colour, and its `barcolor`', () => {
     const { coloursOf, valueOf, paintColours } = runtimeDoc('kalman-price-filter-backquant')
