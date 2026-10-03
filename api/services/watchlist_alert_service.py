@@ -477,8 +477,16 @@ def deliver_alert_payload(
     source: str = "indicator_alert",
     extra_data: dict | None = None,
     severity: str = "warning",
+    *,
+    channels_allowed: frozenset | set | None = None,
 ) -> dict:
     """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
+
+    `channels_allowed` (FT-036, keyword-only, default None = every channel,
+    i.e. exactly the behaviour every existing caller already gets) lets a
+    member's routing rule turn OFF the email and push legs. The in-app write
+    is never optional here: it is the member's own record of the alert, and a
+    delivery with zero OK channels releases the caller's lease and re-sends.
 
     Mirrors the multi-channel delivery in ``_deliver_alert`` but accepts a
     generic title/message instead of price-alert specifics. Each channel is
@@ -601,7 +609,10 @@ def deliver_alert_payload(
     # 2. Email
     try:
         email = _get_user_email(user_id)
-        if not email:
+        if channels_allowed is not None and "email" not in channels_allowed:
+            # The member's routing rule turned email off. Skipped, not failed.
+            channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
+        elif not email:
             # No address on file. Nothing was attempted and nothing failed.
             channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
         else:
@@ -649,6 +660,8 @@ def deliver_alert_payload(
     # an operator or the whole audience should see, not one member's alert.
 
     # 4. Web Push (BRK-04, dark) — last, off-thread, never raises.
+    if channels_allowed is not None and "push" not in channels_allowed:
+        return _delivery_report(True, channels, errors)
     _push_channel(user_id, title, message, data.get("research_url"),
                   tag=str(data.get("alert_id") or "") or None)
     return _delivery_report(True, channels, errors)

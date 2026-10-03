@@ -74,6 +74,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/alerts/routing",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/alerts/taxonomy/cooldowns",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -89,6 +95,18 @@
       "path": "/api/alerts/taxonomy/fires",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/webhooks/{webhook_id}/deliveries",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",

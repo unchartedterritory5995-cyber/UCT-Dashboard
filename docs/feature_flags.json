@@ -1389,6 +1389,18 @@
       "where": [],
       "note": "FT-026 + FT-029 + the typed half of FT-024/030 (TERMINAL-NEXT owner ruling 2026-10-02): grouped screener criteria (all-of / any-of / none-of, nestable to depth 4, at most 25 grouped criteria) as an optional 'logic' node on the screen spec, ANDed with the flat filter list; and the where-grammar (k/m/b/t/% shortcuts, and/or/not with parentheses, between, in/not in, contains, field-to-field) that compiles text to that node, with one plain sentence per criterion as the applied-criteria explanation. ENABLEMENT GATE, default OFF, read per request in api/services/screener/logic.is_enabled(); SERVICE: web. Off: GET /api/screener/grammar and POST /api/screener/grammar/parse answer 404, the screener's Criteria box does not render, and any spec carrying 'logic' is REFUSED (400 with a sentence) by /scan and /count, never silently ignored. Every leaf renders through query.build_where, so a grouped criterion cannot mean something different from the same filter in the flat list; scan/list/universe keys are refused inside a group. Pending: needs an owner arm. Rollback: set 0."
     },
+    "ALERT_WEBHOOKS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-033 (TERMINAL-NEXT owner ruling 2026-10-02): outbound alert webhooks -- an HTTP POST to the member's own https endpoint when one of their S7 alerts fires; the outbound twin of TERM-086. Owner-scoped (/api/alerts/webhooks*, require_paid, at most 3 live per member), HMAC-SHA256 signed (X-UCT-Signature t=,v1= over '<t>.<body>'; per-webhook secret shown once and stored with crypto_box, refused if the key is unset), SSRF-safe (https + port 443 only, no URL credentials, no host or IP literal resolving to a private/loopback/link-local/multicast/reserved address, checked at create AND again before every send; redirects never followed). A fire only ENQUEUES (alert_taxonomy.db alert_webhook_deliveries); the scheduler job alert_webhooks_drain (every minute, registered unconditionally) is the only code that sends: 3 s timeout, retries after 1/2/4/8/16 min, failed after 6 attempts; WEBHOOK_HOURLY_CAP (default 120) per member per hour, overflow recorded as dropped_rate. ENABLEMENT GATE, default OFF, read per call in outbound_webhooks.is_enabled(); SERVICE: web. Off: routes 404, nothing enqueued, the drain sends nothing. Revoke stamps revoked_at; nothing deletes member rows. Pending: needs an owner arm (and BROKER_ENCRYPTION_KEY present on web). Rollback: set 0."
+    },
+    "ALERT_ROUTING_RULE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-036 (TERMINAL-NEXT owner ruling 2026-10-02): one global routing rule per member for S7 alerts (Bloomberg MRUL) -- email on/off, push on/off, webhook on/off -- plus SUSPEND/RESUME of every alert without losing a definition (/api/alerts/routing*, require_paid). Applied in alert_taxonomy/delivery.deliver: suspended -> the fire is still RECORDED in alert_fires with delivery_channels {routing: suspended} and nothing is sent; otherwise deliver_alert_payload gets channels_allowed (new keyword-only arg, default None = unchanged for every other caller). The in-app record is never routable. ENABLEMENT GATE, default OFF, read per call in routing_rule.is_enabled(); SERVICE: web. Off: routes 404 and delivery is byte-identical to before (a stored rule is kept, never applied, never deleted). Not yet applied to the TERM-048 price-alert S7 bridge (_deliver_via_s7), which has its own fan-out. Pending: needs an owner arm. Rollback: set 0."
+    },
     "WEB_PUSH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",
