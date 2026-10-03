@@ -2294,6 +2294,40 @@ export function runtimeObjectsWithheld(def, cols) {
   }
 }
 
+// ─── ⭐⭐ RF — A RUNTIME PANE THAT DREW NOTHING SAYS WHY ───────────────────────
+//
+// `columnErrors` is "not UX" (C2A.8) and no surface rendered it, so a runtime
+// document whose run was refused on this chart — `runtime:history-start` (every
+// chart that does not start at the listing: every intraday chart, most daily
+// ones), the time budget, a VM limit, a failed worker — drew an EMPTY pane with
+// no sentence. Measured before RF: the six runtime-only corpus scripts are all
+// fallback documents, so on an intraday chart every one was a silent blank. The
+// script's own `runtime.error` already had its sentence (C43); this is the same
+// strip, for every other stop of the run.
+
+/**
+ * The sentence for a runtime document whose run produced NONE of its columns on
+ * this chart, or `null` (any other document; a run that drew; a run in flight;
+ * the script's own `runtime.error`, which C43's stop words).
+ *
+ * @param {object} def the installed definition
+ * @param {object|null|undefined} cols what `computeFor` answered for it
+ * @returns {{guard: string, sentence: string} | null}
+ */
+export function runtimeRunStopOf(def, cols) {
+  if (!def || !def.compute || def.compute.kind !== 'runtime' || !cols) return null
+  const keys = Object.keys(def.compute.outputs || {})
+  if (keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
+  if (runtimeErrorStopOf(cols)) return null
+  const first = Object.values(columnErrors(cols))[0]
+  if (!first || !first.guard) return null
+  const why = String(first.message || '').trim()
+  return {
+    guard: first.guard,
+    sentence: `not drawn on this chart (${first.guard}): ${why || 'the per-bar run computed nothing'}`,
+  }
+}
+
 // ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
 //
 // TradingView's study holds NOTHING once the script's own `runtime.error` is
@@ -2827,8 +2861,16 @@ export function registerRuntimeLane(fn) {
  *  makes it a code-splitting build the worker format cannot take. */
 let _runtimeLoader = null
 let _runtimeLoading = null
+// ⛔ RF — A LOAD THAT FAILED IS SAID, NOT RETRIED ON EVERY PAINT. Before RF a
+// failed `import()` (a stale chunk after a deploy, a dropped connection) cleared
+// the in-flight mark and told nobody, so every later paint asked again, drew
+// `{}` and said nothing: a pane blank forever with no reason. Now the failure is
+// remembered for this tab, the chart is told once, and the definition answers it
+// by name.
+let _runtimeLoadFailed = null
 export function registerRuntimeLaneLoader(fn) {
   _runtimeLoader = typeof fn === 'function' ? fn : null
+  _runtimeLoadFailed = null
 }
 function loadRuntimeLane() {
   if (_runtimeLoading) return true
@@ -2836,15 +2878,28 @@ function loadRuntimeLane() {
   _runtimeLoading = Promise.resolve()
     .then(() => _runtimeLoader())
     .then(() => { _runtimeLoading = null; notifyColumnsLanded('runtime:lane') })
-    .catch(() => { _runtimeLoading = null })
+    .catch((err) => {
+      _runtimeLoading = null
+      _runtimeLoadFailed = String((err && err.message) || err || 'the load failed')
+      notifyColumnsLanded('runtime:lane')
+    })
   return true
 }
+
+/** ⭐ RF — the guard a runtime document carries when this tab could not load the
+ *  lane at all. */
+export const RUNTIME_LOAD_FAILED_GUARD = 'runtime:load-failed'
 
 function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   const keys = Object.keys((def.compute && def.compute.outputs) || {})
   const reasonFor = (guard, message) => withColumnErrors({},
     Object.fromEntries(keys.map((k) => [k, { guard, message }])))
   if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null && runtimePaneEnabled()) {
+      return reasonFor(RUNTIME_LOAD_FAILED_GUARD, 'the part of the app that draws a script bar by bar could not '
+        + `be loaded in this tab (${_runtimeLoadFailed.slice(0, 160)}), so nothing is drawn. The chart is `
+        + 'unaffected; reloading the page tries again.')
+    }
     if (runtimePaneEnabled() && loadRuntimeLane()) return {}
     return reasonFor('runtime:unregistered',
       'the per-bar runtime lane is not loaded in this client, so this definition computes nothing')
