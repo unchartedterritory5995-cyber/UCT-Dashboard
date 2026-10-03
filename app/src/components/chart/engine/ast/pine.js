@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -8839,7 +8839,8 @@ export class Resolver {
    *  reads there. See `implicitBoolCast` for the rule and its evidence status.
    *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
   condition(tree, site, tok) {
-    const out = implicitBoolCast(tree, this.pineVersion, this.table)
+    const cast = implicitBoolCast(tree, this.pineVersion, this.table)
+    const out = naOperandReadAsFalse(cast, site, this.pineVersion)
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({
@@ -27344,6 +27345,61 @@ export function conditionKindOf(node, table = TABLE) {
  *  version that carries the implicit cast; everything else comes back as the
  *  very same object it went in as. A numeric CONSTANT folds to its truth value
  *  (`cNum(1)`/`cNum(0)`) rather than printing `5 != 0`. */
+/** ⭐⭐ F2 (2026-10-02) — RT3 Q-NL, SETTLED: AN `na` OPERAND OF `and` / `or` /
+ *  `not` READS AS FALSE, AND THE ANSWER IS NEVER `na`.
+ *
+ *  ⚰️ MEASURED (CAP2, `rt3-na-logic` v5 and `rt3-na-logic-v4`, NYSE:RDDT 1D from
+ *  the listing, 2026-10-02), with `w` an `na` bool on bars 0..18 and `b` an `na`
+ *  bool literal on every bar, TradingView answers, in v4 AND v5:
+ *      `(not w) ? 1 : 2` → 1     `(w and true) ? 1 : 2` → 2
+ *      `na(w or false) ? 1 : 2` → 2     `na(not w) ? 1 : 2` → 2     `(not b) ? 1 : 2` → 1
+ *  The shared `logical` / `!` carry a `NaN` operand through (the `{0,1,NaN}`
+ *  domain), so this door drew `na` on B02 / B03 / B07 and a WRONG 1 on B04 / B05.
+ *
+ *  ⭐ ONE RULE, ASKED OF ITS ONE AUTHORITY: where `interpret.js::naConditionIsFalse`
+ *  says this script's version reads an `na` condition as false (v4 and v5 here — see
+ *  the last ⛔ for v6), an operand of a
+ *  logical operator is read AS A CONDITION — `x != 0`, which IS
+ *  `interpret.js::pineBool` by construction (`cmp` answers 0 for `NaN`; the same
+ *  cast the runtime lane's `asCondition` emits) and needs no new operator in
+ *  either lane (the Python mirror's `!=` is the same `_cmp`).
+ *  ⛔ An operand that can never be `na` (a comparison, a literal, a logical
+ *  operator over such operands) is left as it is, so every tree that could not
+ *  move keeps its bytes. ⛔ Below v4 nothing is claimed: unchanged.
+ *  ⚠️ OFF THE LISTING a `NaN` operand can also be "not computable from this
+ *  window" (a warm-up bar); it now reads false there, exactly as a NUMBER operand
+ *  already did under `implicitBoolCast` — inside the tree's own warm-up, and a
+ *  switched recurrence's unknown bars stay withheld by the root agreement
+ *  (`interpret.js::interpretAgreed` probes them; `!= 0` is one of its literals).
+ *  ⛔ ONLY `and` / `or` / `not`: a `?:` test is not this site.
+ *  ⛔ v4 and v5 ONLY — the versions the captures witness. A v6 `bool` is never `na`,
+ *  and this door's v6 logic is left byte-for-byte as it was: measured, applying the
+ *  cast there too moved `trend-duration-forecast-chartprime` (v6, `var trend =
+ *  bool(na)`, `if trend or not trend`) from MATCH to DIVERGE — its latch's `!= 0`
+ *  became a probe literal, and every label went unknown. */
+const NA_FALSE_LOGIC_SITES = new Set(['and', 'or', 'not', '&&', '||', '!'])
+const NEVER_NA_OPS = new Set(['<', '<=', '>', '>=', '==', '!='])
+export function conditionNeverNa(tree) {
+  if (!tree || typeof tree !== 'object') return false
+  if (tree.type === 'num') return Number.isFinite(tree.value)
+  // a member's declared input (its default rides non-enumerably — see the declare
+  // mode in the input resolver): a number the member sets, never `na`
+  if (tree.type === 'series') return tree.inputName !== undefined && Number.isFinite(tree.inputDefault)
+  if (tree.type !== 'op' || !Array.isArray(tree.args)) return false
+  if (NEVER_NA_OPS.has(tree.name)) return true
+  if (tree.name === '!' || tree.name === '&&' || tree.name === '||' || tree.name === '?:') {
+    return tree.args.every(conditionNeverNa)
+  }
+  return false
+}
+export function naOperandReadAsFalse(out, site, pineVersion) {
+  if (!NA_FALSE_LOGIC_SITES.has(site) || !naConditionIsFalse(pineVersion) || !(Number(pineVersion) <= 5)) return out
+  // A proven NUMBER is `implicitBoolCast`'s (v1–v5 already cast it to `x != 0`;
+  // v6 does not compile one in a bool context) — never cast twice, never here.
+  if (out.kind === 'num' || conditionNeverNa(out.tree)) return out
+  return { ...out, tree: cOp('!=', [out.tree, cNum(0)]), naReadAsFalse: true }
+}
+
 export function implicitBoolCast(tree, pineVersion, table = TABLE) {
   const kind = conditionKindOf(tree, table)
   if (kind !== 'num' || !implicitBoolCastApplies(pineVersion)) return { tree, kind, cast: false }

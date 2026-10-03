@@ -60,6 +60,9 @@ describe('CAP2 coverage audit — MATCH', () => {
     ['tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02', 'on'],
     ['tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02', 'on'],
     ['twin-range-filter-spy-1d-2026-10-02', 'on'],
+    // ⭐ F2 (step 78) — `col = if …` arms opened by the colour readers (`pine.js::openBoundArm`).
+    ['implied-volatility-suite-rddt-1d-2026-10-02', 'on'],
+    ['implied-volatility-suite-spy-1d-2026-10-02', 'on'],
   ])('%s (%s): MATCH', (id, state) => {
     const { cap, v } = grade(id, state)
     expect(cap.source.sha256).toMatch(/^[0-9a-f]{64}$/)
@@ -111,29 +114,27 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP na from bar 960 to the last; CP/BC/TC/D-S1/D-R1 colour on bar 1 only (TradingView transparent); EMA a converging prefix', () => {
+  it('control: SPY VWAP na from bar 960 to the last; EMA a converging prefix; CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
     expect(first(item(v, 'VWAP'))).toMatchObject({ bar: 960, kind: 'na' })
     expect(item(v, 'VWAP').stats.steady.pattern.kind).toBe('persistent')
     for (const t of ['CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
-      expect(first(item(v, t)), t).toMatchObject({ bar: 1, kind: 'color' })
-      expect(item(v, t).stats.steady.divergent, t).toBe(1)
+      const p = item(v, t)
+      expect(p.verdict, t).toBe('MATCH')
+      // the colour rule reads `DayPivot[1]`: its reach (2) exceeds the value's (1)
+      expect(p.colorWarmupBars, t).toBe(2)
+      expect(p.warmupBars, t).toBe(1)
     }
     expect(item(v, 'EMA').stats.steady.pattern.kind).toBe('converging-prefix')
   }, T)
 
-  // implied-volatility-suite ----------------------------------------------------
-  it.fails('implied-volatility-suite RDDT: MATCH', () => {
-    expect(grade('implied-volatility-suite-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
-  }, T)
-  it.fails('implied-volatility-suite SPY: MATCH', () => {
-    expect(grade('implied-volatility-suite-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: values agree; the per-bar colour of Volatility Data differs from bar 364 (RDDT) / 412 (SPY), persistent', () => {
-    for (const [id, bar] of [['implied-volatility-suite-rddt-1d-2026-10-02', 364], ['implied-volatility-suite-spy-1d-2026-10-02', 412]]) {
+  // implied-volatility-suite: MATCH since F2 (above) ---------------------------
+  it('F2 control: the Volatility Data colour is carried as a palette (TradingView red / green), compared on every valued bar', () => {
+    for (const id of ['implied-volatility-suite-rddt-1d-2026-10-02', 'implied-volatility-suite-spy-1d-2026-10-02']) {
       const p = item(grade(id).v, 'Volatility Data')
-      expect(first(p), id).toMatchObject({ bar, kind: 'color' })
-      expect(p.stats.steady.pattern.kind).toBe('persistent')
+      expect(p.verdict, id).toBe('MATCH')
+      expect(p.color, id).toBe('compared')
+      expect(p.stats.colorCompared, id).toBeGreaterThan(200)
     }
   }, T)
 
@@ -281,6 +282,34 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
     expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
     expect(v.objects.reason).toMatch(/holds 14 drawing object.*no drawing program/)
+  }, T)
+})
+
+// ─── F2 (step 78) — RT3 Q-NL: `and` / `or` / `not` over an `na` operand ───────────
+// TradingView (v5 and v4, RDDT 1D from the listing): an `na` operand reads as FALSE and
+// the answer is never `na`. Before F2 the door drew `na` on B02 / B03 / B07 and a wrong 1
+// on B04 / B05 (`na(w or false)`, `na(not w)`). The capture stays INCONCLUSIVE only for
+// the four rows our pane folds to a hidden constant (B01 / B06 / B07 / B09), whose values agree.
+describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 and v5)', () => {
+  it.each([
+    ['rt3-na-logic-rddt-1d-2026-10-02'],
+    ['rt3-na-logic-v4-rddt-1d-2026-10-02'],
+  ])('%s: every graded row agrees; nothing diverges', (id) => {
+    const { v } = grade(id)
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
+    for (const t of ['B02_not_naBool', 'B03_naBool_and_true_CONTROL', 'B04_na_of_naBool_or_false',
+      'B05_na_of_not_naBool', 'B08_naFloat_or_false', 'B10_not_naFloat']) {
+      expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
+    }
+    // B07 `not <na literal>` now folds to a constant 1 on every bar (TradingView's 1): its
+    // VALUES agree on all 636 bars; only its colour is unresolvable (a hidden constant row)
+    const b07 = item(v, 'B07_not_naLiteral')
+    expect(b07.verdict).toBe('INCONCLUSIVE')
+    expect(b07.stats.steady.divergent).toBe(0)
+    expect(b07.reason).toMatch(/values agree/)
+    // non-vacuity: the rows are graded from bar 0 (a capture from the listing), so the
+    // `na` warm-up bars 0..18 are compared, not excused
+    expect(item(v, 'B04_na_of_naBool_or_false').stats.steady.compared).toBe(636)
   }, T)
 })
 

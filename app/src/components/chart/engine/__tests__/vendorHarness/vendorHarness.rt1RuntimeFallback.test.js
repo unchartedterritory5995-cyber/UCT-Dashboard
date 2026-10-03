@@ -179,23 +179,22 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
     expect(memberPaneDefinition({ source: src, id: DEF_ID }).ok).toBe(false)
   })
 
-  it('⛔ at the door, by name: a v5 `or` / `not` over a value that can be `na` is still declined, with the host sentence', () => {
-    // cc-yata: a v5 script the host lane refuses, whose `or` / `not` read
-    // values this lane cannot show are never `na`. Whether a v5 `bool` carries
-    // `na` through `or` / `not` is unwitnessed (no capture separates the two
-    // readings — its own capture grades the same either way), so it is withheld.
+  it('⭐⭐ F2 — at the door: a v5 `or` / `not` over a value that can be `na` now attaches (Q-NL settled), and grades against TradingView', () => {
+    // cc-yata: a v5 script the host lane refuses, whose `or` / `not` read values
+    // this lane cannot show are never `na`. It was declined (`runtime:na-test`)
+    // until the Q-NL captures (`rt3-na-logic` v5 / `-v4`) witnessed the rule: an
+    // `na` operand is false. Now it attaches, and every plot it draws that the
+    // capture can pair agrees (`vendorHarness.coverageAudit`, F2 section).
     const cap = capture(YATA)
     vi.stubEnv(OBJECTS, '1')
     vi.stubEnv(FLAG, '')
     const off = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
-    expect(built.ok).toBe(false)
-    expect(built.runtimeDeclined.code).toBe('runtime:na-test')
-    expect(built.reason).toBe(off.reason) // the host sentence, verbatim
-    expect(probeRuntimeProgram(cap.source.text).naTests).toBeGreaterThan(0)
-    // the control: with the lane off nothing is offered to it, so nothing declines
-    expect(off.runtimeDeclined).toBeUndefined()
+    expect(off.ok).toBe(false) // the control: the host lane alone still refuses it
+    expect(built.ok, built.reason).toBe(true)
+    expect(built.lane).toBe('runtime')
+    expect(probeRuntimeProgram(cap.source.text).naTests).toBe(0)
   })
 })
 
