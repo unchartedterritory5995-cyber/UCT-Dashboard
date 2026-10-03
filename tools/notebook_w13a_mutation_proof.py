@@ -80,8 +80,9 @@ MUTATIONS = [
      "    return flag_on(FLAG, False)\n", "    return flag_on(FLAG, True)\n", [PY_GRADING]),
     ("G2 gate: the auth payload's default flipped ON", "api/routers/auth.py",
      '    "NOTEBOOK_PLAN_GRADING_ENABLED": False,', '    "NOTEBOOK_PLAN_GRADING_ENABLED": True,', [PY_FLAGS]),
-    ("R1 R3 wording: 'too few to judge' ends at 9, not 10", PG,
-     '    "SAMPLE_TOO_FEW_BELOW": 10,\n', '    "SAMPLE_TOO_FEW_BELOW": 9,\n', [PY_GRADING]),
+    # R3 moved to its one home (lane 13B, 13A's decision 6); plan_grading imports it from there.
+    ("R1 R3 wording: 'too few to judge' ends at 9, not 10", "api/services/journal_two/sample_size.py",
+     'TOO_FEW_BELOW = 10\n', 'TOO_FEW_BELOW = 9\n', [PY_GRADING]),
     ("X1 reader: two different entries read as the first one, not 'unreadable'", PX,
      "    if len(distinct) == 1:\n        return RoleReading(STATE_OK, distinct[0])\n",
      "    if len(distinct) >= 1:\n        return RoleReading(STATE_OK, distinct[0])\n", [PY_EXTRACT]),

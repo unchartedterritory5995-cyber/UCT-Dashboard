@@ -224,6 +224,10 @@ NOT_REHEARSED = {
     # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
     "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
                                    "levels (API only); no member surface until 13H-2",
+    # Wave 13 lane 13B.
+    "NOTEBOOK_PLAYBOOK_ENABLED": "dark (wave 13 13B): My Playbook -- per-setup stats with R3 ranges "
+                                 "and the before-losses-vs-wins patterns; waits for the wave-13 PR "
+                                 "and the owner's arming order (P6)",
 }
 
 

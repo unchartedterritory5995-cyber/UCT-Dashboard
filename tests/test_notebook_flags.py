@@ -49,6 +49,8 @@ NOTEBOOK_KEYS = [
     "notebook_chart_plan_enabled",
     # Wave 13 lane 13A: plan vs execution grading — an enablement gate.
     "notebook_plan_grading_enabled",
+    # Wave 13 lane 13B: My Playbook — an enablement gate.
+    "notebook_playbook_enabled",
 ]
 
 
