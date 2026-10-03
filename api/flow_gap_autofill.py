@@ -377,8 +377,19 @@ def _backup_db(run_id: int, target: date):
 
 # --- Version bump + Discord -----------------------------------------------------
 
-def _bump_version():
-    """flow_router.bump_data_version via getattr (dangling-import playbook)."""
+def _bump_version(mdy: str = None):
+    """flow_router.bump_data_version via getattr (dangling-import playbook).
+    With `mdy`, also drops Live Flow's per-date result caches for the healed
+    day — the version bump alone never reaches them (see
+    live_massive_router.invalidate_date_caches)."""
+    if mdy:
+        try:
+            from api import live_massive_router
+            inv = getattr(live_massive_router, "invalidate_date_caches", None)
+            if callable(inv):
+                inv(mdy)
+        except Exception as e:
+            logger.warning("[gap-fill] live-flow cache invalidation failed: %s", e)
     try:
         from api import flow_router
         bump = getattr(flow_router, "bump_data_version", None)
@@ -654,7 +665,7 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                     logger.exception("[gap-fill] enrichment failed (fill stands): %s", e)
                     result["enrich"] = {"status": "failed", "error": str(e)[:300]}
 
-            version_after = _bump_version()
+            version_after = _bump_version(mdy)
             _finish(run_id, "completed", version_before=version_before,
                     version_after=version_after)
             result.update(status="completed", **totals, problems=problems)
@@ -821,7 +832,7 @@ def rollback_run(run_id: int) -> dict:
         except Exception:
             c.execute("ROLLBACK")
             raise
-    version = _bump_version()
+    version = _bump_version(run["target_date"])
     _post_discord(f"⏪ FLOW GAP-FILL ROLLBACK run {run_id}: removed {removed} "
                   f"filled rows, restored {restored} archived rows, version→{version}")
     return {"status": "rolled_back", "removed": removed, "restored": restored}
@@ -957,7 +968,7 @@ def trigger_enrich(target_date: str, _auth: dict = Depends(require_flow_admin)):
         try:
             from api import flow_heal_enrich
             res = flow_heal_enrich.enrich_day(target, force=True)
-            _bump_version()
+            _bump_version(_mdy(target))
             _post_discord(flow_heal_enrich.summary_line(res))
         except Exception as e:
             logger.exception("[gap-fill] manual enrich failed: %s", e)
