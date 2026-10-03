@@ -235,6 +235,32 @@ def job_cadence_rollup() -> tuple[str, str, bool]:
     return ("%s (exit %d) — %s" % (ROLLUP_TITLE, code, head), out, code != 0)
 
 
+def job_memory_slope() -> tuple[str, str, bool]:
+    """Weekdays 09:20 ET — TERM-014: the web pod's RSS slope + what grew.
+
+    The verdict is the tool's exit code (`tools/rss_slope_report.py`): 3 is an OBS-4
+    ceiling crossing (PAGE), >= 124 is UNREADABLE. INSUFFICIENT samples is exit 0 and
+    is NOT an alert: a young deployment has no slope yet, and saying so is the reading.
+    """
+    r = _fetch("/api/terminal-next/report/memory-slope")
+    out = r.get("stdout") or r.get("stderr") or "(empty)"
+    code = int(r.get("exit", 126))
+    if code == 3:
+        head = "PAGE: A MEMORY CEILING IS CROSSED"
+    elif code >= 124:
+        head = "UNREADABLE: no slope can be vouched for"
+    elif code == 0:
+        head = "read"
+    else:
+        head = "unexpected exit"
+    return ("RSS slope (exit %d) — %s" % (code, head), out, code != 0)
+
+
+def _memory_slope_enabled() -> bool:
+    """Same flag that makes web record the series: dark on both, armed on both."""
+    return os.environ.get("RSS_SERIES_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
 def _ops_url() -> str:
     """The OPS channel through the TERM-011 resolver, read NOW. Never raises.
 
@@ -276,6 +302,9 @@ SCHEDULE = (
     # this table's order, one after another, so this starts once the log has landed.
     # It also catches up any logged session that has no derived files yet.
     ("options-screen", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET, after options-log
+    # TERM-014: weekdays 09:20 ET (13:20 UTC in EDT, 14:20 UTC in EST), INSIDE the
+    # existing cron. Behind RSS_SERIES_ENABLED, the flag that makes web record it.
+    ("memory",     lambda d: d < 5, 9, 20),    # weekdays 09:20 ET
 )
 
 #: The Railway cron that must cover every row above, in UTC, both halves of the
@@ -320,6 +349,7 @@ JOBS = {
     "cadence": job_cadence_rollup,
     "options-log": job_options_log,
     "options-screen": job_options_screen,
+    "memory": job_memory_slope,
 }
 
 #: Jobs behind their own flag. A dark job reads nothing and posts nothing.
@@ -334,7 +364,7 @@ def _options_screen_enabled() -> bool:
 
 
 JOB_GATES = {"cadence": rollup_enabled, "options-log": _options_log_enabled,
-             "options-screen": _options_screen_enabled}
+             "options-screen": _options_screen_enabled, "memory": _memory_slope_enabled}
 #: Jobs whose channel is the TERM-011 OPS destination rather than the admin read.
 OPS_ROUTED_JOBS = frozenset({"cadence"})
 

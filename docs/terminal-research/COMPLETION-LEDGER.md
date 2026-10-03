@@ -38,16 +38,16 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 4 | 1 | 9 | 3 | 0 |
+| 1 Programme records + ship | 17 | 4 | 2 | 8 | 3 | 0 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 8 | 1 |
-| 3 TERM-001..093 | 93 | 55 | 9 | 15 | 10 | 4 |
+| 3 TERM-001..093 | 93 | 55 | 11 | 13 | 10 | 4 |
 | 4 BRK-01..10 | 10 | 1 | 3 | 4 | 2 | 0 |
 | 5 COV-01..12 | 12 | 3 | 3 | 2 | 4 | 0 |
 | 6 FT-001..080 | 80 | 13 | 34 | 21 | 11 | 1 |
-| 7 Untracked promises | 58 | 0 | 0 | 52 | 1 | 5 |
-| **total** | **279** | **76** | **50** | **103** | **39** | **11** |
+| 7 Untracked promises | 58 | 0 | 1 | 51 | 1 | 5 |
+| **total** | **279** | **76** | **54** | **99** | **39** | **11** |
 
-`building` by lane: P 18 · O 17 · R 16 · S 13 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
+`building` by lane: O 17 · R 16 · P 14 · S 13 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all in production.** X-06..X-09 are records and an env arming. Every TERM/FT/BRK/COV `live` row is on master.
@@ -71,7 +71,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `X-13` | MG-8 consumer re-census at countdown | `owner-blocked (X-12 first)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. |
 | `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)` | Pre-registered 2026-09-30, not started. It tests the breadth drill, not the shell. |
 | `X-15` | RM-N10 bars p95, clause 2 | `building (Lane P)` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. |
-| `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `building (Lane P)` | Add the ledger rows. After that, `IMPLIED_ENRICHMENT_CUTOVER` is the owner's call. |
+| `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `dark` | BUILT on `lane/p-platform` (branch-only): a `knobs` section in `docs/feature_flags.json` holds all three (`IMPLIED_ENRICHMENT_CUTOVER` pending, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE` armed at its 0.05 default, `WIRE_SURFACE_LINE_ENABLED` dark, repo morning-wire), held to the AST scan by `tests/test_flag_ledger_knobs.py`. Flipping `IMPLIED_ENRICHMENT_CUTOVER` is the owner's call. |
 | `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `building (Lane P)` | `app/src/pages/Settings.jsx:2035-2046` still lists free-tier pages. Product copy, not this lane. |
 
 ## 2. Owner decisions still open
@@ -105,7 +105,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-011` | Ops channel split | `dark` | Steps 1–7 on master, inert (`api/services/alert_routing.py:114`). Owner creates the ops channel and sets `DISCORD_OPS_WEBHOOK_URL` + `OPS_ALERT_EMAIL_TO`. Step 8 needs fallback = 0 over a weekly cycle. |
 | `TERM-012` | p95 gate measurable | `live` | `tools/bars_warmth_audit.py:73`. |
 | `TERM-013` | Drop-counter reader | `dark` | `BARS_RAIL_PAGE_ENABLED` dark (`api/services/bars_rail_monitor.py:88`). Owner reads the digest verdicts. |
-| `TERM-014` | RSS slope + memory attribution | `building (Lane P)` | Probe built (`api/services/memory_probe.py:297`). The slope reader is agent-buildable; the reading needs TERM-007's window. |
+| `TERM-014` | RSS slope + memory attribution | `dark` | BUILT on `lane/p-platform` (branch-only), dark behind `RSS_SERIES_ENABLED` (pending, web + terminal-next-monitor): `api/services/rss_series.py` retains each 60 s `[mem]` sample with a per-subsystem census (cache entries, threads per prefix); `tools/rss_slope_report.py` = OBS-3 slope (>= 40 samples in ONE deployment, `deployments_sampled`), OBS-4 PAGE (RSS > 3,500 MB / threads > 200, exit 3), attribution ranked by growth; monitor job `memory` weekdays 09:20 ET. OBS-5 retention 400 rows / 90 d, declared. The READING needs TERM-007's quiet window (owner). |
 | `TERM-015` | Cadence heartbeat roll-up | `live` | `api/terminal_next_monitor_main.py:208`. |
 | `TERM-016` | Durable alert cooldowns | `live` | `api/services/chart_health_alerts.py:130`. |
 | `TERM-017` | Loop-lag distribution | `owner-blocked (TERM-007 window)` | Histogram built (`api/event_loop_watchdog.py:221`). |
@@ -173,7 +173,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `TERM-079` | Typed context channels | `live` | `app/src/lib/context/contextChannels.jsx:71`. |
 | `TERM-080` | Per-route rate limits | `dark` | `RATE_LIMIT_POLICY` dark (`api/rate_limit_policy.py`). Shadow week, then enforce. |
 | `TERM-081` | Entitlements toolkit + paywall-all | `dark` | OI-12 paywall-all is branch-only (`app/src/constants/freePages.js:21`). The second toolkit's licensing blocker is cleared by D-011 (`api/services/entitlements.py:254`). |
-| `TERM-082` | Widen serve_stale | `building (Lane P)` | `/api/breadth-monitor` + the post-deploy p95 read (`api/routers/snapshot.py:7`). |
+| `TERM-082` | Widen serve_stale | `dark` | `/api/breadth-monitor` (census rank 5) BUILT on `lane/p-platform` (branch-only): bounded `ServeStale` slot per (days,end,anchor), 1,500 s = 5x the body TTL, 16 keys, `Server-Timing` `desc="stale-swr"`; a generation sentinel under the `breadth_history_` prefix every writer already deletes means a collector push is never answered with the pre-push body, and a build straddling a write is never remembered (`tests/test_breadth_monitor_serve_stale.py`). Remainder: the post-deploy p95 read, after deploy. |
 | `TERM-083` | Backup rail + restore rehearsal | `live` | `api/services/store_backup.py`. |
 | `TERM-084` | ICS token TTL / rotation | `live` | `api/services/ics_export_token.py:73`. |
 | `TERM-085` | Wire sentence naming the surface | `dark` | morning-wire PC-side `WIRE_SURFACE_LINE_ENABLED`, unledgered (X-16). Owner sets it on the PC. |
@@ -356,7 +356,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `D-11` | Entity UC-1: "formerly / now trades as" notice | `building (Lane R)` | |
 | `D-12` | Canonical UC-5: show when two computations of one metric disagree | `building (Lane R)` | |
 | `D-13` | FDA / PDUFA dates on the events calendar | `owner-blocked (a PDUFA date source; a new source under ADR-0015)` | |
-| `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `building (Lane P)` | |
+| `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `dark` | BUILT on `lane/p-platform` (branch-only): `api/services/store_retention.py` registers 15 stores (member flag, rule, pruned tables, sweep); `disk_watchdog` prints each top consumer's retention or `UNDECLARED`; `may_prune` fails closed and guards `artifact_versions._prune` and the RSS series prune. Declared for the first time: AI Search's per-user caps (100 threads / 200 saved) delete MEMBER rows. Rail `tests/test_store_retention.py`. |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `building (Lane P)` | |
 | `CAP-A12` | Merge the two drag-and-drop libraries | `building (Lane P)` | |
 | `FB-A3` | Doc `file:line` citation resolver | `building (Lane P)` | |
