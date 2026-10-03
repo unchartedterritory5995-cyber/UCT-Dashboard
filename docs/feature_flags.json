@@ -1645,6 +1645,24 @@
       "where": [],
       "note": "D-8 (Lane R, TERMINAL-NEXT, owner ruling 2026-10-02): per-member read / unread on Research > Depth > News desk stories, persisted server-side in the existing calendar_seen table (auth.db) under item_type company_news, keyed by the company-news store's story id (api/services/news_read_state.py). POST /api/research/news-desk/read {ids, read} is idempotent both ways (a re-read keeps the first read time) and owner-scoped (every query is WHERE user_id = the caller); an id the store does not hold is refused 404, never recorded. ENABLEMENT GATE, default OFF, read per request (auth payload key news_read_state_enabled, present only when on); unset = the read route 404s before identity and no read state is shown. Arm: railway variables --service web --set NEWS_READ_STATE_ENABLED=1 (owner). Rollback = unset it; rows stay and are not read."
     },
+    "MEMBER_INTEREST_LINE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-9 Personalization UC-1 (lane R, owner ruling 2026-10-02): the first consumer of GET /api/member/interest (on master with no caller). Under the Research header, one line says the member already has a view on this ticker and why: 'Yours: in your open positions · on your watchlists · on the UCT 20' from the route's own because[], never re-derived on the client. PRESENCE ONLY: the resolver folds a failing source into an empty set, so the line never says 'not on your watchlist'; it renders nothing when the ticker is not in the answer or the read failed. No new route, no re-ranking; the existing route (paid, 15s per-member cache) is read as-is. Client-only gate (api/services/member_interest_line.is_enabled, read per call) carried on the auth payload as member_interest_line_enabled, present only when on; unset = the line is absent and /api/member/interest is never requested by it. Arm: railway variables --service web --set MEMBER_INTEREST_LINE_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "ENTITY_RENAME_NOTICE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-11 Entity Master UC-1 (lane R, owner ruling 2026-10-02): the 'formerly / now trades as' notice under the Research header and GET /api/research/rename-notice/{sym}. From entity_master.db's dated alias rows only (renames are written by the D5 producer from Massive's own ticker-change events, never inferred): the entity holding this ticker TODAY and the tickers it held before ('formerly FB, until 2022-06-09'), and each entity that held it BEFORE with what it trades as now (or that it holds no ticker, with its lifecycle state). A closed alias on one entity and a new alias on another are never joined. States: ok / not_in_store / store_unavailable (with the reason), so 'nothing to say' is never 'could not look'. Request path: one local SQLite read, plain def, no vendor call. ENABLEMENT GATE, default OFF, read per request on the auth payload (entity_rename_notice_enabled, present only when on); unset = the route 404s before identity and the notice is absent. Arm: railway variables --service web --set ENTITY_RENAME_NOTICE_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "METRIC_DISAGREEMENT_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-12 Canonical data model UC-5 (lane R, owner ruling 2026-10-02): 'two of our numbers disagree' under the Research header and GET /api/research/metric-disagreement/{sym}. For one ticker, the same figure as the Research snapshot computes it (yfinance, market cap backfilled from FMP) beside the Screener nightly row (market cap from Massive, ratios from FMP TTM bulk): market cap, trailing P/E, P/S, P/B, beta, current ratio. Each pair returns both values, the relative gap, the tolerance it was judged against (declared per metric in api/services/metric_disagreement.PAIRS) and each side's as-of; verdict agree / disagree / cannot_compare (naming the missing side). Detectable, not forbidden: neither value is preferred. Pairs whose units differ are NOT compared (debt/equity: yfinance percent vs screener ratio; average volume: 3-month vs 30-day). Request path reads local stores only (memory cache / disk snapshot store / screener_rows); a research-snapshot miss schedules the snapshot module's existing background rebuild and that side reads not_built. ENABLEMENT GATE, default OFF, read per request on the auth payload (metric_disagreement_enabled, present only when on); unset = the route 404s before identity and the strip is absent. Arm: railway variables --service web --set METRIC_DISAGREEMENT_ENABLED=1 (owner). Rollback = unset it."
+    },
     "OPTIONS_CHAIN_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",

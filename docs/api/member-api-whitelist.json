@@ -2420,6 +2420,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/metric-disagreement/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/news-desk/story/{news_id}/versions",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2529,6 +2535,12 @@
     {
       "method": "GET",
       "path": "/api/research/ratings/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/rename-notice/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
