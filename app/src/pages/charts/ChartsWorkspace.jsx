@@ -59,6 +59,8 @@ import styles from './ChartsWorkspace.module.css'
 import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
 import Checkbox from '../../components/ui/Checkbox'
 import Input from '../../components/ui/Input'
+import { isSuspendedGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -704,15 +706,18 @@ function readWatchlistColumns() {
 // looking at — not an empty group showing a blank Fundamentals panel or a chart
 // stuck on the SPY fallback). Fall back to the first populated group, then to
 // the next free color for a genuinely empty board.
-function pickWidgetColor(widgets, groupSyms) {
+function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
   // Owner request: every NEW widget defaults to the YELLOW color group (A) no matter
   // what — a consistent dot instead of the A→B→C→D cycle. A tickered chart still wins
   // so a new widget lands on the ticker you're looking at (that chart is normally
   // group A too); otherwise 'A', never the next free colour.
+  // COV-10 remainder: a widget stored on E-H while extra groups are off is not linked,
+  // so it is never the group a new widget inherits.
   const g = groupSyms || {}
-  const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
+  const live = (w) => g[w.color] && !isSuspendedGroup(w.color, extraGroupsOn)
+  const chartW = widgets.find((w) => w.type === 'chart' && live(w))
   if (chartW) return chartW.color
-  const anyW = widgets.find((w) => g[w.color])
+  const anyW = widgets.find((w) => live(w))
   if (anyW) return anyW.color
   return 'A'
 }
@@ -886,6 +891,12 @@ export default function ChartsWorkspace() {
   const storedLayoutUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
   const storedLayoutUnreadableRef = useRef(storedLayoutUnreadable)
   storedLayoutUnreadableRef.current = storedLayoutUnreadable
+
+  // COV-10 remainder: colour groups E-H (CHARTS_EXTRA_GROUPS_ENABLED). Held in a ref for
+  // pickWidgetColor so the add-widget callbacks keep their dependency lists.
+  const extraGroupsOn = useExtraGroupsEnabled()
+  const extraGroupsOnRef = useRef(extraGroupsOn)
+  extraGroupsOnRef.current = extraGroupsOn
 
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
@@ -1629,7 +1640,7 @@ export default function ChartsWorkspace() {
       // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1775,7 +1786,7 @@ export default function ChartsWorkspace() {
     // The ghost was offered while the board had room; something else may have filled it since.
     if (refuseIfBoardFull()) { setPendingAdd(null); return }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       let widgets = prev.widgets
       if (cur.mutations && cur.mutations.length) {
         const byId = Object.fromEntries(cur.mutations.map(m => [m.id, m]))
@@ -1867,7 +1878,7 @@ export default function ChartsWorkspace() {
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
-      const color = pickWidgetColor(widgets, groupSyms)
+      const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
       const newWidget = {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,

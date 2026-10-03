@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (568)
+## Endpoints (575)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -60,12 +60,14 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/breadth-monitor/{date_str}/drill/{metric_key}` | paid | market-analytics |
 | GET | `/api/breadth-symbols` | member | market-analytics |
 | GET | `/api/breadth/industries/status` | paid | market-analytics |
+| GET | `/api/calendar/date-status` | paid | research |
 | GET | `/api/calendar/day-metrics` | paid | research |
 | GET | `/api/calendar/day-metrics-batch` | paid | research |
 | GET | `/api/calendar/dividends` | paid | research |
 | GET | `/api/calendar/enrichment` | paid | research |
 | GET | `/api/calendar/enrichment-batch` | paid | research |
 | GET | `/api/calendar/implied-moves` | paid | research |
+| GET | `/api/calendar/index-events` | paid | research |
 | GET | `/api/calendar/ipos` | paid | research |
 | GET | `/api/calendar/most-anticipated.png` | paid | research |
 | GET | `/api/calendar/my-sets` | paid | research |
@@ -401,6 +403,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/analyst-revisions/{ticker}` | paid | research |
 | GET | `/api/research/blackline/{sym}` | paid | research |
 | GET | `/api/research/broker-estimates/{sym}` | paid | research |
+| GET | `/api/research/call-replay/{sym}` | paid | research |
 | GET | `/api/research/company-news/{sym}` | paid | research |
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research |
@@ -418,6 +421,9 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/iv-history/{sym}` | paid | research |
 | GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research |
 | GET | `/api/research/mention-series/{sym}` | paid | research |
+| GET | `/api/research/metric-disagreement/{sym}` | paid | research |
+| GET | `/api/research/news-desk/story/{news_id}/versions` | paid | research |
+| GET | `/api/research/news-desk/{sym}` | paid | research |
 | GET | `/api/research/news/{sym}` | paid | research |
 | GET | `/api/research/options-history/{sym}/daily-move` | paid | research |
 | GET | `/api/research/options-history/{sym}/iv-crush` | paid | research |
@@ -440,6 +446,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/people/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |
+| GET | `/api/research/rename-notice/{sym}` | paid | research |
 | GET | `/api/research/seasonality/{sym}` | paid | research |
 | GET | `/api/risk-summary` | paid | member-workspace |
 | GET | `/api/rs-rankings` | paid | market-analytics |

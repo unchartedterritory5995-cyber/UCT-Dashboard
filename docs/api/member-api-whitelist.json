@@ -272,6 +272,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/calendar/date-status",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/calendar/day-metrics",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -303,6 +309,12 @@
     {
       "method": "GET",
       "path": "/api/calendar/implied-moves",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/calendar/index-events",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2318,6 +2330,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/call-replay/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/company-news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -2415,6 +2433,24 @@
     {
       "method": "GET",
       "path": "/api/research/mention-series/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/metric-disagreement/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/story/{news_id}/versions",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/news-desk/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -2547,6 +2583,12 @@
     {
       "method": "GET",
       "path": "/api/research/ratings/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/rename-notice/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
     },

@@ -5,6 +5,7 @@ import UIcon from '../components/ui/UIcon'
 import styles from './Screener.module.css'
 import { AuthContext } from '../context/AuthContext'
 import OptionsScreener from './screener/options/OptionsScreener'
+import HowToChecklist from '../components/howTo/HowToChecklist'
 
 // ── ScannerShell error fallback — defense-in-depth (the stress-sweep's
 // blank-root finding traced to the SPA's static asset delivery, not a React
@@ -104,6 +105,10 @@ export default function Screener({ embedded = false }) {
           </div>
         )}
       </div>
+
+      {/* FT-046: renders nothing unless HOW_TO_CHECKLISTS_ENABLED is on AND the owner
+          approved this surface's copy (components/howTo). Full page only. */}
+      {!embedded && <HowToChecklist surface={showOptions ? 'screener.options' : 'screener.stocks'} />}
 
       {showOptions && <OptionsScreener />}
 
