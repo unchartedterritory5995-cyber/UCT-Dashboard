@@ -173,6 +173,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 74 | L2 (lane brief, wave 16) the corpus scripts that import a library, measured WITH the 50 production libraries (opt-in `PINE_LIBRARY_STORE`, L1's loader, read by the member-door, runtime and importer censuses) and their next walls (section L2). **Served:** **(1)** a user function's DEFAULT parameter values in the runtime lane (`paramDefaultsOf` / `completeUserArgs`): an omitted trailing argument is the default written at the call (literals, dotted built-in constants, Pine's bar series, refused by name when the caller binds the name); **(2)** a required parameter behind an optional one; **(3)** a tab is one indent level, four columns (TradingView/ta/9). Q-L1 graded with a fixture library at `TradingView/ta/7`: **MATCH, 7 / 7 plots, 636 bars**; the real ta/7 from the store (opt-in) MATCH too. No budget or flag moved | `4106fc6be2`, `553fe7bf1c`, `594271632a`, `3d79658033`, merge `25012b2311` | 47 not re-graded; capRound4 Q-L1 INCONCLUSIVE -> MATCH with the registry loaded | - | member door at the wave-16 tip `666ea1c854`, libraries loaded 55 / 82 / 88 -> **55 / 82 / 89** (+ rolling-vwap, runtime lane, ungraded: Q-L2a); empty registry 55 / 80 / 86 -> 55 / 80 / 86; 0 lost; runtime census `runtime:function` 11 -> 3 (store loaded), compiled 23 -> 23; tab rule: host formulas + runtime IR over the 266 unchanged (digest), 3 refusals moved |
 | 75 | CAP2 coverage audit (section CAP2): census on the wave-16 tree (objects pane on 80 / 266, +runtime 86); the attached scripts with no TradingView capture (22 + the wave-16 attach cpr-with-mas) captured on NYSE:RDDT 1D from the listing and AMEX:SPY 1D, verify_capture.mjs PASS 50/50, graded in `vendorHarness.coverageAudit` (47 tests): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, supertrend-explorer refused by TradingView. Queues: RT3 Q-NL-a/b (`or`/`not` read na as false, v4 and v5), H3 Q-H3a/b/c, CAP row 9 (lower-tf "30"/"1", 1M, CAVA lookahead) | `2ad89eaa9c`..`89dfd5ac8f` + rail | no engine change | attached with a capture: 61 / 79 -> 79 / 80 (on), all runtime attaches but supertrend-explorer | table in section CAP2 |
 | 77 | RF (lane brief, wave 16) the runtime pane made ready to switch on, and the switch-on plan (section RF, `docs/pine/runtime-pane-switch-on-plan.md`): every stop of a run is named (`runtime:limit`, `runtime:failed`, `runtime:worker-unresponsive` / `-failed`, `runtime:load-failed`) and said on the disclosure strip (no surface rendered a column error before); a dead or hung worker answers its jobs by name and is never re-run on the main thread (watchdog 20 s, 3 starts per tab, newest-run coalescing); a kill takes the installed copy off an open tab; a runtime document names the bar colours it does not draw (3 of 6 omitted them silently since B1). Off-main-thread proved in real Chromium (worst frame gap 17 ms, control 383 ms). Store round trip on the six real documents. No flag, budget or limit moved | `caa526cd31`, `54c5e82ea7`, `828dc181b8`, `f64f9cfdf0`, docs | not re-graded (no routing change); runtime on: adx-and-di MATCH, inside-bar DIVERGE on paints only (plots + objects MATCH) | unchanged | member door 55 / 80 / **86**, 0 rows changed by RF (no routing change); runtime-only 6: 1 graded MATCH, 1 paints-DIVERGE, 4 no capture |
+| 81 | CAP3 standing capture lane (section CAP3): **no capture taken** - the visibility gate failed on the rig tab (`visibilityState hidden`, `hasFocus false`): the extension's tab group sits in a Chrome window whose ACTIVE tab is a non-group New Tab. Census (wave-16 `0dffcab3f0`, 50 libraries loaded) 55 / 82 / 89; 71 of the 89 runtime-state attaches lack an AMEX:SPY 1D capture over 1,000 bars (`cap3-spy-1d-gap-list-2026-10-03.json`) | this commit | not measured | - | unchanged |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -6063,3 +6064,31 @@ The shared `app/node_modules` lost 13 entries mid-session (restored by the integ
 final census ran from scratch checkouts (`git archive` of the tip / of `666ea1c854`) with a junction to an intact
 install. The wave-16 base census with the store died once out of memory (no totals line) and was re-run alone; the
 runtime census's three timed-out cases on the base run are load (its compiled line printed).
+
+## CAP3 - standing capture lane: blocked at the visibility gate, the SPY 1D gap measured (2026-10-03, step 81)
+
+Lane CAP3, branch `pine/cap3-captures`, base `integrate/wave16-2026-10-02` (`0dffcab3f0`).
+
+**No capture was taken.** The rig (`01f1AcIj`, signed in, NYSE:RDDT 1D, 0 studies, no `__uct*` globals) answered
+JavaScript, but the visibility gate (`capture-procedure.md`, v2.1) failed on the tab being driven, on every read:
+`visibilityState "hidden"`, `hasFocus false`, `outerWidth/outerHeight 0x0` (real only after a forced paint). Every
+capture committed on 2026-10-02 records `visible` / `hasFocus true`; a capture taken hidden would be a different
+instrument. Cause, read from the desktop (Win32 window list + a screen grab of the window's own region): the window
+is on screen, not minimized and not occluded; its ACTIVE tab is a plain New Tab outside the extension's tab group, so
+the rig tab is a background tab. `resize_window`, `window.focus()` and a second tab from `tabs_create_mcp` (also
+background) did not change it; raising the tab from outside the browser was not done. The fix is one click by the
+owner on the rig tab in that window.
+
+**Queue state** (all untouched, none taken):
+- Q-L2a `rolling-vwap` (RDDT 1D from the listing, SPY 1D; the L2 queue also names SPY 5): owed.
+- Q-RT5a `vw-rt5-arm-draw-block-history.pine` on RDDT 1D (branch `pine/rt5-runtime-objects`): owed.
+- Q-L2b: not a capture (the L2 queue says so: a v5 library under a v6 script is a compile-model question).
+- Q-H4a `vw-h4-loops.pine` (branch `pine/h4-loops`, `capture-queue-2026-10-02-h4-loops.md`), RDDT 1D + SPY 1D: owed.
+- F1 / F2 / F3 / GT branches: no capture-queue file at 2026-10-03 00:05 ET.
+
+**Census** (`memberDoorCensus.measure.test.js`, `VENDOR_BATCH_CENSUS_RUNTIME=1`, `PINE_LIBRARY_STORE` with the 50
+libraries): off 55 / on 82 / +runtime **89** of 266 - L2's number, reproduced. Joined to every capture under
+`tests/fixtures/vendor` by `source.sha256`: **18** of the 89 have an AMEX:SPY 1D capture over 1,000 bars, **71** do
+not (68 objects-pane attaches, 3 runtime-only; 4 have no capture at all: `all-chart-patterns-theeccentrictrader`,
+`black-scholes-...-loxx`, `rolling-vwap`, `supertrend-explorer` - the last refused by TradingView itself, CAP2). The
+list is `cap3-spy-1d-gap-list-2026-10-03.json`; it is the queue for item 4 once the gate passes.
