@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-10-03",
   "scripts": 266,
-  "host_ok": 75,
+  "host_ok": 77,
   "screener_ok": 66,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -429,12 +429,10 @@
       "screener": true,
       "hostGuards": [
         "pine:request",
-        "pine:arity",
         "pine:window"
       ],
       "screenerGuards": [
         "pine:request",
-        "pine:arity",
         "pine:window",
         "pine:function"
       ]
@@ -546,14 +544,10 @@
     },
     {
       "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:arity"
-      ],
-      "screenerGuards": [
-        "pine:arity"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "cumulative-volume-delta__K07lTKE3tP.pine",
@@ -2041,14 +2035,12 @@
     },
     {
       "file": "rsi-vwap-indicator__pTI5ZVw9n4.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:arity"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
-        "pine:arity",
+        "pine:budget",
         "pine:strategy-call"
       ]
     },

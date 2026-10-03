@@ -11932,15 +11932,6 @@ export class Resolver {
       for (let k = given; k < bound.params.length; k += 1) frame.push({ kind: 'expr', node: defaults[k], env: callerEnv })
     }
     this.frames.push(frame)
-    // ⭐⭐ H3 — EACH CALL RESOLVES ITS BODY ON ITS OWN CYCLE STACK. Before, one
-    // stack ran through every call, so a body that is a BINDING (a `switch`, or an
-    // `if` with a value) was still on it when an argument called the same helper
-    // again, and `ma1(ma1(src, 25, t), 13, t)` - two calls, legal Pine - refused
-    // as "`ma1` is defined in terms of itself" (heikin-ashi-tsi-ott's
-    // `double_smooth`; `ast/pineH3HelperCycle.test.js`). A real self-call is still
-    // caught: Pine forbids recursion and `MAX_CALL_DEPTH` above refuses it.
-    const prevStack = this.stack
-    this.stack = new Set()
     const prevEnv = this.env
     this.env = bound.value.env || prevEnv
     // ⛔ THROUGH `resolveBinding`, NOT `resolve(bound.value.node)`. A function's
@@ -11965,7 +11956,7 @@ export class Resolver {
       return bound.value.kind === 'expr'
         ? this.resolve(bound.value.node)
         : this.resolveBinding(bound.value, node.tok, name)
-    } finally { this.frames.pop(); this.env = prevEnv; this.stack = prevStack }
+    } finally { this.frames.pop(); this.env = prevEnv }
   }
 
   /** ⭐⭐ R2 STEP 2 — RESOLVE A NODE *INSIDE* A USER FUNCTION'S CALL FRAME.
