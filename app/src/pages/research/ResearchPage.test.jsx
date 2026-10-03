@@ -121,9 +121,11 @@ vi.mock('./hooks/useDecisionRecord', () => ({
 // (falsy) -- A13 Wave B's Flow tab ships DARK, so the baseline shape here
 // must be "not released" unless a test explicitly opts in.
 const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
-vi.mock('../../context/AuthContext', () => ({
+vi.mock('../../context/AuthContext', async () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
+  // FT-046 HowToChecklist reads useContext(AuthContext) (it tolerates no provider).
+  AuthContext: (await import('react')).createContext(null),
 }))
 
 // S7 filing-watch — controlled mock so the header action's tests are
