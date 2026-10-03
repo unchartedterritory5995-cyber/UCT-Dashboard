@@ -166,7 +166,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 64 | RT1 (lane brief, wave 12) the RUNTIME lane becomes the member door's general fallback, dark (section RT1): any host refusal is offered to it; declined, the member reads the HOST refusal verbatim. Withheld by name: a `?:` whose test can be `na` (two captures show TradingView taking the other branch), a series not proven to start at the listing (R-W for this lane), a shifted plot, a per-bar or unknown colour. Off the main thread (worker) under a 1,000 ms per-indicator budget; per-script kill switch `PINE_RUNTIME_KILL_LIST` (never a delete); the store's runtime door behind `PINE_RUNTIME_SAVE_ENABLED`. No budget or flag moved | `1bf1e4a3be`, `63c5680c4f`, `dcb7da5dad`, merge `c03f08295a` | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall | translation census unchanged | 0 entries change on the 47 and the harness dir, both pane states, flag off. Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71** (+ adx-and-di-for-v4 MATCH, wyckoff ungraded), 0 DIVERGE added |
 | 65 | RT2 (lane brief, wave 12) the runtime document STATES its repaint class instead of declining (section RT2): `engine/runtime/runtimeRepaint.js` gives the host linter's three classes by the host's `modeFromReach`, as the worst reach over the reads the program makes (lexed code, never comments/strings), from ONE table (`runtimeRepaint.json`) read by the JS door and the Python save door (`api/services/runtime_repaint.py`), held to one answer per corpus script (`tests/fixtures/runtime_repaint/corpus.json`). A clock leaf's reach is the HOST linter's (`astReach` over `closedTable.json`) joined with a right-edge finding (islast / islastconfirmedhistory 1; lastbarindex / lastbartime / lastbar* unbounded), proved by moving the fetch through `computeClock`. Every drawn row carries the class as `mode` and `forward`; the store refuses a declared class that disagrees. A request the lowering does not fold is declined by name (`runtime:request`) at the door and at the run. No budget or flag moved | `0b2f2a809b`, `b31eae3ec8`, `a210db44dd` (wave 10 `e4e24524ef` already an ancestor) | 30 / 46 -> 30 / 46 flag off (overall 29 / 47 unchanged); runtime on 31 / 47 objects, 30 / 47 overall, unchanged | translation census unchanged | 0 entries change on the 47 (all three states) and the harness dir (pane on / off). Harness dir, runtime on: 2 entries change (the two `vw-int-array-avg` probes, INCONCLUSIVE -> DIVERGE on OBJECTS only: they now route to the runtime document and the host objects it carries are graded; no plot compared, no plot drawn). Member door 45 / 68 -> 45 / 68, **0 rows changed**; runtime on **71 -> 71**: of the 127 `repaint-unstated`, **0** attach - each now names its real wall (library 27, call-undeclared-builtin-state 11, pine:request 9, ...); repaint-unstated 127 -> 0 |
 | 67 | O1 (lane brief, wave 15) the drawing-only scripts: why each of the 33 `pine:no-output` and 6 `pine:object-removal-lost` scripts draws nothing (section O1). Triage: the first wall per script, read off `o1DrawingOnly.measure.test.js`; ten causes, largest G1 collections / UDTs 11, G2 loop-computed values 6, G4 data 5; the runtime fallback draws plot rows only, so it serves none of them. New read-only diagnostics `createDropWhy` / `guardRefusalWhy`. **G7:** `[x =] cond ? f(…) : na` with `f` a drawing helper and `x` read nowhere is `if cond` + `f(…)` (argued from Pine: `?:` runs only the arm it picks, C18's capture; `na` test → ELSE arm, RT1's). **G8:** `a := x, b := y` on one line splits as two lines (Pine's grammar). **G2b:** a getter read through a local (`top = box.get_top(b)` … `if x > top`) is the getter read at the `if` while nothing between can move the object. **G2a:** a first-match `for … if c(i): x := i; break` over literal bounds is the chained `?:` it computes | `69ec7f8963` (triage), `09a77a0fdb` (G7), `41561a52c7` (G8), `83422ea9c8` (G2b), `c82c14ad0c` (G2a) | 0 entries change in the committed harness dir (objects MATCH 73, overall 52 of 138, pane on), every step | translation census host 71 → 75, screener 64 → 65 (`fib-retracement`, `auto-trendline-dojiemoji`, `pa-zigzag-fibonacci-fan`, `sonarlab-order-blocks`) | member door on 75 → **79** / 266, off 52 → 54, on + runtime 78 → 82: `fib-retracement` (G7; 7 lines + 7 labels held to its Pine semantics on RDDT 1D vendor bars), `auto-trendline-dojiemoji` and `pa-zigzag-fibonacci-fan` (G8; each equals its two-line spelling, which attached at base; pa-zigzag host = runtime lane on every RDDT bar), `sonarlab-order-blocks` (G2a + G2b; every held box one its step-by-step Pine semantics keeps, on RDDT, AAPL and BRK.A vendor bars); no capture of any of the four (Q-O1a–d queued); 0 previously attached scripts lost |
-| 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). In progress | - | - | member door 75 / 266 on at base | - |
+| 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -5472,3 +5472,54 @@ own locator (`translatePine(...).refusals[].line`), not from the message, which 
 
 So of 37, the host translator's own reassign/state/block handling owns **R-a, R-f, S-b, S-d, B-c** (7 scripts); the
 other 30 are rulings or other lanes (R7 x 17, UDT, objects, `varip`, latches, IIRs).
+
+### Served (steps 1-2), and the evidence
+
+1. **A comma line whose last segment opens a block** (`commaStatementSplit`, `pine.js`): every segment a binding or a bare-name
+   mutation, a block opener only in the LAST segment, which then owns the body. Pine runs comma-separated statements left to
+   right, so the split is the language's definition. Built before O1's G8 landed; on the merge O1's `isReassignSegment` takes
+   the no-block case (it runs first) and H2 keeps only the block case. Rail `ast/h2CommaStatements.test.js` (the comma form
+   translates byte-equal to the separate lines). Mutations (pre-merge): split disabled 8 red, segments reversed 6 red, body on
+   the first segment 1 red, continuation guard dropped 1 red.
+2. **A block-valued reassignment** `x := if ...` / subject-less `x := switch`, at the top level and in a helper. `if` folds
+   through `foldIfChain` (the `x = if` reader); the switch becomes `nz(c1) ? v1 : nz(c2) ? v2 : d` - first true arm wins, a
+   bare `=>` is the last else, no bare arm yields `na`, and a condition that is not a comparison is read through `nz` because
+   Pine treats an `na` condition as false while this engine's `?:` answers `na`. A subject switch in `:=`, an arm with a
+   block, a bare arm not last, and `+=` keep their refusal. Rail `ast/h2BlockReassign.test.js` (each form equals its
+   written-out ternary, trees compared whole). Mutations M1-M7 (each half off, `nz` reading dropped, bare arm anywhere,
+   no-default yields the last value) each red.
+
+Graded on real bars (`vendorHarness.h2CommaStatements`, RDDT 1D, 631 listing bars; no TradingView capture of any of these
+scripts exists): pa-zigzag-fibonacci-fan's 9 plots equal the runtime lane (`computeRuntimeColumns`) bar for bar, drawn and
+withheld alike; auto-trendline-dojiemoji equals a hand replay of the script (H1's TradingView pivot tie rule), as published and
+with every marker switched on, no replay mark withheld; 3-level-zigzag-semafor's `zigzag()` verbatim (its zigzag and its
+`_direction` state) equals the runtime lane on every drawn bar and withholds nothing it draws.
+
+### Measured
+
+| | O1 tip `633b9a7c54` (pine.js swapped in) | H2 tip (merge) |
+|---|---|---|
+| member door off / on / on + runtime | 54 / 79 / 82 | 54 / 79 / 82 (0 attach change, 0 lost) |
+| rows changed | - | 2 per state: 3-level-zigzag-semafor `pine:reassign` -> `pine:function`, sessions `pine:block` -> `pine:function` |
+| vendor harness, all 171 (on / off / runtime MATCH) | 60 / 47 / 61 | identical, 0 entries change |
+| harness dir 138 (on / off / runtime MATCH) | 52 / 39 / 53 | identical, 0 entries change |
+| translation census host / screener | 75 / 65 | 75 / 66 (3-level-zigzag on the screener) |
+
+Before O1 merged (base `7008853902`): 52 / 75 / 78 -> 54 / 77 / 80, with pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji
+attaching through step 1 - the same two O1's G8 attaches, so on the merge they count once, as O1's.
+
+### Next walls of the scripts H2 moved
+
+- 3-level-zigzag-semafor: `time(tf)` of a LOWER timeframe (`ta.change(time(tf2))`, lines 35-36) and `request.security`
+  with `lookahead_on` - the clock / lower-timeframe lanes.
+- sessions: `time(timeframe.period, sess)` with a session wrapping midnight on a daily chart - the clock lane.
+
+### Open, for the integrator
+
+- **S-b, a counter reset by a CONSTANT threshold** (fvg-trend, trend-targets-algoalpha). H1's `forgetsOnReset` refuses a
+  constant on purpose, and admitting it is not enough on its own: trend-targets' `rejcount > 0` reset never collapses the
+  range (the domain does not know the counter is >= 0), so it would be admitted and withheld on every bar. fvg-trend's sign
+  reset does collapse after the first opposite gap. Not loosened without a capture; a probe that grades a sign-reset counter
+  would settle it.
+- **R-f, a tuple part read through its own history** (williams-fractal-trailing-stops): one script, and its next wall is a
+  latch in `f_flip` (S-c). Not built.
