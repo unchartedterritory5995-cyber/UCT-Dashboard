@@ -1615,6 +1615,24 @@
       "where": [],
       "note": "FT-058/059/060 (lane gaps-research, owner ruling 2026-10-02 'build everything needed'): Research > Depth > Filing search and GET /api/research/filing-search. Boolean (AND/OR/NOT, -word, parentheses), proximity (a NEAR/n b, unordered, FTS5 NEAR), curated synonyms (FT-059, the expansion used is returned), exact =word and quoted phrases enforced on the paragraph text, and section scope (section:risk|mdna, form:10-K|10-Q; FT-060) over SQLite FTS5 at FILING_SEARCH_DB_PATH (default /data/filing_search.db). Indexed: the newest original 10-K and 10-Q per tracked symbol, read via fundamentals_pit.sec_client and cut into sections by the COV-04 extractor (filing_blackline.locate_section). Request path reads the local store only; an unindexed symbol answers pending and is queued on the module's own one-thread worker; the job filing_search_reindex (03:40 ET daily, always registered) re-reads week-old symbols and is a no-op while unset. ENABLEMENT GATE, default OFF, read per request on the auth payload (filing_search_enabled, present only when on); unset = the route 404s before identity, nothing is queued, the panel is absent. Arm: railway variables --service web --set FILING_SEARCH_ENABLED=1 (owner). Rollback = unset it."
     },
+    "NEWS_STORY_VERSIONS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-6 (Lane R, TERMINAL-NEXT, owner ruling 2026-10-02): story versioning on the company-news store. While on, api/services/news/store.py upsert keeps the PRIOR headline/description/published time of a story its provider re-sent CHANGED under the same (provider, provider_id), in news_item_versions (company_news.db), with the time we observed the change and the changed fields (api/services/news_versions.py). Research > Depth > News desk shows the prior-version count per story and GET /api/research/news-desk/story/{news_id}/versions returns the history. Retraction is NOT shown: no source the store reads (FMP news, SEC EDGAR originals, curated X) sends a retraction/correction field, and absence is never read as a retraction; the payload says so (retraction.state not_tracked). A removal channel would be a new vendor (owner-blocked). ENABLEMENT GATE, default OFF, read per call (ingest) and per request (auth payload key news_story_versions_enabled, present only when on); unset = nothing recorded, the versions route 404s before identity. Arm: railway variables --service web --set NEWS_STORY_VERSIONS_ENABLED=1 (owner); versions accrue only from arming. Rollback = unset it; the table stays and is not read."
+    },
+    "NEWS_IMPORTANCE_LABEL_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-7 (Lane R, TERMINAL-NEXT, owner ruling 2026-10-02): a coarse High / Normal / Low label on each Research > Depth > News desk story (api/services/news_importance.py), from features the company-news store already holds: the store's category, whether the ticker is the subject (direct) or only related, and how many DISTINCT outlets the store holds for the same event_key. Every label carries the rule(s) that set it in words, and the payload publishes the rule table; no model, no hidden score, no provider call. ENABLEMENT GATE, default OFF, read per request (auth payload key news_importance_enabled, present only when on); unset = no label in the desk payload, and the desk route 404s when none of NEWS_STORY_VERSIONS_ENABLED / NEWS_IMPORTANCE_LABEL_ENABLED / NEWS_READ_STATE_ENABLED is on. Arm: railway variables --service web --set NEWS_IMPORTANCE_LABEL_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "NEWS_READ_STATE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "D-8 (Lane R, TERMINAL-NEXT, owner ruling 2026-10-02): per-member read / unread on Research > Depth > News desk stories, persisted server-side in the existing calendar_seen table (auth.db) under item_type company_news, keyed by the company-news store's story id (api/services/news_read_state.py). POST /api/research/news-desk/read {ids, read} is idempotent both ways (a re-read keeps the first read time) and owner-scoped (every query is WHERE user_id = the caller); an id the store does not hold is refused 404, never recorded. ENABLEMENT GATE, default OFF, read per request (auth payload key news_read_state_enabled, present only when on); unset = the read route 404s before identity and no read state is shown. Arm: railway variables --service web --set NEWS_READ_STATE_ENABLED=1 (owner). Rollback = unset it; rows stay and are not read."
+    },
     "OPTIONS_CHAIN_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",

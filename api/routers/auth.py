@@ -275,6 +275,9 @@ _RESEARCH_DEPTH_SURFACES = (
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
     ("broker_estimates_enabled", "broker_estimates"),
+    ("news_story_versions_enabled", "news_versions"),
+    ("news_importance_enabled", "news_importance"),
+    ("news_read_state_enabled", "news_read_state"),
 )
 
 

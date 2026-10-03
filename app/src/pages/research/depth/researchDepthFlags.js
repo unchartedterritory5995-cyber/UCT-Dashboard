@@ -15,7 +15,14 @@ export const RESEARCH_DEPTH_KEYS = [
   'ftd_dataset_enabled',
   'mention_series_enabled',
   'broker_estimates_enabled',
+  'news_story_versions_enabled',
+  'news_importance_enabled',
+  'news_read_state_enabled',
 ]
+
+// Lane R D-6/D-7/D-8: the News desk panel shows while ANY of its three flags is on;
+// each annotation inside it rides only with its own flag.
+export const NEWS_DESK_KEYS = ['news_story_versions_enabled', 'news_importance_enabled', 'news_read_state_enabled']
 
 export function readResearchDepth(d) {
   const out = {}
