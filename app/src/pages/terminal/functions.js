@@ -176,7 +176,8 @@ export function suggest(token, limit = 5) {
   return scored.slice(0, limit).map(([, , code]) => code)
 }
 
-function editDistance(a, b) {
+/** Exported (lane T3) so the published ranking's "close spelling" class uses THIS metric. */
+export function editDistance(a, b) {
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
   for (let j = 1; j <= b.length; j++) dp[0][j] = j
   for (let i = 1; i <= a.length; i++) {

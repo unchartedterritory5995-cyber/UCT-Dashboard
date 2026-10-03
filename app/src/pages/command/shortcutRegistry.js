@@ -174,6 +174,23 @@ export const SHORTCUTS = Object.freeze([
     why: 'Tab (and Shift+Tab) keep focus pinned to the single palette input while it is open.',
   }),
 
+  // ── the UCT Terminal (TERMINAL-NEXT lane T3, V4) ─────────────────────────
+  decl({
+    id: 'terminal.focus',
+    chord: { keys: ['`'], ctrl: false, meta: false, alt: false },
+    target: 'window', capture: false, inEditable: false, repeat: false,
+    why: 'Backtick is the global UCT Terminal key: on /terminal it puts focus in the command '
+      + 'line, elsewhere it opens the shell (for a member it is released to). Never inside a text '
+      + 'field, so typing a backtick still types one. Owned by the app-wide palette mount.',
+  }),
+  ...[1, 2, 3, 4].map((n) => decl({
+    id: `terminal.panel${n}`,
+    chord: { code: `Digit${n}`, alt: true, ctrl: false, meta: false, shift: false },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: `Alt+${n} focuses terminal panel ${n} (physical key, so Mac Option+${n} works too). `
+      + 'Fires from the command line, which is where a terminal user\'s focus lives.',
+  })),
+
   // ── push-to-talk (hooks/usePushToTalkHotkey.js, mounted by GlobalVoiceLayer) ──
   decl({
     id: 'voice.talk',

@@ -9,14 +9,20 @@
 //
 // Phone (≤640): a single panel — the focused one — under a pinned command line, with the
 // function list in a Sheet. Touch tier (≤1024): every control is at least `--tap-min`.
+//
+// Lane T3 (the grammar): ONE parser (parseCommand.js) behind this command line AND the
+// Ctrl/Cmd-K palette; channel targeting (`@B …`), row <GO>, ASK → AI Search, member aliases,
+// comparison modes, the interpreted-parse echo, a published ranking fed by server-side
+// command counts, Alt+1..4 panel focus, and ⭐ EVERY COMMAND IS A URL: `?cmd=` reflects the
+// focused panel and re-runs on load and on back/forward (the URL-state block below).
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import Sheet from '../../components/mobile/Sheet'
 import { useIsPhone } from '../../hooks/useBreakpoint'
-import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
 import parseCommand from './parseCommand'
@@ -37,11 +43,40 @@ export function resolvePanel(panel, groups, auth) {
   return { state: 'ready', fn, sym: variant === fn.ticker ? sym : null, variant }
 }
 
-function Panel({ index, panel, focused, groups, auth, onFocus, onCycleGroup, onRun, hidden }) {
+/** Pure: the command text that reproduces a stored panel — what `?cmd=` carries. */
+export function panelCommandText(panel, groups) {
+  if (!panel || !BY_CODE[panel.code]) return ''
+  const sym = BY_CODE[panel.code].ticker ? panelSym(panel, groups) : null
+  return [sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
+}
+
+/** Pure: which panel index a channel (`A`-`D` group, or `1`-`4` number) addresses. */
+export function channelTarget(channel, layout) {
+  const visible = layout.panels.slice(0, layout.count)
+  if (/^\d$/.test(channel)) {
+    const i = Number(channel) - 1
+    return i < visible.length ? { index: i }
+      : { error: `Panel ${channel} is not on screen (this board shows ${visible.length}).` }
+  }
+  const i = visible.findIndex((p) => p.group === channel)
+  return i >= 0 ? { index: i } : { error: `No panel on screen is linked to group ${channel}.` }
+}
+
+/** The telemetry key for a command: its code or alias, or its kind. Never a ticker or text. */
+export function telemetryKey(cmd) {
+  if (!cmd?.ok) return null
+  if (cmd.alias) return cmd.alias
+  if (cmd.type === 'function') return cmd.code
+  return { ask: 'ASK', address: 'ADDR', row: 'ROW' }[cmd.type] || null
+}
+
+function Panel({ index, panel, focused, groups, auth, onFocus, onCycleGroup, onRun, onRows, helpProps, hidden }) {
   const r = resolvePanel(panel, groups, auth)
   const Comp = r.state === 'ready' ? panelComponent(r.variant.panel) : null
   const title = [r.sym, panel.code].filter(Boolean).join(' ')
   const full = r.state === 'ready' && r.sym && r.variant.section ? researchHref(r.sym, r.variant.section) : null
+  // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list).
+  const rowsProp = focused ? onRows : undefined
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''}`}
@@ -76,8 +111,10 @@ function Panel({ index, panel, focused, groups, auth, onFocus, onCycleGroup, onR
           <ErrorBoundary key={`${panel.code}:${r.sym || ''}`}>
             <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
               {r.variant.panel === 'Help'
-                ? <Comp args={panel.args} onRun={onRun} />
-                : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} />}
+                ? <Comp args={panel.args} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                : r.variant.panel === 'Move'
+                  ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} />}
             </Suspense>
           </ErrorBoundary>
         )}
@@ -110,8 +147,45 @@ export default function TerminalShell() {
   const count = layout.count
   const focus = Math.min(layout.focus, count - 1)
 
+  // The focused panel's numbered list (row <GO>): the command strings it published.
+  const rowsRef = useRef([])
+  const onRows = useCallback((rows) => { rowsRef.current = Array.isArray(rows) ? rows : [] }, [])
+
+  // V6b / V17: the member's aliases and command counts (server-owned, owner-scoped). A failed
+  // read leaves the grammar working without them — never an error on the command line.
+  const [aliases, setAliases] = useState({})
+  const [stats, setStats] = useState({})
+  const loadAliases = useCallback(() => jsonFetcher('/api/terminal/aliases')
+    .then((d) => setAliases(d?.aliases && typeof d.aliases === 'object' ? d.aliases : {}))
+    .catch(() => {}), [])
+  const loadStats = useCallback(() => jsonFetcher('/api/terminal/commands/stats')
+    .then((d) => setStats(d?.stats && typeof d.stats === 'object' ? d.stats : {}))
+    .catch(() => {}), [])
+  useEffect(() => { loadAliases(); loadStats() }, [loadAliases, loadStats])
+  const aliasesRef = useRef(aliases)
+  aliasesRef.current = aliases
+
+  const countCommand = useCallback((cmd) => {
+    const key = telemetryKey(cmd)
+    if (!key) return
+    jsonFetcher('/api/terminal/commands/event', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }),
+    }).then(() => setStats((s) => ({ ...s, [key]: { n: (s[key]?.n || 0) + 1, last: Date.now() / 1000 } })))
+      .catch(() => {})
+  }, [])
+  const resetRanking = useCallback(() => jsonFetcher('/api/terminal/commands/stats', { method: 'DELETE' })
+    .then(() => {
+      setStats({})
+      setNotice({ kind: 'info', text: 'Personal ranking reset: suggestions now follow the published order alone.' })
+    })
+    .catch(() => setNotice({ kind: 'error', text: 'Could not reset your ranking just now; nothing was changed.' })), [])
+
+  // Set by a member-typed command, read by the URL sync: their command earns a history entry.
+  const userRunRef = useRef(false)
+
   const openCalendarPath = useCallback((extra) => {
     const p = new URLSearchParams(location.search)
+    p.delete('cmd')   // the calendar owns this URL; a stale shell command must not ride along
     for (const [k, v] of Object.entries(extra || {})) p.set(k, v)
     const q = p.toString()
     if (location.pathname !== TERMINAL_CALENDAR_PATH || extra) {
@@ -119,17 +193,62 @@ export default function TerminalShell() {
     }
   }, [location.pathname, location.search, navigate])
 
-  const run = useCallback((text) => {
-    const cmd = parseCommand(text)
+  /** Run one command line. Returns the panel text it put in a panel, or null. */
+  const run = useCallback((text, { fromUrl = false } = {}) => {
+    const cmd = parseCommand(text, { aliases: aliasesRef.current })
     setNotice(null)
     if (!cmd.ok) {
       if (cmd.error !== 'empty') setNotice({ kind: 'error', text: cmd.error, sym: cmd.sym, suggestions: cmd.suggestions || [] })
-      return
+      return null
+    }
+    if (cmd.type.startsWith('alias-')) {
+      // ⛔ Never from a URL: a shared link must not define or delete an alias for its clicker.
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'Aliases are defined at the command line, not from a link.' })
+        return null
+      }
+      if (cmd.type === 'alias-list') {
+        const list = Object.entries(aliasesRef.current)
+        setNotice({ kind: 'info', text: list.length
+          ? `Your aliases: ${list.map(([n, e]) => `${n} = ${e}`).join(' · ')}`
+          : 'You have no aliases yet. ALIAS NAME = command saves one.' })
+        return null
+      }
+      const path = `/api/terminal/aliases/${encodeURIComponent(cmd.name)}`
+      const req = cmd.type === 'alias-define'
+        ? jsonFetcher(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expansion: cmd.expansion }) })
+        : jsonFetcher(path, { method: 'DELETE' })
+      req.then(() => {
+        setNotice({ kind: 'info', text: cmd.type === 'alias-define'
+          ? `Saved alias ${cmd.name} = ${cmd.expansion}` : `Removed alias ${cmd.name}.` })
+        loadAliases()
+      }).catch((err) => setNotice({ kind: 'error', text: cmd.type === 'alias-delete'
+        ? `You have no alias ${cmd.name}.`
+        : err?.status === 409 ? `${cmd.name} is refused: it is a real ticker (or you are at the alias limit). An alias may never shadow a security.`
+          : `${cmd.name} was not saved just now; try again.` }))
+      return null
+    }
+    if (cmd.type === 'row') {
+      const target = rowsRef.current[cmd.n - 1]
+      if (!target) {
+        setNotice({ kind: 'error', text: rowsRef.current.length
+          ? `There is no row ${cmd.n} here (rows 1-${rowsRef.current.length}).`
+          : 'The focused panel has no numbered list. HELP shows one.' })
+        return null
+      }
+      countCommand(cmd)
+      return run(target)
+    }
+    countCommand(cmd)
+    if (cmd.type === 'ask') {
+      navigate(`/ai-search?q=${encodeURIComponent(cmd.question)}`)
+      return null
     }
     if (cmd.type === 'address') {
       if (auth.addressSpaceEnabled !== true) {
         setNotice({ kind: 'error', text: `Saved-item addresses (${cmd.address}) are not enabled for your account yet.` })
-        return
+        return null
       }
       jsonFetcher(`/api/address/resolve?a=${encodeURIComponent(cmd.address)}`)
         .then((row) => {
@@ -137,11 +256,16 @@ export default function TerminalShell() {
           else setNotice({ kind: 'error', text: `Nothing at ${cmd.address}.` })
         })
         .catch(() => setNotice({ kind: 'error', text: `Nothing at ${cmd.address} that you can open.` }))
-      return
+      return null
     }
 
     const cur = layoutRef.current
-    const at = Math.min(cur.focus, cur.count - 1)
+    let at = Math.min(cur.focus, cur.count - 1)
+    if (cmd.channel) {
+      const t = channelTarget(cmd.channel, cur)
+      if (t.error) { setNotice({ kind: 'error', text: t.error }); return null }
+      at = t.index
+    }
     const panel = cur.panels[at]
     let sym = cmd.sym
     let { variant, scope, reason, ignoredTicker } = variantFor(cmd.code, !!sym)
@@ -151,20 +275,32 @@ export default function TerminalShell() {
     }
     if (!variant) {
       setNotice({ kind: 'error', text: `${cmd.code} needs a ticker — e.g. NVDA ${cmd.code}.` })
-      return
+      return null
     }
     if (variant.flag && auth[variant.flag] !== true) {
       setNotice({ kind: 'error', text: `${cmd.code} is not enabled for your account yet.` })
-      return
+      return null
+    }
+    if (cmd.code === 'CMP' && cmd.compareMode === 'sector' && variant.door) {
+      // V18: vs sector — the server resolves the security's sector ETF, then the SAME door.
+      setNotice({ kind: 'info', text: `Finding ${sym}'s sector ETF…` })
+      jsonFetcher(`/api/terminal/compare-target?sym=${encodeURIComponent(sym)}&mode=sector`)
+        .then((d) => {
+          const to = d?.comparator ? fillDoor(variant.door, { sym, args: [d.comparator] }) : null
+          if (to) navigate(to)
+          else setNotice({ kind: 'error', text: `No sector ETF is known for ${sym}.` })
+        })
+        .catch(() => setNotice({ kind: 'error', text: `No sector ETF is known for ${sym}; try ${sym} CMP XLK.` }))
+      return null
     }
     if (variant.door) {
       const to = fillDoor(variant.door, { sym, args: cmd.args })
       if (!to) {
         setNotice({ kind: 'error', text: `${cmd.code} needs ${variant.needsArg || 'a ticker'}.` })
-        return
+        return null
       }
       navigate(to)
-      return
+      return null
     }
 
     // A panel that owns the URL (the calendar) appears at most once: re-use its slot.
@@ -190,11 +326,53 @@ export default function TerminalShell() {
     if (ignoredTicker) setNotice({ kind: 'info', text: `${cmd.code} is market-wide; ${cmd.sym} was not applied.` })
     if (variant.panel === 'Calendar') {
       openCalendarPath(variant.params?.earnings && sym ? { earnings: sym } : null)
+      return null
     }
-  }, [auth, groups, navigate, openCalendarPath, save, setGroupSym])
+    return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
+  }, [auth, groups, navigate, openCalendarPath, save, setGroupSym, countCommand, loadAliases])
 
-  // A deep link `/terminal?cmd=NVDA%20GP` runs once and is stripped (TERM-038's door hook).
-  useDoorParam('cmd', run, { ready: !loading })
+  const runTyped = useCallback((text) => { userRunRef.current = true; return run(text) }, [run])
+
+  // ── V6d: EVERY COMMAND IS A URL ──────────────────────────────────────────────
+  // `?cmd=` reflects the focused panel. An arriving `?cmd=` (a link, a palette pick, back/
+  // forward) runs; the shell then writes the focused panel's command back. ⛔ H14: each
+  // effect writes only when the URL and the panel DISAGREE; a pending URL command blocks the
+  // write-back until its panel has caught up; a URL-owning panel (the calendar) is never
+  // written over; and a write budget stops any ping-pong cold.
+  const runRef = useRef(run)
+  runRef.current = run
+  const urlCmdRef = useRef(undefined)      // the last `?cmd=` value acted on or written
+  const pendingRef = useRef(null)          // the panel text an arriving URL command will show
+  const writesRef = useRef([])
+  const urlCmd = new URLSearchParams(location.search).get('cmd')
+  useEffect(() => {
+    if (loading || !urlCmd || urlCmd === urlCmdRef.current) return
+    urlCmdRef.current = urlCmd
+    pendingRef.current = runRef.current(urlCmd, { fromUrl: true }) || null
+  }, [loading, urlCmd])
+
+  const focusedPanel = layout.panels[focus]
+  const focusedText = panelCommandText(focusedPanel, groups)
+  const focusedOwnsUrl = URL_OWNING_PANELS.has(resolvePanel(focusedPanel, groups, auth).variant?.panel)
+  useEffect(() => {
+    if (loading || focusedOwnsUrl || !focusedText) return
+    if (pendingRef.current && pendingRef.current !== focusedText) return
+    pendingRef.current = null
+    if (urlCmd === focusedText) { urlCmdRef.current = urlCmd; return }
+    const now = Date.now()
+    writesRef.current = writesRef.current.filter((t) => now - t < 2000)
+    if (writesRef.current.length >= 6) {
+      console.warn('[terminal] ?cmd= write budget spent; URL sync paused (H14)')
+      return
+    }
+    writesRef.current.push(now)
+    const p = new URLSearchParams(location.search)
+    p.set('cmd', focusedText)
+    urlCmdRef.current = focusedText
+    const push = userRunRef.current
+    userRunRef.current = false
+    navigate({ pathname: location.pathname, search: `?${p.toString()}`, hash: location.hash }, { replace: !push })
+  }, [loading, focusedOwnsUrl, focusedText, urlCmd, location.pathname, location.search, location.hash, navigate])
 
   // `/terminal/calendar` IS the Calendar section: arriving there shows the calendar in the
   // focused panel unless a visible panel already does. Waits for the stored layout, so it
@@ -232,16 +410,27 @@ export default function TerminalShell() {
     save({ ...layout, panels })
   }
 
+  // V4: Alt+1..4 focuses that panel — from the command line too (declared inEditable).
+  const setFocusRef = useRef(null)
+  setFocusRef.current = (i) => { if (i < count) setFocus(i) }
+  useEffect(() => registerShortcuts({
+    'terminal.panel1': (e) => { e.preventDefault(); setFocusRef.current?.(0) },
+    'terminal.panel2': (e) => { e.preventDefault(); setFocusRef.current?.(1) },
+    'terminal.panel3': (e) => { e.preventDefault(); setFocusRef.current?.(2) },
+    'terminal.panel4': (e) => { e.preventDefault(); setFocusRef.current?.(3) },
+  }), [])
+
   const railGroups = useMemo(() => FUNCTION_GROUPS.map((g) => ({
     g, fns: FUNCTIONS.filter((f) => f.group === g),
   })), [])
   const focusedCode = layout.panels[focus]?.code
+  const helpProps = { onResetRanking: resetRanking, hasStats: Object.keys(stats).length > 0 }
 
   const visible = layout.panels.slice(0, count)
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-testid="terminal-shell">
       <div className={styles.bar}>
-        <CommandLine onSubmit={run} inputRef={inputRef} />
+        <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
         {isPhone ? (
           <button type="button" className={styles.barBtn} onClick={() => setFnSheet(true)} data-testid="terminal-fn-button">
             Functions
@@ -269,7 +458,7 @@ export default function TerminalShell() {
               Did you mean
               {notice.suggestions.map((c) => (
                 <button key={c} type="button" className={styles.chip}
-                  onClick={() => run(notice.sym ? `${notice.sym} ${c}` : c)}>{c}</button>
+                  onClick={() => runTyped(notice.sym ? `${notice.sym} ${c}` : c)}>{c}</button>
               ))}
             </span>
           )}
@@ -287,7 +476,7 @@ export default function TerminalShell() {
                     key={f.code}
                     type="button"
                     className={`${styles.railItem} ${focusedCode === f.code ? styles.railItemOn : ''}`}
-                    onClick={() => run(f.code)}
+                    onClick={() => runTyped(f.code)}
                     title={f.label}
                     data-testid={`terminal-rail-${f.code}`}
                   >
@@ -311,14 +500,16 @@ export default function TerminalShell() {
                 auth={auth}
                 onFocus={() => setFocus(i)}
                 onCycleGroup={() => cycleGroup(i)}
-                onRun={run}
+                onRun={runTyped}
+                onRows={onRows}
+                helpProps={helpProps}
               />
             )
           ))}
         </div>
       </div>
       <Sheet open={fnSheet} onClose={() => setFnSheet(false)} title="Functions" variant="bottom-sheet">
-        <HelpPanel onRun={(code) => { setFnSheet(false); run(code) }} />
+        <HelpPanel onRun={(code) => { setFnSheet(false); runTyped(code) }} {...helpProps} />
       </Sheet>
     </div>
   )

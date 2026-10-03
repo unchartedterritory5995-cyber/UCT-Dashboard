@@ -9212,6 +9212,8 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
+app.include_router(terminal_grammar_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
 from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)
