@@ -22,7 +22,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildExtensions, editorSchema } from './tiptap'
 import {
-  NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, deriveDeclaredSchema, notebookSchemaHeaders,
+  NOTEBOOK_ATTR_SCHEMA, NOTEBOOK_SCHEMA_HEADER, NOTEBOOK_TYPE_SCHEMA, deriveDeclaredSchema,
+  notebookSchemaHeaders,
 } from './notebookSchema'
 import { runImport } from './importer/commit'
 import { revertChartEmbed } from './importer/enrichment'
@@ -337,6 +338,38 @@ describe('deriveDeclaredSchema', () => {
   })
   it('a bundle without the canvas node declares 2 -- so the server refuses its write to a canvas note', () => {
     expect(deriveDeclaredSchema(fake(['tradeCanvas']))).toBe(2)
+  })
+
+  // ── wave 13 lane 13H-1: the ATTRIBUTE table (`widgetEmbed.ta`, level 4) ──
+  const withTa = (schema) => ({ ...schema, nodes: { ...schema.nodes, widgetEmbed: { attrs: { ta: {} } } } })
+  it('declares 4 only when the widgetEmbed node registers the `ta` attribute (13H-1)', () => {
+    // A deliberate pin, like `top` above: 4 = wave 13 lane 13H-1, 2026-10-02.
+    expect(Math.max(...Object.values(NOTEBOOK_ATTR_SCHEMA))).toBe(4)
+    expect(deriveDeclaredSchema(withTa(fake()))).toBe(4)
+    // the type table alone is complete, but a widgetEmbed without `ta` would save
+    // a ta-bearing note without it: it must declare BELOW the attribute's level
+    expect(deriveDeclaredSchema(fake())).toBe(3)
+    // a ProseMirror NodeType carries `attrs`; a raw spec carries `spec.attrs` -- both read
+    expect(deriveDeclaredSchema({ ...fake(), nodes: { ...fake().nodes, widgetEmbed: { spec: { attrs: { ta: {} } } } } })).toBe(4)
+    // and a lower type missing still pulls the declaration down past the attribute
+    expect(deriveDeclaredSchema(withTa(fake(['tradeCanvas'])))).toBe(2)
+  })
+  it('THIS bundle’s live editor registers `widgetEmbed.ta` and declares 4', () => {
+    editor = new Editor({ extensions: buildExtensions() })
+    expect(Object.keys(editor.schema.nodes.widgetEmbed.attrs)).toContain('ta')
+    expect(editor.schema.nodes.widgetEmbed.attrs.ta.default).toBe(null)
+    expect(deriveDeclaredSchema(editor.schema)).toBe(4)
+  })
+  it('a `ta` value survives the editor round trip (load → getJSON), and null stays null', () => {
+    const ta = { v: 1, setupTag: 'Breakout', fingerprint: { v: 1 }, planBlock: { shares: 200, sizedBy: 'starter' } }
+    const doc = { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'NVDA' }, ta } },
+      { type: 'widgetEmbed', attrs: { widgetId: 'chart', params: { symbol: 'AMD' } } },
+    ] }
+    editor = new Editor({ extensions: buildExtensions(), content: doc })
+    const out = editor.getJSON().content.filter((n) => n.type === 'widgetEmbed')
+    expect(out[0].attrs.ta).toEqual(ta)
+    expect(out[1].attrs.ta).toBe(null)
   })
   it('drops below a level one of whose types is missing — the rollback case', () => {
     expect(deriveDeclaredSchema(fake(['inlineMath']))).toBe(0)

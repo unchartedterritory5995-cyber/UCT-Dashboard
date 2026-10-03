@@ -45,6 +45,8 @@ NOTEBOOK_KEYS = [
     "notebook_ta_fingerprint_enabled",
     # Wave 13 lane 13C: earnings prep (Reporting soon) — an enablement gate.
     "notebook_earnings_prep_enabled",
+    # Wave 13 lane 13H-1: the chart plan (sizing + alerts at drawn levels) — an enablement gate.
+    "notebook_chart_plan_enabled",
 ]
 
 

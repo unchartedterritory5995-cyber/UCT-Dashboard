@@ -61,11 +61,10 @@ export const WidgetEmbed = Node.create({
       // a data- attribute so copy/paste and the importer round-trip keep it.
       // ⚠️ Schema-guard limit (wave-5 review N6): NOTEBOOK_TYPE_SCHEMA versions
       // node/mark TYPES, not attributes — an older bundle silently DROPS an
-      // attr it does not know, so an attr addition gets no level bump and no
-      // refusal. That is safe here only because absence has a meaning (the
-      // fallback key). An attribute whose absence would change what the note
-      // MEANS needs its own mechanism; see docs/notebook/wave5-rollback.md,
-      // "Rules that outlive this wave".
+      // attr it does not know. embedId needs no row because absence has a
+      // meaning (the fallback key). An attribute whose absence would change
+      // what the note MEANS takes a row in NOTEBOOK_ATTR_SCHEMA (wave 13, `ta`
+      // below); see docs/notebook/wave5-rollback.md, "Level 4".
       embedId: stringAttr('data-embed-id'),
       mode: stringAttr('data-mode', 'snapshot'),
       fallback: jsonAttr('data-fallback', null),
@@ -81,6 +80,17 @@ export const WidgetEmbed = Node.create({
       caption: stringAttr('data-caption'),
       layout: jsonAttr('data-layout', { width: 'full', height: 320 }),
       searchText: stringAttr('data-search-text'),
+      // ⛔⛔ NEVER-REVERT (wave 13 lane 13H-1, schema level 4 via
+      // NOTEBOOK_ATTR_SCHEMA['widgetEmbed.ta']). The chart's plan data:
+      // `{ v, setupTag, fingerprint, planBlock }` — shape and builders in
+      // lib/chartPlan.js. Plan ROLES are not here: they ride the drawings in
+      // `annotations` (a role on a horizontal line), which plan_extract reads.
+      // Registered unconditionally (the gate NOTEBOOK_CHART_PLAN_ENABLED only
+      // hides the doors), so a gate-off tab still declares 4 and never saves a
+      // note without it. Removing this line drops the declaration to 3 and the
+      // server then refuses this bundle's writes to every note that carries `ta`
+      // — read-only, never stripped.
+      ta: jsonAttr('data-ta', null),
     }
   },
 

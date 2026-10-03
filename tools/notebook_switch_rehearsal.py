@@ -219,6 +219,9 @@ NOT_REHEARSED = {
     # Wave 13 lane 13C.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
                                       "one-click earnings prep note; waits for its real-browser walk",
+    # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
+    "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
+                                   "levels (API only); no member surface until 13H-2",
 }
 
 

@@ -184,6 +184,10 @@ NOTEBOOK_FLAGS = {
     # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_earnings_prep_enabled`.
     "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
+    # Wave 13 lane 13H-1: the chart plan (sizing from drawn levels, alerts at drawn levels). The
+    # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
+    "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

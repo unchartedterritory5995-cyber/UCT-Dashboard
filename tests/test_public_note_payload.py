@@ -60,6 +60,7 @@ const schema = await import(pathToFileURL(process.argv[2]).href)
 const registry = await import(pathToFileURL(process.argv[3]).href)
 process.stdout.write(JSON.stringify({
   types: Object.keys(schema.NOTEBOOK_TYPE_SCHEMA),
+  attrs: Object.keys(schema.NOTEBOOK_ATTR_SCHEMA || {}),
   widgets: registry.WIDGET_IDS,
 }))
 """
@@ -87,6 +88,12 @@ def schema_types() -> list[str]:
 
 def widget_ids() -> list[str]:
     return sorted(_client_facts()["widgets"])
+
+
+def schema_attrs() -> list[str]:
+    """The client's attribute rows (`NOTEBOOK_ATTR_SCHEMA`, wave 13 13H-1), read as the bundle
+    reads them."""
+    return sorted(_client_facts()["attrs"])
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────────
@@ -177,6 +184,7 @@ def _widget(widget_id: str) -> dict:
                    "data": {"quarterly": [1]}},
         "fallback": {"url": f"{OWN_ATT}inline/w.png", "w": 900, "h": 500},
         "tradeRef": "trade-9", "searchText": "[x]", "annotations": [{"id": 1}], "embedId": "e1",
+        "ta": {"v": 1, "setupTag": "Breakout", "planBlock": {"shares": 200}},
         "caption": "the member's caption", "layout": {"width": "full", "height": 320}, "frozen": False}}
 
 
@@ -759,8 +767,40 @@ def test_a_shown_widget_keeps_exactly_what_the_archived_render_reads(mode):
     assert w["params"] == {"symbol": "AAPL", "view": "quarterly"}
     assert w["fallback"] == {"url": f"{BASE}inline/w.png", "w": 900, "h": 500}
     assert w["caption"] == "the member's caption"
-    for gone in ("tradeRef", "searchText", "annotations", "embedId"):
+    for gone in ("tradeRef", "searchText", "annotations", "embedId", "ta"):
         assert gone not in w, gone
+
+
+# ── wave 13 13H-1: every ATTRIBUTE row takes a decision in every mode ────────────────────
+
+def test_every_schema_attribute_row_has_a_decision_in_every_mode():
+    rows = schema_attrs()
+    assert "widgetEmbed.ta" in rows, f"non-vacuity: read {rows}"
+    missing = [r for r in rows if r not in pnp.ATTR_POLICY]
+    assert missing == [], f"attribute rows with no public decision: {missing}"
+    for row in rows:
+        assert set(pnp.ATTR_POLICY[row]) == set(pnp.MODES), row
+        assert set(pnp.ATTR_POLICY[row].values()) <= {"drop", "keep"}, row
+
+
+def test_a_dropped_widget_attribute_is_never_on_the_embed_allowlist():
+    """The row and the reducer are two statements of one decision: a "drop" row whose
+    attribute sits on EMBED_KEPT_ATTRS would publish what the table says it drops."""
+    for row, decision in pnp.ATTR_POLICY.items():
+        node_type, _, attr = row.partition(".")
+        if node_type == "widgetEmbed" and "drop" in decision.values():
+            assert attr not in pnp.EMBED_KEPT_ATTRS, row
+
+
+@pytest.mark.parametrize("mode", ["share", "publish", "gallery"])
+@pytest.mark.parametrize("widget_id", ["chart", "fundamentals"])
+def test_ta_never_reaches_a_stranger_in_any_mode(mode, widget_id):
+    """`fundamentals` is SHOWN in share/publish (the allowlist path); `chart` is the neutral
+    line there; gallery neutralises both. Whichever path, no public node carries `ta`, and
+    neither its setup tag nor its planned shares appears as text."""
+    out = reduce(doc(_widget(widget_id)), mode)
+    blob = json.dumps(out)
+    assert '"ta"' not in blob and "Breakout" not in blob, (mode, widget_id, blob[:400])
 
 
 @pytest.mark.parametrize("mode", ["share", "publish"])

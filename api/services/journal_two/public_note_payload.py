@@ -293,10 +293,27 @@ NODE_POLICY: dict[str, dict[str, str]] = {
 #: The widgetEmbed attributes a public copy keeps -- exactly what the archived render reads
 #: (`WidgetEmbedView.jsx` ArchivedImage / PlaceholderChip / the frame): the image, the
 #: frame's size, the caption the member wrote, and what `embedAutoCaption` needs for the alt
-#: text. ⛔ Never `tradeRef` (names a member's trade), `searchText`, `annotations` or
-#: `embedId`; and of `params`, only the keys `EMBED_PARAM_KEYS` names for that widget (the
+#: text. ⛔ Never `tradeRef` (names a member's trade), `searchText`, `annotations`, `ta`
+#: (wave 13, see ATTR_POLICY) or `embedId`; and of `params`, only the keys `EMBED_PARAM_KEYS` names for that widget (the
 #: widget's plain-text line reads them; the rest -- settings, frozen data -- stay home).
 EMBED_KEPT_ATTRS = ("v", "widgetId", "mode", "capturedAt", "fallback", "frozen", "caption", "layout")
+
+#: ⛔ THE ATTRIBUTE ROWS (wave 13, lane 13H-1). Every row of the schema's attribute table
+#: (`notebook_schema.NOTEBOOK_ATTR_SCHEMA`, a non-optional attribute on an existing type) takes
+#: a decision in EVERY public mode, exactly as every type takes a NODE_POLICY row;
+#: tests/test_public_note_payload.py derives the row list from `lib/notebookSchema.js` and fails
+#: by name on one with no decision. "drop" means the attribute never reaches a stranger.
+#:
+#:   widgetEmbed.ta  the chart's plan data: the member's setup tag, the technical fingerprint
+#:                   frozen at insert, and the plan block (planned shares, which engine sized
+#:                   them). Private trading intent, like `tradeRef`; and its plan levels live
+#:                   in `annotations`, which no mode publishes either. Dropped in all three.
+#:
+#: A "drop" row is enforced by the embed allowlist above (`EMBED_KEPT_ATTRS` never names it),
+#: and the rail asserts both halves, so adding the attribute to the allowlist goes red.
+ATTR_POLICY: dict[str, dict[str, str]] = {
+    "widgetEmbed.ta": {"share": "drop", "publish": "drop", "gallery": "drop"},
+}
 EMBED_PARAM_KEYS: dict[str, tuple[str, ...]] = {
     "fundamentals": ("symbol", "view"),
 }
@@ -759,6 +776,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 __all__ = [
     "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
+    "ATTR_POLICY",
     "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
     "read_public_note", "walk_types",
