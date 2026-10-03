@@ -1419,6 +1419,12 @@
       "where": [],
       "note": "FT-035 (TERMINAL-NEXT owner ruling 2026-10-02): per-alert expiry for S7 alerts. PUT /api/alerts/predicates/{id}/expiry (owner-scoped, require_paid; future, at most a year out; null clears) stores alert_predicates.expires_at (migration add_alert_predicates_expires_at); the alert_lifecycle_expire scheduler job (every minute, registered unconditionally) SUSPENDS a predicate past its expiry (suspended_at) -- never deletes it. Remind and reverse-crossover are not built (see lifecycle.py's docstring). ENABLEMENT GATE, default OFF, read per call in lifecycle.is_enabled(); SERVICE: web. Off: the route 404s and the job expires nothing; a stored expiry is kept. Pending: needs an owner arm. Rollback: set 0."
     },
+    "SCREENER_NL_COMPILE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-024/FT-030 (TERMINAL-NEXT owner ruling 2026-10-02): plain English to a finished screen, compiled INTO the where-grammar. POST /api/screener/compile sends the member's description to the model (SCREENER_NL_MODEL, default the Concierge's claude-opus-5; shared client timeout, zero SDK retries, at most 2 calls) whose ONLY output is a criteria string; that string is parsed by the same grammar.parse a member's typed criteria go through (one repair call carrying the parser's sentence, then a refusal sentence -- never a guessed screen). Returns the editable criteria text, the logic tree, one sentence per criterion and the assumptions made. Metered: SCREENER_NL_DAILY_CAP (default 30) per member per ET day in daily_counters, then ai_population_cap door 'screener_nl'; refusals and failures charge nothing. ENABLEMENT GATE, default OFF, read per call in nl_compile.is_enabled(); SERVICE: web. 404 unless BOTH this and SCREENER_LOGIC_ENABLED are 1 (the output is a logic tree the screener refuses while that surface is dark). Pending: needs an owner arm after a live quality read. Rollback: set 0."
+    },
     "WEB_PUSH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

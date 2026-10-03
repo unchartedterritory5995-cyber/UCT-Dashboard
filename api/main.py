@@ -9084,6 +9084,8 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
+app.include_router(screener_nl_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)

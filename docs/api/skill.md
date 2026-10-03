@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (543)
+## Endpoints (544)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -457,6 +457,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/schwab/ytd-performance` | paid | options-flow |
 | GET | `/api/screener` | paid | screener |
 | GET | `/api/screener/alerts` | paid | screener |
+| GET | `/api/screener/compile` | paid | screener |
 | GET | `/api/screener/grammar` | paid | screener |
 | GET | `/api/screener/meta` | paid | screener |
 | GET | `/api/screener/methodology` | paid | screener |

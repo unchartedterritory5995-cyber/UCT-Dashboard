@@ -2654,6 +2654,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/compile",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/grammar",
       "rate_limit_family": "screener",
       "tier": "paid"

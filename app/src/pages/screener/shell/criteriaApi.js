@@ -17,6 +17,32 @@ export async function grammarAvailable(fetcher = fetch) {
   }
 }
 
+/** FT-024/030: is the plain-English compile door open? (404 while dark.) */
+export async function compileAvailable(fetcher = fetch) {
+  try {
+    const r = await fetcher('/api/screener/compile', { credentials: 'include' })
+    return r.ok
+  } catch {
+    return false
+  }
+}
+
+/** English -> { criteria, logic, explanation, assumptions }. Throws with the server's sentence. */
+export async function compileEnglish(text, fetcher = fetch) {
+  const r = await fetcher('/api/screener/compile', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!r.ok) {
+    let detail = `compile ${r.status}`
+    try { const j = await r.json(); if (j?.detail) detail = String(j.detail) } catch { /* keep */ }
+    throw new Error(detail)
+  }
+  return r.json()
+}
+
 /** Text -> { logic, criteria, explanation }. Throws with the server's sentence. */
 export async function parseCriteria(text, fetcher = fetch) {
   const r = await fetcher('/api/screener/grammar/parse', {
