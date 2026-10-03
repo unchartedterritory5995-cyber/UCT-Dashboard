@@ -2308,6 +2308,737 @@
         ],
         "paints": null
       }
+    },
+    {
+      "id": "pivot-point-supertrend-spy-1d-2026-10-03",
+      "script": "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "PP SuperTrend",
+            "MATCH",
+            1800
+          ],
+          [
+            "Buy",
+            "MATCH",
+            1800
+          ],
+          [
+            "Sell",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "poor-man039s-volume-profile-spy-1d-2026-10-03",
+      "script": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              2,
+              0
+            ],
+            [
+              "labels",
+              40,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "position-size-calc-spy-1d-2026-10-03",
+      "script": "corpus/committed/position-size-calc__a42db1a620.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              10,
+              9
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "position-size-calculator-spy-1d-2026-10-03",
+      "script": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Entry",
+            "MATCH",
+            1780
+          ],
+          [
+            "TP",
+            "MATCH",
+            1780
+          ],
+          [
+            "SL",
+            "MATCH",
+            1780
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03",
+      "script": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Pivot High",
+            "MATCH",
+            1800
+          ],
+          [
+            "Pivot Low",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              502,
+              500
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "pro-trading-art-double-top-bottom-with-alert-spy-1d-2026-10-03",
+      "script": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              102,
+              13
+            ],
+            [
+              "labels",
+              204,
+              26
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "qqe-signals-spy-1d-2026-10-03",
+      "script": "corpus/committed/qqe-signals__EhBrwQPjZ1.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "QQE long",
+            "MATCH",
+            1800
+          ],
+          [
+            "QQE short",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "reverse-stochastic-momentum-index-on-chart-spy-1d-2026-10-03",
+      "script": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Scale High",
+            "DIVERGE",
+            42,
+            "value",
+            214,
+            "converging-prefix"
+          ],
+          [
+            "High Alert",
+            "DIVERGE",
+            42,
+            "value",
+            219,
+            "converging-prefix"
+          ],
+          [
+            "Low Alert",
+            "DIVERGE",
+            42,
+            "value",
+            214,
+            "converging-prefix"
+          ],
+          [
+            "Scale Low",
+            "DIVERGE",
+            42,
+            "value",
+            167,
+            "converging-prefix"
+          ],
+          [
+            "SMI EQ Price",
+            "DIVERGE",
+            42,
+            "value",
+            184,
+            "converging-prefix"
+          ],
+          [
+            "Signal Line Cross",
+            "DIVERGE",
+            55,
+            "value",
+            199,
+            "converging-prefix"
+          ],
+          [
+            "Zero Line Cross",
+            "DIVERGE",
+            42,
+            "value",
+            223,
+            "converging-prefix"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "rsi-swing-indicator-spy-1d-2026-10-03",
+      "script": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              50,
+              43
+            ],
+            [
+              "labels",
+              50,
+              42
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "rvol-spy-1d-2026-10-03",
+      "script": "corpus/committed/rvol__05fcd9e160.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "sector-rotation-spy-1d-2026-10-03",
+      "script": "corpus/committed/sector-rotation__0fca060bf4.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Current Symbol Percentage Change",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              55,
+              0
+            ],
+            [
+              "boxes",
+              504,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-10-03",
+      "script": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              504,
+              0
+            ],
+            [
+              "labels",
+              504,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03",
+      "script": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "%K",
+            "MATCH",
+            1800
+          ],
+          [
+            "%D",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03",
+      "script": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "%K",
+            "MATCH",
+            1800
+          ],
+          [
+            "%D",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "trend-duration-forecast-chartprime-spy-1d-2026-10-03",
+      "script": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "HMA",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "labels",
+              55,
+              52
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "trend-lines-supports-and-resistances-spy-1d-2026-10-03",
+      "script": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "High Pivots",
+            "MATCH",
+            1800
+          ],
+          [
+            "Low Pivots",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "trendlines-spy-1d-2026-10-03",
+      "script": "corpus/committed/trendlines__43QQg9nDN0.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Pivot High",
+            "MATCH",
+            1800
+          ],
+          [
+            "Pivot Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "Resistance Trendline",
+            "DIVERGE",
+            874,
+            "na",
+            21,
+            "scattered"
+          ],
+          [
+            "Support Trendline",
+            "DIVERGE",
+            365,
+            "na",
+            393,
+            "scattered"
+          ],
+          [
+            "Long Break",
+            "MATCH",
+            1800
+          ],
+          [
+            "Short Break",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ],
+          [
+            "Plot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              52,
+              25
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "ultimate-pivot-points-spy-1d-2026-10-03",
+      "script": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "PD_H",
+            "MATCH",
+            1800
+          ],
+          [
+            "PD_L",
+            "MATCH",
+            1800
+          ],
+          [
+            "Pivot",
+            "MATCH",
+            1800
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03",
+      "script": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              504,
+              272
+            ],
+            [
+              "labels",
+              129,
+              23
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vold-market-breadth-spy-1d-2026-10-03",
+      "script": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              2,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "volume-profile-spy-1d-2026-10-03",
+      "script": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              203,
+              0
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "zero-lag-ma-trend-levels-chartprime-spy-1d-2026-10-03",
+      "script": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+      "state": "on",
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Plot",
+            "DIVERGE",
+            30,
+            "value",
+            100,
+            "converging-prefix"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            15,
+            "value",
+            110,
+            "converging-prefix"
+          ],
+          [
+            null,
+            "DIVERGE",
+            50,
+            "value",
+            1,
+            "scattered"
+          ],
+          [
+            null,
+            "DIVERGE",
+            39,
+            "na",
+            2,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "labels",
+              51,
+              30
+            ],
+            [
+              "boxes",
+              55,
+              54
+            ]
+          ]
+        ],
+        "paints": null
+      }
     }
   ]
 }
