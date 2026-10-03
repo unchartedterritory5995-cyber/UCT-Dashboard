@@ -1,0 +1,33 @@
+lane 13E-2 mutation proof at HEAD 206032427d7ed30b9dd35dec0b6e02f5b7968d93
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  2 passed (2)
+vitest: Tests  15 passed (15)
+pytest: 10 passed in 3.01s
+B1 bell: the per-day claim's early return is dropped -- every freeze delivers: KILLED (rc=1, failed tests=2); restored sha 4d33bd1994d0eac9 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 8 passed in 5.38s
+      FAILED tests/test_notebook_entry_context_bell.py::test_one_bell_line_a_day_however_many_entries_freeze
+      FAILED tests/test_notebook_entry_context_bell.py::test_the_claim_is_a_table_so_a_fresh_process_still_remembers
+B3 bell: a failed delivery never releases its claim (a later freeze that day never retries): KILLED (rc=1, failed tests=1); restored sha 4d33bd1994d0eac9 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 9 passed in 6.03s
+      FAILED tests/test_notebook_entry_context_bell.py::test_a_failed_delivery_releases_the_claim_so_a_later_freeze_retries
+N1 not-captured: the card renders field rows instead of the server's own sentence: KILLED (rc=1, failed tests=2); restored sha 5229befc5318dbf4 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  2 failed | 6 passed (8)
+      × renders only the servers sentence, never a field row, when the entry was never captured 4011ms
+      × renders only the server sentence for a carried-in broker holding with no entry day 4006ms
+      FAIL  src/pages/journal-2-0/components/EntryContextCard.test.jsx > a past day reads "not captured" — never reconstructed > renders only the servers sentence, never a field row, when the entry was never captured
+      FAIL  src/pages/journal-2-0/components/EntryContextCard.test.jsx > a past day reads "not captured" — never reconstructed > renders only the server sentence for a carried-in broker holding with no entry day
+V1 voice: the dictation control (and its microphone) mounts even with the flag off: KILLED (rc=1, failed tests=1); restored sha 90865ae0624c89ab == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 6 passed (7)
+      × renders no dictation control and never touches the microphone when the voice flag is off 68ms
+      FAIL  src/pages/journal-2-0/components/WhyPrompt.test.jsx > voice gating — the load-bearing guard > renders no dictation control and never touches the microphone when the voice flag is off
+P1 purge: the bell-log claim table is dropped from the purge manifest: KILLED (rc=1, failed tests=1); restored sha 73e80a36cfd5702c == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 9 passed in 4.95s
+      FAILED tests/test_notebook_entry_context_bell.py::test_account_purge_also_takes_the_bell_log_and_only_that_member
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  2 passed (2)
+vitest: Tests  15 passed (15)
+pytest: 10 passed in 4.55s
+git status over api/ and app/src after the run: clean
+VERDICT: PASS - every mutation killed, every restore verified against the committed blob
