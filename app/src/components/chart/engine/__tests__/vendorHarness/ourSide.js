@@ -35,6 +35,7 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
+import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
@@ -417,9 +418,44 @@ export function barIndexStartsAtZero(capture) {
   return true
 }
 
+/** ⭐⭐ F3 (2026-10-02) — A SCRIPT THAT DRAWS, WHOSE DRAWING THE DOOR WITHHELD,
+ *  IS NOT A SCRIPT WITH "NO DRAWING PROGRAM". The host translation carried
+ *  drawing steps (`objectDiagnostics.attemptedOps`), and the door kept none of
+ *  them: either the object gate withheld the whole program for a lost removal
+ *  (`paneObjectsGate`, the member's own "its drawings are not shown" sentence),
+ *  or the program kept none of the steps it attempted (a create whose text
+ *  reads an unbounded `ta.barssince`, another symbol's `request.security`).
+ *  Graded as a GAP, by name — the verdict a withholding gets — never as a
+ *  script that draws nothing. ⛔ Host lane only: a runtime-lane document has no
+ *  drawing program of its own yet (RT5), and saying so is the true sentence. */
+function drawingWithheldBy(built) {
+  if (!built || built.lane === 'runtime') return null
+  const t = built.translation
+  const d = (t && t.objectDiagnostics) || {}
+  if (!(Number.isInteger(d.attemptedOps) && d.attemptedOps > 0)) return null
+  const gate = paneObjectsGate(t)
+  if (!gate.draw) {
+    const keys = [...new Set(((gate.loss && gate.loss.removes) || []).map((r) => r.key))]
+    return { guard: gate.guard, reason: `the object gate withheld the whole drawing program for a lost removal (${keys.join(', ') || 'unnamed'})` }
+  }
+  if (t.objects && (t.objects.ops || []).length) return null
+  const reasons = [
+    ...Object.entries(d.dropReasons || {}).map(([k, n]) => `${k} ×${n}`),
+    ...(((gate.loss && gate.loss.readerNames) || []).length ? [`never carried: ${gate.loss.readerNames.join(', ')}`] : []),
+  ]
+  const why = (d.createDropWhy || []).map((w) => (/ (pine:[a-z-]+)/.exec(w) || [])[1]).filter(Boolean)
+  return {
+    guard: 'pine:object-ops-refused',
+    reason: `the program carried none of its ${d.attemptedOps} drawing steps (dropped: ${reasons.join(', ') || 'none named'}${why.length ? `; ${[...new Set(why)].join(', ')}` : ''})`,
+  }
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
-function objectsOf(def, bars, ctx) {
-  if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
+function objectsOf(def, bars, ctx, built = null) {
+  if (!def.objects || !(def.objects.ops || []).length) {
+    const w = drawingWithheldBy(built)
+    return w ? { drawsObjects: false, withheld: w.guard, reason: w.reason } : { drawsObjects: false }
+  }
   try {
     const reader = objectReaderFor(def, bars, {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
@@ -659,7 +695,7 @@ export function runOurSide(capture) {
     const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
     const objects = objectsWithheld
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
-      : objectsOf(def, bars, ctx)
+      : objectsOf(def, bars, ctx, built)
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
