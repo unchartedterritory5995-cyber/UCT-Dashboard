@@ -226,6 +226,16 @@ def frame_of(pg, nth: int = 0):
 
 
 def toolbar_button(pg, frame, name, touch):
+    # The toolbar is CSS hover-reveal (`.frame:hover .toolbar`), which keys off the OS cursor's
+    # CURRENT viewport-relative position, not the element it last hovered. By the time the Plan
+    # panel is open the page is much taller, so a plain .hover() lands the cursor, and the SAME
+    # click's own scrollIntoViewIfNeeded() then scrolls the page under that now-stationary
+    # cursor -- the toolbar un-hovers mid-click and whatever is really underneath (the page
+    # header, the chart's own canvas) "intercepts pointer events" until the click times out
+    # (measured: docs/notebook/evidence/wave13-13h2/walk-4512d76-run9, the Replay click). Scroll
+    # to the final resting position FIRST, so hovering afterward is the position the click will
+    # actually use and nothing moves under the cursor in between.
+    frame.scroll_into_view_if_needed()
     if not touch:
         frame.hover()
     btn = frame.get_by_role("button", name=name, exact=True)
@@ -392,8 +402,14 @@ def walk_viewport(br, state, base, req, w: Walk, width: int, errors: list, serve
     rj = reading.json() if reading.status == 200 else {"status": reading.status}
     w.dump(f"{tag}-size-reading.json", rj)
     plan = (rj or {}).get("plan") or {}
-    same = (plan.get("entry") == price_of(by_role.get("entry")) and plan.get("stop") == price_of(by_role.get("stop"))
-            and plan.get("target") == price_of(by_role.get("target")))
+    # plan_extract (13A-1, the ONE authority this reading goes through) rounds every level to
+    # 6 decimals on the way out (`_round` in plan_extract.py) -- a drawn line's stored price is
+    # full float precision, so a bare `==` against the server's reading fails on rounding noise
+    # alone, never on an actual mismatch. Round the drawn side the same way before comparing.
+    r6 = lambda v: round(v, 6) if isinstance(v, (int, float)) else v  # noqa: E731
+    same = (plan.get("entry") == r6(price_of(by_role.get("entry")))
+            and plan.get("stop") == r6(price_of(by_role.get("stop")))
+            and plan.get("target") == r6(price_of(by_role.get("target"))))
     w.raw[f"{tag}_panel_values"] = {**vals, "label": label}
     w.record(f"{tag}-3_rr_and_size_with_engine_label",
              bool(vals["rr"] and vals["rr"].endswith("R") and vals["shares"] and vals["shares"].endswith("sh")
