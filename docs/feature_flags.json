@@ -1523,6 +1523,12 @@
       "where": [],
       "note": "FT-036 (TERMINAL-NEXT owner ruling 2026-10-02): one global routing rule per member for S7 alerts (Bloomberg MRUL) -- email on/off, push on/off, webhook on/off -- plus SUSPEND/RESUME of every alert without losing a definition (/api/alerts/routing*, require_paid). Applied in alert_taxonomy/delivery.deliver: suspended -> the fire is still RECORDED in alert_fires with delivery_channels {routing: suspended} and nothing is sent; otherwise deliver_alert_payload gets channels_allowed (new keyword-only arg, default None = unchanged for every other caller). The in-app record is never routable. ENABLEMENT GATE, default OFF, read per call in routing_rule.is_enabled(); SERVICE: web. Off: routes 404 and delivery is byte-identical to before (a stored rule is kept, never applied, never deleted). Not yet applied to the TERM-048 price-alert S7 bridge (_deliver_via_s7), which has its own fan-out. Pending: needs an owner arm. Rollback: set 0."
     },
+    "SCREENER_ALERT_GRAMMAR_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-029 v2 (TERMINAL-NEXT lane S): the where-grammar (api/services/screener/grammar.py, the ONE parser -- no second one) learns typed subjects and arithmetic. $AAPL (adjacent tickers union) and #flagged / #unflagged / #tag:<colour> / #wl:<id> / #<list_name> scopes, allowed only as top-level AND conjuncts (refused under or/not); resolve_scopes() turns them into the screener's own flat filters for the CALLER ({key: tickers} new reserved key, {key: list} existing, so list ownership is checked where it always was). Arithmetic + - * / with parentheses compiles to one leaf {key: arith, op, lhs, rhs}; query.build_where renders every field through filters.comparable_keys + _known_columns + overlay.col_expr (X27 order) and binds every number; division by zero is NULL. ENABLEMENT GATE, default OFF, read per call in grammar.v2_enabled(); SERVICE: web. Off: the parser refuses scopes and arithmetic with the v1 sentences and build_where refuses a crafted tickers/arith filter with a sentence (never ignored). Also needs SCREENER_LOGIC_ENABLED for the parse route. Pending: needs an owner arm. Rollback: set 0."
+    },
     "SCREENER_PROMOTE_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

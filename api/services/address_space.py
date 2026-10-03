@@ -197,6 +197,7 @@ EXEMPT: dict[str, str] = {
     "j2_verdicts": "not-a-saved-object: a generated verdict record, not member-named work",
     "journal_screenshots": "not-a-saved-object: a screenshot belongs to its trade",
     "screen_alert_subs": "not-a-saved-object: an alert subscription, managed from its screen",
+    "spec_alert_subs": "not-a-saved-object: a standing alert on a screen, managed from that screen",
     "user_alerts": "not-a-saved-object: a delivered alert (bell row), not saved work",
     "voice_documents": "not-a-saved-object: a voice-assistant document, not opened by URL",
     "floor_attachments": "not-a-saved-object: an attachment belongs to its Floor post",

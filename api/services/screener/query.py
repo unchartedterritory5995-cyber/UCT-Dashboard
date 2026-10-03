@@ -453,6 +453,73 @@ def _list_clauses(f, clauses, params, list_joins, user_id):
     params.extend(union)
 
 
+#: FT-029 v2 reserved keys -- a `$TICKER` scope and an arithmetic criterion.
+_TICKERS_KEY = "tickers"
+_ARITH_KEY = "arith"
+_ARITH_SQL = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<=", "eq": "=", "ne": "!="}
+_MAX_TICKERS = 500
+
+
+def _ticker_clauses(f, clauses, params):
+    """`$AAPL $MSFT` -> `UPPER(ticker) IN (?, ?)`. An empty set is ZERO rows
+    (K1: never the whole universe)."""
+    if f.get("op") != "in":
+        raise ValueError(f"bad op {f.get('op')} for tickers")
+    vals = [str(v).strip().upper() for v in (f.get("values") or []) if str(v).strip()]
+    if len(vals) > _MAX_TICKERS:
+        raise ValueError(f"a ticker scope can name at most {_MAX_TICKERS} symbols")
+    if not vals:
+        clauses.append("1=0")
+        return
+    clauses.append(f"UPPER(ticker) IN ({','.join('?' for _ in vals)})")
+    params.extend(vals)
+
+
+def _arith_sql(e, params, overlay, known, depth=0):
+    """One arithmetic expression -> SQL. ⛔ A field is a FILTER KEY resolved
+    through the registry and checked against the live columns BEFORE
+    `col_expr` -- the same X27 order the plain branch keeps -- and a number is
+    a bound parameter, so no client text reaches the statement."""
+    if depth > 8:
+        raise ValueError("arithmetic nests too deep")
+    if not isinstance(e, dict):
+        raise ValueError("bad arithmetic term")
+    if "f" in e:
+        key = e["f"]
+        if key not in filters.comparable_keys():
+            raise ValueError(f"'{key}' cannot be used in arithmetic")
+        name = filters.column_for(key)
+        if name not in known:
+            raise _readiness_refusal(filters.FILTERS[key]["label"])
+        return f"(1.0 * {overlay.col_expr(name)})"
+    if "n" in e:
+        v = e["n"]
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError("bad number in arithmetic")
+        params.append(v)
+        return "?"
+    op = e.get("o")
+    if op not in ("+", "-", "*", "/"):
+        raise ValueError(f"bad arithmetic operator {op!r}")
+    a = _arith_sql(e.get("a"), params, overlay, known, depth + 1)
+    b = _arith_sql(e.get("b"), params, overlay, known, depth + 1)
+    if op == "/":
+        # Division by zero is NULL -> the row does not match. Never an error.
+        return f"({a} / NULLIF({b}, 0))"
+    return f"({a} {op} {b})"
+
+
+def _arith_clauses(f, clauses, params, overlay, known):
+    op = f.get("op")
+    if op not in _ARITH_SQL:
+        raise ValueError(f"bad op {op} for arithmetic")
+    p = []
+    lhs = _arith_sql(f.get("lhs"), p, overlay, known)
+    rhs = _arith_sql(f.get("rhs"), p, overlay, known)
+    clauses.append(f"{lhs} {_ARITH_SQL[op]} {rhs}")
+    params.extend(p)
+
+
 def build_where(filter_specs, scan_joins=None, overlay=None, *,
                 list_joins=None, user_id=None, conn=None):
     """The WHERE clause — over the SERVED value of every column.
@@ -507,6 +574,18 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             continue
         if key == _UNIVERSE_KEY:
             _universe_clauses(f, clauses, params, overlay)
+            continue
+        if key in (_TICKERS_KEY, _ARITH_KEY):
+            # FT-029 v2, dark: refused with a sentence while off -- never
+            # silently ignored (a dropped criterion is a broader screen).
+            from . import grammar as _grammar
+            if not _grammar.v2_enabled():
+                raise ValueError("Ticker scopes and arithmetic criteria are not "
+                                 "switched on yet, so this screen was not run.")
+            if key == _TICKERS_KEY:
+                _ticker_clauses(f, clauses, params)
+            else:
+                _arith_clauses(f, clauses, params, overlay, known)
             continue
         retired = getattr(filters, "RETIRED", {}).get(key)
         if retired is not None:

@@ -25,10 +25,10 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
   // an explicit column-header sort clears it (see setSort).
   const [rank, setRankState] = useState(fromUrl?.rank ?? null)
   // FT-026: an optional all-of / any-of / none-of tree, ANDed server-side with
-  // `filters`. Set only from the server's own parser (CriteriaBox) or a saved
-  // spec. Not carried in the URL yet: a share link of a grouped screen is a
-  // saved screen, which does carry it.
-  const [logic, setLogicState] = useState(null)
+  // `filters`. Set from the server's own parser (CriteriaBox), a saved spec, or
+  // the URL -- which carries it (`lg`), so refresh/back/forward and a copied
+  // link keep the grouped criteria instead of silently widening the screen.
+  const [logic, setLogicState] = useState(fromUrl?.logic ?? null)
   const [page, setPage] = useState(1)
 
   // ── shared-screen arrival: only when no working spec is in the URL ───────
@@ -81,7 +81,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     clearTimeout(writeTimer.current)
     writeTimer.current = setTimeout(() => {
       const url = new URL(window.location.href)
-      const enc = encodeSpec({ filters, sort, view, columns, rank })
+      const enc = encodeSpec({ filters, sort, view, columns, rank, logic })
       if (enc) url.searchParams.set(SPEC_PARAM, enc)
       else url.searchParams.delete(SPEC_PARAM)
       url.searchParams.delete(SHARED_SCREEN_PARAM)
@@ -89,7 +89,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       window.history.replaceState(null, '', url)
     }, 400)
     return () => clearTimeout(writeTimer.current)
-  }, [filters, sort, view, columns, rank])
+  }, [filters, sort, view, columns, rank, logic])
 
   // ── back/forward restores the encoded screen ─────────────────────────────
   useEffect(() => {
@@ -101,6 +101,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       setViewState(dec?.view ?? DEFAULT_VIEW)
       setColumnsState(dec?.columns ?? null)
       setRankState(dec?.rank ?? null)
+      setLogicState(dec?.logic ?? null)
       setPage(1)
     }
     window.addEventListener('popstate', onPop)

@@ -24,13 +24,31 @@ WHAT IT COMPILES TO. A `logic` node (see `logic.py`) whose leaves are exactly
 the filter dicts the screener's flat list holds, so the grammar adds no second
 evaluator: the compiled tree runs through `query.build_where` like any screen.
 
-NOT YET IN THE LANGUAGE (stated, so nobody assumes it): arithmetic between
-fields (`size * price > 50k`), and the `$AAPL` / `@sector` / `#mylist` scope
-prefixes. A text using them is refused with the reason.
+TYPED SUBJECTS, SCOPES AND ARITHMETIC (FT-029 v2, dark behind
+`SCREENER_ALERT_GRAMMAR_ENABLED`; off, both are refused with the v1 sentences):
+  * `$AAPL` -- a TICKER subject. Adjacent tickers (`$AAPL $MSFT` or
+    `$AAPL, $MSFT`) are one scope and UNION, the way a list's selectors do.
+  * `#flagged`, `#unflagged`, `#tag:red`, `#wl:12`, or a list's own name
+    with spaces written as `_` (`#swing_ideas`) -- a LIST subject, resolved
+    for the caller by `resolve_scopes` into the screener's own
+    `{key: "list"}` filter (so ownership is checked where it always is).
+  * A scope applies to the WHOLE criteria: it may sit only as a top-level
+    `and` conjunct. Under `or` / `not` it is refused -- "$AAPL or price > 5"
+    has no subject.
+  * Arithmetic: `+ - * /` and parentheses between numeric fields and
+    numbers, compared with `> >= < <= = !=`:
+        avg_volume_30d * price > 50m     (price - sma50) / price > 0.05
+    It compiles to ONE leaf, `{key: "arith", op, lhs, rhs}`, which
+    `query.build_where` renders through the same `col_expr` and column
+    check as every other leaf. Division by zero is NULL (no match), never
+    an error. `-` needs a space after it (`a - b`; `a-b` reads as one name).
+
+`@sector` stays refused: `sector in [..]` already says it.
 """
 from __future__ import annotations
 
 import difflib
+import os
 import re
 from dataclasses import dataclass
 
@@ -41,6 +59,19 @@ CMP = {">": "gt", ">=": "gte", "<": "lt", "<=": "lte", "=": "eq", "==": "eq", "!
 COL_OP = {"gt": "gt_col", "gte": "gte_col", "lt": "lt_col", "lte": "lte_col"}
 KEYWORDS = {"and", "or", "not", "in", "between", "contains", "true", "false", "yes", "no"}
 MAX_TEXT = 2000
+#: FT-029 v2 -- scopes ($AAPL / #list) and arithmetic. Read per call.
+V2_FLAG = "SCREENER_ALERT_GRAMMAR_ENABLED"
+ARITH_KEY = "arith"
+ARITH_OPS = ("+", "-", "*", "/")
+#: Terms one arithmetic criterion may hold -- a criterion, not a program.
+MAX_ARITH_NODES = 15
+
+_ARITH_REFUSAL = ("arithmetic between fields (like size * price) is not in the "
+                  "language yet; compare two fields directly instead")
+
+
+def v2_enabled() -> bool:
+    return os.environ.get(V2_FLAG, "0").strip() == "1"
 
 _TOKEN = re.compile(r"""
     (?P<ws>\s+)
@@ -48,8 +79,8 @@ _TOKEN = re.compile(r"""
   | (?P<str>"[^"]*"|'[^']*')
   | (?P<op>>=|<=|==|!=|>|<|=)
   | (?P<punct>[()\[\],])
-  | (?P<scope>[$@#][A-Za-z0-9_.\-]+)
-  | (?P<arith>[*/+])
+  | (?P<scope>[$@#][A-Za-z0-9_.:\-]+)
+  | (?P<arith>[*/+]|-(?=[\s(]))
   | (?P<word>[A-Za-z_][A-Za-z0-9_.\-]*)
 """, re.VERBOSE)
 
@@ -74,14 +105,13 @@ def tokenize(text: str) -> list[Tok]:
         if not m:
             raise GrammarError(f"I can't read '{text[i]}' at position {i + 1}")
         kind = m.lastgroup
-        if kind == "scope":
+        v2 = v2_enabled()
+        if kind == "scope" and (not v2 or m.group()[0] == "@"):
             raise GrammarError(
                 f"scope prefixes like '{m.group()}' are not in the language yet; "
                 "use a field such as sector in [..] instead")
-        if kind == "arith":
-            raise GrammarError(
-                "arithmetic between fields (like size * price) is not in the "
-                "language yet; compare two fields directly instead")
+        if kind == "arith" and not v2:
+            raise GrammarError(_ARITH_REFUSAL)
         if kind != "ws":
             out.append(Tok(kind, m.group(), m.start()))
         i = m.end()
@@ -172,12 +202,93 @@ class _Parser:
             self.i += 1
             return {"not": self.unary()}
         t = self.peek()
+        if t is not None and t.kind == "scope":
+            return self._scope()
         if t is not None and t.kind == "punct" and t.text == "(":
+            start = self.i
             self.i += 1
-            node = self.or_()
+            try:
+                node = self.or_()
+                self.take("punct", ")")
+                return node
+            except GrammarError as first:
+                # `(price - sma50) / price > 0.05` opens with a paren that is
+                # ARITHMETIC, not grouping. Re-read it as an expression; if that
+                # fails too, the grouping reading's sentence is the useful one.
+                if not v2_enabled():
+                    raise
+                self.i = start
+                try:
+                    return self._arith_comparison()
+                except GrammarError:
+                    raise first from None
+        return self.comparison()
+
+    # ── FT-029 v2: typed subjects ────────────────────────────────────────
+    def _scope(self):
+        subs = []
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "scope":
+                break
+            self.i += 1
+            subs.append(_subject(t))
+            nxt, after = self.peek(), self.peek(1)
+            if (nxt is not None and nxt.kind == "punct" and nxt.text == ","
+                    and after is not None and after.kind == "scope"):
+                self.i += 1
+        return {"scope": subs}
+
+    # ── FT-029 v2: arithmetic ────────────────────────────────────────────
+    def _is_arith(self, k=0):
+        t = self.peek(k)
+        return t is not None and t.kind == "arith"
+
+    def _arith_comparison(self, lhs=None):
+        lhs = lhs if lhs is not None else self._expr()
+        opt = self.take("op", label="a comparison like >, <= or =")
+        rhs = self._expr()
+        if not (_has_field(lhs) or _has_field(rhs)):
+            raise GrammarError("an arithmetic criterion needs at least one field")
+        if _count(lhs) + _count(rhs) > MAX_ARITH_NODES:
+            raise GrammarError(
+                f"an arithmetic criterion can hold at most {MAX_ARITH_NODES} terms")
+        return {"key": ARITH_KEY, "op": CMP[opt.text], "lhs": lhs, "rhs": rhs}
+
+    def _expr(self):
+        node = self._term()
+        while self._is_arith() and self.peek().text in ("+", "-"):
+            op = self.take().text
+            node = {"o": op, "a": node, "b": self._term()}
+        return node
+
+    def _term(self):
+        node = self._factor()
+        while self._is_arith() and self.peek().text in ("*", "/"):
+            op = self.take().text
+            node = {"o": op, "a": node, "b": self._factor()}
+        return node
+
+    def _factor(self):
+        t = self.take()
+        if t.kind == "punct" and t.text == "(":
+            node = self._expr()
             self.take("punct", ")")
             return node
-        return self.comparison()
+        if t.kind == "num":
+            if t.text.endswith("%"):
+                raise GrammarError(
+                    f"'{t.text}': inside arithmetic write the plain number "
+                    "(a percent field's 5% is 5)")
+            return {"n": _plain_number(t)}
+        if t.kind == "word" and t.text.lower() not in KEYWORDS:
+            key = _resolve_field(t)
+            if filters.FILTERS[key]["type"] != "range":
+                raise GrammarError(
+                    f"{filters.FILTERS[key]['label']} is not a number, so it "
+                    "cannot be used in arithmetic")
+            return {"f": key}
+        raise GrammarError(f"expected a number or a field at position {t.pos + 1}")
 
     def _list(self):
         self.take("punct", "[")
@@ -197,6 +308,12 @@ class _Parser:
                 raise GrammarError(f"expected ',' or ']' at position {t.pos + 1}")
 
     def comparison(self):
+        head = self.peek()
+        if head is not None and (head.kind == "num" or
+                                 (head.kind == "word" and self._is_arith(1))):
+            if not v2_enabled():
+                raise GrammarError(_ARITH_REFUSAL)
+            return self._arith_comparison()
         ft = self.take("word", label="a field name")
         if ft.text.lower() in KEYWORDS:
             raise GrammarError(f"expected a field name at position {ft.pos + 1}, found '{ft.text}'")
@@ -223,6 +340,15 @@ class _Parser:
             return {"key": key, "op": "between", "min": lo, "max": hi}
         opt = self.take("op", label="a comparison like >, <= or =")
         op = CMP[opt.text]
+        nxt = self.peek()
+        if v2_enabled() and nxt is not None and (
+                self._is_arith(1) or (nxt.kind == "punct" and nxt.text == "(")):
+            if ftype != "range":
+                raise GrammarError(
+                    f"{filters.FILTERS[key]['label']} is not a number, so it "
+                    "cannot be compared with arithmetic")
+            self.i -= 1                     # re-read the comparison operator
+            return self._arith_comparison(lhs={"f": key})
         rhs = self.take()
         if rhs.kind == "word" and rhs.text.lower() in ("true", "false", "yes", "no"):
             if ftype != "bool":
@@ -258,9 +384,142 @@ class _Parser:
         return {"key": key, "op": op, operand: v}
 
 
+def _subject(tok: Tok) -> dict:
+    """A scope token -> a typed subject. Never resolved here: a list name means
+    something only for the caller, so `resolve_scopes` does that with a user id."""
+    body = tok.text[1:]
+    if tok.text[0] == "$":
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9.\-]{0,9}", body):
+            raise GrammarError(f"'{tok.text}' is not a ticker")
+        return {"kind": "ticker", "value": body.upper()}
+    return {"kind": "list", "value": body}
+
+
+def _has_field(e) -> bool:
+    if "f" in e:
+        return True
+    if "o" in e:
+        return _has_field(e["a"]) or _has_field(e["b"])
+    return False
+
+
+def _count(e) -> int:
+    return 1 + (_count(e["a"]) + _count(e["b"]) if "o" in e else 0)
+
+
+def _plain_number(tok: Tok) -> float:
+    t = tok.text
+    mult = 1.0
+    if t[-1].lower() in SUFFIX:
+        mult, t = SUFFIX[t[-1].lower()], t[:-1]
+    v = float(t) * mult
+    return int(v) if v.is_integer() and abs(v) < 1e15 else v
+
+
+def arith_fields(e) -> list[str]:
+    """Every filter key an arithmetic expression reads, in order."""
+    if "f" in e:
+        return [e["f"]]
+    if "o" in e:
+        return arith_fields(e["a"]) + arith_fields(e["b"])
+    return []
+
+
+def _split_scopes(node):
+    """Pull top-level scope conjuncts out of the tree. A scope anywhere else
+    (under `or` / `not`) is refused: it would have no subject."""
+    scopes, rest = [], node
+    if "scope" in node:
+        scopes, rest = [node["scope"]], None
+    elif "all" in node:
+        kids = []
+        for c in node["all"]:
+            if isinstance(c, dict) and "scope" in c:
+                scopes.append(c["scope"])
+            else:
+                kids.append(c)
+        rest = None if not kids else (kids[0] if len(kids) == 1 else {"all": kids})
+
+    def walk(n):
+        if not isinstance(n, dict) or "key" in n:
+            return
+        if "scope" in n:
+            raise GrammarError(
+                "a scope ($TICKER / #list) applies to the whole criteria; it "
+                "cannot sit inside or / not")
+        for k in ("all", "any", "none"):
+            for c in n.get(k, []):
+                walk(c)
+        if "not" in n:
+            walk(n["not"])
+
+    if rest is not None:
+        walk(rest)
+    return scopes, rest
+
+
+def compile_text(text: str) -> dict:
+    """Text -> {"logic": node | None, "subjects": [[subject, ...], ...]}.
+
+    Each inner list is ONE scope (its members union); separate scopes
+    intersect, the same way two `list` filters do."""
+    tree = _Parser(tokenize(text or "")).parse()
+    scopes, rest = _split_scopes(tree)
+    return {"logic": rest, "subjects": scopes}
+
+
 def parse(text: str) -> dict:
-    """Text -> a `logic` node. Raises GrammarError (a ValueError) with a sentence."""
-    return _Parser(tokenize(text or "")).parse()
+    """Text -> a `logic` node. Raises GrammarError (a ValueError) with a sentence.
+
+    A text that carries a scope is refused here: a bare logic node has nowhere
+    to put a subject. `compile_text` + `resolve_scopes` is the scoped path."""
+    out = compile_text(text)
+    if out["subjects"]:
+        raise GrammarError(
+            "this criteria names a scope ($TICKER / #list); a scope is the "
+            "screen's universe, not a criterion")
+    return out["logic"]
+
+
+def resolve_scopes(subjects: list, user_id) -> list[dict]:
+    """Typed subjects -> the screener's own flat filters, for THIS caller.
+
+    Tickers become `{key: "tickers"}`; lists become `{key: "list"}` with a
+    selector `list_universe` already resolves (and already refuses when the
+    caller does not own it). A list NAME is looked up among the caller's own
+    lists; zero or two matches is refused, never guessed."""
+    from . import list_universe
+    out = []
+    for scope in subjects or []:
+        tickers = [s["value"] for s in scope if s["kind"] == "ticker"]
+        lists = [s["value"] for s in scope if s["kind"] == "list"]
+        if tickers and lists:
+            raise GrammarError(
+                "one scope cannot mix tickers and lists; write them as two "
+                "scopes joined by and")
+        if tickers:
+            out.append({"key": "tickers", "op": "in", "values": tickers})
+            continue
+        sels = []
+        for name in lists:
+            low = name.lower()
+            if low in (list_universe.FLAGGED, list_universe.UNFLAGGED) or \
+                    low.startswith("tag:") or low.startswith("wl:"):
+                sels.append(low)
+                continue
+            hits = [a["value"] for a in list_universe.available(user_id)
+                    if str(a.get("value", "")).startswith("wl:")
+                    and str(a.get("label", "")).rsplit(" (", 1)[0].strip()
+                    .lower().replace(" ", "_") == low]
+            if len(hits) != 1:
+                raise GrammarError(
+                    f"'#{name}' does not name exactly one of your lists"
+                    + ("" if not hits else
+                       " (several of your lists have that name; use #wl:<id>)"))
+            sels.append(hits[0])
+        out.append({"key": "list", "op": "in",
+                    "value": sels if len(sels) > 1 else sels[0]})
+    return out
 
 
 # ── the explanation: one sentence per criterion (the FT-024 panel's half) ──
@@ -281,7 +540,23 @@ def _fmt(v, unit):
     return str(v)
 
 
+def _explain_expr(e, top=True) -> str:
+    if "f" in e:
+        return filters.FILTERS.get(e["f"], {"label": e["f"]})["label"]
+    if "n" in e:
+        return _fmt(e["n"], None)
+    body = f"{_explain_expr(e['a'], False)} {e['o']} {_explain_expr(e['b'], False)}"
+    return body if top else f"({body})"
+
+
+_CMP_WORDS = {"gt": "is above", "gte": "is at least", "lt": "is below",
+              "lte": "is at most", "eq": "equals", "ne": "is not"}
+
+
 def explain_leaf(leaf: dict) -> str:
+    if leaf.get("key") == ARITH_KEY:
+        return (f"{_explain_expr(leaf['lhs'])} {_CMP_WORDS[leaf['op']]} "
+                f"{_explain_expr(leaf['rhs'])}")
     f = filters.FILTERS.get(leaf["key"], {"label": leaf["key"], "unit": None})
     label, unit, op = f["label"], f.get("unit"), leaf["op"]
     if op in filters.COL_OPS:
@@ -329,7 +604,14 @@ def describe() -> dict:
         "number_suffixes": {**{k: v for k, v in SUFFIX.items()},
                             "%": "percent fields only; the same number (25% is 25)"},
         "field_to_field": sorted(COL_OP),
-        "not_supported": ["arithmetic between fields", "$ticker / @group / #list scope prefixes"],
+        **({"scopes": {"$TICKER": "a ticker subject; adjacent tickers union",
+                       "#flagged | #unflagged | #tag:<colour> | #wl:<id> | #<list_name>":
+                           "one of your own lists (spaces in a name written as _)"},
+            "arithmetic": {"operators": list(ARITH_OPS), "max_terms": MAX_ARITH_NODES},
+            "not_supported": ["@group scope prefixes (use sector in [..])"]}
+           if v2_enabled() else
+           {"not_supported": ["arithmetic between fields",
+                              "$ticker / @group / #list scope prefixes"]}),
         "max_criteria": 25,
         "fields": [{"key": k, "label": f["label"], "type": f["type"], "unit": f.get("unit")}
                    for k, f in filters.FILTERS.items()],
