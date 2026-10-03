@@ -2075,16 +2075,22 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
  *    places to write one shift, and an off-by-one between them would read as a
  *    plausible weekday rather than as an error.
  */
-let etMemoHour = null
-let etMemoParts = null
+// ⭐ RT7 — the parts are a pure function of the UTC HOUR (an ET offset only ever
+// changes on a whole UTC hour, which is what the single-entry memo this replaces
+// already relied on), so they are kept per hour in a bounded map. A daily series
+// visits a new hour every bar, and the runtime lane asks the clock for the same
+// bars several times per run: `Intl.formatToParts` was ~18% of a 5,000-bar run.
+const ET_PARTS_BY_HOUR = new Map()
+const ET_PARTS_CAP = 200000
 export function etClockAt(t) {
   if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return null
   const utcHour = Math.floor(t / 3600)
-  if (utcHour !== etMemoHour) {
-    etMemoParts = etClockParts(t)
-    etMemoHour = utcHour
+  let p = ET_PARTS_BY_HOUR.get(utcHour)
+  if (p === undefined) {
+    if (ET_PARTS_BY_HOUR.size >= ET_PARTS_CAP) ET_PARTS_BY_HOUR.clear()
+    p = etClockParts(t)
+    ET_PARTS_BY_HOUR.set(utcHour, p)
   }
-  const p = etMemoParts
   return { y: p.y, m: p.m, d: p.d, wd: p.wd, dow: p.wd + 1, h: p.h,
     min: Math.floor((t - utcHour * 3600) / 60) }
 }
