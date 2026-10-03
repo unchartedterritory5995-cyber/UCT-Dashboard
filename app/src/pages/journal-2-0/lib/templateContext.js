@@ -11,7 +11,18 @@
  * the local calendar day — game plans are written the same morning they're
  * used, so calendar-day matching is correct HERE. Trade pulls (V2) must use
  * the ET trading-day helpers instead.
+ *
+ * Wave 13 lane 13C-2: `earningsPrepDraft` is the one exception to "best-effort
+ * with a hard timeout" (below). It is the SAME POST the one-click "Create prep
+ * note" door makes (`earningsPrepShared.js::requestPrepDraft`) -- a member
+ * picking the Earnings Prep template with a ticker already known is making the
+ * same deliberate request, and it rightly spends the same daily draft cap, so
+ * it is fetched only when the template declares `needs.earningsPrepDraft` AND
+ * a ticker is present, never raced against a timeout, and never on a bare
+ * preview (`TemplatePicker`'s card preview calls `build({})` directly, with no
+ * `assembleTemplateContext` in between, so previewing the card never drafts).
  */
+import { requestPrepDraft } from './earningsPrepShared'
 
 const TIMEOUT_MS = 2500
 
@@ -112,6 +123,18 @@ const findTodayGamePlan = async () => {
   return { id: note.id, title: note.title || 'Game Plan', planBullets }
 }
 
+/** The earnings-prep draft, best-effort: no ticker ⇒ no request at all (there is nothing to
+ *  draft); a failed or gated request resolves to null, same as every other source here, and
+ *  `buildPrepDoc` already renders a null draft as a whole, honest, all-missing doc. */
+const earningsPrepDraftFor = async (ticker) => {
+  if (!ticker) return null
+  try {
+    return await requestPrepDraft(ticker)
+  } catch {
+    return null
+  }
+}
+
 /**
  * Assemble everything the catalog's build(ctx) functions can use. `needs`
  * lets a template skip fetches it doesn't read (the picker passes the
@@ -119,19 +142,22 @@ const findTodayGamePlan = async () => {
  */
 export async function assembleTemplateContext({ ticker, needs = {} } = {}) {
   const now = new Date()
-  const [breadth, positions, gamePlan] = await Promise.all([
+  const normalizedTicker = (ticker || '').trim().toUpperCase() || null
+  const [breadth, positions, gamePlan, earningsPrepDraft] = await Promise.all([
     needs.regime ? fetchJson('/api/breadth') : Promise.resolve(null),
     needs.positions ? fetchJson('/api/j2/positions') : Promise.resolve(null),
     needs.gamePlan ? findTodayGamePlan() : Promise.resolve(null),
+    needs.earningsPrepDraft ? earningsPrepDraftFor(normalizedTicker) : Promise.resolve(null),
   ])
   return {
     dateText: fmtDate(now),
     dateShort: fmtShort(now),
     weekOfText: fmtShort(mondayOf(now)),
-    ticker: (ticker || '').trim().toUpperCase() || null,
+    ticker: normalizedTicker,
     regimeLine: regimeLineFrom(breadth),
     positionLines: positionLinesFrom(positions),
     gamePlanNote: gamePlan,
+    earningsPrepDraft,
   }
 }
 
@@ -146,5 +172,6 @@ export function emptyTemplateContext() {
     regimeLine: null,
     positionLines: [],
     gamePlanNote: null,
+    earningsPrepDraft: null,
   }
 }
