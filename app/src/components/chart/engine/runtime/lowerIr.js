@@ -98,6 +98,7 @@ export function lowerIrProgram(ir, opts = {}) {
   const arrayOps = []
   const recordTypes = []
   const fieldNames = []
+  const objectOps = []
 
   const constIndex = (v) => {
     // ⛔ `indexOf` CANNOT FIND NaN (`NaN !== NaN`), so an `na` would push a new
@@ -136,6 +137,17 @@ export function lowerIrProgram(ir, opts = {}) {
     }
     arrayOps.push({ fn, typeArg: typeArg || null })
     return arrayOps.length - 1
+  }
+  // ⭐ RT5 — KEYED BY NAME **AND** WHICH PARAMETERS WERE PASSED: two call sites
+  // of `line.new` that pass different arguments are two different stack shapes.
+  const objectIndex = (fn, present, returns) => {
+    const key = `${fn}|${present.map((x) => (x ? 1 : 0)).join('')}|${returns}`
+    for (let i = 0; i < objectOps.length; i += 1) {
+      const o = objectOps[i]
+      if (`${o.fn}|${o.present.map((x) => (x ? 1 : 0)).join('')}|${o.returns}` === key) return i
+    }
+    objectOps.push({ fn, present: present.slice(), returns })
+    return objectOps.length - 1
   }
   // ⛔⛔ KEYED BY THE TYPE NAME **AND** ITS FIELD LIST, for the reason
   // `arrayIndex` is keyed by name and type argument. Interning on the NAME
@@ -232,6 +244,15 @@ export function lowerIrProgram(ir, opts = {}) {
       case EXPR.ARRAY: {
         for (const a of e.args) expr(a)
         emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
+        return
+      }
+      // ⭐⭐ RT5 — the PASSED arguments, in parameter order, then one instruction
+      // naming the op and which parameters they are. A void op leaves nothing.
+      case EXPR.OBJECT_OP: {
+        const present = e.args.map((a) => a !== null)
+        let n = 0
+        for (const a of e.args) if (a !== null) { expr(a); n += 1 }
+        emit(OP.OBJECT, objectIndex(e.fn, present, e.returns), n)
         return
       }
       // ⭐ THE SAME SHAPE AS `TEXT`/`ARRAY`: the field values are pushed in
@@ -707,6 +728,13 @@ export function lowerIrProgram(ir, opts = {}) {
             expr(s.value)
             break
           }
+          // ⭐ RT5 — a VOID drawing op (`line.delete(l)`, `t.cell(…)`) leaves
+          // nothing; one that returns (`line.new(…)` on a line of its own) is a
+          // call-for-effect and carries its drop count below.
+          if (s.value && s.value.kind === EXPR.OBJECT_OP && s.value.returns === 'void') {
+            expr(s.value)
+            break
+          }
           // ⭐⭐ A CALL-FOR-EFFECT — `zigzag(len, dev)` ON A LINE OF ITS OWN.
           // Pine evaluates the call and throws the result away; §16 says every
           // function has a result, so there is always something to throw away.
@@ -834,6 +862,8 @@ export function lowerIrProgram(ir, opts = {}) {
     objectTreeOutputs: ir.objectTreeOutputs || [],
     iterOutputs: ir.iterOutputs || [],
     arrayOps,
+    objectOps,
+    objectCaps: ir.objectCaps || {},
     recordTypes,
     fieldNames,
     requests,

@@ -51,7 +51,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber } from './pineTextFormat'
+import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -81,6 +81,56 @@ export function defaultNumberText(n) {
   // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
   if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
   return s.replace(/0+$/, '').replace(/\.$/, '')
+}
+
+/** ⭐ RT5 — lifted to module level, unchanged, so the runtime lane's
+ *  `str.tostring` (`runtime/text.js`) formats with this ONE implementation. */
+/**
+ * ⭐⭐ PINE'S `str.tostring` FORMAT — `#` AND `0` ARE DIFFERENT CHARACTERS.
+ *
+ * `#` is an OPTIONAL digit and `0` is a REQUIRED one, which is the whole
+ * difference between the two formats the reachable corpus writes:
+ *
+ *     str.tostring(6.2,  '#.##')  ->  '6.2'      trailing zeros TRIMMED
+ *     str.tostring(6.0,  '#.##')  ->  '6'        …and the point goes too
+ *     str.tostring(1.007, '0.00') ->  '1.01'     always two decimals
+ *     str.tostring(45.5,  '0.00') ->  '45.50'    a zero the author asked for
+ *
+ * ⚰⚰ THIS READ ONLY THE `#.##` FAMILY, and the `0.00` FAMILY FELL THROUGH
+ * TO THE RAW NUMBER. Measured 2026-09-13 on `uncharted-volume-v2.pine`, whose
+ * Volume cell is `str.tostring(volMult, '0.00')`: the dashboard drew
+ * `Vol : 45.187M (1.0070985212342736x)` where the vendor draws
+ * `Vol : 45.51M (1.05x)`. The old regex tested `^#*\.?(#*|0*)$`, which a
+ * leading `0` cannot match, so the guard fired and returned `String(n)` —
+ * the "honest fallback" doing seventeen significant figures inside a cell
+ * eight characters wide. ⛔ A fallback that has never been SEEN is not a
+ * fallback, it is an unreached branch, and this one was reached by two of
+ * v2's four visible cells.
+ *
+ * ⛔ STILL NARROW, AND STILL HONEST ABOUT IT. A thousands separator
+ * (`'#,###'`) is read only where it cannot APPEAR; where it would, the text
+ * is WITHHELD (`pineTextFormat.js::formatPatternedNumber`, F3).
+ */
+export function formatNumber(n, fmt) {
+  if (!Number.isFinite(n)) return 'NaN'
+  if (typeof fmt !== 'string' || !fmt) {
+    // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
+    // (`#.##########`), MEASURED on `vw-int-array-avg-spy-1d-2026-09-30` and
+    // `vw-fn-series-history-rddt-1d-2026-09-30`. ONE implementation:
+    // `defaultNumberText`, which also keeps a small value out of exponent form.
+    return defaultNumberText(n)
+  }
+  // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
+  // formatting the remainder is how `'#,###'` would silently become `'####'`.
+  // ⭐⭐ F3 (2026-10-02) — the renderings live in `pineTextFormat.js`: a plain
+  // `#`/`0` pattern is `formatPlainNumber`; literal text around a pattern, or
+  // grouping commas, is `formatPatternedNumber`. ⚰️ Anything else used to answer
+  // `String(n)` — `"Swing H  (#,###.####)"` drew a bare `282.95` with the author's
+  // words gone. A format neither reads is now WITHHELD (`null`), never printed.
+  // (Wave 16: RT5 hoisted this to the module so the runtime lane's drawings share
+  // it; F3 rewrote the body of the old inner copy. One function, F3's body.)
+  if (isPlainNumberPattern(fmt)) return formatPlainNumber(n, fmt)
+  return formatPatternedNumber(n, fmt)
 }
 
 /** Pine's own ceiling on an array's length (the reference: "the maximum size of
@@ -763,79 +813,6 @@ export function beginObjects(program, ctx) {
     const latches = new Map()
     let opsThisBar = 0
 
-    /**
-     * ⭐⭐ PINE'S `str.tostring` FORMAT — `#` AND `0` ARE DIFFERENT CHARACTERS.
-     *
-     * `#` is an OPTIONAL digit and `0` is a REQUIRED one, which is the whole
-     * difference between the two formats the reachable corpus writes:
-     *
-     *     str.tostring(6.2,  '#.##')  ->  '6.2'      trailing zeros TRIMMED
-     *     str.tostring(6.0,  '#.##')  ->  '6'        …and the point goes too
-     *     str.tostring(1.007, '0.00') ->  '1.01'     always two decimals
-     *     str.tostring(45.5,  '0.00') ->  '45.50'    a zero the author asked for
-     *
-     * ⚰⚰ THIS READ ONLY THE `#.##` FAMILY, and the `0.00` FAMILY FELL THROUGH
-     * TO THE RAW NUMBER. Measured 2026-09-13 on `uncharted-volume-v2.pine`, whose
-     * Volume cell is `str.tostring(volMult, '0.00')`: the dashboard drew
-     * `Vol : 45.187M (1.0070985212342736x)` where the vendor draws
-     * `Vol : 45.51M (1.05x)`. The old regex tested `^#*\.?(#*|0*)$`, which a
-     * leading `0` cannot match, so the guard fired and returned `String(n)` —
-     * the "honest fallback" doing seventeen significant figures inside a cell
-     * eight characters wide. ⛔ A fallback that has never been SEEN is not a
-     * fallback, it is an unreached branch, and this one was reached by two of
-     * v2's four visible cells.
-     *
-     * ⛔ STILL NARROW, AND STILL HONEST ABOUT IT. A thousands separator
-     * (`'#,###'`) is NOT implemented: ignoring the comma would print the right
-     * digits in the wrong grouping, which is a number the author did not ask
-     * for, so a format containing one falls back to the plain value exactly as
-     * before. Nothing in the reachable 27 writes one.
-     */
-    const formatNumber = (n, fmt) => {
-      if (!Number.isFinite(n)) return 'NaN'
-      if (typeof fmt !== 'string' || !fmt) {
-        // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
-        // (`#.##########`), MEASURED: `str.tostring(4 / 3)` prints `1.3333333333`
-        // (`vw-int-array-avg-spy-1d-2026-09-30`) and `str.tostring(hlc3)` prints
-        // `151.5633333333` (`vw-fn-series-history-rddt-1d-2026-09-30`) — thirteen
-        // significant digits. ⚰️ This kept ten SIGNIFICANT digits (`toPrecision`,
-        // never read off a chart): `1.333333333`, a digit short, and a price in
-        // the hundreds three short.
-        // (C42 read the same rule off the same two captures independently; wave 10
-        // keeps ONE implementation, `defaultNumberText`, which also keeps a small
-        // value like 0.0000001 out of exponent form.)
-        return defaultNumberText(n)
-      }
-      // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
-      // formatting the remainder is how `'#,###'` would silently become `'####'`.
-      if (!/^[#0]*(\.[#0]*)?$/.test(fmt)) return String(n)
-      const dot = fmt.indexOf('.')
-      const frac = dot < 0 ? '' : fmt.slice(dot + 1)
-      const intPart = dot < 0 ? fmt : fmt.slice(0, dot)
-      const max = Math.max(0, Math.min(10, frac.length))
-      // Required decimals are the `0`s; Pine writes them contiguously after the
-      // optional `#`s, and counting them is enough for either order.
-      const min = Math.min(max, (frac.match(/0/g) || []).length)
-      let out = n.toFixed(max)
-      if (max > min) {
-        // Trim only the OPTIONAL tail, never a digit the author demanded.
-        out = out.replace(/0+$/, (z) => z.slice(0, Math.max(0, min - (max - z.length))))
-        out = out.replace(/\.$/, '')
-      }
-      // `'00.0'` asks for a leading zero. Rare, but it is a request like any
-      // other, and padding is the only way to answer it.
-      const wantInt = (intPart.match(/0/g) || []).length
-      if (wantInt > 1) {
-        const neg = out.startsWith('-')
-        const body = neg ? out.slice(1) : out
-        const head = body.split('.')[0]
-        if (head.length < wantInt) {
-          out = (neg ? '-' : '') + '0'.repeat(wantInt - head.length) + body
-        }
-      }
-      return out
-    }
-
     const textOf = (t) => {
       if (!isObj(t)) return ''
       switch (t.t) {
@@ -850,7 +827,22 @@ export function beginObjects(program, ctx) {
             if (s === null) textsWithheld += 1
             return s
           }
-          return formatNumber(n, t.fmt)
+          // ⭐⭐ F3 — a format the translator could not read (`fmtUnread`):
+          // `na` prints `NaN` under any format (witnessed under a computed one,
+          // position-size-calculator RDDT); a finite value is WITHHELD.
+          if (typeof t.fmtUnread === 'string') {
+            if (Number.isFinite(n)) { textsWithheld += 1; return null }
+            return 'NaN'
+          }
+          // ⭐⭐ F3 — `format.mintick`: the binding's tick or nothing.
+          if (typeof t.tick === 'string') {
+            const s = tickNumberText(n, t.tickText)
+            if (s === null) textsWithheld += 1
+            return s
+          }
+          const s = formatNumber(n, t.fmt)
+          if (s === null) textsWithheld += 1
+          return s
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
         // string, never `String(v)`: an `undefined` row would render the word
@@ -880,7 +872,9 @@ export function beginObjects(program, ctx) {
         case 'val': {
           const n = value(t.v)
           if (typeof n !== 'number') { textsWithheld += 1; return null }
-          return formatNumber(n, t.fmt)
+          const s = formatNumber(n, t.fmt)
+          if (s === null) textsWithheld += 1
+          return s
         }
         default: return ''
       }

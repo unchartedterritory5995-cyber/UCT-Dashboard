@@ -31,10 +31,11 @@
 // ⭐ The `str.*` table is imported rather than restated: this file VALIDATES a
 // program's text ops against it at build time, and a second copy of the name
 // list here is exactly the drift the header warns about one paragraph up.
-import { TEXT_FNS } from './text.js'
+import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { ARRAY_FNS } from './collections.js'
 import { COLOUR_FNS } from './colours.js'
 import { isDrawingHandle } from './handles.js'
+import { OBJECT_OPS, ANY_METHODS } from './objectStore.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -253,6 +254,10 @@ export const OP = Object.freeze({
   // Checked against `WHILE_ITERATIONS` (`limits.js`) — see `ir.js::whileStmt`.
   // Appended, never inserted: these numbers are a wire format.
   WHILE_BOUND: 95,
+  // ⭐⭐ RT5 — A DRAWING OPERATION THE RUN EXECUTES (`objectStore.js`). `a`
+  // indexes `program.objectOps` (`{fn, present}`), `b` is how many arguments are
+  // on the stack — the PRESENT ones, in parameter order. Appended, never inserted.
+  OBJECT: 96,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -282,6 +287,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.CARRIED2,
   OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST,
   OP.WHILE_BOUND,
+  OP.OBJECT,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -325,7 +331,7 @@ export function makeProgram({
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
   carried2 = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
-  iterOutputs = [], recordTypes = [], fieldNames = [],
+  iterOutputs = [], recordTypes = [], fieldNames = [], objectOps = [], objectCaps = {},
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -444,6 +450,28 @@ export function makeProgram({
       }
       return Object.freeze({ type, fields: Object.freeze(fields.slice()) })
     })),
+    // ⭐⭐ RT5 — each `{fn, present, returns}`: the store's op name, which of
+    // its parameters the call passed, and what it leaves on the stack. Validated
+    // against the store's own table at build, so an unknown name is a compiler
+    // error and never a run-time one on some bar.
+    objectOps: Object.freeze((objectOps || []).map((o, i) => {
+      if (!o || typeof o.fn !== 'string' || !o.fn) {
+        throw new ProgramError(`objectOp ${i}: a drawing op carries a name`)
+      }
+      const spec = OBJECT_OPS[o.fn] || (o.fn.startsWith('any.') && ANY_METHODS[o.fn.slice(4)] ? {} : null)
+      if (!spec) throw new ProgramError(`objectOp ${i}: no drawing operation \`${o.fn}\``)
+      if (!Array.isArray(o.present) || !o.present.every((x) => typeof x === 'boolean')) {
+        throw new ProgramError(`objectOp ${i}: \`${o.fn}\` carries which arguments it passed`)
+      }
+      if (spec.params && o.present.length !== spec.params.length) {
+        throw new ProgramError(`objectOp ${i}: \`${o.fn}\` takes ${spec.params.length} parameters, `
+          + `the call describes ${o.present.length}`)
+      }
+      return Object.freeze({ fn: o.fn, present: Object.freeze(o.present.slice()), returns: o.returns })
+    })),
+    // ⭐ RT5 — the script's declared `max_*_count`s, read once by the front end
+    // (comments and strings stripped, `pine.js::strippedForScan`).
+    objectCaps: Object.freeze({ ...(objectCaps || {}) }),
     // ⭐ The interned field names both `FIELD_GET` and `FIELD_SET` index.
     fieldNames: Object.freeze((fieldNames || []).map((n, i) => {
       if (typeof n !== 'string' || !n) {
@@ -592,6 +620,17 @@ export function validateProgram(p) {
       if (got !== want) {
         throw new ProgramError(
           `pc ${pc}: \`${p.textOps[a]}\` takes ${want} argument(s), the call passes ${got}`)
+      }
+    }
+    if (op === OP.OBJECT) {
+      if (a < 0 || a >= p.objectOps.length) {
+        throw new ProgramError(`pc ${pc}: OBJECT ${a} outside ${p.objectOps.length} drawing ops`)
+      }
+      const want = p.objectOps[a].present.filter(Boolean).length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(`pc ${pc}: \`${p.objectOps[a].fn}\` passes ${want} argument(s), `
+          + `the call pushes ${got}`)
       }
     }
     if (op === OP.ARRAY) {

@@ -1,0 +1,20 @@
+{
+  "_readme": [
+    "GT (2026-10-02, owner ruling D6): the STARTER ALLOWLIST for the per-bar runtime pane.",
+    "While PINE_RUNTIME_STAGE is admins or all, the runtime lane draws ONLY a script whose",
+    "Pine source sha256 (UTF-8, as written) starts with one of the sha256 values below or one",
+    "in the PINE_RUNTIME_ALLOWLIST variable on web (the server reads the union, per request).",
+    "Every other script declines by name (runtime:not-yet-graded) with the host lane's sentence.",
+    "ADD A SCRIPT ONLY WHEN A TRADINGVIEW CAPTURE GRADES IT MATCH: one object per script, naming",
+    "the capture. Read by api/services/runtime_definitions.py::allow_list. An empty list serves",
+    "nothing. Edit this file as text; never round-trip it through a serialiser."
+  ],
+  "scripts": [
+    {
+      "slug": "adx-and-di-for-v4",
+      "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+      "source": "corpus/committed/adx-and-di-for-v4__932.pine",
+      "evidence": "MATCH, capture adx-and-di-for-v4-rddt-1d-2026-09-27 (docs/pine/runtime-pane-switch-on-plan.md)"
+    }
+  ]
+}

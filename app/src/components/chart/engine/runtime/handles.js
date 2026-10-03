@@ -74,3 +74,23 @@ export function drawingHandle(family, site) {
  *  itself by accident is how a drawing handle becomes whatever was nearby. */
 export const isDrawingHandle = (v) => (
   typeof v === 'object' && v !== null && v[TAG] === true)
+
+/**
+ * ⭐⭐ RT5 — A HANDLE TO AN OBJECT THIS LANE ITSELF MADE (`objectStore.js`).
+ *
+ * The same tagged, frozen value as `drawingHandle`, so every declared-kind check
+ * in the VM still refuses it by name (`kindOf` answers `'drawing'`), but carrying
+ * the store's object `id` instead of a create-site ordinal: the run that minted
+ * it is the run that reads it, so here the id IS joined to the object. One handle
+ * per object for the object's whole life, which is what makes `a == b` and an
+ * array element compare the way Pine's references do.
+ */
+export function objectHandle(family, id) {
+  if (!DRAWING_FAMILIES.includes(family)) {
+    throw new Error(`objectHandle: \`${family}\` is not a drawing family`)
+  }
+  if (!Number.isInteger(id) || id < 1) {
+    throw new Error(`objectHandle: an object id is a positive integer, got ${id}`)
+  }
+  return Object.freeze({ [TAG]: true, family, id })
+}

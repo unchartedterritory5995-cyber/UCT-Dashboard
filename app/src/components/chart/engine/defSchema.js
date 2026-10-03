@@ -746,7 +746,13 @@ function validateRuntimeCompute(compute, errors) {
   if (!isNonEmptyString(compute.source)) {
     errors.push(`compute.source: a "runtime" definition carries the script it runs — required non-empty string, got ${fmt(compute.source)}`)
   }
-  if (!isPlainObject(compute.outputs) || !Object.keys(compute.outputs).length) {
+  // ⭐ RT5 — `objects: true`: the run draws this document's objects itself
+  // (`runtime/runtimeObjects.js`), so a drawing-only script maps NO plot.
+  if (compute.objects !== undefined && compute.objects !== true) {
+    errors.push(`compute.objects: when present, true (the run draws the document's objects), got ${fmt(compute.objects)}`)
+  }
+  const ownObjects = compute.objects === true
+  if (!isPlainObject(compute.outputs) || (!ownObjects && !Object.keys(compute.outputs).length)) {
     errors.push(`compute.outputs: a "runtime" definition maps each plot key to a runtime output index — required non-empty object, got ${fmt(compute.outputs)}`)
   } else {
     for (const [key, index] of Object.entries(compute.outputs)) {

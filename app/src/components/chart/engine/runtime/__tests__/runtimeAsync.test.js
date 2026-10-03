@@ -70,13 +70,17 @@ describe('RT1 — the worker runner', () => {
     expect(got.err.guard).toBe('runtime:history-start')
   })
 
-  it('⛔ a worker that dies takes no run with it: the job is computed here instead', async () => {
+  // ⚰️ RT1 re-ran a dead worker's jobs on THIS thread. RF (2026-10-02) answers them
+  // by name instead: a run there is up to a full budget of frames, and on a live
+  // chart that is a freeze per update. The new rule and its rails are
+  // `runtimePaneSafety.test.js`; this case keeps the RT1 name so its history reads.
+  it('⛔ a worker that dies takes no run with it: the job is answered BY NAME, not re-run here', async () => {
     const { factory } = fakeWorkerFactory({ dies: true })
     const run = workerRunner(factory)
     const rows = bars()
     const got = await new Promise((resolve) => run(DEF, rows, { tf: 'D' }, (err, cols) => resolve({ err, cols })))
-    expect(got.err).toBeNull()
-    expect(got.cols).toEqual(computeRuntimeColumns(DEF, rows, { tf: 'D' }))
+    expect(got.cols).toBeNull()
+    expect(got.err.guard).toBe('runtime:worker-failed')
   })
 
   it('⭐ through runtimeColumnsFor: the chart is told to repaint, and the repaint reads the columns', async () => {

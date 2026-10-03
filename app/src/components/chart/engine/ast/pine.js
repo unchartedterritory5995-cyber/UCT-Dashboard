@@ -150,7 +150,7 @@ import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pi
 // ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
 // runtime, both from ONE module so what this door admits and what the runtime
 // draws cannot drift (C15, objects-triage step 13).
-import { compileMessagePattern } from '../pineTextFormat.js'
+import { compileMessagePattern, tostringPatternOf } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -2728,9 +2728,20 @@ export function lexPine(src) {
   }
   const tokens = []
   const lines = text.split('\n')
+  // ⭐ L2 — A TAB IS ONE INDENT LEVEL: FOUR COLUMNS, not one. Pine's own rule is
+  // "a local block is indented by four spaces or a tab", and TradingView's
+  // published `TradingView/ta/9` writes ONE function body with a tab on one line
+  // and four spaces on the next (`supertrend`, lines 546-547) — it compiles there,
+  // so the two must be the same level. Counted as one column, the tab line read as
+  // a SHALLOWER indent and split the body. A tab advances to the next multiple of
+  // four (every leading tab measured in the corpus and the library store sits at a
+  // multiple of four, where that and "a tab is four" agree).
   const indents = lines.map((line) => {
     const m = /^[ \t]*/.exec(line)
-    return m ? m[0].length : 0
+    if (!m) return 0
+    let w = 0
+    for (const ch of m[0]) w = ch === '\t' ? w + 4 - (w % 4) : w + 1
+    return w
   })
   let version = null
   let i = 0
@@ -18286,7 +18297,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // pattern with a thousands comma or with words in it
       // (swing-highlow-zigzag's `"Swing H  (#,###.####)"`) keeps its refusal.
       const stateFmt = node.args && node.args[1] ? node.args[1].value : null
-      const stateFmtOk = !stateFmt || (stateFmt.type === 'string' && /^[#0]*(\.[#0]*)?$/.test(String(stateFmt.value)) && String(stateFmt.value) !== '')
+      // ⭐ F3 — a pattern with literal words around it (`"Swing H  (#,###.####)"`)
+      // is read by the same grammar the runtime renders with
+      // (`pineTextFormat.js::tostringPatternOf`); where a capture does not pin a
+      // value's rendering the runtime withholds that text, never guesses it.
+      const stateFmtOk = !stateFmt || (stateFmt.type === 'string' && String(stateFmt.value) !== ''
+        && (/^[#0]*(\.[#0]*)?$/.test(String(stateFmt.value)) || tostringPatternOf(String(stateFmt.value)) !== null))
       if (stateOk && !inline && arg0 && stateFmtOk && !(node.args && node.args.length > 2)) {
         const live = stateOperand(arg0)
         if (live) return stateFmt ? { t: 'val', v: live, fmt: String(stateFmt.value) } : { t: 'val', v: live }
@@ -18294,7 +18310,37 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
-      const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
+      // ⭐⭐ F3 (2026-10-02) — `str.tostring(x, format.mintick)` IS THE SYMBOL'S
+      // TICK, NOT TEN DECIMALS. TradingView rounds to a multiple of
+      // `syminfo.mintick` and prints that tick's decimals, trailing zeros KEPT —
+      // measured: trend-targets-algoalpha RDDT `" ✔ TP3 ▸ 222.80"`,
+      // trend-lines-supports-and-resistances `"Resistance : 263.50"`. The tick is
+      // a per-SYMBOL fact, so the node carries the NAME (`tick`) and the binding
+      // settles it from the same witnessed table `syminfo.mintick` reads
+      // (`objectProgram.js::bindObjectProgram`); an unsettled tick withholds the
+      // text (`objectRuntime.js`). ⚰️ Read as "no format", this printed
+      // `177.5276604489` where TradingView prints `177.53`.
+      if (fmtNode && fmtNode.type === 'name' && fmtNode.name === 'format.mintick') {
+        const n = numNode(ast, undefined)
+        return n ? { ...n, tick: 'syminfo.mintick' } : null
+      }
+      // ⛔ ANY OTHER FORMAT THIS READER CANNOT SEE AS A LITERAL IS NEVER PRINTED AS
+      // IF THERE WERE NONE: `format.volume` is `"3.126M"` on TradingView
+      // (multicator-table), `format.percent` a `%`, a script's own
+      // `f_tickFormat()` a pattern built from text — the ten-decimal default is a
+      // different text, not a rougher one. The number is carried with the format
+      // NAMED (`fmtUnread`), and the runtime draws it only where the format
+      // cannot matter: `na`, which TradingView prints `"NaN"` under a format it
+      // computed (position-size-calculator RDDT, `"Position Size : NaN"` through
+      // `tostring(abs(size), f_tickFormat())`). Any finite value is WITHHELD.
+      if (fmtNode && fmtNode.type !== 'string') {
+        const why = `tostring:${fmtNode.type === 'name' ? fmtNode.name : fmtNode.type === 'call' ? `${fmtNode.name}()` : fmtNode.type}`
+        diagnostics.textFormatUnread = diagnostics.textFormatUnread || {}
+        diagnostics.textFormatUnread[why] = (diagnostics.textFormatUnread[why] || 0) + 1
+        const n = numNode(ast, undefined)
+        return n ? { ...n, fmtUnread: why } : null
+      }
+      const fmt = fmtNode ? String(fmtNode.value) : undefined
       return numNode(ast, fmt)
     }
     if (node.type === 'call' && node.name === 'str.format') {
@@ -24430,6 +24476,11 @@ function translatePineResult(source, opts = {}) {
             const written = pargs.some((a) => a && a.name === 'offset')
               || (Number.isInteger(at) && pargs.filter((a) => a && !a.name).length > at)
             Object.defineProperty(row, '_offsetWritten', { value: written, enumerable: false })
+            // ⭐ H4 — and whether its author hid it (`display = display.none`), read
+            // by the reader a translated row's `hidden` comes from. A refused row
+            // never carried `hidden`, so the runtime document drew a plot
+            // TradingView does not draw (nadaraya-watson's `Alert Stream`).
+            Object.defineProperty(row, '_authorHidden', { value: outputHidden(pargs), enumerable: false })
           }
         } catch { /* a presentation that cannot be read is simply not carried */ }
       }
@@ -25081,7 +25132,10 @@ function translatePineResult(source, opts = {}) {
     // able to read even when the program is null.
     objects: objectPass.program,
     objectDiagnostics: objectPass.diagnostics,
-    outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
+    // ⛔ H4 — the copy keeps a refused row's NON-ENUMERABLE facts (`_offsetWritten`,
+    // `_authorHidden`): a spread drops them, so the runtime document never saw
+    // that a refused plot was shifted or hidden, and drew it unshifted / at all.
+    outputs: resolved.map((r) => (r.refusal ? keepHiddenFacts(r, { ...r, refusal: withExcerpt(r.refusal, lines) }) : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
     // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
@@ -27759,6 +27813,17 @@ function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
  *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
  *  author's own, more general statement of it, so it is the one to read.
  */
+/** ⛔ H4 — copy a row's own NON-ENUMERABLE properties onto its copy. They are the
+ *  asked-for facts no digest or persisted copy should see (`_offsetWritten`,
+ *  `_authorHidden`), and an object spread silently drops every one of them. */
+function keepHiddenFacts(from, to) {
+  for (const k of Object.getOwnPropertyNames(from)) {
+    const d = Object.getOwnPropertyDescriptor(from, k)
+    if (d && !d.enumerable && !Object.prototype.hasOwnProperty.call(to, k)) Object.defineProperty(to, k, d)
+  }
+  return to
+}
+
 function outputHidden(args) {
   const d = args.find((a) => a.name === 'display')
   // `display.none` lexes as ONE ident — the dot is part of the name, not an
