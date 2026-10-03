@@ -156,6 +156,12 @@ _DIRECT_USER_TABLES = (
     # this is a "no such table" no-op.
     "j2_chart_blocks",
     "j2_chart_fingerprints",
+    # Wave 13 (lane 13D, resurfacing) -- the member's level index (a projection of their
+    # notes through plan_extract) and the ledger of which of their notes came back and when.
+    # Self-ensured by note_levels.py (never db.py), so on a pod where the scan's resurfacing
+    # pass never ran this is a "no such table" no-op.
+    "j2_note_levels",
+    "j2_note_resurface_fires",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

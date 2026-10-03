@@ -188,6 +188,12 @@ NOTEBOOK_FLAGS = {
     # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
     "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
+    # Wave 13 lane 13D: resurfacing (Awareness Engine R7-R9 bring a note back in-app when its
+    # ticker reaches a level it named, moves 8%+, or reaches its date). The scan's gate
+    # (journal_two/note_levels.enabled, read by awareness/engine.py per cycle) reads the same
+    # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
+    # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
+    "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

@@ -47,6 +47,8 @@ NOTEBOOK_KEYS = [
     "notebook_earnings_prep_enabled",
     # Wave 13 lane 13H-1: the chart plan (sizing + alerts at drawn levels) — an enablement gate.
     "notebook_chart_plan_enabled",
+    # Wave 13 lane 13D: resurfacing (Awareness R7-R9 + the note door's sheet) — an enablement gate.
+    "awareness_note_resurface_enabled",
 ]
 
 

@@ -222,6 +222,9 @@ NOT_REHEARSED = {
     # Wave 13 lane 13H-1. No member surface yet: 13H-2 builds the plan panel on these routes.
     "NOTEBOOK_CHART_PLAN_ENABLED": "dark (wave 13 13H-1): chart-plan sizing and alerts at drawn "
                                    "levels (API only); no member surface until 13H-2",
+    # Wave 13 lane 13D. Its evidence is a scan cycle (an insight row), not a page read.
+    "AWARENESS_NOTE_RESURFACE_ENABLED": "dark (wave 13 13D): the awareness scan's resurfacing pass; "
+                                        "its evidence is an insight row from a scan cycle",
 }
 
 

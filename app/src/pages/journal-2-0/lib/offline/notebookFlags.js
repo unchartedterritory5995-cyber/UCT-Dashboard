@@ -55,6 +55,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_ta_fingerprint_enabled: false, // wave 13 lane 13I-1: the technical fingerprint — absent ⇒ OFF
   notebook_earnings_prep_enabled: false, // wave 13 lane 13C: Reporting soon + earnings prep notes — absent ⇒ OFF
   notebook_chart_plan_enabled: false, // wave 13 lane 13H-1: the chart plan (sizing, alerts at drawn levels) — absent ⇒ OFF
+  awareness_note_resurface_enabled: false, // wave 13 lane 13D: resurfacing ("what you wrote then" sheet) — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 
