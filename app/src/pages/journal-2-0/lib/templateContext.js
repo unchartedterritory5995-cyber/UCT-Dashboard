@@ -18,11 +18,20 @@
  * picking the Earnings Prep template with a ticker already known is making the
  * same deliberate request, and it rightly spends the same daily draft cap, so
  * it is fetched only when the template declares `needs.earningsPrepDraft` AND
- * a ticker is present, never raced against a timeout, and never on a bare
- * preview (`TemplatePicker`'s card preview calls `build({})` directly, with no
+ * a ticker is present AND the capability is latched ON client-side
+ * (`earningsPrepEnabled()`, the same gate `ReportingSoon.jsx` and
+ * `TickerResearchWorkspace.jsx` already check before rendering their own
+ * button) -- never raced against a timeout, and never on a bare preview
+ * (`TemplatePicker`'s card preview calls `build({})` directly, with no
  * `assembleTemplateContext` in between, so previewing the card never drafts).
+ * ⛔ The catalog card itself is NOT flag-gated (every built-in template is
+ * always listed, same as every other entry), so a member can still pick it
+ * while dark -- this check is what keeps that pick from reaching the network
+ * at all, matching "fetches nothing while off" everywhere else in this lane.
+ * The SERVER route is the real authority regardless (404s while its own env
+ * flag is off) -- this is belt-and-braces, not the only gate.
  */
-import { requestPrepDraft } from './earningsPrepShared'
+import { earningsPrepEnabled, requestPrepDraft } from './earningsPrepShared'
 
 const TIMEOUT_MS = 2500
 
@@ -123,11 +132,13 @@ const findTodayGamePlan = async () => {
   return { id: note.id, title: note.title || 'Game Plan', planBullets }
 }
 
-/** The earnings-prep draft, best-effort: no ticker ⇒ no request at all (there is nothing to
- *  draft); a failed or gated request resolves to null, same as every other source here, and
- *  `buildPrepDoc` already renders a null draft as a whole, honest, all-missing doc. */
+/** The earnings-prep draft, best-effort: no ticker, or the capability not latched ON
+ *  client-side, ⇒ no request at all (there is nothing to draft, or the member should not see
+ *  the feature reaching the network while it is dark); a failed or gated request resolves to
+ *  null, same as every other source here, and `buildPrepDoc` already renders a null draft as a
+ *  whole, honest, all-missing doc. */
 const earningsPrepDraftFor = async (ticker) => {
-  if (!ticker) return null
+  if (!ticker || !earningsPrepEnabled()) return null
   try {
     return await requestPrepDraft(ticker)
   } catch {

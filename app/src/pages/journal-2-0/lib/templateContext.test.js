@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import {
   assembleTemplateContext,
   emptyTemplateContext,
   extractSectionBullets,
 } from './templateContext'
+import { latchNotebookFlags, __resetNotebookFlags } from './offline/notebookFlags'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -109,7 +110,10 @@ describe('emptyTemplateContext', () => {
 // when both the need and a ticker are present, never raced with the other sources' timeout,
 // and a refusal (the daily cap, a gate 404) resolves to null rather than throwing.
 describe('assembleTemplateContext -- the earnings-prep draft (13C-2)', () => {
-  it('fetches nothing when the template does not declare the need, even with a ticker', async () => {
+  afterEach(() => __resetNotebookFlags())
+
+  it('fetches nothing when the template does not declare the need, even with a ticker and the gate on', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const calls = []
     vi.stubGlobal('fetch', vi.fn((url) => { calls.push(String(url)); return okJson({}) }))
     const ctx = await assembleTemplateContext({ ticker: 'NVDA', needs: {} })
@@ -117,7 +121,8 @@ describe('assembleTemplateContext -- the earnings-prep draft (13C-2)', () => {
     expect(ctx.earningsPrepDraft).toBeNull()
   })
 
-  it('fetches nothing when a ticker is not given, even with the need declared', async () => {
+  it('fetches nothing when a ticker is not given, even with the need declared and the gate on', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const calls = []
     vi.stubGlobal('fetch', vi.fn((url) => { calls.push(String(url)); return okJson({}) }))
     const ctx = await assembleTemplateContext({ needs: { earningsPrepDraft: true } })
@@ -125,7 +130,32 @@ describe('assembleTemplateContext -- the earnings-prep draft (13C-2)', () => {
     expect(ctx.earningsPrepDraft).toBeNull()
   })
 
-  it('POSTs the SAME draft endpoint the one-click door uses, once, for the normalized ticker', async () => {
+  // ⛔ Found by the real-browser walk (tools/notebook_w13c2_walk.py, run 1): a member can
+  // still pick the Earnings Prep template while the capability is dark -- the catalog card
+  // is not itself flag-gated, same as every other template. Without this, a ticker-scoped
+  // pick while OFF reached the real POST, got a 404 from the server's own gate, and silently
+  // fell back -- safe, but a network call the member-facing "fetches nothing while off"
+  // promise (ReportingSoon.jsx's own words) does not make for every OTHER door.
+  it('fetches nothing when the capability is not latched ON client-side, even with a ticker and the need declared', async () => {
+    __resetNotebookFlags()
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn((url) => { calls.push(String(url)); return okJson({}) }))
+    const ctx = await assembleTemplateContext({ ticker: 'NVDA', needs: { earningsPrepDraft: true } })
+    expect(calls).toEqual([])
+    expect(ctx.earningsPrepDraft).toBeNull()
+  })
+
+  it('fetches nothing when the capability is explicitly latched OFF, even with a ticker and the need declared', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: false })
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn((url) => { calls.push(String(url)); return okJson({}) }))
+    const ctx = await assembleTemplateContext({ ticker: 'NVDA', needs: { earningsPrepDraft: true } })
+    expect(calls).toEqual([])
+    expect(ctx.earningsPrepDraft).toBeNull()
+  })
+
+  it('POSTs the SAME draft endpoint the one-click door uses, once, for the normalized ticker, once the gate is latched ON', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const draft = { symbol: 'NVDA', frozenAt: '2026-10-02T14:00:00Z', report: {} }
     const calls = []
     vi.stubGlobal('fetch', vi.fn((url, init = {}) => {
@@ -138,7 +168,8 @@ describe('assembleTemplateContext -- the earnings-prep draft (13C-2)', () => {
     expect(ctx.ticker).toBe('NVDA')
   })
 
-  it('a refused draft (the daily cap, or the gate off) resolves to null, not a thrown error', async () => {
+  it('a refused draft (the daily cap) resolves to null, not a thrown error', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 429, json: () => Promise.resolve({ detail: 'cap' }) })))
     const ctx = await assembleTemplateContext({ ticker: 'NVDA', needs: { earningsPrepDraft: true, regime: true } })
     expect(ctx.earningsPrepDraft).toBeNull()
@@ -147,6 +178,7 @@ describe('assembleTemplateContext -- the earnings-prep draft (13C-2)', () => {
   })
 
   it('runs alongside the other sources, not blocked by or blocking them', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     const calls = []
     vi.stubGlobal('fetch', vi.fn((url) => {
       calls.push(String(url))
