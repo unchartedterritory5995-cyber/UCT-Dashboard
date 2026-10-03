@@ -1,0 +1,12 @@
+{
+  "_provenance": "Schema-shaped: the body of flow-worker's GET /api/dealer-positioning/sample (api/dealer_positioning_router.py::sample_rows) - symbol, count, rows of contract_key/snap_date/cp/strike/expiration/oi/est_customer_net/flow_confidence, newest snapshot first then OI desc. One older-snapshot row is included to prove only the latest snapshot is read.",
+  "symbol": "TST",
+  "count": 5,
+  "rows": [
+    {"contract_key": "TST|C|100.0|10/9/2026", "snap_date": "2026-10-02", "cp": "C", "strike": 100.0, "expiration": "2026-10-09", "oi": 500, "est_customer_net": 220, "flow_confidence": 0.7},
+    {"contract_key": "TST|P|95.0|10/9/2026", "snap_date": "2026-10-02", "cp": "P", "strike": 95.0, "expiration": "2026-10-09", "oi": 400, "est_customer_net": -120, "flow_confidence": 0.6},
+    {"contract_key": "TST|C|105.0|10/9/2026", "snap_date": "2026-10-02", "cp": "C", "strike": 105.0, "expiration": "2026-10-09", "oi": 300, "est_customer_net": 40, "flow_confidence": 0.4},
+    {"contract_key": "TST|P|100.0|10/9/2026", "snap_date": "2026-10-02", "cp": "P", "strike": 100.0, "expiration": "2026-10-09", "oi": 200, "est_customer_net": null, "flow_confidence": null},
+    {"contract_key": "TST|C|100.0|10/9/2026", "snap_date": "2026-10-01", "cp": "C", "strike": 100.0, "expiration": "2026-10-09", "oi": 480, "est_customer_net": 999, "flow_confidence": 0.9}
+  ]
+}

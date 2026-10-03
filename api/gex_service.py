@@ -135,6 +135,9 @@ def to_schwab_shape(results: list, spot: float, today) -> dict:
             "openInterest": c.get("open_interest"),
             "gamma": g.get("gamma"),
             "delta": g.get("delta"),
+            # Schwab's own key for the session's contract volume. GEX never reads it; the options
+            # positioning surfaces (NOPE) do. Absent stays None, never 0.
+            "totalVolume": (c.get("day") or {}).get("volume"),
         })
     return out
 
@@ -203,6 +206,14 @@ async def _walk_chain_massive(ticker: str, from_date: str, to_date: str) -> tupl
     data = to_schwab_shape(results, spot, _date.today())
     data.update(massive_contracts=len(results), massive_pages=pages, massive_truncated=truncated)
     return data, None
+
+
+def contract_gex(gamma: float, oi: float, spot: float) -> float:
+    """THE one GEX formula: dollars of gamma per 1% move for one contract line, unsigned
+    (`gamma * oi * 100 * spot**2 * 0.01`). `get_gex_data` signs it (puts negative) and scales it
+    by the dealer-positioning factor; api/services/options_analytics/positioning.py reads the
+    same function for its heatmap and impact gauge, so the arithmetic exists once."""
+    return gamma * oi * 100 * (spot ** 2) * 0.01
 
 
 def _parse_schwab_exp_key(exp_key: str) -> Optional[str]:
@@ -501,7 +512,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
                     # customer_factor scales magnitude AND can flip the
                     # sign — a CALL with -1.0 factor (customers net-short)
                     # flips ceiling → floor for that strike.
-                    gex_contrib = gamma * oi * 100 * (spot ** 2) * 0.01 * customer_factor
+                    gex_contrib = contract_gex(gamma, oi, spot) * customer_factor
                     if not is_call:
                         gex_contrib = -gex_contrib
 

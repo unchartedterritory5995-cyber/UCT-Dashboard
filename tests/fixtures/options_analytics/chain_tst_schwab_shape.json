@@ -1,0 +1,25 @@
+{
+  "_provenance": "Schema-shaped, not a live recording: the exact shape api/gex_service.py hands get_gex_data (callExpDateMap/putExpDateMap keyed 'YYYY-MM-DD:dte' -> strike -> [contract]), with totalVolume as to_schwab_shape now carries it. Spot 100 so one gamma x OI unit = 10,000 dollars per 1% move; every expected number in tests/test_options_positioning.py is hand-computed from this file. The 110 call carries no gamma/OI/volume on purpose.",
+  "underlyingPrice": 100.0,
+  "callExpDateMap": {
+    "2026-10-09:7": {
+      "95.0": [{"openInterest": 100, "gamma": 0.02, "delta": 0.8, "totalVolume": 10}],
+      "100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.5, "totalVolume": 200}],
+      "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.2, "totalVolume": 50}]
+    },
+    "2026-10-16:14": {
+      "100.0": [{"openInterest": 200, "gamma": 0.04, "delta": 0.52, "totalVolume": 20}],
+      "110.0": [{"openInterest": null, "gamma": null, "delta": null, "totalVolume": null}]
+    }
+  },
+  "putExpDateMap": {
+    "2026-10-09:7": {
+      "95.0": [{"openInterest": 400, "gamma": 0.04, "delta": -0.25, "totalVolume": 100}],
+      "100.0": [{"openInterest": 200, "gamma": 0.05, "delta": -0.5, "totalVolume": 80}],
+      "105.0": [{"openInterest": 50, "gamma": 0.02, "delta": -0.8, "totalVolume": 5}]
+    },
+    "2026-10-16:14": {
+      "90.0": [{"openInterest": 600, "gamma": 0.01, "delta": -0.1, "totalVolume": 0}]
+    }
+  }
+}
