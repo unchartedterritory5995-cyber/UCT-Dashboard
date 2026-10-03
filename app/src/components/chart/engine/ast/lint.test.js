@@ -1040,6 +1040,14 @@ describe('the clock, linted — the window comes from the MANIFEST, not from thi
     expect(Object.keys(declared).length).toBeGreaterThan(0)
     for (const [name, spec] of Object.entries(declared)) {
       const reach = lint.astReach({ type: 'series', name })
+      // ⭐ RT4 — a leaf reads a later bar exactly when it DECLARES a `forward`
+      // (`_clock_right_edge`), and then says so by name rather than "unanalysable".
+      if (Object.prototype.hasOwnProperty.call(spec, 'forward')) {
+        expect(reach.forward, `${name}: declared forward ${spec.forward}`).toBe(spec.forward)
+        expect(reach.reasons.length, `${name} names its forward reach`).toBe(1)
+        expect(reach.reasons[0], name).toContain(`\`${name}\``)
+        continue
+      }
       expect(reach.back, `${name}: linter says ${reach.back}, manifest declares ${spec.lookback}`)
         .toBe(spec.lookback)
       expect(reach.forward, `${name} claims to read a later bar`).toBe(0)

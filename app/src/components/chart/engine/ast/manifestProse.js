@@ -186,6 +186,9 @@ export const DROP = Object.freeze([
   // disk keeps every word, which is where `clock_parity.json` and the EDT→EST
   // ruling it records are cited from.
   "_clock",
+  // RT4 (2026-10-02): prose beside the nine `forward` declarations it explains;
+  // the linters read the declarations, nobody reads the note.
+  "_clock_right_edge",
   // ⭐ R-K (2026-09-13). Prose: the limits this engine has, each with the case
   // that found it. Read by engineers, never by the product — so it DROPS, and
   // a member never receives a paragraph about `or` evaluation.

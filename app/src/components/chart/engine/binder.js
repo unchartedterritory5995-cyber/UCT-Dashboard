@@ -74,7 +74,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -832,7 +832,7 @@ export function createBinder({ chart, LWC }) {
    *  object program that refuses, exceeds its envelope, or throws must never
    *  take the columns, the legend or the scan down with it. That is the C2A
    *  failure-containment rule applied to the newest surface. */
-  const syncObjects = (ctx, instances, bars) => {
+  const syncObjects = (ctx, instances, bars, runCols = null) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
     const theme = chartThemeOf(ctx.cs)
@@ -849,6 +849,13 @@ export function createBinder({ chart, LWC }) {
         layer = made.ok ? made.value : null
         if (!layer) continue
         objectLayers.set(inst.instanceId, layer)
+      }
+      // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
+      // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
+      if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
+        publishClock(inst.instanceId, 'objects', [])
+        attempt(() => layer.set(null, ''))
+        continue
       }
       // ⛔⛔ BOTH DOCUMENT FORMS. A small script stays V1 and its program stays
       // UNBOUND; only a document over the byte budget carries a graph. Reading
@@ -1242,6 +1249,8 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
+    // ⭐ RT4 — what step 1 computed per instance, for the object step's runtime gate.
+    const runCols = new Map()
     // ⭐ C36 — the instances whose columns were in hand this pass (`publishClock`).
     const clockSeen = new Set()
 
@@ -1506,7 +1515,7 @@ export function createBinder({ chart, LWC }) {
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
             lowerTf }))
-        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
+        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); runCols.set(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
         // one column, so this can only be the server lane answering "the fetch
@@ -1519,6 +1528,7 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      runCols.set(inst.instanceId, cols)
       // ⭐ C43 — reached on this chart at these settings, or no longer reached
       noteRuntimeErrorStop(inst.instanceId, cols)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
@@ -1612,7 +1622,7 @@ export function createBinder({ chart, LWC }) {
     // AFTER the columns and BEFORE the pool, because a drawing must never be
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
-    attempt(() => syncObjects(ctx, instances, bars))
+    attempt(() => syncObjects(ctx, instances, bars, runCols))
 
     // ── 2. Ask the pool what should happen ──
     // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
