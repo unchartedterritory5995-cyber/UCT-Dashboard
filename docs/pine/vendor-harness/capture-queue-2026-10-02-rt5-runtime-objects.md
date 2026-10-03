@@ -8,6 +8,7 @@ are REFUSED by name today, and the capture is what would let either be served.
 | # | capture | settles | what it would move |
 |---|---|---|---|
 | Q-RT5a | `tools/visual_conformance/probes/vw-rt5-arm-draw-block-history.pine` on NYSE:RDDT 1D (from the listing), defaults | **T01/T02**: a `label.new` in the THEN arm of `?:` is made only on the bars that arm is taken (label count = UP bars; the handle is `na` elsewhere). **B01**: a block local's `[1]` inside a global `if` is the previous EXECUTION's value (the previous UP bar's `bar_index`), not the previous bar's and not `na` | T01/T02 → the drawing build may lower a drawing arm as `if` (the host lane's G7 equivalence, O1) instead of refusing `runtime:object-op`; B01 → a per-site ring for block locals instead of `runtime:conditional-history` |
+| Q-RT5b | `corpus/committed/renko-candles-overlay__d76a18d49e.pine` on NYSE:RDDT 1D (from the listing), defaults | the lines, labels and bricks (boxes) TradingView holds, and the labels' text (`str.tostring(up)`, the tick-derived `num`) | the one script RT5 newly attaches (census 86 -> 87) gets a vendor verdict |
 
 What is already witnessed and is NOT asked again here:
 

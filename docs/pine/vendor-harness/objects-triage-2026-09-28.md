@@ -170,7 +170,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
-| 72 | RT5 (lane brief, wave 16) the RUNTIME lane draws a script's objects ITSELF when the host object program would draw nothing (section RT5): `runtime/objectStore.js` (C7 collector, table one-per-position, linefill dies with its lines, version capacities), `OP.OBJECT`, `compute.objects: true`, the binder draws the run's own payload. Refused by name under the drawing build: `runtime:conditional-history`, a drawing call in one arm of `?:` (`runtime:object-op`). Census unchanged (0 moved, 0 lost); 17 of 19 direct-run captures agree, 2 not comparable. | RT5 |
+| 72 | RT5 (lane brief, wave 16) the RUNTIME lane draws a script's objects ITSELF when the host object program would draw nothing (section RT5): `runtime/objectStore.js` (C7 collector, table one-per-position, linefill dies with its lines, version capacities), `OP.OBJECT`, `compute.objects: true`, the binder draws the run's own payload. Refused by name under the drawing build: `runtime:conditional-history`, a drawing call in one arm of `?:` (`runtime:object-op`). Census on the wave-16 tree runtime 86 -> 87 (+renko-candles-overlay, 0 lost); fibonacci-dolphintradebot RDDT MATCH; 17 of 19 direct-run captures agree. | RT5 |
 | 75 | CAP2 coverage audit (section CAP2): census on the wave-16 tree (objects pane on 80 / 266, +runtime 86); the attached scripts with no TradingView capture (22 + the wave-16 attach cpr-with-mas) captured on NYSE:RDDT 1D from the listing and AMEX:SPY 1D, verify_capture.mjs PASS 50/50, graded in `vendorHarness.coverageAudit` (47 tests): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, supertrend-explorer refused by TradingView. Queues: RT3 Q-NL-a/b (`or`/`not` read na as false, v4 and v5), H3 Q-H3a/b/c, CAP row 9 (lower-tf "30"/"1", 1M, CAVA lookahead) | `2ad89eaa9c`..`89dfd5ac8f` + rail | no engine change | attached with a capture: 61 / 79 -> 79 / 80 (on), all runtime attaches but supertrend-explorer | table in section CAP2 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -5868,8 +5868,8 @@ handle inside `if barstate.islast`), `trendline-pivots-quantvue` (`runtime:loop`
 would serve are walled first by the runtime lane's other walls (libraries, undeclared builtin
 state, dynamic offsets, statements).
 
-**Rails:** `runtime/__tests__/rt5RuntimeObjects.test.js` (13), `builder/memberPane/
-runtimeObjectsDoor.test.js` (5), `tests/test_runtime_definitions.py` (22). Mutations, each
+**Rails:** `runtime/__tests__/rt5RuntimeObjects.test.js` (15), `builder/memberPane/
+runtimeObjectsDoor.test.js` (7), `tests/test_runtime_definitions.py` (22). Mutations, each
 restored from captured bytes and sha-verified: guard off, top-level macro, `?:` arm drawing,
 call-site function check, `bar_index` in a global block, chart-history set emptied, door host
 check, door routing, collector at cap instead of cap + 5, server `objects` value, server empty
@@ -5878,6 +5878,40 @@ outputs - each turns its rail red. One guard was REMOVED on its mutation (a user
 
 **Capture queue:** `capture-queue-2026-10-02-rt5-runtime-objects.md` (Q-RT5a,
 `probes/vw-rt5-arm-draw-block-history.pine`): a drawing in a `?:` arm, and a block local's `[1]`.
+**Wave 16 / CAP2 follow-up (2026-10-03).** Merged `integrate/wave16-2026-10-02` (`3f9c35aebd`).
+* **Graded against CAP2's captures through the runtime door** (`vendorHarness.coverageAudit`,
+  re-pinned): `fibonacci-dolphintradebot` RDDT is now **MATCH** - 7 lines + 7 labels against
+  TradingView's 7 + 7, label texts agree, colours agree on 21 / 21 paired slots, both char plots
+  MATCH (coordinates are not compared by v1). SPY: `runtime:history-start` (not from the listing),
+  as its plots already were. `wyckoff-accumulation-distribution`: the run owns its 12 / 22 boxes
+  and draws none, by name - RDDT stops on an engine error (`array.max of an empty array`, the same
+  failure that already left its 8 plots without a column), SPY on `runtime:calc-bars-count`.
+* What dolphin needed: a comma line of statements (`label.delete(a[1]), line.delete(b[1])`) is
+  split by the host object lane's own rule (`objectFnInline.splitCommaStatements`, one authority);
+  `math.round_to_mintick(x)` is `math.round(x / syminfo.mintick) * syminfo.mintick` (Pine: nearest
+  tick, ties up, as `math.round`; the tick settled at bind).
+* `runtime:calc-bars-count`: `calc_bars_count = N` makes TradingView run the script on its last N
+  bars; no lane honours it, so a run that owns its drawings refuses them by name on a longer chart.
+* A run whose drawings fail (a named wall, an engine error, `calc_bars_count`) keeps its PLOTS:
+  the plain run computes the columns and the drawings are withheld by name
+  (`runtimeObjectsWithheldOf`). A reached `runtime.error` and the time / history budgets are as before.
+* **Census on the merged tree** (`--maxWorkers=1`): wave-16 baseline off 55 / on 80 / runtime 86;
+  with RT5 off 55 / on 80 / **runtime 87**. **Lost: none. Gained: `renko-candles-overlay`**
+  (runtime lane, drawings owned by the run: on 5,000 synthetic daily bars 2 lines, 2 labels,
+  142 boxes; median **1,082 ms** of 5 runs on this loaded box, against the pane's 1,000 ms time
+  budget, so a 5,000-bar chart may decline it by `runtime:time-budget`). It has no capture:
+  Q-RT5b. Wall changes among the O1 scripts: trendlinesample -> `runtime:conditional-history`,
+  trendline-pivots-quantvue -> `runtime:loop`, order-blocks -> `runtime:na-test`,
+  auto-harmonic-patterns -> `pine:colour-value`, liquidity-levels-sonarlab -> `runtime:block-value`.
+* **Bundle** (`vite build`, wave-16 base vs RT5): `runtimeWorker` 952,380 -> 982,658 B
+  (+30,278; gzip 296,468 -> 306,604, +10,136); `runtimeAsync` 161,865 -> 188,675 (+26,810; gzip
+  50,553 -> 59,499); `StockChart` 708,350 -> 709,352 (+1,002; gzip +388). Main `index` unchanged.
+* **Rails:** `rt5RuntimeObjects.test.js` 15, `runtimeObjectsDoor.test.js` 7, `coverageAudit` 47 -
+  69 / 69 at `--maxWorkers=1`. Further mutations, each red: calc-bars check off; `>` made `>=`;
+  fallback catch rethrows; comma split off; `round_to_mintick` desugar off; tick dropped from it.
+  The split was first restricted to lines whose every segment is a drawing call; removing the
+  restriction left every rail green, so the host rule is used unrestricted and a mixed line is railed.
+
 ## CAP2 - coverage audit (2026-10-02)
 
 Lane CAP2, branch `pine/cap2-coverage-audit` (from `integrate/wave16-2026-10-02` 304a6ec692, wave-16 tip
