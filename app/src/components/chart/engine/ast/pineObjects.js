@@ -619,7 +619,7 @@ export function collectObjectOps(stmts, h) {
       if (!inLoop && loopIds.length === 0 && (taCallIn(t) || historyCallIn(t, historyFns))
           && !definitionHeader(t, h)
           && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
-        t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries }).toks
+        t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries, fnDefs, callOwned }).toks
         noteOnceLines(st)
       }
       // ⭐ O1 (step 67) — a getter read through a local (`top = box.get_top(b)` …

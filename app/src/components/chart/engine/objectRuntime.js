@@ -283,6 +283,18 @@ export function beginObjects(program, ctx) {
   const numTaint = new Set()
   /** A list whose length (and so every slot) is unknown. */
   const collLenTaint = new Set()
+  /** ⭐⭐ F1 — the `var` lists that are a FIFO cap and nothing else: every op on
+   *  the list appends (`push`), evicts its OLDEST (`collremove` at the literal
+   *  index 0) under a guard that is exactly `size(list) > <value>`, or deletes
+   *  that oldest element. Once THIS run evicts (`fifoEvicted`), this run's own
+   *  list was over the cap — so TradingView's, which holds these same newest
+   *  objects behind whatever came before the chart's first bar, was over it at
+   *  every eviction too, and both keep the same newest ones: the list (and its
+   *  drawings) have converged. rsi-horizontal-resistance-levels (`array.push` ·
+   *  `if array.size(rays) > maxRays` · `line.delete(array.shift(rays))`) MATCHes
+   *  off the listing on SPY 1D (CAP2). Any other op on the list is no proof. */
+  const fifoCapped = fifoCappedColls(program)
+  const fifoEvicted = new Set()
   /** Per list, a boolean per slot, kept in step with `colls`. */
   const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(false)]))
   /** table instanceId → Set<"col,row"> | '*'. */
@@ -1967,6 +1979,8 @@ export function beginObjects(program, ctx) {
           if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) {
             arr.splice(i, 1)
             collSlotTaint.get(op.coll).splice(i, 1)
+            // ⭐ F1 — a FIFO-capped list evicted its oldest on THIS run's own length.
+            if (i === 0 && fifoCapped.has(op.coll)) fifoEvicted.add(op.coll)
           }
           break
         }
@@ -2048,7 +2062,9 @@ export function beginObjects(program, ctx) {
   // (`ctx.offListing === true`); a caller that says nothing keeps today's answer.
   const offListingFams = new Set()
   if (ctx.offListing === true) {
-    for (const c of program.colls || []) if (c.persist === true && c.family) offListingFams.add(c.family)
+    for (const c of program.colls || []) {
+      if (c.persist === true && c.family && !fifoEvicted.has(c.id)) offListingFams.add(c.family)
+    }
   }
   for (const fam of offListingFams) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
@@ -2158,6 +2174,40 @@ export function beginObjects(program, ctx) {
 /** ⭐ THE WHOLE DRAWING, DRIVEN HERE — the shape every caller but the runtime
  *  lane wants, and the ONE driver for everyone who has no bar loop of their own.
  *  ⛔ DERIVED FROM THE STEPPER, NEVER A SECOND COPY OF THE WALK. */
+/** ⭐ F1 — the collections whose every op is a FIFO cap (see `fifoCapped` in
+ *  `beginObjects`). Read off the program, never off a name. */
+function fifoCappedColls(program) {
+  const ops = []
+  const walk = (list) => { for (const op of list || []) { ops.push(op); if (op && op.k === 'loop') walk(op.body) } }
+  walk(program.ops)
+  const latches = new Map(ops.filter((o) => o && o.k === 'latch').map((o) => [o.id, o]))
+  const capLatch = (when, coll) => {
+    const l = when && when.v === 'latch' ? latches.get(when.id) : null
+    const c = l && l.cond
+    return !!c && c.v === 'cmp' && c.op === '>' && Array.isArray(c.args) && c.args[0]
+      && c.args[0].v === 'size' && c.args[0].coll === coll
+  }
+  const front = (idx) => !!idx && idx.v === 'const' && idx.value === 0
+  const out = new Set()
+  for (const c of program.colls || []) {
+    if (c.persist !== true) continue
+    const touching = ops.filter((o) => o && (o.coll === c.id
+      || (o.target && o.target.r === 'coll' && o.target.id === c.id)
+      || JSON.stringify(o).includes(`"coll":"${c.id}"`)))
+    let evicts = false
+    const ok = touching.every((o) => {
+      if (o.k === 'push' && o.coll === c.id) return true
+      if (o.k === 'latch') return true
+      if (o.k === 'collremove' && o.coll === c.id && front(o.index) && capLatch(o.when, c.id)) { evicts = true; return true }
+      if (o.k === 'delete' && o.target && o.target.r === 'coll' && o.target.id === c.id && front(o.target.index)
+        && capLatch(o.when, c.id)) return true
+      return false
+    })
+    if (ok && evicts) out.add(c.id)
+  }
+  return out
+}
+
 export function evaluateObjects(program, ctx) {
   const run = beginObjects(program, ctx)
   for (let bar = 0; bar < run.barCount; bar += 1) run.step(bar)

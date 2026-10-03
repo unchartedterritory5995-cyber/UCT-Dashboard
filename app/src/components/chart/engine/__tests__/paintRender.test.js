@@ -227,14 +227,15 @@ describe('the binder draws paints', () => {
   })
 
   it('⭐⭐ F1 — inside ONE script the LATER barcolor wins (CAP round 4, vw-bgcolor-barcolor P1/P2)', () => {
-    // P1 red on every bar, P2 blue on cond = [1,0,1,0]'s 0 bars: TradingView paints
-    // the later call where it has a colour and the earlier one where it is `na`.
+    // P1 red on every bar, P2 blue where cond = [1,0,1,0] picks palette entry 1:
+    // TradingView paints the later call where it has a colour and the earlier one
+    // where it is `na`.
     const later = { kind: 'barcolor', colorMode: 'column:cond', colorPalette: ['rgba(0, 0, 0, 0)', '#0000ff'] }
     const h = harness(new Map([['u_d', def('u_d', [BAR, later])]]))
     const res = h.run([inst('u_d')])
     expect([...h.handed[0].entries()]).toEqual([
-      [String(BARS[0].t), '#ff0000'], [String(BARS[1].t), '#0000ff'],
-      [String(BARS[2].t), '#ff0000'], [String(BARS[3].t), '#0000ff'],
+      [String(BARS[0].t), '#0000ff'], [String(BARS[1].t), '#ff0000'],
+      [String(BARS[2].t), '#0000ff'], [String(BARS[3].t), '#ff0000'],
     ])
     expect(res.paints.conflicts).toBe(0)
   })

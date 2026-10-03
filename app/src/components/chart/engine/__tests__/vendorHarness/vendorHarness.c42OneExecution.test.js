@@ -235,7 +235,9 @@ describe('C42 — a `ta.*` call in a BLOCK that runs once', () => {
       // ⭐ C48 re-pin — `ta.lowest(low, 10)`, `ta.ema(close, 3)`, `ta.highest(10)` and
       // `ta.rsi(close, 14)` stood in these four slots; `vw-call-site-history`
       // (A02, A04, A08, A05) witnesses each now (`vendorHarness.c48CallSite`).
-      '    float a = ta.wma(low, 10)',
+      // ⭐ F1 re-pin — `ta.wma(low, 10)` stood here; `vw-once-ta-helper` (B06 / T06)
+      // witnesses it now, so `ta.vwma`, which no capture reads on one run, takes its slot.
+      '    float a = ta.vwma(low, 10)',
       '    float b = ta.sma(close, len)',
       '    float c = ta.ema(close, 1)',
       '    float e = ta.lowest(10)',
@@ -365,10 +367,11 @@ describe('C42 — a HELPER called once: what stays refused, by name', () => {
       // `vw-call-site-history` and graded in `vendorHarness.c48CallSite`:
       // `ta.lowest(low, k)` (B04), `ta.ema(close, k)` (B05), `ta.highest(k)` (B08),
       // `ta.sma(close, 1)` (B09), `time_close[k]` (B02), `hlcc4[k]` (B03), `y[0]` (B06).
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.wma(low, k)))'], ['g(3)'], /`ta\.wma`/],
+      // ⭐ F1 re-pin — `ta.wma(low, k)` and `ta.rsi(close, k)` left this list:
+      // `vw-once-ta-helper` (T06 / T01) witnesses both inside a helper called once.
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.vwma(low, k)))'], ['g(3)'], /`ta\.vwma`/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.ema(close, k)))'], ['g(1)'], /whose length is not a whole number above 1/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.lowest(k)))'], ['g(3)'], /in a form no capture reads/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.rsi(close, k)))'], ['g(14)'], /witnessed in a block that runs once, not inside a function called once/],
       [['g(float src) =>', '    y = src + 1', '    label.new(bar_index, high, str.tostring(y[bar_index - 600]))'], ['g(close)'], /`y\[…\]`.*whole number above 0/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(bar_index[k]))'], ['g(0)'], /`bar_index\[…\]`.*whole number above 0/],
     ]

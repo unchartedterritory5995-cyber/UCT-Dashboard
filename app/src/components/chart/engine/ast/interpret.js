@@ -85,7 +85,7 @@ import { yieldsOf, SENTENCE_RULES } from './sentence.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT, VWAP_MIN_INSTANT,
   CLOCK_PERIOD_SECONDS, computePeriodCalendar,
 } from '../../indicators.js'
 
@@ -3176,14 +3176,48 @@ export const BAR_FN = Object.freeze({
   }
 }
 
+/** ⭐⭐ F1 — `ta.vwap` / `ta.vwap(source)` ON A DAILY CHART: every daily bar is its
+ *  own session, so the value is the bar's own price — the source, or the typical
+ *  price `(h + l + c) / 3` for the bare form — wherever the bar has volume.
+ *  WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` (CAP2 Q-H3a, AMEX:SPY 1D): S01 bare
+ *  = hlc3 and S02..S08 (close, open, high, low, hl2, ohlc4, hlcc4) = that price, on
+ *  every bar. `computeVWAP` refuses a daily store key (no instant to bucket by), so
+ *  without this the rows were BLANK where TradingView draws values.
+ *  ⛔ Only when the CALLER states the chart is daily (`opts.tf === 'D'`) and every
+ *  bar is a daily key; a weekly or monthly bar is not witnessed and stays blank —
+ *  and the Python lane, which states no chart, keeps `computeVWAP`'s answer.
+ *  Returns null when it does not apply. */
+function dailySessionVwap(name, bars, args, length, opts) {
+  if (!opts || opts.tf !== 'D' || !Array.isArray(bars) || bars.length !== length || !length) return null
+  // a daily KEY on every bar: the chart's `'YYYY-MM-DD'`, or the alert lane's
+  // date-shaped integer (both below any real instant)
+  for (let i = 0; i < length; i++) {
+    const t = bars[i] ? bars[i].t : undefined
+    const key = typeof t === 'string' ? /^\d{4}-\d{2}-\d{2}$/.test(t) : (Number.isFinite(t) && t < VWAP_MIN_INSTANT)
+    if (!key) return null
+  }
+  const src = name === 'vwapOf' ? (args && args[0]) : null
+  if (name === 'vwapOf' && !(src && typeof src.length === 'number')) return null
+  const out = nan(length)
+  for (let i = 0; i < length; i++) {
+    const b = bars[i]
+    if (!(b.v > 0)) continue
+    const v = src ? src[i] : (b.h + b.l + b.c) / 3
+    out[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
+  }
+  return out
+}
+
 /** Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
  *
  *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL — the same contract
  *  `bindShipped` states, against the same `[]` "there is nothing to say here"
  *  signal both refusals above return. A short array padded from the left would
  *  put a real value at the wrong bar. */
-function barColumn(name, bars, args, length) {
+function barColumn(name, bars, args, length, opts) {
   const out = nan(length)
+  const daily = (name === 'vwap' || name === 'vwapOf') ? dailySessionVwap(name, bars, args, length, opts) : null
+  if (daily) return daily
   const points = BAR_FN[name](bars, args)
   if (!Array.isArray(points) || points.length !== length) return out
   for (let i = 0; i < length; i++) {
@@ -3317,6 +3351,17 @@ export const PINE_TERNARY = (t, a, b) => (pineBool(t) ? a : b)
  *  (`runtime/lowerIr.js` `naFalse`). Off the listing `TERNARY` stands. */
 export const pineTernaryFor = (opts) => !!opts && opts.historyFromListing === true
   && opts.naConditionFalse === true
+
+/** ⭐⭐ F1 — `not` and `or` read an `na` operand as false and answer a bool that is
+ *  never `na`, under the same two facts (`pineTernaryFor`). WITNESSED by CAP2's
+ *  `rt3-na-logic-{rddt,v4-rddt}-1d-2026-10-02` (RT3 queue Q-NL-a/b, v5 and v4):
+ *  `not w` (w na) → true (B02), `na(w or false)` → false (B04), `na(not w)` →
+ *  false (B05), `not b` (`bool b = na`) → true (B07). `and` is left as it was: its
+ *  `na` result is only ever read as a condition (B03), where it is already false. */
+export const PINE_NOT = (a) => (pineBool(a) ? 0 : 1)
+export const PINE_OR = (a, b) => (pineBool(a) || pineBool(b) ? 1 : 0)
+const pineOpFor = (opts, name, fallback) => (pineTernaryFor(opts)
+  ? (name === '!' ? PINE_NOT : name === '||' ? PINE_OR : fallback) : fallback)
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
@@ -5783,7 +5828,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // pack of argument columns whose `t` is a bar index. The question asked
         // is "does this entry declare it", never "is this call `vwap`", so a
         // third such entry needs no edit here.
-        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
+        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length, opts)
         return FN[n.name](...args)
       }
       case 'str':
@@ -5992,13 +6037,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 1) {
         refuse('resolve:arity', `— ${name} expects 1 arguments, got ${values.length}`)
       }
-      return lift1(values[0], UNARY[name], length)
+      return lift1(values[0], pineOpFor(opts, name, UNARY[name]), length)
     }
     if (own(BINARY, name)) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return lift2(values[0], values[1], BINARY[name], length)
+      return lift2(values[0], values[1], pineOpFor(opts, name, BINARY[name]), length)
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)
@@ -6026,13 +6071,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 1) {
         refuse('resolve:arity', `— ${name} expects 1 arguments, got ${values.length}`)
       }
-      return UNARY[name](values[0])
+      return pineOpFor(opts, name, UNARY[name])(values[0])
     }
     if (own(BINARY, name)) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return BINARY[name](values[0], values[1])
+      return pineOpFor(opts, name, BINARY[name])(values[0], values[1])
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)

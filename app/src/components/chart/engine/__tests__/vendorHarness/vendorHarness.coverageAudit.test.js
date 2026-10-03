@@ -98,23 +98,18 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // cpr-with-mas-super-trend-vwap (wave-16 H2/H3 attach) ------------------------
-  it.fails('cpr-with-mas-super-trend-vwap RDDT: MATCH', () => {
+  // ⭐ F1 (step 73) — FLIPPED: on a daily chart every daily bar is its own `ta.vwap`
+  // session (CAP2 Q-H3a, `h3-vwap-source-spy-1d`), so the VWAP row is the bar's own
+  // source and the RDDT capture MATCHes on all 30 items.
+  it('cpr-with-mas-super-trend-vwap RDDT: MATCH (F1)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: RDDT VWAP is na on every one of 636 bars (TradingView: a value); the other 28 compared items agree', () => {
-    const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02')
-    const p = item(v, 'VWAP')
-    expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
-    expect(p.stats.steady.divergent).toBe(636)
-    expect(v.plots.filter((x) => x.verdict === 'DIVERGE').map((x) => x.title)).toEqual(['VWAP'])
   }, T)
   it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP na from bar 960 to the last; CP/BC/TC/D-S1/D-R1 colour on bar 1 only (TradingView transparent); EMA a converging prefix', () => {
+  it('control: SPY VWAP agrees on every bar now (F1); CP/BC/TC/D-S1/D-R1 colour on bar 1 only (TradingView transparent); EMA a converging prefix', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
-    expect(first(item(v, 'VWAP'))).toMatchObject({ bar: 960, kind: 'na' })
-    expect(item(v, 'VWAP').stats.steady.pattern.kind).toBe('persistent')
+    expect(item(v, 'VWAP').verdict).toBe('MATCH')
     for (const t of ['CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
       expect(first(item(v, t)), t).toMatchObject({ bar: 1, kind: 'color' })
       expect(item(v, t).stats.steady.divergent, t).toBe(1)
@@ -145,7 +140,9 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     for (const id of ['multicator-table-rddt-1d-2026-10-02', 'multicator-table-spy-1d-2026-10-02']) {
       const { v } = grade(id)
       expect(v.plots.filter((p) => p.verdict === 'DIVERGE'), id).toEqual([])
-      expect(v.objects.reason, id).toMatch(/holds 72 drawing object.*no drawing program/)
+      // ⭐ F1 — the door WITHHOLDS this script's drawings by name (its object program
+      // lost a removal); graded as withheld, no longer as "no drawing program"
+      expect(v.objects.reason, id).toMatch(/withheld by name/)
     }
   }, T)
 
@@ -271,7 +268,9 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     for (const [id, n] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 12], ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', 22]]) {
       const v = grade(id, 'runtime').v
       expect(v.objects.reason, id).toMatch(new RegExp(`holds ${n} drawing object.*no drawing program`))
-      expect(v.paints.reason, id).toMatch(/offset/)
+      // ⭐ F1 — the `offset` is served now (render-time placement); a runtime-lane
+      // document draws no paint at all, and says so ("Not drawn by this pane")
+      expect(v.paints.reason, id).toMatch(/notDrawn/)
     }
   }, T)
   it.fails('fibonacci-dolphintradebot RDDT (runtime pane): MATCH', () => {

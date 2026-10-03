@@ -403,7 +403,11 @@ export function lowerIrProgram(ir, opts = {}) {
         //     mutation log), so an `or` over an operand this lane cannot show is
         //     0/1 is COUNTED (`naTestsOf`) and the member door declines it by
         //     name. v6 never reaches here (`lazyLogic`): its `bool` is never `na`.
-        if (e.op === '||' && naFalse && !(isBoolIr(e.left) && isBoolIr(e.right))) naTests += 1
+        // ⭐⭐ F1 — NOW WITNESSED (CAP2 `rt3-na-logic`, Q-NL-a/b, v5 and v4): an `or`
+        // reads an `na` operand as false and its answer is never `na` (B04:
+        // `na(w or false)` is false). So each operand is read AS A CONDITION and
+        // the shared `||` sees only 0/1 — the host lane's `interpret.js::PINE_OR`.
+        if (e.op === '||' && naFalse) { asCondition(e.left); asCondition(e.right); emit(op); return }
         expr(e.left); expr(e.right); emit(op)
         return
       }
@@ -417,8 +421,10 @@ export function lowerIrProgram(ir, opts = {}) {
         // unwitnessed, so a `not` over an operand this lane cannot show is 0/1
         // is COUNTED (`naTestsOf`), exactly like `or` above, and keeps the
         // shared `!`. Below v4 nothing is claimed.
-        if (e.op === '!' && naFalse && lazyLogic) { asCondition(e.of); emit(op); return }
-        if (e.op === '!' && naFalse && !isBoolIr(e.of)) naTests += 1
+        // ⭐⭐ F1 — and v4/v5 `not` too, now WITNESSED (B02 `not w` → true, B05
+        // `na(not w)` → false, B07 `not (bool b = na)` → true): the operand is read
+        // AS A CONDITION, exactly as v6 already was (`interpret.js::PINE_NOT`).
+        if (e.op === '!' && naFalse) { asCondition(e.of); emit(op); return }
         expr(e.of); emit(op)
         return
       }
