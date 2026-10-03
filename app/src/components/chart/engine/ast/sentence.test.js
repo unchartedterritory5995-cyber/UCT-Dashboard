@@ -210,6 +210,12 @@ const FORMS = [
     parts: ['the running total of ', 0,
       ' from the first bar at or after epoch ', 1, ', for at most ', 2, ' bars'] },
 
+  // ⭐ `vwapOf` (2026-10-02, H3) — Pine's `ta.vwap(source)` for a bar price.
+  // `vwap()`'s sentence names no operand (*the volume-weighted average price so
+  // far this session*) and this one names it (*the volume-weighted average of
+  // close …*), so the two cannot both read one sentence.
+  { kind: 'call', name: 'vwapOf', parts: ['the volume-weighted average of ', 0, ' so far this session'] },
+
   // ⭐⭐ `cum` (2026-09-09, owner Ruling D) — the UNANCHORED running total, and
   // the pair with `cumFrom` above is the whole reason this rail is hand-typed.
   // Both sentences open `the running total of ` and a member must be able to tell
@@ -1200,6 +1206,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:valuewhen',
       'function:valuewhenOccurrence',
       'function:vwap',
+      'function:vwapOf',
       'function:williamsR',
       'function:wma',
     ])
@@ -1220,7 +1227,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
-    expect(entries.length).toBe(130)
+    // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
+    expect(entries.length).toBe(131)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1241,7 +1249,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
-    expect(subjects.length).toBe(130)
+    // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
+    expect(subjects.length).toBe(131)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2459,7 +2468,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
       // is declarable: with no argument columns to pack there is no fabricated
       // bar-index `t`, so the binding reads the real instant.
-      'vwap_session', 'avwap_from_a_mid_series_instant',
+      'vwap_session',
+      // ⭐ H3 (2026-10-02): `vwapOf(close)`, the same accumulator weighting a bar price.
+      'vwap_of_close_session',
+      'avwap_from_a_mid_series_instant',
       // ⛔ AND ONE REFUSAL ROW: the anchor is one second before the first bar,
       // so `avwap` answers NOT COMPUTABLE rather than a column that would move
       // when the caller's window moved.
@@ -2677,7 +2689,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
-    expect(sentences.length).toBe(CORPUS.cases.length + 130)
+    // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 131)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

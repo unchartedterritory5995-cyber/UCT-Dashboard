@@ -325,7 +325,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # (2026-09-30, C38) 129 -> 130: `barsAgo`, Pine's history operator with a per-bar
     # index (`x[e]`), bounded by its literal third argument (`lookback: "arg2"`).
     # No new node type, argument kind or lookback form. The scalar half is untouched.
-    assert len(ast_table.bar_names()) == 130, len(ast_table.bar_names())
+    # (2026-10-02, H3) 130 -> 131: `vwapOf(source)`, Pine's `ta.vwap(source)` for a
+    # bar price -- the same session accumulator as `vwap()`.
+    assert len(ast_table.bar_names()) == 131, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -376,7 +378,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 123 -> 129, the scalar half is untouched at 137; this is their sum.
     # 266 -> 267 (2026-09-30, C38): `barsAgo`. The bar half moved 129 -> 130,
     # the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 267, f"the table declares {len(declared)} names, not 267"
+    # 267 -> 268 (2026-10-02, H3): `vwapOf`. The bar half moved 130 -> 131,
+    # the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 268, f"the table declares {len(declared)} names, not 268"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

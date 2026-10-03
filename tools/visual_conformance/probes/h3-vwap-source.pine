@@ -1,0 +1,26 @@
+//@version=6
+indicator("UCTPROBE_H3_VWAP_SOURCE", overlay = false)
+
+// H3 (2026-10-02) -- `ta.vwap(source)` for every bar price the member door now
+// serves as `vwapOf(source)`.
+//
+// `vw-clock-vwap-spy-5-ext-2026-09-28` grades `ta.vwap(close)` on one 5-minute
+// extended-hours session (V08 + V09). The other prices (open / high / low /
+// hl2 / ohlc4 / hlcc4) ride the same accumulator by construction and have no
+// capture of their own; a daily chart has only the group-B AGGREGATE reading
+// (40 bars, min/max of vwap(close) - vwap). Capture this on:
+//   AMEX:SPY 1D (several hundred bars)  -- one ET session per bar
+//   AMEX:SPY 5 (regular session)        -- the session reset at 09:30 data
+// so each row is compared bar for bar.
+
+plot(bar_index, "S00_bar_index_CONTROL")
+plot(ta.vwap, "S01_vwap_bare_RAW")
+plot(ta.vwap(close), "S02_vwap_close_RAW")
+plot(ta.vwap(open), "S03_vwap_open_RAW")
+plot(ta.vwap(high), "S04_vwap_high_RAW")
+plot(ta.vwap(low), "S05_vwap_low_RAW")
+plot(ta.vwap(hl2), "S06_vwap_hl2_RAW")
+plot(ta.vwap(ohlc4), "S07_vwap_ohlc4_RAW")
+plot(ta.vwap(hlcc4), "S08_vwap_hlcc4_RAW")
+// what a computed source with a warm-up does (served nowhere today; refused by name)
+plot(ta.vwap(ta.sma(close, 5)), "S09_vwap_sma5_UNSERVED_reading")

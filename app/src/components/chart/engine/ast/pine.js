@@ -12541,14 +12541,29 @@ export class Resolver {
         const want = derivedSeriesTree('hlc3', this.table)
         const got = this.resolve(args[0].value !== undefined ? args[0].value : args[0])
         if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          // ⭐⭐ H3 (2026-10-02) — ANOTHER BAR PRICE IS `vwapOf(source)`: the same
+          // session accumulator (`computeVWAP`, its boundary and all) weighting that
+          // price. Witnessed: `ta.vwap(close)` is `V08 + V09` of
+          // `vw-clock-vwap-spy-5-ext-2026-09-28` on every 5-minute bar (sessions
+          // reset across extended hours) and `N14 + N12` of the 1D group-B capture
+          // (one bar, one session: the close itself) — `vendorHarness.h3VwapSource`.
+          // ⛔ ONLY A PRICE THE BAR ITSELF CARRIES: `open` / `high` / `low` / `close`
+          // or one of their means. A computed source can be `na`, and what Pine's
+          // session sum does with an `na` term is unwitnessed, so it keeps the
+          // refusal below rather than a guess.
+          const barPrice = ['open', 'high', 'low', 'close'].filter((n) => own(this.table.series || {}, n))
+            .map((n) => cSeries(n))
+            .concat(['hl2', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, this.table)).filter(Boolean))
+            .some((t) => JSON.stringify(t) === JSON.stringify(got))
+          if (barPrice && own(this.table.functions, 'vwapOf')) return cCall('vwapOf', [got])
           throw new PineRefusal('pine:arity',
             REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
-            + 'source, and this table carries ONE volume-weighted average price: '
-            + 'the typical price `hlc3`, reset each session — ' + signatureOf(key, spec)
-            + '. Measured on TradingView, `ta.vwap(hlc3)` is that same column and '
-            + 'any other source is a different one (`ta.vwap(close)` moved −4.29 to '
-            + '+2.91 away from it over 40 SPY daily bars). TO UNBLOCK: write '
-            + '`ta.vwap` or `ta.vwap(hlc3)`',
+            + 'source this table cannot weigh: the session VWAP is carried for a price '
+            + 'the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, `hlc3`, '
+            + '`ohlc4`, `hlcc4`) — ' + signatureOf(key, spec) + ' / vwapOf(series). '
+            + 'A computed source can be `na` on a bar, and what TradingView\'s session '
+            + 'sum does with an `na` term has not been measured. TO UNBLOCK: weigh a '
+            + 'bar price, e.g. `ta.vwap(close)`',
             locate(tok))
         }
         plan = []
