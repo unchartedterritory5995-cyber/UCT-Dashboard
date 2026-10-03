@@ -6,6 +6,7 @@ import PayoffPanel from './PayoffPanel'
 import VolSurfacePanel from './VolSurfacePanel'
 import IvHistoryPanel from './IvHistoryPanel'
 import PositioningPanel from '../../optionsAnalytics/PositioningPanel'
+import { IvRankBadge, OptionMonitorStrip, VolStatsPanel } from '../../optionsAnalytics/VolPanels'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -83,10 +84,12 @@ export default function OptionsChainTab({ sym, volSurface = false }) {
         </label>
         <span>{s} <b>{fmt(d.spot, 2)}</b></span>
         <span data-testid="atm-iv">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
-        <span className={styles.muted} title="IV rank compares today's IV with its own history, which is not licensed yet.">
-          IV rank: needs IV history
-        </span>
+        <IvRankBadge sym={s} fallback={
+          <span className={styles.muted} title="IV rank compares today's IV with its own history, which is not licensed yet.">
+            IV rank: needs IV history
+          </span>} />
       </div>
+      <OptionMonitorStrip sym={s} />
       <div className={styles.scroll}>
         <table className={styles.grid}>
           <thead>
@@ -112,6 +115,7 @@ export default function OptionsChainTab({ sym, volSurface = false }) {
       <PayoffPanel rows={rows} spot={Number(d.spot)} />
       {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <IvHistoryPanel sym={s} />
+      <VolStatsPanel sym={s} />
       <PositioningPanel sym={s} />
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA), greeks and IV exchange-derived · refreshed every {d.cache_seconds || 60}s

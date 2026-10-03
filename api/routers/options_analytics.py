@@ -127,3 +127,56 @@ async def positioning_impact(sym: str, dte: str = Query("month", pattern=_DTE),
 async def positioning_dealer_short(sym: str, _user: dict = Depends(require_paid)):
     from api.services.options_analytics import positioning
     return await _positioning(positioning.dealer_short, _sym(sym))
+
+
+# ── FT-006 IV rank · FT-020 volatility endpoints · FT-019 option monitor ────────
+# Plain `def`: bars, the vendor chain and our options log (R2 / gzip) all block.
+
+def _blocking(fn, *args, **kw) -> dict:
+    """A provider or store that cannot be read is a 503 in words, never an empty answer."""
+    try:
+        return fn(*args, **kw)
+    except Exception as e:  # noqa: BLE001 -- surfaced by name
+        detail = str(e) if isinstance(e, RuntimeError) else type(e).__name__
+        raise HTTPException(status_code=503, detail=f"Volatility data unavailable: {detail}") from e
+
+
+@router.get("/api/options/vol/{sym}/iv-rank", dependencies=[Depends(_switch("OPTIONS_IV_RANK_ENABLED"))])
+def vol_iv_rank(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.iv_rank, _sym(sym))
+
+
+@router.get("/api/options/vol/{sym}/term-structure",
+            dependencies=[Depends(_switch("OPTIONS_VOL_ENDPOINTS_ENABLED"))])
+def vol_term_structure(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.term_structure, _sym(sym))
+
+
+@router.get("/api/options/vol/{sym}/interpolated-iv",
+            dependencies=[Depends(_switch("OPTIONS_VOL_ENDPOINTS_ENABLED"))])
+def vol_interpolated_iv(sym: str, days: int = Query(30, ge=1, le=730),
+                        _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.interpolated_iv, _sym(sym), days)
+
+
+@router.get("/api/options/vol/{sym}/realized",
+            dependencies=[Depends(_switch("OPTIONS_VOL_ENDPOINTS_ENABLED"))])
+def vol_realized(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.realized, _sym(sym))
+
+
+@router.get("/api/options/vol/{sym}/vrp", dependencies=[Depends(_switch("OPTIONS_VOL_ENDPOINTS_ENABLED"))])
+def vol_vrp(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.vrp, _sym(sym))
+
+
+@router.get("/api/research/options/{sym}/monitor",
+            dependencies=[Depends(_switch("OPTIONS_MONITOR_ENABLED"))])
+def option_monitor(sym: str, _user: dict = Depends(require_paid)):
+    from api.services.options_analytics import vol
+    return _blocking(vol.monitor, _sym(sym))

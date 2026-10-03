@@ -107,7 +107,7 @@ function MaxPain({ sym }) {
 
 function Nope({ sym }) {
   const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/nope`)
-  if (hidden || (!data && !failed)) return null
+  if (hidden || (!data && !failed) || (data && !('nope' in data))) return null
   return (
     <Block title="NOPE" testid="posn-nope" failed={failed} what="NOPE">
       {data && (
@@ -133,7 +133,7 @@ const BAND_WORDS = {
 
 function Impact({ sym }) {
   const { data, hidden, failed } = useDarkSection(`/api/options/positioning/${enc(sym)}/impact`)
-  if (hidden || (!data && !failed)) return null
+  if (hidden || (!data && !failed) || (data && !('impact_ratio' in data))) return null
   return (
     <Block title="Options Impact" testid="posn-impact" failed={failed} what="Options Impact">
       {data && (

@@ -151,6 +151,24 @@
       "where": [],
       "note": "FT-052 (lane/gaps-options). GET /api/options/positioning/{sym}/dealer-short: the latest dealer_positioning snapshot's 100 largest-OI contracts read from flow-worker's /api/dealer-positioning/sample with the service bearer; dealer net = minus estimated customer net; contracts dealers are estimated net short are listed with confidence and a plain-language explanation. A failed read is a 503. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its block under Research > Options renders nothing; every other positioning block keeps its own switch. Set (paid): computed from the GEX chain gex_service already fetches (its source rule, its 60 s Massive cache), vendor inputs named, label computed. Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_IV_RANK_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-006 (lane/gaps-options). GET /api/options/vol/{sym}/iv-rank: IV rank / percentile from OUR options log only (research/iv_history.py), with a plain word (Very low <20, Low <40, Moderate <60, Elevated <80, High) shown in the option chain header in place of the fixed 'IV rank: needs IV history'. Below 20 current-rule sessions the answer is the sentence 'IV rank: N sessions logged, needs 20 (first possible <date>)', never a number. The log began 2026-09-30, so this reads as the sentence until roughly late October. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its element under Research > Options renders nothing (or keeps its old text). Set (paid). Plain def routes (bars, the vendor chain and our options log block). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_VOL_ENDPOINTS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-020 (lane/gaps-options). GET /api/options/vol/{sym}/term-structure (vendor ATM IV by expiration, from vol_surface), /interpolated-iv?days= (computed: total variance interpolated between the bracketing expirations, never extrapolated), /realized (computed close-to-close HV10/20/30 from completed sessions; an empty bar read is unavailable, not zero), /vrp (computed IV30 - HV30, and the variance form), plus the Volatility block under the chain. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its element under Research > Options renders nothing (or keeps its old text). Set (paid). Plain def routes (bars, the vendor chain and our options log block). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_MONITOR_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-019 (lane/gaps-options). GET /api/research/options/{sym}/monitor: the option monitor strip in the chain header - HV20/HV30 (computed), an EVTS link with the next earnings date and days to it (research snapshot's next_earnings, or 'No scheduled earnings date on file'), and the front expiration's vendor call/put volume and put/call ratio. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its element under Research > Options renders nothing (or keeps its old text). Set (paid). Plain def routes (bars, the vendor chain and our options log block). Rollback: set 0 (a DELETE does not restart web)."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",
