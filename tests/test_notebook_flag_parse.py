@@ -51,6 +51,7 @@ from api.services.journal_two import ai_actions
 from api.services.journal_two import writing_help
 from api.services.journal_two import tech_fingerprint
 from api.services.journal_two import chart_plan
+from api.services.journal_two import entry_context
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -124,6 +125,8 @@ def _server_gates() -> dict:
         "NOTEBOOK_TA_FINGERPRINT_ENABLED": tech_fingerprint.enabled,
         # Wave 13 lane 13H-1: the chart-plan router's own gate function.
         "NOTEBOOK_CHART_PLAN_ENABLED": chart_plan.enabled,
+        # Wave 13 lane 13E-1: the entry-context router's (and hooks') own gate function.
+        "NOTEBOOK_ENTRY_CONTEXT_ENABLED": entry_context.enabled,
     }
 
 

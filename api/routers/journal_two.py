@@ -523,9 +523,15 @@ def get_position(
     return got
 
 
+# Wave 13 lane 13E-1: the add schedules the entry-context freeze AFTER its response.
+from fastapi import BackgroundTasks  # noqa: E402
+from api.services.journal_two import entry_context as entry_context_service  # noqa: E402
+
+
 @router.post("/positions")
 def create_position(
     payload: dict[str, Any],
+    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a new open Position (spec §8). If payload.accountId is
@@ -543,11 +549,16 @@ def create_position(
     if not isinstance(ctx, dict):
         ctx = {}
     try:
-        return positions_service.create_position(
+        created = positions_service.create_position(
             user["id"], payload, ctx, account_id=acc_id,
         )
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 13 lane 13E-1: freeze the market context at the fill. Runs after the response,
+    # reads only the position just returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is
+    # off, and never raises -- the add has already succeeded and nothing here can change it.
+    background_tasks.add_task(entry_context_service.on_position_added, user["id"], created)
+    return created
 
 
 @router.put("/positions/{position_id}")

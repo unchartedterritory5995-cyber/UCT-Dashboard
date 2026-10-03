@@ -159,6 +159,10 @@ _DIRECT_USER_TABLES = (
     # this is a "no such table" no-op.
     "j2_chart_blocks",
     "j2_chart_fingerprints",
+    # Wave 13 (lane 13E-1, the market context frozen at the fill) -- one row per (member,
+    # symbol, entry day), with the member's "why did you take it" note. Self-ensured by
+    # entry_context.py (never db.py), so on a pod where it never ran this is a no-op.
+    "j2_entry_context",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

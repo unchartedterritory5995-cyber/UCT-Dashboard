@@ -192,6 +192,10 @@ NOTEBOOK_FLAGS = {
     # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_plan_grading_enabled`.
     "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
+    # Wave 13 lane 13E-1: the market context frozen at the fill. The router's gate
+    # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
+    # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
