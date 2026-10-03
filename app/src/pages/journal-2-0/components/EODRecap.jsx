@@ -81,7 +81,13 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
           <button type="button" onClick={onRegenerate} style={ghost()}>Regen</button>
           <button type="button" onClick={onForget} style={ghost()}>Forget</button>
           {reviewDraftsEnabled() && (
-            <button type="button" onClick={handleDraft} disabled={drafting} style={ghost()}>
+            <button
+              type="button"
+              className="touchTarget"
+              onClick={handleDraft}
+              disabled={drafting}
+              style={ghost()}
+            >
               {drafting ? 'Drafting…' : 'Draft in today’s note'}
             </button>
           )}

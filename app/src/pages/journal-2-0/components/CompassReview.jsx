@@ -85,7 +85,13 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
           <button type="button" onClick={onRegenerate} style={ghostBtn()}>Regenerate</button>
           <button type="button" onClick={onForget} style={ghostBtn()}>Forget</button>
           {reviewDraftsEnabled() && (
-            <button type="button" onClick={handleDraft} disabled={drafting} style={ghostBtn()}>
+            <button
+              type="button"
+              className="touchTarget"
+              onClick={handleDraft}
+              disabled={drafting}
+              style={ghostBtn()}
+            >
               {drafting ? 'Drafting…' : 'Draft weekly review note'}
             </button>
           )}

@@ -227,11 +227,21 @@ def run_walk(base: str, art: Path, flag_off: bool) -> None:
             state["account_id"] = account_id
 
             today = datetime.now(ET)
-            week_mon = monday_of(today - timedelta(days=14))  # a fully-closed prior week
+            # The ONE "Draft this week's review" button in Insights always targets
+            # mondayOfIso() of RIGHT NOW (reviewDrafts.js / InsightsHub.jsx -- no date param),
+            # so the seeded week MUST be the current one, not an arbitrary closed one: a prior
+            # run seeded a week 14 days back, clicked the real button, and landed on an empty
+            # "Week of <this week>" note -- trades=0, net_pnl=$0.00, no leak toggle -- a walk
+            # bug, not a product one (traced via a body_text_excerpt diagnostic, not assumed).
+            week_mon = monday_of(today)
             week_start = week_mon.strftime("%Y-%m-%d")
             state["week_start"] = week_start
+            # Clamp every offset to a day that has already happened (never a future trade
+            # date) so this still works no matter which weekday the walk is run on.
+            days_elapsed = (today.date() - week_mon.date()).days
 
             def trade(sym, entry, stop, exit_, day_offset, hhmm):
+                day_offset = min(day_offset, days_elapsed)
                 day = (week_mon + timedelta(days=day_offset)).strftime("%Y-%m-%d")
                 body = {
                     "symbol": sym, "side": "Long", "shares": 100, "entryPrice": entry,
@@ -278,6 +288,7 @@ def run_walk(base: str, art: Path, flag_off: bool) -> None:
             btn.wait_for(timeout=15000)
             btn.click()
             pg.wait_for_url("**/journal/notebook*note=*", timeout=45000)
+            pg.wait_for_selector(".ProseMirror", timeout=20000)
             s1 = shot(pg, "w2-landed-note-1200")
             note_id = pg.url.split("note=")[-1].split("&")[0]
             state["note_id"] = note_id
@@ -290,6 +301,11 @@ def run_walk(base: str, art: Path, flag_off: bool) -> None:
         def w3():
             note_id = state.get("note_id")
             pg = state.get("note_page")
+            # WAIT for the editor to actually mount its document -- a sample right after
+            # navigation can land on the route's own loading skeleton (jsdom-free lesson:
+            # a waiter beats a sample taken at one instant). ".ProseMirror" is the editor's
+            # own root; its presence is the ground truth, not a fixed sleep.
+            pg.wait_for_selector(".ProseMirror", timeout=20000)
             api = M.get(base + "/api/j2/review-drafts/weekly",
                        params={"weekStart": state["week_start"]}).json()
             note = M.get(base + f"/api/j2/notes/{note_id}").json()["note"]
@@ -302,8 +318,9 @@ def run_walk(base: str, art: Path, flag_off: bool) -> None:
             # text cursor there cannot collapse the block) -- the chevron BUTTON is the only way
             # `open` changes (lib/toggleNode.js). Read `data-open` before/after to prove it moved.
             toggle_div = pg.locator('[data-type="toggle"]', has_text="Revenge")
+            toggle_count = toggle_div.count()
             opened = False
-            if toggle_div.count() > 0:
+            if toggle_count > 0:
                 before = toggle_div.first.get_attribute("data-open")
                 toggle_div.first.locator("button.uctToggleChevron").click()
                 pg.wait_for_timeout(300)
@@ -314,10 +331,13 @@ def run_walk(base: str, art: Path, flag_off: bool) -> None:
             compass_shows = (ask_insert.count() > 0 and "week" in (ask_insert.first.get_attribute("aria-label") or "").lower())
             ok = has_numbers and has_revenge and opened
             record("W3_note_numbers_leak_and_compass", "PASS" if ok else "FAIL",
-                   net_pnl=api["aggregates"]["net_pnl_dollar"], numbers_on_page=has_numbers,
-                   api_has_revenge_leak=has_revenge, leak_opened=opened,
+                   net_pnl=api["aggregates"]["net_pnl_dollar"], net_pnl_rendered=net_pnl_rendered,
+                   numbers_on_page=has_numbers,
+                   api_has_revenge_leak=has_revenge, leak_opened=opened, toggle_count=toggle_count,
                    compass_ask_insert_present=ask_insert.count() > 0, compass_label_shows=compass_shows,
-                   compass_was_generated=state.get("compass_generated"), screenshot=s)
+                   compass_was_generated=state.get("compass_generated"), screenshot=s,
+                   # DIAGNOSTIC ONLY while this check is unstable -- not part of the verdict:
+                   body_text_excerpt=(None if has_numbers else body_text[:4000]))
             if not state.get("compass_generated"):
                 record("W3b_compass_label_shows", "INCONCLUSIVE",
                        reason="the seeding call to the pre-existing Compass weekly-review generator "

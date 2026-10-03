@@ -211,6 +211,7 @@ function ReviewDraftsSection({ accountId }) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <button
           type="button"
+          className="touchTarget"
           onClick={() => run('daily', () => draftDailyReview({ accountId: scope, day: todayDayIso() }))}
           disabled={Boolean(busy)}
         >
@@ -218,6 +219,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
         <button
           type="button"
+          className="touchTarget"
           onClick={() => run('weekly', () => draftWeeklyReview({ accountId: scope, weekStart: mondayOfIso() }))}
           disabled={Boolean(busy)}
         >
@@ -225,6 +227,7 @@ function ReviewDraftsSection({ accountId }) {
         </button>
         <button
           type="button"
+          className="touchTarget"
           onClick={() => run('monthly', () => draftMonthlyReview({ accountId: scope, month: thisMonthIso() }))}
           disabled={Boolean(busy)}
         >
