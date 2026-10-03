@@ -5525,14 +5525,8 @@ The runtime lane declines each of them today, at its own walls (table above, `RT
 | harness (all captures, 171), pane off / on / on + runtime | MATCH 47 / 60 / 61 | MATCH 47 / 60 / 61; **0 MATCH -> DIVERGE** |
 | harness entries that moved | - | `vw-clock-vwap-spy-5-ext-2026-09-28` INCONCLUSIVE -> INCONCLUSIVE (the script now attaches: V01-V06, V11-V14 MATCH on 300 bars; the four vwap rows sit in the session warm-up, inconclusive); `vw-clock-vwap-spy-1d-2026-09-27` INCONCLUSIVE -> **DIVERGE** on V07-V10 only: on the harness's 1D bars `t` is a date key, `computeVWAP`'s unit gate refuses it, and every vwap row is `na` where TradingView draws (each daily bar its own session, so V10 = hlc3). That is the pre-existing behaviour of the bare `vwap()` on a daily chart, reached now because the script attaches; no value is drawn wrong, the rows are blank. Owner/integrator question below |
 
-Focused runs on the tip: `ast/pine*` + `corpusMetric` 118 files, 1,456 passed, 2 failed - `pineProbeReplay` (step
-hashes for 72s-hull / adaptive-trend) and `pineTimeAnchorAccept` (pa-zigzag's message); **both fail identically on
-the O1 base bytes**, so neither is H3's. `ast/ runtime/ builder/` 499 files, 7,513 passed, 8 failed: the two above,
-`pineStrictCensus` (a 15 s wall-clock timeout, also red on the base bytes), `formulaDocs` (regenerated in
-`f97cbdb76c`) and `pineBareArityShortFormAccept` (its cpr case, updated in `f97cbdb76c`), and five opt-in
-`*.measure.test.js` that are red on the base bytes as well. Python, scoped: 17 files 777 passed; 36 more files 1,003
-passed and 10 failed (`test_concept_vocabulary`, `test_definition_concierge`, `test_starter_library`), the same 10 on
-the base bytes. `paramIds.test.js` green, no edit.
+Focused runs (scratch logs under the lane's `h3lane/`): `ast/pine*` + `corpusMetric` on the tip, 118 files, Tests 2 failed | 1456 passed - `pineProbeReplay` (step hashes for 72s-hull / adaptive-trend) and `pineTimeAnchorAccept` (pa-zigzag's message), **both red identically on the O1 base bytes**. After the last commit, the rails this lane edited: 6 vitest files (formulaDocs, pineBareArityShortFormAccept, parse,
+sentence, pine.derived, h3VwapSource) Tests 195 passed (195); pytest test_ast_interpret / _vwap_parity / _conformance / _scalars / _vwap_of 346 passed, 5 skipped. Wider runs were taken BEFORE the count rails were updated, so they are not tip measurements: `ast/ runtime/ builder/` 506 files, Tests 8 failed | 7513 passed (the stale count rails, `pineStrictCensus`'s wall-clock timeout, four opt-in `*.measure.test.js` red on the base bytes too); a 36-file pytest set 10 failed | 1003 passed (`test_concept_vocabulary`, `test_definition_concierge`, `test_starter_library`, the same 10 on the base bytes). `paramIds.test.js` green, no edit.
 
 ### Questions for the integrator
 
