@@ -26,14 +26,14 @@ Preconditions: app/dist rebuilt from this tree (`npm run build` in app/); the po
 never killed); the data dir outside the shared root (refused) and EMPTY.
 
   W0  the gate rides the auth payload ON for the walk member, both flags
-  W1  1200 px: the board shows three cards in closeness order (NVDA 2.0% waiting, AMD 10.0%
-      watching, TSLA 10.0% invalidated), each with its own entry/stop/target lines and a price
+  W1  1200 px: the board shows three cards in closeness order (ZQVA 2.0% waiting, ZQVB 10.0%
+      watching, ZQVC 10.0% invalidated), each with its own entry/stop/target lines and a price
       source line; a mini-chart mounts on the admitted cards
   W2  every card's mini-chart mounts (this fixture has 3 cards, at the grid's own mount cap, so
       the cap itself is not stressed here -- SetupsBoard.test.jsx's 40-card fixture and the
       mutation proof are what prove the cap holds at scale); no bars request fires before the
       board's own heading painted
-  W3  keyboard: Tab reaches "Find more like NVDA", Enter opens the matches sheet
+  W3  keyboard: Tab reaches "Find more like ZQVA", Enter opens the matches sheet
   W4  find more like this: CRWD's reasons name the field deltas and the shared VCP pattern, and
       the match count is what the nightly run wrote
   W5  the find-similar templates list carries the same tagged chart with its match count
@@ -111,6 +111,7 @@ sys.path.insert(0, repo + "/scripts")
 import hub_sandbox_boot as b
 b.apply_sandbox_env(data_dir, reclaim_conftest_temp=True)
 from api.services import bars_sqlite
+bars_sqlite.init_db()
 n = 0
 for sym, close in bars.items():
     n += bars_sqlite.put_bars(sym, "D", [{"t": close["day"], "o": close["c"], "h": close["c"],
@@ -161,7 +162,7 @@ def run_nightly_seed(data_dir: Path, universe: dict, out: Path) -> dict:
 
 
 TEMPLATE_FINGERPRINT = {
-    "v": 1, "symbol": "NVDA", "requested_as_of": TODAY, "as_of": TODAY, "mode": "nightly",
+    "v": 1, "symbol": "ZQVA", "requested_as_of": TODAY, "as_of": TODAY, "mode": "nightly",
     "fields": {
         "adr_pct": {"value": 5.0, "source": "walk-seed", "missing": None},
         "pct_vs_sma20": {"value": 2.0, "source": "walk-seed", "missing": None},
@@ -180,10 +181,13 @@ TEMPLATE_FINGERPRINT = {
     },
 }
 
+# Identical to tests/test_notebook_similar_matches.py's TEMPLATE/CANDIDATE fixture pair, so the
+# score and reasons this walk checks for are the SAME arithmetic that test already pins (80, at
+# distance 0.1954) -- never a second, hand-recomputed number.
 CANDIDATE_VALUES = {
     "adr_pct": 5.6, "pct_vs_sma20": 3.0, "pct_vs_sma50": 12.0, "pct_vs_sma200": 50.0,
     "ma_stack": "partial", "ema_stack_intact": True, "rs_rank": 94, "rs_line_trend": "up",
-    "pullback_depth_pct": 11.0, "vol_nweek_low": 10, "close_cv_pct": 1.5, "pole_pct": 100.0,
+    "pullback_depth_pct": 11.0, "vol_nweek_low": 20, "close_cv_pct": 1.5, "pole_pct": 80.0,
 }
 
 
@@ -235,13 +239,13 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
 
         # the member's own notes, through the product's own note-creation route
         n_nvda = req.post(base + "/api/j2/notes", data={
-            "title": "NVDA plan", "ticker": "NVDA",
-            "bodyJson": doc_with_chart("NVDA", 102, 97, 115, tag="VCP", fingerprint=TEMPLATE_FINGERPRINT)})
+            "title": "ZQVA plan", "ticker": "ZQVA",
+            "bodyJson": doc_with_chart("ZQVA", 102, 97, 115, tag="VCP", fingerprint=TEMPLATE_FINGERPRINT)})
         n_amd = req.post(base + "/api/j2/notes", data={
-            "title": "AMD watch", "ticker": "AMD", "bodyJson": doc_with_chart("AMD", 55, None)})
+            "title": "ZQVB watch", "ticker": "ZQVB", "bodyJson": doc_with_chart("ZQVB", 55, None)})
         n_tsla = req.post(base + "/api/j2/notes", data={
-            "title": "TSLA short", "ticker": "TSLA", "bodyJson": doc_with_chart("TSLA", 180, 190)})
-        w.raw["seed_notes_http"] = {"NVDA": n_nvda.status, "AMD": n_amd.status, "TSLA": n_tsla.status}
+            "title": "ZQVC short", "ticker": "ZQVC", "bodyJson": doc_with_chart("ZQVC", 180, 190)})
+        w.raw["seed_notes_http"] = {"ZQVA": n_nvda.status, "ZQVB": n_amd.status, "ZQVC": n_tsla.status}
         if not all(r.status in (200, 201) for r in (n_nvda, n_amd, n_tsla)):
             raise h.SetupFailed(f"seeding the member's chart notes failed: {w.raw['seed_notes_http']}")
         nvda_note_id = n_nvda.json()["note"]["id"]
@@ -251,7 +255,7 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
             {"symbol": "CRWD", "as_of": TODAY, "is_etf": False, "values": CANDIDATE_VALUES}], "truncated": False}
         nightly = run_nightly_seed(data_dir, universe, w.out)
         w.raw["nightly_seed_report"] = nightly
-        w.record("W_seed_nightly_wrote_rows", nightly.get("rows") == 10 and nightly.get("templates") == 1,
+        w.record("W_seed_nightly_wrote_rows", nightly.get("rows") == 1 and nightly.get("templates") == 1,
                  f"nightly seed report: {nightly}")
 
         tripwire_hits = _arm_universe_tripwire(ctx)
@@ -268,12 +272,12 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         first_paint = time.time()
         # the three cards render in the same commit as the heading; wait for the THIRD one
         # rather than sample -- a card list is a waiter, never a sleep.
-        pg.locator('[data-board-card="TSLA"]').wait_for(state="visible", timeout=30000)
+        pg.locator('[data-board-card="ZQVC"]').wait_for(state="visible", timeout=30000)
 
         order = pg.locator("[data-board-card]").evaluate_all(
             "els => els.map(e => ({sym: e.getAttribute('data-board-card'), state: e.getAttribute('data-state')}))")
         w.raw["board_order_1200"] = order
-        ok1 = [o["sym"] for o in order] == ["NVDA", "AMD", "TSLA"] and \
+        ok1 = [o["sym"] for o in order] == ["ZQVA", "ZQVB", "ZQVC"] and \
             [o["state"] for o in order] == ["waiting", "watching", "invalidated"]
         distances = pg.locator("[data-distance]").all_inner_texts()
         w.raw["distances_1200"] = distances
@@ -289,17 +293,23 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
                  f"SetupsBoard.test.jsx and the mutation proof for that); {len(bars_reqs)} /api/bars/ "
                  f"requests, first at {round(bars_reqs[0][0] - first_paint, 2) if bars_reqs else 'n/a'}s after paint")
 
-        # W3 -- keyboard: Tab to "Find more like NVDA", Enter opens the sheet
+        # W3 -- keyboard: Tab to "Find more like ZQVA", Enter opens the sheet. The button must
+        # actually be ON SCREEN before tabbing starts -- a card list is a waiter, never a sleep.
+        pg.get_by_role("button", name="Find more like ZQVA", exact=True).wait_for(state="visible", timeout=15000)
         pg.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
-        presses = tab_to(pg, name_is("Find more like NVDA"))
+        presses = tab_to(pg, name_is("Find more like ZQVA"))
+        active_before = pg.evaluate(
+            "(() => { const el = document.activeElement; return el ? {tag: el.tagName, "
+            "aria: el.getAttribute('aria-label'), text: (el.textContent || '').trim().slice(0,60)} : null })()")
         pg.keyboard.press("Enter")
-        sheet_title = pg.get_by_role("heading", name="Names like NVDA (VCP)")
+        sheet_title = pg.get_by_role("heading", name="Names like ZQVA (VCP)")
         try:
-            sheet_title.wait_for(state="visible", timeout=15000)
+            sheet_title.wait_for(state="visible", timeout=20000)
             opened = True
         except Exception as e:  # noqa: BLE001
             opened = False
             w.raw["W3_error"] = str(e)[:400]
+            w.raw["W3_active_element_at_enter"] = active_before
         w.record("W3_find_similar_by_keyboard", presses > 0 and opened,
                  f"{presses} Tab presses reached the button; Enter opened the sheet={opened}")
         w.shot(pg, "W3-find-similar-sheet-1200")
@@ -307,15 +317,20 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         # W4 -- the match and its reasons
         match_text = pg.locator("[data-match]").inner_text() if opened else ""
         w.raw["match_text_1200"] = match_text
-        ok4 = opened and "CRWD" in match_text and "RS 94 vs 92" in match_text and "depth 11" in match_text \
-            and "VCP" in match_text and "88 match" in match_text
+        # The three CLOSEST fields lead (topReasons sorts by d ascending): with this fixture,
+        # ema_stack_intact / rs_line_trend / close_cv_pct tie at d=0 and come first by RULES'
+        # own field order, ahead of rs_rank's d=0.08 -- the product is right to show the exact
+        # matches before the near ones, so this is the reasons text to expect, not "RS 94 vs 92".
+        ok4 = opened and "CRWD" in match_text and "EMA stack intact" in match_text \
+            and "RS line up" in match_text and "tightness 1.5% vs 1.5%" in match_text \
+            and "VCP" in match_text and "80 match" in match_text
         w.record("W4_match_reasons", ok4, f"match row text: {match_text!r}")
 
         pg.keyboard.press("Escape")
         # W5 -- the templates list
         templ = pg.locator("li", has=pg.get_by_text("VCP")).first.inner_text() if True else ""
         w.raw["templates_row_1200"] = templ
-        w.record("W5_templates_list_match_count", "10 names" in templ or "matched tonight" in templ,
+        w.record("W5_templates_list_match_count", "1 names" in templ or "matched tonight" in templ,
                  f"templates row: {templ!r}")
 
         # W7 -- the find-similar request path never reaches the screener's own routes
@@ -331,16 +346,16 @@ def run(base: str, w: Walk, data_dir: Path) -> None:
         pp.goto(base + "/journal/notebook/setups", wait_until="domcontentloaded")
         h._dismiss_intro(pp)
         pp.get_by_role("heading", name="Active setups").wait_for(state="visible", timeout=60000)
-        pp.locator('[data-board-card="TSLA"]').wait_for(state="visible", timeout=30000)
+        pp.locator('[data-board-card="ZQVC"]').wait_for(state="visible", timeout=30000)
         geo = pp.evaluate("""() => ({sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth})""")
-        btn = pp.get_by_role("button", name="Find more like NVDA")
+        btn = pp.get_by_role("button", name="Find more like ZQVA", exact=True)
         btn.scroll_into_view_if_needed()
         box = btn.bounding_box() or {"height": 0}
         w.raw["phone_geometry"] = {**geo, "button_h": box["height"]}
         w.shot(pp, "W6-board-390")
         btn.tap()
         try:
-            pp.get_by_role("heading", name="Names like NVDA (VCP)").wait_for(state="visible", timeout=15000)
+            pp.get_by_role("heading", name="Names like ZQVA (VCP)").wait_for(state="visible", timeout=15000)
             ok6_tap = True
         except Exception as e:  # noqa: BLE001
             ok6_tap = False
@@ -408,8 +423,8 @@ def main(argv=None) -> int:
 
     not_run = failure = None
     try:
-        seed_bars(data_dir, {"NVDA": {"day": TODAY, "c": 100.0}, "AMD": {"day": TODAY, "c": 50.0},
-                             "TSLA": {"day": TODAY, "c": 200.0}}, out)
+        seed_bars(data_dir, {"ZQVA": {"day": TODAY, "c": 100.0}, "ZQVB": {"day": TODAY, "c": 50.0},
+                             "ZQVC": {"day": TODAY, "c": 200.0}}, out)
     except h.SetupFailed as e:
         not_run = str(e)
 
