@@ -423,6 +423,9 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     expect(unnamed, '⛔ a module reaches note_daily and its ledger row does not say so').toEqual([])
   })
 
+  // ⏱ Explicit timeout (2026-10-02). The first run walks every client source file cold;
+  // measured 19.5 s on master and 24.9 s on the wave-13 tree under a loaded box (red at the
+  // 15 s default), 1.9 s warm. The assertion is unchanged; only the time budget is widened.
   it('③ CLIENT: every write to a door route lands its revision, or is a NAMED exception', () => {
     const doors = advancingRoutes(advancing)
     const unsettled = []
@@ -441,7 +444,7 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     } else {
       expect(unsettled.sort()).toEqual([])
     }
-  })
+  }, 60_000)
 
   it('④ a write whose URL is a VARIABLE is resolved and checked like any other', () => {
     const doors = advancingRoutes(advancing)
