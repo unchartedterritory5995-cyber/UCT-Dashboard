@@ -233,8 +233,34 @@ def press(btn, touch):
 
 
 def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str) -> int:
-    """Draw mode -> Horizontal Line -> one click/tap per line, at three heights."""
-    press(toolbar_button(pg, frame, "Draw", touch), touch)
+    """Draw mode -> Horizontal Line -> one click/tap per line, at three heights.
+
+    Run 2 found the embed back in its plain toolbar after the Draw press. A probe (same build)
+    recorded the press itself blurring and re-focusing the editor ~17 ms before draw mode engages,
+    and WidgetEmbedView exits draw mode on an editor focus -- so the order of those two events
+    decides. The event order is RECORDED here for every attempt, and a press that did not stick
+    is retried (at most 3), never hidden."""
+    pg.evaluate("""() => { window.__h2ev = []; const pm = document.querySelector('.ProseMirror');
+      if (pm && !pm.__h2) { pm.__h2 = 1;
+        pm.addEventListener('focus', () => window.__h2ev.push(['pm-focus', performance.now() | 0]), true);
+        pm.addEventListener('blur', () => window.__h2ev.push(['pm-blur', performance.now() | 0]), true); }
+      const f = document.querySelector('[data-widget-embed-view="chart"]');
+      if (f && !f.__h2) { f.__h2 = 1; new MutationObserver(() => window.__h2ev.push(['class',
+        f.className.includes('annotating') ? 'annotating' : 'plain', performance.now() | 0]))
+        .observe(f, {attributes: true, attributeFilter: ['class']}) } }""")
+    attempts = []
+    for _ in range(3):
+        press(toolbar_button(pg, frame, "Draw", touch), touch)
+        try:
+            frame.get_by_role("button", name="Done", exact=True).first.wait_for(state="visible", timeout=4000)
+            pg.wait_for_timeout(600)
+            stuck = frame.get_by_role("button", name="Done", exact=True).count() > 0
+        except Exception:  # noqa: BLE001
+            stuck = False
+        attempts.append({"stuck": stuck, "events": pg.evaluate("() => window.__h2ev.splice(0)")})
+        if stuck:
+            break
+    w.raw[f"{tag}_draw_attempts"] = attempts
     canvas_box = None
     for _ in range(40):
         boxes = frame.locator("canvas").evaluate_all(
