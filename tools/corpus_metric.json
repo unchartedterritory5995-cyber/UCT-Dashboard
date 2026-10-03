@@ -60,14 +60,12 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
       ],
       "screenerGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
@@ -902,12 +900,10 @@
       "screener": true,
       "hostGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ]
     },
@@ -1623,10 +1619,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:statement"
+        "pine:block"
       ],
       "screenerGuards": [
-        "pine:statement"
+        "pine:block"
       ]
     },
     {

@@ -136,8 +136,12 @@ describe('Q-L1 — an imported library function is the same function written her
 // at that path (`L2_TA7_FIXTURE`, our own spelling of the three exports the probe
 // calls, each pinned by the capture itself: L01c/L02c say `ao`/`dema` ARE the
 // inline formulas, and L03–L05 pin `highestSince`). The member door then draws
-// the probe through the RUNTIME lane (the host lane refuses a header with
-// defaults), and the harness grades it against TradingView.
+// the probe and the harness grades it against TradingView.
+// ⭐ H5 (step 84): the HOST lane now reads a header with defaults (one rule with
+// this lane's, `paramDefaultShapeOk`), so it is the host lane that draws Q-L1
+// here — graded MATCH with the runtime pane off too
+// (`vendorHarness.h5DefaultParams`). The runtime lane's completion of an omitted
+// argument stays railed on its own (`runtimeParamDefaults`, forced to that lane).
 //
 // ⭐ What it proves is the LINKER and the runtime lane, not our fixture: two call
 // sites keep two `var` states (L03 ≠ L04 on 358 bars), and an omitted series
@@ -166,7 +170,7 @@ function gradeWithLibrary(cap, entry) {
 describe('⭐ L2 — Q-L1 with the library registry loaded (step 74)', () => {
   afterEach(() => { clearPineLibraries() })
 
-  it('⭐ door: all seven plots MATCH TradingView on all 636 bars (runtime lane, fixture library)', () => {
+  it('⭐ door: all seven plots MATCH TradingView on all 636 bars (fixture library; host lane since H5)', () => {
     const v = gradeWithLibrary(LIB, {
       path: 'TradingView/ta/7', source: L2_TA7_FIXTURE, licence: 'test-fixture', attribution: 'L2 rail fixture (no third-party code)',
     })

@@ -34,7 +34,7 @@ import {
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
-  OUTPUT_CALLS as PINE_OUTPUT_CALLS,
+  OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -958,7 +958,8 @@ export function paramTypeHeads(toks, arrow) {
  *  while each one omitted declares a default, so a call that leaves such a
  *  parameter out still meets the arity refusal it always had; a call that
  *  writes every argument never reads a default at all. */
-const BAR_SERIES_DEFAULTS = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index'])
+// ⭐ H5 — the shape rule and the bar-series set live in `pine.js` (`paramDefaultShapeOk`,
+// `BAR_SERIES_DEFAULTS`): ONE rule for both lanes.
 export function paramDefaultsOf(toks, arrow) {
   if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
   const close = toks.findIndex((t) => isPunct(t, ')'))
@@ -985,13 +986,7 @@ export function paramDefaultsOf(toks, arrow) {
     let node = null
     if (eq >= 0) {
       const rest = seg.slice(eq + 1)
-      const one = rest.length === 1 ? rest[0] : null
-      const ok = (one && (one.kind === 'number' || one.kind === 'string' || one.kind === 'colour'
-          || (one.kind === 'ident' && (one.value === 'true' || one.value === 'false' || one.value === 'na'
-            || BAR_SERIES_DEFAULTS.has(String(one.value))
-            || /^(color|display|shape|location|size|position|text|xloc|yloc|extend|line|label|plot|hline|font|order|currency|scale|format)\.[a-z_]+$/.test(String(one.value))))))
-        || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number')
-      if (!ok) return null
+      if (!paramDefaultShapeOk(rest)) return null
       try { node = parseWholeExpression(rest) } catch { return null }
       if (!node) return null
       any = true

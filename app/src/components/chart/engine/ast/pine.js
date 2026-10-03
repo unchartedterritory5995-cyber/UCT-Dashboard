@@ -11940,7 +11940,21 @@ export class Resolver {
     const callerEnv = this.env
     const frame = node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv }))
     if (filled) {
-      for (let k = given; k < bound.params.length; k += 1) frame.push({ kind: 'expr', node: defaults[k], env: callerEnv })
+      for (let k = given; k < bound.params.length; k += 1) {
+        const d = defaults[k]
+        // ⛔ H5 — a bar-series default (`src = close`) means Pine's BUILT-IN. Where
+        // the caller's scope, or the scope the function was declared in, binds that
+        // name to something else, which of the two the default reads is not this
+        // engine's to guess: refused by name (the runtime lane's rule, L2).
+        if (d && d.type === 'name' && BAR_SERIES_DEFAULTS.has(d.name)
+          && (callerEnv.has(d.name) || (bound.defaultScope && bound.defaultScope.has(d.name)))) {
+          throw new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${name}\` is called without its argument whose default is `
+            + `\`${d.name}\`, and this script binds its own \`${d.name}\` — the default is Pine's built-in, not that binding`,
+            locate(node.tok))
+        }
+        frame.push({ kind: 'expr', node: d, env: callerEnv })
+      }
     }
     this.frames.push(frame)
     const prevEnv = this.env
@@ -15096,9 +15110,36 @@ export function functionParams(toks, arrow) {
   return params
 }
 
-/** ⭐⭐ C47 — `f(a, b = 5, c = false) =>`: A HEADER WHOSE TRAILING PARAMETERS
+/** ⭐⭐ H5 — THE ONE RULE FOR WHICH DEFAULT VALUE A HEADER MAY DECLARE, shared by
+ *  the host lane (`functionParamDefaults`, below) and the runtime lane
+ *  (`pineRuntimeFrontend.js::paramDefaultsOf`, L2), so the two cannot disagree
+ *  about which library export they read.
+ *
+ *  An omitted argument is compiled as the default WRITTEN AT THE CALL, which is
+ *  exact only for a value that cannot depend on where it is read:
+ *    · a literal: a number (or `-number`), a quoted string, `true`, `false`,
+ *      `na`, a `#hex` colour;
+ *    · a dotted built-in constant (`color.red`, `label.style_label_down`) — a
+ *      dotted name no script can bind;
+ *    · one of Pine's built-in bar series (`BAR_SERIES_DEFAULTS`) — the series
+ *      the body would read, with its own history. ⛔ Each lane refuses it by name
+ *      where the script binds that name to something else.
+ *  ⛔ Anything else (`len = other`, a call, an expression, `1 + 1`) is not this
+ *  shape and the header keeps the refusal it had. */
+export const BAR_SERIES_DEFAULTS = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index'])
+const DEFAULT_CONSTANT_FAMILY = /^(color|display|shape|location|size|position|text|xloc|yloc|extend|line|label|plot|hline|font|order|currency|scale|format)\.[a-z_]+$/
+export function paramDefaultShapeOk(rest) {
+  const one = rest.length === 1 ? rest[0] : null
+  return !!((one && (one.kind === 'number' || one.kind === 'string' || one.kind === 'colour'
+      || (one.kind === 'ident' && (one.value === 'true' || one.value === 'false' || one.value === 'na'
+        || BAR_SERIES_DEFAULTS.has(String(one.value))
+        || DEFAULT_CONSTANT_FAMILY.test(String(one.value))))))
+    || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number'))
+}
+
+/** ⭐⭐ C47 / H5 — `f(a, b = 5, src = close) =>`: A HEADER WHOSE PARAMETERS
  *  DECLARE DEFAULT VALUES. `{ names, defaults }` — `defaults[k]` the parsed
- *  literal of parameter `k`, or `null` where it declares none — or `null` when
+ *  default of parameter `k`, or `null` where it declares none — or `null` when
  *  the header is not that shape.
  *
  *  Pine: a parameter may declare a default; a call that omits the argument runs
@@ -15106,14 +15147,13 @@ export function functionParams(toks, arrow) {
  *  identifier), so such a function was `pine:function-def` and everything read
  *  through it went with it (liquidity-heatmap: `resolutionInMinutes(tf = "")`).
  *
- *  ⛔ ONLY THE SHAPE WHOSE VALUE IS THE SAME AT EVERY CALL:
- *    · the default is ONE LITERAL — a number (or `-number`), a quoted string,
- *      `true`, `false` or `na`. A default that names anything (`len = other`,
- *      `style = label.style_label_down`, a call) is read in some scope at some
- *      time, and which is not this function's to decide: not this shape.
- *    · every parameter after the first default declares one too. A required
- *      parameter behind an optional one can only be reached by name, and named
- *      arguments on a user function are refused (`pine:named-argument`).
+ *  ⭐ WHICH DEFAULT: `paramDefaultShapeOk` (one rule for both lanes). C47 took
+ *  literals only; H5 takes L2's runtime rule, graded on the host lane by
+ *  `vw-default-param` (D01–D15, literals) and Q-L1 L05 (a bar-series default).
+ *  ⭐ A REQUIRED PARAMETER BEHIND AN OPTIONAL ONE IS READ TOO (L2's ruling 3):
+ *  `inlineUserFunction` completes only omitted TRAILING arguments, and only
+ *  while every one omitted declares a default, so a call leaving the required
+ *  one out keeps its `pine:arity` refusal.
  *  ⛔ A SEPARATE READER, NOT A LOOSER `functionParams`: that one is the runtime
  *  front end's too, whose calls are compiled against an exact arity. */
 export function functionParamDefaults(toks, arrow) {
@@ -15134,15 +15174,10 @@ export function functionParamDefaults(toks, arrow) {
     let node = null
     if (eq >= 0) {
       const rest = seg.slice(eq + 1)
-      const literal = (t) => t && (t.kind === 'number' || t.kind === 'string'
-        || (t.kind === 'ident' && (t.value === 'true' || t.value === 'false' || t.value === 'na')))
-      const ok = (rest.length === 1 && literal(rest[0]))
-        || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number')
-      if (!ok) return null
+      if (!paramDefaultShapeOk(rest)) return null
       try { node = parseWholeExpression(rest) } catch { return null }
+      if (!node) return null
       any = true
-    } else if (any) {
-      return null
     }
     names.push(name)
     defaults.push(node)
@@ -23198,10 +23233,16 @@ function translatePineResult(source, opts = {}) {
         if (bodyTrace.legacySwitch) throw Object.assign(bodyTrace.legacySwitch, { c47ObjectLane: self })
         // ⭐ C47 — and a header with defaults likewise: readable by the drawing
         // lane, `pine:function-def` (the sentence it had) to everything else.
+        // ⭐ H5 — and the PLOT lane reads it too. The C47 confinement (drawing lane
+        // only) existed because a newly served plot would mint parameter ids ahead
+        // of saved ones; since C46 an id is the input call's place in the SOURCE
+        // (`paramIdSource.js`), so a newly served output only APPENDS ids. Graded:
+        // `vw-default-param-spy-1d-2026-10-02` D01–D15 MATCH on 1,800 bars.
+        // `defaultScope` is the scope the function is declared in (a live view),
+        // read by the bar-series shadow refusal in `inlineUserFunction`.
         if (withDefaults) {
           self.defaults = withDefaults.defaults
-          throw Object.assign(new PineRefusal('pine:function-def', REFUSALS['pine:function-def'],
-            locate(toks[arrow])), { c47ObjectLane: self })
+          self.defaultScope = env
         }
         env.set(nameTok.value, self)
       } catch (err) {
