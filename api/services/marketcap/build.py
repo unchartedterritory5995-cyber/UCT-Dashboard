@@ -75,6 +75,9 @@ CREATE INDEX gap_run_cik ON gap_run(cik);
 CREATE TABLE split_gap(cik INTEGER, d TEXT, k INTEGER, direction TEXT, cls TEXT, prev_asof TEXT, next_asof TEXT,
   status TEXT, ex_date TEXT, ratio REAL, source TEXT, accn TEXT, snippet TEXT);
 CREATE TABLE lineage_applied(cik INTEGER, kind TEXT, status TEXT, effective TEXT, pred_cik INTEGER, accn TEXT, days INTEGER, note TEXT);
+CREATE TABLE step_context(cik INTEGER, semantics TEXT, iterations INTEGER, withheld_days INTEGER, known_splits TEXT, ev_forms TEXT);
+CREATE TABLE extreme_step(cik INTEGER, d0 INTEGER, d1 INTEGER, verdict TEXT, basis TEXT, unexplained REAL, share_ratio REAL,
+  semantics TEXT, evidence TEXT);
 CREATE TABLE coverage(cik INTEGER PRIMARY KEY, primary_ticker TEXT, foreign_filer INTEGER, first_bar TEXT,
   listing_start TEXT, first_value TEXT, last_day TEXT, listed_days INTEGER, valued_days INTEGER,
   evidence_span_days INTEGER, evidence_span_valued INTEGER, internal_gap_days INTEGER, unexplained_days INTEGER,
@@ -112,96 +115,19 @@ ENTITY_AXES = frozenset({"dei_LegalEntity", "srt_ConsolidatedEntities"})
 # stake, or a truncated parse. Not a universal rule: an unlisted class (a convertible class B) may hold any count.
 LISTED_MINIMUM_SHARES = 100_000
 
-CAPITAL_EVENT_FORMS = OFFERING_FORMS | frozenset({"424B2", "425", "8-K12B", "8-K12G3", "SC TO-I", "SC TO-I/A", "DEFM14A",
-                                                   "PREM14A", "DEF 14C", "10-12B"})
-COMMON_SPLIT_FACTORS = (2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 50, 60, 75, 80, 100)
+from .extreme_steps import (CAPITAL_EVENT_FORMS, COMMON_SPLIT_FACTORS, SEMANTICS_VERSION as XSTEP_SEMANTICS,  # noqa: E402
+                            converge as xstep_converge, steps as xstep_steps, usable_rows as xstep_rows,
+                            withhold_for as xstep_withhold)
 
 
 def extreme_step_decisions(caps: dict, pclose: dict, runs_by_class: dict, obs_rows: list, ev_forms: list,
                            known_splits: list) -> dict:
-    """{day: (reason, note)} to withhold for the FIRST unexplained >= 10x cap step that the evidence does not support.
-
-    For consecutive valued days a < b whose cap ratio, after removing the price move, is >= 10x:
-      1. each side's share state (every class run in force) must be CORROBORATED -- another filing's observation of the
-         same class within 400 days agrees within 1.5x. An uncorroborated side is refused (HR 2006: 15,200 shares of a
-         non-traded REIT's sponsor stake against the 227M-share NYSE common; RJF 1995: "1,249,014 shares", the leading
-         digit lost, 20.6M three months later; GNLN 2025: 223 split-adjusted shares).
-      2. a step BRIDGED by intermediate issuer counts (each move < 10x), or with a capital-event filing (offering, merger,
-         tender, registration) between the two counts or as the source of the later count, is a real capital change.
-      3. otherwise a state ratio within 3% of a common split factor with no ledger / evidence split between is a split
-         the ledger lacks: every earlier day is withheld (CMCL: 487.9M ordinary in 2007 against 19.2M in 2023 across a
-         consolidation, no capital event on file); any other such step is unproven and the earlier state is withheld.
-      Otherwise the step is a real capital change (issuance, conversion, recapitalization) and is served."""
-    days = sorted(caps)
-    if len(days) < 2:
-        return {}
-
-    def side(d):
-        out = []
-        for (_iss, ck), rs in runs_by_class.items():
-            for r in rs:
-                if r[0] <= d.isoformat() <= r[1]:
-                    out.append((ck, r))
-        return out
-
-    def corroborated(ck, r) -> bool:
-        a = date.fromisoformat(r[4])
-        for o in obs_rows:
-            if o[3] != ck or o[13] == r[3] or not o[8]:
-                continue
-            if abs((date.fromisoformat(o[4]) - a).days) <= 400 and abs(math.log(o[8] / r[2])) < math.log(1.5):
-                return True
-        return False
-
-    for a, b in zip(days, days[1:]):
-        if not (pclose.get(a) and pclose.get(b) and caps[a] > 0 and caps[b] > 0):
-            continue
-        q = (caps[b] / caps[a]) / (pclose[b] / pclose[a])
-        if abs(math.log(q)) < math.log(10):
-            continue
-        sa, sb = side(a), side(b)
-        if not sa or not sb:
-            continue
-        bad = [(ck, r) for ck, r in sa + sb if not corroborated(ck, r)]
-        if bad:
-            hold = {}
-            for ck, r in bad:
-                for d in days:
-                    if r[0] <= d.isoformat() <= r[1]:
-                        hold[d] = (R.SCALE_UNRESOLVED, f"ISOLATED_EXTREME_STATE {ck} {r[2]:.0f} (as of {r[4]}, {r[3]}): no "
-                                                       f"independent filing agrees within 400 days; cap step x{q:.3g}")
-            return hold
-        tot_a, tot_b = sum(r[2] for _c, r in sa), sum(r[2] for _c, r in sb)
-        ratio = tot_b / tot_a
-        asof_a = max(r[4] for _c, r in sa)
-        asof_b = min(r[4] for _c, r in sb)
-        k = max(ratio, 1 / ratio)
-        if len(sa) == 1 and len(sb) == 1 and sa[0][0] == sb[0][0]:
-            ck = sa[0][0]
-            mids = sorted((o[4], o[8]) for o in obs_rows if o[3] == ck and asof_a <= o[4] <= asof_b
-                          and o[18] in (R.ACCEPTED, R.ACCEPTED_RESTATED_BASIS))
-            vals = [sa[0][1][2]] + [v for _d, v in mids] + [sb[0][1][2]]
-            bridged = all(abs(math.log(y / x)) < math.log(10) for x, y in zip(vals, vals[1:]))
-        else:
-            bridged = False
-        if bridged:
-            continue                                     # gradual: every move between issuer counts is < 10x
-        src_b_form = next((o[14] for o in obs_rows if o[13] == sb[0][1][3]), None)
-        event = any(asof_a < fd <= asof_b for fd, _f in ev_forms) or (src_b_form in CAPITAL_EVENT_FORMS)
-        # ⛔ an event explains a step only when it can: issuance never makes a count FALL 10x (CMCL 487.9M -> 19.2M,
-        # RIME 2022 x1/12 -- consolidations the ledger lacks), and over more than two years "some offering between" is
-        # no evidence of THIS step (CMCL's counts are 15 years apart) -- only a path of issuer counts is
-        event = event and ratio > 1 and (date.fromisoformat(asof_b) - date.fromisoformat(asof_a)).days <= 730
-        if event:
-            continue                                     # an offering / combination / tender between: a capital change
-        split_between = any(asof_a < s.isoformat() <= asof_b for s in known_splits)
-        if not split_between and (ratio < 1 or any(abs(math.log(k / f)) < 0.03 for f in COMMON_SPLIT_FACTORS)):
-            return {d: (R.HIST_SPLIT_UNRESOLVED, f"SPLIT_LIKE_EXTREME_STEP x{ratio:.4g} between {asof_a} and {asof_b}: "
-                                                 "no ledger or issuer split, no capital event")
-                    for d in days if d < b}
-        return {d: (R.SCALE_UNRESOLVED, f"UNPROVEN_EXTREME_STEP x{ratio:.4g} between {asof_a} and {asof_b}: not "
-                                        "bridged by issuer counts, no capital-event filing")
-                for d in days if any(r[0] <= d.isoformat() <= r[1] for _c, r in sa)}
+    """{day: (reason, note)} that the FIRST unproven >= 10x step withholds -- one iteration of the shared rule
+    (extreme_steps.py). The build applies it to a fixed point (extreme_steps.converge)."""
+    ks = [x.isoformat() if hasattr(x, "isoformat") else x for x in known_splits]
+    for a, b, v in xstep_steps(caps, pclose, runs_by_class, obs_rows, ev_forms, ks):
+        if v["verdict"] != "PROVEN":
+            return xstep_withhold(sorted(caps), a, b, v)
     return {}
 
 
@@ -1415,19 +1341,21 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
     # with no capital-event filing between is unproven -- otherwise it is a real capital change and is served.
     ev_forms = sorted((v["filing_date"], v["form"]) for v in filings.values() if v["form"] in CAPITAL_EVENT_FORMS)
     known_splits = sorted({s_.ex_date for _k, l_, c_ in ledgers_used for s_ in list(l_.splits) + list(c_)})
-    obs_rows = [r_ for r_ in w["observation"] if r_[1] == issuer_id and r_[8] and r_[18] not in
-                (R.REJ_CONFLICT, R.REJ_INVALID_UNIT, R.REJ_NONPOSITIVE)]
-    for _pass in range(6):
-        dec_ = extreme_step_decisions(caps, bars[primary][1], _runs_by_class(w, issuer_id), obs_rows, ev_forms, known_splits)
-        if not dec_:
-            break
-        for d_, (rsn_, note_) in dec_.items():
-            if d_ in caps:
-                del caps[d_]
-                reasons_by_day[d_] = rsn_
-        for note_ in sorted({n_ for _r, n_ in dec_.values()}):
-            w["split_gap"].append((cik, None, None, "EXTREME_STEP", None, None, None, "HELD_EXTREME_STEP", None, None,
-                                   "EVIDENCE", None, note_[:400]))
+    obs_rows = xstep_rows([r_ for r_ in w["observation"] if r_[1] == issuer_id])
+    # FIXED POINT (extreme_steps.converge): re-evaluated until no served step is unproven -- never a pass count
+    known_iso = [x.isoformat() for x in known_splits]
+    xholds, xiter, xserved = xstep_converge(caps, bars[primary][1], _runs_by_class(w, issuer_id), obs_rows, ev_forms, known_iso)
+    for d_, (rsn_, _note) in xholds.items():
+        del caps[d_]
+        reasons_by_day[d_] = rsn_
+    for note_ in sorted({n_ for _r, n_ in xholds.values()}):
+        w["split_gap"].append((cik, None, None, "EXTREME_STEP", None, None, None, "HELD_EXTREME_STEP", None, None,
+                               "EVIDENCE", None, note_[:400]))
+    w["step_context"].append((cik, XSTEP_SEMANTICS, xiter, len(xholds), json.dumps(known_iso), json.dumps(ev_forms)))
+    for a_, b_, v_ in xserved:
+        w["extreme_step"].append((cik, _i(a_), _i(b_), v_["verdict"], v_.get("basis"), v_["unexplained_ratio"],
+                                  v_.get("share_ratio"), XSTEP_SEMANTICS,
+                                  json.dumps({k_: x_ for k_, x_ in v_.items() if not k_.startswith("_")}, default=str)[:4000]))
     first_val = min(caps) if caps else None
     # write daily output
     for d, v in caps.items():
@@ -1508,7 +1436,7 @@ def main(argv=None) -> int:
     db.executescript(SCHEMA)
     ciks = [int(x) for x in a.ciks.split(",")] if a.ciks else [c for (c,) in D.inp.execute("SELECT cik FROM issuer ORDER BY cik")]
     tables = ("security", "ticker_map", "observation", "state_run", "regime", "cap_daily", "gap_run", "coverage", "econ_request",
-              "split_gap", "lineage_applied")
+              "split_gap", "lineage_applied", "step_context", "extreme_step")
     stat = Counter()
     from .splitev import confirm
     for i, cik in enumerate(ciks):
