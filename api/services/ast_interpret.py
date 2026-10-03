@@ -2421,6 +2421,15 @@ def _fn_vwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     return compute_vwap_raw(bars)
 
 
+def _fn_vwap_of(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``vwapOf(source)`` -- Pine's ``ta.vwap(source)``: the SAME session
+    accumulator (``compute_vwap_raw``, its session boundary and all), weighting
+    ``source`` instead of the typical price. Mirrors ``interpret.js::barVwapOf``.
+    """
+    src = args[0] if args else None
+    return compute_vwap_raw(bars, list(src) if src is not None else [None] * len(bars))
+
+
 def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     """``avwap(anchorEpoch)`` -- the same accumulator, restarted at an INSTANT,
     and bounded so that ``lookback: "session"`` is a TRUE declaration.
@@ -2798,6 +2807,7 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 #: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
 _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
+    "vwapOf": _fn_vwap_of,
     "avwap": _fn_avwap,
     "obvN": _fn_obvn,
     "pvtN": _fn_pvtn,

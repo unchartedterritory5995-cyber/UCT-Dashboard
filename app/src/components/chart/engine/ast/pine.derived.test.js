@@ -181,6 +181,8 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   `barssince`, which did exactly that on 2026-08-26. See
     //   `closedTable.json::_functions_cumulative` for the ruling and
     //   `_functions_excluded.cum` for what a translator may write instead.
+    vwapOf: 'ta.vwapOf is not a Pine builtin; Pine spells this `ta.vwap(source)`,'
+      + ' which reaches it through the `vwap` key\'s one-argument branch (H3)',
     cumFrom: 'ta.cumFrom is not a Pine builtin; the name Pine DOES have for this'
       + ' idea, `ta.cum`, is a DIFFERENT quantity (chart-anchored, so'
       + ' fetch-dependent) and stays refused by name',
