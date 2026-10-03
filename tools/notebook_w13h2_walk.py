@@ -334,6 +334,14 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
             w.shot(pg, f"{tag}-2-draw-mode-no-tool")
             raise
         press(tool.first, touch)
+        if touch:
+            # Tool-select and the placement tap were back-to-back (0ms apart) -- fine on
+            # desktop (a real mouse click dispatches synchronously either way), but taps 1 and 2
+            # NEVER registered on touch even after a 10s settle-wait (run 16), while tap 3
+            # (by when ~1.5s of cumulative tool-lookup/press overhead had already elapsed) always
+            # produced exactly one stored line. Give the tool-armed state a moment to actually
+            # reach the chart's touch handling before tapping the canvas.
+            pg.wait_for_timeout(250)
         x, y = x0 + cw * 0.45, y0 + ch * frac
         if touch:
             pg.touchscreen.tap(x, y)
