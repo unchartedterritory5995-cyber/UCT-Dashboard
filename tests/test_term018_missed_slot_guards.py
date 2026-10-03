@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import datetime as dt
 
-import pytest
-
 from api import cream_card as cc
 from api import oi_morning as oim
 
@@ -31,9 +29,8 @@ def _grace(mod) -> int:
     return mod._grace_min() if mod is cc else mod.CATCHUP_GRACE_MIN
 
 
-@pytest.fixture(params=["cream", "oi"])
-def rig(request, tmp_path, monkeypatch):
-    if request.param == "cream":
+def _rig(which, tmp_path, monkeypatch):
+    if which == "cream":
         mod, builder = cc, "run_cream_eod"
         monkeypatch.setenv("CREAM_EOD_STATE_PATH", str(tmp_path / "cream_state.json"))
         monkeypatch.setenv("CREAM_EOD_ENABLED", "1")
@@ -51,7 +48,7 @@ def rig(request, tmp_path, monkeypatch):
     return mod, posted, pages
 
 
-def test_a_slot_missed_past_its_window_PAGES_critical(rig):
+def _pages_critical_past_the_window(rig):
     mod, posted, pages = rig
     mod.catch_up(now=_at(mod, _grace(mod) + 30))
     assert posted == []
@@ -59,7 +56,7 @@ def test_a_slot_missed_past_its_window_PAGES_critical(rig):
     assert "2026-09-08" in pages[0][0]
 
 
-def test_CONTROL_a_late_slot_still_inside_its_window_pages_NOBODY(rig):
+def _quiet_inside_the_window(rig):
     """The guard's other side: an honest catch-up is a post, not an incident."""
     mod, posted, pages = rig
     mod.catch_up(now=_at(mod, _grace(mod)))
@@ -67,8 +64,35 @@ def test_CONTROL_a_late_slot_still_inside_its_window_pages_NOBODY(rig):
     assert pages == []
 
 
-def test_a_missed_slot_pages_ONCE_per_day(rig):
+def _pages_once_per_day(rig):
     mod, posted, pages = rig
     mod.catch_up(now=_at(mod, _grace(mod) + 30))
     mod.catch_up(now=_at(mod, _grace(mod) + 31))
     assert len(pages) == 1
+
+
+# Plain (unparametrized) node ids on purpose: the TERM-018 rail names observers by
+# `file::function`, and a parametrized id would not collect under that name.
+
+def test_cream_a_slot_missed_past_its_window_PAGES_critical(tmp_path, monkeypatch):
+    _pages_critical_past_the_window(_rig("cream", tmp_path, monkeypatch))
+
+
+def test_cream_CONTROL_a_late_slot_inside_its_window_pages_NOBODY(tmp_path, monkeypatch):
+    _quiet_inside_the_window(_rig("cream", tmp_path, monkeypatch))
+
+
+def test_cream_a_missed_slot_pages_ONCE_per_day(tmp_path, monkeypatch):
+    _pages_once_per_day(_rig("cream", tmp_path, monkeypatch))
+
+
+def test_oi_a_slot_missed_past_its_window_PAGES_critical(tmp_path, monkeypatch):
+    _pages_critical_past_the_window(_rig("oi", tmp_path, monkeypatch))
+
+
+def test_oi_CONTROL_a_late_slot_inside_its_window_pages_NOBODY(tmp_path, monkeypatch):
+    _quiet_inside_the_window(_rig("oi", tmp_path, monkeypatch))
+
+
+def test_oi_a_missed_slot_pages_ONCE_per_day(tmp_path, monkeypatch):
+    _pages_once_per_day(_rig("oi", tmp_path, monkeypatch))
