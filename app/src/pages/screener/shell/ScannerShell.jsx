@@ -423,6 +423,10 @@ export default function ScannerShell({ embedded = false }) {
             ))}
           </div>
         )}
+        {/* TERM-047: the screen's OWN four-count receipt from /api/screener/scan
+            (dark: the backend sends none, so this renders nothing). */}
+        <CoverageLine coverage={result?.coverage ?? null} />
+
         {error && (
           <div className={styles.scanError} role="alert">
             Scan failed — {String(error.message || error)}.

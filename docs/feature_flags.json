@@ -1529,6 +1529,48 @@
       "where": [],
       "note": "FT-029 v2 (TERMINAL-NEXT lane S): the where-grammar (api/services/screener/grammar.py, the ONE parser -- no second one) learns typed subjects and arithmetic. $AAPL (adjacent tickers union) and #flagged / #unflagged / #tag:<colour> / #wl:<id> / #<list_name> scopes, allowed only as top-level AND conjuncts (refused under or/not); resolve_scopes() turns them into the screener's own flat filters for the CALLER ({key: tickers} new reserved key, {key: list} existing, so list ownership is checked where it always was). Arithmetic + - * / with parentheses compiles to one leaf {key: arith, op, lhs, rhs}; query.build_where renders every field through filters.comparable_keys + _known_columns + overlay.col_expr (X27 order) and binds every number; division by zero is NULL. ENABLEMENT GATE, default OFF, read per call in grammar.v2_enabled(); SERVICE: web. Off: the parser refuses scopes and arithmetic with the v1 sentences and build_where refuses a crafted tickers/arith filter with a sentence (never ignored). Also needs SCREENER_LOGIC_ENABLED for the parse route. Pending: needs an owner arm. Rollback: set 0."
     },
+    "ALERT_QUEUE_CAPS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "Alerts PRD AC-4 (TERMINAL-NEXT lane S): per-trigger-type queue caps with a reserve, per member per rolling hour (api/services/alert_taxonomy/queue_caps.py: TOTAL 30, per-type CAP default 12 / catalyst-match 8, per-type RESERVE default 1 / position-risk 4 / price-level 3 / document-arrival 2 / rating-change 2). Applied in alert_taxonomy/delivery.deliver after the FT-036 routing check: a capped fire is still RECORDED in alert_fires with delivery_channels {queue: capped} and nothing is sent (never dropped, never deleted). Counts only fires actually sent. A counting failure admits. Not applied to the TERM-048 price-alert bridge (member-set price alerts are never capped). ENABLEMENT GATE, default OFF, read per call in queue_caps.is_enabled(); SERVICE: web. Off: every fire is admitted, delivery byte-identical. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "ALERT_CHANNEL_REGISTRY_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "Alerts PRD AC-2 (TERMINAL-NEXT lane S): one delivery-channel registry (api/services/alert_taxonomy/channels.py) -- one entry per channel KIND (in_app, email, discord, push, browser, sound, webhook), and every existing DISCORD_*WEBHOOK* variable bound to a purpose in LEGACY_WEBHOOKS (no new variable; a census rail fails on a webhook literal outside it). Armed, alerts.discord_webhook() resolves through resolve_webhook('alert') -> the same DISCORD_ALERT_WEBHOOK value, read per call (tests/test_alert_channel_registry.py proves identical resolution for every legacy name). ENABLEMENT GATE, default OFF, read per call in channels.is_enabled(); SERVICE: web. Off: alerts.py reads its variable directly, exactly as before. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "ALERT_OPS_MONITOR_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "Alerts PRD AC-7/AC-8 (TERMINAL-NEXT lane S): GET /api/admin/alerts/ops-monitor (require_admin) + the admin AlertOpsPanel -- per S7 trigger type evaluated / fired / could-not-evaluate (from alert_sweep_runs receipts recorded by the document-arrival and rating-change sweeps; a type with no run is 'no-runs', never 'clean') and per channel kind (AC-2 registry) ok / failed / skipped with a health status (degraded at >=50% failed attempts, unconfigured, idle, ok); withheld fires (routing suspended, queue capped) counted apart. Names only, never a webhook value. Recording is unconditional and additive (one table in alert_taxonomy.db; record_sweep never raises). ENABLEMENT GATE, default OFF, read per call in ops_monitor.is_enabled(); SERVICE: web. Off: the route 404s and the panel renders nothing. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "ALERT_RATING_CHANGE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-034 (TERMINAL-NEXT lane S): S7 trigger type 'rating-change' (api/services/alert_taxonomy/rating_change.py) -- an analyst upgrade/downgrade (FMP /stable/grades via analyst_grades._recent_actions, the research tab's own feed) on a member-named ticker. Durable record is alert_fires via receipts.record_fire, NEVER user_alerts; delivered through alert_taxonomy/delivery.deliver (lease, FT-036 routing, AC-4 caps). No history replay (baseline at registration); one fetch per distinct ticker per sweep; a provider failure is could-not-evaluate (AC-7). Routes /api/alerts/taxonomy/rating-change* (get_current_user) + admin manual sweep. ENABLEMENT GATE, default OFF, read per call in rating_change.is_enabled(); SERVICE: web (scheduler job alert_rating_change_sweep every 30 min 07-19 ET mon-fri, registered unconditionally, no-op while off). The TYPE is NOT registered in the lifespan -- its CP3 / TERM-025 per-type ruling is unsigned (tests/test_alert_taxonomy_registration_is_wired.py CP3_SIGNED rating_change=False); the create route registers it on demand while armed. Feed: alerts._s7_durable_alerts reconstructs its fires (rating_change.alert_shape_for_fire), deduped against the ephemeral copy by s7_fire_key; cooldown published by alert_taxonomy/cooldowns. Off: routes 404, the sweep does nothing; suspend is suspended_at, never a DELETE. Pending: needs an owner arm (TERM-025 per-type ruling). Rollback: set 0."
+    },
+    "ALERT_REMIND_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-035 remind (TERMINAL-NEXT lane S): a per-channel read-state (api/services/alert_taxonomy/remind.py; in_app stays alert_fires.read_at, push/email reads in alert_fire_channel_reads) and ONE reminder per unread fire after the member's per-alert delay (alert_predicates.remind_after_s, 5 min..7 days; clearing writes NULL). A read on any channel cancels it; withheld or undelivered fires and suspended predicates are never reminded; FT-036 routing applies; the reminder goes only to channels that delivered ok; claimed by INSERT before sending (never twice). Routes PUT /api/alerts/taxonomy/predicates/{id}/remind, POST /api/alerts/taxonomy/fires/{id}/read, GET .../read-state. ENABLEMENT GATE, default OFF, read per call in remind.is_enabled(); SERVICE: web (scheduler job alert_remind every 5 min, registered unconditionally, no-op while off). Off: routes 404, nothing is sent, stored settings and reads are kept. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "COVERAGE_RECEIPTS_SCANS_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "TERM-047 (TERMINAL-NEXT lane S): backend coverage receipts {evaluated, answered, dropped, not_computable, dropped_symbols} (api/services/coverage_receipt.py, closes or raises) for the three formerly no-counts surfaces -- /api/scans/period-change(-groups) (scan_period._assemble counts every common stock: no start/end close = not computable; recycled ticker, post-start listing, source disagreement, not trading = dropped), the six preset scans (scan_volume / scan_gainers / scan_ipo) and /api/volume-scan/live (volume_live.get_live) -- plus plain /api/screener/scan (query.coverage_for: the screen's universe, rows where a criterion's column is NULL = not computable). The scan services always compute the receipt (it rides their caches); the ROUTE publishes it only when armed (coverage_receipt.publish strips it while dark); /api/screener/scan computes it only when armed (two COUNTs). The widgets (PeriodSortResults, ScannerResults, VolumeScanWidget) and ScannerShell render <CoverageLine> from it, which renders nothing for an absent receipt; their no-counts exemptions are removed and the components/screener/CoverageLine.jsx re-export shim is retired. ENABLEMENT GATE, default OFF, read per call in coverage_receipt.is_enabled(); SERVICE: web. Off: every response and widget byte-identical. Pending: needs an owner arm. Rollback: set 0."
+    },
+    "TRANSCRIPT_OPERATOR_SEARCH_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "BRK-09 (TERMINAL-NEXT lane S): Boolean / NEAR / synonym operators over the transcript corpus (api/services/transcript_index.search + trend, behind /api/earnings/transcript-search and /transcript-trend). NO second parser: it calls filing_search.compile_query(q, scopes=()) -- the filing operator module's own tokenizer, grammar, synonym table and FTS5 compiler -- so section:/form: are refused with a sentence; exact (=word / quoted phrase) filters are re-checked against the call text with filing_search.passes; a malformed query returns {error, query_error} (never a 500). Response adds operators/expanded/notes. ENABLEMENT GATE, default OFF, read per call in transcript_index.operators_enabled(); SERVICE: web. Off: today's quote-every-term AND search, byte-identical. Pending: needs an owner arm (and the FMP storage / AI-processing read for any backfill, D-011). Rollback: set 0."
+    },
     "SCREENER_SPEC_ALERTS_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

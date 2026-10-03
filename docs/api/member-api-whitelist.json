@@ -98,6 +98,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/alerts/taxonomy/fires/{fire_id}/read-state",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/taxonomy/rating-change",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/alerts/webhooks",
       "rate_limit_family": "member-workspace",
       "tier": "paid"

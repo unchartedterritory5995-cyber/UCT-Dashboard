@@ -3456,6 +3456,10 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import indicator_condition as _at_indicator_cond
         _at_db.init_db()
         _at_doc_arrival.register()
+        # FT-034 rating-change is NOT registered here: registration in the boot
+        # path is CP3's act and its per-type ruling (TERM-025) is unsigned. Its
+        # create route registers the type on demand, and only while
+        # ALERT_RATING_CHANGE_ENABLED is armed (the owner's act).
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
         # Registration here; the DARK comparison sweep is wired further down
         # under ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED.
@@ -7365,6 +7369,45 @@ async def lifespan(app: FastAPI):
             _alert_lifecycle_expire_job,
             trigger=CronTrigger(minute="*", timezone=_ET),
             id="alert_lifecycle_expire",
+            max_instances=1, replace_existing=True,
+        )
+
+        # FT-035 remind -- one reminder per unread fire, after the member's own
+        # delay. `remind_due()` reads ALERT_REMIND_ENABLED per run (off: no-op).
+        def _alert_remind_job():
+            try:
+                from api.services.alert_taxonomy import remind as _rm
+                r = _rm.remind_due()
+                if r.get("sent") or r.get("errors"):
+                    print(f"[alert_remind] {r}")
+            except Exception as e:
+                print(f"[alert_remind] failed: {type(e).__name__}: {e}")
+
+        _scheduler.add_job(
+            _alert_remind_job,
+            trigger=CronTrigger(minute="*/5", timezone=_ET),
+            id="alert_remind",
+            max_instances=1, replace_existing=True,
+        )
+
+        # FT-034 rating-change -- the sweep reads ALERT_RATING_CHANGE_ENABLED
+        # per run (off: no-op). Registered unconditionally, like spec alerts.
+        def _alert_rating_change_job():
+            try:
+                from api.services.alert_taxonomy import rating_change as _rc
+                r = _rc.run_sweep()
+                if r.get("enabled"):
+                    print(f"[rating_change] checked={r['checked']} fired={r['fired']}"
+                          f" errors={len(r['errors'])}")
+            except Exception as e:
+                print(f"[rating_change] sweep failed: {type(e).__name__}: {e}")
+
+        from api.services.alert_taxonomy import rating_change as _at_rating_change
+        _scheduler.add_job(
+            _alert_rating_change_job,
+            trigger=CronTrigger(day_of_week="mon-fri", hour="7-19",
+                                minute=f"*/{_at_rating_change.SWEEP_EVERY_MINUTES}", timezone=_ET),
+            id="alert_rating_change_sweep",
             max_instances=1, replace_existing=True,
         )
 

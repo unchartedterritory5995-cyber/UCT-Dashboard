@@ -152,6 +152,9 @@ _MIGRATIONS: list[tuple[str, str]] = [
     # job SUSPENDS the predicate (suspended_at), never deletes it -- the same
     # never-deleted rule as a member's own suspend (PRD §8).
     ("add_alert_predicates_expires_at", "ALTER TABLE alert_predicates ADD COLUMN expires_at REAL"),
+    # FT-035 remind: an optional per-alert reminder delay. NULL = no reminder;
+    # clearing it writes NULL, never deletes anything (remind.py).
+    ("add_alert_predicates_remind_after_s", "ALTER TABLE alert_predicates ADD COLUMN remind_after_s REAL"),
 ]
 
 

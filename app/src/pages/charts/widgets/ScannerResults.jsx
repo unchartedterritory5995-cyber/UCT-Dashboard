@@ -10,6 +10,7 @@ import { KIND, channelFor, listRefCtx, usePublish } from '../../../lib/context/c
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
+import CoverageLine from '../../../components/provenance/CoverageLine'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
@@ -316,7 +317,9 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // Footer: how many stocks the scan holds, when it was last computed (ET), and a manual
   // refresh. Prices tick live already; this re-ranks membership on demand instead of
   // waiting for the 30s poll.
+  // TERM-047: the backend's four-count receipt (dark: absent -> renders nothing).
   const scanFooter = (
+    <>
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length} {symbols.length === 1 ? 'stock' : 'stocks'}</span>
       {data?.as_of && <span className={styles.scanUpdated}>· Updated {fmtScanTime(data.as_of)} ET</span>}
@@ -330,6 +333,8 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
       </button>
     </div>
+    <CoverageLine coverage={data?.coverage ?? null} density="widget" />
+    </>
   )
 
   return (

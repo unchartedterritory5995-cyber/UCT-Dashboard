@@ -94,7 +94,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../ui/UIcon'
-import CoverageLine from './CoverageLine'
+import CoverageLine from '../provenance/CoverageLine'
 import ChartPane from '../chart/pane/ChartPane'
 import { astHash } from '../chart/engine/ast/parse'
 import { sentenceFor } from '../chart/engine/ast/sentence'

@@ -254,6 +254,10 @@ def get_ipo_last_1y() -> dict:
     etfs = _etf_symbols()   # ETFs/ETNs/funds to exclude (stocks-only scan)
     avg_dvol = _avg_dollar_volume()
 
+    # TERM-047: every recent listing that is not an exchange-traded product lands
+    # in exactly one bucket; one under the tradability floor was ANSWERED.
+    from api.services.coverage_receipt import Tally
+    tally = Tally()
     results = []
     for sym, first_ts in ipos.items():
         if sym in etfs:
@@ -264,7 +268,9 @@ def get_ipo_last_1y() -> dict:
         # (keeps recent IPOs, drops delisted/non-equity). If the snapshot is empty
         # (transient/off-market), fall back to showing the set with no price.
         if snap and not s:
+            tally.drop(sym, "not trading now")
             continue
+        tally.answer()
         # Tradability floor (price > $1 + avg $ volume). Only applied when we have a snapshot
         # row to judge from; the no-snapshot fallback below shows the set unfiltered.
         if s and not _tradable(sym, s, avg_dvol):
@@ -284,7 +290,7 @@ def get_ipo_last_1y() -> dict:
     # Most recent IPO first (the frontend may re-sort).
     results.sort(key=lambda r: r["ipo_date"], reverse=True)
     out = {"status": "ok", "results": results, "count": len(results),
-           "as_of": _now_et().isoformat()}
+           "as_of": _now_et().isoformat(), "coverage": tally.receipt()}
     # Don't pin an empty set (transient snapshot miss) for the full TTL.
     cache.set(_CACHE_KEY, out, ttl=_TTL if results else 15)
     return out

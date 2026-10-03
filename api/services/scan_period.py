@@ -173,31 +173,47 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
     except Exception:
         smap = {}
 
+    # TERM-047: the coverage receipt. The universe is every common stock (no ETF,
+    # no test symbol); each one lands in exactly one bucket. Iterating the
+    # universe instead of `start_closes` yields the SAME result set (the old
+    # loop skipped every name outside `cs`), and lets the misses be counted.
+    from api.services.coverage_receipt import Tally
+    tally = Tally()
     results = []
-    for app, sc in start_closes.items():
+    for app in sorted(cs):
+        if app in etfs or app.endswith("ZZT"):
+            continue
+        sc = start_closes.get(app)
         if not sc or sc <= 0:
+            tally.cannot(app, "no close on the start date")
             continue
         ec = end_closes.get(app)
         if not ec or ec <= 0:
-            continue
-        if app not in cs or app in etfs or app.endswith("ZZT"):
+            tally.cannot(app, "no close on the end date")
             continue
         if partial and reuse.get(app, 0) > int(start_ymd):
+            tally.drop(app, "ticker reused by a newer listing since the start date")
             continue
         if _xcheck and app in bdb_end and app not in bdb_start:
-            continue   # trades now but not at the start → listing began after start → bogus start close
+            # trades now but not at the start → listing began after start → bogus start close
+            tally.drop(app, "listing began after the start date")
+            continue
         if _xcheck:
             bs, be = bdb_start.get(app), bdb_end.get(app)
             if bs and be and bs > 0:
                 gp = (ec - sc) / sc * 100      # grouped % change
                 bp = (be - bs) / bs * 100      # bars.db % change (independent source)
                 if abs(gp) > 150 and abs(gp - bp) > 150 and abs(gp) > 3 * abs(bp) + 100:
-                    continue   # the two sources wildly disagree → grouped start close is suspect
+                    # the two sources wildly disagree → grouped start close is suspect
+                    tally.drop(app, "start close disagrees with the bar history")
+                    continue
         # Currently-trading filter (whole-market path): require the ticker in the live
         # snapshot to drop delisted names. On the partial path we KEEP names bars.db has.
         s = snap.get(app) or _snap_lookup(snap, app) if snap else None
         if snap and not s and not partial:
+            tally.drop(app, "not trading now")
             continue
+        tally.answer()
         _si = smap.get(app) or {}
         results.append({
             "sym": app,
@@ -219,6 +235,8 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
         "end": int(ed.strftime("%Y%m%d")),
         "as_of": _now_et().isoformat(),
         "partial": partial,
+        # TERM-047: always computed; the route publishes it only when armed.
+        "coverage": tally.receipt(),
     }
 
 
@@ -606,4 +624,7 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
         "start": base.get("start"),
         "end": base.get("end"),
         "as_of": base.get("as_of"),
+        # TERM-047: the groups are built from the SAME per-stock pass, so its
+        # receipt (counted in symbols) is this surface's receipt too.
+        "coverage": base.get("coverage"),
     }

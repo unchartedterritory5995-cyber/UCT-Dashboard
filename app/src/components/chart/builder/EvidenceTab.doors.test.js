@@ -160,7 +160,8 @@ describe('EvidenceTab has exactly two doors and both open the same module', () =
   })
 
   it('CONTROL: the resolver sees a known sibling import, so an empty result would be a real absence', () => {
-    expect(resolvedImports(DOORS.ScanResults)).toContain(path.resolve(HERE, '../../screener/CoverageLine.jsx'))
+    // TERM-047 retired the screener re-export shim; ScanResults imports the real component.
+    expect(resolvedImports(DOORS.ScanResults)).toContain(path.resolve(HERE, '../../provenance/CoverageLine.jsx'))
     expect(resolvedImports(DOORS.BuilderSheet)).toContain(path.resolve(HERE, 'FormulaField.jsx'))
   })
 

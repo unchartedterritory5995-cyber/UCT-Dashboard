@@ -138,7 +138,17 @@ DISCORD_WEBHOOK_ENV = "DISCORD_ALERT_WEBHOOK"
 
 
 def discord_webhook() -> str:
-    """The alert webhook as it stands RIGHT NOW. Never cached."""
+    """The alert webhook as it stands RIGHT NOW. Never cached.
+
+    AC-2 (dark, ALERT_CHANNEL_REGISTRY_ENABLED): armed, it is resolved through
+    the one channel registry by PURPOSE ("alert" -> this same variable), so the
+    value is identical; dark, the variable is read directly as before."""
+    try:
+        from api.services.alert_taxonomy import channels as _channels
+        if _channels.is_enabled():
+            return _channels.resolve_webhook("alert")
+    except Exception:  # noqa: BLE001 -- the registry can never cost the channel
+        pass
     return os.environ.get(DISCORD_WEBHOOK_ENV, "") or ""
 
 # Alert severity levels
@@ -252,6 +262,14 @@ def _s7_durable_alerts(user_id: str, limit: int) -> list[dict]:
                 out.append(_at_doc_arrival.alert_shape_for_fire(f))
             except Exception:
                 continue
+        elif f.get("trigger_type") == "rating-change":
+            # FT-034 (dark): the second S7 type that delivers, so the second
+            # branch -- without it its fires would silently miss the feed.
+            try:
+                from api.services.alert_taxonomy import rating_change as _at_rc
+                out.append(_at_rc.alert_shape_for_fire(f))
+            except Exception:
+                continue
     return out
 
 
@@ -269,6 +287,14 @@ def _dual_write_s7_read_if_applicable(alert: dict, user_id: str) -> None:
     never breaks the feed" posture.
     """
     data = alert.get("data")
+    if isinstance(data, dict) and data.get("source") == "rating_change" and data.get("s7_fire_key"):
+        # FT-034: the same read-parity, keyed on the fire's own key.
+        try:
+            from api.services.alert_taxonomy import receipts as _at_receipts
+            _at_receipts.mark_fire_read_by_fire_key(data["s7_fire_key"], user_id)
+        except Exception:
+            pass
+        return
     if not isinstance(data, dict) or data.get("source") != "document_arrival":
         return
     accession = data.get("accession")
@@ -318,14 +344,22 @@ def get_alerts(limit: int = 50, user_id: str | None = None) -> list:
     # copy already carries, so the SAME fire never renders twice while both
     # stores briefly hold it -- once the ephemeral copy expires/evicts, the
     # durable reconstruction is the only copy left and takes over seamlessly.
+    # FT-034: a rating-change fire's cross-store key is its own fire key
+    # (`s7_fire_key`), carried on both copies -- the same dedup, another key.
     seen_accessions = {
         a["data"]["accession"] for a in mine
         if isinstance(a.get("data"), dict) and a["data"].get("accession")
     }
+    seen_fire_keys = {
+        a["data"]["s7_fire_key"] for a in mine
+        if isinstance(a.get("data"), dict) and a["data"].get("s7_fire_key")
+    }
     durable = _s7_durable_alerts(user_id, limit)
     merged += [
         d for d in durable
-        if not (isinstance(d.get("data"), dict) and d["data"].get("accession") in seen_accessions)
+        if not (isinstance(d.get("data"), dict)
+                and (d["data"].get("accession") in seen_accessions
+                     or (d["data"].get("s7_fire_key") and d["data"]["s7_fire_key"] in seen_fire_keys)))
     ]
 
     # Legacy (non-S7) durable merge (Alert Durability V1, 2026-09-06). Unlike

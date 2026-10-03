@@ -1460,10 +1460,16 @@ describe('TERM-047 — CoverageLine on every result surface', () => {
     const importOnly = "import CoverageLine from '../../../components/provenance/CoverageLine'\n"
       + "const u = '/api/scans/x'\nexport default () => <ul data-u={u} />\n"
     expect(coverageRouting(from, importOnly)).toBe(null)
-    // The SHIM counts, because the alias set is derived — the screener imports it that way.
+    // The alias set is DERIVED, so a retired shim stops counting: TERM-047 deleted
+    // `components/screener/CoverageLine.jsx`, and an import of that path now
+    // resolves to nothing -- it can never launder a surface into "direct".
     const viaShim = "import CoverageLine from '../../../components/screener/CoverageLine'\n"
       + 'export default () => <CoverageLine coverage={null} />\n'
-    expect(coverageRouting(from, viaShim)).toBe('direct')
+    expect(coverageRouting(from, viaShim)).toBe(null)
+    // CONTROL: the same render through the real path IS direct.
+    const viaReal = "import CoverageLine from '../../../components/provenance/CoverageLine'\n"
+      + 'export default () => <CoverageLine coverage={null} />\n'
+    expect(coverageRouting(from, viaReal)).toBe('direct')
   })
 
   it('the verdict can FAIL both ways — table cases, with a discriminator', () => {

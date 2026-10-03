@@ -486,16 +486,19 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   })
 
   it('THE RE-EXPORT HOP IS LOAD-BEARING: cut it and the shim stops counting as S8', () => {
-    // `components/screener/CoverageLine.jsx` re-exports S8's CoverageLine.
-    // Importing it is compliant — but only because `followReexport` follows the
-    // hop, and an unproven hop is an assumption.
-    const shim = path.join(SRC, 'components', 'screener', 'CoverageLine.jsx')
-    expect(fs.existsSync(shim), 'the screener CoverageLine shim moved — this control '
+    // ⚰️ This measured `components/screener/CoverageLine.jsx`, the re-export shim
+    // over S8's CoverageLine. TERM-047 RETIRED that shim (both importers now name
+    // the real component), so the hop is proved on the estate's remaining pure
+    // re-export instead: an unproven hop is still an assumption, and a shim over
+    // an S8 primitive could come back tomorrow.
+    expect(fs.existsSync(path.join(SRC, 'components', 'screener', 'CoverageLine.jsx')),
+      'the screener CoverageLine shim is back — point this control at it again').toBe(false)
+    const shim = path.join(SRC, 'pages', 'EducationalVideos.jsx')
+    expect(fs.existsSync(shim), 'the EducationalVideos re-export moved — this control '
       + 'cannot measure the hop').toBe(true)
-    expect(followReexport(shim).startsWith(PROVENANCE_DIR + path.sep),
-      'the shim did not resolve into components/provenance/ — the hop is not being '
-      + 'followed and an importer of S8\'s own component would be called a violation')
-      .toBe(true)
+    expect(followReexport(shim), 'the re-export was not followed — an importer of S8\'s '
+      + 'own component through a shim would be called a violation')
+      .toBe(path.join(SRC, 'pages', 'desk', 'VideosSection.jsx'))
     // The negative: a module that is NOT a pure re-export must not be followed
     // anywhere, or the hop would launder any import into compliance.
     const real = path.join(PROVENANCE_DIR, 'CoverageLine.jsx')

@@ -199,8 +199,11 @@ class _Parser:
     near     := primary (NEAR/n primary)*
     primary  := word | "phrase" | ( or_expr )"""
 
-    def __init__(self, toks):
+    def __init__(self, toks, scopes=("section", "form")):
         self.t, self.i = toks, 0
+        # BRK-09: the transcript corpus reuses THIS parser with no scopes --
+        # a `section:` / `form:` there is refused, never silently ignored.
+        self.scopes = tuple(scopes)
         self.section: Optional[str] = None
         self.form: Optional[str] = None
 
@@ -216,6 +219,8 @@ class _Parser:
         # scope tokens may sit anywhere; pull them out first
         rest = []
         for kind, val in self.t:
+            if kind in ("section", "form") and kind not in self.scopes:
+                raise QueryError(f"{kind}: narrows a filing search; this corpus has no {kind}s")
             if kind == "section":
                 key = _SECTION_ALIASES.get(val.lower())
                 if not key:
@@ -369,6 +374,12 @@ def _exact_filters(node) -> list[tuple[str, str]]:
     return out
 
 
+def passes(text: str, filters) -> bool:
+    """Public: does `text` satisfy the compiled query's exact filters?
+    The transcript corpus (BRK-09) enforces exactness with this same check."""
+    return _passes(text, filters)
+
+
 def _passes(text: str, filters) -> bool:
     low = " ".join((text or "").lower().split())
     for kind, val in filters:
@@ -381,14 +392,17 @@ def _passes(text: str, filters) -> bool:
     return True
 
 
-def compile_query(q: str) -> dict:
-    """{'fts', 'section', 'form', 'expanded', 'exact', 'notes'} or QueryError."""
+def compile_query(q: str, *, scopes: tuple = ("section", "form")) -> dict:
+    """{'fts', 'section', 'form', 'expanded', 'exact', 'notes'} or QueryError.
+
+    `scopes` names the scope prefixes this corpus understands. Filings take
+    both; the transcript corpus (BRK-09) passes () and so refuses them."""
     q = (q or "").strip()
     if not q:
         raise QueryError("nothing to search for")
     if len(q) > MAX_QUERY_CHARS:
         raise QueryError(f"a query is at most {MAX_QUERY_CHARS} characters")
-    p = _Parser(_tokens(q))
+    p = _Parser(_tokens(q), scopes)
     node = p.parse()
     expanded: dict = {}
     nested: list = []
