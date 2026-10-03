@@ -267,6 +267,10 @@
                       "value": "style:hollow"
                     },
                     {
+                      "label": "Style: Filled candles",
+                      "value": "style:filled"
+                    },
+                    {
                       "label": "Style: OHLC bars",
                       "value": "style:bars"
                     },
@@ -589,6 +593,10 @@
                     {
                       "label": "Style: Hollow candles",
                       "value": "style:hollow"
+                    },
+                    {
+                      "label": "Style: Filled candles",
+                      "value": "style:filled"
                     },
                     {
                       "label": "Style: OHLC bars",

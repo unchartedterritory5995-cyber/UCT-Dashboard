@@ -66,6 +66,11 @@ import { useSearchParams } from 'react-router-dom'
 // lines of the same colour. Comparisons draw at lineWidth 2 (MAs are 1) and
 // carry a price-scale label in their own colour, which is the second signal.
 export const COMPARE_COLORS = ['#c084fc', '#22d3ee', '#e8e8ea']
+// Exported-image volume: falls back to these only when the owner blob carries no
+// candle colours. Pane height is a % of the chart (the site default is 22).
+export const RENDER_VOL_UP = '#2faf68'
+export const RENDER_VOL_DOWN = '#df4646'
+export const RENDER_VOL_PANE_PCT = 12
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
@@ -464,9 +469,33 @@ export default function ChartRender() {
     : null), [compareSyms])
 
   const csOverride = useMemo(() => {
-    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta && !compareOverride) return null
+    if (fixedBars && !ownerSettings && !indicatorsParam && !instancesParam && !presetDelta && !compareOverride) return null
     let out = ownerSettings
+    // The exported-image look (Substack letter + Discord /chart), owner 2026-10-02:
+    // hollow candles, volume in the candles' own green/red, and a slim volume pane.
+    // Lands over the owner blob (whose volume.upColor is white) and UNDER every
+    // per-render choice, so a Discord member's style/preset still wins. A parity
+    // case (fixedBars) pins its own settings and never sees it.
+    if (!fixedBars) {
+      out = mergeSettingsOverride(out || {}, {
+        chartType: 'hollow',
+        volume: { paneHeightPct: RENDER_VOL_PANE_PCT },
+      })
+    }
     if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
+    if (!fixedBars) {
+      // Volume takes the colours of the candles actually drawn (after a preset
+      // recoloured them), unless the preset itself chose volume colours.
+      // ?indicators= below can still override either.
+      const c = out.candles || {}
+      const pv = (presetDelta && presetDelta.volume) || {}
+      out = mergeSettingsOverride(out, {
+        volume: {
+          upColor: pv.upColor || c.upColor || RENDER_VOL_UP,
+          downColor: pv.downColor || c.downColor || RENDER_VOL_DOWN,
+        },
+      })
+    }
     if (compareOverride) out = mergeSettingsOverride(out || {}, compareOverride)
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {
@@ -478,7 +507,7 @@ export default function ChartRender() {
       })
     }
     return out
-  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam, compareOverride])
+  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam, compareOverride, fixedBars])
 
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk
@@ -933,6 +962,9 @@ export default function ChartRender() {
             hidePriceLine={hidePriceLine}
             darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
+            // MAs never stretch the price scale (TC2000-style): a 200-day line far
+            // below price used to squash every candle into the top third.
+            fitPriceToCandles={!fixedBars}
             alwaysShowLegend
             liveUpdates={false}
           />

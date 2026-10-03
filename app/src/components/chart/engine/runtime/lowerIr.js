@@ -44,9 +44,30 @@ const isBoolIr = (e) => {
   return false
 }
 
+/** ⭐ RT1 — how many value ternaries a lowered program carries whose test is
+ *  NOT provably 0/1 (`SELECT`, see `EXPR.TERNARY` below). Kept beside the frozen
+ *  program rather than in it: a diagnostic the member door reads, never part of
+ *  what the VM runs. */
+const NA_TESTS = new WeakMap()
+
+/** ⭐⭐ RT1 — THE COUNT OF `?:` WHOSE TEST CAN BE `na`.
+ *
+ *  `SELECT` answers `na` when its test is `na` (`interpret.js::TERNARY`, shared
+ *  with the columnar lane). Two committed vendor captures show TradingView taking
+ *  the OTHER branch there instead: `qqe-signals` RDDT 1D (`cross(…) ? 1 : … :
+ *  nz(trend[1], 1)` during warm-up, bar 73) and `pivot-point-supertrend` RDDT 1D
+ *  (`ph ? ph : pl ? pl : na` with `ph` na, bar 517). The member door's runtime
+ *  FALLBACK refuses a program that carries one, by name, until the two lanes
+ *  share one witnessed rule — it never draws the disagreement.
+ *  @returns {number} */
+export function naTestsOf(program) {
+  return NA_TESTS.get(program) || 0
+}
+
 export function lowerIrProgram(ir) {
   /** ⭐ C18 — v6 `and`/`or` short-circuit (see the BINARY arm). */
   const lazyLogic = Number(ir && ir.version) >= 6
+  let naTests = 0
   const code = []
   const consts = []
   const pointwise = []
@@ -367,6 +388,7 @@ export function lowerIrProgram(ir) {
           patch(toEnd, 1, here())
           return
         }
+        naTests += 1
         expr(e.test); expr(e.then); expr(e.else); emit(OP.SELECT)
         return
       case EXPR.BUILTIN: {
@@ -708,7 +730,7 @@ export function lowerIrProgram(ir) {
     return { timeframe: r.timeframe, entry, results }
   })
 
-  return makeProgram({
+  const made = makeProgram({
     code,
     consts,
     columns: ir.columns,
@@ -759,6 +781,8 @@ export function lowerIrProgram(ir) {
     })),
     version: ir.version,
   })
+  NA_TESTS.set(made, naTests)
+  return made
 }
 
 /** Main-program persists come first; every call site's function-local block

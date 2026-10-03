@@ -270,8 +270,10 @@ export function validateIr(p) {
         walkExpr(e.symbol, `${where}.symbol`)
         return
       case EXPR.TUPLE:
-        if (!Array.isArray(e.elements) || e.elements.length < 2) {
-          throw new IrError(`${where}: a tuple carries at least two elements`)
+        // ⭐ R1 — ONE element is a tuple too: a function returning `[x]`, unpacked by
+        // `[a] = f()`. RET and the destructuring both carry the count.
+        if (!Array.isArray(e.elements) || e.elements.length < 1) {
+          throw new IrError(`${where}: a tuple carries at least one element`)
         }
         e.elements.forEach((x, i) => walkExpr(x, `${where}.tuple[${i}]`))
         return
@@ -523,8 +525,8 @@ export function validateIr(p) {
           walkStmts(s.body, `${at}.body`)
           return
         case STMT.DESTRUCTURE:
-          if (!Array.isArray(s.slots) || s.slots.length < 2) {
-            throw new IrError(`${at}: a destructuring binds at least two names`)
+          if (!Array.isArray(s.slots) || s.slots.length < 1) {
+            throw new IrError(`${at}: a destructuring binds at least one name`)
           }
           for (const sl of s.slots) {
             if (!Number.isInteger(sl) || sl < 0 || sl >= nSlots) {

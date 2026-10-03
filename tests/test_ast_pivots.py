@@ -58,8 +58,10 @@ RAMP = [10 + i for i in range(40)]
 #: anyway and widening the fetch changed **0 bars** — measured. Raising index 36
 #: to 30 puts a REAL pivot in the undecidable tail, so the two cases separate.
 TAIL = HIGHS[:36] + [30] + HIGHS[37:]
-#: A plateau: the max appears TWICE, so under a STRICT rule neither bar is a
-#: pivot. A `>=` implementation emits both and looks perfectly reasonable.
+#: A plateau: the max appears TWICE. TradingView pivots on its LAST bar -- a tie
+#: on the left is admitted, one on the right is not (H1, 2026-10-02, read off three
+#: captures; ``interpret.js::pivotCol`` carries the evidence). ⚰️ It was "neither
+#: bar is a pivot", a strict reading that is not the vendor's.
 PLATEAU = [10, 11, 12, 20, 20, 12, 11, 10]
 #: ⭐ LEFT AND RIGHT ARE NOT INTERCHANGEABLE, and this is the series that proves
 #: it: `(1, 3)` finds two pivots and `(3, 1)` finds none.
@@ -116,13 +118,14 @@ def test_a_STRICT_RAMP_has_no_pivots_at_all():
     assert hits(run(PL(2, 2), RAMP)) == []
 
 
-def test_a_PLATEAU_IS_NOT_A_PIVOT_because_the_rule_is_STRICT():
-    """⛔ THE RULING, AND IT IS INVISIBLE ON A SERIES WITH NO TIES. Two equal
-    maxima mean neither bar is uniquely the extreme, so neither is a pivot. A
-    `>=` implementation emits BOTH and looks entirely reasonable — see the corpus
-    case below for how many real bars separate the two rules."""
-    assert hits(run(PH(2, 2), PLATEAU)) == []
-    assert hits(run(PL(2, 2), [-v for v in PLATEAU])) == []
+def test_a_PLATEAU_PIVOTS_ONCE_on_its_LAST_bar():
+    """⛔ THE RULING, AND IT IS INVISIBLE ON A SERIES WITH NO TIES. Read off
+    TradingView (H1, 2026-10-02): the plateau's FIRST bar has an equal bar on its
+    right and does not pivot; its LAST bar has the equal bar on its left and does.
+    Strict on both sides (the old rule) emits nothing; ``>=`` on both emits both
+    -- each is a different reading the captures refuse."""
+    assert hits(run(PH(2, 2), PLATEAU)) == [(4, 20.0)]
+    assert hits(run(PL(2, 2), [-v for v in PLATEAU])) == [(4, -20.0)]
 
 
 def test_LEFT_and_RIGHT_are_not_interchangeable():
@@ -326,7 +329,9 @@ def test_the_corpus_SEES_the_STRICTNESS_ruling_and_here_is_the_COUNT():
     assert plateau == {"h": 20, "l": 15}, plateau
 
     # …and the entries really do answer over this series, at a rate worth pinning.
-    for ast, want in ((PH(2, 2), 54), (PL(2, 2), 54)):
+    # ⚰️ 54 / 54 under the strict rule; the left-tie reading (H1) adds the 8 and 9
+    # plateaus whose last bar beats its right side.
+    for ast, want in ((PH(2, 2), 62), (PL(2, 2), 63)):
         col = ast_interpret.interpret(ast, bars, {})
         assert sum(1 for v in col if v is not None) == want, (
             ast["name"], sum(1 for v in col if v is not None))
@@ -339,7 +344,7 @@ def test_the_corpus_SEES_the_STRICTNESS_ruling_and_here_is_the_COUNT():
 JS_RULINGS = [
     ("js_pivothigh_on_the_pivot_bar", PH(2, 2), HIGHS, [(3, 20.0), (8, 15.0), (17, 25.0)]),
     ("js_pivothigh_ramp_control", PH(2, 2), RAMP, []),
-    ("js_pivothigh_plateau_is_not_a_pivot", PH(2, 2), PLATEAU, []),
+    ("js_pivothigh_plateau_pivots_on_its_last_bar", PH(2, 2), PLATEAU, [(4, 20.0)]),
     ("js_pivothigh_left_and_right_not_swapped", PH(1, 3), ASYM, [(1, 30.0), (4, 20.0)]),
     ("js_pivothigh_swapped_finds_nothing", PH(3, 1), ASYM, []),
     ("js_pivotlow_mirrors", PL(2, 2), [-h + 40 for h in HIGHS],

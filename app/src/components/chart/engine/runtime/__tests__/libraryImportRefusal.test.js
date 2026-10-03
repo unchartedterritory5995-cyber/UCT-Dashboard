@@ -98,16 +98,19 @@ plot(close)
     expect(r.line).toBe(4)
   })
 
-  it('⛔⛔ CONTROL — `strategy()` KEEPS the sentence that is true of it', () => {
-    // ⚰️ THE HALF THAT MUST NOT MOVE. 25 of the 54 really are not indicators,
-    // and the owner ruled `strategy()` out of scope on 2026-09-23. A split that
-    // quietly re-pointed them would lose a true refusal to fix a false one.
+  it('⛔⛔ CONTROL — an `import` under a `strategy()` still refuses as a LIBRARY, not a declaration', () => {
+    // ⚰️ THIS CONTROL ASSERTED `strategy()` refuses as `runtime:declaration`
+    // ("the owner ruled `strategy()` out of scope on 2026-09-23"). C50
+    // (2026-10-02) reversed that ruling for the chart: a strategy draws like an
+    // indicator, and R1 carried it into this lane (`runtimeStrategy.test.js`).
+    // What must still hold is the half this file exists for: an import is
+    // refused as an IMPORT, whatever the declaration above it.
     const r = refusalOf(`${HEAD}
 strategy("s")
+import PineCoders/Time/1 as tt
 plot(close)
 `)
-    expect(r.guard).toBe('runtime:declaration')
-    expect(r.message).toMatch(/not an indicator/)
+    expect(r.guard).toBe('runtime:library')
   })
 
   it('⛔ CONTROL — `library()` and `export` also keep it', () => {
