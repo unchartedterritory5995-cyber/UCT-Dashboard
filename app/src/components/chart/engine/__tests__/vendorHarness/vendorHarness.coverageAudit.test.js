@@ -271,8 +271,12 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     // RT5 (step 72): the run now OWNS its drawings, so the objects verdict reads the
     // run's own answer: RDDT stops on an engine error (the same one that leaves the
     // 8 plots without a column), SPY on `calc_bars_count = 1000` against 1,800 bars.
-    for (const [id, why] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', /engine-error: array\.max of an empty array/],
-      ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', /runtime:calc-bars-count/]]) {
+    // ⭐ WAVE 16: with H4 withholding wyckoff's offset markers, RDDT's run computes no
+    // column at all, so RT4's gate (`runtime:objects-without-run`: no drawings without a
+    // run that computed) answers first, as "the run drew nothing". Either named reason
+    // is a refusal; what this control pins is that nothing is DRAWN.
+    for (const [id, why] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', /engine-error: array\.max of an empty array|the run drew nothing/],
+      ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', /runtime:calc-bars-count|the run drew nothing/]]) {
       const v = grade(id, 'runtime').v
       expect(v.objects.verdict, id).toBe('INCONCLUSIVE')
       expect(v.objects.reason, id).toMatch(why)
