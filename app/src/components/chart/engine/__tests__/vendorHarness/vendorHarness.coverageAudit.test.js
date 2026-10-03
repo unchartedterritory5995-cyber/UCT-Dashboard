@@ -24,6 +24,8 @@ import path from 'node:path'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { loadPineLibraryStore } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 import { clearPineLibraries } from '../../ast/pineLibraryStore'
+import fs from 'node:fs'
+import { cap3Signature } from './cap3Signature'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -486,4 +488,51 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
   it('the objects pane alone still refuses it by name (pine:collection)', () => {
     expect(grade('renko-candles-overlay-rddt-1d-2026-10-03').v.reason).toMatch(/pine:collection/)
   }, T)
+})
+
+// ─── CAP3 — AMEX:SPY 1D for every census runtime-state attach that had none ──────
+// Each row's signature (`cap3-spy-gap-verdicts.json`) was written by
+// `cap3SpyGaps.measure.test.js` from the harness's own verdict, never by hand. MATCH
+// rows are an `expect`; a DIVERGE row is an `it.fails` asserting MATCH beside the
+// signature control that names what diverges (item, first bar, kind, count; object
+// families vendor vs ours). Most SPY value divergences are converging prefixes: the
+// 1800-bar window does not start at SPY's listing, so a recursive series (EMA, RMA)
+// seeds differently (CAP2 records the same); the signature says which.
+const CAP3_SPY = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-spy-gap-verdicts.json'), 'utf8')).captures
+const gradeRow = (row) => {
+  if (row.library) loadPineLibraryStore(STORE_DIR)
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  if (row.state === 'runtime') vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  const v = gradeCapture(loadCapture(path.join(HARNESS_DIR, `${row.id}.json`)).capture).verdict
+  vi.unstubAllEnvs()
+  clearPineLibraries()
+  return v
+}
+describe('CAP3 — SPY 1D captures of the census gap list', () => {
+  it('every row is a v1 capture on AMEX:SPY 1D past 1,000 bars, its source the corpus file, and carries a measured signature', () => {
+    expect(CAP3_SPY.length).toBeGreaterThan(0)
+    for (const row of CAP3_SPY) {
+      const cap = loadCapture(path.join(HARNESS_DIR, `${row.id}.json`)).capture
+      expect(cap.symbol.full_name, row.id).toBe('AMEX:SPY')
+      expect(cap.bars.count, row.id).toBeGreaterThan(1000)
+      expect(row.signature, row.id).toBeTruthy()
+    }
+  }, T)
+  for (const row of CAP3_SPY) {
+    const run = row.library && !STORE_DIR ? it.skip : it
+    if (row.signature && row.signature.verdict === 'MATCH') {
+      run(`${row.id} (${row.state}): MATCH`, () => {
+        expect(gradeRow(row).verdict).toBe('MATCH')
+      }, T)
+      continue
+    }
+    if (row.signature && row.signature.verdict === 'DIVERGE') {
+      ;(row.library && !STORE_DIR ? it.skip : it.fails)(`${row.id} (${row.state}): MATCH`, () => {
+        expect(gradeRow(row).verdict).toBe('MATCH')
+      }, T)
+    }
+    run(`control: ${row.id} (${row.state}) — the grade is the measured signature (${row.signature && row.signature.verdict})`, () => {
+      expect(cap3Signature(gradeRow(row))).toEqual(row.signature)
+    }, T)
+  }
 })
