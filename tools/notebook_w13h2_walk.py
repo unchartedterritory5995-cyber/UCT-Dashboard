@@ -272,6 +272,27 @@ def press(btn, touch):
         btn.click()
 
 
+def tool_armed_state(loc) -> dict:
+    """Read whether the matched tool button is CURRENTLY armed, from the DOM -- never
+    assumed. The two presentations signal armed differently and neither is the other's
+    fallback: MobileDrawBar sets `aria-pressed` on every tile (ChartToolbar.jsx has none);
+    ChartToolbar signals armed only via its `.active` CSS class, whose module-hashed
+    name is unreadable from outside the bundle, but `.btn.active` in
+    ChartToolbar.module.css is the ONLY rule anywhere in that file that sets an inset
+    box-shadow -- so an inset box-shadow is read as the desktop proxy. Returns both raw
+    readings plus which one produced the verdict, so a run's raw evidence shows its
+    work rather than a bare boolean."""
+    info = loc.first.evaluate(
+        "el => ({ariaPressed: el.getAttribute('aria-pressed'), "
+        "boxShadow: getComputedStyle(el).boxShadow})")
+    aria = info.get("ariaPressed")
+    if aria is not None:
+        armed, basis = (aria == "true"), "aria-pressed"
+    else:
+        armed, basis = ("inset" in (info.get("boxShadow") or "")), "box-shadow:inset"
+    return {"armed": armed, "basis": basis, **info}
+
+
 def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=None, nid=None) -> int:
     """Draw mode -> Horizontal Line -> one click/tap per line, at three heights.
 
@@ -345,7 +366,16 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
                                "text: (e.textContent||'').slice(0,40), rect: (() => { const r = e.getBoundingClientRect(); "
                                "return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)] })(), "
                                "visible: !!e.offsetParent}))"))
-        press(tool.first, touch)
+        # Controller follow-up: both MobileDrawBar.arm() and ChartToolbar.selectTool() do
+        # `setActiveTool(activeTool === id ? null : id)` -- a TOGGLE. Pressing an
+        # already-armed tool DE-ARMS it, so the tap that follows lands with nothing
+        # selected. Read the armed state FIRST (recorded before the tap, every attempt,
+        # whether or not a press follows) and press only when the tool is not already
+        # armed -- never unconditionally.
+        armed_before = tool_armed_state(tool)
+        w.raw.setdefault(f"{tag}_armed_before_tap", []).append({"frac": frac, **armed_before})
+        if not armed_before["armed"]:
+            press(tool.first, touch)
         if touch:
             # Tool-select and the placement tap were back-to-back (0ms apart) -- fine on
             # desktop (a real mouse click dispatches synchronously either way), but taps 1 and 2
