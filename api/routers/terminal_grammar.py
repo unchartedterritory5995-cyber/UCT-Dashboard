@@ -5,6 +5,12 @@ Every route carries BOTH gates, in this order of meaning (rollout_gate.require_c
 "has the shell been released to you" (404, byte-identical to an unknown route). The shell
 these serve is itself paid and cohort-gated, so neither gate narrows a real member.
 
+A THIRD gate sits in front of both: the dark flag `TERMINAL_GRAMMAR_ENABLED`
+(docs/feature_flags.json). Unset, every route answers 404 before identity is read.
+
+Routes are plain `def` (SQLite + sync service calls): they run on the threadpool, never on
+the event loop (tests/test_async_routes_do_not_block.py).
+
 Every read and write is OWNER-SCOPED by the session's user id; no route takes a user id.
 """
 from __future__ import annotations
@@ -26,7 +32,14 @@ def _require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
-router = APIRouter(dependencies=[Depends(require_terminal_next), Depends(_require_paid)])
+def _require_enabled() -> None:
+    """The dark flag: off means the route does not exist (404, the same as an unknown path)."""
+    if not tg.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+router = APIRouter(dependencies=[Depends(_require_enabled), Depends(require_terminal_next),
+                                 Depends(_require_paid)])
 
 
 class CommandEvent(BaseModel):

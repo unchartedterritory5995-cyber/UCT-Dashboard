@@ -38,15 +38,24 @@ vi.mock('../../hooks/usePreferences', () => {
   }
 })
 
-vi.mock('./panels', () => {
+// The REAL panels module (names, the panel-set surface ids, URL ownership) with only the
+// components stubbed — so a surface code here resolves through the real TERM-037 panel set.
+// A stub given the security BOOM throws during render (the V22 throwing-panel rail).
+vi.mock('./panels', async (importOriginal) => {
+  const real = await importOriginal()
   const stubs = new Map()
   return {
-    URL_OWNING_PANELS: new Set(['Calendar']),
+    ...real,
     PANEL_IMPORTERS: {},
     panelComponent: (name) => {
       if (!stubs.has(name)) {
-        stubs.set(name, function Stub({ sym, volSurface }) {
-          return <div data-testid={`stub-${name}`}>{name}:{sym || '-'}{volSurface ? ':vol' : ''}</div>
+        stubs.set(name, function Stub({ sym, volSurface, tf, focusCode }) {
+          if (sym === 'BOOM') throw new Error(`stub ${name} blew up`)
+          return (
+            <div data-testid={`stub-${name}`}>
+              {name}:{sym || '-'}{volSurface ? ':vol' : ''}{tf ? `:tf=${tf}` : ''}{focusCode ? `:focus=${focusCode}` : ''}
+            </div>
+          )
         })
       }
       return stubs.get(name)
@@ -176,10 +185,110 @@ describe('the command line drives the focused panel', () => {
 
   it('a door function navigates to its existing surface', async () => {
     renderAt('/terminal')
-    await type('BRD')
-    expect(screen.getByTestId('where').textContent).toBe('/breadth')
+    await type('DP')
+    expect(screen.getByTestId('where').textContent).toBe('/dark-pool')
   })
 
+  it('V13: a surface function EMBEDS the page in the panel (panel-set id), with a Full page link', async () => {
+    renderAt('/terminal')
+    await type('BRD')
+    // V6d: the shell stays on /terminal and the URL now carries the panel's command.
+    expect(screen.getByTestId('where').textContent).toBe('/terminal?cmd=BRD')
+    const panel = screen.getByTestId('terminal-panel-0')
+    expect(await within(panel).findByTestId('stub-surfaceBreadth')).toBeTruthy()
+    expect(within(panel).getByRole('link', { name: 'Full page' }).getAttribute('href')).toBe('/breadth')
+  })
+
+  it('V1: OSCR and OBT open the BUILT surfaces — neither answers "not on this release"', async () => {
+    renderAt('/terminal', { ...OPEN, optionsScreenerEnabled: true, optionsBacktestEnabled: true })
+    await type('OSCR')
+    expect(await screen.findByTestId('stub-OptionsScreener')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-notice')).toBeNull()
+    await type('NVDA OBT')
+    expect(await screen.findByTestId('stub-Backtest')).toHaveTextContent('Backtest:NVDA')
+  })
+
+  it('a dotted Depth flag gates its panel off the researchDepth object', async () => {
+    renderAt('/terminal', { ...OPEN, researchDepth: { ftd_dataset_enabled: true } })
+    await type('NVDA FTD')
+    expect(await screen.findByTestId('stub-Ftd')).toHaveTextContent('Ftd:NVDA')
+    await type('NVDA EVTS')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('EVTS is not enabled')
+  })
+})
+
+describe('V6a: arguments are honoured, and every one is echoed', () => {
+  it('NVDA GP W sets the chart timeframe and says so', async () => {
+    renderAt('/terminal')
+    await type('NVDA GP W')
+    expect(await screen.findByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA:tf=W')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('GP: applied timeframe W.')
+    expect(JSON.parse(store.prefs.terminal_layout).panels[0].args).toEqual(['W'])
+  })
+
+  it('an argument a function does not take is NOT dropped silently', async () => {
+    renderAt('/terminal')
+    await type('NVDA GP BANANA')
+    expect(await screen.findByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA')
+    expect(screen.getByTestId('stub-Chart')).not.toHaveTextContent('tf=')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "BANANA"')
+    await type('NVDA FA 1Y')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "1Y" — FA takes no arguments.')
+  })
+
+  it('CAL TODAY drives the calendar through its own ?d= (and clears ?week=)', async () => {
+    renderAt('/terminal/calendar?week=2026-01-05')
+    await type('CAL TODAY')
+    const where = new URL(`http://x${screen.getByTestId('where').textContent}`)
+    expect(where.pathname).toBe('/terminal/calendar')
+    expect(where.searchParams.get('d')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(where.searchParams.has('week')).toBe(false)
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent(/CAL: applied day \d{4}-\d{2}-\d{2}\./)
+  })
+
+  it('CAL 2026-10-07 opens that week on that day', async () => {
+    renderAt('/terminal')
+    await type('CAL 2026-10-07')
+    const where = new URL(`http://x${screen.getByTestId('where').textContent}`)
+    expect(where.searchParams.get('d')).toBe('2026-10-07')
+  })
+
+  it('a door refuses rather than carry away an argument it cannot use', async () => {
+    renderAt('/terminal')
+    await type('NVDA CMP AMD EXTRA')
+    expect(screen.getByTestId('where').textContent).toBe('/terminal')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "EXTRA"')
+  })
+
+  it('HELP GP hands the help panel its focus code', async () => {
+    renderAt('/terminal')
+    await type('HELP GP')
+    expect(await screen.findByTestId('stub-Help')).toHaveTextContent('focus=GP')
+  })
+})
+
+describe('V22: a panel that throws takes down ONLY itself', () => {
+  it('the crashed panel says so; its neighbour renders; the command line still drives the shell', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 2, focus: 1, panels: [
+        { code: 'FA', group: 'N', sym: 'BOOM' }, { code: 'DES', group: 'N', sym: 'AAPL' },
+        { code: 'GP', group: 'A' }, { code: 'GP', group: 'A' },
+      ] }) }
+      renderAt('/terminal')
+      const crashed = await within(screen.getByTestId('terminal-panel-0')).findByTestId('terminal-panel-crashed')
+      expect(crashed).toHaveTextContent('FA hit an error')
+      expect(screen.getByTestId('terminal-panel-1')).toHaveTextContent('Overview:AAPL')
+      await type('MSFT')
+      expect(screen.getByTestId('terminal-panel-1')).toHaveTextContent('Overview:MSFT')
+      expect(screen.getByTestId('terminal-shell')).toBeTruthy()
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+})
+
+describe('the command line: doors, deep links, addresses, history', () => {
   it('NVDA GEX opens Options Flow ON its GEX view for that ticker', async () => {
     renderAt('/terminal')
     await type('NVDA GEX')
@@ -280,8 +389,8 @@ describe('PHONE (<=640): one panel, the command line pinned first, functions in 
     renderAt('/terminal')
     await act(async () => { fireEvent.click(screen.getByTestId('terminal-fn-button')) })
     const help = await screen.findByTestId('terminal-help')
-    await act(async () => { fireEvent.click(within(help).getByRole('button', { name: /BRD/ })) })
-    expect(screen.getByTestId('where').textContent).toBe('/breadth')
+    await act(async () => { fireEvent.click(within(help).getByRole('button', { name: /^DASH/ })) })
+    expect(screen.getByTestId('where').textContent).toBe('/dashboard')
   })
 })
 

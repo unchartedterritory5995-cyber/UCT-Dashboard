@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import threading
 import time
@@ -38,6 +39,12 @@ SYM_RE = re.compile(r"^[A-Z][A-Z.\-]{0,6}$")
 MAX_KEYS_PER_MEMBER = 300
 MAX_ALIASES_PER_MEMBER = 100
 MAX_EXPANSION_LEN = 200
+
+
+def is_enabled() -> bool:
+    """The dark flag for every route this module serves. Read PER CALL; unset means OFF
+    (the routes answer 404 before identity is read, exactly like an unknown path)."""
+    return os.getenv("TERMINAL_GRAMMAR_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS terminal_command_counts (

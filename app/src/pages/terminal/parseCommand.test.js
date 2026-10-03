@@ -35,6 +35,11 @@ const OK = [
   ['help gp',              'HELP',  null,    ['GP']],
   ['?',                    'HELP',  null,    []],
   ['CAL NEXT',             'CAL',   null,    ['NEXT']], // a market code keeps a non-ticker arg
+  ['CAL TODAY',            'CAL',   null,    ['TODAY']],
+  ['NVDA GP W',            'GP',    'NVDA',  ['W']],    // the timeframe the shell honours (args.js)
+  // OSCR / OBT were ABSENT answers until 2026-10-02 (V1): both surfaces are built.
+  ['OSCR',                 'OSCR',  null,    []],
+  ['NVDA OBT',             'OBT',   'NVDA',  []],
 ]
 
 const ADDRESSES = [
@@ -51,10 +56,8 @@ const FAIL = [
   ['',                  'empty',                          []],
   ['NVDA GPX',          'Unknown function "GPX" for NVDA', ['GP']],
   ['NVDA OMN',          'Unknown function "OMN"',          ['OMON']],
-  ['#!',                'Unknown command',                 []],   // (a bare number is now row <GO>; see below)
+  ['#!',                'Unknown command',                 []],   // (a bare number of 1-3 digits is row <GO>; see below)
   ['1234',              'Unknown command',                 []],   // …of at most 3 digits
-  ['OSCR',              'options screener',                []],
-  ['NVDA OBT',          'backtester',                      []],
   ['12AB FA',           'is not a ticker',                 []],
 ]
 
@@ -141,14 +144,14 @@ describe('parseCommand — T3: rows, channels, expressions, ASK, aliases, collis
     expect(parseCommand('nvda earnings date?')).toMatchObject({ ok: true, type: 'ask', fallback: true })
     // …but a near-miss code is still corrected, not shipped to AI Search.
     expect(parseCommand('NVDA GPX').ok).toBe(false)
-    expect(parseCommand('OSCR').ok).toBe(false)          // ABSENT keeps its own answer
+    expect(parseCommand('NVDA OMN').ok).toBe(false)      // a near-miss keeps its "did you mean"
   })
 
   it('aliases: define, refuse collisions, expand one level, delete, list', () => {
     expect(parseCommand('ALIAS SEMIS = SMH GP')).toEqual({ ok: true, type: 'alias-define', name: 'SEMIS', expansion: 'SMH GP' })
     expect(parseCommand('alias semis smh gp')).toMatchObject({ type: 'alias-define', name: 'SEMIS', expansion: 'smh gp' })
     expect(parseCommand('ALIAS GP = NVDA GP').error).toContain('already a function')
-    expect(parseCommand('ALIAS OSCR = NVDA GP').error).toContain('reserved function code')
+    expect(parseCommand('ALIAS OSCR = NVDA GP').error).toContain('already a function')   // T1 made OSCR live
     expect(parseCommand('ALIAS SECTOR = NVDA GP').error).toContain('reserved word')
     expect(parseCommand('ALIAS X = NVDA GP').error).toContain('not a valid alias name')
     expect(parseCommand('ALIAS BAD = NVDA GPX').error).toContain('must expand to a command')

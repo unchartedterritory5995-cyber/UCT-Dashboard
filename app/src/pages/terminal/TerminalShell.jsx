@@ -26,21 +26,41 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
 import parseCommand from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, fillDoor, researchHref, variantFor } from './functions'
-import { panelComponent, URL_OWNING_PANELS } from './panels'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, fillDoor, flagOn, researchHref, variantFor } from './functions'
+import { applyArgs, argsEcho } from './args'
+import { panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout, { GROUP_DOT, PANEL_COUNTS, nextGroup, panelSym } from './useTerminalLayout'
 import { TERMINAL_CALENDAR_PATH } from './terminalGate'
 import styles from './TerminalShell.module.css'
 
-/** Pure: what a stored panel renders — the variant, its security, and why not if it can't. */
+/** Pure: what a stored panel renders — the variant, the panel it names (a component, or a
+ *  panel-set page), its security, the props its honoured args produce, and why not if it can't. */
 export function resolvePanel(panel, groups, auth) {
   const fn = BY_CODE[panel?.code]
   if (!fn) return { state: 'unknown', fn: null }
   const sym = panelSym(panel, groups)
-  const variant = (sym && fn.ticker) ? fn.ticker : (fn.market?.panel ? fn.market : null)
+  const variant = (sym && panelNameFor(fn.ticker)) ? fn.ticker : (panelNameFor(fn.market) ? fn.market : null)
   if (!variant) return { state: 'needs-ticker', fn, sym }
-  if (variant.flag && auth?.[variant.flag] !== true) return { state: 'disabled', fn, sym, variant }
-  return { state: 'ready', fn, sym: variant === fn.ticker ? sym : null, variant }
+  if (!flagOn(auth, variant.flag)) return { state: 'disabled', fn, sym, variant }
+  const { props } = applyArgs(variant, panel.args)
+  return { state: 'ready', fn, sym: variant === fn.ticker ? sym : null, variant, name: panelNameFor(variant), props }
+}
+
+/** The page a panel's "Full page" link opens: the research section, the market panel's own
+ *  page, or the embedded surface's route. */
+function fullHref(r) {
+  if (r.state !== 'ready') return null
+  if (r.sym && r.variant.section) return researchHref(r.sym, r.variant.section)
+  return r.variant.full || r.variant.surface || null
+}
+
+/** What a panel shows when the component inside it throws: the rest of the shell lives on. */
+function PanelCrashed({ code }) {
+  return (
+    <div className={styles.panelEmpty} role="alert" data-testid="terminal-panel-crashed">
+      {code} hit an error and stopped. The other panels are unaffected; run {code} again to retry.
+    </div>
+  )
 }
 
 /** Pure: the command text that reproduces a stored panel — what `?cmd=` carries. */
@@ -72,9 +92,9 @@ export function telemetryKey(cmd) {
 
 function Panel({ index, panel, focused, groups, auth, onFocus, onCycleGroup, onRun, onRows, helpProps, hidden }) {
   const r = resolvePanel(panel, groups, auth)
-  const Comp = r.state === 'ready' ? panelComponent(r.variant.panel) : null
-  const title = [r.sym, panel.code].filter(Boolean).join(' ')
-  const full = r.state === 'ready' && r.sym && r.variant.section ? researchHref(r.sym, r.variant.section) : null
+  const Comp = r.state === 'ready' ? panelComponent(r.name) : null
+  const title = [r.sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
+  const full = fullHref(r)
   // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list).
   const rowsProp = focused ? onRows : undefined
   return (
@@ -108,13 +128,16 @@ function Panel({ index, panel, focused, groups, auth, onFocus, onCycleGroup, onR
       </header>
       <div className={styles.panelBody}>
         {r.state === 'ready' && Comp && (
-          <ErrorBoundary key={`${panel.code}:${r.sym || ''}`}>
+          <ErrorBoundary
+            key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}
+            fallback={<PanelCrashed code={panel.code} />}
+          >
             <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
-              {r.variant.panel === 'Help'
-                ? <Comp args={panel.args} onRun={onRun} onRows={rowsProp} {...helpProps} />
-                : r.variant.panel === 'Move'
+              {r.name === 'Help'
+                ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                : r.name === 'Move'
                   ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
-                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} />}
+                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
             </Suspense>
           </ErrorBoundary>
         )}
@@ -186,7 +209,8 @@ export default function TerminalShell() {
   const openCalendarPath = useCallback((extra) => {
     const p = new URLSearchParams(location.search)
     p.delete('cmd')   // the calendar owns this URL; a stale shell command must not ride along
-    for (const [k, v] of Object.entries(extra || {})) p.set(k, v)
+    // `null` removes a param (`CAL TODAY` clears `?week=` back to the current week).
+    for (const [k, v] of Object.entries(extra || {})) { if (v == null) p.delete(k); else p.set(k, v) }
     const q = p.toString()
     if (location.pathname !== TERMINAL_CALENDAR_PATH || extra) {
       navigate(`${TERMINAL_CALENDAR_PATH}${q ? `?${q}` : ''}`, { replace: !extra })
@@ -277,7 +301,7 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: `${cmd.code} needs a ticker — e.g. NVDA ${cmd.code}.` })
       return null
     }
-    if (variant.flag && auth[variant.flag] !== true) {
+    if (!flagOn(auth, variant.flag)) {
       setNotice({ kind: 'error', text: `${cmd.code} is not enabled for your account yet.` })
       return null
     }
@@ -299,17 +323,33 @@ export default function TerminalShell() {
         setNotice({ kind: 'error', text: `${cmd.code} needs ${variant.needsArg || 'a ticker'}.` })
         return null
       }
+      // A door leaves the shell, so an argument it cannot carry would vanish with no one to
+      // say so: refuse instead, and say which token (V6a, never silent).
+      const leftover = applyArgs(variant, cmd.args)
+      if (leftover.ignored.length) {
+        setNotice({ kind: 'error', text: argsEcho(cmd.code, leftover) })
+        return null
+      }
       navigate(to)
       return null
     }
+    const name = panelNameFor(variant)
+    if (!name) {
+      setNotice({ kind: 'error', text: `${cmd.code} has no panel on this release.` })
+      return null
+    }
+    // V6a: every token after the code is APPLIED or said to be NOT applied, never dropped.
+    const applied = applyArgs(variant, cmd.args)
+    const echo = argsEcho(cmd.code, applied)
 
-    // A panel that owns the URL (the calendar) appears at most once: re-use its slot.
+    // A panel that owns the URL (the calendar, the screener page) appears at most once:
+    // re-use its slot.
     let target = at
-    if (URL_OWNING_PANELS.has(variant.panel)) {
+    if (URL_OWNING_PANELS.has(name)) {
       const existing = cur.panels.slice(0, cur.count).findIndex((p, i) => {
         if (i === at) return false
         const r = resolvePanel(p, groups, auth)
-        return r.state === 'ready' && r.variant.panel === variant.panel
+        return r.state === 'ready' && r.name === name
       })
       if (existing >= 0) target = existing
     }
@@ -323,9 +363,11 @@ export default function TerminalShell() {
     }
     if (scope === 'ticker' && prev.group !== 'N') setGroupSym(prev.group, sym)
     save({ ...cur, focus: target, panels })
-    if (ignoredTicker) setNotice({ kind: 'info', text: `${cmd.code} is market-wide; ${cmd.sym} was not applied.` })
-    if (variant.panel === 'Calendar') {
-      openCalendarPath(variant.params?.earnings && sym ? { earnings: sym } : null)
+    const said = [ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`, echo].filter(Boolean)
+    if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
+    if (name === 'Calendar') {
+      const extra = { ...applied.params, ...(variant.params?.earnings && sym ? { earnings: sym } : {}) }
+      openCalendarPath(Object.keys(extra).length ? extra : null)
       return null
     }
     return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
@@ -353,7 +395,7 @@ export default function TerminalShell() {
 
   const focusedPanel = layout.panels[focus]
   const focusedText = panelCommandText(focusedPanel, groups)
-  const focusedOwnsUrl = URL_OWNING_PANELS.has(resolvePanel(focusedPanel, groups, auth).variant?.panel)
+  const focusedOwnsUrl = URL_OWNING_PANELS.has(resolvePanel(focusedPanel, groups, auth).name)
   useEffect(() => {
     if (loading || focusedOwnsUrl || !focusedText) return
     if (pendingRef.current && pendingRef.current !== focusedText) return
