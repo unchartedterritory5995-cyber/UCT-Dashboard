@@ -217,7 +217,17 @@ def type_slash(pg, text: str, option: str, touch: bool):
     pg.keyboard.press("Enter")
     pg.keyboard.type(text, delay=25)
     opt = pg.get_by_role("option", name=option)
-    opt.first.wait_for(state="visible", timeout=15000)
+    try:
+        opt.first.wait_for(state="visible", timeout=15000)
+    except Exception:
+        # The expected option never showed -- name what DID, rather than leaving a bare
+        # timeout. `role="option"` is the slash menu's own contract (TipTap suggestion list).
+        seen = pg.locator('[role="option"]').all_text_contents()
+        diag = pg.evaluate("""() => { const pm = document.querySelector('.ProseMirror');
+            const ae = document.activeElement;
+            return {pmTail: pm ? pm.textContent.slice(-200) : null, menuEl: !!document.getElementById('uct-slash-menu'),
+                    activeTag: ae ? ae.tagName : null, activeIsPM: !!(ae && ae.classList && ae.classList.contains('ProseMirror'))} }""")
+        raise RuntimeError(f"slash menu never offered {option!r} for {text!r} -- menu showed {seen!r}; {diag!r}") from None
     pg.keyboard.press("Enter")
 
 
