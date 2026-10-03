@@ -89,4 +89,17 @@ describe('RT5 — a drawing-only runtime document', () => {
     expect(r.definition.compute.kind).not.toBe('runtime')
     expect(drawsRuntimeObjects(r.definition)).toBe(false)
   })
+
+  it('calc_bars_count: a chart longer than the declared count refuses by name; one within it draws', () => {
+    flags(true)
+    const src = RUNNING_TOTAL.replace('indicator("t", overlay = true)', 'indicator("t", overlay = true, calc_bars_count = 100)')
+    const r = build(src)
+    expect(r.ok).toBe(true)
+    const { installed } = registry.installUserDefinitions([r.definition])
+    const ctx = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
+    expect(() => computeRuntimeColumns(installed[0], BARS, ctx)).toThrow(/calc_bars_count = 100/)
+    // control: 100 bars is within the count, and draws
+    const cols = computeRuntimeColumns(installed[0], BARS.slice(0, 100), ctx)
+    expect(runtimeObjectsOf(cols).live.filter((o) => o.family === 'label')).toHaveLength(2)
+  })
 })
