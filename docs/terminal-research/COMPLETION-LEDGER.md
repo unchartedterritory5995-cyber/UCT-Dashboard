@@ -42,12 +42,12 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 8 | 1 |
 | 3 TERM-001..093 | 93 | 55 | 9 | 15 | 10 | 4 |
 | 4 BRK-01..10 | 10 | 1 | 3 | 4 | 2 | 0 |
-| 5 COV-01..12 | 12 | 3 | 3 | 2 | 4 | 0 |
-| 6 FT-001..080 | 80 | 13 | 34 | 21 | 11 | 1 |
-| 7 Untracked promises | 58 | 0 | 0 | 52 | 1 | 5 |
-| **total** | **279** | **76** | **50** | **103** | **39** | **11** |
+| 5 COV-01..12 | 12 | 3 | 4 | 1 | 4 | 0 |
+| 6 FT-001..080 | 80 | 13 | 34 | 20 | 12 | 1 |
+| 7 Untracked promises | 58 | 0 | 8 | 41 | 4 | 5 |
+| **total** | **279** | **76** | **59** | **90** | **43** | **11** |
 
-`building` by lane: P 18 · O 17 · R 16 · S 13 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
+`building` by lane: P 18 · O 17 · R 3 · S 13 · T3 10 · T1 8 · T2 8 · T4 6 · D 3 · integrator 2 · Notebook 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all in production.** X-06..X-09 are records and an env arming. Every TERM/FT/BRK/COV `live` row is on master.
@@ -214,7 +214,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `COV-07` | Broker estimates + consensus drift | `owner-blocked (upgrade the FMP plan or add a vendor for named-analyst EPS)` | Drift built dark (`ESTIMATE_HISTORY_ENABLED`, accumulating from 2026-10-02). NG-15 retracted (D-008). |
 | `COV-08` | Depth of book / L2 / T&S | `owner-blocked (buy a depth-of-book / Level II feed)` | In scope by D-008. |
 | `COV-09` | SEC filings feed (re-id DL-036) | `dark` | `FILINGS_FEED_ENABLED` pending, branch-only (`api/services/filings_feed.py:1`). |
-| `COV-10` | Monitor groups / list subscriptions | `building (Lane R)` | List-subscribe live (`api/routers/auth.py:650`). Theme and saved-screen sources, plus more than 4 groups, remain. |
+| `COV-10` | Monitor groups / list subscriptions | `dark` | List-subscribe armed (`CHARTS_LIST_SUBSCRIBE_ENABLED`); the theme and saved-screen sources were already built under it (`api/routers/charts_list_sources.py`, cov-10.md §7; the audit's "remain" was stale). More than 4 groups built dark (lane/r-research-depth): `CHARTS_EXTRA_GROUPS_ENABLED` pending adds groups E-H through one authority, `app/src/pages/charts/colorGroups.js`; off = A-D unchanged, and a saved E-H while off is kept, not linked, and labelled. Handoff to Lane T2 (V10): the terminal rail still reads literal `COLORS`/`COLOR_HEX` in WidgetHeader/PeriodSortPanel (railed equal to colorGroups.js); retarget it, then delete them. Community lists stay on /watchlists via TERM-077. |
 | `COV-11` | Indicator templates object | `building (Lane R)` | Same as FT-070; coordinate with the indicator programme. |
 | `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `owner-blocked (FMP key holder probes /stable/senate-trades and /stable/house-trades; counsel reads the eFD/House restriction before any fallback)` | |
 
@@ -267,7 +267,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `FT-043` | Chart data CSV | `dark` | `DATA_EXPORTS_ENABLED`. |
 | `FT-044` | Competitor's own "no API" | `moot (describes SpotGamma's absence; nothing to build)` | |
 | `FT-045` | Beta pills + today / working-on | `live` | `app/src/components/featureStatus/FeatureStatusStrip.jsx`. |
-| `FT-046` | Per-surface how-to checklist | `building (Lane R)` | The mechanism is agent-buildable; the copy needs the owner's voice sign-off. |
+| `FT-046` | Per-surface how-to checklist | `owner-blocked (approve the copy in the owner's voice)` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. |
 | `FT-047` | Named dealer vocabulary | `dark` | `OPTIONS_POSITIONING_VOCAB_ENABLED`. |
 | `FT-048` | HIRO | `live` | `api/gex_router.py:12` (different shape). |
 | `FT-049` | TRACE heatmaps | `building (Lane O)` | Gamma heatmap dark (`OPTIONS_GEX_HEATMAP_ENABLED`); delta-pressure / charm, projection and 1-min refresh missing. |
@@ -343,18 +343,18 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `AC-4` | Per-trigger-type queue caps with a reserve | `building (Lane S)` | |
 | `AC-7` | Per-trigger ops monitor + channel-health view | `building (Lane S)` | |
 | `AC-11` | Save-time fork: frozen list / re-runnable definition / standing alert (UC-4) | `building (Lane S)` | |
-| `D-1` | Three-state earnings-date status with timestamps | `building (Lane R)` | Only a binary `date_est` today (`calendar.py:1221`). |
-| `D-2` | "First confirmed" timestamp on `calendar_date_history` | `building (Lane R)` | |
-| `D-3` | Index-rebalance dates on the calendar | `building (Lane R)` | |
-| `D-4` | Transcript chapters / jump to Q&A + an "AI-generated, not reviewed" recap label | `building (Lane R)` | `CallRecapSection.jsx:216,242`. |
-| `D-5` | Tape + transcript replay | `building (Lane R)` | |
-| `D-6` | Story versioning and retraction | `building (Lane R)` | |
-| `D-7` | Coarse news importance label | `building (Lane R)` | |
-| `D-8` | Read / unread on news | `building (Lane R)` | |
-| `D-9` | Personalization UC-1: consumers of `/api/member/interest` | `building (Lane R)` | On master with no caller. |
-| `D-10` | Personalization UC-3: explain list order | `building (Lane R)` | `calendar/importance.js:74` is a silent boost. |
-| `D-11` | Entity UC-1: "formerly / now trades as" notice | `building (Lane R)` | |
-| `D-12` | Canonical UC-5: show when two computations of one metric disagree | `building (Lane R)` | |
+| `D-1` | Three-state earnings-date status with timestamps | `dark` | `EARNINGS_DATE_STATUS_ENABLED` pending, branch-only (`api/services/earnings_date_status.py`, `calendar_date_integrity.classify_entry`, `GET /api/calendar/date-status`). estimated → confirmed (a provider gave a session; the "confirmed only" reading) → reported, each with its field basis. "Company-signaled" is returned unavailable: no provider we hold carries it. Recording runs in every calendar build (history cannot be back-filled); the flag gates the read surface. |
+| `D-2` | "First confirmed" timestamp on `calendar_date_history` | `dark` | Same flag. `first_confirmed_at` / `first_estimated_at` / `prev_status` / `moved_at` added in place; a move reads "estimate revised" vs "confirmed date changed". Timestamps are first seen by UCT, not the company's announcement time. Accumulating from merge. |
+| `D-3` | Index-rebalance dates on the calendar | `owner-blocked (a dated source for Russell and Nasdaq-100 rebalances; ADR-0015)` | Built dark: `INDEX_REBALANCE_EVENTS_ENABLED` pending (`api/services/index_rebalance_calendar.py`, `GET /api/calendar/index-events`). S&P 500 quarterly (third Friday Mar/Jun/Sep/Dec) is RULE-DERIVED and labelled so, holiday-checked (flagged, never moved). No paid provider returns rebalance dates. |
+| `D-4` | Transcript chapters / jump to Q&A + an "AI-generated, not reviewed" recap label | `dark` | `TRANSCRIPT_CHAPTERS_ENABLED` pending, branch-only (`api/services/transcript_chapters.py`). `/api/earnings/transcript` carries a chapter tree (Prepared remarks / Q&A, speaker runs, one chapter per outside questioner; containment railed); the boundary is the chip's `prepared_remarks_end`, and an unstated boundary gives no Q&A chapter, said in words. `/api/earnings/call-recap` carries `review_status: ai_unreviewed`, rendered "AI-generated · not reviewed". No new route. |
+| `D-5` | Tape + transcript replay | `owner-blocked (confirm or buy an earningscall.biz EARNINGS_AUDIO_API_KEY for coverage beyond AAPL/MSFT)` | Built dark: `CALL_REPLAY_ENABLED` pending (`api/services/call_replay.py`, `GET /api/research/call-replay/{sym}`, Research > Depth). Timed-transcript word timings sit on Massive 1-minute bars only through the listed call start (time + zone) plus the recording offset; otherwise `unaligned`, with no tape. Not yet reached by a /terminal code (handoff to Lane T1 V1b: `RESEARCH_DEPTH_AWAITING_CODE_KEYS`). |
+| `D-6` | Story versioning and retraction | `owner-blocked (retraction needs a removal/correction feed: a new vendor)` | Versioning built dark: `NEWS_STORY_VERSIONS_ENABLED` pending (`api/services/news_versions.py`; `news/store.py` upsert into `news_item_versions`; Research > Depth > News desk "Edited N×" + `GET /api/research/news-desk/story/{id}/versions`). Versions accrue only from arming. No paid source sends a retraction field, so the payload states retraction is not tracked and never infers it from absence. Not yet reached by a /terminal code (Lane T1 V1b). |
+| `D-7` | Coarse news importance label | `dark` | `NEWS_IMPORTANCE_LABEL_ENABLED` pending, branch-only (`api/services/news_importance.py`). High / Normal / Low on the News desk from store category, subject-vs-related and distinct outlets per event; every label carries its rule, and the rule table is published. No model. Not yet reached by a /terminal code (Lane T1 V1b). |
+| `D-8` | Read / unread on news | `dark` | `NEWS_READ_STATE_ENABLED` pending, branch-only (`api/services/news_read_state.py`, `POST /api/research/news-desk/read`). Per member, server-side in `calendar_seen` (`company_news`), idempotent, owner-scoped, unknown ids refused. Covers the News desk; the legacy Research News tab (FMP pass-through, no store ids) is unchanged. |
+| `D-9` | Personalization UC-1: consumers of `/api/member/interest` | `building (Lane R)` | First consumer built dark: `MEMBER_INTEREST_LINE_ENABLED` pending (`app/src/pages/research/notices/ResearchNotices.jsx`): "Already on your radar" from the route's own `because[]`, presence only (a failed source folds to empty, so it never says "not on your watchlist"). Remainder: the other UC-1 consumers (Breadth drill, Screener rows, Wire Top-5). |
+| `D-10` | Personalization UC-3: explain list order | `dark` | `CALENDAR_ORDER_EXPLAIN_ENABLED` pending, client-only. "Why this order" on /calendar Feed and Week: the rule, each boosted name with its sources and weights (`importance.js::boostParts`, the same function `impEff` adds), and a reversible boost-off switch (per browser). |
+| `D-11` | Entity UC-1: "formerly / now trades as" notice | `dark` | `ENTITY_RENAME_NOTICE_ENABLED` pending, branch-only (`api/services/entity_rename_notice.py`, `GET /api/research/rename-notice/{sym}`). Reads only Entity Master dated aliases (renames from Massive ticker-change events via D5); shown under the Research header with a link. A reused ticker's old holder is named as itself, never joined to the new one. States ok / not_in_store / store_unavailable. |
+| `D-12` | Canonical UC-5: show when two computations of one metric disagree | `dark` | `METRIC_DISAGREEMENT_ENABLED` pending, branch-only (`api/services/metric_disagreement.py`, `GET /api/research/metric-disagreement/{sym}`). Research snapshot vs Screener nightly row for market cap, trailing P/E, P/S, P/B, beta, current ratio: both values, the gap, a declared per-metric tolerance, each side's as-of; agree / disagree / cannot_compare. Shown only when something disagrees. Unit-mismatched pairs (D/E, average volume) are not compared; the breadth example sits under the BREADTH_AUTHORITY seam. |
 | `D-13` | FDA / PDUFA dates on the events calendar | `owner-blocked (a PDUFA date source; a new source under ADR-0015)` | |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `building (Lane P)` | |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `building (Lane P)` | |
@@ -366,7 +366,7 @@ Printed 2026-10-03: **279 rows, 0 duplicate ids.**
 | `PP-PERSONA` | Persona re-ranking (PP §4) | `moot (deferred by its own doc)` | |
 | `NG-12` | Multi-user collaboration | `moot (non-goal NG-12)` | |
 
-## 8. What only the owner can do — the 39 `owner-blocked` rows, grouped
+## 8. What only the owner can do — the 43 `owner-blocked` rows, grouped
 
 This replaces the 2026-09-26 table in `OWNER-ACTIONS.md`. Each line names the action; the row ids are in brackets.
 
@@ -379,6 +379,12 @@ This replaces the 2026-09-26 table in `OWNER-ACTIONS.md`. Each line names the ac
 - A Telegram bot token from BotFather (FT-038).
 - An api.data.gov key for FEC (FT-068).
 - A PDUFA date source (D-13).
+- A dated source for Russell and Nasdaq-100 rebalances; S&P 500 is served rule-derived (D-3).
+- An earningscall.biz `EARNINGS_AUDIO_API_KEY` (confirm whether it is held) for call replay beyond AAPL/MSFT (D-5).
+- A news removal / correction feed, if story retraction is wanted (D-6).
+
+**Approve copy in the owner's voice**
+- The 8 draft how-to checklists in `app/src/components/howTo/howToChecklists.js` (FT-046).
 
 **Read terms or approve a new source** (ADR-0015: one read per new source)
 - CUSIP master-file terms for the 13F join (TERM-045).
