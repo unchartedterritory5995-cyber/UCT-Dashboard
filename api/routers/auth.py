@@ -192,6 +192,11 @@ NOTEBOOK_FLAGS = {
     # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
     # request; the payload key is `notebook_plan_grading_enabled`.
     "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
+    # Wave 13 lane 13I-2: the visual playbook grid, the setup-tag suggestion at insert and the
+    # trade page's before/after. The router's gate (journal_two/visual_playbook.enabled) reads
+    # the same variable through flag_on, per request; the payload key is
+    # `notebook_visual_playbook_enabled`. The fingerprint panel rides 13I-1's flag.
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (visual playbook, lane 13I-2)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
