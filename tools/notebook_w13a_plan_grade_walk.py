@@ -28,7 +28,7 @@ One paid member (comped by the launcher's admin, hubtest@local.dev).
   P4  edit the plan afterwards (keyboard, in the editor): Entry 100 -> 130, saved; the trade page
       and the API grade are unchanged (frozen at first match)
   P5  an unplanned trade: AMD with no plan -> "Unplanned" on its trade page and the chip in the
-      Trade Journal table (1200 px)
+      Trade Journal table (1200 px; /journal/trades?seg=closed -- the surface opens on Open Positions)
   P6  the discipline record in Insights (1200 px)
   P7  keyboard: Tab-reachable Re-link opens the candidate list with Enter
   P8  390 px (touch): the trade page card and the Trade Journal chip; no sideways scroll; the
@@ -295,7 +295,7 @@ def run_walk(base: str, art: Path) -> None:
             open_trade(pg, tid)
             pg.get_by_test_id("plan-grade-unplanned").wait_for(timeout=20000)
             s1 = shot(pg, "p5-unplanned-trade-page")
-            pg.goto(base + "/journal/trades")
+            pg.goto(base + "/journal/trades?seg=closed")
             H._dismiss_intro(pg)
             chip = pg.get_by_test_id("unplanned-chip")
             chip.first.wait_for(timeout=30000)
@@ -351,7 +351,7 @@ def run_walk(base: str, art: Path) -> None:
             pg.locator('[data-testid="plan-grade-card"]').scroll_into_view_if_needed()
             probe = pg.evaluate(TOUCH_PROBE, '[data-testid="plan-grade-card"]')
             s1 = shot(pg, "p8-grade-390")
-            pg.goto(base + "/journal/trades")
+            pg.goto(base + "/journal/trades?seg=closed")
             H._dismiss_intro(pg)
             pg.get_by_test_id("unplanned-chip").first.wait_for(timeout=30000)
             chips = pg.get_by_test_id("unplanned-chip").count()
