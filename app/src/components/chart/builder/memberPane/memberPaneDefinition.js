@@ -970,10 +970,15 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // (`lowerIr.js::naTestsOf` has the two vendor captures): this lane answers `na`
   // there and TradingView takes the other branch, so drawing it would draw the
   // disagreement. The routed case keeps its measured behaviour (C23).
+  // ⭐⭐ RT3 — the lane now reads an `na` condition as TradingView does from v4
+  // (`interpret.js::pineBool`, `naConditionIsFalse`), so `naTests` counts only
+  // what is still unsettled: a `?:` in a script below v4, and a v4/v5 `or` /
+  // `not` over a value that can be `na` (`lowerIr.js::naTestsOf`).
   if (!routed && probe.naTests > 0) {
-    return decline('runtime:na-test', `${probe.naTests} \`?:\` in this script ${probe.naTests === 1 ? 'tests' : 'test'} a value `
-      + 'that can be `na` (a number or a cross read as a condition); TradingView then takes the other branch '
-      + 'and this lane answers `na`, so it is not drawn bar by bar until the two agree')
+    return decline('runtime:na-test', `${probe.naTests} ${probe.naTests === 1 ? 'condition' : 'conditions'} in this script `
+      + 'can read a value that is `na` in a way this lane has not matched to TradingView for the script\'s '
+      + '`//@version` (a `?:` below version 4, or an `or` / `not` in version 4 or 5), so it is not drawn bar by bar '
+      + 'until the two are shown to agree')
   }
   // ⭐ RT1 — every host output of a drawn kind, hidden ones included, so the
   // ordinal of each is the runtime lane's ordinal (the runtime lane emits a

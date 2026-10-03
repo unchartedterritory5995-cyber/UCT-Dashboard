@@ -498,6 +498,31 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
+        case OP.READ_HIST_SLOT_DYN: {
+          // ⭐⭐ RT3 — a variable's past at an offset only known while the bar
+          // runs, under a depth the front end PROVED (`offsetRange`). The rules
+          // are `READ_HIST_DYN`'s: an `na` offset reads the current bar (C29,
+          // measured), a negative or fractional one is `na`, and one that reaches
+          // before bar 0 is `na` — never a clamp. `x[0]` is the LIVE value.
+          const raw = stack[--sp]
+          const live = stack[--sp]
+          const n = Number.isNaN(raw) ? 0 : raw
+          if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
+          if (n === 0) { stack[sp++] = live; break }
+          if (n > committed) { stack[sp++] = NaN; break }
+          const hi = historyBase + a
+          const plan = histPlan[hi]
+          // ⛔⛔ DEEPER THAN THE RING IS A REFUSAL, NEVER AN ANSWER. The cell
+          // would hold a DIFFERENT bar's value (the ring wraps), which is a wrong
+          // number with nothing red; the bound was supposed to make this
+          // unreachable, so reaching it names the variable and stops the run.
+          if (n > plan.depth) {
+            throw new VmError(`pc ${pc - 1}: \`${plan.name}\`[${n}] reaches past its ring of depth ${plan.depth} `
+              + '— the offset left the bound it was compiled under (a setting changed it?)')
+          }
+          stack[sp++] = hist[histOffset[hi] + ((committed - n) % plan.depth)]
+          break
+        }
         case OP.READ_SERIES_HIST_DYN: {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw

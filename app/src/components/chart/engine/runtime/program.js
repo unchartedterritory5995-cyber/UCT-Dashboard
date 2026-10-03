@@ -94,12 +94,15 @@ export const OP = Object.freeze({
   // like SuperTrend's `trend := trend[1]` is not an approximation, it is a
   // different indicator that still draws a line.
   READ_HIST_SLOT: 54,
-  // ── RESERVED (2F-2, declared with its reason) ──
+  // ── 2F-2 RESERVED IT; RT3 IMPLEMENTS IT, ON THE CONDITION IT WAS RESERVED WITH ──
   // A history offset that is only known while the bar is running — `x[i + 1]`
-  // inside a loop. It cannot be admitted until the ring depth it may reach is
+  // inside a loop. It could not be admitted until the ring depth it may reach is
   // statically bounded, because an offset past the ring would answer `na` where
-  // Pine answers a number: a silent wrong value, which is the one outcome this
-  // runtime refuses to trade for coverage. The front end refuses it BY NAME.
+  // Pine answers a number: a silent wrong value. ⭐ RT3: the front end now proves
+  // that bound (a loop counter whose bounds fold, constant arithmetic over it —
+  // `pineRuntimeFrontend.js::offsetRange`) and sizes the ring to it; anything it
+  // cannot bound still refuses by name. a: history slot (frame-relative); pops
+  // the offset, then the LIVE value (`x[0]` is `x`).
   READ_HIST_SLOT_DYN: 55,
   // ⭐⭐ THE TWO THAT ARE ADMISSIBLE TODAY, and the reason is the one written
   // above: the constraint on 55 is about a RING. A COLUMN and a price SERIES
@@ -259,12 +262,12 @@ export const OP = Object.freeze({
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
   OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
-  // ⛔ THE TWO DYNAMIC READS ARE IMPLEMENTED; `READ_HIST_SLOT_DYN` IS NOT, AND
-  // THAT ASYMMETRY IS THE POINT. A column and a series are materialised, so any
-  // offset is answerable; a slot's past is a ring whose depth is fixed before
-  // bar 0, and an offset that may reach past it would answer `na` where Pine
-  // answers a number.
-  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN,
+  // ⛔ A column and a series are materialised, so any offset is answerable; a
+  // slot's past is a ring whose depth is fixed before bar 0, so its dynamic read
+  // (`READ_HIST_SLOT_DYN`, RT3) is emitted only under a bound the front end
+  // proved, and the VM refuses BY NAME an offset deeper than the ring rather
+  // than answer `na` for it.
+  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN, OP.READ_HIST_SLOT_DYN,
   OP.READ_CLOCK,
   OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
@@ -655,6 +658,12 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
           + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
           + 'lowering disagree about how far back this program looks')
+      }
+    }
+    if (op === OP.READ_HIST_SLOT_DYN) {
+      const maxHist = Math.max(p.history.length, 1)
+      if (a < 0 || a >= maxHist) {
+        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT_DYN ${a} outside ${maxHist} history slots`)
       }
     }
     if (op === OP.CALL) {
