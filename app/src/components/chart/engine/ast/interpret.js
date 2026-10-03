@@ -3352,17 +3352,6 @@ export const PINE_TERNARY = (t, a, b) => (pineBool(t) ? a : b)
 export const pineTernaryFor = (opts) => !!opts && opts.historyFromListing === true
   && opts.naConditionFalse === true
 
-/** ⭐⭐ F1 — `not` and `or` read an `na` operand as false and answer a bool that is
- *  never `na`, under the same two facts (`pineTernaryFor`). WITNESSED by CAP2's
- *  `rt3-na-logic-{rddt,v4-rddt}-1d-2026-10-02` (RT3 queue Q-NL-a/b, v5 and v4):
- *  `not w` (w na) → true (B02), `na(w or false)` → false (B04), `na(not w)` →
- *  false (B05), `not b` (`bool b = na`) → true (B07). `and` is left as it was: its
- *  `na` result is only ever read as a condition (B03), where it is already false. */
-export const PINE_NOT = (a) => (pineBool(a) ? 0 : 1)
-export const PINE_OR = (a, b) => (pineBool(a) || pineBool(b) ? 1 : 0)
-const pineOpFor = (opts, name, fallback) => (pineTernaryFor(opts)
-  ? (name === '!' ? PINE_NOT : name === '||' ? PINE_OR : fallback) : fallback)
-
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
 // --------------------------------------------------------------------------- //
@@ -6037,13 +6026,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 1) {
         refuse('resolve:arity', `— ${name} expects 1 arguments, got ${values.length}`)
       }
-      return lift1(values[0], pineOpFor(opts, name, UNARY[name]), length)
+      return lift1(values[0], UNARY[name], length)
     }
     if (own(BINARY, name)) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return lift2(values[0], values[1], pineOpFor(opts, name, BINARY[name]), length)
+      return lift2(values[0], values[1], BINARY[name], length)
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)
@@ -6071,13 +6060,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 1) {
         refuse('resolve:arity', `— ${name} expects 1 arguments, got ${values.length}`)
       }
-      return pineOpFor(opts, name, UNARY[name])(values[0])
+      return UNARY[name](values[0])
     }
     if (own(BINARY, name)) {
       if (values.length !== 2) {
         refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
       }
-      return pineOpFor(opts, name, BINARY[name])(values[0], values[1])
+      return BINARY[name](values[0], values[1])
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)

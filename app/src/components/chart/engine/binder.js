@@ -54,6 +54,7 @@ import {
   signColorsForPlot,
   columnColorsForPlot,
   gradientPointColour,
+  packedPointColour,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
@@ -295,6 +296,10 @@ export function displacedColumn(column, d) {
   return out
 }
 
+/** ⭐ RT6 — the point a run's `na` colour draws: fully transparent, the same
+ *  string the host lane's palette uses for its `na` leaf. */
+const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
+
 function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
@@ -312,6 +317,11 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
     // rule — an `na` condition takes the ELSE branch — see `pointColour`.
     const colour = pointColour(colColors, condColumn, i)
     if (colour) { out[i] = { time, value: v, color: colour }; continue }
+    // ⭐⭐ RT6 — a run's `na` colour draws NOTHING at that point (TradingView
+    // hides a plot point whose colour is `na`) — the transparent entry a
+    // palette's `na` leaf already draws (`pine.js` TRANSPARENT_PALETTE_ENTRY),
+    // never the series colour, which would be a colour the script never chose.
+    if (colColors && colColors.packed) { out[i] = { time, value: v, color: PACKED_NA_POINT }; continue }
     out[i] = { time, value: v }
   }
   return out
@@ -345,6 +355,9 @@ function pointColour(colColors, condColumn, i) {
   // endpoints, and the colour is the vendor-measured blend at that position.
   // ⛔ A non-finite position is NO COLOUR (`gradientPointColour`), never an end.
   if (colColors.gradient) return gradientPointColour(colColors.gradient, c)
+  // ⭐⭐ RT6 — A COLOUR THE RUN COMPUTED: the column IS the bar's colour; `na`
+  // (NaN) is no colour, and the caller says what that draws.
+  if (colColors.packed) return packedPointColour(colColors.packed, c)
   // ⭐⭐ OWNER RULING 2 (2026-09-28) — AN `na` CONDITION TAKES THE ELSE BRANCH,
   // AS PINE'S DOES. `cond ? up : down` with `cond` na is `down` in Pine, on a
   // plot and a fill alike, and TradingView draws it that way.
@@ -741,16 +754,15 @@ export function createBinder({ chart, LWC }) {
    *  series (its pane), or — for an overlay script that binds no series — on the
    *  chart's own price series (`ctx.priceSeries()`), i.e. the price pane.
    *  `barcolor` → one map `time → colour` over every instance, handed to the host
-   *  (`ctx.setBarColours`), which owns the candles. Two visible `barcolor`s that
-   *  colour one bar DIFFERENTLY are not resolved here — which one TradingView shows
-   *  has no capture — so that bar keeps its own colour (counted, `conflicts`).
+   *  (`ctx.setBarColours`), which owns the candles. Within one script the LATER
+   *  `barcolor` wins (RT6, captured: CAP round 4 P1/P2); two DIFFERENT scripts
+   *  that colour one bar differently are not resolved — no capture says which
+   *  instance TradingView shows — so that bar keeps its own colour (`conflicts`).
    *
    *  ⛔ It never touches React: every write is a primitive's `setOptions` or one
    *  call to the host's capability, and the capability is called only when the
    *  overrides CHANGE (`barColourSig`), so a poll that moves nothing costs nothing. */
   const syncPaints = (ctx, instances, columns, bars, adjustTime, bound) => {
-    // ⭐ F1 — the instance whose `barcolor`s are being folded (later wins inside one).
-    let instBar = null
     const registry = ctx.registry
     const n = bars.length
     let times = null
@@ -772,7 +784,14 @@ export function createBinder({ chart, LWC }) {
       const priceHost = target === 'price' && typeof ctx.priceSeries === 'function'
         ? attempt(() => ctx.priceSeries()).value : null
       const host = own ? own.series : priceHost
-      instBar = new Map()
+      // ⭐⭐ RT6 — WITHIN ONE SCRIPT THE LATER `barcolor` WINS. CAP round 4
+      // (`vw-bgcolor-barcolor-spy-1d-2026-10-02`, screenshot
+      // `docs/pine/vendor-harness/cap-round4/vw-bgcolor-barcolor-spy-1d-2026-10-02.png`):
+      // on a bar where P1 (`#ffeb3b`) and the later P2 (`#000080`) both hold a
+      // colour, TradingView paints P2. So a script's own paints resolve in source
+      // order here; two DIFFERENT scripts disagreeing on a bar keep the bar's own
+      // colour (`conflicts`) — no capture says which instance wins.
+      const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
         const computed = paintColoursFor(p, inst.instanceId, columns, n)
@@ -802,19 +821,13 @@ export function createBinder({ chart, LWC }) {
         }
         if (p.kind !== 'barcolor') return
         const tt = timesOf()
-        // ⭐⭐ F1 — INSIDE ONE SCRIPT THE LATER `barcolor` WINS (CAP round 4,
-        // `vw-bgcolor-barcolor-spy-1d`: P1 yellow on every bar, P2 navy on the up
-        // bars, and TradingView's candles are navy on the up bars, yellow on the
-        // rest). An `na` bar of the later call leaves the earlier one standing.
         for (let j = 0; j < n; j += 1) {
           const c = colours[j]
           if (c == null || isNaColour(c)) continue
-          instBar.set(String(tt[j]), c)
+          instOverrides.set(String(tt[j]), c)
         }
       })
-      // Two SCRIPTS that colour one bar differently are not resolved — which one
-      // TradingView shows has no capture — so that bar keeps its own colour.
-      for (const [k, c] of instBar) {
+      for (const [k, c] of instOverrides) {
         if (conflicts.has(k)) continue
         const had = overrides.get(k)
         if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
@@ -1821,7 +1834,8 @@ export function createBinder({ chart, LWC }) {
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
       const palette = cc && cc.palette ? cc.palette.join('|')
-        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}` : null)
+        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}`
+          : (cc && cc.packed ? cc.packed.sig : null))
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would

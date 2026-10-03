@@ -179,23 +179,22 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
     expect(memberPaneDefinition({ source: src, id: DEF_ID }).ok).toBe(false)
   })
 
-  it('⭐ F1 — a v5 `or` / `not` over a value that can be `na` is now SERVED: CAP2 witnessed the rule (Q-NL-a/b)', () => {
+  it('⭐⭐ F2 — at the door: a v5 `or` / `not` over a value that can be `na` now attaches (Q-NL settled), and grades against TradingView', () => {
     // cc-yata: a v5 script the host lane refuses, whose `or` / `not` read values
-    // that can be `na`. It was declined (`runtime:na-test`) while the rule was
-    // unwitnessed; `rt3-na-logic{,-v4}-rddt-1d-2026-10-02` show TradingView reading
-    // the `na` operand as FALSE in v5 and v4, so the runtime lane reads each operand
-    // as a condition and the script attaches.
+    // this lane cannot show are never `na`. It was declined (`runtime:na-test`)
+    // until the Q-NL captures (`rt3-na-logic` v5 / `-v4`) witnessed the rule: an
+    // `na` operand is false. Now it attaches, and every plot it draws that the
+    // capture can pair agrees (`vendorHarness.coverageAudit`, F2 section).
     const cap = capture(YATA)
     vi.stubEnv(OBJECTS, '1')
     vi.stubEnv(FLAG, '')
     const off = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
+    expect(off.ok).toBe(false) // the control: the host lane alone still refuses it
     expect(built.ok, built.reason).toBe(true)
     expect(built.lane).toBe('runtime')
     expect(probeRuntimeProgram(cap.source.text).naTests).toBe(0)
-    // the control: with the lane off the host lane still refuses it
-    expect(off.ok).toBe(false)
   })
 })
 
@@ -221,20 +220,25 @@ describe('RT1 — R-W for the runtime lane: a fallback document needs a listing-
 })
 
 describe('RT1 — what a runtime row cannot carry is withheld by name, never drawn as a guess', () => {
-  it('a shifted plot and a per-bar colour are withheld, named in the disclosures; the rest draws', () => {
+  it('a shifted plot and a per-bar SHAPE colour are withheld, named in the disclosures; the rest draws (RT6: a per-bar plot colour draws)', () => {
     const cap = capture(ADX)
     vi.stubEnv(FLAG, '1')
     const src = `${cap.source.text}
 plot(close, title="Shifted", offset=3)
 plot(close, title="Tinted", color = close > open ? color.green : color.red)
+plotshape(close > open, title="Marked", color = close > open ? color.green : color.red)
 `
     const built = memberPaneDefinition({ source: src, id: DEF_ID })
     expect(built.ok, built.reason).toBe(true)
-    expect(built.withheld).toEqual(['Shifted', 'Tinted'])
-    expect(built.rows.map((r) => r.label)).toEqual(cap.study.plots.map((p) => p.title))
+    expect(built.withheld).toEqual(['Shifted', 'Marked'])
+    expect(built.rows.map((r) => r.label)).toEqual([...cap.study.plots.map((p) => p.title), 'Tinted'])
+    // ⭐ RT6 — the per-bar plot colour rides a colour column of the run
+    const tinted = built.definition.plots.find((p) => p.label === 'Tinted')
+    expect(tinted.colorMode).toMatch(/^column:/)
+    expect(tinted.colorPacked).toEqual({})
     const notes = built.notes.map((n) => n.note).join(' | ')
     expect(notes).toMatch(/`Shifted` is not drawn: .*offset/)
-    expect(notes).toMatch(/`Tinted` is not drawn: .*colour changes/)
+    expect(notes).toMatch(/`Marked` is not drawn: .*colour changes.*shape/)
   })
 })
 

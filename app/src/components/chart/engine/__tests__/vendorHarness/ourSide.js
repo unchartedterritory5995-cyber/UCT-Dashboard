@@ -302,6 +302,16 @@ function symbolOf(capture) {
   return { ticker, exchange }
 }
 
+/** The reach of a plot's per-bar colour rule, or null when it has none. */
+function colourRuleLookback(o) {
+  const p = o && o.presentation
+  if (!p) return null
+  const reaches = ['colorIndex', 'colorCondition', 'colorGradient']
+    .map((k) => (p[k] && p[k].ast ? lookbackOf(p[k].ast) : null))
+    .filter((n) => Number.isInteger(n))
+  return reaches.length ? Math.max(...reaches) : null
+}
+
 function lookbackOf(ast) {
   try {
     const n = maxLookback(ast)
@@ -317,6 +327,22 @@ function withOpacity(hex, opacity) {
   if (!c || !Number.isFinite(opacity)) return c
   const a = Math.max(0, Math.min(255, Math.round(opacity * 255))).toString(16).padStart(2, '0')
   return `${c.slice(0, 7)}${a}`
+}
+
+/** ⭐ RT6 — the paint records the pairing reads (`paintColours.gradePaints`).
+ *  For a host-lane document they are the translation's own. A RUNTIME document
+ *  draws a paint the host withheld for its colour (the run computes it): such a
+ *  paint, found on the document by its kind and line, is graded as drawn rather
+ *  than reported "withheld"; every other record is the translation's, verbatim. */
+function runtimeAwarePaints(built, def) {
+  const host = ((built.translation && built.translation.presentation) || {}).paints || []
+  if (built.lane !== 'runtime') return host
+  const drawn = new Set((def.paints || []).map((p) => `${p.kind}@${p.line}`))
+  return host.map((p) => {
+    if (!p || !drawn.has(`${p.kind}@${p.line}`)) return p
+    const { withheld: _w, na: _n, ...rest } = p
+    return rest
+  })
 }
 
 /** Drive the real binder over the recording double; per plot key, the colour
@@ -738,6 +764,8 @@ export function runOurSide(capture) {
         column: col || null,
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
+        // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
+        colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
@@ -778,7 +806,7 @@ export function runOurSide(capture) {
       // ⭐ B1 — what the door carried (every call, withheld ones included, in source
       // order), what the document draws, and what the binder handed the chart.
       paints,
-      translationPaints: ((built.translation && built.translation.presentation) || {}).paints || [],
+      translationPaints: runtimeAwarePaints(built, def),
       drawnPaints: colours && colours.paints ? colours.paints : null,
     }
   } finally {

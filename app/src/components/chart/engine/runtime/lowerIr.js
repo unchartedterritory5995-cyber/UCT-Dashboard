@@ -424,11 +424,17 @@ export function lowerIrProgram(ir, opts = {}) {
         //     mutation log), so an `or` over an operand this lane cannot show is
         //     0/1 is COUNTED (`naTestsOf`) and the member door declines it by
         //     name. v6 never reaches here (`lazyLogic`): its `bool` is never `na`.
-        // ⭐⭐ F1 — NOW WITNESSED (CAP2 `rt3-na-logic`, Q-NL-a/b, v5 and v4): an `or`
-        // reads an `na` operand as false and its answer is never `na` (B04:
-        // `na(w or false)` is false). So each operand is read AS A CONDITION and
-        // the shared `||` sees only 0/1 — the host lane's `interpret.js::PINE_OR`.
-        if (e.op === '||' && naFalse) { asCondition(e.left); asCondition(e.right); emit(op); return }
+        // ⭐⭐ F2 (2026-10-02) — NOW WITNESSED, AND SETTLED: Q-NL (`rt3-na-logic` v5
+        // and `-v4`, RDDT 1D from the listing) shows TradingView reading an `na`
+        // operand of `and` / `or` / `not` AS FALSE in v4 and v5, the answer never
+        // `na` (`na(w or false)` is false, `na(not w)` is false). So from the
+        // listing each operand is read AS A CONDITION (`asCondition`, `pineBool`)
+        // — the same rule the host lane writes (`pine.js::naOperandReadAsFalse`) —
+        // and nothing is counted. Off the listing the shared `logical` stands.
+        if ((e.op === '||' || e.op === '&&') && naFalse) {
+          asCondition(e.left); asCondition(e.right); emit(op)
+          return
+        }
         expr(e.left); expr(e.right); emit(op)
         return
       }
@@ -442,9 +448,8 @@ export function lowerIrProgram(ir, opts = {}) {
         // unwitnessed, so a `not` over an operand this lane cannot show is 0/1
         // is COUNTED (`naTestsOf`), exactly like `or` above, and keeps the
         // shared `!`. Below v4 nothing is claimed.
-        // ⭐⭐ F1 — and v4/v5 `not` too, now WITNESSED (B02 `not w` → true, B05
-        // `na(not w)` → false, B07 `not (bool b = na)` → true): the operand is read
-        // AS A CONDITION, exactly as v6 already was (`interpret.js::PINE_NOT`).
+        // ⭐⭐ F2 — and in v4 / v5 too, now witnessed (Q-NL: `(not w) ? 1 : 2` is 1
+        // where `w` is an `na` bool, and `na(not w)` is false). See the BINARY arm.
         if (e.op === '!' && naFalse) { asCondition(e.of); emit(op); return }
         expr(e.of); emit(op)
         return

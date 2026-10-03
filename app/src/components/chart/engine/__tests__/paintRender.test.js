@@ -226,7 +226,7 @@ describe('the binder draws paints', () => {
     expect(h.calls('attachPrimitive')).toEqual([])
   })
 
-  it('⭐⭐ F1 — inside ONE script the LATER barcolor wins (CAP round 4, vw-bgcolor-barcolor P1/P2)', () => {
+  it('⭐ F1 — an `na` bar of the later barcolor leaves the earlier one standing (CAP round 4 P1/P2)', () => {
     // P1 red on every bar, P2 blue where cond = [1,0,1,0] picks palette entry 1:
     // TradingView paints the later call where it has a colour and the earlier one
     // where it is `na`.
@@ -240,9 +240,39 @@ describe('the binder draws paints', () => {
     expect(res.paints.conflicts).toBe(0)
   })
 
-  it('⛔ control: two SCRIPTS that disagree on a bar leave THAT bar alone (unwitnessed across scripts)', () => {
-    const blue = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
-    const h = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [blue])]]))
+  it('⭐ RT6 — within ONE script the LATER barcolor wins (CAP round 4 P1/P2 screenshot)', () => {
+    const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
+    const h = harness(new Map([['u_d', def('u_d', [BAR, other])]]))
+    const res = h.run([inst('u_d')])
+    // cond = [1,0,1,0]: the later paint's colour on every bar — red, blue, red, blue
+    expect([...h.handed[0].values()]).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff'])
+    expect(res.paints.conflicts).toBe(0)
+  })
+
+  it('⭐⭐ RT6 — a plot coloured by a packed column draws each bar run colour, and an `na` colour draws NOTHING (not the series colour)', () => {
+    const plots = [
+      { key: 'value', label: 'V', style: 'line', color: '#c9a84c', legend: { decimals: 2 }, colorMode: 'column:pc', colorPacked: {} },
+      { key: 'pc', label: '', style: 'line', hidden: true },
+    ]
+    const cols = { value: [1, 2, 3, 4], pc: [0x0000ff00 + 0x33, NaN, 0x000000ff, NaN] }
+    const fake2 = harness(new Map([['u_k', def('u_k', [], { plots })]]))
+    fake2.run([inst('u_k')], BARS, {
+      registry: {
+        getDefinition: (id) => (id === 'u_k' ? def('u_k', [], { plots }) : null),
+        computeFor: () => cols,
+        hasAnyFinite: (col) => Array.isArray(col) && col.some(Number.isFinite),
+        columnKeys: (d) => (d.plots || []).map((p) => p.key),
+      },
+    })
+    const sets = fake2.calls('setData').map((c) => c.args[0]).filter((d) => Array.isArray(d) && d.length === 4 && d[0].value === 1)
+    expect(sets.length).toBeGreaterThan(0)
+    const pts = sets[sets.length - 1]
+    expect(pts.map((x) => x.color)).toEqual(['#33FF00', 'rgba(0, 0, 0, 0)', '#FF0000', 'rgba(0, 0, 0, 0)'])
+  })
+
+  it('⛔ two DIFFERENT scripts that disagree on a bar leave THAT bar alone; where they agree it is drawn', () => {
+    const other = { kind: 'barcolor', colorMode: 'column:cond', colorUp: '#ff0000', colorDown: '#0000ff' }
+    const h = harness(new Map([['u_d', def('u_d', [BAR])], ['u_e', def('u_e', [other])]]))
     const res = h.run([inst('u_d'), inst('u_e')])
     // cond = [1,0,1,0]: bars 0 and 2 agree (red/red), bars 1 and 3 disagree (red/blue)
     expect([...h.handed[0].keys()]).toEqual([String(BARS[0].t), String(BARS[2].t)])
