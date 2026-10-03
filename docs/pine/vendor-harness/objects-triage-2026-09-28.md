@@ -170,6 +170,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 68 | RT4 (lane brief, wave 15) the runtime lane's two RT2 rulings and its walls (section RT4): (1) `closedTable.json` declares `forward` on the nine right-edge clock leaves (`islast`/`islastconfirmedhistory` 1, the seven `lastbar*` broadcasts `unbounded`), both linters name the reach, RT2's `clockEdge` join is removed; (2) a runtime document whose run computed nothing draws none of its object program (`runtime:objects-without-run`, `nativeRegistry.runtimeObjectsWithheld`, binder + harness); (3) the five runtime walls measured by substitution (0 of 23 attach), none loosened | `3a77b89423`, `169eae248a`, `3157905b21` | 29 / 47 (pane on) unchanged; on + runtime unchanged | census 52 / 75 / 78 unchanged, 0 rows | harness dir pane on + runtime: `vw-int-array-avg` and `-neg` DIVERGE -> INCONCLUSIVE (objects withheld by name, not MATCH), DIVERGE 32 -> 30; every other state 0 entries changed; 0 corpus host trees read the nine leaves, 0 badges moved |
 | 69 | H2 (lane brief, wave 15) the host translator's next three walls (`pine:reassign` 15, `pine:state` 11, `pine:block` 11 on the 266), each refusal traced to its construct and clustered (section H2). **Served:** **(1)** a comma line of statements whose LAST segment opens a block (`int d = na , d := switch` + arms) splits into the statements Pine runs (`commaStatementSplit`; the no-block case is O1's G8); **(2)** a block-valued reassignment `x := if ...` and a subject-less `x := switch` (top level and in a helper) is the ternary chain it spells, an `na` arm condition read as false (`subjectlessSwitchNode`). **Refused, named:** loop totals (R7, 17 scripts), constant-threshold counters, IIRs, latches, `varip`, UDT fields | `735859774b`, `6aca8f1345`, merge `f482325e71` | 29 / 47 unchanged | member door at the O1 merge 79 / 266 on (54 off, 82 runtime): 0 attach change, 0 lost; walls moved: 3-level-zigzag-semafor and sessions -> `pine:function` (clock); before O1 landed, the same split attached pa-zigzag-fibonacci-fan and auto-trendline-dojiemoji (O1 also attaches them) | vendor harness all 171 / harness dir 138, pane on / off / runtime: 0 entries change. Translation census host 75 -> 75, screener 65 -> 66 |
 | 70 | H3 the host translator's language-feature walls at the member door (section H3): the 47 first refusals at H3's twelve codes read construct by construct, each candidate fix tried as a source rewrite before building; owners recorded (runtime lane for arrays mutated per bar and user-defined types; H2 for helper recurrences and loop totals; the clock lane for sessions). Served: `ta.vwap(source)` for a bar price as `vwapOf(source)`, the same accumulator as `vwap()` (graded on `vw-clock-vwap-spy-5-ext`, both lanes); a helper with a `switch`/`if` body called through itself is two calls, not a cycle; a destructure of a refused helper names the helper's wall. Refused by decision: v4 `alma` (Q-H3c), `fixnan`, `input.time` | `d0a85007e0`, `f97cbdb76c`, `14630ec3f4`, merge `a694822dc5` | 47 / 60 / 61 MATCH (all captures, pane off / on / runtime) unchanged; 0 MATCH -> DIVERGE | - | member door 54 / 79 / 82 -> **55 / 80 / 83** (+ cpr-with-mas-super-trend-vwap); 0 lost; `vw-clock-vwap-spy-1d` INCONCLUSIVE -> DIVERGE on its four vwap rows (daily vwap blank, pre-existing `vwap()` behaviour, question 1) |
+| 74 | L2 (lane brief, wave 16) the corpus scripts that import a library, measured WITH the 50 production libraries (opt-in `PINE_LIBRARY_STORE`, L1's loader, read by the member-door, runtime and importer censuses) and their next walls (section L2). **Served:** **(1)** a user function's DEFAULT parameter values in the runtime lane (`paramDefaultsOf` / `completeUserArgs`): an omitted trailing argument is the default written at the call (literals, dotted built-in constants, Pine's bar series, refused by name when the caller binds the name); **(2)** a required parameter behind an optional one; **(3)** a tab is one indent level, four columns (TradingView/ta/9). Q-L1 graded with a fixture library at `TradingView/ta/7`: **MATCH, 7 / 7 plots, 636 bars**; the real ta/7 from the store (opt-in) MATCH too. No budget or flag moved | `4106fc6be2`, `553fe7bf1c`, `594271632a`, `3d79658033`, merge `25012b2311` | 47 not re-graded; capRound4 Q-L1 INCONCLUSIVE -> MATCH with the registry loaded | - | member door at the wave-16 tip `666ea1c854`, libraries loaded 55 / 82 / 88 -> **55 / 82 / 89** (+ rolling-vwap, runtime lane, ungraded: Q-L2a); empty registry 55 / 80 / 86 -> 55 / 80 / 86; 0 lost; runtime census `runtime:function` 11 -> 3 (store loaded), compiled 23 -> 23; tab rule: host formulas + runtime IR over the 266 unchanged (digest), 3 refusals moved |
 | 75 | CAP2 coverage audit (section CAP2): census on the wave-16 tree (objects pane on 80 / 266, +runtime 86); the attached scripts with no TradingView capture (22 + the wave-16 attach cpr-with-mas) captured on NYSE:RDDT 1D from the listing and AMEX:SPY 1D, verify_capture.mjs PASS 50/50, graded in `vendorHarness.coverageAudit` (47 tests): **MATCH 6**, **DIVERGE 14**, **INCONCLUSIVE 2**, supertrend-explorer refused by TradingView. Queues: RT3 Q-NL-a/b (`or`/`not` read na as false, v4 and v5), H3 Q-H3a/b/c, CAP row 9 (lower-tf "30"/"1", 1M, CAVA lookahead) | `2ad89eaa9c`..`89dfd5ac8f` + rail | no engine change | attached with a capture: 61 / 79 -> 79 / 80 (on), all runtime attaches but supertrend-explorer | table in section CAP2 |
 | 77 | RF (lane brief, wave 16) the runtime pane made ready to switch on, and the switch-on plan (section RF, `docs/pine/runtime-pane-switch-on-plan.md`): every stop of a run is named (`runtime:limit`, `runtime:failed`, `runtime:worker-unresponsive` / `-failed`, `runtime:load-failed`) and said on the disclosure strip (no surface rendered a column error before); a dead or hung worker answers its jobs by name and is never re-run on the main thread (watchdog 20 s, 3 starts per tab, newest-run coalescing); a kill takes the installed copy off an open tab; a runtime document names the bar colours it does not draw (3 of 6 omitted them silently since B1). Off-main-thread proved in real Chromium (worst frame gap 17 ms, control 383 ms). Store round trip on the six real documents. No flag, budget or limit moved | `caa526cd31`, `54c5e82ea7`, `828dc181b8`, `f64f9cfdf0`, docs | not re-graded (no routing change); runtime on: adx-and-di MATCH, inside-bar DIVERGE on paints only (plots + objects MATCH) | unchanged | member door 55 / 80 / **86**, 0 rows changed by RF (no routing change); runtime-only 6: 1 graded MATCH, 1 paints-DIVERGE, 4 no capture |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
@@ -5972,3 +5973,93 @@ Captures for delta-rsi, fibonacci-dolphintradebot, trend-targets and wyckoff go 
 **Environment:** the shared `node_modules` lost `@asamuzakjp/css-color`, `@adobe/css-tools` and
 `@discord/embedded-app-sdk` mid-session; jsdom tests and `vite build` cannot run until it is
 reinstalled.
+## L2 - the scripts that import a library, measured with the libraries, and their next walls (2026-10-02, step 74)
+
+Lane L2, branch `pine/l2-library-scripts`, base `integrate/wave16-2026-10-02` (`304a6ec692`), merged with the wave-16 tip
+`666ea1c854` (H2 + H3) before the final census. Production's library store holds all 50 libraries the corpus imports;
+every census in the repository runs with an EMPTY registry. L1 already shipped the opt-in loader
+(`ast/__tests__/pineLibraryStoreLoader.js`, `PINE_LIBRARY_STORE=<scratch dir>`), read by the member-door census, the
+runtime census and `libraryImportersCensus.measure`; it is never on by default and no library source is committed.
+
+### The true census (member door, `memberDoorCensus.measure.test.js`, off / on / on + runtime, 266 scripts)
+
+| tree | empty registry (production today) | 50 libraries loaded |
+|---|---|---|
+| wave-16 tip `666ea1c854` | 55 / 80 / 86 | 55 / 82 / 88 |
+| L2 tip `25012b2311` | 55 / 80 / 86 | **55 / 82 / 89** |
+
+Importers past the import wall: empty registry host 4 / 34, runtime 1 / 34; loaded host 30 / 34, runtime 30 / 34. The two
+the libraries unblock at the door (objects pane on): `all-chart-patterns-theeccentrictrader`, `black-scholes-...-loxx`
+(both host lane). L2 adds `rolling-vwap` (runtime lane, 7 plots; ungraded - capture Q-L2a). The four that stay at the
+import wall import a v5 library into a v6 script (`fx-market-sessions`, `auto-trendlines-tradingfinder`,
+`machine-learning-lorentzian-classification__21f5`, `rate-of-change`): TradingView compiles each at its own version and
+this engine one program at one version - refused by name, not a capture question (Q-L2b). Runtime census (store
+loaded): `runtime:function` first walls 11 -> 3, compiled end to end 23 -> 23.
+
+### Constructs admitted (one per commit)
+
+1. **Default parameter values, runtime lane** (`4106fc6be2`). The first runtime wall of 7 importers (ta/7, ta/9,
+   ZenLibrary, reees/TA, MLExtensions, chart-vwap, adaptive-trend). Pine: an omitted trailing argument runs the body
+   with the declared default; Q-L1 pins it for a series default (L05 == L03 on every bar). Compiled as the default
+   written at the call, which is exact only for a value that cannot depend on where it is read: literals, dotted
+   built-in constants, Pine's built-in bar series (refused by name if the caller binds that name). Anything else keeps
+   the header refusal. Rail `builder/memberPane/runtimeParamDefaults.test.js`; 3 mutations, each red.
+2. **Q-L1 graded MATCH** (`553fe7bf1c`): a fixture library written for the rail at `TradingView/ta/7`, member door,
+   runtime pane: 7 / 7 plots MATCH on 636 bars; control (default `source = low`) DIVERGES on L05 only; opt-in real ta/7
+   from the store MATCH (measured 2026-10-02). The host lane still refuses a header with defaults; the runtime lane draws it.
+3. **A required parameter behind an optional one** (`594271632a`): only trailing omissions are completed, so the rule
+   that refused such headers bought nothing; a call leaving the required one out keeps its arity refusal. 2 red.
+4. **A tab is one indent level** (`3d79658033`, `pine.js` lexer, both lanes): Pine's "four spaces or a tab";
+   TradingView/ta/9's `supertrend` mixes the two in one body. Before/after digest over all 266 (host formulas, runtime
+   IR, with and without the store): 0 compiled outputs changed; 3 refusals moved. 2 red.
+
+### Each library script's next wall (L2 tip, store loaded; host | runtime)
+
+| script | host | runtime |
+|---|---|---|
+| adaptive-trend-following-suite-alpha-extract | pine:function-def (a header with defaults, host) | pine:role-order (`ta.cci` source) |
+| all-chart-patterns-theeccentrictrader | attached (host, objects) | runtime:statement (`ta.valuewhen` in a function, PubLibSwing/3:68) |
+| atr-stop-loss-indicator | pine:function-def (ZenLibrary:17, host) | `syminfo.mintick` unsettled (bind-time text) |
+| atr-trend-bands-misu | pine:timeout | runtime:colour |
+| auto-trendlines-tradingfinder | pine:module (v5 library in v6) | runtime:library (same) |
+| black-scholes-...-loxx | attached (host, objects) | pine:function (`timestamp`) |
+| bull-vs-bear-market-intraday-sessions | pine:no-output (O1) | runtime:udt-method (arraymethods/1:30 overload) |
+| candlestick-patterns-on-backtest | pine:object-removal-lost | pine:input-kind (`input.time`) |
+| chart-vwap | pine:tuple (H3) | pine:statement |
+| cvd-cumulative-volume-delta-candles | pine:type (H3) | runtime:switch (lower_tf/5:78) |
+| cvd-cumulative-volume-delta-chart | pine:function (`chart.bars`) | pine:builtin (`chart.left_visible_bar_time`) |
+| delta-volume-candles-lucf | pine:tuple (H3) | runtime:switch (lower_tf/4:113) |
+| deviation-scaled-moving-average-loxx | pine:arity (`ta.change` 2 args) | pine:builtin (`ticker.heikinashi`) |
+| fx-market-sessions | pine:module (v5 in v6) | runtime:library |
+| heikin-ashi-supertrend | pine:strategy-call | runtime:presentation (`plotcandle`) |
+| kalman-psar-backquant | pine:state (H2) | runtime:function (a `[` in a header) |
+| machine-learning-lorentzian-classification__21f5 | pine:module (v5 in v6) | runtime:library |
+| machine-learning-lorentzian-classification__5c79 | pine:type (H3) | runtime:call-windowed-state (MLExtensions:121, `ta.rsi`) |
+| machine-learning-rsi-bullvision | pine:tuple (H3) | pine:block |
+| pivot-trendlines-with-breaks-hg | pine:arity | pine:na (`fixnan`) |
+| rate-of-change | pine:module (v5 in v6) | runtime:library |
+| rolling-vwap | pine:block (H2) | **attached** (runtime lane, ungraded, Q-L2a) |
+| rsi-trendlines-with-breakouts-hg | pine:arity | pine:na (`fixnan`) |
+| smart-money-breakout-channels-algoalpha | pine:function (`ta.barssince`) | runtime:call-undeclared-builtin-state (`timeframe.in_seconds`, ta/10:415) |
+| smart-money-concept-tradingfinder | pine:object-removal-lost | runtime:array (`array.insert`, RT5) |
+| smc-structures-and-multi-timeframe-fvg | pine:state (H2) | pine:input-kind (`input.timeframe`) |
+| std-filtered-adaptive-exponential-hull-loxx | pine:block (H2) | pine:builtin (`ticker.heikinashi`) |
+| stop-loss-clustering-breakouts-kioseff | pine:reassign (H2) | pine:statement |
+| strength-of-divergence-across-multiple-indicators | pine:no-output (O1) | runtime:statement (`pivothigh` sized by a parameter, reees/TA:148) |
+| supertrend-relative-volume-kernel-optimized-flux | pine:tuple (H3) | runtime:array (after ta/9's tab line) |
+| trailing-take-profit-trailing-stop-loss | pine:block (H2) | pine:statement (`export enum` with values, chrono_utils/7:31) |
+| volatility-stop-mtf | pine:tuple (H3) | pine:builtin (`timeframe.from_seconds`) |
+| volume-footprint-measuring-classical-indicators | pine:input-kind (`input.enum`) | pine:statement |
+| volume-profile-plus | pine:no-output (O1) | pine:builtin (`chart.left_visible_bar_time`) |
+
+Owned elsewhere and not touched: H2 (`pine:block` / `state` / `reassign`), H3 (`pine:tuple` / `type` / `function-def`
+in the host), RT5 (`runtime:array`, object drawing), O1 (`pine:no-output`). Open, not attacked: host-lane defaults
+(H3's code), `export enum` with string values in a library, `runtime:switch` (lower_tf), `ta.valuewhen` inside a
+function, `runtime:udt-method` overloads, a v5 library under a v6 script.
+
+### Measurement notes
+
+The shared `app/node_modules` lost 13 entries mid-session (restored by the integrator); L2's last suites and every
+final census ran from scratch checkouts (`git archive` of the tip / of `666ea1c854`) with a junction to an intact
+install. The wave-16 base census with the store died once out of memory (no totals line) and was re-run alone; the
+runtime census's three timed-out cases on the base run are load (its compiled line printed).

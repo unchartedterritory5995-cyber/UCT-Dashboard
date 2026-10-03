@@ -2728,9 +2728,20 @@ export function lexPine(src) {
   }
   const tokens = []
   const lines = text.split('\n')
+  // ⭐ L2 — A TAB IS ONE INDENT LEVEL: FOUR COLUMNS, not one. Pine's own rule is
+  // "a local block is indented by four spaces or a tab", and TradingView's
+  // published `TradingView/ta/9` writes ONE function body with a tab on one line
+  // and four spaces on the next (`supertrend`, lines 546-547) — it compiles there,
+  // so the two must be the same level. Counted as one column, the tab line read as
+  // a SHALLOWER indent and split the body. A tab advances to the next multiple of
+  // four (every leading tab measured in the corpus and the library store sits at a
+  // multiple of four, where that and "a tab is four" agree).
   const indents = lines.map((line) => {
     const m = /^[ \t]*/.exec(line)
-    return m ? m[0].length : 0
+    if (!m) return 0
+    let w = 0
+    for (const ch of m[0]) w = ch === '\t' ? w + 4 - (w % 4) : w + 1
+    return w
   })
   let version = null
   let i = 0
