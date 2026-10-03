@@ -920,9 +920,14 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
       .reduce((n, f) => n + (Number.isFinite(vc[f]) ? vc[f] : 0), 0)
     const unreadable = Array.isArray(vendorObjs.unreadable) && vendorObjs.unreadable.length
     if (unreadable) return { verdict: 'INCONCLUSIVE', reason: `our script draws no objects; the capture could not read ${vendorObjs.unreadable.join(', ')}` }
-    return vendorTotal === 0
-      ? { verdict: 'MATCH', reason: 'neither side draws an object' }
-      : { verdict: 'DIVERGE', reason: `TradingView holds ${vendorTotal} drawing object(s) at the last bar and our script has no drawing program` }
+    if (vendorTotal === 0) return { verdict: 'MATCH', reason: 'neither side draws an object' }
+    // ⭐ F3 — a drawing the door WITHHELD BY NAME is a gap with a name, not a
+    // script without a drawing program (the same rule `comparePaints` applies to
+    // a withheld paint).
+    if (ourObjs.withheld) {
+      return { verdict: 'DIVERGE', withheld: ourObjs.withheld, reason: `TradingView holds ${vendorTotal} drawing object(s) at the last bar and our drawing is withheld by name (${ourObjs.withheld}) — ${ourObjs.reason}` }
+    }
+    return { verdict: 'DIVERGE', reason: `TradingView holds ${vendorTotal} drawing object(s) at the last bar and our script has no drawing program` }
   }
   if (!ourObjs || !ourObjs.ok) return { verdict: 'INCONCLUSIVE', reason: `our object lane did not run: ${(ourObjs && ourObjs.reason) || 'no result'}` }
   const families = ['lines', 'labels', 'boxes', 'tables', 'tableCells']

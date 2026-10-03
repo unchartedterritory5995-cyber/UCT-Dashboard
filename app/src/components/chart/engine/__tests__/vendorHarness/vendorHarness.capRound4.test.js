@@ -14,9 +14,19 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
+import fs from 'node:fs'
+
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
+import { registerPineLibrary, clearPineLibraries } from '../../ast/pineLibraryStore'
 
 const load = (id) => loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
+// ⭐ L2 — opt-in only: the real `TradingView/ta/7` from a scratch store directory
+// (never committed), for the store-loaded Q-L1 grade below. Unset ⇒ null ⇒ skipped.
+const STORE_TA7 = (() => {
+  const dir = process.env.PINE_LIBRARY_STORE
+  if (!dir) return null
+  try { return JSON.parse(fs.readFileSync(path.join(dir, 'TradingView', 'ta', '7.json'), 'utf8')) } catch { return null }
+})()
 afterEach(() => { vi.unstubAllEnvs() })
 
 function grade(cap) {
@@ -116,6 +126,76 @@ describe('Q-L1 — an imported library function is the same function written her
     const v = grade(LIB)
     expect(v.verdict).toBe('INCONCLUSIVE')
     expect(v.reason).toMatch(/pine:module/)
+  })
+})
+
+// ─── ⭐ L2 (step 74) — Q-L1 GRADED WITH THE REGISTRY LOADED ───────────────────────
+//
+// Production's store holds `TradingView/ta/7`; this repository never holds its
+// code. So the registry is filled here with a FIXTURE LIBRARY WRITTEN FOR THIS RAIL
+// at that path (`L2_TA7_FIXTURE`, our own spelling of the three exports the probe
+// calls, each pinned by the capture itself: L01c/L02c say `ao`/`dema` ARE the
+// inline formulas, and L03–L05 pin `highestSince`). The member door then draws
+// the probe through the RUNTIME lane (the host lane refuses a header with
+// defaults), and the harness grades it against TradingView.
+//
+// ⭐ What it proves is the LINKER and the runtime lane, not our fixture: two call
+// sites keep two `var` states (L03 ≠ L04 on 358 bars), and an omitted series
+// default is the declared one (L05 == L03). A store-loaded run
+// (`PINE_LIBRARY_STORE=<dir>`, opt-in) grades the same capture with the real
+// library — measured MATCH 8/8 on 636 bars, 2026-10-02.
+const L2_TA7_FIXTURE = `// L2 test fixture written for this rail, standing in for an imported library
+//@version=5
+library("ta")
+export ao(series float source = hl2, simple int shortLength = 5, simple int longLength = 34) =>
+    ta.sma(source, shortLength) - ta.sma(source, longLength)
+export dema(series float source, simple int length) =>
+    float e = ta.ema(source, length)
+    2 * e - ta.ema(e, length)
+export highestSince(series bool cond, series float source = high) =>
+    var float hi = na
+    hi := cond ? source : na(hi) ? source : math.max(hi, source)
+    hi
+`
+function gradeWithLibrary(cap, entry) {
+  registerPineLibrary(entry)
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  return gradeCapture(cap).verdict
+}
+describe('⭐ L2 — Q-L1 with the library registry loaded (step 74)', () => {
+  afterEach(() => { clearPineLibraries() })
+
+  it('⭐ door: all seven plots MATCH TradingView on all 636 bars (runtime lane, fixture library)', () => {
+    const v = gradeWithLibrary(LIB, {
+      path: 'TradingView/ta/7', source: L2_TA7_FIXTURE, licence: 'test-fixture', attribution: 'L2 rail fixture (no third-party code)',
+    })
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.plots.length).toBe(7) // L01, L01c, L02, L02c, L03, L04, L05
+    for (const p of v.plots) {
+      expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
+      expect(p.stats.compared, p.title).toBe(636)
+    }
+  })
+
+  it('⛔ CONTROL: a fixture whose default source is `low` DIVERGES on L05 only', () => {
+    // The grade is not satisfied by any library that links: the omitted argument
+    // must be the DECLARED default. L03/L04 pass `high` and stay MATCH.
+    const v = gradeWithLibrary(LIB, {
+      path: 'TradingView/ta/7',
+      source: L2_TA7_FIXTURE.replace('series float source = high', 'series float source = low'),
+      licence: 'test-fixture',
+      attribution: 'L2 rail fixture (no third-party code)',
+    })
+    expect(item(v, 'L05 highestSince default source').verdict).toBe('DIVERGE')
+    expect(item(v, 'L03 highestSince month').verdict).toBe('MATCH')
+    expect(item(v, 'L04 highestSince week').verdict).toBe('MATCH')
+  })
+
+  it.skipIf(!STORE_TA7)('⭐ door (opt-in, PINE_LIBRARY_STORE): the REAL TradingView/ta/7 grades MATCH', () => {
+    const v = gradeWithLibrary(LIB, STORE_TA7)
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.plots.every((p) => p.verdict === 'MATCH' && p.stats.compared === 636)).toBe(true)
   })
 })
 

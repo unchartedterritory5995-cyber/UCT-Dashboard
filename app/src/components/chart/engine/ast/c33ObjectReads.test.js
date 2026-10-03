@@ -329,8 +329,17 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
   })
 
   it('⛔ a format the one formatter does not understand whole keeps its refusal', () => {
-    // swing-highlow-zigzag: `str.tostring(line_h.get_y1(), "Swing H  (#,###.####)")`
-    for (const fmt of ['"Swing H  (#,###.####)"', '"#,###.##"', 'format.mintick']) {
+    // ⭐ F3 — swing-highlow-zigzag's `str.tostring(line_h.get_y1(), "Swing H  (#,###.####)")`
+    // and a bare grouping pattern are READ now (`pineTextFormat.js::tostringPatternOf`;
+    // the runtime withholds a value whose separator would appear). What stays
+    // refused: a NAMED format on a getter, and a pattern whose affix changes the
+    // number (`%` multiplies by 100).
+    for (const fmt of ['"Swing H  (#,###.####)"', '"#,###.##"']) {
+      const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
+        `label.new(bar_index, high, str.tostring(line.get_y1(ln), ${fmt}))`))
+      expect(diag(t).dropReasons['create:label'], fmt).toBeUndefined()
+    }
+    for (const fmt of ['format.mintick', '"#.##%"']) {
       const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
         `label.new(bar_index, high, str.tostring(line.get_y1(ln), ${fmt}))`))
       expect(diag(t).dropReasons['create:label'], fmt).toBe(1)

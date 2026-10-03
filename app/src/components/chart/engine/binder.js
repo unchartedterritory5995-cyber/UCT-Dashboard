@@ -68,13 +68,15 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
+import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -839,6 +841,36 @@ export function createBinder({ chart, LWC }) {
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
+      // already computed (one run, both answers), drawn by the same render state.
+      // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
+      // draws nothing — never a stale picture, never the host program's.
+      if (drawsRuntimeObjects(def)) {
+        alive.add(inst.instanceId)
+        if (typeof make !== 'function') continue
+        let rlayer = objectLayers.get(inst.instanceId)
+        if (!rlayer) {
+          const made = attempt(() => make(inst))
+          rlayer = made.ok ? made.value : null
+          if (!rlayer) continue
+          objectLayers.set(inst.instanceId, rlayer)
+        }
+        const memo = computeMemo.get(inst.instanceId)
+        const payload = runtimeObjectsOf(memo && memo.cols)
+        if (!payload) { attempt(() => rlayer.set(null, '')); continue }
+        const rstate = attempt(() => toRenderState(payload.live,
+          { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
+        if (!rstate) { attempt(() => rlayer.set(null, '')); continue }
+        const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
+        attempt(() => rlayer.set(rstate, rsig, {
+          liveIds: payload.live.map((o) => o.id),
+          createdBars: payload.live.map((o) => o.createdBar),
+          lane: 'runtime',
+          withheld: payload.withheld || {},
+          reason: payload.reason || null,
+        }))
+        continue
+      }
       const program = def && def.objects
       if (!program) continue
       alive.add(inst.instanceId)
@@ -1092,9 +1124,16 @@ export function createBinder({ chart, LWC }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
-  const noteRuntimeErrorStop = (instanceId, cols) => {
+  const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
     const stop = cols ? runtimeErrorStopOf(cols) : null
-    const sentence = stop && stop.reached ? stop.sentence : null
+    let sentence = stop && stop.reached ? stop.sentence : null
+    // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
+    // why on the same strip (`nativeRegistry.runtimeRunStopOf`): history-start,
+    // the time budget, a VM limit, a failed worker. Never an empty pane alone.
+    if (!sentence && def) {
+      const ran = runtimeRunStopOf(def, cols)
+      if (ran) sentence = ran.sentence
+    }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
     else stoppedIds.delete(instanceId)
@@ -1223,6 +1262,13 @@ export function createBinder({ chart, LWC }) {
       // when there is a sentence to take down. Zero calls when none was published.
       pruneClock('plots', null)
       pruneClock('objects', null)
+      // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
+      // that drew nothing binds NO series, so `held` is empty exactly when there
+      // is a "not drawn because …" sentence to take down. Zero calls when none.
+      if (stoppedIds.size) {
+        for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+        stoppedIds.clear()
+      }
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1522,7 +1568,9 @@ export function createBinder({ chart, LWC }) {
         // has not landed yet" — and remembering that answer against an unchanged
         // (def, bars, inputs) key would pin the indicator blank until the bars
         // array changed for some unrelated reason.
-        if (Object.keys(cols).length) {
+        // ⭐ RT5 — a drawing-only runtime document's record carries no column
+        // and IS an answer (its drawings ride non-enumerably beside them).
+        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
@@ -1530,7 +1578,7 @@ export function createBinder({ chart, LWC }) {
       }
       runCols.set(inst.instanceId, cols)
       // ⭐ C43 — reached on this chart at these settings, or no longer reached
-      noteRuntimeErrorStop(inst.instanceId, cols)
+      noteRuntimeErrorStop(inst.instanceId, cols, def)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
       // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
       // columns the decision was made for; a registry without the report (a test

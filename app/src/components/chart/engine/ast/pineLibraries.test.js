@@ -200,15 +200,14 @@ plot(f(high))
 plot(g())
 plot(h(high))
 `
-    // a DEFAULT on the parameter (`= 0.0`): the host lane reads it; the runtime lane
-    // refuses defaults by name (its own wall, linked or pasted alike)
+    // a DEFAULT on the parameter (`= 0.0`): the host lane reads it, and since L2
+    // (2026-10-02) so does the runtime lane (`paramDefaultsOf`) — it refused
+    // defaults by name until then, which is what this case used to pin.
     expectSameColumns(hostRun(linked), hostRun(pasted))
-    const rLinked = linked.replace('plot(s.h(high))\n', '')
-    const rPasted = pasted.replace('plot(h(high))\n', '')
-    expectSameColumns(runtimeRun(rLinked), runtimeRun(rPasted))
-    // the same wall, named the same way, and placed on the member's import line
-    expect(runtimeRun(linked).why)
-      .toBe(`${runtimeRun(pasted).why} — in the imported library \`tester/shadow/1\`, line 7`)
+    expectSameColumns(runtimeRun(linked), runtimeRun(pasted))
+    // ⭐ L2 — with the argument OMITTED, the default is the one the LIBRARY
+    // declared, linked or pasted alike.
+    expectSameColumns(runtimeRun(`${linked}plot(s.h())\n`), runtimeRun(`${pasted}plot(h())\n`))
   })
 
   it("a type FIELD named like a top-level value is the field (runtime lane)", () => {

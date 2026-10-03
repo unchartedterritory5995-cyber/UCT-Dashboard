@@ -567,6 +567,12 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
         **_charts_list_subscribe_flag(),
+        # ── GT (D1) — the per-bar runtime pane, RESOLVED FOR THIS MEMBER ────
+        # `PINE_RUNTIME_STAGE` (off / admins / all), read PER REQUEST in
+        # `runtime_definitions.pane_permitted` — the same function the save
+        # door asks of the saving member. The client needs BOTH this and the
+        # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
+        **_pine_runtime_pane_flag(user.get("role")),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -597,6 +603,20 @@ def _charts_list_subscribe_flag() -> dict:
         return {"charts_list_subscribe_enabled": True} if charts_list_subscribe_enabled() else {}
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return {}
+
+
+def _pine_runtime_pane_flag(role) -> dict:
+    """GT (owner ruling D1) — may THIS member's pane draw through the runtime lane?
+
+    ⛔ ALWAYS A BOOLEAN, and FALSE unless `PINE_RUNTIME_STAGE` says otherwise
+    for this member: unset reads `off`, `admins` is true for `role == "admin"`
+    only, `all` is true for everyone. ⛔ NEVER RAISES: this is the universal auth
+    path, and an unreadable stage is an OFF stage."""
+    try:
+        from api.services import runtime_definitions
+        return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role))}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {"pine_runtime_pane_enabled": False}
 
 
 def _watchlist_copy_or_link_flag() -> dict:

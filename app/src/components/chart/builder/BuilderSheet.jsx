@@ -2065,6 +2065,24 @@ export default function BuilderSheet({
             )}
           </div>
 
+          {/* ⭐ GT (RT4 follow-up, owner ruling 2026-10-02) — A DEFINITION SAVED UNDER
+              AN OLDER REPAINT RULE. The store serves `repaint_notice` beside a row
+              whose stored label is LOOSER than today's measurement (the relint
+              pass's direction B, `user_definition_relint.member_notice`): e.g. a
+              formula saved before the shared clock-table fix that reads one of the
+              nine last-bar clock leaves. ⛔ The stored label is NEVER flipped
+              silently; its owner is told, here, when they open it. The sentence is
+              the server's, verbatim. */}
+          {editing && (() => {
+            const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
+            const notice = openRow && openRow.repaint_notice
+            return notice && typeof notice.sentence === 'string' ? (
+              <p className={styles.pickerNote} role="status" data-testid="repaint-label-notice">
+                {notice.sentence}
+              </p>
+            ) : null
+          })()}
+
           {buildMode === 'library' && (
             <StarterLibrary
               activeSource={source}

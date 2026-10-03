@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { latchRuntimePanePermission } from '../components/chart/engine/runtimePaneGate'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 
@@ -128,6 +129,10 @@ export function AuthProvider({ children }) {
     latchNotebookFlags(Object.fromEntries(
       Object.keys(FLAG_FALLBACKS).map((k) => [k, (data || {})[k]]),
     ))
+    // ⭐ GT (D1) — the per-member runtime-pane permission, LATCHED per tab like
+    // the Notebook's flags (`runtimePaneGate.js`). No React state: the chart
+    // engine asks `runtimePaneEnabled()`, which reads the latch.
+    latchRuntimePanePermission(data)
   }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
