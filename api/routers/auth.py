@@ -2511,7 +2511,13 @@ _PREFERENCE_KEYS = {
     # per-panel {code, group, sym, args} (`app/src/pages/terminal/useTerminalLayout.js`).
     # ADDITIONS-ONLY: a new key, no existing key renamed (coexistence MG-4); the panels'
     # linked security rides the EXISTING `charts_workspace_groups`, not a copy here.
+    # Lane T2: v2 adds channel records, density, the closed-panel undo stack and pop-outs
+    # INSIDE the same key; v1 blobs are read by the client's shim (`boardModel.js`).
     "terminal_layout": _PREF_OPAQUE,
+    # Lane T2 (2026-10-02): the member's named terminal boards (`B:<slug>` addresses),
+    # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
+    # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
+    "terminal_boards": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
@@ -2653,11 +2659,22 @@ def get_preferences(response: Response, user: dict = Depends(get_current_user)):
     # header is set: the response is byte-for-byte what it was. Armed, the board's keys come from
     # the document head (falling back to this store, never to a default) and the header says
     # which answered.
-    prefs, stamp = workspace_doc_store.read_prefs(user["id"], get_user_preferences(user["id"]),
-                                                  set_user_preference)
-    if stamp is not None:
-        response.headers["X-Workspace-Doc"] = stamp
+    # Lane T2: every board is read the same way, in turn; each touches only its own keys. The
+    # Charts board keeps its header byte-for-byte; the terminal board answers in its own.
+    prefs = get_user_preferences(user["id"])
+    for board in workspace_doc_store.BOARDS:
+        prefs, stamp = workspace_doc_store.read_prefs(user["id"], prefs, set_user_preference, board)
+        if stamp is not None:
+            response.headers[_WORKSPACE_DOC_HEADERS[board]] = stamp
     return prefs
+
+
+#: The response header each board's read-new stamp rides (`X-Workspace-Doc` is the Charts
+#: board's, unchanged, and is what `app/src/lib/workspaceDoc.js` reads).
+_WORKSPACE_DOC_HEADERS = {
+    workspace_doc_store.BOARD_CHARTS: "X-Workspace-Doc",
+    workspace_doc_store.BOARD_TERMINAL: "X-Workspace-Doc-Terminal",
+}
 
 
 @router.post("/preferences")

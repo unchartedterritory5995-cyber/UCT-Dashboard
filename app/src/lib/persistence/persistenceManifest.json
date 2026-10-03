@@ -519,6 +519,18 @@
       ]
     },
     {
+      "key": "terminal_boards",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "work",
+      "label": "Saved terminal boards, ticker presets and favourite functions",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/useTerminalLayout.js"
+      ]
+    },
+    {
       "key": "terminal_layout",
       "store": "server-preference",
       "scope": "cross-device",
@@ -2289,6 +2301,17 @@
       "label": "Terminal command history",
       "files": [
         "app/src/pages/terminal/CommandLine.jsx"
+      ]
+    },
+    {
+      "key": "uct.terminal.recentFunctions",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal functions you used recently",
+      "files": [
+        "app/src/pages/terminal/recents.js"
       ]
     },
     {
