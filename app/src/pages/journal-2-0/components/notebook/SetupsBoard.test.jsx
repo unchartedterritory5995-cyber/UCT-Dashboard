@@ -105,6 +105,10 @@ describe('SetupsBoard', () => {
       expect(p.backgroundWarm).toBe(false)
       expect(p.deepWarm).toBe(false)
       expect(p.tf).toBe('D')
+      // Wave 13 integration walk (13X), 390px: the shared A/L/% scale-toggle renders at
+      // 11px in this card's lite profile, under the touch floor -- BoardCard.jsx vetoes
+      // it the same way TradeBeforeAfter.jsx's mini-charts already do.
+      expect(p.hideScaleToggle).toBe(true)
     }
     expect(prefetchListAllTimeframes).not.toHaveBeenCalled()       // not before the page paints
 
