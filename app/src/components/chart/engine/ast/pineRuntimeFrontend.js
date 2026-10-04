@@ -5272,6 +5272,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:function', fn.valuelessEnd === 'drawing'
               ? `\`${node.name}\` ends in a drawing, which the object program draws — its value is `
                 + 'not computed in this lane, so call it on a line of its own'
+              : fn.valuelessEnd === 'if'
+              ? `\`${node.name}\` ends in an \`if\` block whose branches run statements rather than `
+                + 'yield one value, which this lane does not carry — call it on a line of its own'
               : fn.valuelessEnd
               ? `\`${node.name}\` ends in \`${fn.valuelessEnd}(…)\`, which returns nothing, so its `
                 + 'value cannot be read — call it on a line of its own'
@@ -6563,6 +6566,51 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
   const STATE_WORDS_ARM = new Set(['var', 'varip'])
+  /** ⭐ RT14 — does an `if` chain YIELD a value in the shapes `armAssignerFor`
+   *  lowers? Every arm: arm-local declarations, then a bare expression, a nested
+   *  chain that yields, or a `switch`. A chain whose arms end in a write (`x := 1`)
+   *  or a call made for its effect is a chain run for its EFFECT. */
+  const armYields = (sub) => {
+    const lines = sub || []
+    if (!lines.length) return false
+    const localDecl = (ln) => {
+      const t = (ln && ln.header) || []
+      if (!t.length || (ln.sub && ln.sub.length)) return false
+      if (findTop(t, (x) => isPunct(x, ':=')) >= 0) return false
+      if (findTop(t, (x) => x.kind === 'punct' && x.value.length === 2 && x.value.endsWith('=')
+        && MUTATOR_OPS.has(x.value[0])) >= 0) return false
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      return eq > 0 && !!boundName(t, eq) && !(t[0].kind === 'ident' && STATE_WORDS_ARM.has(t[0].value))
+    }
+    let k = lines.length - 1
+    while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+    if (k >= 0 && k < lines.length - 1 && blockKeywordOf(lines[k]) !== 'if') return false
+    if (k >= 0 && blockKeywordOf(lines[k]) === 'if') {
+      return lines.slice(0, k).every(localDecl) && chainYields(lines, k)
+    }
+    const last = lines[lines.length - 1]
+    if (!lines.slice(0, -1).every(localDecl)) return false
+    if (blockKeywordOf(last) === 'switch') return true
+    const lt = last.header || []
+    if (!lt.length || (last.sub && last.sub.length)) return false
+    // a call that returns nothing yields nothing: a void collection call
+    // (`array.push`), or a function of this script compiled VALUELESS
+    if (lt[0].kind === 'ident' && isPunct(lt[1], '(')) {
+      const w = String(lt[0].value)
+      if (ARRAY_FNS[w] && isVoid(w)) return false
+      if (fnByName.has(w) && functions[fnByName.get(w)].valueless) return false
+    }
+    return findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) < 0
+      && findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
+        && MUTATOR_OPS.has(t.value[0])) < 0
+  }
+  const chainYields = (lines, at) => {
+    for (let k = at; k < lines.length; k += 1) {
+      if (k > at && blockKeywordOf(lines[k]) !== 'else') break
+      if (!armYields(lines[k].sub)) return false
+    }
+    return true
+  }
   const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
     const lines = sub || []
     if (!lines.length) {
@@ -6620,6 +6668,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const last = lines[lines.length - 1]
     const lt = last.header || []
+    // ⭐⭐ RT14 — AN ARM WHOSE LAST STATEMENT IS A `switch` BLOCK yields that
+    // switch's value, exactly as an arm ending in a nested `if` chain does (above):
+    // seeded `na` (a switch with no default that matches nothing has no value),
+    // its arms through this same assigner. fvg-detector-tradingfinder writes
+    // `x = if a … else if b` + a `switch` on the next line as the arm's value.
+    if (blockKeywordOf(last) === 'switch' && (last.sub || []).length && prefixOk(lines.length - 1)) {
+      const body = lowerStmts(lines.slice(0, -1), armScope)
+      body.push(assign(slot, naValue()))
+      for (const st2 of lowerSwitchInto(last.sub, lt.slice(1), armScope, slot,
+        armAssignerFor(slot, label, armScope), label, lt[0])) body.push(st2)
+      objectBlocks.push({ scope: armScope, body })
+      return body
+    }
     const binds = findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) >= 0
       || findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
         && MUTATOR_OPS.has(t.value[0])) >= 0
@@ -8420,6 +8481,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           record.valueless = true
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
+          result = naValue()
+        } else if (chainAt >= 0 && !chainYields(lines, chainAt)) {
+          // ⭐⭐ RT14 — A BODY THAT ENDS IN AN `if` RUN FOR ITS EFFECT (its arms
+          // write or call, they do not yield: double-topbottom's `add_to_array`,
+          // fvg-detector's `FVGDetector`) is the loop case's twin: compiled
+          // VALUELESS by the same rule — every statement lowered, its result `na`,
+          // and a call that READS the result refused by name at the call site.
+          // Called on a line of its own, the result is discarded and nothing is lost.
+          body = lowerStmts(lines, fnScope, false, true)
+          record.valueless = true
+          record.valuelessEnd = 'if'
           result = naValue()
         } else if (chainAt >= 0) {
           body = lowerStmts(lines.slice(0, chainAt), fnScope, false, true)

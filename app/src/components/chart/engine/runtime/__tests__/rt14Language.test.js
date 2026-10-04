@@ -244,3 +244,38 @@ describe('⭐⭐ RT14 — `var x = if …` / `var x = switch …` initialise ONC
     expect(col(src)).toEqual([null, 102, 102, null, 102, null, 102, 102])
   })
 })
+
+describe('⭐⭐ RT14 — a function ending in an `if` run for its effect is VALUELESS', () => {
+  // closes: 100, 102, 104, 101, 103, 100, 102, 104 — above 101 on bars 1, 2, 4, 6, 7
+  const yields = 'f(x) =>\n    if x > 101\n        y = x * 2\n        y\n    else\n        0.0\n'
+  const effect = 'var a = array.new_float()\nf(x) =>\n    if x > 101\n        array.push(a, x)\n'
+
+  it('called on a line of its own, its statements run on every call', () => {
+    expect(run(effect + 'f(close)\nplot(array.size(a))\n')[0]).toEqual([0, 1, 2, 2, 3, 3, 4, 5])
+  })
+
+  it('and a caller ending in a call to it is valueless too (double-topbottom\'s zigzag)', () => {
+    const src = effect + 'g(x) =>\n    if x > 0\n        f(x)\ng(close)\nplot(array.size(a))\n'
+    expect(run(src)[0]).toEqual([0, 1, 2, 2, 3, 3, 4, 5])
+  })
+
+  it('reading its result refuses by name, never answers a value it does not carry', () => {
+    const r = build(effect + 'plot(f(close))\n')
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:function')
+    expect(r.refusal.message).toMatch(/ends in an `if` block/)
+  })
+
+  it('CONTROL: an `if` whose arms YIELD is still the function\'s value', () => {
+    expect(run(yields + 'plot(f(close))\n')[0]).toEqual([0, 204, 208, 0, 206, 0, 204, 208])
+  })
+})
+
+describe('⭐⭐ RT14 — an `if` arm whose value is a `switch`', () => {
+  it('yields the switch\'s value; an unmatched switch with no default is na', () => {
+    const src = 'float x = if close > 101\n    switch\n        close > 103 => 2.0\n        close > 101.5 => 1.0\nelse\n    0.0\nplot(x)\n'
+    expect(run(src)[0]).toEqual([0, 1, 2, 0, 1, 0, 1, 2])
+    const noDefault = 'float y = if close > 101\n    switch\n        close > 103 => 2.0\nelse\n    0.0\nplot(y)\n'
+    expect(run(noDefault)[0]).toEqual([0, null, 2, 0, null, 0, null, 2])
+  })
+})
