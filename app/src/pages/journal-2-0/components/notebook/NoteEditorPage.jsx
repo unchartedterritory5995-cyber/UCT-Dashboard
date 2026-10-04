@@ -4112,6 +4112,7 @@ export default function NoteEditorPage({
               onMouseDown={(e) => e.preventDefault()}
               onClick={openWritingHelp}
               aria-label="Writing help"
+              data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
             >
               <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
@@ -4261,6 +4262,7 @@ export default function NoteEditorPage({
           className={styles.toolbarRow}
           role="toolbar"
           aria-label="Editor toolbar"
+          data-tour="note-toolbar"
           data-export-exclude
           data-format-open={formatOpen ? 'true' : undefined}
           {...(formatOpen ? formatDisclosureProps : {})}
@@ -4444,6 +4446,7 @@ export default function NoteEditorPage({
               onClick={() => scanInputRef.current?.click()}
               aria-label="Scan a document with the camera"
               title="Scan a document with the camera"
+              data-tour="note-scan"
             >
               <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Scan
@@ -4689,6 +4692,7 @@ export default function NoteEditorPage({
           onClickCapture={handleEditorClickCapture}
           hidden={isCanvas && canvasExtra === 0}
           className={isCanvas ? styles.canvasExtra : undefined}
+          data-tour="note-body"
         >
           {isCanvas && canvasExtra > 0 && <h3 className={styles.canvasExtraTitle}>Also in this note</h3>}
           <EditorContent editor={editor} />

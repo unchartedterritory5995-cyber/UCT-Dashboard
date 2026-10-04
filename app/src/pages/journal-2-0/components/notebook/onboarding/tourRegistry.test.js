@@ -16,12 +16,13 @@ import {
 import { TRACK_TOURS } from './tours'
 
 describe('the registry itself', () => {
-  it('is frozen, non-empty, and every entry has exactly these fields', () => {
+  it('is frozen, non-empty, and every entry has exactly these fields (plus the optional `start`)', () => {
     expect(Object.isFrozen(TOUR_REGISTRY)).toBe(true)
     expect(TOUR_REGISTRY.length).toBeGreaterThan(0)
     for (const t of TOUR_REGISTRY) {
       expect(Object.isFrozen(t), `${t.id} is not frozen`).toBe(true)
-      expect(Object.keys(t).sort()).toEqual(['flag', 'id', 'load', 'replayable', 'title'])
+      // `start` is the one optional field (tours/index.js contract; first used by W14-B1).
+      expect(Object.keys(t).filter((k) => k !== 'start').sort()).toEqual(['flag', 'id', 'load', 'replayable', 'title'])
       expect(typeof t.id).toBe('string')
       expect(typeof t.flag).toBe('string')
       expect(typeof t.title).toBe('string')
