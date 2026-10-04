@@ -26739,8 +26739,13 @@ function colorNewOverRule(node, env, depth, ctx) {
   const baseArg = args.find((a) => a.name === 'color') || args.find((a) => !a.name)
   const tArg = args.find((a) => a.name === 'transp') || args.filter((a) => !a.name)[baseArg.name ? 0 : 1]
   if (!baseArg || !tArg || baseArg === tArg) return undefined
-  // A base that folds to one static colour is `staticColourOf`'s, not a rule.
+  // A base that folds to one static colour is `staticColourOf`'s, not a rule —
+  // with its constant selectors folded too (ruling 1: a theme chain over an
+  // `input.string` is the default's ONE colour, read by the fold pass, never an
+  // index over every theme).
   if (staticColourOf(baseArg.value, env, 0, ctx)) return undefined
+  if (ctx && !ctx.foldSelectors && ctx.resolver
+    && staticColourOf(baseArg.value, env, 0, { ...ctx, foldSelectors: { n: 0 } })) return undefined
   const raw = alphaNumberOf(tArg.value, env, ctx)
   if (raw === null) return null
   const t = wholeTransparency(raw)
@@ -26757,6 +26762,118 @@ function colorNewOverRule(node, env, depth, ctx) {
     return { ...inner, palette, opacity: alpha, withholdMint: true }
   }
   return null
+}
+
+/** ⭐⭐ F9 — A `var` COLOUR, SET BY ITS OWN `if`s, IS A PALETTE AND A RUNNING INDEX.
+ *
+ *  ⚰️ MEASURED (`vw-rt6-runtime-colour-rddt-1d-2026-10-03` / `-spy-1d-2026-10-03`,
+ *  C01 / C02):
+ *
+ *      var color c = color.white
+ *      if trend == 1
+ *          c := #33ff00
+ *      if trend == -1
+ *          c := #ff0000
+ *      plot(close, color = c)                     // and color.new(c, 40)
+ *
+ *  TradingView draws white, `#33ff00` or `#ff0000` per bar; this door read no rule
+ *  in a `var` and drew the pane's gold on 636 / 1,800 of 636 / 1,800 bars.
+ *
+ *  The `var` is already a running state (`stateBinding`: a seed, and an update
+ *  tree whose arms are colours, `selfref` and the prior update's binding). The SAME
+ *  tree with every colour leaf replaced by its position in a palette is an ordinary
+ *  numeric `var` — `var int i = 0` / `if trend == 1` / `i := 1` … — which the
+ *  resolver folds like any other state (warm-up, off-listing withholding and all),
+ *  so `colorPalette[i]` is the bar's colour (`colourIndexChain`'s shape).
+ *
+ *  ⛔ EVERY LEAF A STATIC COLOUR, `na`, `selfref` or a binding that maps the same
+ *  way; anything else declines the whole rule (`colorDynamic`, as before).
+ *  ⛔ ONLY THE `var`'S LAST WORD: a read between two of its reassignments
+ *  (`finalStateOf`) declines rather than be read at the wrong line.
+ *  New rules never mint (`withholdMint`, R36). */
+function colourStateRule(nameNode, bound, ctx) {
+  const r = ctx && ctx.resolver
+  if (!r || !bound || bound.kind !== 'state' || !bound.seed || !bound.update) return null
+  if (ctx.inline) return null
+  // ⛔ The program's last word on the name must BE this binding (a top-level `var`
+  // read after its last reassignment). Anything else — a read between two
+  // reassignments, a local whose last word this resolver does not hold — declines.
+  // ⚠️ A colour is read against the END-of-program env (`outputPresentation`'s
+  // `env`); the output's own line is the resolver's (`positionEnv`), so both are
+  // asked: the binding at the plot's line must be the last word too.
+  if (!(r.finalBindings instanceof Map) || r.finalBindings.get(nameNode.name) !== bound) return null
+  if (!r.env || typeof r.env.get !== 'function' || r.env.get(nameNode.name) !== bound) return null
+  const acc = { entries: [], keys: [] }
+  const memo = new Map()
+  let ok = true
+  const leafIndex = (node, e) => {
+    let entry
+    if (isNaColourLeaf(node)) entry = { na: true, key: 'na' }
+    else {
+      const hex = staticColourOf(node, e, 0, ctx)
+      if (!hex) return null
+      const alpha = colourHelperAlpha(node, e, ctx)
+      entry = { hex, alpha, key: `${hex}@${alpha}` }
+    }
+    let idx = acc.keys.indexOf(entry.key)
+    if (idx < 0) { idx = acc.keys.length; acc.keys.push(entry.key); acc.entries.push(entry) }
+    return { type: 'number', value: idx }
+  }
+  const mapBinding = (b, depth) => {
+    if (memo.has(b)) return memo.get(b)
+    memo.set(b, null)
+    const node = map(b.node, b.env, depth + 1)
+    const out = node ? { ...b, node } : null
+    memo.set(b, out)
+    return out
+  }
+  const map = (node, e, depth) => {
+    if (!ok || !node || depth > 24) { ok = false; return null }
+    if (node.type === 'selfref') return node
+    if (node.type === 'ternary') {
+      const yes = map(node.yes, e, depth + 1)
+      const no = yes && map(node.no, e, depth + 1)
+      return yes && no ? { ...node, yes, no } : null
+    }
+    if (node.type === 'paren' && node.expr) return map(node.expr, e, depth + 1)
+    const asLeaf = leafIndex(node, e)
+    if (asLeaf) return asLeaf
+    let b = null
+    if (node.type === 'bound') b = node.binding
+    else if (node.type === 'name') b = e && typeof e.get === 'function' ? e.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node) {
+      const nb = mapBinding(b, depth)
+      if (nb) return boundNode(nb, node.name, node.tok)
+    }
+    ok = false
+    return null
+  }
+  const seed = map(bound.seed, bound.seedEnv, 0)
+  if (!seed || !ok || containsSelfref(seed)) return null
+  const update = map(bound.update, bound.updateEnv, 0)
+  if (!update || !ok) return null
+  const pal = chainPalette(acc)
+  if (!pal) return null
+  const twin = stateBinding(seed, bound.seedEnv, update, bound.updateEnv, bound.at)
+  return {
+    arity: pal.palette.length,
+    indexTree: boundNode(twin, `__colour_index_${nameNode.name}`, nameNode.tok),
+    palette: pal.palette,
+    opacity: pal.opacity,
+    withholdMint: true,
+  }
+}
+
+function containsSelfref(node) {
+  const stack = [node]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'selfref') return true
+    for (const k of ['yes', 'no', 'test', 'expr']) if (n[k]) stack.push(n[k])
+    if (n.type === 'bound' && n.binding && n.binding.node) stack.push(n.binding.node)
+  }
+  return false
 }
 
 /** A palette entry (`#RRGGBB` or `rgba(r, g, b, a)`) → its `#rrggbb`, ignoring the
@@ -26780,6 +26897,7 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     if (bound && bound.kind === 'expr') {
       return colourConditional(bound.node, bound.env || env, depth + 1, ctx)
     }
+    if (bound && bound.kind === 'state') return colourStateRule(node, bound, ctx)
     return null
   }
   // ⭐⭐ 2026-09-28 — A USER COLOUR HELPER WHOSE TAIL IS A CONDITIONAL IS OPENED,

@@ -73,8 +73,8 @@ describe('F9 — what stays declined (`colorDynamic`), by rule', () => {
     expect(p.colorDynamic).toBe(true)
   })
 
-  it('⛔ a base that is not a rule this door reads (a `var` colour reassigned per bar)', () => {
-    const p = pres('var color c = color.white', 'if close > open', '    c := color.lime', 'plot(close, color = color.new(c, 40))')
+  it('⛔ a base that is not a rule this door reads (a colour computed per bar)', () => {
+    const p = pres('c = color.rgb(close % 255, 0, 0)', 'plot(close, color = color.new(c, 40))')
     expect(p.colorDynamic).toBe(true)
   })
 
@@ -82,5 +82,59 @@ describe('F9 — what stays declined (`colorDynamic`), by rule', () => {
     const p = pres('plot(close, color = color.new(color.red, 40))')
     expect(p).toMatchObject({ color: '#F23645', opacity: 0.6 })
     expect(p.colorCondition).toBeUndefined()
+  })
+})
+
+// ─── F9 — a `var` colour set by its own `if`s (`pine.js::colourStateRule`) ─────
+// Vendor rail: `vendorHarness.f9Divergences.test.js` (CAP3 `vw-rt6-runtime-colour`
+// RDDT / SPY, C01 / C02 and the B01 barcolor: TradingView white / `#33ff00` /
+// `#ff0000` per bar, this door drew the pane's gold on every bar).
+const VAR_COLOUR = [
+  'var int trend = 0',
+  'if close > close[1]',
+  '    trend := 1',
+  'if close < close[1]',
+  '    trend := -1',
+  'var color c = color.white',
+  'if trend == 1',
+  '    c := #33ff00',
+  'if trend == -1',
+  '    c := #ff0000',
+]
+const v5 = (...lines) => translatePine(['//@version=5', 'indicator("f9")', ...lines].join(LF) + LF, {})
+
+describe('F9 — a var colour is a palette and a running index', () => {
+  it('⭐ rt6 C01: three entries (the seed and both writes), an index column, nothing declined', () => {
+    const p = v5(...VAR_COLOUR, 'plot(close, color = c)').outputs[0].presentation
+    expect(p.colorDynamic).toBeUndefined()
+    expect(p.colorPalette).toEqual(['#FFFFFF', '#ff0000', '#33ff00'])
+    // the index is an ordinary running state, folded by the resolver
+    expect(p.colorIndex.ast.name).toBe('accum')
+    expect(p.colorIndex.formula).toMatch(/accum\(0,/)
+  })
+
+  it('⭐ rt6 C02: color.new over it takes the one alpha', () => {
+    const p = v5(...VAR_COLOUR, 'plot(close, color = color.new(c, 40))').outputs[0].presentation
+    expect(p.colorPalette).toEqual(['#FFFFFF', '#ff0000', '#33ff00'])
+    expect(p.opacity).toBe(0.6)
+  })
+
+  it('⛔ a write that is not a colour this door reads declines the whole rule', () => {
+    const p = v5('var color c = color.white', 'if close > open', '    c := color.rgb(close % 255, 0, 0)',
+      'plot(close, color = c)').outputs[0].presentation
+    expect(p.colorDynamic).toBe(true)
+    expect(p.colorIndex).toBeUndefined()
+  })
+
+  it('⛔ a read between two of its own reassignments declines (it is not the last word)', () => {
+    const p = v5('var color c = color.white', 'if close > open', '    c := color.lime',
+      'plot(close, color = c)', 'if close < open', '    c := color.red', 'plot(open, color = c)').outputs[0].presentation
+    expect(p.colorDynamic).toBe(true)
+  })
+
+  it('control: the last read of the same var IS carried', () => {
+    const t = v5('var color c = color.white', 'if close > open', '    c := color.lime',
+      'if close < open', '    c := color.red', 'plot(open, color = c)')
+    expect(t.outputs[0].presentation.colorPalette).toEqual(['#FFFFFF', '#FF5252', '#00E676'])
   })
 })
