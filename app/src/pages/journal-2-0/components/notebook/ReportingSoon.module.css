@@ -35,7 +35,7 @@
 .error {
   margin: 0;
   font-size: 13px;
-  color: var(--color-danger, #f87171);
+  color: var(--danger-ink);
 }
 .list {
   display: flex;

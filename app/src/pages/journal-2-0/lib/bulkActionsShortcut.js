@@ -12,6 +12,8 @@
  * covers both platforms, and the AltGr guard (several layouts spell AltGr as
  * Ctrl+Alt, and AltGr+B types a real character a member meant to type).
  */
+import { isMacPlatform } from './platform'
+
 export function isBulkActionsShortcut(e) {
   if (!e || !e.altKey || e.shiftKey) return false
   if (!(e.ctrlKey || e.metaKey)) return false
@@ -21,6 +23,8 @@ export function isBulkActionsShortcut(e) {
 
 /** The chord as a member reads it — the visible hint and the shortcuts sheet. */
 export function bulkActionsChordLabel() {
-  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform || '')
-  return mac ? 'Cmd+Option+B' : 'Ctrl+Alt+B'
+  // The Notebook's ONE "is this a Mac?" answer (lib/platform.js; railed by
+  // platform.test.js) -- a second copy of the platform test here is the drift
+  // that rail exists to stop.
+  return isMacPlatform() ? 'Cmd+Option+B' : 'Ctrl+Alt+B'
 }

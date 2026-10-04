@@ -189,6 +189,12 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
     }
     switch (key) {
       case 'symbol':
+        // ⛔ Flag-off must be byte-identical to before the thesis chip existed
+        // (journalGrids.seedParity.test.jsx's snapshot: "a member-visible change,
+        // never updated through"). The flex wrapper exists only to lay the chip
+        // beside the ticker, so with no chip the cell is the bare symbol, exactly
+        // as it rendered before wave 13G-2.
+        if (!thesisChip) return position.symbol
         return (
           <span className={styles.symCell}>
             {position.symbol}

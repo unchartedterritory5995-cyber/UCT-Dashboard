@@ -30,6 +30,7 @@ import { buildAskInsertNode } from './askInsert'
 import { widgetSlotNode } from './widgetEmbedCore'
 import { notebookFlag } from './offline/notebookFlags'
 import { settleNoteWrite } from './offline/settleNoteWrite'
+import { notebookSchemaHeaders } from './notebookSchema'
 
 export const REVIEW_DRAFTS_FLAG = 'notebook_review_drafts_enabled'
 
@@ -379,7 +380,11 @@ export async function draftDailyReview({ accountId, day } = {}) {
   const res = await fetch(`/api/j2/notes/${encodeURIComponent(daily.id)}`, {
     method: 'PUT',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    // This bundle's own read of the daily note plus blocks it built itself, so it
+    // declares its own derived level (notebookSchemaHeaders with no argument) --
+    // the S1 rail (notebookSchema.rail.test.js) refuses a body PUT that declares
+    // nothing, because the server cannot then tell an old bundle from a new one.
+    headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
     body: JSON.stringify({ bodyJson: doc(appended), baseUpdatedAt: daily.updatedAt }),
   })
   if (!res.ok) {
