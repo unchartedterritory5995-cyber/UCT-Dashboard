@@ -182,6 +182,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 82 | RT6 per-bar colour on the RUNTIME lane (section RT6): a plot's `color =` is an output of the same run (opt-in `plotColours`, appended after every other output), carried as a hidden packed-colour column (`colorPacked`) and drawn by the host renderer (`pool.columnColorsForPlot` -> `packedPointColour`; an `na` colour draws nothing); `bgcolor` / `barcolor` ride the runtime document as paints coloured by the run, with `transp =` or the v4 `bgcolor` default 90 (CAP round 4) folded into a provably opaque colour only; within one script the later `barcolor` wins (CAP round 4 P1/P2); `color.new` / `color.rgb` over `na` are `na` | `98cab84278`, `b8983a327c`, `10cadf56d2` | harness dir 295 (runtime pane permitted): MATCH 86 -> 87, DIVERGE 94 -> 91; inside-bar-range RDDT DIVERGE -> MATCH, vw-deadband-ticks AAPL / SPY DIVERGE -> INCONCLUSIVE (DBHF MATCH, the barcolor agrees); 0 MATCH -> DIVERGE | census on + runtime 87 -> 93 (atr-stepped-pdf-ma, deadband-hysteresis-filter, fvg-trend, kalman-price-filter, nadaraya-watson, parabolic-sar); off / on 0 rows changed |
 | 83 | RT7 the runtime lane's next walls (section RT7): reductions skip `na`, an empty `array.max/min` is `na`, `na` is found nowhere, v6 counts a negative index from the end (all from `vw-array-na-spy-1d`; wyckoff RDDT now draws TradingView's 12 boxes); `ta.valuewhen` / crosses inside a function per call site (`carried2Base`); a fixed pivot `rightbars` folded; `fixnan`; the VM dispatches through a jump table (5,000 bars: renko 797 -> 214 ms, dolphin 1,079 -> 221 ms, digests identical) | `pine/rt7-runtime-walls` | census 55 / 82 / 99 -> 55 / 82 / 99 (0 lost, 0 gained; 7 runtime rows to later walls) | harness identical except wyckoff RDDT objects INCONCLUSIVE -> MATCH |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
+| 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -6792,3 +6793,59 @@ red); one dispatch literal changed (1 red); fixnan step returns its input (2 red
   the `ta.cci` source role (next: `pine:block`, `array.sort`), `ticker.heikinashi` (next: `haopen`
   in the library), `chart.left_visible_bar_time` (refused by name, `pine:builtin`).
 - Five corpus measure tests time out at 15 s under load (pre-existing: also at `b65e247685`).
+## F6 - the second CAP3 SPY 1D batch of drawing divergences: window, collector, one engine fix, owners named (2026-10-03, step 88)
+
+Lane F6, branch `pine/f6-spy-drawings-2` (from `integrate/wave16-2026-10-02` `c91e9fe3c8`). Brief: the DRAWING divergences of
+the second CAP3 SPY 1D batch (1,800 bars from 2019-08-06, not from SPY's listing), classified by F4's method. Rail:
+`vendorHarness.f6SpyDrawings.test.js` (31 tests, no store needed).
+
+**Two pairing methods.** Where every object we hold is TradingView's at one fixed id offset (same family, caption, price),
+that offset is the proof (F4). Where the ids drift, pairing is IN ORDER: a longest common subsequence over family, caption and
+price. Every object we hold paired in order, plus "what only TradingView holds is its OLDEST of each family", is the window.
+
+| script | CAP3 objects (vendor/ours) | class | F6 | proof / owner |
+|---|---|---|---|---|
+| makuchaku FVGs | boxes 51/55 | WINDOW (collector cycle) - not a wrong drawing | pinned | all 51 vendor boxes are ours at id + 2096; our 4 extra are our 4 oldest. The script makes only boxes, so TradingView's ids 2701..2751 ARE its box count: 2,751 since the listing, ours 2,751 - 2,096 = 655. Collector: held(2751, 50) = **51**, held(655, 50) = **55**. RDDT MATCH |
+| pro-trading-art | lines 102/13, labels 204/26 | WINDOW | pinned | all 39 ours at id + 267; its 267 others have ids <= 267, 234 wholly outside the window's prices. RDDT MATCH |
+| rsi-swing | lines 50/43, labels 50/42 | WINDOW | pinned | all 85 ours at id + 360; its 15 others predate our first object. RDDT MATCH |
+| price-action-as-in-book | lines 502/500 | WINDOW (collector) | pinned | all 507 ours at id + 3768; 2 older vendor lines. RDDT MATCH |
+| trend-duration-forecast | labels 55/52 | WINDOW | pinned | all 53 ours at id + 887; 3 older vendor labels. RDDT MATCH |
+| liquidity-pools | lines 504/502, labels 504/254 | WINDOW + collector | pinned | all 756 ours pair IN ORDER; the unpaired vendor objects are exactly its 2 oldest lines and 250 oldest labels (150 wholly outside the window's prices). No single offset: the script runs `linefill.new` on every bar and the two creation counters part a few ids per pool, in order. Lines sit in the cap band on both sides; TradingView's labels at the cap (history from 1993), ours 254 below it. RDDT MATCH |
+| vdubus | lines 504/272, labels 129/23 | WINDOW + ENGINE (C22, withheld per bar) | pinned | all 295 ours pair in order (nothing we draw is wrong). SPY has two bars that are BOTH a 9-bar pivot high and low (348, 1554); there the fast engine's zig-zag takes two `array.unshift`s in one bar and the host lane withholds every step reading those arrays while either value is among the ten kept (`windowAmbiguousSteps`). Of 338 vendor objects we lack: 277 pre-window, 9 made while the zig-zag still held pre-window pivots, 52 inside the two spans [287, 523] and [1454, 1728] (4 pivots before each doubled bar to the 10th after). RDDT has no doubled bar and MATCHES. Serving it needs the runtime lane, which refuses `ta.macd` with 4 arguments (`pine:arity`). Owner: RT9 (runtime draws a host-attached script) |
+| market-structure-by-leviathan | lines 117/21, labels 368/63 | WINDOW + **ENGINE, OPEN** | pinned as open | 83 of 84 ours at id + 401, the 401 others predate our bar 0 (348 outside the prices). **One wrong caption:** the swing high at our bar 524 reads `LH`, TradingView `HH`. `prevHigh` is `accum(na, c ? pivHi : self, 250)`; the previous high (bar 272, confirmed at 292) lies 252 bars back, past the bounded window, so `pivHi >= prevHigh` reads the seed `na`. Not a warm-up: the same shape plots the SEED mid-chart (`var float lvl = 0.0` plotted 0 at SPY bars 542-543 where Pine holds 358.75). Owner F5 (the bounded accumulator / `PINE_STATE_WARMUP`). Measured candidate fix below |
+| parabolic-sar (RDDT, runtime) | labels 54/0 | ENGINE | **FIXED -> MATCH** | the runtime document had no drawing program: `probeRuntimeProgram(objectsInRun)` refused `round_to_mintick` (`runtime:call-undeclared-builtin-state`). v4's bare `round_to_mintick` is `math.round_to_mintick` unless the script defines a function of that name (`pineRuntimeFrontend.js`, RT5's rule). 54/54 labels, every text and colour |
+| options-max-pain | lines 24/0, labels 15/0, boxes 13/0, cells 16/12 | WINDOW RULE (C18) | withheld (runtime values) | every drawing reads runtime values, served only from the listing (`runtimeObjectValues` -> `runtime:not-from-listing`); RDDT (from the listing) is served and MATCHES. Its last-bar values do not depend on history, but the rule cannot know that. Owner F5 |
+| poor-man's volume profile | lines 2/0, labels 40/0 | ENGINE (budget + setter) | withheld | the 40 row labels read a last-bar loop over `INSTRUCTIONS_PER_BAR` (`runtime:INSTRUCTIONS_PER_BAR`, owner RT7); the 2 bound lines a `line.set_xloc` the host lane does not carry (`geometry:lost`). Same on RDDT |
+| sector-rotation | lines 55/0, boxes 504/0 | ENGINE (builtin) | withheld by name | all creates and loops read `chart.left_visible_bar_time` (the member's viewport; no capture fixes it), runtime lane behind `pine:request`. Owner H5 |
+| smt-divergence | lines 504/0, labels 504/0 | ENGINE (request) | withheld by name | reads `XAUUSD`, a bare symbol (`other-symbol:bare`). Owner H5 |
+| volume-profile | lines 203/0 | ENGINE | withheld | profile lines updated inside a loop whose bound reads `va_up`, which `draw` changes (`loop:bounds` pine:state); runtime refuses a `ta.highest` whose length is known only at run time (`runtime:history-dynamic-offset`). Owner RT9 |
+| vold-market-breadth | cells 2/0 | ENGINE (request) | withheld | `cell:text` x2, the cells read `request.security` of breadth symbols. Owner H5 |
+| position-size-calc | cells 10/9 | ENGINE (request) | withheld | the one missing cell is "Lots", the only one that divides by `request.security`'s FX rate. Owner H5 |
+| trend-lines-supports-and-resistances | texts/colours | ENGINE | already withheld by name | `pine:object-ops-refused` (its loops carried none of 6 steps); the runtime lane stops at `alert.freq_once_per_bar` (`pine:builtin`). Owner H5 (builtin), then RT9 |
+
+**Measured** (worktree `.claude/worktrees/f6`, `--maxWorkers=1`, library store loaded):
+
+| | base `c91e9fe3c8` | F6 |
+|---|---|---|
+| harness sweep (328 files): capture MATCH, objects pane on / + runtime | 96 / 109 | **96 / 110** |
+| object verdict MATCH, on / + runtime | 155 / 187 | **155 / 188** |
+| MATCH -> anything else | - | **0** (only parabolic-sar RDDT moved, runtime state, DIVERGE -> MATCH) |
+| member-door census off / on / + runtime (libraries) | 55 / 82 / 99 | 55 / 82 / 99, census JSON byte-identical |
+
+**CAP3 signatures** regenerated with `cap3SpyGaps.measure.test.js` (store loaded): parabolic-sar RDDT (in
+`cap3-rt6-verdicts.json`) DIVERGE -> **MATCH**. No SPY gap row moved.
+
+**Mutations** (each red, each restored by captured bytes, sha checked): the bare-name clause removed (2 red: the probe
+and the MATCH); the "script defines its own `round_to_mintick`" guard removed (1 red: the own-function rail, whose
+labels then print the tick-rounded SAR instead of the function's `7`).
+
+**The leviathan fix that was measured and NOT shipped.** Admitting a hold-or-set `var` body (`c ? v : self`) as SWITCHED
+(C12s: publish only where a set lies inside the window) at the `var` site turns the wrong `LH` into a withheld label and the
+plotted `0` into a gap. Over the harness it also moved: pa-zigzag-fibonacci-fan SPY DIVERGE -> MATCH, sonarlab BRK-A
+DIVERGE -> MATCH, but **trend-targets-algoalpha RDDT (runtime) objects MATCH -> DIVERGE** (the object lane marked every
+bar of its `trend` guard unknown even from the listing: 0 drawn) and sonarlab AAPL/SPY box counts moved. Applying it at
+the `:=` site as well also turned qqe-signals RDDT MATCH -> DIVERGE. Zero MATCH -> DIVERGE is the bar, so it is handed to
+F5 with that evidence; the patched file is kept off-branch in the lane's scratchpad.
+
+**Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
+out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
