@@ -21,7 +21,8 @@
 // reported (`unpaired`), never paired by guess. A title both sides carry must match.
 //
 // Each vendor paint is one of:
-//   graded       our colour compared bar for bar (`agree` / `differ`)
+//   graded       our colour compared bar for bar (`agree` / `differ`; a `differ` row carries
+//                its first / last differing bar and how many of them we left undrawn)
 //   hiddenBoth   TradingView draws it nowhere (display 0) and neither do we
 //   naBoth       our door folded it to `na` and the vendor's every bar is `na`
 //   withheld     the door withheld it by name (the reason is carried) — NOT graded
@@ -110,6 +111,11 @@ export function gradePaints(capture, ours) {
       let differ = 0
       let vendorPainted = 0
       let first = null
+      let last = null
+      // a differing bar our door draws NOTHING on (its colour column is `na` there: a
+      // withheld value, e.g. a ratchet unknown from an off-listing window) - counted
+      // apart from a bar it paints a DIFFERENT colour on
+      let undrawn = 0
       for (let j = 0; j < v.colors.length; j += 1) {
         const vc = v.colors[j]
         if (vc === undefined) continue
@@ -120,10 +126,12 @@ export function gradePaints(capture, ours) {
         if (!coloursAgree(a, b)) {
           differ += 1
           if (!first) first = { bar: j, vendor: a, ours: b }
+          last = j
+          if (ourColours[j] === null || ourColours[j] === undefined) undrawn += 1
         }
       }
       const state = t.na ? (differ ? 'naDiffers' : 'naBoth') : (differ ? 'differ' : 'agree')
-      rows.push({ ...base, state, compared, differ, vendorPainted, first })
+      rows.push({ ...base, state, compared, differ, vendorPainted, first, last, undrawn })
     })
   }
   return { rows, unpaired, vendorCount: vendor.length }

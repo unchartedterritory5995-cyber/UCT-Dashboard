@@ -1242,6 +1242,8 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
  *  symbol. `RESTART` answers with a PARTIAL run after a hole because that IS
  *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
  *  Two rules that look like one, and only one of them has evidence.
+ *  ⭐ F7 (step 93): FFILL (`wma`) is the one exception with evidence — its first
+ *  answer is on the n-th FINITE input, witnessed from a listing (see `rolling`).
  */
 const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart', FFILL: 'ffill' })
 
@@ -1288,12 +1290,26 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
       src[i] = carry
     }
   }
+  // ⭐⭐ F7 (step 93) — AN FFILL WINDOW FIRST ANSWERS ON ITS n-TH FINITE INPUT,
+  // the runtime VM's rule (`runtime/vm.js` OP.WINDOW `ffill`, RT8), so the two
+  // lanes are ONE rule. Witness: trend-targets-algoalpha on NYSE:RDDT from the
+  // listing, `ta.wma(math.avg(lwr, upr), 40)` whose input is finite on bar 0
+  // (= 0), `na` to bar 88 and finite from 89: TradingView's Baseline
+  // (`ta.ema(wma, 14)`) first answers on bar 140, which needs the wma first on
+  // bar 127 — its 40th finite input — with bar 0's 0 carried into the oldest
+  // slot. A full filled window alone (this lane's rule before F7) answers from
+  // bar 89. ⚠️ Q-RT8a: "the window holds n - 1 finite inputs" fits the same one
+  // witness; the count is kept because it is what the VM implements.
+  let seen = 0
+  for (let i = 0; i < n - 1 && i < series.length; i++) if (Number.isFinite(series[i])) seen += 1
   for (let i = n - 1; i < series.length; i++) {
+    if (Number.isFinite(series[i])) seen += 1
     // ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE FILLED
     // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
     // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
     // every hole and lose the half of the rule that says otherwise.
     if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    if (policy === NA.FFILL && seen < n) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
     else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
