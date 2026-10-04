@@ -43,7 +43,7 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
 from fastapi import FastAPI, Request, Depends
 from api.middleware.auth_middleware import get_current_user, require_admin
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
@@ -126,6 +126,7 @@ from api.routers import admin_chart_health as admin_chart_health_router
 from api.routers import chart_news as chart_news_router
 from api.routers import indicator_alerts as indicator_alerts_router
 from api.routers import signature as signature_router
+from api.routers import what_else_open as what_else_open_router  # TERM-093 instrument, DARK
 from api.routers import backtest as backtest_router
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
@@ -144,6 +145,8 @@ from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import entity_resolve as entity_resolve_router
 from api.routers import decision_record as decision_record_router
 from api.routers import analyst_revisions as analyst_revisions_router
+from api.routers import iv_history as iv_history_router
+from api.routers import options_screener as options_screener_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -1900,6 +1903,23 @@ def register_screener_jobs(scheduler):
                                 minute=scan_evaluator.SWEEP_MINUTE_ET + 10,
                                 timezone=_ET),
             id="screener_screen_alerts", max_instances=1, replace_existing=True)
+
+    # -- FT-027: standing alerts on FILTER-LIST screens (membership snapshot).
+    # Registered unconditionally; `spec_alerts.run_nightly` asks
+    # SCREENER_SPEC_ALERTS_ENABLED each run and does nothing while it is off.
+    # 06:30 ET reads the 03:00 snapshot build; a second run on the same build
+    # stores nothing and diffs nothing (the session is the snapshot's date).
+    def _run_spec_alerts():
+        try:
+            from api.services.screener import spec_alerts
+            print(f"[scheduler] spec screen alerts: {spec_alerts.run_nightly()}")
+        except Exception as e:
+            print(f"[scheduler] spec screen alerts error: {e}")
+
+    scheduler.add_job(
+        _run_spec_alerts,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+        id="screener_spec_alerts", max_instances=1, replace_existing=True)
 
     # -- Wave 2 nightly source jobs: finviz universe, earnings dates, insider
     # capture, analyst pass. Each wraps its runner in try/except and logs the
@@ -4151,30 +4171,6 @@ async def lifespan(app: FastAPI):
         print(f"[startup] barspack web ingest failed to start (non-fatal): {e}")
 
     try:
-        from api.services import bars_sqlite as _bars_sqlite
-        _bars_sqlite.init_db()
-        print("[startup] SQLite bar store ready")
-    except Exception as e:
-        print(f"[startup] SQLite bar store init error (non-fatal): {e}")
-
-    # Pre-build the by-date daily index (once per volume) off the boot path so the
-    # pre-~2004 Custom-Period Sort is instant on first use instead of triggering a
-    # ~1-2 min build under the user. Delayed so it doesn't fight the startup warms.
-    def _build_bydate_index_bg():
-        try:
-            import time as _t
-            _t.sleep(90)
-            from api.services import bars_sqlite as _bs
-            _bs.ensure_daily_bydate_index()
-            # Then pre-warm the shared ticker-reuse map (its whole-universe scan was the
-            # 3-5-min-per-range cost for pre-2004 sorts) so it's ready before anyone sorts.
-            from api.services import scan_period as _sp
-            _sp.warm_reuse_map()
-        except Exception as e:
-            print(f"[startup] by-date daily index / reuse-map pre-build error (non-fatal): {e}")
-    threading.Thread(target=_build_bydate_index_bg, daemon=True, name="sqlite-bydate-index").start()
-
-    try:
         for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
             _flag_path = os.path.join(os.environ.get("DATA_DIR", "/data"), _flag_name)
             if not os.path.exists(_flag_path):
@@ -4197,284 +4193,336 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] tf=60 disk purge error (non-fatal): {e}")
 
-    # -- FMP timezone-bug heal (one-shot, gated by flag) ---------------------
-    # Commit 87b7d88 fixed _fetch_intraday_fmp which had stored bars at
-    # timestamps shifted by the ET-UTC offset (FMP returns ET text; the
-    # naive .strptime + .timestamp() round-tripped through the container's
-    # UTC clock, landing every FMP-sourced row 4-5 hours BEHIND its true
-    # moment). New writes are correct, but the bug's poisoned rows sit at
-    # WRONG ts values -- INSERT OR REPLACE on a *correct* ts touches a
-    # different primary-key tuple, so Massive's later good writes never
-    # overwrite the bad rows and the chart stays corrupt.
-    #
-    # Surgical heal: drop intraday rows from the last 14 days only. That's
-    # the window where the bug actively wrote (older bars are immutable
-    # history that pre-dates the bug being live on this code path, and
-    # wiping deep intraday would lose months of chart context for nothing).
-    # The next user request on each chart triggers a Massive refetch under
-    # the fixed FMP fallback path and refills correctly. Daily/Weekly/Monthly
-    # are untouched -- the bug was intraday-only.
+    # ⛔⛔ NO BY-DATE INDEX BUILD ON BOOT (incident 2026-10-02,
+    # docs/incidents/2026-10-02-web-boot-bydate-index.md). This used to sleep 90 s
+    # and then `ensure_daily_bydate_index()` -- on a snapshot without the index that
+    # is a 31 GB CREATE INDEX holding bars.db's write transaction for ~13 min, and
+    # three deploys in a row failed the 600 s healthcheck while it ran. The index
+    # now ARRIVES with the R2 snapshot (data_sync._make_tarball builds it on the
+    # copy); the web-side build is a fallback behind BARS_BYDATE_INDEX_BUILD_ENABLED
+    # (low-traffic window, never within the cold-boot grace) or the owner's
+    # POST /api/admin/bars/bydate-index/build. Readers already degrade without it
+    # (scan_period checks `daily_bydate_index_ready()` and falls back).
+    def _warm_reuse_map_bg():
+        try:
+            import time as _t
+            _t.sleep(90)
+            # Pre-warm the shared ticker-reuse map (its whole-universe scan was the
+            # 3-5-min-per-range cost for pre-2004 sorts). Usually a durable-file read.
+            from api.services import scan_period as _sp
+            _sp.warm_reuse_map()
+        except Exception as e:
+            print(f"[startup] reuse-map pre-warm error (non-fatal): {e}")
+    threading.Thread(target=_warm_reuse_map_bg, daemon=True, name="reuse-map-warm").start()
     try:
-        _heal_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".fmp_tz_heal_v1")
-        if not os.path.exists(_heal_flag):
-            import sqlite3 as _heal_sqlite
-            import time as _heal_t
-            db_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
-            if os.path.exists(db_path):
-                cutoff = int(_heal_t.time()) - 14 * 86400  # 14 days back
-                conn = _heal_sqlite.connect(db_path, timeout=30)
-                try:
-                    conn.execute("PRAGMA busy_timeout=30000")
-                    cur = conn.execute(
-                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts > ?",
-                        (cutoff,),
-                    )
-                    deleted = cur.rowcount
-                    conn.commit()
-                    print(f"[startup] fmp_tz_heal: removed {deleted} intraday rows from last 14d; next chart load on each ticker refills clean")
-                finally:
-                    conn.close()
-                # Bump epoch so all thread-local connections see the fresh state.
-                try:
-                    from api.services import bars_sqlite as _heal_bs
-                    _heal_bs.bump_db_epoch()
-                except Exception:
-                    pass
-                # Also clear in-memory + disk JSON cache for intraday so they
-                # don't keep serving the corrupt payload until SQLite repopulates.
-                try:
-                    from api.services.cache import cache as _heal_mem
-                    _mem_deleted = _heal_mem.delete_prefix("bars_")
-                    print(f"[startup] fmp_tz_heal: cleared {_mem_deleted} in-memory bars cache entries")
-                except Exception:
-                    pass
-                try:
-                    _disk_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                    if os.path.isdir(_disk_dir):
-                        _dn = 0
-                        for _fn in os.listdir(_disk_dir):
-                            # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
-                            if not _fn.endswith(".json"):
-                                continue
-                            _parts = _fn[:-5].split("_")
-                            if len(_parts) >= 2 and _parts[1] in ("1", "5", "15", "30", "60"):
-                                try:
-                                    os.remove(os.path.join(_disk_dir, _fn))
-                                    _dn += 1
-                                except OSError:
-                                    pass
-                        print(f"[startup] fmp_tz_heal: removed {_dn} intraday disk-cache files")
-                except Exception:
-                    pass
-            try:
-                with open(_heal_flag, "w") as _f:
-                    _f.write("done")
-            except OSError:
-                pass
+        from api.services import bars_bydate_index as _bbi
+        _bbi.start_scheduled_builder()
     except Exception as e:
-        print(f"[startup] fmp_tz_heal error (non-fatal): {e}")
+        print(f"[startup] by-date index scheduler failed to start (non-fatal): {e}")
 
-    # -- Strict-> heal (one-shot, gated by flag) --------------------------------
-    # Companion to the `>=` filter relaxation in _delta_intraday (commit shipped
-    # alongside this). The prior strict-> filter left a class of permanently
-    # wrong rows in SQLite: any chart loaded mid-hour during 5/8-5/22 would
-    # write a partial in-progress bar (e.g. BB 5/21 13:00 ET stored at the
-    # 13:15 ET snapshot value C=6.47 V=738K), and the strict-> filter prevented
-    # any later delta from overwriting it even after the source 30min closed.
-    # Heal v1 (.fmp_tz_heal_v1) was supposed to clear these but either didn't
-    # run cleanly or got re-poisoned by an in-session refetch. This v2 wipes
-    # the same 14-day window again with a fresh flag so it definitively fires
-    # once. With `>=` now in effect, the next chart load on each ticker
-    # repopulates from Massive's authoritative closed-bar data.
-    try:
-        _heal_flag_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".strict_gt_heal_v2")
-        if not os.path.exists(_heal_flag_v2):
-            import sqlite3 as _heal_sqlite_v2
-            import time as _heal_t_v2
-            db_path_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
-            if os.path.exists(db_path_v2):
-                cutoff_v2 = int(_heal_t_v2.time()) - 14 * 86400  # last 14 days
-                conn_v2 = _heal_sqlite_v2.connect(db_path_v2, timeout=30)
-                try:
-                    conn_v2.execute("PRAGMA busy_timeout=30000")
-                    cur_v2 = conn_v2.execute(
-                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
-                        (cutoff_v2,),
-                    )
-                    deleted_v2 = cur_v2.rowcount
-                    conn_v2.commit()
-                    print(f"[startup] strict_gt_heal_v2: removed {deleted_v2} intraday rows from last 14d (companion to >= filter relaxation)")
-                finally:
-                    conn_v2.close()
-                try:
-                    from api.services import bars_sqlite as _heal_bs_v2
-                    _heal_bs_v2.bump_db_epoch()
-                except Exception:
-                    pass
-                try:
-                    from api.services.cache import cache as _heal_mem_v2
-                    _mem_deleted_v2 = _heal_mem_v2.delete_prefix("bars_")
-                    print(f"[startup] strict_gt_heal_v2: cleared {_mem_deleted_v2} in-memory bars cache entries")
-                except Exception:
-                    pass
-                try:
-                    _disk_dir_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                    if os.path.isdir(_disk_dir_v2):
-                        _dn_v2 = 0
-                        for _fn_v2 in os.listdir(_disk_dir_v2):
-                            if not _fn_v2.endswith(".json"):
-                                continue
-                            _parts_v2 = _fn_v2[:-5].split("_")
-                            if len(_parts_v2) >= 2 and _parts_v2[1] in ("1", "5", "15", "30", "60"):
-                                try:
-                                    os.remove(os.path.join(_disk_dir_v2, _fn_v2))
-                                    _dn_v2 += 1
-                                except OSError:
-                                    pass
-                        print(f"[startup] strict_gt_heal_v2: removed {_dn_v2} intraday disk-cache files")
-                except Exception:
-                    pass
-            try:
-                with open(_heal_flag_v2, "w") as _f:
-                    _f.write("done")
-            except OSError:
-                pass
-    except Exception as e:
-        print(f"[startup] strict_gt_heal_v2 error (non-fatal): {e}")
+    # ⛔⛔ EVERY bars.db STEP OF THE BOOT RUNS HERE, OFF THE LIFESPAN THREAD
+    # (incident 2026-10-02). The lifespan runs on uvicorn's event-loop thread and
+    # Railway's healthcheck cannot pass until it reaches `yield`. These steps open
+    # bars.db and some of them WRITE (init_db's DDL/migrations, the four one-shot
+    # heals with 30-60 s busy timeouts): inline, any other writer holding the lock
+    # -- an index build, an R2 merge, a reconciliation delete -- held the boot for
+    # up to those timeouts (measured: 174 s to `yield` with a writer holding the
+    # lock and the heal flags absent), and an open on this thread is also where a
+    # hot WAL's recovery would run, unbounded by any busy_timeout. On a background
+    # thread they can only slow themselves. Order is preserved (init_db, then the
+    # heals). The step that actually held the 2026-10-02 boots is further down:
+    # the pattern-vision contract line (see there).
+    # Rail: tests/test_boot_does_not_wait_on_bars_db.py (lifespan reaches `yield`
+    # with a writer holding bars.db for the whole boot; the lifespan thread never
+    # opens bars.db).
+    def _bars_boot_bg():
+        try:
+            from api.services import bars_sqlite as _bars_sqlite
+            _bars_sqlite.init_db()
+            print("[startup] SQLite bar store ready")
+        except Exception as e:
+            print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
-    # -- Intraday heal v3: 60-day deep history wipe (one-shot, gated by flag) --
-    # v1 + v2 covered the last 14 days. Bars older than 14 days could still
-    # carry legacy artifacts from pre-fix code: FMP-shifted timestamps,
-    # partial-bar storage frozen by the prior strict-> filter, validation
-    # rejections that left gaps which never refilled. Extending the wipe to
-    # 60 days clears the bulk of accumulated muscle memory and lets the now-
-    # correct fetch+resample paths rebuild from Polygon canonical.
-    # Trade-off: more cold-load slowness on the long tail of tickers for ~1-2
-    # hours after deploy as the cache repopulates. Acceptable since markets
-    # are closed (weekend) -- heals before Tuesday open with zero user impact.
-    # The reconciliation worker (shipped alongside) then keeps it clean going
-    # forward without ever needing another mass-wipe.
-    try:
-        _heal_flag_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_heal_v3_60day")
-        if not os.path.exists(_heal_flag_v3):
-            import sqlite3 as _heal_sqlite_v3
-            import time as _heal_t_v3
-            db_path_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
-            if os.path.exists(db_path_v3):
-                cutoff_v3 = int(_heal_t_v3.time()) - 60 * 86400  # last 60 days
-                conn_v3 = _heal_sqlite_v3.connect(db_path_v3, timeout=60)
+        # -- FMP timezone-bug heal (one-shot, gated by flag) ---------------------
+        # Commit 87b7d88 fixed _fetch_intraday_fmp which had stored bars at
+        # timestamps shifted by the ET-UTC offset (FMP returns ET text; the
+        # naive .strptime + .timestamp() round-tripped through the container's
+        # UTC clock, landing every FMP-sourced row 4-5 hours BEHIND its true
+        # moment). New writes are correct, but the bug's poisoned rows sit at
+        # WRONG ts values -- INSERT OR REPLACE on a *correct* ts touches a
+        # different primary-key tuple, so Massive's later good writes never
+        # overwrite the bad rows and the chart stays corrupt.
+        #
+        # Surgical heal: drop intraday rows from the last 14 days only. That's
+        # the window where the bug actively wrote (older bars are immutable
+        # history that pre-dates the bug being live on this code path, and
+        # wiping deep intraday would lose months of chart context for nothing).
+        # The next user request on each chart triggers a Massive refetch under
+        # the fixed FMP fallback path and refills correctly. Daily/Weekly/Monthly
+        # are untouched -- the bug was intraday-only.
+        try:
+            _heal_flag = os.path.join(os.environ.get("DATA_DIR", "/data"), ".fmp_tz_heal_v1")
+            if not os.path.exists(_heal_flag):
+                import sqlite3 as _heal_sqlite
+                import time as _heal_t
+                db_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                if os.path.exists(db_path):
+                    cutoff = int(_heal_t.time()) - 14 * 86400  # 14 days back
+                    conn = _heal_sqlite.connect(db_path, timeout=30)
+                    try:
+                        conn.execute("PRAGMA busy_timeout=30000")
+                        cur = conn.execute(
+                            "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts > ?",
+                            (cutoff,),
+                        )
+                        deleted = cur.rowcount
+                        conn.commit()
+                        print(f"[startup] fmp_tz_heal: removed {deleted} intraday rows from last 14d; next chart load on each ticker refills clean")
+                    finally:
+                        conn.close()
+                    # Bump epoch so all thread-local connections see the fresh state.
+                    try:
+                        from api.services import bars_sqlite as _heal_bs
+                        _heal_bs.bump_db_epoch()
+                    except Exception:
+                        pass
+                    # Also clear in-memory + disk JSON cache for intraday so they
+                    # don't keep serving the corrupt payload until SQLite repopulates.
+                    try:
+                        from api.services.cache import cache as _heal_mem
+                        _mem_deleted = _heal_mem.delete_prefix("bars_")
+                        print(f"[startup] fmp_tz_heal: cleared {_mem_deleted} in-memory bars cache entries")
+                    except Exception:
+                        pass
+                    try:
+                        _disk_dir = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                        if os.path.isdir(_disk_dir):
+                            _dn = 0
+                            for _fn in os.listdir(_disk_dir):
+                                # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
+                                if not _fn.endswith(".json"):
+                                    continue
+                                _parts = _fn[:-5].split("_")
+                                if len(_parts) >= 2 and _parts[1] in ("1", "5", "15", "30", "60"):
+                                    try:
+                                        os.remove(os.path.join(_disk_dir, _fn))
+                                        _dn += 1
+                                    except OSError:
+                                        pass
+                            print(f"[startup] fmp_tz_heal: removed {_dn} intraday disk-cache files")
+                    except Exception:
+                        pass
                 try:
-                    conn_v3.execute("PRAGMA busy_timeout=60000")
-                    cur_v3 = conn_v3.execute(
-                        "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
-                        (cutoff_v3,),
-                    )
-                    deleted_v3 = cur_v3.rowcount
-                    conn_v3.commit()
-                    print(f"[startup] intraday_heal_v3_60day: removed {deleted_v3} intraday rows from last 60d")
-                finally:
-                    conn_v3.close()
-                try:
-                    from api.services import bars_sqlite as _heal_bs_v3
-                    _heal_bs_v3.bump_db_epoch()
-                except Exception:
+                    with open(_heal_flag, "w") as _f:
+                        _f.write("done")
+                except OSError:
                     pass
-                try:
-                    from api.services.cache import cache as _heal_mem_v3
-                    _mem_deleted_v3 = _heal_mem_v3.delete_prefix("bars_")
-                    print(f"[startup] intraday_heal_v3_60day: cleared {_mem_deleted_v3} in-memory bars cache entries")
-                except Exception:
-                    pass
-                try:
-                    _disk_dir_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                    if os.path.isdir(_disk_dir_v3):
-                        _dn_v3 = 0
-                        for _fn_v3 in os.listdir(_disk_dir_v3):
-                            if not _fn_v3.endswith(".json"):
-                                continue
-                            _parts_v3 = _fn_v3[:-5].split("_")
-                            if len(_parts_v3) >= 2 and _parts_v3[1] in ("1", "5", "15", "30", "60"):
-                                try:
-                                    os.remove(os.path.join(_disk_dir_v3, _fn_v3))
-                                    _dn_v3 += 1
-                                except OSError:
-                                    pass
-                        print(f"[startup] intraday_heal_v3_60day: removed {_dn_v3} intraday disk-cache files")
-                except Exception:
-                    pass
-            try:
-                with open(_heal_flag_v3, "w") as _f:
-                    _f.write("done")
-            except OSError:
-                pass
-    except Exception as e:
-        print(f"[startup] intraday_heal_v3_60day error (non-fatal): {e}")
+        except Exception as e:
+            print(f"[startup] fmp_tz_heal error (non-fatal): {e}")
 
-    # ── Weekly close-date heal (one-shot, gated by flag) ───────────────────────
-    # Weekly candles were re-dated from the week's OPEN (first trading day of
-    # the ISO week, usually Monday) to its CLOSE (Friday of the ISO week) so the
-    # latest weekly bar reads e.g. 2026-06-19 for the 6/15-6/19 week instead of
-    # the confusing 6/15. The bar's date IS its SQLite primary key (ts), so every
-    # already-stored weekly row sits at the OLD Monday key. New fetches write the
-    # Friday key → both would coexist and the chart would show TWO candles per
-    # week until the stale rows age out. Surgical heal: drop ALL weekly rows once;
-    # the next weekly chart load on each ticker repopulates clean under the new
-    # Friday keys. Daily/intraday/monthly are untouched (monthly dating unchanged).
-    # Browser IndexedDB self-heals separately: the D/W/M fetch path is always a
-    # full no-`since` fetch that OVERWRITES the cached weekly array with the
-    # authoritative server response, so no client-side cache bump is needed.
-    try:
-        _heal_flag_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), ".weekly_close_date_heal_v1")
-        if not os.path.exists(_heal_flag_wk):
-            import sqlite3 as _heal_sqlite_wk
-            db_path_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
-            if os.path.exists(db_path_wk):
-                conn = _heal_sqlite_wk.connect(db_path_wk, timeout=30)
+        # -- Strict-> heal (one-shot, gated by flag) --------------------------------
+        # Companion to the `>=` filter relaxation in _delta_intraday (commit shipped
+        # alongside this). The prior strict-> filter left a class of permanently
+        # wrong rows in SQLite: any chart loaded mid-hour during 5/8-5/22 would
+        # write a partial in-progress bar (e.g. BB 5/21 13:00 ET stored at the
+        # 13:15 ET snapshot value C=6.47 V=738K), and the strict-> filter prevented
+        # any later delta from overwriting it even after the source 30min closed.
+        # Heal v1 (.fmp_tz_heal_v1) was supposed to clear these but either didn't
+        # run cleanly or got re-poisoned by an in-session refetch. This v2 wipes
+        # the same 14-day window again with a fresh flag so it definitively fires
+        # once. With `>=` now in effect, the next chart load on each ticker
+        # repopulates from Massive's authoritative closed-bar data.
+        try:
+            _heal_flag_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".strict_gt_heal_v2")
+            if not os.path.exists(_heal_flag_v2):
+                import sqlite3 as _heal_sqlite_v2
+                import time as _heal_t_v2
+                db_path_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                if os.path.exists(db_path_v2):
+                    cutoff_v2 = int(_heal_t_v2.time()) - 14 * 86400  # last 14 days
+                    conn_v2 = _heal_sqlite_v2.connect(db_path_v2, timeout=30)
+                    try:
+                        conn_v2.execute("PRAGMA busy_timeout=30000")
+                        cur_v2 = conn_v2.execute(
+                            "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
+                            (cutoff_v2,),
+                        )
+                        deleted_v2 = cur_v2.rowcount
+                        conn_v2.commit()
+                        print(f"[startup] strict_gt_heal_v2: removed {deleted_v2} intraday rows from last 14d (companion to >= filter relaxation)")
+                    finally:
+                        conn_v2.close()
+                    try:
+                        from api.services import bars_sqlite as _heal_bs_v2
+                        _heal_bs_v2.bump_db_epoch()
+                    except Exception:
+                        pass
+                    try:
+                        from api.services.cache import cache as _heal_mem_v2
+                        _mem_deleted_v2 = _heal_mem_v2.delete_prefix("bars_")
+                        print(f"[startup] strict_gt_heal_v2: cleared {_mem_deleted_v2} in-memory bars cache entries")
+                    except Exception:
+                        pass
+                    try:
+                        _disk_dir_v2 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                        if os.path.isdir(_disk_dir_v2):
+                            _dn_v2 = 0
+                            for _fn_v2 in os.listdir(_disk_dir_v2):
+                                if not _fn_v2.endswith(".json"):
+                                    continue
+                                _parts_v2 = _fn_v2[:-5].split("_")
+                                if len(_parts_v2) >= 2 and _parts_v2[1] in ("1", "5", "15", "30", "60"):
+                                    try:
+                                        os.remove(os.path.join(_disk_dir_v2, _fn_v2))
+                                        _dn_v2 += 1
+                                    except OSError:
+                                        pass
+                            print(f"[startup] strict_gt_heal_v2: removed {_dn_v2} intraday disk-cache files")
+                    except Exception:
+                        pass
                 try:
-                    conn.execute("PRAGMA busy_timeout=30000")
-                    cur = conn.execute("DELETE FROM ohlcv WHERE tf = 'W'")
-                    deleted_wk = cur.rowcount
-                    conn.commit()
-                    print(f"[startup] weekly_close_date_heal: removed {deleted_wk} weekly rows; next chart load on each ticker refills with Friday-dated candles")
-                finally:
-                    conn.close()
-                try:
-                    from api.services import bars_sqlite as _heal_bs_wk
-                    _heal_bs_wk.bump_db_epoch()
-                except Exception:
+                    with open(_heal_flag_v2, "w") as _f:
+                        _f.write("done")
+                except OSError:
                     pass
-                # Clear in-memory + disk JSON caches for weekly so they don't keep
-                # serving the old Monday-dated payload until SQLite repopulates.
+        except Exception as e:
+            print(f"[startup] strict_gt_heal_v2 error (non-fatal): {e}")
+
+        # -- Intraday heal v3: 60-day deep history wipe (one-shot, gated by flag) --
+        # v1 + v2 covered the last 14 days. Bars older than 14 days could still
+        # carry legacy artifacts from pre-fix code: FMP-shifted timestamps,
+        # partial-bar storage frozen by the prior strict-> filter, validation
+        # rejections that left gaps which never refilled. Extending the wipe to
+        # 60 days clears the bulk of accumulated muscle memory and lets the now-
+        # correct fetch+resample paths rebuild from Polygon canonical.
+        # Trade-off: more cold-load slowness on the long tail of tickers for ~1-2
+        # hours after deploy as the cache repopulates. Acceptable since markets
+        # are closed (weekend) -- heals before Tuesday open with zero user impact.
+        # The reconciliation worker (shipped alongside) then keeps it clean going
+        # forward without ever needing another mass-wipe.
+        try:
+            _heal_flag_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), ".intraday_heal_v3_60day")
+            if not os.path.exists(_heal_flag_v3):
+                import sqlite3 as _heal_sqlite_v3
+                import time as _heal_t_v3
+                db_path_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                if os.path.exists(db_path_v3):
+                    cutoff_v3 = int(_heal_t_v3.time()) - 60 * 86400  # last 60 days
+                    conn_v3 = _heal_sqlite_v3.connect(db_path_v3, timeout=60)
+                    try:
+                        conn_v3.execute("PRAGMA busy_timeout=60000")
+                        cur_v3 = conn_v3.execute(
+                            "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60') AND ts >= ?",
+                            (cutoff_v3,),
+                        )
+                        deleted_v3 = cur_v3.rowcount
+                        conn_v3.commit()
+                        print(f"[startup] intraday_heal_v3_60day: removed {deleted_v3} intraday rows from last 60d")
+                    finally:
+                        conn_v3.close()
+                    try:
+                        from api.services import bars_sqlite as _heal_bs_v3
+                        _heal_bs_v3.bump_db_epoch()
+                    except Exception:
+                        pass
+                    try:
+                        from api.services.cache import cache as _heal_mem_v3
+                        _mem_deleted_v3 = _heal_mem_v3.delete_prefix("bars_")
+                        print(f"[startup] intraday_heal_v3_60day: cleared {_mem_deleted_v3} in-memory bars cache entries")
+                    except Exception:
+                        pass
+                    try:
+                        _disk_dir_v3 = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                        if os.path.isdir(_disk_dir_v3):
+                            _dn_v3 = 0
+                            for _fn_v3 in os.listdir(_disk_dir_v3):
+                                if not _fn_v3.endswith(".json"):
+                                    continue
+                                _parts_v3 = _fn_v3[:-5].split("_")
+                                if len(_parts_v3) >= 2 and _parts_v3[1] in ("1", "5", "15", "30", "60"):
+                                    try:
+                                        os.remove(os.path.join(_disk_dir_v3, _fn_v3))
+                                        _dn_v3 += 1
+                                    except OSError:
+                                        pass
+                            print(f"[startup] intraday_heal_v3_60day: removed {_dn_v3} intraday disk-cache files")
+                    except Exception:
+                        pass
                 try:
-                    from api.services.cache import cache as _heal_mem_wk
-                    _heal_mem_wk.delete_prefix("bars_")
-                except Exception:
+                    with open(_heal_flag_v3, "w") as _f:
+                        _f.write("done")
+                except OSError:
                     pass
+        except Exception as e:
+            print(f"[startup] intraday_heal_v3_60day error (non-fatal): {e}")
+
+        # ── Weekly close-date heal (one-shot, gated by flag) ───────────────────────
+        # Weekly candles were re-dated from the week's OPEN (first trading day of
+        # the ISO week, usually Monday) to its CLOSE (Friday of the ISO week) so the
+        # latest weekly bar reads e.g. 2026-06-19 for the 6/15-6/19 week instead of
+        # the confusing 6/15. The bar's date IS its SQLite primary key (ts), so every
+        # already-stored weekly row sits at the OLD Monday key. New fetches write the
+        # Friday key → both would coexist and the chart would show TWO candles per
+        # week until the stale rows age out. Surgical heal: drop ALL weekly rows once;
+        # the next weekly chart load on each ticker repopulates clean under the new
+        # Friday keys. Daily/intraday/monthly are untouched (monthly dating unchanged).
+        # Browser IndexedDB self-heals separately: the D/W/M fetch path is always a
+        # full no-`since` fetch that OVERWRITES the cached weekly array with the
+        # authoritative server response, so no client-side cache bump is needed.
+        try:
+            _heal_flag_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), ".weekly_close_date_heal_v1")
+            if not os.path.exists(_heal_flag_wk):
+                import sqlite3 as _heal_sqlite_wk
+                db_path_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                if os.path.exists(db_path_wk):
+                    conn = _heal_sqlite_wk.connect(db_path_wk, timeout=30)
+                    try:
+                        conn.execute("PRAGMA busy_timeout=30000")
+                        cur = conn.execute("DELETE FROM ohlcv WHERE tf = 'W'")
+                        deleted_wk = cur.rowcount
+                        conn.commit()
+                        print(f"[startup] weekly_close_date_heal: removed {deleted_wk} weekly rows; next chart load on each ticker refills with Friday-dated candles")
+                    finally:
+                        conn.close()
+                    try:
+                        from api.services import bars_sqlite as _heal_bs_wk
+                        _heal_bs_wk.bump_db_epoch()
+                    except Exception:
+                        pass
+                    # Clear in-memory + disk JSON caches for weekly so they don't keep
+                    # serving the old Monday-dated payload until SQLite repopulates.
+                    try:
+                        from api.services.cache import cache as _heal_mem_wk
+                        _heal_mem_wk.delete_prefix("bars_")
+                    except Exception:
+                        pass
+                    try:
+                        _disk_dir_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
+                        if os.path.isdir(_disk_dir_wk):
+                            _dn_wk = 0
+                            for _fn in os.listdir(_disk_dir_wk):
+                                if not _fn.endswith(".json"):
+                                    continue
+                                _parts = _fn[:-5].split("_")
+                                # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
+                                if len(_parts) >= 2 and _parts[1] == "W":
+                                    try:
+                                        os.remove(os.path.join(_disk_dir_wk, _fn))
+                                        _dn_wk += 1
+                                    except OSError:
+                                        pass
+                            print(f"[startup] weekly_close_date_heal: removed {_dn_wk} weekly disk-cache files")
+                    except Exception:
+                        pass
                 try:
-                    _disk_dir_wk = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars_cache")
-                    if os.path.isdir(_disk_dir_wk):
-                        _dn_wk = 0
-                        for _fn in os.listdir(_disk_dir_wk):
-                            if not _fn.endswith(".json"):
-                                continue
-                            _parts = _fn[:-5].split("_")
-                            # bars_cache filenames: "{SYM}_{tf}_{bars}.json"
-                            if len(_parts) >= 2 and _parts[1] == "W":
-                                try:
-                                    os.remove(os.path.join(_disk_dir_wk, _fn))
-                                    _dn_wk += 1
-                                except OSError:
-                                    pass
-                        print(f"[startup] weekly_close_date_heal: removed {_dn_wk} weekly disk-cache files")
-                except Exception:
+                    with open(_heal_flag_wk, "w") as _f:
+                        _f.write("done")
+                except OSError:
                     pass
-            try:
-                with open(_heal_flag_wk, "w") as _f:
-                    _f.write("done")
-            except OSError:
-                pass
-    except Exception as e:
-        print(f"[startup] weekly_close_date_heal error (non-fatal): {e}")
+        except Exception as e:
+            print(f"[startup] weekly_close_date_heal error (non-fatal): {e}")
+    threading.Thread(target=_bars_boot_bg, daemon=True, name="bars-boot").start()
+    print("[startup] bars.db boot steps scheduled (background: init_db + one-shot heals)")
 
     # ── Weekly key purge (content-based, EVERY boot, background) ────────────
     # The flag-gated heal above ran once per volume — but the worker's bars.db
@@ -4648,6 +4696,9 @@ async def lifespan(app: FastAPI):
                 _rss = _process_rss_mb()
                 if _rss is not None:
                     print(f"[mem] rss_mb={_rss} threads={threading.active_count()}")
+                    # TERM-014: retain the sample (dark: RSS_SERIES_ENABLED unset => no I/O).
+                    from api.services import rss_series as _rss_series
+                    _rss_series.record(_rss, threading.active_count())
             except Exception:
                 pass
             _mw_time.sleep(60)
@@ -4755,53 +4806,59 @@ async def lifespan(app: FastAPI):
         from api.services import data_sync
 
         try:
-            _skip_boot_pull = False
-            try:
-                import sqlite3 as _sqlite_probe
-                _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
-                if os.path.exists(_db_probe_path):
-                    _pc = _sqlite_probe.connect(_db_probe_path, timeout=5)
-                    try:
-                        _row = _pc.execute("SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)").fetchone()
-                        _local_count = int(_row[0]) if _row else 0
-                    finally:
-                        _pc.close()
-                    if _local_count >= 1000:
-                        _skip_boot_pull = True
-                        print(f"[startup] Skipping boot R2 pull -- local SQLite has "
-                              f"{_local_count:,} bars already; preserving local writes "
-                              f"(set FORCE_BOOT_R2_PULL=1 to override)")
-            except Exception as _e:
-                print(f"[startup] Local SQLite probe failed (will pull from R2): {_e}")
-
-            if os.environ.get("FORCE_BOOT_R2_PULL") == "1":
+            # ⛔ The "does local bars.db already hold bars?" probe used to run HERE,
+            # on the lifespan thread (sqlite3.connect(timeout=5) + a SELECT). It is a
+            # bars.db open on uvicorn's event-loop thread during boot -- exactly what
+            # incident 2026-10-02 rules out -- so it now runs first thing inside the
+            # background pull thread, which makes the same decision it always made.
+            def _initial_pull():
+                import time as _t
                 _skip_boot_pull = False
-                print("[startup] FORCE_BOOT_R2_PULL=1 -- pulling boot snapshot regardless")
+                try:
+                    import sqlite3 as _sqlite_probe
+                    _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
+                    if os.path.exists(_db_probe_path):
+                        _pc = _sqlite_probe.connect(_db_probe_path, timeout=5)
+                        try:
+                            _row = _pc.execute("SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)").fetchone()
+                            _local_count = int(_row[0]) if _row else 0
+                        finally:
+                            _pc.close()
+                        if _local_count >= 1000:
+                            _skip_boot_pull = True
+                            print(f"[startup] Skipping boot R2 pull -- local SQLite has "
+                                  f"{_local_count:,} bars already; preserving local writes "
+                                  f"(set FORCE_BOOT_R2_PULL=1 to override)")
+                except Exception as _e:
+                    print(f"[startup] Local SQLite probe failed (will pull from R2): {_e}")
 
-            if not _skip_boot_pull:
-                def _initial_pull():
-                    import time as _t
-                    _t0 = _t.time()
-                    try:
-                        # Delta mode: install latest base + apply any deltas now
-                        # so a fresh pod is fully current at boot (not one cycle
-                        # behind). Falls back to plain full install otherwise.
-                        if data_sync.DELTA_ENABLED:
-                            ts = data_sync.sync_with_deltas()
-                        else:
-                            ts = data_sync.sync_if_newer()
-                        elapsed = _t.time() - _t0
-                        if ts:
-                            print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
-                                  f"-- cache warm, serving from snapshot {ts}")
-                        else:
-                            print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) -- cache warm")
-                    except Exception as e:
-                        elapsed = _t.time() - _t0
-                        print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
-                              f"(non-fatal): {e} -- proceeding with cold cache")
-                threading.Thread(target=_initial_pull, daemon=True, name="initial_snapshot_pull").start()
-                print("[startup] R2 initial snapshot pull started (background thread)")
+                if os.environ.get("FORCE_BOOT_R2_PULL") == "1":
+                    _skip_boot_pull = False
+                    print("[startup] FORCE_BOOT_R2_PULL=1 -- pulling boot snapshot regardless")
+                if _skip_boot_pull:
+                    return
+
+                _t0 = _t.time()
+                try:
+                    # Delta mode: install latest base + apply any deltas now
+                    # so a fresh pod is fully current at boot (not one cycle
+                    # behind). Falls back to plain full install otherwise.
+                    if data_sync.DELTA_ENABLED:
+                        ts = data_sync.sync_with_deltas()
+                    else:
+                        ts = data_sync.sync_if_newer()
+                    elapsed = _t.time() - _t0
+                    if ts:
+                        print(f"[startup] Initial snapshot pull complete in {elapsed:.1f}s "
+                              f"-- cache warm, serving from snapshot {ts}")
+                    else:
+                        print(f"[startup] Initial snapshot already current ({elapsed:.1f}s) -- cache warm")
+                except Exception as e:
+                    elapsed = _t.time() - _t0
+                    print(f"[startup] Initial snapshot pull FAILED after {elapsed:.1f}s "
+                          f"(non-fatal): {e} -- proceeding with cold cache")
+            threading.Thread(target=_initial_pull, daemon=True, name="initial_snapshot_pull").start()
+            print("[startup] R2 initial snapshot probe+pull started (background thread)")
         except Exception as e:
             print(f"[startup] Initial snapshot pull error (non-fatal): {e}")
 
@@ -6638,7 +6695,17 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
-                print(_pattern_vision_contract_line())
+                # ⛔⛔ THE STEP THAT HELD THE BOOT, incident 2026-10-02. The contract
+                # line resolves the active set, which reads bars.db
+                # (`_resolve_active_set_for_patterns` -> `nth_recent_trading_date`, a
+                # DISTINCT-ts query over every daily row). Printed HERE, on the
+                # lifespan thread, it ran on uvicorn's event loop before `yield`; on a
+                # snapshot without `idx_ohlcv_daily_bydate` its plan is a SCAN of the
+                # whole lookup index (31 GB store, ~40 MB/s volume) -- PID 1 in D state
+                # and no "startup complete" inside the 600 s healthcheck. The line is
+                # a log, not a gate: it is printed from a background thread now.
+                threading.Thread(target=lambda: print(_pattern_vision_contract_line()),
+                                 daemon=True, name="pattern-vision-contract").start()
         except Exception as e:
             print(f"[scheduler] pattern_vision job registration error: {e}")
 
@@ -7265,6 +7332,44 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 document-arrival alerts PAUSED "
                   "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
+
+        # FT-033 -- the outbound-webhook drain: the ONLY code that POSTs to a
+        # member's endpoint, every minute, off every request and sweep path.
+        # Registered unconditionally; `drain()` reads ALERT_WEBHOOKS_ENABLED per
+        # run and returns at once while dark, so arming needs no restart.
+        def _alert_webhook_drain_job():
+            try:
+                from api.services.alert_taxonomy import outbound_webhooks as _owh
+                out = _owh.drain()
+                if out.get("sent"):
+                    print(f"[alert_webhooks] drain: {out}")
+            except Exception as e:
+                print(f"[alert_webhooks] drain failed: {type(e).__name__}: {e}")
+
+        _scheduler.add_job(
+            _alert_webhook_drain_job,
+            trigger=CronTrigger(minute="*", timezone=_ET),
+            id="alert_webhooks_drain",
+            max_instances=1, replace_existing=True,
+        )
+
+        # FT-035 -- per-alert expiry: past it a predicate is SUSPENDED, never
+        # deleted. `expire_due()` reads ALERT_LIFECYCLE_ENABLED per run.
+        def _alert_lifecycle_expire_job():
+            try:
+                from api.services.alert_taxonomy import lifecycle as _lc
+                n = _lc.expire_due()
+                if n:
+                    print(f"[alert_lifecycle] expired (suspended) {n} predicate(s)")
+            except Exception as e:
+                print(f"[alert_lifecycle] expire failed: {type(e).__name__}: {e}")
+
+        _scheduler.add_job(
+            _alert_lifecycle_expire_job,
+            trigger=CronTrigger(minute="*", timezone=_ET),
+            id="alert_lifecycle_expire",
+            max_instances=1, replace_existing=True,
+        )
 
         # GATE-S7-PRICE-LEVEL CP3 -- the DARK forward-only comparison sweep.
         # Owner approval line 2 (2026-09-12): the harness runs against the
@@ -8110,6 +8215,67 @@ async def lifespan(app: FastAPI):
                   f"{os.environ.get('MALLOC_TRIM_MINUTES', '10')} min")
         except Exception as e:
             print(f"[startup] malloc_trim job registration failed (non-fatal): {e}")
+
+        # COV-07 / COV-09 (RM-L19): both jobs are ALWAYS registered and check their own
+        # flag on every run (ESTIMATE_HISTORY_ENABLED / FILINGS_FEED_ENABLED), so arming
+        # either one takes effect without a scheduler change and unset does nothing at all.
+        try:
+            from apscheduler.triggers.interval import IntervalTrigger as _FeedInterval
+
+            def _estimate_history_job():
+                from api.services import estimate_history as _eh
+                r = _eh.run_daily()
+                if not r.get("skipped"):
+                    print(f"[scheduler] estimate history snapshot: {r}")
+
+            def _filings_feed_job():
+                from api.services import filings_feed as _ff
+                _ff.poll_market()
+
+            _scheduler.add_job(
+                _estimate_history_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=20, timezone=_ET),
+                id="estimate_history_daily", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            from api.services import filings_feed as _ff_mod
+            _scheduler.add_job(
+                _filings_feed_job,
+                trigger=_FeedInterval(minutes=max(1, _ff_mod.POLL_MINUTES)),
+                id="filings_feed_poll", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)")
+        except Exception as e:
+            print(f"[startup] COV-07/09 job registration failed (non-fatal): {e}")
+        # Research depth (lane gaps-research): each job is ALWAYS registered and checks its
+        # own surface flag on every run, so arming takes effect without a scheduler change
+        # and unset does nothing at all.
+        try:
+            def _filing_search_reindex_job():
+                from api.services import filing_search as _fs
+                r = _fs.run_reindex()
+                if not r.get("skipped"):
+                    print(f"[scheduler] filing search reindex: {r}")
+
+            _scheduler.add_job(
+                _filing_search_reindex_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=3, minute=40, timezone=_ET),
+                id="filing_search_reindex", max_instances=1, replace_existing=True, coalesce=True,
+            )
+
+            def _ftd_ingest_job():
+                from api.services import ftd_dataset as _ftd
+                r = _ftd.run_ingest()
+                if not r.get("skipped"):
+                    print(f"[scheduler] SEC fails-to-deliver ingest: {r}")
+
+            _scheduler.add_job(
+                _ftd_ingest_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=10, timezone=_ET),
+                id="ftd_ingest", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] research depth jobs scheduled (flag-gated per run)")
+        except Exception as e:
+            print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
@@ -9028,6 +9194,8 @@ app.include_router(entity_master_admin_router.router)  # /api/admin/entity-maste
 app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM-023 member door, paid, DARK (ENTITY_MASTER_MEMBER_ENABLED)
 app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(analyst_revisions_router.router)  # /api/research/analyst-revisions/{t} — TERM-073 member door, paid, read-only, DARK (ANALYST_REVISIONS_ENABLED)
+app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
+app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
@@ -9064,12 +9232,38 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
+app.include_router(terminal_grammar_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
+from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)
+app.include_router(options_analytics_router.router)
 from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01, dark)
 app.include_router(seasonality_router.router)
+from api.routers import research_cov as research_cov_router  # noqa: E402  (COV-05/07/09, dark)
+app.include_router(research_cov_router.router)
+from api.routers import research_depth as research_depth_router  # noqa: E402  (lane gaps-research, dark per surface)
+app.include_router(research_depth_router.router)
+from api.routers import news_depth as news_depth_router  # noqa: E402  (Lane R D-6/7/8, dark per surface)
+app.include_router(news_depth_router.router)
+from api.routers import research_notices as research_notices_router  # noqa: E402  (lane R D-11/D-12, dark per surface)
+app.include_router(research_notices_router.router)
+from api.routers import research_calls_depth as research_calls_depth_router  # noqa: E402  (Lane R D-5, dark per surface)
+app.include_router(research_calls_depth_router.router)
+from api.routers import calendar_depth as calendar_depth_router  # noqa: E402  (Lane R D-1/D-2/D-3, dark per surface)
+app.include_router(calendar_depth_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
+from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)
+app.include_router(web_push_router.router)
+from api.routers import data_exports as data_exports_router  # noqa: E402  (FT-041/042/043, dark)
+app.include_router(data_exports_router.router)
+from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (FT-033/035/036, dark)
+app.include_router(alert_outbound_router.router)
+from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
+app.include_router(screen_promote_router.router)
+from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
+app.include_router(screener_nl_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
@@ -9078,6 +9272,7 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
+app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)
 # UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
 # every route) and /api/internal/wisdom/<pkg>/* (require_push_secret). One loop so streams never edit main.py.
 from api.services.wisdom import registry as wisdom_registry  # noqa: E402
@@ -11250,6 +11445,21 @@ class _ImmutableStaticFiles(StaticFiles):
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 
+
+# StaticFiles types a file by `mimetypes.guess_type`, and an unknown extension
+# falls back to `text/plain`. Production runs Python 3.12, whose built-in table
+# has NO `.webp` (added in 3.13), and the nix container ships no
+# /etc/mime.types -- so every /live-trading-room/*.webp went out as
+# `text/plain; charset=utf-8`. Register it explicitly so the answer does not
+# depend on the interpreter version or the image's OS files.
+# (tests/test_live_trading_room_page.py serves the mount under a 3.12-shaped table.)
+def register_static_mime_types() -> None:
+    import mimetypes
+    mimetypes.add_type("image/webp", ".webp")
+
+
+register_static_mime_types()
+
 # ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
 # A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
 # the SPA catch-all below answers them with index.html like every other page. That
@@ -11285,6 +11495,27 @@ def spa_index_response(full_path: str):
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
 
 
+# ── Public landing page: /live-trading-room ─────────────────────────────────
+# A REAL static HTML page (app/public/live-trading-room/index.html, copied into
+# dist/ by `vite build`), not a client route: the SPA shell gives a crawler only
+# the shell's own title/meta, so this page is served before the catch-all with
+# its own <title>, description, canonical, Open Graph tags and JSON-LD. No JS,
+# no member data. Its images live beside it and are served by the
+# /live-trading-room/ static mount below. The canonical URL has NO trailing
+# slash; the slash form 301s to it. Defined OUTSIDE the DIST guard so the rail
+# (tests/test_live_trading_room_page.py) can serve it from a temp DIST.
+LIVE_TRADING_ROOM_PATH = "/live-trading-room"
+LIVE_TRADING_ROOM_DIR = "live-trading-room"
+
+
+def live_trading_room_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "index.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11310,6 +11541,16 @@ if os.path.exists(DIST):
     @app.get("/sw.js", include_in_schema=False)
     def _serve_sw():
         return FileResponse(os.path.join(DIST, "sw.js"), media_type="application/javascript; charset=utf-8")
+
+    # BRK-04 Web Push worker (app/public/push-sw.js). push + notificationclick
+    # ONLY -- no fetch handler, no caching -- registered at scope /push/. A
+    # separate file from /sw.js (the legacy kill switch) by design. Without
+    # this route the SPA catch-all would hand the browser index.html.
+    @app.get("/push-sw.js", include_in_schema=False)
+    def _serve_push_sw():
+        return FileResponse(os.path.join(DIST, "push-sw.js"),
+                            media_type="application/javascript; charset=utf-8",
+                            headers={"Cache-Control": "no-cache"})
 
     @app.get("/favicon.svg", include_in_schema=False)
     def _serve_favicon():
@@ -11407,6 +11648,21 @@ if os.path.exists(DIST):
     @app.get("/sitemap.xml", include_in_schema=False)
     def _serve_sitemap():
         return FileResponse(os.path.join(DIST, "sitemap.xml"), media_type="application/xml")
+
+    # Public landing page (see live_trading_room_response above). Registered
+    # BEFORE the SPA catch-all, GET and HEAD like it, so crawlers and link
+    # checkers get the real page rather than the app shell.
+    @app.api_route(LIVE_TRADING_ROOM_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room():
+        return live_trading_room_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_PATH, status_code=301)
+
+    _LTR_DIR = os.path.join(DIST, LIVE_TRADING_ROOM_DIR)
+    if os.path.isdir(_LTR_DIR):
+        app.mount(LIVE_TRADING_ROOM_PATH, StaticFiles(directory=_LTR_DIR), name="live-trading-room")
 
     @app.get("/pip-embed", include_in_schema=False)
     def _serve_pip_embed(v: str = "", t: int = 0):

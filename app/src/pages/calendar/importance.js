@@ -92,15 +92,31 @@ export function computeImportance(entries) {
  * server's own answer has arrived.
  */
 export function impEff(imp, entry, weightBuckets) {
-  const src = entry._sources || []
+  return imp + boostParts(entry, weightBuckets).total
+}
+
+/**
+ * D-10 (Personalization UC-3): the personal boost, ITEMISED. `impEff` adds exactly
+ * this `total`, so the "Why this order" disclosure and the ranking cannot disagree:
+ * there is one computation, and the explanation is its working.
+ *
+ * → { total, parts: [{ sources: [names on this entry that matched], weight }] }
+ */
+export function boostParts(entry, weightBuckets) {
+  const src = entry?._sources || []
   const buckets = weightBuckets || []
-  let boost = 0
+  const parts = []
+  let total = 0
   for (const b of buckets) {
-    if (Array.isArray(b?.sources) && b.sources.some(s => src.includes(s))) {
-      boost += (b.weight || 0)
+    if (!Array.isArray(b?.sources)) continue
+    const hit = b.sources.filter(s => src.includes(s))
+    if (hit.length) {
+      const w = b.weight || 0
+      total += w
+      parts.push({ sources: hit, weight: w })
     }
   }
-  return imp + boost
+  return { total, parts }
 }
 
 // ── ordering ─────────────────────────────────────────────────────────────────

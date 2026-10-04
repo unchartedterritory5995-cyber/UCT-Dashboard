@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { COMING_SOON } from '../utils/comingSoon'
+import { UPGRADE_PATH } from '../constants/freePages'
 import styles from './AuthForm.module.css'
 
 /** Where a `?next=` may send a member after signing in.
@@ -38,7 +39,8 @@ export default function Login() {
     // a dead end for a member not already signed in on this browser.
     const next = safeNextPath(params.get('next'))
     if (next) { navigate(next, { replace: true }); return }
-    // Dashboard is paid-only; free users land on Morning Wire (the only free page).
+    // Dashboard is paid-only; a non-paid member lands on the upgrade screen
+    // (owner ruling 2026-10-02: there are no free member pages).
     // ⛔ S9 CP1 FIX — was `role==='admin' || PAID_PLANS.includes(plan)`, a second
     // hand-typed copy of the paid check that DROPPED the active-trial clause
     // AuthContext.jsx's isPaid carries: a member on an active trial got routed to
@@ -47,7 +49,7 @@ export default function Login() {
     // the same chokepoint isPaid mirrors) straight off THIS response — never
     // re-derived, and never read from context, which would still be the
     // PRE-login value at this point in the render.
-    navigate(data?.paid_equiv ? '/dashboard' : '/morning-wire', { replace: true })
+    navigate(data?.paid_equiv ? '/dashboard' : UPGRADE_PATH, { replace: true })
   }
 
   const handleSubmit = async (e) => {

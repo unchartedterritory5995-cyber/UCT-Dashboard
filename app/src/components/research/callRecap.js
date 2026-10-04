@@ -31,7 +31,9 @@
 // null — it is the difference between "we are writing this now" and "this
 // company published no transcript". Dropping it here would put the empty state
 // back to guessing.
-const OUTER = ['webcast_url', 'rating_changes', 'ticker', 'recap_status']
+// `review_status` (D-4, dark behind TRANSCRIPT_CHAPTERS_ENABLED) rides the outer
+// payload: the server stamps it only when the flag is on and a recap exists.
+const OUTER = ['webcast_url', 'rating_changes', 'ticker', 'recap_status', 'review_status']
 
 const clean = v => (typeof v === 'string' ? v.trim() : '')
 

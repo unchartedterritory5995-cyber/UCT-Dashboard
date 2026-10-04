@@ -127,9 +127,24 @@ def _recent_dates(days: int) -> list:
         return []
 
 
-def _carry_not_live(date_str: str, keys) -> dict:
+#: TERM-059: the DAILY sentiment prints whose row carries no per-value date of its own.
+#: When a heal carries one of these from an earlier session it stamps `<key>_asof` with
+#: that session, so the Monitor can say "daily · as of <date>" at the value instead of
+#: rendering a carried print as if it were the row's own. (AAII and NAAIM already carry
+#: their survey dates; the index closes are not sentiment and are out of this scope.)
+DATED_CARRY_KEYS = ("cboe_putcall", "cnn_fear_greed")
+
+
+def asof_key(key: str) -> str:
+    return f"{key}_asof"
+
+
+def _carry_not_live(date_str: str, keys, *, dates: dict | None = None) -> dict:
     """Newest stored value for each NOT_LIVE key from a NON-degraded row strictly
-    before `date_str` — the correct carry for weekly surveys / a missed index close."""
+    before `date_str` — the correct carry for weekly surveys / a missed index close.
+    With `dates`, also fills `{key: the session the carried value came from}` (the
+    source row's own `<key>_asof` when it was itself carried, so a chain of carries
+    names the ORIGINAL print, never an intermediate row)."""
     from api.services import breadth_monitor as bm
     out: dict = {}
     try:
@@ -151,6 +166,8 @@ def _carry_not_live(date_str: str, keys) -> dict:
         for k in keys:
             if k not in out and m.get(k) is not None:
                 out[k] = m[k]
+                if dates is not None:
+                    dates[k] = m.get(asof_key(k)) or r["date"]
         if len(out) >= len(keys):
             break
     return out
@@ -290,17 +307,28 @@ def heal_date(date_str: str, force: bool = False,
             metrics["universe_list"] = good_ul
 
     keys = _not_live_keys()
-    carried = _carry_not_live(date_str, keys)
+    carried_from: dict = {}
+    carried = _carry_not_live(date_str, keys, dates=carried_from)
+
+    def _stamp(k):
+        # TERM-059: a carried daily print names the session it came from.
+        if k in DATED_CARRY_KEYS and carried_from.get(k):
+            metrics[asof_key(k)] = carried_from[k]
+
     for k in keys:
         # keep the collector's own index/sentiment where it got them; else carry.
         if stored and stored.get(k) is not None:
             metrics[k] = stored[k]
+            if k in DATED_CARRY_KEYS and stored.get(asof_key(k)):
+                metrics[asof_key(k)] = stored[asof_key(k)]
         elif k not in metrics and carried.get(k) is not None:
             metrics[k] = carried[k]
+            _stamp(k)
     # CNN Fear&Greed of exactly 0 is the "missing" sentinel, not real extreme fear —
     # carry a real recent value instead.
     if metrics.get("cnn_fear_greed") in (0, 0.0, None) and carried.get("cnn_fear_greed"):
         metrics["cnn_fear_greed"] = carried["cnn_fear_greed"]
+        _stamp("cnn_fear_greed")
 
     metrics["_healed"] = True
     ok = bm.store_snapshot(date_str, metrics)

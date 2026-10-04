@@ -1,0 +1,28 @@
+/* COV-05 / COV-07 / COV-09 — People, Estimate history, Filings feed. */
+.section { display: flex; flex-direction: column; gap: 16px; }
+.card { display: flex; flex-direction: column; gap: 6px; }
+.title { font-weight: 700; font-size: 13px; color: var(--text); margin: 0; }
+.note { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.muted { color: var(--text-muted); font-size: 12px; }
+.gap { color: var(--text-muted); font-size: 12px; font-style: italic; }
+.scroll { overflow-x: auto; max-width: 100%; }
+.grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+.grid th, .grid td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.grid thead th { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.num { text-align: right; white-space: nowrap; }
+.up { color: var(--gain); }
+.down { color: var(--loss); }
+.link { color: var(--text); text-decoration: underline; }
+.toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+.toggleBtn {
+  min-height: var(--tap-min);
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.toggleOn { color: var(--text); border-color: var(--text-muted); }
+.items { display: flex; flex-direction: column; gap: 2px; }

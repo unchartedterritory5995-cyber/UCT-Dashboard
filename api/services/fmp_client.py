@@ -610,6 +610,36 @@ def get_analyst_estimates(ticker: str, *, period: str = "annual",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+def get_key_executives(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Officers and key executives (`/stable/key-executives`) -- COV-05, the
+    Research People tab (`api/services/research_people.py`).
+
+    Live-verified on this plan 2026-10-02 (AAPL 18 rows, MSFT 10, CELH 13, all
+    200). Measured shape, which the consumer must not paper over: `titleSince`
+    was null on EVERY row of all three, and `pay` is null for about half the
+    officers and carries no year. The legacy `/api/v3/key-executives` 403s on
+    this plan ("Legacy Endpoint"). `data_class="people"` is unregistered in the
+    licensing table, so this stamps "U", never an inferred class. No internal
+    timeout literal: the module default applies, and the one caller
+    (research_people) always passes its own 10 s."""
+    return _fetch("/stable/key-executives", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_key_executives", data_class="people",
+                   not_found_if=_empty_list, freshness="end_of_day",
+                   timeout=timeout)
+
+
+def get_executive_compensation(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Summary compensation table rows (`/stable/governance-executive-
+    compensation`) -- COV-05. Each row is one officer-year from a proxy
+    filing and carries its `filingDate` and the SEC `link`, so every figure
+    is citable. Live-verified on this plan 2026-10-02 (AAPL: 339 rows,
+    years back to the 2000s)."""
+    return _fetch("/stable/governance-executive-compensation", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_executive_compensation", data_class="people",
+                   not_found_if=_empty_list, freshness="end_of_day",
+                   timeout=timeout)
+
+
 def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Per-firm rating actions for ONE symbol (`/stable/grades-news`) —
     `analyst_intel.py::_fmp_recent_actions`'s endpoint. Distinct from

@@ -22,6 +22,8 @@ import NhnlPulseWidget from './widgets/NhnlPulseWidget'
 import VolumeScanWidget from './widgets/VolumeScanWidget'
 import ScatterWidget from './widgets/ScatterWidget'
 import WidgetHeader from './WidgetHeader'
+import { effectiveGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
@@ -113,7 +115,11 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // its own ticker instead of sharing a color group with anything else (every widget
   // links purely off this `color` prop via groupSyms[color]). `groupId` is per-TAB,
   // so two "not linked" tabs in the same slot stay independent.
-  const key = color === 'N' ? `N:${groupId}` : color
+  // COV-10 remainder: a stored E-H while CHARTS_EXTRA_GROUPS_ENABLED is off reads as
+  // not linked too (colorGroups.effectiveGroup) — the layout keeps the colour, the
+  // widget stops sharing an unnamed fifth group.
+  const extraGroupsOn = useExtraGroupsEnabled()
+  const key = effectiveGroup(color, extraGroupsOn) === 'N' ? `N:${groupId}` : color
   const binding = WORKSPACE_WIDGETS[type]
   if (!binding) return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   const Widget = binding.component

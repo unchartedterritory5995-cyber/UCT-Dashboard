@@ -1,0 +1,252 @@
+{
+ "tool": "notebook_w11b_scale",
+ "started_utc": "2026-10-02T16:02:32+00:00",
+ "git": "cf5e38d5d2e004f2b55da1d42ed904846b18cf1e",
+ "reps": 20,
+ "warmup": 2,
+ "connection_model": "per-call (auth_db.get_connection per route call)",
+ "tiers": [
+  {
+   "tier": 50000,
+   "seed_ms": 31548.8,
+   "db_bytes": 613969920,
+   "fixture": {
+    "r_id": "00ef9c35435d41a797cc8069ce9194ff",
+    "avg_id": "646a26f1a914425b8b68edf2b2be330b",
+    "exit_id": "28a59c228bb74ae3ae8a473c78a72759",
+    "plans": 9859,
+    "parents": {
+     "50": 50,
+     "500": 500
+    },
+    "parent_500": "f6736ff3ed45451b92f58fb8a20cacca",
+    "write_note": "5339128470614c58a596173317fd606a",
+    "trades_linked": 2490,
+    "live_notes": 49021
+   },
+   "ops": {
+    "GET /notes, no computed sort or filter (baseline)": {
+     "p50_ms": 31.394,
+     "p95_ms": 35.273,
+     "max_ms": 35.58,
+     "min_ms": 25.285,
+     "reps": 20,
+     "samples_ms": [
+      28.248,
+      28.408,
+      26.964,
+      25.285,
+      31.772,
+      31.644,
+      26.49,
+      35.273,
+      31.971,
+      31.809,
+      35.58,
+      31.527,
+      32.905,
+      28.442,
+      28.159,
+      34.671,
+      31.394,
+      31.508,
+      30.954,
+      29.608
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.126998154933501,
+       "reason": null,
+       "computedAt": "2026-10-02T16:03:07.096806+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes sorted by a rollup": {
+     "p50_ms": 46.059,
+     "p95_ms": 61.173,
+     "max_ms": 64.449,
+     "min_ms": 40.701,
+     "reps": 20,
+     "samples_ms": [
+      40.701,
+      52.852,
+      46.059,
+      52.157,
+      54.114,
+      56.598,
+      64.449,
+      45.761,
+      41.176,
+      49.003,
+      45.668,
+      44.64,
+      46.381,
+      44.284,
+      57.021,
+      40.829,
+      41.46,
+      52.086,
+      61.173,
+      44.777
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 5 marked process(es) (gate 0, vitest 5, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 40768   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 6224    \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-r1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-02T16:03:09.261299+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes filtered by a formula": {
+     "p50_ms": 57.507,
+     "p95_ms": 70.121,
+     "max_ms": 73.959,
+     "min_ms": 43.26,
+     "reps": 20,
+     "samples_ms": [
+      51.0,
+      44.213,
+      43.26,
+      59.151,
+      66.236,
+      47.831,
+      46.681,
+      62.596,
+      58.305,
+      50.75,
+      43.4,
+      54.851,
+      73.959,
+      54.576,
+      70.121,
+      69.468,
+      64.804,
+      68.732,
+      63.007,
+      57.507
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 6 marked process(es) (gate 0, vitest 6, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n    - vitest  pid 40768   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 6224    \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-r1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 50812   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "check": {
+      "rows": 100,
+      "total": 5118,
+      "first_computed": {
+       "value": null,
+       "reason": "This note links to no notes yet",
+       "computedAt": "2026-10-02T16:03:11.946061+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 0,
+       "usedSize": 0,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET one note's properties (500-child parent)": {
+     "p50_ms": 16.96,
+     "p95_ms": 23.962,
+     "max_ms": 24.135,
+     "min_ms": 13.628,
+     "reps": 20,
+     "samples_ms": [
+      18.529,
+      16.96,
+      19.256,
+      14.014,
+      13.891,
+      19.452,
+      16.755,
+      14.666,
+      13.631,
+      18.126,
+      23.522,
+      22.607,
+      22.779,
+      24.135,
+      23.962,
+      18.983,
+      14.044,
+      13.628,
+      14.232,
+      13.992
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "check": {
+      "avg_r": 1.6664380095587528,
+      "set": 500
+     }
+    },
+    "property write, then the sorted read": {
+     "p50_ms": 52.47,
+     "p95_ms": 62.007,
+     "max_ms": 62.994,
+     "min_ms": 43.783,
+     "reps": 20,
+     "samples_ms": [
+      43.783,
+      47.148,
+      48.008,
+      57.95,
+      62.007,
+      62.994,
+      54.194,
+      56.402,
+      51.269,
+      58.965,
+      52.47,
+      49.352,
+      58.12,
+      59.905,
+      52.967,
+      47.554,
+      57.727,
+      47.318,
+      50.514,
+      51.528
+     ],
+     "box_before": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "box_after": "lock: FREE  C:\\ProgramData\\uct\\gate-box.lock\n  load: BUSY \u2014 3 marked process(es) (gate 0, vitest 3, pytest 0); largest pid 20144 node.exe \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experiment\n    - vitest  pid 35752   \"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs/node_modules/npm/bin/npx-cli.js\" vitest run src/co\n    - vitest  pid 22464   \"node\"   \"C:\\Users\\Patrick\\uct-dashboard\\.claude\\worktrees\\pine-l1\\app\\node_modules\\.bin\\\\..\\vitest\\vitest.mjs\n    - vitest  pid 20144   \"C:\\Program Files\\nodejs\\node.exe\" --conditions node --conditions development --experimental-import-meta-resol\n  \u26d4 FREE IS NOT QUIET: nobody holds the queue ticket, but the box is loaded. Only gate_shards.py ever asks for this lock.",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-02T16:03:16.127894+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    }
+   }
+  }
+ ],
+ "loglog_slope_p50": {},
+ "finished_utc": "2026-10-02T16:03:16+00:00"
+}

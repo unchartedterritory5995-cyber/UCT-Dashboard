@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import ScannerShell from './screener/shell/ScannerShell'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
 import styles from './Screener.module.css'
+import { AuthContext } from '../context/AuthContext'
+import OptionsScreener from './screener/options/OptionsScreener'
+import HowToChecklist from '../components/howTo/HowToChecklist'
 
 // ── ScannerShell error fallback — defense-in-depth (the stress-sweep's
 // blank-root finding traced to the SPA's static asset delivery, not a React
@@ -65,8 +68,17 @@ function ScannerShellErrorFallback({ onRetry }) {
 // `bars_prewarm` and `bars_seeder` both read the envelope as if it were the
 // buckets and warmed zero. They were pointed at `engine.candidate_rows()` in
 // the same change, so removing this page LOSES no warming.
+//
+// ⭐ COV-02/03 — THE ONE EXCEPTION TO "NO TAB STRIP": while `options_screener_enabled` rides
+// the auth payload, the full page grows a two-button strip, Stocks | Options. Flag absent (the
+// default), the page renders the same DOM as before (rail: OptionsScreener.test.jsx). `useContext` rather than `useAuth`
+// so the page still renders outside an AuthProvider (its own tests, embedded widgets).
+// The embedded (Charts widget) mode never shows the strip.
 export default function Screener({ embedded = false }) {
   const [shellKey, setShellKey] = useState(0)
+  const optionsOn = useContext(AuthContext)?.optionsScreenerEnabled === true && !embedded
+  const [mode, setMode] = useState('stocks')
+  const showOptions = optionsOn && mode === 'options'
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
 
@@ -79,14 +91,33 @@ export default function Screener({ embedded = false }) {
             Screener
           </h1>
         )}
+        {optionsOn && (
+          <div role="tablist" aria-label="Screener mode" style={{ display: 'flex', gap: 6 }}>
+            {[['stocks', 'Stocks'], ['options', 'Options']].map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
+                style={{
+                  minHeight: 'var(--tap-min)', padding: '4px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                  background: 'var(--bg-surface)', color: 'var(--text)',
+                  border: `1px solid ${mode === k ? 'var(--ut-gold, #c9a84c)' : 'var(--border)'}`,
+                  fontWeight: mode === k ? 600 : 400,
+                }}>{label}</button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <ErrorBoundary
+      {/* FT-046: renders nothing unless HOW_TO_CHECKLISTS_ENABLED is on AND the owner
+          approved this surface's copy (components/howTo). Full page only. */}
+      {!embedded && <HowToChecklist surface={showOptions ? 'screener.options' : 'screener.stocks'} />}
+
+      {showOptions && <OptionsScreener />}
+
+      {!showOptions && <ErrorBoundary
         key={shellKey}
         fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
       >
         <ScannerShell embedded={embedded} />
-      </ErrorBoundary>
+      </ErrorBoundary>}
     </div>
   )
 }

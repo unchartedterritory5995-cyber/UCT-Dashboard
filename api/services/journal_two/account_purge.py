@@ -142,6 +142,10 @@ _DIRECT_USER_TABLES = (
     # so on a pod where the door never ran this is a "no such table" no-op.
     "j2_ai_change_sets",
     "j2_ai_change_items",
+    # FT-072 (lane/o-options-remainders) -- the member's saved Spread Book. Self-ensured by
+    # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
+    # was never opened this is a "no such table" no-op.
+    "options_spread_book",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

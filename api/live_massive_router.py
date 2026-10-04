@@ -315,6 +315,11 @@ DEFAULT_THRESHOLDS = {
     "ask_accum_max_otm_pct": 50.0,
     "ask_accum_require_unusual": True,     # apply the contract-conviction guard
     "ask_accum_min_contract_voi": 1.0,     # session ask vol / contract OI floor (NEW-build test)
+    # At/above ask_accum_max_mktcap a build needs this session ask aggregate
+    # instead of being excluded outright (index options, mktcap 0, stay out).
+    # 0 = hard exclusion (pre-2026-10-03).
+    "ask_accum_mega_min_aggregate_premium": 3_000_000,
+    "ask_accum_mega_min_dte": 7,             # mega path: no weeklies (0-6 DTE churn)
     "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
                                              # options (0/unknown mktcap); 0 disables. Replaced
                                              # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
@@ -371,6 +376,23 @@ DEFAULT_THRESHOLDS = {
     # (restores the pre-2026-07-28 "demote every leg" behavior). Fixes MU 835C
     # 7/28: a $5.17M ask sweep nulled because 10+ MU strikes printed in 90s.
     "multileg_dominant_premium_frac": 0.6,
+    # Leg-structure detection (2026-10-03) — the default. "cluster" = the 7/24
+    # rule above (N distinct contracts in multileg_window_sec), which on active
+    # names (SPCX/NVDA/SPY/QQQ) fires all day: 10/2 SPCX's four clean 1.5-3k-lot
+    # ask sweeps on 172.5C were nulled for having other strikes print within 90s
+    # (81% of 10/2's feed was "Not Clean", 21,450 by this rule). "structure"
+    # demotes only real legs: different contracts within multileg_pair_window_sec
+    # whose sizes match (1:1/1:2/1:3 within multileg_size_tol) AND which are
+    # opposite-sided or OPRA-typed ML/.
+    "multileg_mode": "structure",
+    "multileg_pair_window_sec": 2.0,
+    "multileg_size_tol": 0.10,
+    # Round-trip (structure mode): SAME contract, same size (1:1 within
+    # multileg_size_tol), opposite sides within this many seconds = offsetting
+    # prints (a cross / in-and-out), not conviction. 7/24 SNDK 1370P 8/7: sold
+    # 100 @ 110 at 12:41:43, bought 100 @ 110 at 12:41:50 → was Alpha Gold Bear.
+    # 0 disables.
+    "multileg_roundtrip_sec": 10.0,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -1157,6 +1179,46 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
+                     sym_params=()) -> tuple:
+    """(thresholds, gross_before, ask_prem_ledger, ask_vol_ledger) for one day —
+    the session-wide per-contract aggregates the classifier grades against. ONE
+    definition shared by the feed (_compute_recent_core) and the Market Read
+    (_build_day_stats) so the two classify identically (2026-10-03: the Market
+    Read built none, so Ask Accumulation / Alpha LEAPS never existed there and its
+    10/1 bull total read $199.9M vs the feed's $220.1M).
+
+    ONE full-session ask/bid projection feeds the clean-directional ledger (ask
+    VOLUME per contract, A/AA only), the Alpha LEAPS / Ask Accumulation ask-PREMIUM
+    ledger, and the Ask Accumulation ask-VOLUME ledger. Blank-side SWEEPs are pulled
+    too (Type projected) so the aggregate reflects the sweep_empty_side_as_ask
+    presumption the single-print path already applies — the PPTA fix (2026-09-05).
+    The close detector's long ledger is unaffected: a blank side adds 0 there."""
+    th = _load_thresholds()
+    close_on = th.get("close_detector_enabled", False)
+    alpha_leaps_on = th.get("alpha_leaps_enabled", True)
+    # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
+    # Alpha LEAPS, so build it when either tier is on.
+    ask_accum_on = th.get("ask_accum_enabled", True)
+    if not (close_on or alpha_leaps_on or ask_accum_on):
+        return th, {}, {}, {}
+    ledger_rows = conn.execute(f"""
+        SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
+          FROM flow
+         WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+           AND (Side IN ('A','AA','B','BB')
+                OR (COALESCE(Side,'') = ''
+                    AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
+    """, (today, *sym_params)).fetchall()
+    presume = bool(th.get("sweep_empty_side_as_ask", True))
+    gross_before = _build_session_long_ledger(ledger_rows) if close_on else {}
+    prem = (_build_session_ask_premium_ledger(ledger_rows, presume_sweep_ask=presume)
+            if (alpha_leaps_on or ask_accum_on) else {})
+    vol = (_build_session_ask_volume_ledger(ledger_rows, presume_sweep_ask=presume)
+           if ask_accum_on else {})
+    return th, gross_before, prem, vol
+
+
 def _build_session_ask_premium_ledger(rows, presume_sweep_ask: bool = True) -> dict:
     """ask_prem[row_id] = TOTAL ask-side PREMIUM on the row's contract across the
     whole session (ORDER-INDEPENDENT). Sibling of _build_session_long_ledger
@@ -1238,9 +1300,15 @@ def _ask_accum_conviction(oi, agg_ask_volume: float, thresholds: dict) -> bool:
     return agg_ask_volume >= fresh_min
 
 
+def _is_single_stock(row: dict) -> bool:
+    """A single-name equity option (not an ETF / index product)."""
+    return ((row.get("StockEtf") or "").strip().upper() == "STOCK"
+            and (row.get("source") or "stocks") == "stocks")
+
+
 def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
                          agg_ask_volume: float, oi, mktcap, thresholds: dict,
-                         apply_mktcap: bool = True) -> bool:
+                         apply_mktcap: bool = True, dte=None, is_stock=None) -> bool:
     """The SINGLE definition of "this row is a UCT Ask Accumulation build": an
     ask-side row on a NON-megacap contract whose SESSION ask aggregate clears the
     floor, is near-the-money, and shows contract-level NEW-build conviction. Used by
@@ -1273,8 +1341,23 @@ def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
             _mc = float(mktcap or 0)
         except (TypeError, ValueError):
             _mc = 0.0
-        if not (0 < _mc < float(_cap_ceil)):   # 0/unknown (index) or >= ceiling → out
-            return False
+        if _mc <= 0:
+            return False                       # 0/unknown (index) → out
+        if _mc >= float(_cap_ceil):
+            # Mega-cap path (2026-10-03): a much higher aggregate bar instead of a
+            # hard exclusion. 10/2 SPCX ($2.0T) 172.5C 10/30 built ~$4M of ask
+            # sweeps in one session (BBS: Alpha Gold) and could never surface.
+            # 0 restores the hard exclusion.
+            # Single STOCKS with >= ask_accum_mega_min_dte only: replay 9/29-10/1
+            # at a bare $3M bar tagged 10-16k alerts/day — SPY/QQQ (StockEtf ETF)
+            # and 0-6 DTE NVDA/TSLA/MU churn with calls AND puts "accumulating".
+            # Unknown dte / instrument type → denied.
+            _mega_floor = float(thresholds.get("ask_accum_mega_min_aggregate_premium", 0) or 0)
+            _mega_dte = int(thresholds.get("ask_accum_mega_min_dte", 7) or 0)
+            if not _mega_floor or agg_ask_premium < _mega_floor:
+                return False
+            if is_stock is not True or dte is None or dte < _mega_dte:
+                return False
     if (thresholds.get("ask_accum_require_unusual", True)
             and not _ask_accum_conviction(oi, agg_ask_volume, thresholds)):
         return False
@@ -1426,7 +1509,8 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_pth = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, mktcap, _aa_pth):
+                                agg_ask_volume, oi, mktcap, _aa_pth,
+                                dte=dte, is_stock=_is_single_stock(row)):
             color = "MAGENTA"
 
     if color == "MAGENTA":
@@ -1541,7 +1625,8 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_th = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, mktcap, _aa_th):
+                                agg_ask_volume, oi, mktcap, _aa_th,
+                                dte=dte, is_stock=_is_single_stock(row)):
             return (f"UCT Ask Accumulation {direction}", "ask_accum",
                     TIER_PRIORITY["ask_accum"])
         # LEAPS
@@ -2675,7 +2760,16 @@ def recent_massive_alerts(
     # BOUNDED TTL (6h) — NOT never-expire, so the T+1 backfill/gap-fill that
     # mutates a past date is eventually picked up.
     _fresh_ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
-    if hit is not None and now - hit[0] < _fresh_ttl:
+
+    def _servable(entry):
+        """Fresh, and not a past date's RTH-capped snapshot once the market has
+        closed (the full-day cap applies then — see _compute_recent_core)."""
+        if entry is None or time.time() - entry[0] >= _fresh_ttl:
+            return False
+        return is_today or _in_market_hours() or \
+            not (entry[1].get("status") or {}).get("scan_capped")
+
+    if _servable(hit):
         return hit[1]
     lock = _recent_lock_for(ck)
     if not is_today:
@@ -2686,8 +2780,11 @@ def recent_massive_alerts(
         # non-warmed historical key was cold on EVERY poll and never filled.
         # (Auto-push stays inert on historical: _compute_recent passes live=False.)
         with lock:
+            # Re-check SERVABILITY, not mere presence (fixed 2026-10-03): returning
+            # any h2 made an expired entry unrefreshable — the 6h TTL never actually
+            # expired, so a pre-heal snapshot lived until the next restart.
             h2 = _recent_cache.get(ck)
-            if h2 is not None:
+            if _servable(h2):
                 return h2[1]
             payload = _compute_recent(today, limit, min_grade, sort_by, tier, curated)
             _recent_cache[ck] = (time.time(), payload)
@@ -2831,11 +2928,19 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # The Color index keeps even a full-day scan reasonable. Env-tunable.
         # (Permanent instant-everywhere fix = store tier/grade as SQL columns at
         # write time so these filter in SQL; after-close, Ravi-area.)
+        past_closed = today != _today_mdyyyy() and not _in_market_hours()
         if curated or tier:
             # OVERRIDE up to full-day coverage (not min — tier's base sql_limit is
             # only 20000 = recent ~half-day, so min() left the morning's rare-tier
             # prints out of range and tier=alpha returned 0). Set it wide; the
             # Color index keeps the full-day scan fast (~2-3s).
+            sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
+        elif past_closed:
+            # PAST date, market closed (2026-10-03): no live ingestion to starve,
+            # so give the ALL FLOW tape full-day coverage like curated/tier. The
+            # 20000 cap cut healed 10/2 off at ~1:14 PM — a heal inserts the whole
+            # day, so "newest 20000 ids" was only the afternoon. During RTH the
+            # cap below still applies and status.scan_capped tells the page.
             sql_limit = int(os.environ.get("MASSIVE_RECENT_SQL_CAP_WIDE", "80000"))
         else:
             # 2026-07-09 (Ravi flagged "missing flow"): the default ALL FLOW tape
@@ -2879,19 +2984,33 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         if only_symbols:
             sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
             sym_params = [str(s).upper() for s in only_symbols]
-        cur = conn.execute(f"""
-            SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                   Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                   Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-              FROM flow
-             WHERE {source_clause}
-               AND CreatedDate = ?{sym_clause}
-               AND (Color IN ('MAGENTA', 'YELLOW')
-                    OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-             ORDER BY id DESC
-             LIMIT ?
-        """, (today, *sym_params, override_sql_floor, sql_limit))
-        rows = cur.fetchall()
+        def _scan(src_clause):
+            return conn.execute(f"""
+                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                  FROM flow
+                 WHERE {src_clause}
+                   AND CreatedDate = ?{sym_clause}
+                   AND (Color IN ('MAGENTA', 'YELLOW')
+                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                 ORDER BY id DESC
+                 LIMIT ?
+            """, (today, *sym_params, override_sql_floor, sql_limit)).fetchall()
+
+        if etf_enabled and past_closed:
+            # PAST date, market closed: one LIMIT PER SOURCE (2026-10-03). A heal
+            # inserts the sources one after another, not interleaved — healed 10/2
+            # has 42.5k stock + 69.3k index rows, indexes all at higher ids, so a
+            # shared 80000 LIMIT gave indexes 69.3k slots and cut stocks off at
+            # 1:52 PM. Live days interleave by time, so RTH keeps the shared LIMIT.
+            per_source = [_scan("source = 'stocks'"), _scan("source = 'indexes'")]
+            scan_capped = any(len(p) >= sql_limit for p in per_source)
+            rows = sorted(per_source[0] + per_source[1],
+                          key=lambda r: r["id"], reverse=True)
+        else:
+            rows = _scan(source_clause)
+            scan_capped = len(rows) >= sql_limit
         # Clean-directional gate (dark): FULL-TAPE session long-build ledger —
         # cumulative ASK-side volume per contract from EVERY sided print today
         # (NOT just the curated/above-floor rows fetched above), so a sell's
@@ -2899,41 +3018,8 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # sided prints (A/AA/B/BB) are pulled (blank/mid never build/close a
         # trackable long). Runs only when enabled. Perf: a narrow 7-col
         # projection; cache it (watermark) if it ever strains RTH.
-        _close_th = _load_thresholds()
-        _close_on = _close_th.get("close_detector_enabled", False)
-        _alpha_leaps_on = _close_th.get("alpha_leaps_enabled", True)
-        # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
-        # Alpha LEAPS, so build it when either tier is on.
-        _ask_accum_on = _close_th.get("ask_accum_enabled", True)
-        if _close_on or _alpha_leaps_on or _ask_accum_on:
-            # ONE full-session ask/bid projection feeds the clean-directional ledger
-            # (ask VOLUME per contract, A/AA only), the Alpha LEAPS / Ask
-            # Accumulation ask-PREMIUM ledger, and the Ask Accumulation ask-VOLUME
-            # ledger. Blank-side SWEEPs are pulled too (Type projected) so the
-            # aggregate reflects the sweep_empty_side_as_ask presumption the
-            # single-print path already applies — the PPTA fix (2026-09-05). The
-            # close detector's long ledger is unaffected: a blank side adds 0 there.
-            _lc = conn.execute(f"""
-                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
-                  FROM flow
-                 WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-                   AND (Side IN ('A','AA','B','BB')
-                        OR (COALESCE(Side,'') = ''
-                            AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
-            """, (today, *sym_params))
-            _ledger_rows = _lc.fetchall()
-            _presume_sweep_ask = bool(_close_th.get("sweep_empty_side_as_ask", True))
-            _gross_before = _build_session_long_ledger(_ledger_rows) if _close_on else {}
-            _ask_prem_ledger = (_build_session_ask_premium_ledger(
-                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
-                                if (_alpha_leaps_on or _ask_accum_on) else {})
-            _ask_vol_ledger = (_build_session_ask_volume_ledger(
-                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
-                               if _ask_accum_on else {})
-        else:
-            _gross_before = {}
-            _ask_prem_ledger = {}
-            _ask_vol_ledger = {}
+        _close_th, _gross_before, _ask_prem_ledger, _ask_vol_ledger = _session_ledgers(
+            conn, source_clause, today, sym_clause, sym_params)
     finally:
         conn.close()
 
@@ -3098,6 +3184,10 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     # _compute_recent wrapper (MAIN process) so this stays offloadable to a subprocess.
     return all_alerts, {
         "rows_scanned": len(rows),
+        # Scan hit its LIMIT → older prints of the day were never read. The page
+        # says so instead of silently showing a partial day.
+        "scan_capped": scan_capped,
+        "scan_capped_rth": scan_capped and not past_closed,
         "skipped_unclassified_side": skipped_unclassified,
         "skipped_below_min_grade": skipped_low_grade,
         "skipped_off_tier": skipped_off_tier,
@@ -3222,6 +3312,8 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     status["tier_filter"] = tier
     status["curated"] = curated
     status["rows_scanned"] = meta.get("rows_scanned", 0)
+    status["scan_capped"] = bool(meta.get("scan_capped", False))
+    status["scan_capped_rth"] = bool(meta.get("scan_capped_rth", False))
     status["skipped_unclassified_side"] = meta.get("skipped_unclassified_side", 0)
     status["skipped_below_min_grade"] = meta.get("skipped_below_min_grade", 0)
     status["skipped_off_tier"] = meta.get("skipped_off_tier", 0)
@@ -3451,7 +3543,15 @@ async def current_quotes(payload: CurrentQuotesPayload,
 # market looks like today" — only what THEY are looking at).
 
 _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
-_DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
+_DAY_STATS_TTL = int(os.environ.get("MASSIVE_DAY_STATS_TTL", "120"))  # today
+# 2026-10-03: full-day Market Read (no row cap) costs 2-7s per build in the
+# ingesting flow-worker, so today refreshes every 2 min (was 30s while it only
+# read the newest 20k rows); stale is served instantly while one refresh runs.
+# Past days use _HISTORICAL_TTL — heals invalidate them (invalidate_date_caches).
+
+
+def _day_stats_ttl(day: str) -> float:
+    return _DAY_STATS_TTL if day == _today_mdyyyy() else _HISTORICAL_TTL
 _day_stats_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 
@@ -3496,8 +3596,21 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
         sources = base_sources
 
     rows = []
+    ledgers = ({}, {}, {}, {})
+    capped_sources = []
     if sources:
-        cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        # Full day by default (2026-10-03). The old per-source newest-20000 cap
+        # (MASSIVE_DAYSTATS_CAP) dropped the MORNING on any day past 20k
+        # color-gate rows: 10/1 covered 11:46 AM on, reading 60% bull vs the full
+        # day's 52%; 10/2 covered 11:53 AM on ($222M bull vs $539M). Full-day
+        # cost measured on the flow-worker: 1.3s (10/1) / 2.1s (10/2) vs 0.8-1.0s
+        # capped, behind the 30s cache. MASSIVE_MARKETREAD_CAP > 0 re-imposes a
+        # per-source cap as an emergency valve; the payload then reports
+        # covers_from so the card can say the read is partial.
+        cap = int(os.environ.get("MASSIVE_MARKETREAD_CAP", "0") or 0)
+        sql_cap = cap if cap > 0 else -1          # SQLite: LIMIT -1 = no limit
+        override_sql_floor = int(_load_thresholds().get("premium_override", {})
+                                 .get("min_premium", 1_000_000))   # same floor as the feed
         select_cols = (
             "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
             "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
@@ -3513,7 +3626,7 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
                     f"{select_cols} FROM flow "
                     f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
                     f"ORDER BY id DESC LIMIT ?",
-                    (sources[0], today, override_sql_floor, cap),
+                    (sources[0], today, override_sql_floor, sql_cap),
                 )
             else:
                 # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union,
@@ -3530,23 +3643,46 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
                         f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
                         f"ORDER BY id DESC LIMIT ?)"
                     )
-                    params.extend([s, today, override_sql_floor, cap])
+                    params.extend([s, today, override_sql_floor, sql_cap])
                 cur = conn.execute(" UNION ALL ".join(subqueries), params)
-            # CAP (2026-07-09; per-source since 2026-07-10): _row_to_alert over an
-            # unbounded row set timed out (30s+) at midday, so we cap. Applied PER
-            # SOURCE so the ALL view is a real union of full-day partitions instead of
-            # a truncated latest-N of the merged pool. Sync endpoint (threadpool) +
-            # 30s cache absorbs the pass. Env-tunable via MASSIVE_DAYSTATS_CAP.
             rows = cur.fetchall()
+            if cap > 0:
+                for s in sources:
+                    if sum(1 for r in rows if r["source"] == s) >= cap:
+                        capped_sources.append(s)
+            # Same session ledgers as the feed → same tiers/directions.
+            src_clause = "source IN (%s)" % ",".join(f"'{s}'" for s in sources)
+            ledgers = _session_ledgers(conn, src_clause, today)
         finally:
             conn.close()
 
-    # Translate each row to an alert (includes direction + dte + ticker)
+    # Translate each row to an alert (includes direction + dte + ticker) exactly as
+    # the feed does: session ask aggregates + the clean-directional sell demotion.
+    # Full-day cost (10/2 "all": 8.9s cold) runs in the flow-worker process that
+    # also ingests the WS tape, so: TODAY reuses the feed's row-hash classify cache
+    # (the feed has usually just classified the same rows) — today only, since
+    # _incr_prepare clears the cache on a date change — and yields the GIL every
+    # _FILL_YIELD_ROWS rows like the feed's fill.
+    _l_th, _l_gross, _l_prem, _l_vol = ledgers
+    _use_incr = (today == _today_mdyyyy()
+                 and bool(_load_thresholds().get("incremental_scan", False)))
+    if _use_incr:
+        _incr_prepare(today)
     classified = []
-    for r in rows:
-        a = _row_to_alert(dict(r))
+    for _i, r in enumerate(rows):
+        if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
+            time.sleep(_FILL_YIELD_SEC)
+        _ap, _av = _l_prem.get(r["id"], 0.0), _l_vol.get(r["id"], 0.0)
+        a = (_incr_classify(r, agg_ask_premium=_ap, agg_ask_volume=_av) if _use_incr
+             else _row_to_alert(dict(r), agg_ask_premium=_ap, agg_ask_volume=_av))
         if a is not None:
+            if _l_th:
+                _demote_contaminated_sell(a, _l_gross, _l_th)
             classified.append(a)
+    covers_from = None
+    if capped_sources and classified:
+        covers_from = min((a["timestamp"] for a in classified if a.get("timestamp")),
+                          default=None)
 
     # Aggregate everything in one pass
     bull_prem = 0
@@ -3689,6 +3825,11 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
     return {
         "query_date": today,
         "total_classified": len(classified),
+        # Bull+Bear prints only — the base of every $ figure and bucket (the
+        # header used to show total_classified, which includes neutral prints).
+        "directional_count": bull_count + bear_count,
+        # Non-null only when MASSIVE_MARKETREAD_CAP truncated the day.
+        "covers_from": covers_from,
         "bull_premium": bull_prem,
         "bear_premium": bear_prem,
         "bull_count": bull_count,
@@ -3719,7 +3860,8 @@ def day_stats(
     macro view — but DOES honor the Stocks/ETFs toggle so the card and the
     feed agree on which universe they're describing.
 
-    Cached for 30s server-side per (date, exclude_algo, stock_etf). Historical
+    Cached per (date, exclude_algo, stock_etf): today 2 min (stale served while
+    one background refresh runs), past days 6h (heals invalidate). Historical
     dates never change so cache hit rate is near-100% after first request.
 
     When exclude_algo=true, the Algo tier (multi-leg complex strategies) is
@@ -3731,29 +3873,34 @@ def day_stats(
         stock_etf = "all"
     cache_key = (today, bool(exclude_algo), stock_etf)
     cached = _day_stats_cache.get(cache_key)
-    if cached and (now - cached[0]) < _DAY_STATS_TTL:
+    if cached and (now - cached[0]) < _day_stats_ttl(today):
         return cached[1]
     # Single-flight + stale-serve. Only ONE heavy recompute runs at a time; a
     # concurrent request holding a stale value gets it instantly instead of
     # launching a second 30s+ pass. Those parallel passes are what piled up in
     # the threadpool and starved /recent (feed lag). Staleness is bounded to one
     # refresh — identical to what the 30s cache already allowed.
-    if not _day_stats_lock.acquire(blocking=False):
-        if cached:
-            return cached[1]                      # serve stale, don't queue behind the compute
-        with _day_stats_lock:                     # first-ever for this key: must compute once
-            c2 = _day_stats_cache.get(cache_key)
-            if c2 and (time.time() - c2[0]) < _DAY_STATS_TTL:
-                return c2[1]
-            payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
-            _day_stats_cache[cache_key] = (time.time(), payload)
-            return payload
-    try:
+    if cached:
+        # STALE: serve it now; refresh in ONE background thread (2026-10-03 — a
+        # full-day build is 2-7s, too long to hold a request for).
+        if _day_stats_lock.acquire(blocking=False):
+            def _refresh():
+                try:
+                    p = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
+                    _day_stats_cache[cache_key] = (time.time(), p)
+                except Exception:
+                    logging.getLogger(__name__).exception("[massive] day-stats refresh failed")
+                finally:
+                    _day_stats_lock.release()
+            threading.Thread(target=_refresh, daemon=True, name="day-stats-refresh").start()
+        return cached[1]
+    with _day_stats_lock:                         # first-ever for this key: must compute once
+        c2 = _day_stats_cache.get(cache_key)
+        if c2 and (time.time() - c2[0]) < _day_stats_ttl(today):
+            return c2[1]
         payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
         _day_stats_cache[cache_key] = (time.time(), payload)
         return payload
-    finally:
-        _day_stats_lock.release()
 
 
 # ─── By-Contract rollup (accumulation view) ───────────────────────────────
@@ -3763,7 +3910,7 @@ def day_stats(
 # so a $250K print on a megacap and a $25K print on a $14 name are judged on
 # their own scale; META's 41-print 620C churn doesn't qualify, ACI's stack does.
 _by_contract_cache: dict = {}          # (date, stock_etf, min_hits, excl_algo) -> (ts, payload)
-_BY_CONTRACT_TTL = 30
+_BY_CONTRACT_TTL = int(os.environ.get("MASSIVE_BY_CONTRACT_TTL", "120"))  # today; past days _HISTORICAL_TTL
 _by_contract_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 # Per-print NOISE floor by cap band — a print must clear this to count as a
@@ -3956,9 +4103,21 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                        key=_parse_mdy, reverse=True)
         target_dates = dated[:lookback_days] or [today]
 
+    budget_cut_days = []
     if sources:
+        # Row budget (2026-10-03). The newest-N-by-id cap dropped each day's MORNING:
+        # a 1-day view past 20k color-gate rows started ~11:50 AM, and a 31-day
+        # range kept only the last ~3,200 rows (≈ last hour) of every day.
+        #  • 1-day views and single-ticker lookups: NO cap (full day, ~2-4s like
+        #    the Market Read; a ticker is a few hundred rows).
+        #  • multi-day market-wide ranges: a per-day budget filled by PREMIUM, not
+        #    recency — the rollup's floors/grades are premium-driven, so the biggest
+        #    prints of the WHOLE session are what matter. Days that hit the budget
+        #    are reported in `budget_cut_days`.
         base_cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
         cap = min(base_cap * len(target_dates), 100000)  # scale for the window
+        full_day = bool(only_ticker) or len(target_dates) == 1
+        order_by = "id DESC" if full_day else "CAST(Premium AS INTEGER) DESC"
         select_cols = (
             "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
             "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
@@ -3977,14 +4136,14 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             # guarantees every day in the window is represented → true multi-day
             # accumulation. Same total row budget → no extra _row_to_alert cost /
             # no timeout regression.
-            per_day = max(2000, cap // max(1, len(target_dates)))
+            per_day = -1 if full_day else max(2000, cap // max(1, len(target_dates)))
             for s in sources:
                 for dt in target_dates:
                     subqueries.append(
                         f"SELECT * FROM ({select_cols} FROM flow "
                         f"WHERE source = ? AND CreatedDate = ? AND {color_gate}"
                         f"{_tk_clause}"
-                        f"ORDER BY id DESC LIMIT ?)"
+                        f"ORDER BY {order_by} LIMIT ?)"
                     )
                     params.append(s)
                     params.append(dt)
@@ -3994,6 +4153,13 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                     params.append(per_day)
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
+            if per_day > 0:
+                _n = {}
+                for r in rows:
+                    k = (r["source"], r["CreatedDate"])
+                    _n[k] = _n.get(k, 0) + 1
+                budget_cut_days = sorted({d for (_s, d), n in _n.items() if n >= per_day},
+                                         key=_parse_mdy)
         finally:
             conn.close()
 
@@ -4272,6 +4438,8 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     return {
         "query_date": today, "stock_etf": stock_etf, "min_hits": min_hits,
         "contract_count": len(out), "contracts": out,
+        # Multi-day ranges: days whose rows hit the per-day budget (largest kept).
+        "budget_cut_days": budget_cut_days,
     }
 
 
@@ -4359,8 +4527,35 @@ def _cream_row_direction(a: dict, size_min_ask: float):
         return d, False
     if (a.get("_tierKey") == "size" and (a.get("aggAskPremium") or 0) >= size_min_ask
             and a.get("cp") in ("C", "P")):
+        if _cream_deep_itm(a):
+            return None, False
         return ("Bull" if a.get("cp") == "C" else "Bear"), True
     return None, False
+
+
+def _cream_deep_itm(a: dict) -> bool:
+    """Deep-ITM beyond direction_max_itm_pct — the SAME line _row_to_alert uses to
+    strip a print's direction. Recovery must not hand it back: 10/2 GOOG 500P
+    12/17/27 (500 @ $160, spot $341.78, 31.6% ITM — ~all intrinsic, a stock-like
+    hedge) was nulled to "Size - Not Clean" by the classifier, then printed as a
+    $8.0M BEAR on the Top Flow card by call/put recovery. Without spot, uses the
+    classifier's parity trip (price vs strike) under 365 DTE."""
+    try:
+        cap = float(_load_thresholds().get("direction_max_itm_pct", 20.0) or 0)
+    except Exception:
+        cap = 20.0
+    if cap <= 0:
+        return False
+    pct, label = a.get("moneynessPct"), a.get("moneynessLabel")
+    if pct is not None and label:
+        return label == "ITM" and pct > cap
+    price, strike = a.get("averageFillPrice") or 0, a.get("strike") or 0
+    dte = a.get("dte")
+    if not (price > 0 and strike > 0 and isinstance(dte, (int, float)) and 0 < dte < 365):
+        return False
+    trip = (strike * (cap / (100.0 + cap)) if a.get("cp") == "P"
+            else strike * (cap / max(100.0 - cap, 1.0)))
+    return price > trip
 
 
 def _cream_rank_side(rows: list, side: str, top_n: int, max_per_ticker: int) -> list:
@@ -4891,44 +5086,47 @@ def by_contract(
     hit count. Each row carries its individual prints for expand-on-click.
     Sorted by latest activity; also returns a `score` (qualifying_hits x total
     premium x direction-consistency, x2 for dormant/unusual names) for optional
-    conviction-first sorting. Cached 30s per (date, stock_etf, min_hits)."""
+    conviction-first sorting. Cached per (date, stock_etf, min_hits, ...): today 2 min
+    (stale served while one background refresh runs), past days 6h."""
     today = _resolve_date(target_date)   # ISO YYYY-MM-DD → M/D/YYYY (else zero-rows)
     se = stock_etf if stock_etf in ("stocks", "etfs", "all") else "all"
     now = time.time()
     key = (today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
     cached = _by_contract_cache.get(key)
-    if cached and (now - cached[0]) < _BY_CONTRACT_TTL:
+    # Today 2 min / past 6h (2026-10-03): the 1-day rollup now reads the FULL
+    # day (2.7-11s, was a newest-20k slice) inside the ingesting flow-worker.
+    ttl = _BY_CONTRACT_TTL if today == _today_mdyyyy() else _HISTORICAL_TTL
+    if cached and (now - cached[0]) < ttl:
         return cached[1]
-    # Single-flight + stale-serve (see day_stats). Bounds concurrent heavy
-    # recomputes to 1 so the 30s+ rollup pass can't pile up and starve /recent.
-    if not _by_contract_lock.acquire(blocking=False):
-        if cached:
-            return cached[1]
-        with _by_contract_lock:
-            c2 = _by_contract_cache.get(key)
-            if c2 and (time.time() - c2[0]) < _BY_CONTRACT_TTL:
-                return c2[1]
-            payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
-            # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
-            # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
-            # on fresh builds only — NOT in _build_by_contract, which the manual
-            # force-push path also calls.
-            _apply_auto_push(payload.get("contracts", []), mode="accumulation",
-                             live=(today == _today_mdyyyy()))
-            _by_contract_cache[key] = (time.time(), payload)
-            return payload
-    try:
+
+    def _fresh():
         payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
         # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
         # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
         # on fresh builds only — NOT in _build_by_contract, which the manual
         # force-push path also calls.
         _apply_auto_push(payload.get("contracts", []), mode="accumulation",
-                             live=(today == _today_mdyyyy()))
+                         live=(today == _today_mdyyyy()))
         _by_contract_cache[key] = (time.time(), payload)
         return payload
-    finally:
-        _by_contract_lock.release()
+
+    if cached:
+        # STALE: serve it now; ONE background refresh (single-flight).
+        if _by_contract_lock.acquire(blocking=False):
+            def _refresh():
+                try:
+                    _fresh()
+                except Exception:
+                    logging.getLogger(__name__).exception("[massive] by-contract refresh failed")
+                finally:
+                    _by_contract_lock.release()
+            threading.Thread(target=_refresh, daemon=True, name="by-contract-refresh").start()
+        return cached[1]
+    with _by_contract_lock:                      # first-ever for this key: compute once
+        c2 = _by_contract_cache.get(key)
+        if c2 and (time.time() - c2[0]) < ttl:
+            return c2[1]
+        return _fresh()
 
 
 # ─── Curated thresholds endpoints (admin tuning panel) ────────────────────
@@ -5782,11 +5980,19 @@ def _demote_multileg_structures(alerts: list) -> None:
     """
     try:
         _t = _load_thresholds()
+        mode = str(_t.get("multileg_mode", "structure") or "structure")
         window = float(_t.get("multileg_window_sec", 90.0) or 0)
         min_legs = int(_t.get("multileg_min_legs", 3) or 0)
         dom_frac = float(_t.get("multileg_dominant_premium_frac", 0.6) or 0)
+        pair_window = float(_t.get("multileg_pair_window_sec", 2.0) or 0)
+        size_tol = float(_t.get("multileg_size_tol", 0.10) or 0)
+        roundtrip = float(_t.get("multileg_roundtrip_sec", 10.0) or 0)
     except Exception:
-        window, min_legs, dom_frac = 90.0, 3, 0.6
+        mode, window, min_legs, dom_frac = "structure", 90.0, 3, 0.6
+        pair_window, size_tol, roundtrip = 2.0, 0.10, 10.0
+    if mode == "structure":
+        _demote_matched_legs(alerts, pair_window, size_tol, roundtrip)
+        return
     if window <= 0 or min_legs <= 1 or not alerts:
         return
 
@@ -5834,6 +6040,82 @@ def _demote_multileg_structures(alerts: list) -> None:
                 i = j
             else:
                 i += 1
+
+
+def _legs_size_match(a: float, b: float, tol: float) -> bool:
+    """Spread legs trade equal or simple-ratio size (1:1, 1:2, 1:3 — verticals,
+    ratio spreads, butterflies' wings)."""
+    if a <= 0 or b <= 0:
+        return False
+    r = max(a, b) / min(a, b)
+    return any(abs(r - m) <= m * tol for m in (1.0, 2.0, 3.0))
+
+
+def _side_bucket(a: dict) -> str:
+    s = (a.get("_side") or "").strip().upper()
+    return "ask" if s in ("A", "AA") else ("bid" if s in ("B", "BB") else "")
+
+
+def _demote_matched_legs(alerts: list, pair_window: float, size_tol: float,
+                         roundtrip_sec: float = 0.0) -> None:
+    """multileg_mode="structure": demote only prints that pair up as legs of one
+    order — DIFFERENT contracts, same underlying, within pair_window seconds,
+    size-matched, and opposite-sided (one bought, one sold) or OPRA-typed ML/.
+
+    Busy-chain buying is not a structure: 10/2 SPCX 172.5C 9:51:25 (3,012 lots,
+    all condition 209, ask) sat among 26 prints / 13 contracts in 90s — none
+    within 15% of its size, none bid-side. The 7/24 SNDK calendar it was built
+    for (two $1500 calls, same second, one ask one bid) still pairs."""
+    if (pair_window <= 0 and roundtrip_sec <= 0) or not alerts:
+        return
+    horizon = max(pair_window, roundtrip_sec)
+    by_ticker = {}
+    for a in alerts:
+        ts = a.get("timestamp") or 0
+        if ts:
+            by_ticker.setdefault(a.get("ticker", ""), []).append((ts, a))
+    for _tk, entries in by_ticker.items():
+        if len(entries) < 2:
+            continue
+        entries.sort(key=lambda e: e[0])
+        legs = set()
+        n = len(entries)
+        for i in range(n):
+            ti, ai = entries[i]
+            ci = f"{ai.get('cp','')}|{ai.get('strike','')}|{ai.get('exp','')}"
+            for j in range(i + 1, n):
+                tj, aj = entries[j]
+                if tj - ti > horizon:
+                    break
+                si, sj = _side_bucket(ai), _side_bucket(aj)
+                opposite = bool(si and sj and si != sj)
+                if f"{aj.get('cp','')}|{aj.get('strike','')}|{aj.get('exp','')}" == ci:
+                    # Same contract: same-side repeats are accumulation (kept);
+                    # equal size on OPPOSITE sides is a round-trip (demoted).
+                    szi, szj = float(ai.get("tradeSize") or 0), float(aj.get("tradeSize") or 0)
+                    if (opposite and tj - ti <= roundtrip_sec and szi > 0 and szj > 0
+                            and abs(szi - szj) <= max(szi, szj) * size_tol):
+                        legs.add(id(ai))
+                        legs.add(id(aj))
+                    continue
+                if tj - ti > pair_window:
+                    continue
+                if not _legs_size_match(float(ai.get("tradeSize") or 0),
+                                        float(aj.get("tradeSize") or 0), size_tol):
+                    continue
+                ml = "ML" in (ai.get("_type") or "").upper() or "ML" in (aj.get("_type") or "").upper()
+                if opposite or ml:
+                    legs.add(id(ai))
+                    legs.add(id(aj))
+        if not legs:
+            continue
+        for _ts, a in entries:
+            if id(a) in legs and (a.get("_direction") or "").strip() in ("Bull", "Bear"):
+                a["_direction"] = None
+                a["_directionUnconfirmed"] = True
+                a["_multileg"] = True
+                a["alertName"] = "UCT Size - Not Clean"
+                a["_tierKey"] = "size"
 
 
 def _demote_two_way_flow(alerts: list) -> None:
@@ -6399,6 +6681,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "ask_accum_require_unusual",         # apply the contract-conviction guard (_ask_accum_conviction)
         "ask_accum_min_contract_voi",        # session ask vol / contract OI floor (NEW-build test)
         "ask_accum_max_mktcap",              # mega-cap/index ceiling (primary noise guard)
+        "ask_accum_mega_min_aggregate_premium",  # mega-cap path: session ask floor (0 = exclude)
+        "ask_accum_mega_min_dte",            # mega-cap path: minimum DTE
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
@@ -6437,6 +6721,10 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_window_sec",       # cluster window for structure detection
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
+        "multileg_mode",             # "structure" (matched legs, default) | "cluster" (7/24 rule)
+        "multileg_pair_window_sec",  # structure: max seconds between two legs
+        "multileg_size_tol",         # structure: leg-size ratio tolerance around 1/2/3
+        "multileg_roundtrip_sec",    # structure: same-contract offsetting prints window
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
         "autopush_incremental",      # perf: 60s auto-push scans only new-activity symbols (dark)
         "scan_offload",              # perf: run the heavy dashboard scan in a subprocess (dark)
@@ -7613,6 +7901,36 @@ _worker_history_cache: dict = {}      # (date, min_gap) -> (ts, payload)
 # sensitive. Warmed on boot/new-day only (see flow_worker_main warmer).
 _WORKER_HISTORY_TTL = int(os.environ.get("MASSIVE_WORKER_HISTORY_TTL", "300"))
 _worker_history_lock = threading.Lock()   # single-flight: one heavy scan at a time
+
+
+def invalidate_date_caches(mdy: str) -> int:
+    """Drop every Live Flow result cached for `mdy` (M/D/YYYY) so the next read
+    recomputes. Called by the T+1 healers (gap-fill run, tape-spool replay) after
+    they mutate a past date. Without it the historical caches (_HISTORICAL_TTL,
+    6h) kept serving the pre-heal snapshot: on 10/03 the healed 10/2 showed an
+    empty table and a stale "FEED GAP 9:31 AM–4:00 PM" banner while /day-stats
+    (30s TTL) already counted 9,381 alerts. flow_router.bump_data_version() does
+    not reach these caches. Multi-day caches span dates, so they clear whole.
+    Returns the number of entries dropped. Never raises."""
+    dropped = 0
+    try:
+        mdy = _resolve_date(mdy)
+
+        def _hits(key):
+            return key == mdy or (isinstance(key, tuple) and mdy in key)
+
+        for cache in (_recent_cache, _recent_last_good, _day_stats_cache,
+                      _by_contract_cache, _diagnostic_cache, _cream_cache,
+                      _worker_history_cache):
+            for k in [k for k in list(cache) if _hits(k)]:
+                cache.pop(k, None)
+                dropped += 1
+        for cache in (_symbol_recent_cache, _multiday_recent_cache):
+            dropped += len(cache)
+            cache.clear()
+    except Exception as e:
+        logging.getLogger(__name__).warning("[massive] cache invalidation for %s failed: %s", mdy, e)
+    return dropped
 
 
 @router.get("/worker-history")

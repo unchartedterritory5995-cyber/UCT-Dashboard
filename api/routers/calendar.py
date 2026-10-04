@@ -1352,16 +1352,22 @@ def _attach_date_moves(days: dict) -> None:
     except Exception:
         return
     today = _today_et().isoformat()
-    pairs: list[tuple[str, str]] = []
+    pairs: list[tuple] = []
     syms: list[str] = []
     for ds, day in days.items():
         if ds < today:
             continue
-        for e in _day_entries(day):
-            sym = (e.get("sym") or "").upper()
-            if sym:
-                pairs.append((sym, ds))
-                syms.append(sym)
+        # D-1/D-2 (Lane R): each observation also carries the date STATUS the entry
+        # supports (`classify_entry`, from fields already on it). Recorded always so the
+        # lifecycle accumulates; READ only by the dark /api/calendar/date-status route.
+        # This payload is unchanged: nothing is stamped onto the entry.
+        for bucket in ("bmo", "amc", "tbd"):
+            for e in (day.get(bucket) or []):
+                sym = (e.get("sym") or "").upper()
+                if sym:
+                    status, basis = _cdi.classify_entry(e, bucket)
+                    pairs.append((sym, ds, status, basis))
+                    syms.append(sym)
     if not pairs:
         return
     try:

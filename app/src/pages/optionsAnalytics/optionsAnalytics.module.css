@@ -1,0 +1,29 @@
+/* lane/gaps-options — the options analytics panels (FT-0xx rows). Tokens only. */
+.panel { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); color: var(--text); }
+.head { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; font-size: 13px; }
+.title { font-weight: 700; color: var(--text-heading); font-size: 13px; }
+.badge { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); }
+.muted { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.note { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
+.facts { font-size: 13px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+.seg { display: inline-flex; gap: 4px; }
+.seg button, .input, .select { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+.seg button[aria-pressed='true'] { border-color: var(--ut-gold, #c9a84c); color: var(--text-heading); }
+.chart { width: 100%; max-width: 760px; height: auto; display: block; margin: 6px 0; }
+.axis { stroke: var(--border); stroke-width: 1; }
+.lineCall { stroke: var(--gain); stroke-width: 2; fill: none; }
+.linePut { stroke: var(--loss); stroke-width: 2; fill: none; }
+.lineGold { stroke: var(--ut-gold, #c9a84c); stroke-width: 2; fill: none; }
+.list { list-style: none; margin: 4px 0; padding: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.list li { padding: 2px 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table th, .table td { padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+.table th { color: var(--text-muted); font-weight: 600; }
+.cellPos { background: color-mix(in srgb, var(--gain) calc(var(--heat, 0) * 60%), transparent); }
+.cellNeg { background: color-mix(in srgb, var(--loss) calc(var(--heat, 0) * 60%), transparent); }
+/* lane/o-options-remainders: the 3D surface's cells (FT-018) and a clickable tide (FT-057). */
+.mesh { stroke: var(--border); stroke-width: 0.5; }
+.clickable { cursor: pointer; }

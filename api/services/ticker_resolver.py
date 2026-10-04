@@ -52,6 +52,12 @@ from api.services.a8_taxonomy import CASHTAG_EXCLUDED
 # ── the grammar: one left-to-right pass over every form, so order = mention order.
 # The trailing (?![A-Za-z]) makes $NVIDIA match nothing rather than a fragment.
 _TOKEN_RE = re.compile(r"\$([A-Za-z]{1,5}(?:[.\-][A-Za-z])?)(?![A-Za-z])|\b([A-Za-z]{2,5})\b")
+#: The cashtag tier on its own: the first alternative of `_TOKEN_RE`, DERIVED from it
+#: (the literal above stays a constant the A8 cashtag census can see). ⛔
+#: `app/src/lib/tickerResolver.js` carries this exact source for the frontend's
+#: cashtag extractors (TERM-064 follow-up 3); tests/test_ticker_resolver_cashtag_parity.py
+#: holds the two byte-equal and runs one case file through both.
+CASHTAG_TIER = _TOKEN_RE.pattern.split("|", 1)[0]
 
 #: AI Search query vocabulary — moved VERBATIM from `routers/ai_search._TICKER_STOP`.
 _TICKER_STOP = {
@@ -175,6 +181,8 @@ class Context:
     lowercase_cued: bool
     #: Never a ticker from this input kind — cashtag or bare, cue or not.
     exclude: frozenset = frozenset()
+    #: Only the explicit cashtag tier counts; a bare word is never a ticker here.
+    cashtags_only: bool = False
 
 
 #: A member's typed question (AI Search, the palette, the AI door).
@@ -186,7 +194,14 @@ DISCOVERY_PROSE = Context("discovery_prose", frozenset(_NON_TICKER_WORDS),
 #: A publisher's headline (the RSS pass).
 HEADLINE = Context("headline", frozenset(_TICKER_BLACKLIST), lowercase_cued=False)
 
-CONTEXTS = (QUERY, DISCOVERY_PROSE, HEADLINE)
+#: A publisher's cashtagged post (the tweet ingest, TERM-064 follow-up 1). Cashtags
+#: ONLY, as M5 always was, minus A8's forex exclusions, but through the resolver's
+#: cashtag tier: `$BRK.B` books BRK-B (M5's grammar booked `BRK`, a symbol that does
+#: not exist) and the spelling is the one canonical form.
+CASHTAG_POST = Context("cashtag_post", frozenset(), lowercase_cued=False,
+                       exclude=CASHTAG_EXCLUDED, cashtags_only=True)
+
+CONTEXTS = (QUERY, DISCOVERY_PROSE, HEADLINE, CASHTAG_POST)
 
 
 # ── the universe ─────────────────────────────────────────────────────────────
@@ -229,6 +244,8 @@ def resolve_tickers(text: Optional[str], context: Context = QUERY) -> list[str]:
             sym = canonical(cash)
             if sym not in out and sym not in exclude:
                 out.append(sym)
+            continue
+        if context.cashtags_only:
             continue
         sym = bare.upper()
         if sym in out or sym in exclude:

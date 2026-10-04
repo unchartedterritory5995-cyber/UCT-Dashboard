@@ -1,0 +1,7 @@
+{
+  "maxWidgets": 16,
+  "refusal": "A board holds at most {max} widgets, and this one would hold {count}. Close a widget before adding another.",
+  "layoutRefusal": "That layout holds {count} widgets, more than the {max} a board can hold, so it was not opened. It is still saved exactly as it was.",
+  "overBound": "This board holds {count} widgets, more than the {max} a board can hold. Nothing was removed: it stays as it is, and it can take a new widget once you close enough to bring it under {max}.",
+  "decision": "docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md"
+}

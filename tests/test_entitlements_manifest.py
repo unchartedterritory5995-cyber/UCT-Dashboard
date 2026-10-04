@@ -100,7 +100,8 @@ def test_FREE_PAGES_is_one_source_with_three_real_importers():
     which is exactly how the original defect would reappear."""
     m = _manifest()
     fp = m["free_pages"]
-    assert fp["values"] == ["/morning-wire"]
+    # Empty since the owner ruling of 2026-10-02 (TERM-081 / OI-12): no free pages.
+    assert fp["values"] == []
     assert len(fp["consumers"]) == 3
     for c in fp["consumers"]:
         assert c["imports_shared_source"] is True, (

@@ -1,0 +1,252 @@
+{
+ "tool": "notebook_w11b_scale",
+ "started_utc": "2026-10-03T12:30:57+00:00",
+ "git": "24837080a1144f343f1086db3b28f267b4998733",
+ "reps": 20,
+ "warmup": 2,
+ "connection_model": "per-call (auth_db.get_connection per route call)",
+ "tiers": [
+  {
+   "tier": 50000,
+   "seed_ms": 21903.6,
+   "db_bytes": 614141952,
+   "fixture": {
+    "r_id": "6a5a157795934ffd81e462ed548cf270",
+    "avg_id": "ed2093be76a94329b1b72f663d04ada0",
+    "exit_id": "2917ad46f4b74cfbbcb154d48481ecbc",
+    "plans": 9859,
+    "parents": {
+     "50": 50,
+     "500": 500
+    },
+    "parent_500": "bd75ef4a6a5c484daebb0e05d19a1dc1",
+    "write_note": "2c4f6e4cb5bb497a8eb8e429cff4dba1",
+    "trades_linked": 2490,
+    "live_notes": 49021
+   },
+   "ops": {
+    "GET /notes, no computed sort or filter (baseline)": {
+     "p50_ms": 20.783,
+     "p95_ms": 21.699,
+     "max_ms": 22.249,
+     "min_ms": 20.127,
+     "reps": 20,
+     "samples_ms": [
+      20.173,
+      21.542,
+      22.249,
+      21.024,
+      20.337,
+      20.127,
+      20.748,
+      21.699,
+      20.889,
+      20.49,
+      20.709,
+      21.628,
+      21.297,
+      20.63,
+      21.217,
+      20.692,
+      20.776,
+      20.941,
+      21.083,
+      20.783
+     ],
+     "box_before": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:20",
+     "box_after": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:21",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.126998154933501,
+       "reason": null,
+       "computedAt": "2026-10-03T12:31:21.034524+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 50,
+       "usedSize": 50,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes sorted by a rollup": {
+     "p50_ms": 37.436,
+     "p95_ms": 38.403,
+     "max_ms": 38.852,
+     "min_ms": 34.789,
+     "reps": 20,
+     "samples_ms": [
+      34.789,
+      36.978,
+      36.715,
+      37.402,
+      37.332,
+      36.503,
+      37.569,
+      37.883,
+      37.652,
+      37.401,
+      38.852,
+      38.266,
+      37.068,
+      37.689,
+      37.436,
+      38.039,
+      38.403,
+      37.017,
+      38.394,
+      37.842
+     ],
+     "box_before": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:21",
+     "box_after": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:23",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-03T12:31:22.971684+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET /notes filtered by a formula": {
+     "p50_ms": 33.089,
+     "p95_ms": 34.446,
+     "max_ms": 34.644,
+     "min_ms": 32.151,
+     "reps": 20,
+     "samples_ms": [
+      33.068,
+      32.307,
+      32.738,
+      34.283,
+      33.106,
+      33.734,
+      32.967,
+      32.87,
+      32.879,
+      34.644,
+      32.594,
+      32.151,
+      33.827,
+      33.489,
+      33.703,
+      33.588,
+      33.089,
+      32.821,
+      33.138,
+      34.446
+     ],
+     "box_before": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:23",
+     "box_after": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:24",
+     "check": {
+      "rows": 100,
+      "total": 5118,
+      "first_computed": {
+       "value": null,
+       "reason": "This note links to no notes yet",
+       "computedAt": "2026-10-03T12:31:24.816562+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 0,
+       "usedSize": 0,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    },
+    "GET one note's properties (500-child parent)": {
+     "p50_ms": 12.184,
+     "p95_ms": 13.013,
+     "max_ms": 13.161,
+     "min_ms": 11.823,
+     "reps": 20,
+     "samples_ms": [
+      12.04,
+      12.026,
+      12.345,
+      12.701,
+      12.53,
+      11.823,
+      12.073,
+      12.175,
+      11.944,
+      12.025,
+      12.184,
+      12.207,
+      12.225,
+      12.443,
+      12.115,
+      12.505,
+      13.161,
+      13.013,
+      12.0,
+      12.745
+     ],
+     "box_before": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:25",
+     "box_after": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:26",
+     "check": {
+      "avg_r": 1.6664380095587528,
+      "set": 500
+     }
+    },
+    "property write, then the sorted read": {
+     "p50_ms": 42.226,
+     "p95_ms": 46.23,
+     "max_ms": 53.791,
+     "min_ms": 39.73,
+     "reps": 20,
+     "samples_ms": [
+      39.92,
+      39.73,
+      39.916,
+      42.413,
+      42.296,
+      41.465,
+      42.567,
+      42.226,
+      43.577,
+      53.791,
+      46.23,
+      44.056,
+      45.391,
+      44.251,
+      42.991,
+      41.13,
+      41.428,
+      41.786,
+      41.415,
+      41.34
+     ],
+     "box_before": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:26",
+     "box_after": "lock: STALE  C:\\ProgramData\\uct\\gate-box.lock\n  pid 14508 since 2026-10-03T06:11:40 [_merge-master] scripts/gate_shards.py --shards 6 --max-workers 2 --out C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/30c63fad-9b53-4c82-b8c0-7d8495d189c1/scratch\n  load: QUIET \u2014 0 marked processes outside our own tree at 2026-10-03T07:31:28",
+     "check": {
+      "rows": 100,
+      "total": 47592,
+      "first_computed": {
+       "value": 1.6664380095587528,
+       "reason": null,
+       "computedAt": "2026-10-03T12:31:28.270025+00:00",
+       "kind": "rollup",
+       "name": "Avg R",
+       "setSize": 500,
+       "usedSize": 500,
+       "capped": false,
+       "aggregate": "avg"
+      }
+     }
+    }
+   }
+  }
+ ],
+ "loglog_slope_p50": {},
+ "finished_utc": "2026-10-03T12:31:28+00:00"
+}

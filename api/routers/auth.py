@@ -28,6 +28,7 @@ from api.services import rollout_gate
 # TERM-021: the versioned workspace document. Its hooks in `upsert_preference` do no I/O
 # while WORKSPACE_DOC_STORE_ENABLED is unset.
 from api.services import workspace_doc_store
+from api.services import board_bound
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -228,6 +229,21 @@ def _seasonality_enabled() -> bool:
         return False
 
 
+def _research_cov_flags() -> dict:
+    """COV-05 / COV-07 / COV-09 (RM-L19): the three Research tabs' switches -- the SAME
+    readers their routes' dark gates use. Never raises; a failed read is OFF."""
+    out = {"research_people_enabled": False, "estimate_history_enabled": False,
+           "filings_feed_enabled": False}
+    try:
+        from api.services import estimate_history, filings_feed, research_people
+        out["research_people_enabled"] = bool(research_people.is_enabled())
+        out["estimate_history_enabled"] = bool(estimate_history.is_enabled())
+        out["filings_feed_enabled"] = bool(filings_feed.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        pass
+    return out
+
+
 def _filing_blackline_flag() -> dict:
     """COV-04: the Research "Filing changes" tab -- the SAME reader the route's dark gate
     uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
@@ -239,6 +255,106 @@ def _filing_blackline_flag() -> dict:
         return {}
 
 
+def _options_screener_flag() -> dict:
+    """COV-02/03: the Screener's "Options" view -- the SAME reader the routes' dark gate
+    uses. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset => this
+    payload is byte-identical to before the lane. The client reads `=== true`. Never raises."""
+    try:
+        from api.services.research import options_screener
+        return {"options_screener_enabled": True} if options_screener.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
+# Research > Depth panels (lane gaps-research): payload key -> the service module whose
+# `is_enabled()` is that surface's ONE gate (the same reader its routes' dark gate uses).
+_RESEARCH_DEPTH_SURFACES = (
+    ("filing_search_enabled", "filing_search"),
+    ("earnings_reaction_panel_enabled", "earnings_reaction_panel"),
+    ("events_timeline_enabled", "events_timeline"),
+    ("ftd_dataset_enabled", "ftd_dataset"),
+    ("mention_series_enabled", "mention_series"),
+    ("broker_estimates_enabled", "broker_estimates"),
+)
+
+# Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.
+# They are real Depth panels (same payload form, same tab), kept in their OWN tuple only
+# because adding a function code is Lane T1's file (app/src/pages/terminal/functions.js,
+# audit V1b) and the terminal rail requires a code for every key of the tuple above.
+# ⛔ HANDOFF, not a resting place: when T1 adds NEWS / REPLAY codes, move these rows up
+# and delete this tuple. The client mirror is RESEARCH_DEPTH_AWAITING_CODE_KEYS.
+_RESEARCH_DEPTH_AWAITING_CODE_SURFACES = (
+    ("news_story_versions_enabled", "news_versions"),
+    ("news_importance_enabled", "news_importance"),
+    ("news_read_state_enabled", "news_read_state"),
+    ("call_replay_enabled", "call_replay"),
+)
+
+
+def _research_depth_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
+    this payload is byte-identical to before the lane. The client reads `=== true`.
+    Never raises; a surface whose module cannot be read is simply absent."""
+    import importlib
+    out = {}
+    for key, mod in _RESEARCH_DEPTH_SURFACES + _RESEARCH_DEPTH_AWAITING_CODE_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
+# Lane R: the Research page notices under the header (D-9 member-interest line,
+# D-11 rename notice, D-12 metric disagreement). NOT Depth panels: these keys never
+# open the Depth tab. Mirrored in app/src/pages/research/notices/researchNoticeFlags.js.
+_RESEARCH_NOTICE_SURFACES = (
+    ("member_interest_line_enabled", "member_interest_line"),
+    ("entity_rename_notice_enabled", "entity_rename_notice"),
+    ("metric_disagreement_enabled", "metric_disagreement"),
+)
+
+
+def _research_notice_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON (the TERM-077 form): every surface unset =>
+    this payload is byte-identical to before the lane. The client reads `=== true`.
+    Never raises; a surface whose module cannot be read is simply absent."""
+    import importlib
+    out = {}
+    for key, mod in _RESEARCH_NOTICE_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
+# Calendar depth (Lane R): payload key -> the service module whose `is_enabled()` is
+# that surface's ONE gate. ⛔ Mirrored by `app/src/pages/calendar/depth/calendarDepthFlags.js`,
+# whose rail reads THIS tuple rather than restating it.
+_CALENDAR_DEPTH_SURFACES = (
+    ("earnings_date_status_enabled", "earnings_date_status"),
+    ("index_rebalance_events_enabled", "index_rebalance_calendar"),
+    ("calendar_order_explain_enabled", "calendar_order_explain"),
+)
+
+
+def _calendar_depth_flags() -> dict:
+    """Same form as `_research_depth_flags`: keys present ONLY when on, so every surface
+    unset => the payload is byte-identical to before. Never raises."""
+    import importlib
+    out = {}
+    for key, mod in _CALENDAR_DEPTH_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
 def _options_vol_surface_enabled() -> bool:
     """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
     surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
@@ -246,6 +362,17 @@ def _options_vol_surface_enabled() -> bool:
     try:
         from api.routers import options_chain
         return bool(options_chain.is_surface_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
+def _options_backtest_enabled() -> bool:
+    """BRK-01 increment 4: the options strategy backtester under the chain -- the SAME reader
+    the backtest routes' dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_BACKTEST_ENABLED).
+    Never raises."""
+    try:
+        from api.routers import options_chain
+        return bool(options_chain.is_backtest_enabled())
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
         return False
 
@@ -524,7 +651,9 @@ def _access_payload(user: dict, plan: str) -> dict:
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
         "options_vol_surface_enabled": _options_vol_surface_enabled(),
+        "options_backtest_enabled": _options_backtest_enabled(),
         "seasonality_enabled": _seasonality_enabled(),
+        **_research_cov_flags(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten
@@ -566,6 +695,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
+        **_options_screener_flag(),
+        **_research_depth_flags(),
+        **_research_notice_flags(),
+        **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
         # ── GT (D1) — the per-bar runtime pane, RESOLVED FOR THIS MEMBER ────
         # `PINE_RUNTIME_STAGE` (off / admins / all), read PER REQUEST in
@@ -573,6 +706,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # door asks of the saving member. The client needs BOTH this and the
         # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
         **_pine_runtime_pane_flag(user.get("role")),
+        **_lane_r_client_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -617,6 +751,44 @@ def _pine_runtime_pane_flag(role) -> dict:
         return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role))}
     except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
         return {"pine_runtime_pane_enabled": False}
+
+
+# Lane R client-only surfaces: no route reads these flags, so the auth payload IS the
+# gate. (env var, payload key) -- each key is present ONLY when on (the TERM-077 form).
+#   CHARTS_EXTRA_GROUPS_ENABLED  COV-10 remainder: /charts colour groups E-H beyond A-D
+#   HOW_TO_CHECKLISTS_ENABLED    FT-046: per-surface "how to trade with this" checklists
+# ⛔ Each env read is a LITERAL (not a loop over names) so feature_flag_index's AST
+# scan sees both gates and the ledger rail holds them to a docs/feature_flags.json row.
+_TRUTHY = ("1", "true", "yes", "on")
+
+
+def charts_extra_groups_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("CHARTS_EXTRA_GROUPS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+def how_to_checklists_enabled() -> bool:
+    """Read PER CALL. Unset means OFF."""
+    return os.environ.get("HOW_TO_CHECKLISTS_ENABLED", "0").strip().lower() in _TRUTHY
+
+
+_LANE_R_CLIENT_SURFACES = (
+    ("charts_extra_groups_enabled", charts_extra_groups_enabled),
+    ("how_to_checklists_enabled", how_to_checklists_enabled),
+)
+
+
+def _lane_r_client_flags() -> dict:
+    """⛔ THE KEYS ARE PRESENT ONLY WHEN ON: every flag unset => this payload is
+    byte-identical to before. The client reads `=== true`. Never raises."""
+    out = {}
+    for key, reader in _LANE_R_CLIENT_SURFACES:
+        try:
+            if reader():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
 
 
 def _watchlist_copy_or_link_flag() -> dict:
@@ -2458,6 +2630,17 @@ _PREFERENCE_KEYS = {
     # is not refused for a key the product already owns.
     "shared_tag_colors": _PREF_OPAQUE,
     "tag_labels": _PREF_OPAQUE,
+    # TERMINAL-NEXT (2026-10-02): the UCT Terminal shell's panel grid -- count, focus, and
+    # per-panel {code, group, sym, args} (`app/src/pages/terminal/useTerminalLayout.js`).
+    # ADDITIONS-ONLY: a new key, no existing key renamed (coexistence MG-4); the panels'
+    # linked security rides the EXISTING `charts_workspace_groups`, not a copy here.
+    # Lane T2: v2 adds channel records, density, the closed-panel undo stack and pop-outs
+    # INSIDE the same key; v1 blobs are read by the client's shim (`boardModel.js`).
+    "terminal_layout": _PREF_OPAQUE,
+    # Lane T2 (2026-10-02): the member's named terminal boards (`B:<slug>` addresses),
+    # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
+    # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
+    "terminal_boards": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
@@ -2582,22 +2765,45 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_joystick_hub(value)
 
 
+def enforce_board_bound(user_id, key: str, value) -> None:
+    """TERM-001: refuse a board write that would GROW a board past the bound (400, with the
+    bound's own sentence). An over-bound board that keeps its size or shrinks still saves; the
+    stored value is read only when the new one is over the bound. ``api/services/board_bound.py``
+    owns the rule; both doors that write the board (this router and ``/api/workspace-doc/apply``)
+    call this one function."""
+    refusal = board_bound.check(key, value, lambda: get_user_preferences(user_id).get(key))
+    if refusal:
+        raise HTTPException(status_code=400, detail=refusal)
+
+
 @router.get("/preferences")
 def get_preferences(response: Response, user: dict = Depends(get_current_user)):
     # TERM-021 READ-NEW. Flag off, `read_prefs` hands back the SAME dict before any I/O and no
     # header is set: the response is byte-for-byte what it was. Armed, the board's keys come from
     # the document head (falling back to this store, never to a default) and the header says
     # which answered.
-    prefs, stamp = workspace_doc_store.read_prefs(user["id"], get_user_preferences(user["id"]),
-                                                  set_user_preference)
-    if stamp is not None:
-        response.headers["X-Workspace-Doc"] = stamp
+    # Lane T2: every board is read the same way, in turn; each touches only its own keys. The
+    # Charts board keeps its header byte-for-byte; the terminal board answers in its own.
+    prefs = get_user_preferences(user["id"])
+    for board in workspace_doc_store.BOARDS:
+        prefs, stamp = workspace_doc_store.read_prefs(user["id"], prefs, set_user_preference, board)
+        if stamp is not None:
+            response.headers[_WORKSPACE_DOC_HEADERS[board]] = stamp
     return prefs
+
+
+#: The response header each board's read-new stamp rides (`X-Workspace-Doc` is the Charts
+#: board's, unchanged, and is what `app/src/lib/workspaceDoc.js` reads).
+_WORKSPACE_DOC_HEADERS = {
+    workspace_doc_store.BOARD_CHARTS: "X-Workspace-Doc",
+    workspace_doc_store.BOARD_TERMINAL: "X-Workspace-Doc-Terminal",
+}
 
 
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
     _validate_preference(req.key, req.value)
+    enforce_board_bound(user["id"], req.key, req.value)
     # TERM-021 WRITE-BOTH / READ-OLD. ⛔ Order is the whole point: the document is snapshotted
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any

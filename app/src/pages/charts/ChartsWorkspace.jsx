@@ -56,8 +56,11 @@ import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y a
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
+import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
 import Checkbox from '../../components/ui/Checkbox'
 import Input from '../../components/ui/Input'
+import { isSuspendedGroup } from './colorGroups'
+import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -703,15 +706,18 @@ function readWatchlistColumns() {
 // looking at — not an empty group showing a blank Fundamentals panel or a chart
 // stuck on the SPY fallback). Fall back to the first populated group, then to
 // the next free color for a genuinely empty board.
-function pickWidgetColor(widgets, groupSyms) {
+function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
   // Owner request: every NEW widget defaults to the YELLOW color group (A) no matter
   // what — a consistent dot instead of the A→B→C→D cycle. A tickered chart still wins
   // so a new widget lands on the ticker you're looking at (that chart is normally
   // group A too); otherwise 'A', never the next free colour.
+  // COV-10 remainder: a widget stored on E-H while extra groups are off is not linked,
+  // so it is never the group a new widget inherits.
   const g = groupSyms || {}
-  const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
+  const live = (w) => g[w.color] && !isSuspendedGroup(w.color, extraGroupsOn)
+  const chartW = widgets.find((w) => w.type === 'chart' && live(w))
   if (chartW) return chartW.color
-  const anyW = widgets.find((w) => g[w.color])
+  const anyW = widgets.find((w) => live(w))
   if (anyW) return anyW.color
   return 'A'
 }
@@ -786,6 +792,8 @@ export default function ChartsWorkspace() {
   const [pendingAdd, setPendingAdd] = useState(null)
   const pendingAddRef = useRef(null)
   pendingAddRef.current = pendingAdd
+  // TERM-001: the sentence the last refused add produced (board at MAX_BOARD_WIDGETS), or null.
+  const [boardRefusal, setBoardRefusal] = useState(null)
 
   // Viewport-locked sizing: measure the workspace body and divide its height
   // by FIXED_ROWS so the grid always fills the visible area exactly. The page
@@ -828,6 +836,23 @@ export default function ChartsWorkspace() {
   const layoutRef = useRef(layout)
   layoutRef.current = layout
 
+  // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
+  // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
+  // first. A board at or over MAX_BOARD_WIDGETS is refused with the bound's own sentence and is
+  // otherwise left exactly as it is: nothing here removes, truncates or re-saves a widget.
+  // The server applies the same rule at save time (api/services/board_bound.py).
+  const refuseIfBoardFull = useCallback(() => {
+    const count = boardWidgetCount(layoutRef.current) ?? 0
+    if (boardCanGrow(count)) return false
+    setBoardRefusal(boardRefusalSentence(count + 1))
+    return true
+  }, [])
+  const boardCount = boardWidgetCount(layout) ?? 0
+  const boardHasRoom = boardCanGrow(boardCount)
+  const boardOverBound = boardOverBoundSentence(boardCount)
+  // A refusal describes a full board; once a widget is closed it is no longer true.
+  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom])
+
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
   useEffect(() => {
@@ -866,6 +891,12 @@ export default function ChartsWorkspace() {
   const storedLayoutUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
   const storedLayoutUnreadableRef = useRef(storedLayoutUnreadable)
   storedLayoutUnreadableRef.current = storedLayoutUnreadable
+
+  // COV-10 remainder: colour groups E-H (CHARTS_EXTRA_GROUPS_ENABLED). Held in a ref for
+  // pickWidgetColor so the add-widget callbacks keep their dependency lists.
+  const extraGroupsOn = useExtraGroupsEnabled()
+  const extraGroupsOnRef = useRef(extraGroupsOn)
+  extraGroupsOnRef.current = extraGroupsOn
 
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
@@ -1589,6 +1620,7 @@ export default function ChartsWorkspace() {
   }, [scheduleSave])
 
   const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false } = {}) => {
+    if (refuseIfBoardFull()) return
     // Generate the id OUTSIDE the setLayout updater: StrictMode double-invokes the
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
@@ -1608,7 +1640,7 @@ export default function ChartsWorkspace() {
       // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1702,7 +1734,7 @@ export default function ChartsWorkspace() {
       const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
       setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
     }
-  }, [scheduleSave, groupSyms])
+  }, [scheduleSave, groupSyms, refuseIfBoardFull])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
@@ -1751,8 +1783,10 @@ export default function ChartsWorkspace() {
   const commitPendingAdd = useCallback(() => {
     const cur = pendingAddRef.current
     if (!cur) return
+    // The ghost was offered while the board had room; something else may have filled it since.
+    if (refuseIfBoardFull()) { setPendingAdd(null); return }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms)
+      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       let widgets = prev.widgets
       if (cur.mutations && cur.mutations.length) {
         const byId = Object.fromEntries(cur.mutations.map(m => [m.id, m]))
@@ -1786,7 +1820,7 @@ export default function ChartsWorkspace() {
       return next
     })
     setPendingAdd(null)
-  }, [groupSyms, scheduleSave])
+  }, [groupSyms, scheduleSave, refuseIfBoardFull])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
   // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
   // its place + the widgets it displaces) before the user commits with Place.
@@ -1844,7 +1878,7 @@ export default function ChartsWorkspace() {
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
-      const color = pickWidgetColor(widgets, groupSyms)
+      const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
       const newWidget = {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,
@@ -1970,6 +2004,13 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl, { skipFlush = false } = {}) => {
     if (!tpl?.layout?.widgets) return
+    // TERM-001: a saved layout larger than the bound may not replace a smaller board (the
+    // server refuses the same write). The saved layout itself is untouched in its store.
+    const tplCount = boardWidgetCount(tpl.layout)
+    if (!boardMayBecome(tplCount, boardWidgetCount(layoutRef.current))) {
+      setBoardRefusal(boardLayoutRefusalSentence(tplCount))
+      return
+    }
     // COV-06: a version-history restore of the OPEN layout must not flush the
     // board on screen into it first — that would save the replaced board over
     // the restore it is about to show.
@@ -2992,6 +3033,16 @@ export default function ChartsWorkspace() {
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
+            Nothing is removed from an over-bound board; it simply cannot grow. */}
+        {(boardRefusal || boardOverBound) && (
+          <div className={styles.boardBoundStatus} role="status" data-testid="board-bound-status">
+            <span>{boardRefusal || boardOverBound}</span>
+            {boardRefusal && (
+              <button type="button" onClick={() => setBoardRefusal(null)}>Dismiss</button>
+            )}
+          </div>
+        )}
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
@@ -3006,6 +3057,12 @@ export default function ChartsWorkspace() {
               <div className={`${styles.addMenu} ${styles.wAddMenu}`} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
                 {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
                     click to drop a widget onto the board via smart placement. */}
+                {/* TERM-001: a full board says why in words and offers nothing to add. */}
+                {!boardHasRoom && (
+                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
+                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
+                  </div>
+                )}
                 {WIDGET_MENU_GROUPS.map(group => (
                   <div key={group.key} className={styles.wAddGroup}>
                     <div className={styles.addMenuGroupLabel}>{group.label}</div>
@@ -3017,6 +3074,7 @@ export default function ChartsWorkspace() {
                             key={t}
                             type="button"
                             className={styles.wAddChip}
+                            disabled={!boardHasRoom}
                             title={meta.blurb || WIDGET_LABELS[t]}
                             onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
                           >
