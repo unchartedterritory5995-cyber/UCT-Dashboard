@@ -521,7 +521,9 @@ plot(ta.dmiplusleg(x, 105))
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {
     // `str.` is not stripped, so nothing there can collide with a table entry.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)) + ta.sma(x, 2))\n`)
+    // ⚰️ RE-PINNED RT11: `str.tostring(x)` over state now LOWERS in a value build
+    // (`rt11ValueBuildTostring`), so the unserved text builtin here is `str.format`.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)) + ta.sma(x, 2))\n`)
     expect(r.guard).toBe('runtime:call-text-state')
   })
 })

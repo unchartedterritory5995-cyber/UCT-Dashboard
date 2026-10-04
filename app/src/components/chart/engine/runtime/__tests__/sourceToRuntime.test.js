@@ -279,7 +279,9 @@ plot(a)
     // undeclared name today, verified by driving it — and it will need the same
     // treatment the day it lands (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
-    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
+    // ⚰️ RE-PINNED RT11: `str.tostring(x)` over state now lowers in every build
+    // (`rt11ValueBuildTostring`); `str.format` is the text builtin still refused.
+    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.format("{0}", x)))\n`, 'runtime:call-text-state'],
     // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
     // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],

@@ -5197,7 +5197,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (`text.js::RUN_TEXT_FNS`): a number by the host lane's one formatter,
         // a text as itself. ⛔ Only a literal `#`/`0` format; a condition (whose
         // text is `true`/`false`, not a number) is refused by name.
-        if (objectsInRun && isRunTostring(node)) {
+        // ⭐⭐ RT11 (2026-10-04) — AND IN A VALUE BUILD TOO. A build whose drawings the
+        // host object program makes still LOWERS a binding that reads runtime state,
+        // and `row1 = ' High: ' + tostring(latest_bull_high, '#.##')` (order-block-finder,
+        // text only a label prints) refused `call-undeclared-builtin-state` for a name
+        // this lane serves one option over. Same formatter, same refusals (a condition,
+        // a non-`#`/`0` format). Its text reaches a row only through a served consumer
+        // (`str.length`, `str.contains`, ...), as the formatter's own text (C20/C43). ⛔ The ROUTE
+        // clause above keeps `objectsInRun`: a stateless `str.tostring` the columnar
+        // lane folds is still folded there, so no script that builds today moves.
+        if (isRunTostring(node)) {
           const given = (node.args || []).map((x) => (x && x.value !== undefined ? x.value : x))
           if ((node.args || []).some((a) => a && a.name && a.name !== 'value' && a.name !== 'format')
               || given.length < 1 || given.length > 2) {
