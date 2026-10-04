@@ -234,7 +234,7 @@ describe('⛔ C — the unmeasured and the impossible stop BY NAME, never answer
 
   // ⚰️ RT7 — an `na` ELEMENT and an `na` SEARCH value are MEASURED now
   // (`vw-array-na-spy-1d-2026-10-02`, `rt7ArrayNa.test.js`): skipped, and found nowhere.
-  // ⭐ H7 (step 92) — and `sum` / `avg` over ZERO real elements are MEASURED now
+  // ⭐ H7 (step 92h) — and `sum` / `avg` over ZERO real elements are MEASURED now
   // (CAP4 Q-RT7a, E03-E06): `na`, never 0, and no stop.
   it('a sum / avg over zero real elements is na (measured), in the method form too', () => {
     expect(nan(runPine('a = array.new_float(2)\nplot(a.sum())\n')[0]).every((x) => x === null)).toBe(true)

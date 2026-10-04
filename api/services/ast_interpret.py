@@ -3963,9 +3963,34 @@ def evaluation_units(root: Any) -> int:
         child_scope = "%s>%s" % (scope, sid) if node.get("type") in _SCOPE_TYPES else scope
         spec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
         body_at = spec.get("body") if isinstance(spec, Mapping) and isinstance(spec.get("body"), int) else -1
+        seed_at = spec.get("seed") if isinstance(spec, Mapping) and isinstance(spec.get("seed"), int) else -1
         for ai, a in enumerate(args):
+            # H7 -- a plain-update seed mark is counted as its inner seed, as the JS
+            # lane counts it (``interpret.js::isPlainUpdateSeed``): the wrappers are
+            # read only by the JS listing pass. Mirror of ``evaluationUnits``.
+            if ai == seed_at and _is_plain_update_seed(a):
+                a = a["args"][1]["args"][1]
             stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai == body_at else rec))
     return len(units)
+
+
+def _is_one_times(n: Any) -> bool:
+    args = n.get("args") if isinstance(n, dict) else None
+    return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "*"
+            and isinstance(args, list) and len(args) == 2 and isinstance(args[0], dict)
+            and args[0].get("type") == "num" and args[0].get("value") == 1)
+
+
+def _is_plain_update_seed(n: Any) -> bool:
+    """H7 (step 92h) -- ``1 * (1 * (0 / 0))``, the plain form's ``na`` seed marked with
+    its bar-0 reading (``interpret.js::plainUpdateSeed``). Evaluates to NaN here."""
+    if not (_is_one_times(n) and _is_one_times(n["args"][1])):
+        return False
+    z = n["args"][1]["args"][1]
+    za = z.get("args") if isinstance(z, dict) else None
+    return (isinstance(z, dict) and z.get("type") == "op" and z.get("name") == "/"
+            and isinstance(za, list) and len(za) == 2
+            and all(isinstance(x, dict) and x.get("type") == "num" and x.get("value") == 0 for x in za))
 
 
 # --------------------------------------------------------------------------- #

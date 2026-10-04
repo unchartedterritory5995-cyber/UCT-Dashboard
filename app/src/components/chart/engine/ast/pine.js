@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, plainUpdateSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -7362,8 +7362,12 @@ export class Resolver {
         this.resolveBinding(seedBinding, tok, name)
         const seed = historySeed()
         const args = []
+        // ⭐⭐ H7 (step 92h) — a NON-switched plain form says its bar-0 reading too
+        // (`interpret.js::plainUpdateSeed`): bar 0 runs the update from `na`, as Pine
+        // does (CAP4 Q-RT8a R01: the supertrend ratchet's mid is 0 on bar 0).
+        // ⛔ Never on a SCREEN (no listing there; the plain `0 / 0` is unchanged).
         args[spec.recurrence.seed] = plainCounter ? switchedVarSeed(readingSeed(seed, 'update'))
-          : switchedState ? switchedVarSeed(seed) : seed
+          : switchedState ? switchedVarSeed(seed) : this.screen ? seed : plainUpdateSeed()
         args[spec.recurrence.body] = body
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -8763,7 +8767,7 @@ export class Resolver {
     const order = w.order === 'unshift' ? elements : elements.slice().reverse()
     const ambiguity = []
     const orAmb = (toks) => { if (ambiguity.length) ambiguity.push(I('or')); ambiguity.push(P('('), ...toks, P(')')) }
-    // ⭐⭐ H7 (step 92) — ZERO REAL ELEMENTS IS MEASURED: `na`. CAP4 Q-RT7a
+    // ⭐⭐ H7 (step 92h) — ZERO REAL ELEMENTS IS MEASURED: `na`. CAP4 Q-RT7a
     // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`) reads `array.max / min / sum
     // / avg` of an EMPTY array and `sum` / `avg` of `(na, na)` as `na` on every bar,
     // with no runtime error — and the folds below already answer `na` there (an
@@ -10544,7 +10548,7 @@ export class Resolver {
         && !this.shadowedByDefinition(name)) {
       return this.resolve(node.args[0].value)
     }
-    // ⭐⭐ H7 (step 92) — `fixnan(x)` IS `ta.valuewhen(not na(x), x, 0)`, served by
+    // ⭐⭐ H7 (step 92h) — `fixnan(x)` IS `ta.valuewhen(not na(x), x, 0)`, served by
     // the table's `valuewhenOccurrence` in BOTH lanes (`interpret.js` /
     // `ast_interpret._fn_valuewhen_occurrence`): x where it is real, else the x of the
     // most recent bar where it was, `na` before the first. MEASURED: CAP4 Q-RT7b
@@ -19397,7 +19401,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  so (`runtimeError`), never an `na` cell. Each slot and the length are read
    *  where the call stands (`windowReadVerdict`), so a read the window model is
    *  not exact at keeps its refusal. Anything else returns null. */
-  /** ⭐⭐ H7 (step 92) — `array.get(a, i)` / `a.get(i)` where `a = array.from(e0, e1, …)`
+  /** ⭐⭐ H7 (step 92h) — `array.get(a, i)` / `a.get(i)` where `a = array.from(e0, e1, …)`
    *  is NEVER CHANGED and `i` is the loop counter → the same `{v:'wget'}` a window
    *  pick is, in index order (`order: 'unshift'`: index k is element k), each slot the
    *  per-bar tree of `array.get(a, j)` read where the call stands — the resolver's own
@@ -19507,7 +19511,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         && Array.isArray(node.args) && node.args.length >= 1 && node.args.length <= 2
         && node.args.every((a) => a && !a.name)) {
       const fmtNode = node.args[1] && node.args[1].value
-      // ⭐ H7 (step 92) — `format.volume` per pass: the number carried with the
+      // ⭐ H7 (step 92h) — `format.volume` per pass: the number carried with the
       // format NAMED (`volume: true`), rendered by `volumeNumberText` exactly as the
       // per-bar `{t:'num', volume}` is. Any other non-literal format keeps its refusal.
       const volume = !!(fmtNode && fmtNode.type === 'name' && fmtNode.name === 'format.volume')
@@ -27248,7 +27252,7 @@ function resolvePaints(paints, ctx) {
   return out
 }
 
-/** ⭐ H7 (step 92) — the transparency a v3/v4 `fill` takes with no `transp`.
+/** ⭐ H7 (step 92h) — the transparency a v3/v4 `fill` takes with no `transp`.
  *  MEASURED: CAP4 Q-RT8d (`vw-rt8-v4-fill-transp-rddt-1d-2026-10-04` + the fill
  *  state read beside it, `docs/pine/vendor-harness/cap4-rt8d-fill-state-2026-10-04.json`):
  *  V01 `fill(a, b, color = close > open ? color.green : color.red)` holds

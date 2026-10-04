@@ -210,7 +210,7 @@ describe('CAP4 - the named wall Q-H5b is the evidence for, and Q-RT7 answered (H
       expect(v.reason).toMatch(/lower-tf:store-unmeasured/)
     }
   }, T)
-  // ⚰️ H7 (step 92) — Q-RT7 is NO LONGER A WALL. This rail pinned the objects pane's
+  // ⚰️ H7 (step 92h) — Q-RT7 is NO LONGER A WALL. This rail pinned the objects pane's
   // `pine:na` refusal of `fixnan` and the runtime run's named stop at "array.sum of
   // an empty array"; the CAP4 capture is the evidence both were answered from:
   // `fixnan` is served on the host lane as `valuewhenOccurrence(not na(x), x, 0)` and

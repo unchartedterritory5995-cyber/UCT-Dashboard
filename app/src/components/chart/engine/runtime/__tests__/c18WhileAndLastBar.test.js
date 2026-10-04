@@ -174,7 +174,7 @@ describe('⭐⭐ v6 `and`/`or` and `?:` do not run the side that is not taken', 
 
 describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('without a probe, an empty reduction and a gradient still stop the run by name', () => {
-    // ⚰️ H7 (step 92) — `array.avg` of an empty array is MEASURED now (`na`, CAP4
+    // ⚰️ H7 (step 92h) — `array.avg` of an empty array is MEASURED now (`na`, CAP4
     // Q-RT7a); `array.median` (not computed) is the unmeasured reduction left.
     expect(() => run('a = array.new<float>()\nplot(array.median(a))\n')).toThrow(/array\.median/)
     // ⚰️ C29 computes a gradient; only what no capture pins stops. ⭐ C48 re-pin —

@@ -184,7 +184,7 @@ const nonEmpty = (arr, what) => {
  *  na`), call `array.max` / `array.min` of the empty array, and TradingView draws
  *  the script through those bars (Q-RT7a asks the empty case directly).
  *
- *  ⭐⭐ H7 (step 92) — `array.sum` / `array.avg` over ZERO real elements answer
+ *  ⭐⭐ H7 (step 92h) — `array.sum` / `array.avg` over ZERO real elements answer
  *  `na` too: MEASURED. CAP4 Q-RT7a (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`,
  *  AMEX:SPY 1D, all 8,477 bars from the listing) reads E03 `array.sum` and E04
  *  `array.avg` of an EMPTY array, and E05 / E06 `sum` / `avg` of `(na, na)`, as
@@ -217,7 +217,7 @@ const realsOf = (arr, what) => {
  *
  *  ⛔ WITHOUT a probe the refusal stands, word for word. ⛔ AN `na` ELEMENT is a
  *  different question (skip it, or poison the result?) and is never probed here.
- *  ⭐ H7 (step 92) — `array.sum` / `array.avg` no longer take the probe: CAP4 Q-RT7a
+ *  ⭐ H7 (step 92h) — `array.sum` / `array.avg` no longer take the probe: CAP4 Q-RT7a
  *  MEASURED them (`na` over zero real elements, above), so a measured answer
  *  replaces the unknown one. `array.median` / `array.stdev` (not computed) keep it. */
 const probedEmpty = (arr, what, budget) => {
@@ -229,7 +229,7 @@ const probedEmpty = (arr, what, budget) => {
 
 /** ⭐ F8 — a caller may PROBE ONLY SOME unmeasured values (`budget.unmeasured.only`,
  *  a list of names); no list = every unmeasured value (the object lane, C18).
- *  ⚰️ H7 (step 92) — F8's interim pane probe of `array.sum` / `array.avg` over zero
+ *  ⚰️ H7 (step 92h) — F8's interim pane probe of `array.sum` / `array.avg` over zero
  *  real elements is gone (CAP4 measured `na`); no product caller passes a list now. */
 export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.includes(what)
 

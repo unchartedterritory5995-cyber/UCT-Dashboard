@@ -791,6 +791,24 @@ export const switchedVarSeed = (seed) => ({
 const ONE = () => ({ type: 'num', value: 1 })
 const oneTimes = (x) => ({ type: 'op', name: '*', args: [ONE(), x] })
 export const readingSeed = (seed, reading) => (reading === 'update' ? oneTimes(oneTimes(seed)) : oneTimes(seed))
+/** ⭐⭐ H7 (step 92h) — THE PLAIN FORM'S `na` SEED, READ AS AN UPDATE. `x = init` then
+ *  `x := … x[1] …` (`pine.js`, the mutable plain form) folds to `accum(0 / 0, …)`:
+ *  its seed is always `na`, because `self` is only `x[k]`, which on bar 0 is `na`.
+ *  So its bar 0 is ALWAYS the update run from that `na` — Pine runs `x := …` on bar
+ *  0 — never the seed itself. Unmarked, the listing pass kept both readings (`na`,
+ *  and the update) and drew bar 0 only where they agreed: the supertrend ratchet's
+ *  mid (`math.avg(lw, up)`) was withheld on bar 0, where TradingView reads 0 (CAP4
+ *  Q-RT8a R01, `vw-rt8-runtime-followups-rddt-1d-2026-10-04`; F7 saw the same bar
+ *  on trend-targets). The translator says so by writing the seed as
+ *  `1 * (1 * (0 / 0))` — `readingSeed`'s `'update'` shape around `0 / 0`, outside a
+ *  switched mark (C29 carried a reading only inside one).
+ *  ⛔ VALUE-SAFE: `NaN` to every reader that does not know it, exactly as `0 / 0`.
+ *  ⛔ BUDGET-NEUTRAL: the recurrence reads only the inner `0 / 0`
+ *  (`runRecurrence`'s `spelled.seed`), so `evaluationUnits` (and
+ *  `ast_interpret.evaluation_units`) count the inner seed, never the two wrappers —
+ *  measured, the wrappers cost keltner-center-of-gravity 128 -> 130 against the cap. */
+export const plainUpdateSeed = () => readingSeed({ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }, 'update')
+export const isPlainUpdateSeed = (n) => isOneTimes(n) && isOneTimes(n.args[1]) && isZeroOverZero(n.args[1].args[1])
 /** ⭐⭐ C47 — a THIRD reading, `'held'`, for ONE seed: `false`. Written
  *  `0 != (0 / 0)`. The state ENTERS bar 0 holding `false` whichever way it is
  *  read — bare, or through `x[k]` — and bar 0 runs the update from it. That is a
@@ -4175,8 +4193,11 @@ export function evaluationUnits(root, held) {
     const spec = n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name)
       ? RECURRENCES[n.name] : null
     const bodyAt = spec && Number.isInteger(spec.body) ? spec.body : -1
+    const seedAt = spec && Number.isInteger(spec.seed) ? spec.seed : -1
     for (let ai = 0; ai < args.length; ai += 1) {
-      stack.push([args[ai], childScope, ai === bodyAt ? `${scope}|${sid}` : rec])
+      // ⭐ H7 — a plain-update seed mark is read as its inner seed (`isPlainUpdateSeed`)
+      const a = ai === seedAt && isPlainUpdateSeed(args[ai]) ? args[ai].args[1].args[1] : args[ai]
+      stack.push([a, childScope, ai === bodyAt ? `${scope}|${sid}` : rec])
     }
   }
   return { count: units.size }
@@ -6574,7 +6595,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // bounded window never reads it (its window starts from an unknown state).
     const switchedReal = switchedSeedOf(node.args[rec.seed])
     // ⭐ C29 — a spelled bar-0 reading rides inside the switched mark (`readingSeed`).
-    const spelled = switchedReal ? readingOf(switchedReal) : null
+    // ⭐ H7 — and a plain form's `na` seed carries its own (`plainUpdateSeed`).
+    const spelled = switchedReal ? readingOf(switchedReal)
+      : isPlainUpdateSeed(node.args[rec.seed]) ? readingOf(node.args[rec.seed]) : null
     const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
     heldLatch = !!spelled && spelled.reading === 'held'
     const seed = toColumn(evalNode(seedNode), length)

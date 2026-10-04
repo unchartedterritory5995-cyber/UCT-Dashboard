@@ -229,7 +229,7 @@ const replayPush = () => {
       out.AVG.push([i, s / arr.length])
       out.MAX.push([i, Math.max(...arr)])
     } else {
-      // ⭐ H7 (step 92) — an EMPTY array's avg / max is `na`, MEASURED (CAP4 Q-RT7a):
+      // ⭐ H7 (step 92h) — an EMPTY array's avg / max is `na`, MEASURED (CAP4 Q-RT7a):
       // the label is drawn at `na`, as FIRST / LAST below are (it was withheld)
       out.AVG.push([i, null])
       out.MAX.push([i, null])
@@ -335,7 +335,7 @@ if close > top.bump()
   })
 })
 
-describe('⭐⭐ H7 (step 92) — zero real elements is the MEASURED `na` (CAP4 Q-RT7a); a real + `na` mix stays withheld', () => {
+describe('⭐⭐ H7 (step 92h) — zero real elements is the MEASURED `na` (CAP4 Q-RT7a); a real + `na` mix stays withheld', () => {
   it('an all-`na` fixed window is drawn at `na` on every bar (it was withheld); a partly filled one is withheld until full', () => {
     const t = tr(`var e = array.new_float(3)
 var p = array.new_float(3)

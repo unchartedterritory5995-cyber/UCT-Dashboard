@@ -192,6 +192,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 91 | CAP4 capture lane (section CAP4): the 2026-10-03 queues captured as unsaved drafts - Q-H5a format.volume (K below a million, trailing zeros trimmed, ties up, no roll-over `1000M`, `2.5T`), Q-H5b `timeframe.*` inside a request is the REQUESTED timeframe (W 10080, M 43830, 240, 3), Q-RT7a/b empty / all-na reductions are `na` and fixnan equals the replay (SPY full history, 8477 bars), Q-RT8a `ta.wma` rule A (W01 bar 26, W03 bar 58), Q-RT8b/c per-bar shape and fill colours, Q-RT8d v4 fill default transparency 90 | `cf5e6b7e8c`, `0738cc8edf`, `f4bf3beffa` | 6 harness files + `cap4-verdicts.json` (12 rows) | - | our grade: H5a DIVERGE (16 cells withheld), H5b INCONCLUSIVE (pine:request 240), RT7 INCONCLUSIVE (objects pine:na; runtime stops on `array.sum` of an empty array), RT8 followups DIVERGE (host lane wma rule B-like + bar-0 mid), RT8d MATCH (A/B; fills not graded) |
 | 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
+| 92h | H7 what CAP4 proved, served (section H7): `format.volume` K/M/B/T exactly as Q-H5a (ties up, no roll-over `1000M`, `2.5T`, negatives) per pass of a loop over a constant `array.from`; the plain `x = init` / `x := ... x[1] ...` form runs its update on bar 0 (`interpret.js::plainUpdateSeed`, budget-neutral in both lanes) - R01/S01/S04 and R03_trend bar 0; empty / all-na `array.max/min/sum/avg` answer the measured `na` with no stop in the runtime AND object lanes (F8's interim two-probe run removed); `fixnan` served on the host lane per call site; v4 `fill` with no `transp` holds 90 (`cap4-rt8d-fill-state-2026-10-04.json`); `ta.wma` warm-up is F7's (row 93) | `de52c4fe0e`, `9c0281c616`, `fbb9f529ad`, `0fa3de61f0`, this tip | - | CAP4 re-measured (`CAP4_MEASURE=1`): H5a DIVERGE->MATCH, RT7 INCONCLUSIVE->MATCH 11/11 (both states), RT8 followups 2->8 of 9 MATCH (S03 INCONCLUSIVE->DIVERGE NOT DRAWN is F8's rule, owner H8); 0 MATCH lost |
 | 93 | F7 the host lane's FFILL warm-up (section F7): `ta.wma` first answers on its n-th FINITE input in the host lane too (`interpret.js::rolling`, `ast_interpret.py::_rolling`), one rule with RT8's VM (host == VM on 18 gappy warm-ups; host `ema(wma(x,40),14)` over trend-targets RDDT's own input == TradingView's Baseline from bar 140; JS == Python by fixture; Q-RT8a unseparated, the VM's rule kept). B1 paint pins re-measured: 14 unchanged, 26 CAP3-era captures added, 7 off-listing SPY rows differ only inside the first 100 bars or undrawn. Harness lower-timeframe supply cut at the capture's clock (c41 1W); c41 / c47 re-pinned (CAP round 4's 60m capture; H5's listing anchor) | `8e90125e53`, `912187ddc8` | harness 335 files x off/on/runtime with libraries: 70/92/107 MATCH before and after, 0 rows changed (full content); CAP3 signatures unchanged | unchanged | none; census 56/82/99, 0 rows changed |
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
@@ -7764,3 +7765,69 @@ pine.vendorParity, pine.derived, pine.namedargs, objectFnInline, pine.test) 11 f
   B1's probe is now captured - whether that capture settles it is the paint owner's call (not measured here).
 - The other-symbol supply (`otherSymbolSupply`) is not cut at the capture's clock; no red needs it today (not
   measured).
+
+## H7 - what CAP4 proved, served: format.volume, the plain form's bar 0, empty reductions, fixnan, v4 fill transp (2026-10-04, step 92h)
+
+Every answer below is a TradingView capture (CAP4, `tests/fixtures/vendor/harness/vw-*-2026-10-04`); nothing is inferred.
+
+1. **`format.volume` (Q-H5a)** - `pineTextFormat.js::volumeNumberText`: 0, 7, 999, 1K, 1.5K, 12.345K, 999.999K, 1M,
+   3.1M, 3.126M (a tie rounds up), 1000M (999,999,600: the unit does NOT roll over), 1B, -1.5K, -3.1M, 2.5T. The probe's
+   per-pass cell (`array.get(vals, i)` of an unchanged `array.from`) is read on the host lane (`pine.js::loopFromGetOf`).
+   Still withheld (no capture): a non-whole or negative value below 1,000, a negative tie, -0, >= 1e15.
+   H5a DIVERGE -> MATCH (on, runtime).
+2. **The plain form's bar 0 (Q-RT8a R01)** - `x = init` then `x := ... x[1] ...` folds to `accum(0 / 0, update)`. From
+   the listing the pass held two bar-0 readings (the `na` seed, and the update run from `na`) and drew bar 0 only where
+   they agreed, so the supertrend ratchet's mid (`math.avg(lw, up)`) was withheld where TradingView reads 0. The plain
+   form ALWAYS means the update: the translator now writes the seed as `1 * (1 * (0 / 0))`
+   (`interpret.js::plainUpdateSeed`, `readingSeed`'s `'update'` shape) on a pane, never on a screen. `NaN` to every
+   reader but the listing pass. The node budget counts it as the inner `0 / 0` in BOTH lanes
+   (`evaluationUnits`, `ast_interpret.evaluation_units` - a first try that counted the wrappers took
+   keltner-center-of-gravity 128 -> 130 over the cap). Moved: RT8 followups R01 / S01 / S04 DIVERGE -> MATCH (bar 0;
+   S01 / S04 colour follows R01); capRound4 R03_trend MATCH 636/636; coverage audit
+   optimized-keltner-channels RDDT -> MATCH. Python has no listing pass for recurrences (pre-existing; its answer
+   from the listing is withheld, never wrong) - only the budget needed parity.
+3. **Empty / all-na reductions (Q-RT7a) and `fixnan` (Q-RT7b)** - `array.max/min/sum/avg` of an empty array, and
+   `sum/avg` of (na, na), answer `na` with no runtime error, in the runtime lane (`runtime/collections.js`) and the
+   object lane (window reductions: an empty or all-na window is drawn at `na`; a real + na mix stays withheld until
+   full). This REPLACES F8's interim probe: `interimProbedZeroReals` and `runtimeColumns.js INTERIM_PANE_PROBED` (the
+   two-probe pane run) are removed; `probeAllows` stays for the older unmeasured probe (median / stdev).
+   `fixnan(x)` is served on the host lane as `ta.valuewhen(not na(x), x, 0)` (`valuewhenOccurrence`), each call site
+   its own memory - F01 / F02a / F02b match on all 8,477 bars; the objects pane no longer refuses the probe
+   (`pine:na`). RT7 INCONCLUSIVE -> MATCH 11/11 (on, runtime).
+   **F8 rails changed**: `vendorHarness.f8Ungraded` Z - delta-rsi RDDT runtime now MATCHes on its four markers
+   (was INCONCLUSIVE `runtime:limit`); the INTERIM control (a column that moves with the sum stopped
+   `runtime:unmeasured`) is now SERVED equal to `close` bar for bar; the unit rail asserts `na` with no probe
+   consulted. `runtimePaneSafety` x2: the named-stop fixture is a REAL collection error now (`array.get` index 5 of
+   a 2-element array), still `runtime:failed`. `vendorHarness.coverageAudit` delta-rsi RDDT -> MATCH (SPY still
+   `runtime:history-start`).
+4. **v4 `fill` default transparency (Q-RT8d)** - no `transp` => 90, `transp = 60` => 60
+   (`cap4-rt8d-fill-state-2026-10-04.json`); `pine.js::v4FillArgs` adds the default over a plain colour. Focused rail:
+   `vendorHarness.h7Cap4Findings` "H7 4".
+5. **`ta.wma` warm-up** - F7's implementation (row 93) is kept byte for byte; H7's parity pair
+   (`wmaRuleAParity.test.js`, `tests/test_ast_wma_rule_a_parity.py`) passes on it: W01 26, W02 30, W03 58.
+
+### CAP4 re-measured (`CAP4_MEASURE=1 cap4Captures.measure.test.js`)
+
+| capture | state | before (wave 17 tip) | after |
+|---|---|---|---|
+| vw-h5-format-volume-spy | on / runtime | DIVERGE | MATCH |
+| vw-rt7-empty-reduce-fixnan-spy | on / runtime | INCONCLUSIVE | MATCH 11/11 |
+| vw-rt8-runtime-followups-rddt | on / runtime | DIVERGE, 2/9 MATCH | DIVERGE, 8/9 MATCH |
+| vw-rt8-v4-fill-transp-rddt | on / runtime | MATCH | MATCH |
+| vw-h5-request-timeframe-text-spy | on / runtime | INCONCLUSIVE | INCONCLUSIVE |
+
+Moved rows: W01 / W02 / W03 DIVERGE -> MATCH (F7 + H7 rule A); R01 / S01 / S04 DIVERGE -> MATCH (item 2);
+S03 INCONCLUSIVE -> DIVERGE `not-drawn` 636 - F8's NOT DRAWN rule (row 94), not an engine change, owner H8.
+0 MATCH lost.
+
+### Mutation checks
+
+The plain-form mark off in `pine.js` -> 5 red; the listing pass not reading it -> 2 red; the JS budget counting
+the wrappers -> 1 red; the Python budget counting them -> 1 red; `array.sum` of zero reals answering 0 -> 2 red
+(f8Ungraded). Each restored from captured bytes, sha256 verified.
+
+### Open
+
+- RT8 followups S03 (`color.new` per-bar shape) NOT DRAWN - H8.
+- F7's trimmed trend-targets Baseline one bar late from the ratchet's bar-0 `na` may be served by item 2 (not measured here).
+- `format.volume`'s withheld shapes (item 1) need a capture.

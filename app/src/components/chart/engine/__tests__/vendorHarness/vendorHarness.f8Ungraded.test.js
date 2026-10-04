@@ -11,9 +11,8 @@
 //   ND  a plot TradingView draws visibly while OUR engine hid the row as "reads
 //       no bar" is NOT DRAWN — a DIVERGE, not "colour unresolvable";
 //   Z   `array.sum` / `array.avg` over zero real elements no longer stops the
-//       runtime pane: the run answers two probes and serves only what does not
-//       move (delta-rsi's four markers, witnessed MATCH), and names the stop
-//       (`runtime:unmeasured`) when a drawn column moves.
+//       runtime pane. ⚰️ F8's interim two-probe run is GONE (H7, step 92h): the
+//       answer is MEASURED, `na` (CAP4 Q-RT7a), served in one run.
 //   R   a column the door computed nothing for carries the door's own sentence
 //       (`ourSide.js` reads `columnErrors`), never a bare "no column".
 
@@ -184,21 +183,17 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
 })
 
 // ─── Z + R ────────────────────────────────────────────────────────────────────
-describe('F8 Z — array.sum / array.avg over zero real elements, under two probes', () => {
-  // ⭐ The zero-reals wall is gone; the NEXT wall is the run-wide LOOP_ITERATIONS
-  // ceiling (limits.js, 100,000 for the WHOLE run, provisional): delta-rsi's
-  // nested matrix loops pass it on bar 85 of 636. RT10's (runtime walls). Measured
-  // by substitution (ceiling raised in a scratch run, bytes restored): all four
-  // markers MATCH on 636 / 636 bars — so the computation is right and only the
-  // ceiling stands. Pinned here as a NAMED stop, never an unexplained column.
-  it('delta-rsi RDDT 1D (runtime pane): past the array.sum wall, stopped BY NAME at the LOOP_ITERATIONS ceiling (RT10)', () => {
+describe('F8 Z — array.sum / array.avg over zero real elements (H7: the MEASURED `na`, one run)', () => {
+  // ⭐ F8 took delta-rsi past its all-na `array.sum` with an INTERIM two-probe run and
+  // pinned the next wall (the run-wide LOOP_ITERATIONS ceiling). RT10b made that
+  // ceiling per-bar, and H7 (step 92h) replaced the probe with the measured `na`
+  // (CAP4 Q-RT7a, `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`): ONE run, no doubled
+  // loop work. All four markers MATCH, as F8's substitution run predicted.
+  it('delta-rsi RDDT 1D (runtime pane): past the array.sum wall, all four markers MATCH (H7)', () => {
     const { verdict: v } = grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'runtime')
     for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) {
       const p = itemsTitled(v, t)[0]
-      expect(p.verdict, t).toBe('INCONCLUSIVE')
-      expect(p.reason, t).toMatch(/runtime:limit/)
-      expect(p.reason, t).toMatch(/LOOP_ITERATIONS/)
-      expect(p.reason, t).not.toMatch(/array\.sum/)
+      expect(p.verdict, `${t}: ${p.reason}`).toBe('MATCH')
     }
   }, T)
 
@@ -244,27 +239,32 @@ plot(${plotExpr}, "D")
     expect(cols.value.length).toBeGreaterThan(600)
   }, T)
 
-  // ⚠️ INTERIM (lane H7): CAP4 measures TradingView's answer for an all-na / empty sum as `na`.
-  // When H7 lands that direct answer, THIS is the rail that changes: the column below is
-  // then served (na(s) is true, so it reads `close`), and the probe mechanism is removed.
-  it('⛔ CONTROL (INTERIM, H7 replaces) — a drawn column that MOVES with the unmeasured sum stops by name (runtime:unmeasured), never a guess', () => {
+  // ⭐ H7 (step 92h) — THE RAIL F8 NAMED AS THE ONE THAT CHANGES. The all-na sum is the
+  // measured `na`, so `na(s)` is true on every bar and the column reads `close`:
+  // served, equal to the plain `close` column bar for bar. (F8's interim stopped it
+  // `runtime:unmeasured`.) Control: the `else` arm (`close + 1`) is never taken.
+  it('⭐ a drawn column that MOVES with the sum is served at the measured `na` (na(s) is true: it reads close)', () => {
     const { cols, errs } = runtimeColumnsOf(SRC('na(s) ? close + acc * 0 : close + 1 + acc * 0'))
-    expect(cols.value).toBeUndefined()
-    expect(errs.value.guard).toBe('runtime:unmeasured')
-    expect(errs.value.message).toMatch(/array\.sum/)
-    expect(errs.value.message).toMatch(/"D"/)
+    expect(errs).toEqual({})
+    const ref = runtimeColumnsOf(SRC('close + acc * 0')).cols.value
+    expect(cols.value.length).toBe(ref.length)
+    expect(Array.from(cols.value)).toEqual(Array.from(ref))
   }, T)
 
-  it('without a probe the stop stands word for word; a probe limited to other names does not reach sum', () => {
+  it('array.sum / array.avg of zero real elements answer `na` with no budget probe at all; real elements still reduce, na skipped', () => {
     const sum = ARRAY_FNS['array.sum'].fn
-    expect(() => sum([[NaN, NaN]], new Budget())).toThrow(/every element is na/)
-    const scoped = new Budget()
-    scoped.unmeasured = { probe: 7, hits: [], only: ['array.avg'] }
-    expect(() => sum([[NaN]], scoped)).toThrow(/every element is na/)
+    const avg = ARRAY_FNS['array.avg'].fn
+    expect(sum([[NaN, NaN]], new Budget())).toBeNaN()
+    expect(sum([[]], new Budget())).toBeNaN()
+    expect(avg([[NaN, NaN]], new Budget())).toBeNaN()
+    expect(avg([[]], new Budget())).toBeNaN()
+    // a probe a caller might still set is never consulted by sum / avg
     const probed = new Budget()
-    probed.unmeasured = { probe: 7, hits: [], only: ['array.sum'] }
-    expect(sum([[NaN, NaN]], probed)).toBe(7)
-    expect(sum([[NaN, 2, 3]], probed)).toBe(5)   // RT7: real elements still reduce, na skipped
-    expect(probed.unmeasured.hits).toEqual(['array.sum'])
+    probed.unmeasured = { probe: 7, hits: [], only: ['array.sum', 'array.avg'] }
+    expect(sum([[NaN, NaN]], probed)).toBeNaN()
+    expect(avg([[NaN]], probed)).toBeNaN()
+    expect(probed.unmeasured.hits).toEqual([])
+    expect(sum([[NaN, 2, 3]], new Budget())).toBe(5)   // RT7
+    expect(avg([[NaN, 2, 4]], new Budget())).toBe(3)
   })
 })

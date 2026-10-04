@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/wmaRuleAParity.test.js
 //
-// ─── ⭐⭐ H7 (step 92) — `ta.wma`'s WARM-UP IS RULE A, IN BOTH HOST LANES ─────────
+// ─── ⭐⭐ H7 (step 92h) — `ta.wma`'s WARM-UP IS RULE A, IN BOTH HOST LANES ─────────
 //
 // CAP4 Q-RT8a (`vw-rt8-runtime-followups-rddt-1d-2026-10-04`, NYSE:RDDT 1D from the
 // listing) measured it: `ta.wma(src, 10)` over a source finite on bars 0-2, `na` on
@@ -79,7 +79,7 @@ describe('⭐⭐ H7 — ta.wma rule A: the first answer is the n-th FINITE input
 
   it('the parity fixture is the JS lane\'s own output (the Python lane reads it)', () => {
     const doc = {
-      _: 'H7 (step 92) — ta.wma rule A. Written by app/src/components/chart/engine/ast/wmaRuleAParity.test.js, read by tests/test_ast_wma_rule_a_parity.py. Never edit by hand.',
+      _: 'H7 (step 92h) — ta.wma rule A. Written by app/src/components/chart/engine/ast/wmaRuleAParity.test.js, read by tests/test_ast_wma_rule_a_parity.py. Never edit by hand.',
       bars: BARS,
       cases: CASES.map((c) => ({ name: c.name, bars: c.bars, ast: c.ast, first: c.first, expected: asJson(col(c.ast, BARS[c.bars])) })),
     }

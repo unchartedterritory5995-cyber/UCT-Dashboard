@@ -1,5 +1,5 @@
 {
-  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand. H7 (step 92) re-measured H5a, RT7 and RT8-followups after its engine fixes (CAP4_MEASURE=1).",
+  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand. H7 (step 92h) re-measured H5a, RT7 and RT8-followups after its engine fixes (CAP4_MEASURE=1).",
   "captures": [
     {
       "id": "vw-h5-format-volume-spy-1d-2026-10-04",
@@ -229,11 +229,8 @@
           ],
           [
             "R01 mid",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R02 close",
@@ -242,11 +239,8 @@
           ],
           [
             "S01 shape per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "S02 char per-bar with na",
@@ -255,16 +249,16 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "DIVERGE",
+            0,
+            "not-drawn",
+            636,
+            null
           ],
           [
             "S04 shape per-bar with text",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
@@ -300,11 +294,8 @@
           ],
           [
             "R01 mid",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R02 close",
@@ -313,11 +304,8 @@
           ],
           [
             "S01 shape per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "S02 char per-bar with na",
@@ -326,16 +314,16 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "DIVERGE",
+            0,
+            "not-drawn",
+            636,
+            null
           ],
           [
             "S04 shape per-bar with text",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ]
         ],
         "objects": [

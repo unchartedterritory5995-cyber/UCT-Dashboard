@@ -257,7 +257,7 @@ describe('⭐ H5 — `format.volume` (`volumeNumberText`): the witnessed M / B r
     expect(volumeNumberText(-29983517)).toBe('-29.984M') // RDDT OBV from the listing
     expect(volumeNumberText(10801000123)).toBe('10.801B') // SPY OBV: the suffix and three decimals
   })
-  // ⭐ H7 (step 92): CAP4 Q-H5a (`vw-h5-format-volume-spy-1d-2026-10-04`) printed the
+  // ⭐ H7 (step 92h): CAP4 Q-H5a (`vw-h5-format-volume-spy-1d-2026-10-04`) printed the
   // renderings H5 withheld; each row below is that capture's cell, verbatim.
   it('H7 — the CAP4 Q-H5a cells: K below a million, trailing zeros trimmed, a tie up, no roll-over, T', () => {
     const cap4 = [[0, '0'], [7, '7'], [999, '999'], [1000, '1K'], [1500, '1.5K'], [12345, '12.345K'],

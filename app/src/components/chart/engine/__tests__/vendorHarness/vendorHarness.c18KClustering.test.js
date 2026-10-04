@@ -85,7 +85,7 @@ describe('⭐ C18 — k-clustering', () => {
     expect(a.budget.counts.LOOP_ITERATIONS).toBe(22820)
     expect(a.budget.counts.LOOP_ITERATIONS).toBeGreaterThan(DEFAULT_LIMITS.LOOP_ITERATIONS)
     expect(a.budget.counts.INSTRUCTIONS_PER_BAR).toBeGreaterThan(DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR)
-    // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ H7 (step 92) —
+    // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ H7 (step 92h) —
     // that answer is MEASURED now (`array.avg` of an empty array is `na`, CAP4
     // Q-RT7a), so it no longer takes the probe: no hit, and the two runs agree
     // everywhere because nothing in them is unknown.

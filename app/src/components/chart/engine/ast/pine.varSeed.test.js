@@ -139,9 +139,11 @@ describe('⭐⭐ a `var` on bar 0: `x[1]` is `na`, bare `x` is the initializer',
     // `x = 0.0` re-runs every bar, so a bare `x` in the update is that binding —
     // never `self` — and `self` only ever comes from `x[1]`, which is `na` on bar 0.
     const plain = 'x = 0.0\nx := close > open ? open : x[1]\nplot(x)\n'
-    for (const strict of [true, false]) {
-      expect(formulaOf(plain, strict)).toBe('accum(0 / 0, close > open ? open : self, 250)')
-    }
+    // ⭐ H7 (step 92h) — on the PANE the `na` seed carries its bar-0 reading (the
+    // update run from `na`, `interpret.js::plainUpdateSeed`); a screen keeps `0 / 0`.
+    // Both evaluate to `NaN` everywhere but the listing pass.
+    expect(formulaOf(plain, true)).toBe('accum(1 * (1 * (0 / 0)), close > open ? open : self, 250)')
+    expect(formulaOf(plain, false)).toBe('accum(0 / 0, close > open ? open : self, 250)')
     const bars = barsWith([])
     expect(run(formulaOf(plain), bars).filter(Number.isFinite)).toEqual([])
   })
@@ -149,10 +151,10 @@ describe('⭐⭐ a `var` on bar 0: `x[1]` is `na`, bare `x` is the initializer',
   it('`nz(x[1])` answers what it always did — the `na` seed is exactly what `nz` exists to replace', () => {
     const guarded = 'x = 0.0\nx := close > open ? open : nz(x[1])\nplot(x)\n'
     const f = formulaOf(guarded)
-    expect(f).toBe('accum(0 / 0, close > open ? open : nz(self, 0), 250)')
+    expect(f).toBe('accum(1 * (1 * (0 / 0)), close > open ? open : nz(self, 0), 250)')
     const bars = barsWith([270])
     const got = run(f, bars)
-    const before = run(f.replace('accum(0 / 0, ', 'accum(0, '), bars)
+    const before = run(f.replace('accum(1 * (1 * (0 / 0)), ', 'accum(0, '), bars)
     for (let i = W; i < N; i++) expect(got[i], `bar ${i}`).toBe(before[i])
     expect(got[260]).toBe(0)
     // …and the `var` spelling, whose only self-reads are nz-guarded history, is

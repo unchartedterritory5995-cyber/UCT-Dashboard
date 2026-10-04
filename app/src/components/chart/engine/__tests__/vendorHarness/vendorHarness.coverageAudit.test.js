@@ -166,16 +166,19 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // optimized-keltner-channels-sltp-strategy-for-btc -----------------------------
-  it.fails('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
+  // ⭐ H7 (step 92h) — the two untitled plots' bar 0 (ours na, TradingView 0) is served
+  // now: the plain `x = …` / `x := … x[1] …` runs its update on bar 0
+  // (`interpret.js::plainUpdateSeed`), so RDDT MATCHes.
+  it('optimized-keltner-channels-sltp-strategy RDDT: MATCH (H7, the plain form\'s bar-0 update)', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY Upper/Basis/Lower are converging prefixes (a window not from the listing)', () => {
+  it('control: RDDT the two untitled plots agree on every bar, bar 0 included; SPY Upper/Basis/Lower are converging prefixes (a window not from the listing)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
     for (const p of plots) {
-      expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
-      expect(p.stats.steady.divergent).toBe(1)
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats.steady.divergent).toBe(0)
     }
     const s = grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v
     for (const t of ['Upper', 'Basis', 'Lower']) expect(item(s, t).stats.steady.pattern.kind, t).toBe('converging-prefix')
@@ -406,12 +409,18 @@ describe('CAP2 coverage audit — INCONCLUSIVE', () => {
   // ⭐ F8 — the reason is now the door's own (columnErrors): RDDT runs past its array.sum
   // over zero real elements and stops at the run-wide LOOP_ITERATIONS ceiling (RT10's);
   // SPY is refused runtime:history-start. Never an unexplained column.
-  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short, and says why', () => {
-    for (const id of ['delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02']) {
-      const v = grade(id, 'runtime').v
-      expect(v.verdict, id).toBe('INCONCLUSIVE')
-      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column for \w+ — runtime:(limit|history-start)/)
-    }
+  // ⭐ H7 (step 92h) — RDDT MATCHes now: its bar-0 `array.sum` over 21 `na` elements is
+  // the measured `na` (CAP4 Q-RT7a) in ONE run, with RT10b's per-bar LOOP_ITERATIONS;
+  // F8's interim two-probe run (which doubled the loop work) is gone. SPY is still
+  // refused `runtime:history-start` (a window not from the listing).
+  it('delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHes on its four markers; SPY computes no column and says why', () => {
+    const r = grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'runtime').v
+    expect(r.verdict, r.reason).toBe('MATCH')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(r, t).verdict, t).toBe('MATCH')
+    const id = 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02'
+    const v = grade(id, 'runtime').v
+    expect(v.verdict, id).toBe('INCONCLUSIVE')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column for \w+ — runtime:(limit|history-start)/)
   }, T)
   it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low); F8 pairs the 11 by declaration order and the capture grades MATCH', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v

@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.h7Cap4Findings.test.js
 //
-// H7 (2026-10-04, step 92) - the engine fixes CAP4's captures proved, each graded
+// H7 (2026-10-04, step 92h) - the engine fixes CAP4's captures proved, each graded
 // against those captures (the CAP4 pins in `vendorHarness.cap4Captures.test.js` /
 // `cap4-verdicts.json` carry the whole-capture grade; this file holds the pieces
 // a whole-capture grade cannot see, and the controls that keep each fix honest).
@@ -9,7 +9,7 @@
 //      (Q-H5a's own shape) is read on the host lane (`pine.js::loopFromGetOf`,
 //      `{t:'val', volume}`), rendered by `volumeNumberText`.
 //   2. ta.wma rule A (Q-RT8a) - `wmaRuleAParity.test.js` + the Python twin; the
-//      plain-form ratchet's bar 0 (R01) is diagnosed and pinned, not fixed (below).
+//      plain-form ratchet's bar 0 (R01) - `interpret.js::plainUpdateSeed`.
 //   3. Empty / all-na reductions are `na` on the runtime lane (Q-RT7a), and
 //      `fixnan` is served on the host lane as `valuewhenOccurrence` (Q-RT7b).
 //   4. A v4 `fill` with no `transp` holds 90 (Q-RT8d, the fill-state sidecar).
@@ -22,6 +22,7 @@ import { toProductBars, runOurSide } from './ourSide'
 import { translatePine } from '../../ast/pine'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { computeRuntimeColumns } from '../../runtime/runtimeColumns'
+import { nodeCount } from '../../ast/interpret'
 
 const T = 600000
 const cap = (id) => loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
@@ -93,29 +94,33 @@ describe('H7 1 - format.volume per pass of a loop over a constant array (CAP4 Q-
   })
 })
 
-// ⛔ R01 / S01 / S04 bar 0 is DIAGNOSED, NOT FIXED. `x = init` then `x := … x[1] …`
-// (the plain mutable form) folds to `accum(0 / 0, update)`. From the listing the pass
-// holds TWO bar-0 readings - the seed itself (`na`) and the update run from `na` - and
-// draws bar 0 only where they agree (`interpret.js::listingPass`). For the supertrend
-// ratchet they do not (`na` vs `0`), so bar 0 is withheld; TradingView runs the update
-// (0). The plain form ALWAYS means the update reading, but saying so needs a mark in the
-// tree (C29 carries one only inside a SWITCHED seed), and the mark measured +2 evaluation
-// units: keltner-center-of-gravity RDDT went 128 -> 130 and lost its object lane to
-// `budget:nodes`. Reverted; the shape is pinned here so the next lane sees it.
-describe('H7 2 - the plain-form ratchet\'s bar 0 is withheld where TradingView draws the update (diagnosis, CAP4 Q-RT8a R01)', () => {
+// ⭐⭐ R01 / S01 / S04 bar 0. `x = init` then `x := … x[1] …` (the plain mutable form)
+// folds to `accum(0 / 0, update)`. From the listing the pass held TWO bar-0 readings -
+// the seed itself (`na`) and the update run from `na` - and drew bar 0 only where they
+// agreed; for the supertrend ratchet they do not (`na` vs 0), so bar 0 was withheld
+// where TradingView runs the update (0). The plain form ALWAYS means the update, and
+// the translator now says so in the seed (`interpret.js::plainUpdateSeed`,
+// `1 * (1 * (0 / 0))`), counted by the node budget as the inner `0 / 0` (a first try
+// that counted the wrappers took keltner-center-of-gravity 128 -> 130 over the cap).
+describe('H7 2 - the plain-form ratchet runs its update on bar 0 (CAP4 Q-RT8a R01)', () => {
+  const text = '//@version=6\nindicator("t", overlay = true)\nx = 5.0\nx := close[1] < nz(x[1]) ? 1.0 : 7.0\nplot(x, "o")\n'
   it('TradingView: R01 is 0 on bar 0, na on 1-8, real from 9', () => {
     const tv = tvCol(cap('vw-rt8-runtime-followups-rddt-1d-2026-10-04'), 'R01 mid')
     expect(tv[0]).toBe(0)
     expect(tv.slice(1, 9).every((x) => x === null)).toBe(true)
   })
-  it('ours, from the listing: the two bar-0 readings disagree and bar 0 is withheld; bar 1 on is the update', () => {
+  it('the pane writes the update reading into the seed; a SCREEN keeps the plain `0 / 0`', () => {
+    expect(translatePine(text, { strict: true }).outputs.find((o) => o.title === 'o').formula).toMatch(/^accum\(1 \* \(1 \* \(0 \/ 0\)\), /)
+    expect(translatePine(text).outputs.find((o) => o.title === 'o').formula).toMatch(/^accum\(0 \/ 0, /)
+  })
+  it('from the listing bar 0 is the update (7, as Pine), and the mark costs the node budget nothing', () => {
     const base = cap('vw-rt8-runtime-followups-rddt-1d-2026-10-04')
-    const text = '//@version=6\nindicator("t", overlay = true)\nx = 5.0\nx := close[1] < nz(x[1]) ? 1.0 : 7.0\nplot(x, "o")\n'
     const r = withDoorState('on', () => runOurSide({ ...base, source: { ...base.source, text } }))
     const p = r.plots.find((x) => x.title === 'o')
-    expect(p.formula).toMatch(/^accum\(0 \/ 0, /)
-    expect(Number.isFinite(p.column[0])).toBe(false) // Pine: 7 (the update from na)
-    expect(Array.from(p.column.slice(1, 6))).toEqual([7, 7, 7, 7, 7])
+    expect(Array.from(p.column.slice(0, 4))).toEqual([7, 7, 7, 7])
+    const marked = translatePine(text, { strict: true }).outputs.find((o) => o.title === 'o').ast
+    const plain = translatePine(text).outputs.find((o) => o.title === 'o').ast
+    expect(nodeCount(marked)).toBe(nodeCount(plain))
   }, T)
 })
 

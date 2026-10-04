@@ -63,7 +63,7 @@ describe('⭐⭐ RT7 — the vw-array-na probe, run by the runtime lane, equals 
 describe('⛔ RT7 — what the capture does not pin stays a named stop', () => {
   const rows = CAP.bars.rows.slice(0, 5)
   const head = '//@version=6\nindicator("t")\n'
-  // ⚰️ H7 (step 92) — the stop this pinned is ANSWERED now: CAP4 Q-RT7a
+  // ⚰️ H7 (step 92h) — the stop this pinned is ANSWERED now: CAP4 Q-RT7a
   // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`) reads all four as `na` on every
   // bar with no runtime error. `vendorHarness.h7Cap4Findings.test.js` grades the run.
   it('`array.sum` / `array.avg` of an EMPTY array, or of an all-na array, are na (H7, measured) - not 0, not a stop', () => {

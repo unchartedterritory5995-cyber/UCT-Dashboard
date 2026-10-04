@@ -312,7 +312,7 @@ export function tickNumberText(n, tickText) {
 }
 
 /**
- * ⭐⭐ H5 (step 84) + H7 (step 92) — `str.tostring(n, format.volume)`, ONLY where
+ * ⭐⭐ H5 (step 84) + H7 (step 92h) — `str.tostring(n, format.volume)`, ONLY where
  * captures pin it, else `null` (WITHHELD). `na` prints `NaN`, as every other
  * `str.tostring` does.
  *
