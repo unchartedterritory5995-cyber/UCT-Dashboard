@@ -4648,6 +4648,17 @@ export default function LiveFlowMassive() {
         )
       )}
 
+      {/* Multi-day By-Contract ranges keep each day's LARGEST prints within a row
+          budget (full sessions, but small prints may be missing → hit counts low). */}
+      {viewMode === "contract" && byContract?.budget_cut_days?.length > 0 && (
+        <div style={{ margin: "0 0 12px", fontSize: 12, color: P.mt }}>
+          Multi-day range: {byContract.budget_cut_days.length} busy day
+          {byContract.budget_cut_days.length > 1 ? "s show their" : " shows its"} largest prints only
+          (whole session covered; smaller prints may be left out, so hit counts can read low).
+          Pick a single day for every print.
+        </div>
+      )}
+
       {/* Past day, market open: the server reads only the newest prints so it
           can't starve live ingestion (full-day after the close). Say so rather
           than silently showing an afternoon-only tape. */}

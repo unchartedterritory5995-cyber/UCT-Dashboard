@@ -3910,7 +3910,7 @@ def day_stats(
 # so a $250K print on a megacap and a $25K print on a $14 name are judged on
 # their own scale; META's 41-print 620C churn doesn't qualify, ACI's stack does.
 _by_contract_cache: dict = {}          # (date, stock_etf, min_hits, excl_algo) -> (ts, payload)
-_BY_CONTRACT_TTL = 30
+_BY_CONTRACT_TTL = int(os.environ.get("MASSIVE_BY_CONTRACT_TTL", "120"))  # today; past days _HISTORICAL_TTL
 _by_contract_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 # Per-print NOISE floor by cap band — a print must clear this to count as a
@@ -4103,9 +4103,21 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                        key=_parse_mdy, reverse=True)
         target_dates = dated[:lookback_days] or [today]
 
+    budget_cut_days = []
     if sources:
+        # Row budget (2026-10-03). The newest-N-by-id cap dropped each day's MORNING:
+        # a 1-day view past 20k color-gate rows started ~11:50 AM, and a 31-day
+        # range kept only the last ~3,200 rows (≈ last hour) of every day.
+        #  • 1-day views and single-ticker lookups: NO cap (full day, ~2-4s like
+        #    the Market Read; a ticker is a few hundred rows).
+        #  • multi-day market-wide ranges: a per-day budget filled by PREMIUM, not
+        #    recency — the rollup's floors/grades are premium-driven, so the biggest
+        #    prints of the WHOLE session are what matter. Days that hit the budget
+        #    are reported in `budget_cut_days`.
         base_cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
         cap = min(base_cap * len(target_dates), 100000)  # scale for the window
+        full_day = bool(only_ticker) or len(target_dates) == 1
+        order_by = "id DESC" if full_day else "CAST(Premium AS INTEGER) DESC"
         select_cols = (
             "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
             "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
@@ -4124,14 +4136,14 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             # guarantees every day in the window is represented → true multi-day
             # accumulation. Same total row budget → no extra _row_to_alert cost /
             # no timeout regression.
-            per_day = max(2000, cap // max(1, len(target_dates)))
+            per_day = -1 if full_day else max(2000, cap // max(1, len(target_dates)))
             for s in sources:
                 for dt in target_dates:
                     subqueries.append(
                         f"SELECT * FROM ({select_cols} FROM flow "
                         f"WHERE source = ? AND CreatedDate = ? AND {color_gate}"
                         f"{_tk_clause}"
-                        f"ORDER BY id DESC LIMIT ?)"
+                        f"ORDER BY {order_by} LIMIT ?)"
                     )
                     params.append(s)
                     params.append(dt)
@@ -4141,6 +4153,13 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                     params.append(per_day)
             cur = conn.execute(" UNION ALL ".join(subqueries), params)
             rows = cur.fetchall()
+            if per_day > 0:
+                _n = {}
+                for r in rows:
+                    k = (r["source"], r["CreatedDate"])
+                    _n[k] = _n.get(k, 0) + 1
+                budget_cut_days = sorted({d for (_s, d), n in _n.items() if n >= per_day},
+                                         key=_parse_mdy)
         finally:
             conn.close()
 
@@ -4419,6 +4438,8 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     return {
         "query_date": today, "stock_etf": stock_etf, "min_hits": min_hits,
         "contract_count": len(out), "contracts": out,
+        # Multi-day ranges: days whose rows hit the per-day budget (largest kept).
+        "budget_cut_days": budget_cut_days,
     }
 
 
@@ -5038,44 +5059,47 @@ def by_contract(
     hit count. Each row carries its individual prints for expand-on-click.
     Sorted by latest activity; also returns a `score` (qualifying_hits x total
     premium x direction-consistency, x2 for dormant/unusual names) for optional
-    conviction-first sorting. Cached 30s per (date, stock_etf, min_hits)."""
+    conviction-first sorting. Cached per (date, stock_etf, min_hits, ...): today 2 min
+    (stale served while one background refresh runs), past days 6h."""
     today = _resolve_date(target_date)   # ISO YYYY-MM-DD → M/D/YYYY (else zero-rows)
     se = stock_etf if stock_etf in ("stocks", "etfs", "all") else "all"
     now = time.time()
     key = (today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
     cached = _by_contract_cache.get(key)
-    if cached and (now - cached[0]) < _BY_CONTRACT_TTL:
+    # Today 2 min / past 6h (2026-10-03): the 1-day rollup now reads the FULL
+    # day (2.7-11s, was a newest-20k slice) inside the ingesting flow-worker.
+    ttl = _BY_CONTRACT_TTL if today == _today_mdyyyy() else _HISTORICAL_TTL
+    if cached and (now - cached[0]) < ttl:
         return cached[1]
-    # Single-flight + stale-serve (see day_stats). Bounds concurrent heavy
-    # recomputes to 1 so the 30s+ rollup pass can't pile up and starve /recent.
-    if not _by_contract_lock.acquire(blocking=False):
-        if cached:
-            return cached[1]
-        with _by_contract_lock:
-            c2 = _by_contract_cache.get(key)
-            if c2 and (time.time() - c2[0]) < _BY_CONTRACT_TTL:
-                return c2[1]
-            payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
-            # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
-            # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
-            # on fresh builds only — NOT in _build_by_contract, which the manual
-            # force-push path also calls.
-            _apply_auto_push(payload.get("contracts", []), mode="accumulation",
-                             live=(today == _today_mdyyyy()))
-            _by_contract_cache[key] = (time.time(), payload)
-            return payload
-    try:
+
+    def _fresh():
         payload = _build_by_contract(today, se, int(min_hits), bool(exclude_algo), int(lookback_days))
         # Accumulation auto-push: mark already-pushed contracts (POSTED persists in
         # the non-admin view) and fire newly-qualifying ones. Hooked in the ROUTE
         # on fresh builds only — NOT in _build_by_contract, which the manual
         # force-push path also calls.
         _apply_auto_push(payload.get("contracts", []), mode="accumulation",
-                             live=(today == _today_mdyyyy()))
+                         live=(today == _today_mdyyyy()))
         _by_contract_cache[key] = (time.time(), payload)
         return payload
-    finally:
-        _by_contract_lock.release()
+
+    if cached:
+        # STALE: serve it now; ONE background refresh (single-flight).
+        if _by_contract_lock.acquire(blocking=False):
+            def _refresh():
+                try:
+                    _fresh()
+                except Exception:
+                    logging.getLogger(__name__).exception("[massive] by-contract refresh failed")
+                finally:
+                    _by_contract_lock.release()
+            threading.Thread(target=_refresh, daemon=True, name="by-contract-refresh").start()
+        return cached[1]
+    with _by_contract_lock:                      # first-ever for this key: compute once
+        c2 = _by_contract_cache.get(key)
+        if c2 and (time.time() - c2[0]) < ttl:
+            return c2[1]
+        return _fresh()
 
 
 # ─── Curated thresholds endpoints (admin tuning panel) ────────────────────

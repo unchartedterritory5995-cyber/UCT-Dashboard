@@ -195,3 +195,15 @@ def test_market_read_cap_valve_reports_partial_coverage(tmp_path, monkeypatch):
     d = lmr._build_day_stats("10/1/2026", stock_etf="stocks")
     assert d["directional_count"] == 10                   # newest 10 only
     assert d["covers_from"] == 1790947800 + 16 * 60       # → card says "partial: since ..."
+
+
+# ── By Contract: full day on 1-day views, premium-ranked budget on ranges ─────
+
+def test_by_contract_one_day_reads_full_day(tmp_path, monkeypatch):
+    _wire_daystats(monkeypatch, _daystats_db(tmp_path, 25))
+    monkeypatch.setenv("MASSIVE_DAYSTATS_CAP", "10")          # old knob no longer truncates 1-day
+    monkeypatch.setattr(lmr, "_has_dormant_data", lambda: False)
+    p = lmr._build_by_contract("10/1/2026", "stocks", 1, False, 1)
+    assert p["contract_count"] == 1
+    assert p["contracts"][0]["hit_count"] == 25            # every print, 9:30 onward
+    assert p["budget_cut_days"] == []
