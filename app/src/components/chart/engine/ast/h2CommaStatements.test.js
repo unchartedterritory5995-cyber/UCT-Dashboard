@@ -94,9 +94,14 @@ describe('H2 — a comma line of statements is the statements on separate lines'
   }
 
   it('⛔ a segment that is not a statement keeps the whole line whole (all or nothing)', () => {
-    const hs = headersOf('x = 1.0, x := 2, plot(close)')
+    // ⭐ RT12 — a bare CALL segment is a statement now (`commaCallSplit`,
+    // `rt12CommaCallSplit.test.js`), so `x = 1.0, x := 2, plot(close)` is the three
+    // statements; the all-or-nothing rule is kept for a segment that is neither a
+    // binding, a mutation nor one call.
+    expect(headersOf('x = 1.0, x := 2, plot(close)').slice(1)).toEqual(['x = 1', 'x := 2', 'plot ( close )'])
+    const hs = headersOf('x = 1.0, x := 2, close + 1')
     expect(hs.length).toBe(2) // `indicator(…)` and the whole line
-    expect(hs[1]).toMatch(/ , x := 2 , plot \( close \)$/)
+    expect(hs[1]).toMatch(/ , x := 2 , close \+ 1$/)
   })
 
   it('⛔ a block whose opener is NOT in the last segment keeps the line whole', () => {

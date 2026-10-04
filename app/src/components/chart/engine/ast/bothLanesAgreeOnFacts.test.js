@@ -166,7 +166,11 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
       .toBeGreaterThan(500)
   })
 
-  it('⛔⛔ FINDING — exactly ONE script still THROWS out of translatePine', () => {
+  it('⛔⛔ FINDING RETIRED (RT12) — no script THROWS out of translatePine', () => {
+    // ⭐ RT12: smart-money-breakouts-chartprime threw because its `switch` arms end in
+    // a trailing comma, which dangled the three arms into ONE header that
+    // `switchBinding` handed whole to `parseWholeExpression`. `blockStatements` now
+    // reads them as the arms (`commaArmSplit`); the script refuses by name instead.
     // ⚰️ `translatePine`'s contract is to RETURN refusals; a caller without a try/catch
     // gets an exception where a refusal belongs. This rail rediscovered the defect
     // independently, and it was already known: `pine.js`'s `switchBinding` call site
@@ -176,6 +180,6 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
     // ⭐ Asserted as the exact name so the day it is fixed this goes red and the
     // finding is retired rather than forgotten.
     const throwers = rows.filter((r) => r.strict.threw || r.lenient.threw).map((r) => r.name)
-    expect(throwers).toEqual(['smart-money-breakouts-chartprime__ea79c79a67.pine'])
+    expect(throwers).toEqual([])
   })
 })

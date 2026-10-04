@@ -358,17 +358,31 @@ describe('⭐ length semantics and resources', () => {
     expect(r.message).not.toMatch(/^a history offset/)
   })
 
-  it('⚠️ MEASURED GAP — ARITHMETIC over an input does NOT fold yet', () => {
-    // A bare input name folds because `pine.js` substitutes the frozen default
-    // and the canonical node IS a `num`. `k + 2` stays an `op` node, so the
-    // fold refuses. That is CONSERVATIVE — a refusal, never a wrong width — but
-    // it is a real gap and this pins it as a fact rather than folklore. Closing
-    // it means consulting `pine.js`'s own `constantValueOf` (with its fold
-    // budget), which touches history offsets too and is therefore NOT 2F-2B's
-    // to change. ⛔ If this test ever goes red because the length now folds,
-    // that is the fix landing — assert the value, do not delete the case.
-    const src = `${head}k = input.int(5, "K")\nvar x = 0.0\nx := close\nplot(ta.sma(x, k + 2))\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-dynamic-offset')
+  it('⭐ RT12 — ARITHMETIC over an input folds (`k + 2` is one window: the gap this pinned, closed)', () => {
+    // Was pinned as a measured gap: `k + 2` stayed an `op` node and refused. RT12
+    // folds constant arithmetic over what resolved (`foldConstNode`, H4's
+    // `arithmeticIsExact` rule: `+ - *` only, never `/` or `%`). Asserted by VALUE,
+    // as this test asked: the window equals the literal `ta.sma(x, 7)`.
+    const src = `${head}k = input.int(5, "K")
+var x = 0.0
+x := close
+plot(ta.sma(x, k + 2))
+`
+    const lit = `${head}var x = 0.0
+x := close
+plot(ta.sma(x, 7))
+`
+    const a = runPine(src).out
+    const b = runPine(lit).out
+    expect(Array.from(a)).toEqual(Array.from(b))
+    expect(Array.from(a).filter(Number.isFinite).length).toBeGreaterThan(5)
+    // ⛔ and a quotient keeps the refusal it had
+    const div = `${head}k = input.int(6, "K")
+var x = 0.0
+x := close
+plot(ta.sma(x, k / 2))
+`
+    expect(refusalOf(div).guard).toBe('runtime:history-dynamic-offset')
   })
 
   it('⛔ a FRACTIONAL or NEGATIVE length refuses — a ring has whole cells', () => {

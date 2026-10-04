@@ -142,11 +142,15 @@ describe('O1 G8 — comma-joined reassignments split exactly as separate lines',
   })
 
   it('⛔ ALL OR NOTHING — a segment of any other shape keeps the line whole', () => {
-    // `x := close, plot(x)`: the second segment is a call, not a binding — the line is
-    // not split (unchanged), so it is NOT the two-line program.
+    // ⭐ RT12 — `x := close, plot(x)`: a bare CALL segment is a statement now
+    // (`commaCallSplit`), so the line IS the two-line program; a segment that is
+    // neither a binding, a mutation nor one call still keeps the line whole.
     const one = v5('x = 0.0', 'x := close, plot(x, "x")')
     const two = v5('x = 0.0', 'x := close', 'plot(x, "x")')
-    expect(sigOf(host(one))).not.toBe(sigOf(host(two)))
+    expect(sigOf(host(one))).toBe(sigOf(host(two)))
+    const odd = v5('x = 0.0', 'x := close, x + 1', 'plot(x, "x")')
+    const sep = v5('x = 0.0', 'x := close', 'x + 1', 'plot(x, "x")')
+    expect(sigOf(host(odd))).not.toBe(sigOf(host(sep)))
   })
 })
 

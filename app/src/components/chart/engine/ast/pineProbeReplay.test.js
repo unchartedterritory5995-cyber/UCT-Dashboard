@@ -201,8 +201,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // the measured wave-16 cost. Pre-wave-16: [102, 937, '6aa396f1a09699d5'] both.
       // ⭐ F1 (wave 16) +1 Resolver, +33 steps: its const-int division fold
       // (`pineConstIntValue`) resolves one more operand. Pre-F1: [103, 1450, 'ae4f9119eeecd7d5'].
+      // ⭐ RT12 +1 Resolver, +7 steps: four lines `normOrder := 0, alert(…)` /
+      // `riskOrder := 0, alert(…)` split into their two statements now
+      // (`commaCallSplit`; the old reader kept each line whole, so the `:=` was never
+      // seen). The script stays refused with the same first guard (`pine:statement`,
+      // the one-line `xhma(…) => _return = …` body, line 71). Pre-RT12: [104, 1483,
+      // '5adeff2487d271ca'] both.
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [104, 1483, '5adeff2487d271ca'], manifest: [104, 1483, '5adeff2487d271ca'] },
+        plain: [105, 1490, '8ede6e25a25f20de'], manifest: [105, 1490, '8ede6e25a25f20de'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {
