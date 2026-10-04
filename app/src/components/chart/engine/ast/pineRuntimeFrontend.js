@@ -1004,6 +1004,53 @@ export function paramDefaultsOf(toks, arrow) {
   return any ? { names, defaults } : null
 }
 
+/** ⭐⭐ RT14 — `f(float[] a) =>` IS `f(array<float> a) =>`, AND A HEADER IS READ
+ *  IN THE SECOND SPELLING ONLY.
+ *
+ *  Pine has two spellings of an array type: the v5 suffix (`float[] a`, and with
+ *  a space, `float []a`) and the generic (`array<float> a`). The manual's "Arrays"
+ *  page gives them as the same type. The lexer already folds the generic one into
+ *  one `array` token carrying `typeArgs` (`stripTypeArguments`); the suffix
+ *  reaches a function HEADER as `float [ ] a`, which `functionParams` reads as
+ *  "not a parameter list" (`[` is not a word), and the whole function refused
+ *  `runtime:function` naming the `[` (kalman-psar-backquant).
+ *
+ *  So a header's `T [ ] name` is rewritten to the token the generic spelling
+ *  produces — `array` with `typeArgs: [T]` — followed by the name. ⛔ ONLY INSIDE
+ *  A DEFINITION HEADER'S PARAMETER LIST (`name(…) =>`, `method name(…) =>`), and
+ *  only when `[ ]` is EMPTY and sits between a word and a word: `a[1]` inside a
+ *  default, or any expression, is never this shape. A declaration
+ *  (`float[] a = …`) already binds through `boundName` and is left alone. */
+function foldArrayTypeSuffixes(list) {
+  for (const st of list || []) {
+    const h = st && st.header
+    if (Array.isArray(h) && h.length > 3) {
+      const at = h[0] && h[0].kind === 'ident' && h[0].value === 'method' ? 1 : 0
+      const arrow = findTop(h, (t) => isPunct(t, '=>'))
+      if (arrow > at + 1 && h[at] && h[at].kind === 'ident' && isPunct(h[at + 1], '(')) {
+        const close = h.findIndex((t, i) => i > at + 1 && isPunct(t, ')'))
+        if (close > 0 && close < arrow) {
+          const out = h.slice(0, at + 2)
+          let changed = false
+          for (let i = at + 2; i < h.length; i += 1) {
+            const t = h[i]
+            if (i < close && t && t.kind === 'ident' && isPunct(h[i + 1], '[') && isPunct(h[i + 2], ']')
+                && h[i + 3] && h[i + 3].kind === 'ident' && i + 3 < close) {
+              out.push({ ...t, value: 'array', typeArgs: [String(t.value)] })
+              i += 2
+              changed = true
+              continue
+            }
+            out.push(t)
+          }
+          if (changed) st.header = out
+        }
+      }
+    }
+    if (st && st.sub && st.sub.length) foldArrayTypeSuffixes(st.sub)
+  }
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   const built = buildRuntimeIrLinked(source, opts, holder)
@@ -1064,6 +1111,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
+  foldArrayTypeSuffixes(stmts)
 
   /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
    *  the method-form rewrite can YIELD to it.
