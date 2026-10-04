@@ -92,12 +92,17 @@ describe('C45 — the five probes AS CAPTURED (300 bars, 8,175 bars after the li
       'Q05_x_eq_x', 'Q06_i_ne_1', 'Q07_i_eq_1', 'Q08_x_gt_0', 'Q09_not_x_eq_close',
     ])
     // w4-cross-round: ONLY the control row reads the index; the crosses and the
-    // rounding rows are untouched (five MATCH, as before C45)
+    // rounding rows are untouched (five MATCH, as before C45). ⭐ H8 — the nine
+    // constant rows (X06-X09, X11-X15) are drawn by the pane now, as TradingView
+    // draws them, and MATCH on value and colour (were NOT DRAWN).
     const x = gradeCapture(parent('w4-cross-round-spy-1d-2026-09-30')).verdict
     expect(x.plots.filter((p) => WITHHELD.test(p.reason || '')).map((p) => p.title)).toEqual(['X00_bar_index'])
     expect(byVerdict(x, 'MATCH')).toEqual([
       'X01_crossover_close_sma5', 'X02_crossunder_close_sma5', 'X03_cross_EITHER_DIRECTION',
-      'X04_rising3', 'X05_falling3', 'X10_round_close_2dp',
+      'X04_rising3', 'X05_falling3',
+      'X06_round_2p5_HALF_UP_OR_EVEN', 'X07_round_3p5_THE_SAME_QUESTION', 'X08_round_neg2p5_WHICH_WAY',
+      'X09_round_negHalf_IS_IT_MINUS_ZERO', 'X10_round_close_2dp', 'X11_sign_of_zero', 'X12_mintick',
+      'X13_pointvalue', 'X14_in_seconds_D', 'X15_tf_multiplier',
     ])
     // vw-offset-na: `close[1]` reads no index
     expect(plotOf(gradeCapture(parent('vw-offset-na-spy-1d-2026-09-30')).verdict, 'E04_close_1_CONTROL').verdict).toBe('MATCH')
@@ -147,10 +152,11 @@ describe('C45 — the same five on TradingView\'s whole history: the count is th
     expect(ne.verdict, ne.reason).toBe('MATCH')
     expect(byVerdict(ne, 'MATCH').length).toBe(12)
     const g = gradeCapture(joinedFromListing(parent('vw-gradient-spy-1d-2026-09-30'), { control: 'G00_bar_index_CONTROL' })).verdict
-    // R-P (2026-10-01): the pane carries up to TradingView's 64 rows, so every non-constant
-    // row is graded - 17 MATCH (the six constant rows are hidden by the pane's own rule).
+    // R-P (2026-10-01): the pane carries up to TradingView's 64 rows, so every row is
+    // graded. ⭐ H8 — the six constant rows are drawn now (were hidden by the pane's
+    // constant rule, then NOT DRAWN under F8): all 23 MATCH.
     const matchedG = byVerdict(g, 'MATCH')
-    expect(matchedG).toHaveLength(17)
+    expect(matchedG).toHaveLength(23)
     expect(matchedG).toEqual(expect.arrayContaining([
       'G00_bar_index_CONTROL', 'G01_v', 'G02_g1_r', 'G03_g1_g', 'G04_g1_b', 'G05_g1_t', 'G06_w',
       'G07_g2_r_clamp', 'G08_g2_g_clamp', 'G09_g2_b_clamp', 'G10_g2_t_clamp', 'G11_g3_r_new30',

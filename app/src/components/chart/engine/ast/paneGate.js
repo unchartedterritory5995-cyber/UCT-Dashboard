@@ -43,6 +43,7 @@
 import {
   assessObjectLoss, objectRemovalRefusal, OBJECT_REMOVAL_GUARD,
 } from './objectLoss'
+import { hiddenOnChart } from './pine'
 
 /** The lane whose verdict a pane is allowed to act on. */
 export const PANE_LANE = 'host'
@@ -168,6 +169,12 @@ export function paneGate(t, opts = {}) {
       if (!og.draw) return no(og.refusal, og.guard)
       return { ok: true, reason: null, guard: null }
     }
+    // ⭐⭐ H8 — `selected` never offers a constant (`chooseOutput`: "a constant is
+    // never the first offer" — a SCREENER rule), so a script whose only rows are
+    // constants TradingView draws (`plot(0)`, `plot(syminfo.mintick)`) selects
+    // nothing. Drawing is `hiddenOnChart`'s question, asked here as the pane asks it.
+    if ((t.outputs || []).some((o) => o && !o.refusal && o.formula && o.kind !== 'alertcondition'
+      && !hiddenOnChart(o))) return { ok: true, reason: null, guard: null }
     // Ruling D1's honest case, arriving here rather than as a blank pane.
     return no('this script declares nothing a chart can draw')
   }

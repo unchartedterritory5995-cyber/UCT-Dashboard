@@ -116,8 +116,25 @@ describe('F8 M3 — a repeated title is paired by declaration order, under a gua
 
 // ─── ND ───────────────────────────────────────────────────────────────────────
 describe('F8 ND — a row this engine hid as "reads no bar" that TradingView draws is NOT DRAWN', () => {
-  it('vw-bar-counters RDDT 1D: C05 ta.cum(1) is DIVERGE (not drawn), naming the first drawn bar', () => {
+  // ⭐⭐ H8 (step 95) — THE PANE NOW DRAWS THESE ROWS (`pine.js::hiddenOnChart`), so
+  // C05 and D01 grade MATCH as captured. The ND rule stays as the guard against the
+  // pane ever hiding them again, and is railed on OUR side as it was before H8: the
+  // same row with no series drawn (`colors: null`) and the chart's hidden reason.
+  const asBeforeH8 = (ours, title) => ({
+    ...ours,
+    plots: ours.plots.map((p) => (p.title === title ? { ...p, colors: null, hiddenReason: 'constant', hidden: true } : p)),
+  })
+
+  it('⭐ H8 — vw-bar-counters RDDT 1D: C05 ta.cum(1) is DRAWN and MATCHES (value and colour)', () => {
     const { verdict: v } = grade('vw-bar-counters-rddt-1d-2026-09-30', 'on')
+    const p = itemsTitled(v, 'C05_ta_cum_1')[0]
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.color).toBe('compared')
+  }, T)
+
+  it('vw-bar-counters RDDT 1D: C05 with no series drawn is DIVERGE (not drawn), naming the first drawn bar', () => {
+    const { cap, ours } = grade('vw-bar-counters-rddt-1d-2026-09-30', 'on')
+    const v = compareCapture(cap, asBeforeH8(ours, 'C05_ta_cum_1'))
     const p = itemsTitled(v, 'C05_ta_cum_1')[0]
     expect(p.verdict).toBe('DIVERGE')
     expect(p.reason).toMatch(/NOT DRAWN/)
@@ -127,15 +144,28 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
 
   it('⛔ CONTROL — the same row hidden by the AUTHOR (or for a fill anchor) stays unknown, not DIVERGE', () => {
     const { cap, ours } = grade('vw-bar-counters-rddt-1d-2026-09-30', 'on')
+    const before = asBeforeH8(ours, 'C05_ta_cum_1')
     for (const why of ['author', 'fill-anchor']) {
-      const plots = ours.plots.map((p) => (p.hiddenReason === 'constant' ? { ...p, hiddenReason: why } : p))
-      const v = compareCapture(cap, { ...ours, plots })
+      const plots = before.plots.map((p) => (p.hiddenReason === 'constant' ? { ...p, hiddenReason: why } : p))
+      const v = compareCapture(cap, { ...before, plots })
       expect(itemsTitled(v, 'C05_ta_cum_1')[0].verdict, why).toBe('INCONCLUSIVE')
     }
   }, T)
 
-  it('ND with no column (runtime pane): deadband SPY `D01_mintick` (a constant TradingView draws at 0.01) is NOT DRAWN', () => {
+  it('⭐ H8 — deadband SPY `D01_mintick` (runtime pane): the constant TradingView draws at 0.01 is DRAWN and MATCHES', () => {
     const { verdict: v } = grade('vw-deadband-ticks-spy-1d-2026-09-28', 'runtime')
+    const p = itemsTitled(v, 'D01_mintick')[0]
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.color).toBe('compared')
+  }, T)
+
+  it("ND with no column (runtime pane): `D01_mintick` with no column and the chart's constant reason is NOT DRAWN", () => {
+    const { cap, ours } = grade('vw-deadband-ticks-spy-1d-2026-09-28', 'runtime')
+    const plots = ours.plots.map((p) => (p.title === 'D01_mintick'
+      ? { ...p, column: null, colors: null, hiddenReason: 'constant', hidden: true,
+        missingReason: 'hidden on this runtime document (constant): a hidden row computes no column here' }
+      : p))
+    const v = compareCapture(cap, { ...ours, plots })
     const p = itemsTitled(v, 'D01_mintick')[0]
     expect(p.verdict).toBe('DIVERGE')
     expect(p.reason).toMatch(/NOT DRAWN.*hidden on this runtime document \(constant\)/)
@@ -152,7 +182,8 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
     const copy = structuredClone(cap)
     const id = copy.study.plots.find((p) => p.title === 'D01_mintick').id
     copy.study.styleState = { ...(copy.study.styleState || {}), [id]: { ...((copy.study.styleState || {})[id] || {}), display: 0 } }
-    const v = compareCapture(copy, ours)
+    const plots = ours.plots.map((p) => (p.title === 'D01_mintick' ? { ...p, column: null, colors: null, hiddenReason: 'constant', hidden: true } : p))
+    const v = compareCapture(copy, { ...ours, plots })
     expect(itemsTitled(v, 'D01_mintick')[0].verdict).toBe('INCONCLUSIVE')
   }, T)
 

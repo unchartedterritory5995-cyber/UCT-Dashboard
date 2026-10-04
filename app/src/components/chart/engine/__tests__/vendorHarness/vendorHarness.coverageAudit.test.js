@@ -400,30 +400,33 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
 // ─── F2 (step 78) — RT3 Q-NL: `and` / `or` / `not` over an `na` operand ───────────
 // TradingView (v5 and v4, RDDT 1D from the listing): an `na` operand reads as FALSE and
 // the answer is never `na`. Before F2 the door drew `na` on B02 / B03 / B07 and a wrong 1
-// on B04 / B05 (`na(w or false)`, `na(not w)`). The capture stays INCONCLUSIVE only for
-// the four rows our pane folds to a hidden constant (B01 / B06 / B07 / B09), whose values agree.
+// on B04 / B05 (`na(w or false)`, `na(not w)`). The four rows our pane folds to a constant
+// (B01 / B06 / B07 / B09) were NOT DRAWN (F8) until H8 drew them; every row now MATCHES.
 describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 and v5)', () => {
   it.each([
     ['rt3-na-logic-rddt-1d-2026-10-02'],
     ['rt3-na-logic-v4-rddt-1d-2026-10-02'],
-  ])('%s: every graded row agrees; only the four rows our pane hides as constants diverge (NOT DRAWN)', (id) => {
+  ])('%s: every graded row agrees, the four constant rows drawn as TradingView draws them (H8)', (id) => {
     const { v } = grade(id)
-    // ⭐ F8 — the four rows this engine folds to a hidden constant (B01 / B06 / B07 / B09)
-    // are drawn by TradingView and not by our chart: NOT DRAWN, a DIVERGE (it was
-    // INCONCLUSIVE, "our side's colour could not be resolved"). Their VALUES agree.
+    // ⭐ H8 — the four rows this engine folds to a constant (B01 / B06 / B07 / B09) are
+    // hidden from the SCREENER only; the pane draws them (`pine.js::hiddenOnChart`), so
+    // they MATCH on value and colour (F8 graded them NOT DRAWN, a DIVERGE).
     const nd = ['B01_naBool_or_true', 'B06_naLiteral_or_true', 'B07_not_naLiteral', 'B09_naFloat_or_true']
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title).sort()).toEqual(nd)
-    for (const t of nd) expect(item(v, t).reason, `${id} ${t}`).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
+    for (const t of nd) {
+      expect(item(v, t).verdict, `${id} ${t}: ${item(v, t).reason}`).toBe('MATCH')
+      expect(item(v, t).color, `${id} ${t}`).toBe('compared')
+    }
     for (const t of ['B02_not_naBool', 'B03_naBool_and_true_CONTROL', 'B04_na_of_naBool_or_false',
       'B05_na_of_not_naBool', 'B08_naFloat_or_false', 'B10_not_naFloat']) {
       expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
     }
-    // B07 `not <na literal>` now folds to a constant 1 on every bar (TradingView's 1): its
-    // VALUES agree on all 636 bars; only its colour is unresolvable (a hidden constant row)
+    // B07 `not <na literal>` folds to a constant 1 on every bar (TradingView's 1): its
+    // VALUES agree on all 636 bars, and since H8 it is drawn, in TradingView's colour
     const b07 = item(v, 'B07_not_naLiteral')
-    expect(b07.verdict).toBe('DIVERGE')
+    expect(b07.verdict).toBe('MATCH')
     expect(b07.stats.valueMismatches + b07.stats.naMismatches).toBe(0)
-    expect(b07.stats.steady.first.kind).toBe('not-drawn')
+    expect(b07.stats.steady.compared).toBe(636)
     // non-vacuity: the rows are graded from bar 0 (a capture from the listing), so the
     // `na` warm-up bars 0..18 are compared, not excused
     expect(item(v, 'B04_na_of_naBool_or_false').stats.steady.compared).toBe(636)
