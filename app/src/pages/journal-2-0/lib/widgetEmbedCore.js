@@ -486,49 +486,24 @@ export function embedRenderHeight(layoutHeight, width) {
 }
 
 // Free-resize ceiling (px) for any chart-embed height computation — the resize
-// handles' own max (WidgetEmbedView's corner-drag), and the draw-mode
-// clearance bump below must never exceed it either: a member already has an
-// explicit, larger way to make an embed taller by hand, and this lane's
-// clearance bump is a temporary drawing aid, never a second, higher ceiling.
+// handles' own max (WidgetEmbedView's corner-drag).
 export const EMBED_MAX_H = 1400
 
-// Wave 13 lane 13H-3 — a chart embed's Draw mode always uses StockChart's
-// `annotationsEditable` branch (there is no MobileDrawBar swap there; see
-// ChartEmbed.jsx and docs/notebook/wave13-13h3.md §2 for why that swap cannot
-// be reached without editing StockChart.jsx, out of this lane's scope). That
-// branch's `ChartToolbar` is the full desktop toolbar, unconditionally: at a
-// touch-narrow embed width its fixed ~20-button roster wraps onto several rows
-// and — being `position: absolute` over the chart (ChartToolbar's own top
-// strip) — physically covers a large fraction of the canvas. A tap landing in
-// that covered band hits a TOOLBAR BUTTON, never the chart.
-//
-// Measured, not theorised: docs/notebook/evidence/wave13-13h3/ — at 390px wide
-// the toolbar bottoms out ~174px below the embed body's own top edge, and
-// every one of three touch taps above that line hit the toolbar (a `<button>`
-// or its actions row), never the canvas; only a tap below it ever placed a
-// line. A fine pointer never trips this: the SAME toolbar fits one or two rows
-// at the wider embed a mouse user typically has.
-//
-// This buffer is how much taller the embed's BODY renders while Draw mode is
-// open on a coarse pointer, past the MEASURED toolbar-bottom offset
-// (`drawClearance`, 0 when nothing was measured — a fine pointer, or Draw mode
-// closed) — generous enough that a tap in the canvas's TOP THIRD (not just its
-// bottom two thirds) still lands clear of the toolbar. See wave13-13h3.md §4
-// for the arithmetic this constant is sized against.
-export const ANNOTATE_DRAW_BUFFER_PX = 700
-
-/** The chart embed's rendered height, adjusted for Draw-mode toolbar clearance.
- *  `baseHeight` is the embed's ordinary rendered height (embedRenderHeight);
- *  `drawClearance` is 0 unless Draw mode is open on a coarse pointer AND a
- *  toolbar was actually measured (WidgetEmbedView owns the measurement — this
- *  function is the pure arithmetic over its result, so it is testable without
- *  a DOM). Never SHRINKS the embed: `baseHeight` already wins when it is
- *  taller than the clearance-driven floor (e.g. a member already resized it
- *  bigger). Clamped to EMBED_MAX_H, the same ceiling the resize handles obey. */
-export function annotateEffectiveHeight(baseHeight, drawClearance) {
-  if (!(drawClearance > 0)) return baseHeight
-  return Math.min(EMBED_MAX_H, Math.max(baseHeight, drawClearance + ANNOTATE_DRAW_BUFFER_PX))
-}
+// ⚰️ Wave 13 lane 13H-3 built a Draw-mode toolbar-clearance height bump here
+// (`ANNOTATE_DRAW_BUFFER_PX` + `annotateEffectiveHeight`) to work around a
+// chart embed's Draw mode always rendering StockChart's full desktop
+// `ChartToolbar`, floating over the canvas and wrapping onto several rows at a
+// touch-narrow width (docs/notebook/wave13-13h3.md §2-4). **13H-4 removed it**:
+// StockChart's `annotationsEditable` branch now takes the same `mobileDrawBar`
+// prop the `showDrawingTools` branch already had, swapping in MobileDrawBar (a
+// fixed-height, bottom-docked, single-row strip — never wraps, never floats
+// over the canvas's top) on a coarse pointer, so there is no floating toolbar
+// left to grow the embed around. Measured, not assumed: re-enabling
+// `mobileDrawBar` WITH this workaround still active mis-measured MobileDrawBar's
+// own `aria-label`led tool buttons as "the toolbar to clear" (they sit well
+// within `TOOLBAR_BAND_PX` of a short embed's top) and inflated a ~300px canvas
+// to ~995px, breaking the very walk this lane re-ran to prove the fix
+// (docs/notebook/evidence/wave13-13h4/walk-1/). See wave13-13h4.md §3-4.
 
 /** Count mode:'live' widgetEmbed nodes in a doc JSON. */
 export function countLiveEmbeds(doc) {
