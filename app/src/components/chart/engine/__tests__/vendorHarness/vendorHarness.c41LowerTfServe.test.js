@@ -111,6 +111,14 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     // refuses the whole probe by name (below), so the served rows are run alone
   })
 
+  // ⚰️ RE-PINNED 2026-10-04 (G16, the wave-16 gate): every `2950` below WAS 2950, is
+  // `SESSIONS_GRADED` = 2952. CAP3 committed `vw-request-htf-alignment-spy-60-2026-10-02`
+  // (1,000 SPY 60m bars, 2026-03-11 -> 2026-10-02), and the harness merges every committed
+  // capture of the listing at a timeframe, so the two sessions the 2015 capture ends
+  // before (2026-09-29, 2026-09-30, both before this chart's capturedAtUTC
+  // 2026-10-01T03:09Z) are now held whole - and grade as TradingView's numbers
+  // (`wrong` stays empty on L02, L03, L15 and L16). The evidence grew; no reading moved.
+  const SESSIONS_GRADED = 2952
   it('⭐ (i) L02 — `request.security(own, "60", close)` is the day\'s LAST regular-session 60m close', () => {
     const ours = columnOf(run, 'L02')
     const g = grade(ours, vendorRow(SPY_1D, 'L02'))
@@ -119,14 +127,14 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     // every session the committed 60m capture (2015 →) holds whole: 2,950 of its 2,951
     // days — the one held short is 2017-11-24, a half-day TradingView's session does
     // not apply (5 of 7 buckets), withheld
-    expect(g.compared).toBe(2950)
+    expect(g.compared).toBe(SESSIONS_GRADED)
     // and it is NOT the chart's own close: the daily bar is not the intraday aggregate
     const bars = toProductBars(SPY_1D)
     const differs = ours.filter((v, i) => Number.isFinite(v) && v !== bars[i].c).length
     expect(differs).toBeGreaterThan(2500)
     // ⛔ every bar before the supply (2007 → 2014), and every session it holds short, is
     // WITHHELD — TradingView has a number there (its 60m history is deeper than ours)
-    expect(g.withheld).toBe(4800 - 2950)
+    expect(g.withheld).toBe(4800 - SESSIONS_GRADED)
     expect(ours.slice(0, 1800).every((v) => Number.isNaN(v))).toBe(true)
     // ⭐ the real binder drew a point on exactly the bars that are known
     const drawn = (run.plots.find((p) => p.title === 'L02').colors || []).filter((c) => typeof c === 'string').length
@@ -137,7 +145,7 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     const ours = columnOf(run, 'L03')
     const g = grade(ours, vendorRow(SPY_1D, 'L03'))
     expect(g.wrong).toEqual([])
-    expect(g.compared).toBe(2950)
+    expect(g.compared).toBe(SESSIONS_GRADED)
     const minutes = new Map()
     const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
     for (const t of ours) {
@@ -170,8 +178,8 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     const c = grade(columnOf(run, 'L16'), vendorRow(SPY_1D, 'L16'))
     expect(t.wrong).toEqual([])
     expect(c.wrong).toEqual([])
-    expect(t.compared).toBe(2950)
-    expect(c.compared).toBe(2950)
+    expect(t.compared).toBe(SESSIONS_GRADED)
+    expect(c.compared).toBe(SESSIONS_GRADED)
   })
 
   it('⛔ L05 / L06 — where the committed captures hold no 15m / 5m history, the read is WITHHELD', () => {
