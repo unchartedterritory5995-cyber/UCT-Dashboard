@@ -19,6 +19,7 @@
 // RangeSlider. Removed in favour of the labelled one — see that section.
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { toNum } from '../research-kit'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import styles from './QuoteStrip.module.css'
 
 const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -32,12 +33,17 @@ export function fmtPrice(v) {
   return x == null ? '—' : `$${x.toFixed(2)}`
 }
 
+// TERM-066: the ladder is formatCompact's. This one picks its tier on the
+// SIGNED value (a negative never takes a suffix), so the gate stays here.
+const VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 2 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
 export function fmtVol(v) {
   const x = n(v)
   if (x == null) return '—'
-  if (x >= 1e9) return `${(x / 1e9).toFixed(2)}B`
-  if (x >= 1e6) return `${(x / 1e6).toFixed(2)}M`
-  if (x >= 1e3) return `${(x / 1e3).toFixed(1)}K`
+  if (x >= 1e3) return formatCompact(x, { tiers: VOL_TIERS })
   return String(Math.round(x))
 }
 

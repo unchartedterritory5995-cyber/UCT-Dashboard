@@ -19,6 +19,8 @@
  * what someone did.
  */
 
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+
 const num = (v) => {
   if (v == null || v === '') return null
   const n = Number(v)
@@ -26,15 +28,26 @@ const num = (v) => {
 }
 
 // ── formatting ──────────────────────────────────────────────────────────────
+// TERM-066: the K/M/B/T ladders are formatCompact's. The sign (a real minus,
+// U+2212) stays OUTSIDE the "$", so the magnitude goes in and the sign rides in
+// the prefix; below 1K, Math.round(a) is a.toFixed(0) for a >= 0.
+const SHARES_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
 export function fmtShares(v) {
   const n = num(v)
   if (n == null) return '—'
   const a = Math.abs(n)
   const s = n < 0 ? '−' : ''
-  if (a >= 1e9) return `${s}${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}${(a / 1e3).toFixed(0)}K`
-  return `${s}${a.toFixed(0)}`
+  return formatCompact(a, { tiers: SHARES_TIERS, prefix: s })
 }
 
 export function fmtMoney(v) {
@@ -42,11 +55,7 @@ export function fmtMoney(v) {
   if (n == null) return '—'
   const a = Math.abs(n)
   const s = n < 0 ? '−' : ''
-  if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(0)}K`
-  return `${s}$${a.toFixed(0)}`
+  return formatCompact(a, { tiers: MONEY_TIERS, prefix: `${s}$` })
 }
 
 export const fmtPct = (v, d = 1) => (num(v) == null ? '—' : `${Number(v).toFixed(d)}%`)

@@ -6,6 +6,8 @@
 // only components (react-refresh needs that for HMR to keep its state) and so
 // the tests can exercise the arithmetic without a render.
 
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+
 const INK = {
   revenue: '#5aa9e6',
   opinc: '#e8a33d',
@@ -30,12 +32,17 @@ export function money(v) {
   const n = Number(v)
   const a = Math.abs(n)
   const sign = n < 0 ? '-' : ''
-  if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${sign}$${(a / 1e3).toFixed(1)}K`
-  return `${sign}$${a.toFixed(0)}`
+  // TERM-066: the ladder is formatCompact's; the sign stays OUTSIDE the "$"
+  // ("-$450M"), so the magnitude goes in and the sign rides in the prefix.
+  // Below 1K, Math.round(a) is a.toFixed(0) for a >= 0.
+  return formatCompact(a, { tiers: MONEY_TIERS, prefix: `${sign}$` })
 }
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
 
 const eps = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`)
 

@@ -15,6 +15,8 @@
 // `short` is the abbreviated label shown when the pane narrows enough that the
 // info row would collide with the timeframe bar (see headerFit.js). Values are
 // never abbreviated — only these labels. Keep them terse + unambiguous.
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
 export const HEADER_FIELDS = [
   { key: 'name', label: 'Company Name', short: 'NAME', colorKey: 'name', dflt: '#9b9684' },
   { key: 'price', label: 'Price', short: 'PX', colorKey: 'price', dflt: null },
@@ -74,21 +76,27 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v))
 const signColor = (v) => (num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null)
 const signOf = (v) => (num(v) ? (v >= 0 ? 'pos' : 'neg') : null)
 const pct = (v) => (num(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : null)
-function fmtVol(v) {
+// TERM-066: both ladders are formatCompact's. fmtDolVol keeps its own sub-1K
+// branch: `v.toFixed(0)` and formatCompact's Math.round part ways on a
+// negative half, and this one has always used toFixed.
+const VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const DOLVOL_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 1 },
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+export function fmtVol(v) {
   if (!num(v)) return null
-  const a = Math.abs(v)
-  if (a >= 1e9) return `${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${(v / 1e3).toFixed(0)}K`
-  return String(Math.round(v))
+  return formatCompact(v, { tiers: VOL_TIERS })
 }
-function fmtDolVol(v) {
+export function fmtDolVol(v) {
   if (!num(v)) return null
-  const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(1)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
+  if (Math.abs(v) >= 1e3) return formatCompact(v, { tiers: DOLVOL_TIERS, prefix: '$' })
   return `$${v.toFixed(0)}`
 }
 function fmtIpo(ymd) {

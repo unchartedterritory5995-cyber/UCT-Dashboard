@@ -1,5 +1,6 @@
 // app/src/components/chart/chartScreenshot.js
 import compassSrc from '../intro/assets/compass-mark.png';
+import { formatCompact } from '../../lib/presentation/presentationPrimitives';
 
 // Load the compass mark once (cached promise). Resolves null on failure so a
 // missing asset never blocks the screenshot.
@@ -20,12 +21,17 @@ function loadCompass() {
 function _fmtNum(v) {
   return (v != null && Number.isFinite(+v)) ? (+v).toFixed(2) : '—';
 }
-function _fmtVol(v) {
+// TERM-066: the K/M/B ladder is formatCompact's. Below 1K this file prints the
+// raw number (`${+v}`, decimals and all), which formatCompact would round — so
+// that branch stays here.
+const VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+];
+export function _fmtVol(v) {
   if (v == null || !Number.isFinite(+v)) return '—';
-  const n = Math.abs(+v);
-  if (n >= 1e9) return `${(+v / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(+v / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(+v / 1e3).toFixed(1)}K`;
+  if (Math.abs(+v) >= 1e3) return formatCompact(+v, { tiers: VOL_TIERS });
   return `${+v}`;
 }
 /* ⚰️ `_fmtNotional` STOOD HERE and had exactly one caller — the `$ Vol` chip this
