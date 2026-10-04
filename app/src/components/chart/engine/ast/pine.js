@@ -172,6 +172,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { resolveConstantUdtFields } from './udtConstFields.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
 
 // --------------------------------------------------------------------------- //
@@ -22470,6 +22471,9 @@ function translatePineResult(source, opts = {}) {
   // ⭐⭐ L1 — an imported library's exports become this script's own definitions.
   lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
   LIBRARY_LINK_SINK = lexed.libraryLink || null
+  // ⭐ H6 — a user-defined type's field read off an instance that is the same on
+  // every bar becomes its constructor argument, before the walk (both lanes read it).
+  lexed = resolveConstantUdtFields(lexed, { blockStatements, isPunct, findTop, boundName })
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   beginPaletteScope(version)
