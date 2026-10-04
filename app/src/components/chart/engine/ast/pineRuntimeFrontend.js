@@ -1221,6 +1221,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declWords = declarationWordsOf(tokens)
   const constIntCtx = { version: pineVersion, declWords }
   const constIntWrites = constIntWritesOf(stmts, constIntCtx)
+  // RT10: the pane contract, read where `opts` is the build's (lowerExpr shadows it).
+  const paneBuild = opts.pane === true
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -5890,6 +5892,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(fidx, lowerExpr(given[0], scope))
+        }
+        // ⭐⭐ RT10 — `ta.cum(x)` (and v1-v4's bare `cum`) over RUNTIME STATE: a
+        // carried running total (`CARRIED.cumPine`, `cumCol`'s vendor rule), per call
+        // site. A source the columnar lane holds keeps the host column, unchanged.
+        // ⛔ ON A PANE ONLY (`opts.pane`): the total is a fact about the fetch, and the
+        // host serves `cum` exactly there (`pine.js` WINDOW_DEPENDENT `cum`); a screen
+        // keeps the refusal.
+        if (paneBuild && (node.name === 'ta.cum' || (node.name === 'cum' && pineVersion !== null && pineVersion <= 4))
+          && !definedNames.has(node.name) && node.args.length === 1 && !(node.args[0] && node.args[0].name)) {
+          const src = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
+          if (needsRuntime(src, scope)) {
+            const entry = { fn: 'cumPine', n: 1, name: `${node.name}(…)` }
+            let cidx
+            if (owner !== null) {
+              const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+              cidx = list.length
+              list.push(entry)
+            } else {
+              cidx = carriedMain.length
+              carriedMain.push(entry)
+            }
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carriedCall(cidx, lowerExpr(src, scope))
+          }
         }
         const car = carriedTarget(node.name)
         if (car) {

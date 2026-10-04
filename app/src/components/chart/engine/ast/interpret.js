@@ -1876,6 +1876,17 @@ function fixnanPineStep(st, o, v) {
   return st[o]
 }
 
+// ⭐⭐ RT10 — `ta.cum` over a value the runtime lane computes: `cumCol`'s three
+// vendor facts (SPY 1D 2026-09-08) as one carried cell — `na` before the first
+// finite input, `na` ON an `na` bar, the total HELD across it.
+const CUM_PINE_CELLS = 1
+function cumPineInit(st, o) { st[o] = 0 }
+function cumPineStep(st, o, v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return NaN
+  st[o] += v
+  return st[o]
+}
+
 function barsSincePineInit(st, o) { st[o] = NaN }
 
 /** One bar of Pine's `ta.barssince`.
@@ -2425,6 +2436,15 @@ export const CARRIED = Object.freeze({
     cells: FIXNAN_PINE_CELLS,
     init: fixnanPineInit,
     step: fixnanPineStep,
+    runtimeOnly: true,
+  },
+  // ⭐⭐ RT10 — Pine's `ta.cum` over runtime state (`cumPineStep`). `runtimeOnly`:
+  // the columnar `cum` answers a source the host holds and is untouched; this key
+  // is reached only by the runtime lane's own `ta.cum` branch.
+  cumPine: {
+    cells: CUM_PINE_CELLS,
+    init: cumPineInit,
+    step: cumPineStep,
     runtimeOnly: true,
   },
 })
