@@ -129,6 +129,12 @@
       "where": [],
       "note": "TERMINAL-NEXT lane T3 (branch lane/t3-shell-grammar): the command grammar's server store. ENABLEMENT GATE, default OFF, read per request in api/services/terminal_grammar.py::is_enabled(). SERVICE: web. Unset: every /api/terminal/* grammar route (commands/event, commands/stats GET+DELETE, aliases GET/PUT/DELETE, move/{sym}, compare-target) answers the FastAPI 404 before identity is read; the shell keeps working without them (no personal ranking, no aliases, MOVE/WIIM says it is not enabled, CMP SECTOR says no sector ETF is known). Set: still behind the terminal-next cohort gate AND a paid 402. Telemetry is COUNTS ONLY per member (a code, alias name or ASK/ADDR/ROW kind; never a ticker or typed text). Tables (auth.db, lazily created): terminal_command_counts, terminal_aliases, terminal_visits. Kill = unset; nothing is deleted."
     },
+    "ALERT_CENTRE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-03",
+      "where": [],
+      "note": "TERMINAL-NEXT gap 6 (branch lane/alrt-centre): the shell's ALRT alert centre. ENABLEMENT GATE, default OFF, read per request in api/services/alert_centre.py::is_enabled() -- the ONE reader: the route gate and the auth payload both call it. SERVICE: web. Unset: GET /api/terminal/alerts answers the FastAPI 404 before identity is read, the auth payload omits alert_centre_enabled, and the ALRT code answers 'not enabled' with no request made. Set: still behind the terminal-next cohort gate AND a paid 402. READ ONLY: lists the caller's watchlist (price/line/trendline) alerts, indicator alerts, FT-027 screen alerts (only while SCREENER_SPEC_ALERTS_ENABLED is on; otherwise said in words), every S7 alert_predicates row (document-arrival = filing watch) and the last 50 alert_fires (never user_alerts). Every create/pause/resume/delete the panel offers goes through the router that already owns the row; a delete is a confirmed two-tap member action on their own row. No new table. Kill = unset; nothing is deleted. Pending: owner arms it with the shell."
+    },
     "IV_HISTORY_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",

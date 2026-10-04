@@ -266,6 +266,17 @@ def _options_screener_flag() -> dict:
         return {}
 
 
+def _alert_centre_flag() -> dict:
+    """TERMINAL-NEXT gap 6: the shell's `ALRT` alert centre -- the SAME reader the route's dark
+    gate uses (`alert_centre.is_enabled`). ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077
+    form): flag unset => this payload is byte-identical to before the lane. Never raises."""
+    try:
+        from api.services import alert_centre
+        return {"alert_centre_enabled": True} if alert_centre.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
 # Research > Depth panels (lane gaps-research): payload key -> the service module whose
 # `is_enabled()` is that surface's ONE gate (the same reader its routes' dark gate uses).
 _RESEARCH_DEPTH_SURFACES = (
@@ -696,6 +707,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
         **_options_screener_flag(),
+        **_alert_centre_flag(),
         **_research_depth_flags(),
         **_research_notice_flags(),
         **_calendar_depth_flags(),

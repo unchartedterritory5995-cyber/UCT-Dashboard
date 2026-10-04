@@ -46,6 +46,8 @@ export function AuthProvider({ children }) {
   const [filingBlacklineEnabled, setFilingBlacklineEnabled] = useState(false)
   // COV-02/03: the Screener's Options view. Present in the payload ONLY when on.
   const [optionsScreenerEnabled, setOptionsScreenerEnabled] = useState(false)
+  // TERMINAL-NEXT gap 6: the shell's ALRT alert centre. Present in the payload ONLY when on.
+  const [alertCentreEnabled, setAlertCentreEnabled] = useState(false)
   // COV-05 / COV-07 / COV-09 (RM-L19): three dark Research tabs, default FALSE.
   const [researchPeopleEnabled, setResearchPeopleEnabled] = useState(false)
   const [estimateHistoryEnabled, setEstimateHistoryEnabled] = useState(false)
@@ -132,6 +134,8 @@ export function AuthProvider({ children }) {
     ['filing_blackline_enabled', (d) => d.filing_blackline_enabled === true, setFilingBlacklineEnabled],
     // COV-02/03: same form -- the key rides the payload ONLY when on; absent reads as false.
     ['options_screener_enabled', (d) => d.options_screener_enabled === true, setOptionsScreenerEnabled],
+    // TERMINAL-NEXT gap 6 (ALRT): same form -- present ONLY when on; absent reads as false.
+    ['alert_centre_enabled', (d) => d.alert_centre_enabled === true, setAlertCentreEnabled],
     ['research_people_enabled', (d) => d.research_people_enabled === true, setResearchPeopleEnabled],
     ['estimate_history_enabled', (d) => d.estimate_history_enabled === true, setEstimateHistoryEnabled],
     ['filings_feed_enabled', (d) => d.filings_feed_enabled === true, setFilingsFeedEnabled],
@@ -354,7 +358,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, alertCentreEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

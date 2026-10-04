@@ -179,6 +179,12 @@ export const FUNCTIONS = [
   { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { surface: '/portfolio-heat' } },
   { code: 'COMM', label: 'Community', group: 'Market',
     market: { door: '/community', why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
+  // Gap 6: every alert the member owns (price, indicator, screen, S7 / filing watch) plus recent
+  // fires. With a security (`NVDA ALRT`, or a linked channel) it can also create a price alert
+  // for it. Dark: `alertCentreEnabled` (ALERT_CENTRE_ENABLED) is absent from the payload unset.
+  { code: 'ALRT', label: 'Alert centre (all your alerts + recent fires)', group: 'Market',
+    ticker: { panel: 'AlertCentre', flag: 'alertCentreEnabled' },
+    market: { panel: 'AlertCentre', flag: 'alertCentreEnabled' } },
   { code: 'EXP', label: 'Exports (your data, preferences backup)', group: 'Market',
     market: { door: '/settings?section=legal' } },
 

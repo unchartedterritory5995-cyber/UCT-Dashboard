@@ -3509,6 +3509,7 @@
     "/api/options/vol/{sym}/vrp",
     "/api/pine/libraries",
     "/api/pine/libraries/{author}/{name}/{version}",
+    "/api/terminal/alerts",
     "/api/terminal/aliases",
     "/api/terminal/commands/stats",
     "/api/terminal/compare-target",

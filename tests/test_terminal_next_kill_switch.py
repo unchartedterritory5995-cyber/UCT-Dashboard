@@ -270,8 +270,9 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
 
     # 1. ALIVE FIRST — every surface answers for every tagged person. The T3 grammar
     # routes also sit behind their OWN dark flag; it stays ON throughout, so the only
-    # variable this test moves is the master switch.
+    # variable this test moves is the master switch. Same for the ALRT read (gap 6).
     monkeypatch.setenv("TERMINAL_GRAMMAR_ENABLED", "1")
+    monkeypatch.setenv("ALERT_CENTRE_ENABLED", "1")
     monkeypatch.setenv(rg.TERMINAL_NEXT_FLAG_ENV, "1")
     for person in tagged:
         assert _alive_violations(client, state, routes, person) == [], (
@@ -313,6 +314,7 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
 T3_GRAMMAR_ROUTES = [
     ("DELETE", "/api/terminal/aliases/{name}"),
     ("DELETE", "/api/terminal/commands/stats"),
+    ("GET", "/api/terminal/alerts"),            # gap 6: the ALRT alert centre's one read
     ("GET", "/api/terminal/aliases"),
     ("GET", "/api/terminal/commands/stats"),
     ("GET", "/api/terminal/compare-target"),
@@ -342,6 +344,11 @@ def test_the_census_is_stated_not_hidden(real_app):
     cohort admits, and die with the master switch (the rail above proves it). ⚠️ Still
     OWED before any merge toward master: the tier-4 rollback branch and the
     member-impact paragraph.
+
+    2026-10-03 (gap 6, branch `lane/alrt-centre`): `GET /api/terminal/alerts`, the `ALRT`
+    alert centre's READ-ONLY, owner-scoped listing (api/routers/terminal_alerts.py). Same three
+    gates as T3 (its own dark flag ALERT_CENTRE_ENABLED, this cohort, paid); it writes nothing,
+    so a thrown switch cannot move a byte of member data through it.
     """
     assert _server_surfaces(real_app) == T3_GRAMMAR_ROUTES, (
         "a served route now sits behind a cohort gate. The master rail below "

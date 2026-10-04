@@ -62,6 +62,7 @@ export const PANEL_IMPORTERS = {
   Flow: () => import('../research/tabs/FlowTab'),
   Help: () => import('./panels/HelpPanel'),
   Move: () => import('./panels/MovePanel'),
+  AlertCentre: () => import('./panels/AlertCentrePanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its
