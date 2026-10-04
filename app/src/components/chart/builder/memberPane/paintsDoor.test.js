@@ -44,7 +44,7 @@ describe('a plotting script\'s paints ride on its document', () => {
   })
 
   it('a withheld paint is disclosed by line and reason, and its plots still draw', () => {
-    const b = build(v5('plot(close, "c")\nbarcolor(color.red, offset = -1)'))
+    const b = build(v5('plot(close, "c")\nbarcolor(color.red, offset = na)'))
     expect(b.ok).toBe(true)
     expect(b.definition.paints).toBeUndefined()
     const note = b.notes.find((n) => n.name.startsWith('`barcolor`'))

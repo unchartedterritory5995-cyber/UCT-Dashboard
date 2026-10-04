@@ -65,9 +65,19 @@ describe('the host lane carries a paint\'s colour', () => {
 
 describe('what no capture witnesses is withheld BY NAME', () => {
   const code = (body) => paintsOf(host(v5(`plot(close)\n${body}`)))[0].withheld.code
-  it('`offset`, `show_last`, another `display`, `overlay`', () => {
-    expect(code('barcolor(color.red, offset = -1)')).toBe('paint:offset')
-    expect(code('bgcolor(color.red, show_last = 5)')).toBe('paint:show-last')
+  // ⭐ F1 — a whole-number `offset` / `show_last` is carried now (CAP round 4: both are
+  // render-time only); what is not a whole-number literal stays withheld by name.
+  it('⭐ F1: a whole-number `offset` / `show_last` rides beside the colour', () => {
+    const [a] = paintsOf(host(v5('plot(close)\nbarcolor(color.red, offset = -2)')))
+    expect(a.withheld).toBeUndefined()
+    expect(a.offset).toBe(-2)
+    const [b] = paintsOf(host(v5('plot(close)\nbgcolor(color.red, show_last = 5)')))
+    expect(b.withheld).toBeUndefined()
+    expect(b.showLast).toBe(5)
+  })
+  it('`offset = na`, a computed `show_last`, another `display`, `overlay`', () => {
+    expect(code('barcolor(color.red, offset = na)')).toBe('paint:offset')
+    expect(code('bgcolor(color.red, show_last = bar_index)')).toBe('paint:show-last')
     expect(code('bgcolor(color.red, display = display.data_window)')).toBe('paint:display')
     expect(code('bgcolor(color.red, overlay = true)')).toBe('paint:overlay')
     expect(code('bgcolor(color.red, force_overlay = true)')).toBe('paint:overlay')
@@ -75,15 +85,20 @@ describe('what no capture witnesses is withheld BY NAME', () => {
   it('an `offset` of 0 is no offset', () => {
     expect(paintsOf(host(v5('plot(close)\nbgcolor(color.red, offset = 0)')))[0].withheld).toBeUndefined()
   })
-  it('a v3/v4 `bgcolor` with no `transp` (its default has no capture)', () => {
+  it('⭐ F1: a v3/v4 `bgcolor` with no `transp` takes 90 (vw-bgcolor-v4-default T1 / T3)', () => {
     const t = host('//@version=4\nstudy("t", overlay = true)\nplot(close)\nbgcolor(color.red)\n')
+    expect(paintsOf(t)[0].withheld).toBeUndefined()
+    expect(paintsOf(t)[0].opacity).toBeCloseTo(0.1, 6)
+  })
+  it('⛔ a v3/v4 `bgcolor` with no `transp` over a colour with its OWN alpha is still withheld', () => {
+    const t = host('//@version=4\nstudy("t", overlay = true)\nplot(close)\nbgcolor(color.new(color.red, 50))\n')
     expect(paintsOf(t)[0].withheld.code).toBe('paint:v4-default-transp')
   })
   it('a colour this door cannot carry', () => {
     expect(code('bgcolor(close > open ? color.rgb(close, 0, 0) : na)')).toBe('paint:colour')
   })
   it('⛔ a withheld paint never costs the script its plots', () => {
-    const t = host(v5('plot(close)\nbarcolor(color.red, offset = -1)'))
+    const t = host(v5('plot(close)\nbarcolor(color.red, offset = na)'))
     expect(t.ok).toBe(true)
     expect(t.outputs).toHaveLength(1)
   })
@@ -99,7 +114,7 @@ describe('a script whose only output is its paint', () => {
     expect(translatePine(src).ok).toBe(false)
   })
   it('⛔ is refused when a paint is withheld (no partial credit)', () => {
-    const t = host(v5('bgcolor(color.green)\nbarcolor(color.red, offset = -1)'))
+    const t = host(v5('bgcolor(color.green)\nbarcolor(color.red, offset = na)'))
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:no-output')
     expect(paintsOf(t)).toHaveLength(2)

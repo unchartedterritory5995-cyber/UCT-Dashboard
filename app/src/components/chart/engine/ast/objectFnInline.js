@@ -1023,7 +1023,10 @@ export function historyReason(def, drawFns, userFns, pureFns = new Set(), method
  *    ta.stdev(src, len ≥ 2) → na             A10          (block only)
  *    ta.atr(len ≥ 2)        → na             A06          (block only)
  *    ta.change(src)         → na             A07          (block only)
- *    ta.cum(src)            → src            A11          (block only)
+ *    ta.cum(src)            → src            A11          (block only until F1)
+ *    ta.wma(src, len ≥ 2)   → na             T06, B06     (F1, vw-once-ta-helper)
+ *  F1: T01–T05 of `vw-once-ta-helper` answer the five "block only" rows inside a
+ *  helper called once, the same as in the block, on RDDT and SPY.
  *
  *  A key that is a NUMBER is an arity: what that many positional arguments
  *  answer — 'source' the first argument · 'high' the chart's `high` · 'na' ·
@@ -1040,11 +1043,16 @@ export const ONE_EXECUTION_TA = Object.freeze({
   'ta.lowest': Object.freeze({ helper: true, 2: 'source' }),
   'ta.sma': Object.freeze({ helper: true, 2: 'len', one: true }),
   'ta.ema': Object.freeze({ helper: true, 2: 'len' }),
-  'ta.rsi': Object.freeze({ helper: false, 2: 'len' }),
-  'ta.stdev': Object.freeze({ helper: false, 2: 'len' }),
-  'ta.atr': Object.freeze({ helper: false, 1: 'len' }),
-  'ta.change': Object.freeze({ helper: false, 1: 'na' }),
-  'ta.cum': Object.freeze({ helper: false, 1: 'source' }),
+  // ⭐ F1 — `helper: true` for the five block-only rows and the new `ta.wma` row:
+  // `vw-once-ta-helper-{rddt,spy}-1d-2026-10-02` (CAP round 4) prints T01–T06 in a
+  // helper called once and B01–B06 in the block, and every pair answers the same
+  // on both charts (NaN · NaN · NaN · NaN · the bar's volume · NaN).
+  'ta.rsi': Object.freeze({ helper: true, 2: 'len' }),
+  'ta.stdev': Object.freeze({ helper: true, 2: 'len' }),
+  'ta.atr': Object.freeze({ helper: true, 1: 'len' }),
+  'ta.change': Object.freeze({ helper: true, 1: 'na' }),
+  'ta.cum': Object.freeze({ helper: true, 1: 'source' }),
+  'ta.wma': Object.freeze({ helper: true, 2: 'len' }),
 })
 
 /** ⭐ C42 — is this guard `barstate.islast`, alone or as a top-level `and`
@@ -1122,7 +1130,7 @@ export function taCallIn(toks) {
  */
 export function oneExecutionTokens(toks, h, {
   bind = null, locals = EMPTY_SET, owned = EMPTY_SET, flagRest = false, historyFns = EMPTY_SET,
-  helper = false, chart = EMPTY_SET,
+  helper = false, chart = EMPTY_SET, fnDefs = null, depth = 0, callOwned = EMPTY_SET,
 } = {}) {
   let why = null
   const ident = (value, at) => ({ kind: 'ident', value, line: at.line, column: at.column, index: at.index })
@@ -1157,6 +1165,29 @@ export function oneExecutionTokens(toks, h, {
         continue
       }
       if (next.value !== '(') { out.push(tk); continue }
+      // ⭐⭐ F1 — A ONE-EXPRESSION HELPER CALLED FROM THE BLOCK THAT RUNS ONCE
+      // (`f() => ta.rsi(close, 14)`). Its body runs once with it, so it reads as
+      // that body's one-execution rewrite with the arguments in place of the
+      // parameters — the rows `vw-once-ta-helper-{rddt,spy}-1d-2026-10-02` (T01–T06)
+      // witness, each answering what the same call written in the block answers.
+      // ⛔ Only a one-statement body with no sub-block, called with exactly its
+      // parameters, positionally; anything the rewrite cannot settle stays standing
+      // and is flagged by name below, as before.
+      // ⛔ The body is rewritten FIRST, with its parameters (and the call-owned
+      // series) as the call's OWN history — `src[1]` in `fp(src) => src[1]` is the
+      // call's one run, `na` (C42), never the argument's every-bar history — and
+      // only then are the arguments put in.
+      const def = !helper && fnDefs && depth < 4 && historyFns.has(v) ? fnDefs.get(v) : null
+      const inl = def ? inlineOnceHelper(t, i, def, h) : null
+      if (inl) {
+        const owned2 = new Set([...callOwned, ...def.params.map((p) => p.name)])
+        const r = oneExecutionTokens(inl.body, h, { chart, helper: true, owned: owned2, depth: depth + 1 })
+        if (!r.why && !r.left) {
+          out.push(P('(', tk), ...substituteParams(r.toks, inl.byName), P(')', tk))
+          i = inl.close
+          continue
+        }
+      }
       const spec = Object.prototype.hasOwnProperty.call(ONE_EXECUTION_TA, v) ? ONE_EXECUTION_TA[v] : null
       if (!spec) { out.push(tk); continue }
       if (helper && !spec.helper) {
@@ -1207,6 +1238,36 @@ export function oneExecutionTokens(toks, h, {
       ? { ...tk, onceUnwitnessed: true } : tk))
   }
   return { toks: out, why, left }
+}
+
+/** ⭐ F1 — `f(a, b)` at `toks[i]` with `def` a one-statement body `=> expr`: the
+ *  body's tokens with each parameter replaced by its argument (bracketed), and the
+ *  call's closing index; null for any other shape. */
+function inlineOnceHelper(toks, i, def, h) {
+  if (!def || def.isMethod || def.overloaded || !Array.isArray(def.body) || def.body.length !== 1) return null
+  const st = def.body[0]
+  if (!st || (st.sub && st.sub.length) || !st.header || !st.header.length) return null
+  const close = closeOf(toks, i + 1)
+  if (close < 0) return null
+  const args = close === i + 2 ? [] : splitArgs(toks, i + 1, h.isPunct)
+  if (!args || args.length !== def.params.length || args.some((a) => a.name !== null || !a.toks.length)) return null
+  const byName = new Map(def.params.map((p, k) => [p.name, args[k].toks]))
+  const body = st.header
+  if (body.some((x) => x.kind === 'punct' && (x.value === '=' || x.value === ':=' || x.value === '=>'))) return null
+  return { body, byName, close }
+}
+
+/** ⭐ F1 — each parameter name in `toks` replaced by its argument, bracketed. */
+function substituteParams(toks, byName) {
+  const out = []
+  for (const x of toks) {
+    if (x.kind === 'ident' && !x.member && byName.has(String(x.value))) {
+      const at = x
+      out.push({ kind: 'punct', value: '(', line: at.line, column: at.column, index: at.index },
+        ...byName.get(String(x.value)), { kind: 'punct', value: ')', line: at.line, column: at.column, index: at.index })
+    } else out.push(x)
+  }
+  return out
 }
 
 /** Is `toks[i]` the head of a call to one of `names` — `f(…)`, or the method

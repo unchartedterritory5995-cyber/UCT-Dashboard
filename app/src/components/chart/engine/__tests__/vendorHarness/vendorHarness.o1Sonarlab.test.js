@@ -40,7 +40,9 @@ function sonarlab(cap) {
   const col = (k) => cap.bars.rows.map((r) => r[F.indexOf(k)])
   const o = col('open'); const hi = col('high'); const lo = col('low'); const c = col('close')
   const n = o.length
-  const sens = 28 / 100 // `/` on two ints is fractional in Pine ("5/2 = 2.5", operators page)
+  // `sens = input.int(28)` then `sens /= 100`: an INPUT int keeps the fraction —
+  // WITNESSED by CAP round 4 (`vw-int-div-assign` D01 = 0.28; a const int would truncate).
+  const sens = 28 / 100
   const pc = o.map((v, t) => (t >= 4 ? (v - o[t - 4]) / o[t - 4] * 100 : NaN))
   const under = (t, y) => t >= 1 && pc[t] < y && pc[t - 1] > y
   const over = (t, y) => t >= 1 && pc[t] > y && pc[t - 1] < y
@@ -80,6 +82,15 @@ describe('O1 G2a + G2b — sonarlab-order-blocks holds the boxes its Pine semant
       const ours = runOurSide({ ...cap, source: { ...cap.source, text: source } })
       registry.uninstallUserDefinition(HARNESS_DEF_ID)
       expect(ours.ok, ours.refusal).toBe(true)
+      // ⭐ F1 — off the listing the boxes live in a `var` list whose earlier contents
+      // this chart cannot know: withheld whole, by name (`objectRuntime.js`), never
+      // drawn as a subset. CAP round 4 measured why: SPY / AAPL / BRK.A 1D hold
+      // 24 / 17 / 24 boxes on TradingView, many made before the first loaded bar.
+      if (cap.history && cap.history.startsAtBar0 === false) {
+        expect(ours.objects.drawsObjects).toBe(false)
+        expect(ours.objects.withheld).toBe('objects:off-listing')
+        return
+      }
       const held = ours.objects.held.filter((x) => x.family === 'box')
       const alive = sonarlab(cap)
       expect(held.length, 'non-vacuity: boxes are drawn').toBeGreaterThan(0)

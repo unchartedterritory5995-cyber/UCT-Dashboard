@@ -3198,14 +3198,48 @@ export const BAR_FN = Object.freeze({
   }
 }
 
+/** ⭐⭐ F1 — `ta.vwap` / `ta.vwap(source)` ON A DAILY CHART: every daily bar is its
+ *  own session, so the value is the bar's own price — the source, or the typical
+ *  price `(h + l + c) / 3` for the bare form — wherever the bar has volume.
+ *  WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` (CAP2 Q-H3a, AMEX:SPY 1D): S01 bare
+ *  = hlc3 and S02..S08 (close, open, high, low, hl2, ohlc4, hlcc4) = that price, on
+ *  every bar. `computeVWAP` refuses a daily store key (no instant to bucket by), so
+ *  without this the rows were BLANK where TradingView draws values.
+ *  ⛔ Only when the CALLER states the chart is daily (`opts.tf === 'D'`) and every
+ *  bar is a daily key; a weekly or monthly bar is not witnessed and stays blank —
+ *  and the Python lane, which states no chart, keeps `computeVWAP`'s answer.
+ *  Returns null when it does not apply. */
+function dailySessionVwap(name, bars, args, length, opts) {
+  if (!opts || opts.tf !== 'D' || !Array.isArray(bars) || bars.length !== length || !length) return null
+  // the CHART's daily key, `'YYYY-MM-DD'`, on every bar. ⛔ Not the server sweep's
+  // `YYYYMMDD` integer: that lane (and its Python twin) keeps `computeVWAP`'s
+  // refusal, which `nanLaundering.test.js` pins — the screener states no chart.
+  for (let i = 0; i < length; i++) {
+    const t = bars[i] ? bars[i].t : undefined
+    if (!(typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t))) return null
+  }
+  const src = name === 'vwapOf' ? (args && args[0]) : null
+  if (name === 'vwapOf' && !(src && typeof src.length === 'number')) return null
+  const out = nan(length)
+  for (let i = 0; i < length; i++) {
+    const b = bars[i]
+    if (!(b.v > 0)) continue
+    const v = src ? src[i] : (b.h + b.l + b.c) / 3
+    out[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
+  }
+  return out
+}
+
 /** Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
  *
  *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL — the same contract
  *  `bindShipped` states, against the same `[]` "there is nothing to say here"
  *  signal both refusals above return. A short array padded from the left would
  *  put a real value at the wrong bar. */
-function barColumn(name, bars, args, length) {
+function barColumn(name, bars, args, length, opts) {
   const out = nan(length)
+  const daily = (name === 'vwap' || name === 'vwapOf') ? dailySessionVwap(name, bars, args, length, opts) : null
+  if (daily) return daily
   const points = BAR_FN[name](bars, args)
   if (!Array.isArray(points) || points.length !== length) return out
   for (let i = 0; i < length; i++) {
@@ -3323,6 +3357,22 @@ export const naConditionIsFalse = (version) => {
   const v = Number(version)
   return Number.isFinite(v) && v >= NA_CONDITION_FALSE_FROM_VERSION
 }
+
+/** ⭐⭐ F1 — Pine's `?:`: an `na` test takes the ELSE branch (`pineBool`).
+ *  WITNESSED for every test shape and every version CAP probed
+ *  (`rt1-na-test-v4/v5/v6`, NYSE:RDDT 1D from the listing, 2026-10-02):
+ *  `cross(close, warm)` with `warm` in warm-up -> 2 on bars 0..19, and
+ *  `bool b = na` · `b ? 1 : 2` -> 2 on every bar (v4, v5). */
+export const PINE_TERNARY = (t, a, b) => (pineBool(t) ? a : b)
+
+/** Does this evaluation read a `?:` test as Pine does? Two facts, both stated by
+ *  the CALLER and neither inferred: the series starts at the listing (so a `NaN`
+ *  is Pine's `na`, never a value behind the curtain), and the document's Pine
+ *  version has the rule (`opts.naConditionFalse`, from `meta.naConditionFalse`,
+ *  `nativeRegistry.listingOptsFor`). The same two the runtime lane asks
+ *  (`runtime/lowerIr.js` `naFalse`). Off the listing `TERNARY` stands. */
+export const pineTernaryFor = (opts) => !!opts && opts.historyFromListing === true
+  && opts.naConditionFalse === true
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
@@ -5858,7 +5908,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // pack of argument columns whose `t` is a bar index. The question asked
         // is "does this entry declare it", never "is this call `vwap`", so a
         // third such entry needs no edit here.
-        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
+        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length, opts)
         return FN[n.name](...args)
       }
       case 'str':
@@ -6061,7 +6111,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return lift3(values[0], values[1], values[2], TERNARY, length)
+      return lift3(values[0], values[1], values[2], pineTernaryFor(opts) ? PINE_TERNARY : TERNARY, length)
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -6095,7 +6145,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return TERNARY(values[0], values[1], values[2])
+      return (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(values[0], values[1], values[2])
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -6435,7 +6485,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             v = pineTest === LISTING_UNKNOWN || (strict && Number.isNaN(pineTest))
               ? LISTING_UNKNOWN
               : heldLatch && Number.isNaN(pineTest) ? values[2]
-                : TERNARY(pineTest, values[1], values[2])
+                : (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(pineTest, values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {

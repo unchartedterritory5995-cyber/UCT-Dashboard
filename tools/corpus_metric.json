@@ -1938,11 +1938,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:window",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:window",
         "pine:function"
       ]
     },

@@ -11593,7 +11593,9 @@
      "fn": "runtime:u_0000000000f6",
      "rev": 1,
      "source": "// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © faytterro\n\n//@version=5\nindicator(\"Wyckoff Accumulation Distribution\", overlay=true, max_boxes_count = 500, calc_bars_count = 1000)\n\n// === Genel ayar ===\ncolor_ = input.color(color.white, \"Text Color\")\n\n// RSI hesaplama\nrsilen = input.int(14, \"RSI Length\")\nrsi = ta.rsi(close, rsilen)\nrsisens = input.int(20, title= \"trend Sensitivity\", maxval=50, minval=0, \n tooltip = \"When it increases, bull and bear signals decrease and horizontal trend signals increase.\")\n\nutad = rsi<50+rsisens and rsi[1]>50+rsisens\nspring = rsi>50-rsisens and rsi[1]<50-rsisens\n\n// Yüksek ve düşük hesaplama fonksiyonları\nmyhigh(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, high[i])\n    array.max(x)\n\nmylow(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, low[i])\n    array.min(x)\n\n// Yatay, yükseliş ve düşüş koşulları\nside = (rsi < 50 + rsisens and rsi > 50 - rsisens) or (rsi[1] < 50 + rsisens and rsi[1] > 50 - rsisens)\nbull = rsi > 50 + rsisens and rsi[1] > 50 + rsisens\nbear = rsi < 50 - rsisens and rsi[1] < 50 - rsisens \n\nboxlen = ta.barssince(side and not side[1])\n\nbarcolor(bull ? color.lime : bear ? color.purple : na, offset = -2)\n\nx1 = ta.valuewhen(side and not side[1], bar_index, 0)\nx2 = ta.valuewhen(not side and side[1], bar_index[1], 0)-1\ny1 = myhigh(math.max(1, boxlen+1))[2]\ny2 = mylow(math.max(1, boxlen+1))[2]\n\n// Kutuyu çizme\nvar box trendBox = na\nif side[1] and not side\n    trendBox := box.new(x1, y1, x2, y2, color.gray, 1, line.style_solid, extend.none, xloc.bar_index, x1 < x2 ? color.rgb(120, 123, 134, 90) : na, text_color = color.new(color_,80))\n\nvar string after_trend = na\nif bull\n    after_trend := \"Accumulation\"\nelse if bear\n    after_trend := \"Distribution\"\n\nif not na(trendBox) and after_trend == \"Accumulation\"\n    box.set_bgcolor(trendBox, color.rgb(76, 175, 79, 95))\n    box.set_text(trendBox, \"Accumulation\")\nelse if not na(trendBox) and after_trend == \"Distribution\"\n    box.set_bgcolor(trendBox, color.rgb(255, 82, 82, 95))\n    box.set_text(trendBox, \"Distribution\")\n\npivotLen = input.int(5, \"Pivot Length\", minval=1)\nrsiLow = 50 - rsisens\nrsiHigh = 50 + rsisens\noffsetVal = -pivotLen\n\npivotLow = ta.pivotlow(low, pivotLen, pivotLen)\npivotHigh = ta.pivothigh(high, pivotLen, pivotLen)\nrsiAtPivot = rsi[pivotLen]\n\n// Flagler\nvar bool isSCFlag = false\nvar bool isARFlag = false\nvar bool isSTFlag = false\nvar bool isBCFlag = false\nvar bool isDARFlag = false\nvar bool isDSTFlag = false\n\n// SC\nisSC = pivotLow and rsiAtPivot < rsiLow and not isSCFlag and not spring\nplotshape(isSC, \"The Selling Climax\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"SC\", textcolor=color_, display = display.pane)\nisSCFlag := isSC ? true : isSCFlag\n\n// AR\nvar int scBarIndex = na\nif isSC\n    scBarIndex := bar_index - pivotLen\nisAR = false\nif not na(scBarIndex)\n    if pivotHigh and (bar_index - pivotLen > scBarIndex) and not isARFlag\n        isAR := true\n        scBarIndex := na\nisARFlag := isAR ? true : isARFlag\nplotshape(isAR, \"Automatic Rally\", style=shape.triangledown, location=location.abovebar, color=color.green, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// ST (Accumulation)\nvar int pivotCounter = 0\nif pivotLow\n    pivotCounter := pivotCounter + 1\nif rsiAtPivot < rsiLow\n    pivotCounter := 0\nisST = pivotCounter == 1 and pivotLow and not isSTFlag \nplotshape(isST,\"the Secondary Test\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\nisSTFlag := isST ? true : isSTFlag\n\n// BC\nisBC = rsiAtPivot > rsiHigh and pivotHigh and not isBCFlag and not utad\nplotshape(isBC,\"The Buying Climax\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"BC\", textcolor=color_, display = display.pane)\nisBCFlag := isBC ? true : isBCFlag\n\n// DAR\nvar int bcBarIndex = na\nif isBC\n    bcBarIndex := bar_index - pivotLen\nisDAR = false\nif not na(bcBarIndex)\n    if pivotLow and (bar_index - pivotLen > bcBarIndex) and not isDARFlag\n        isDAR := true\n        bcBarIndex := na\nisDARFlag := isDAR ? true : isDARFlag\nplotshape(isDAR,\"Automatic Reaction\", location=location.belowbar, style=shape.triangleup, color=color.red, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// DST\nvar int darBarIndex = na\nif isDAR\n    darBarIndex := bar_index - pivotLen\nisDST = false\nif not na(darBarIndex)\n    if pivotHigh and (bar_index - pivotLen > darBarIndex) and not isDSTFlag and not isBC\n        isDST := true\n        darBarIndex := na\nisDSTFlag := isDST ? true : isDSTFlag\nplotshape(isDST,\"The Secondary Test\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\n\n// Diğer pivotlar (turuncu)\nplotshape(pivotLow and not isSC and not isST and not isAR and not isDAR, \"pivotHigh\", location=location.belowbar, style=shape.triangleup, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\nplotshape(pivotHigh and not isAR and not isDST and not isBC,\"pivotLow\", location=location.abovebar, style=shape.triangledown, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\n\n// Reset flagler\nif bar_index != bar_index[1]\n    isSCFlag := false\n    isARFlag := false\n    isSTFlag := false\n    isBCFlag := false\n    isDARFlag := false\n    isDSTFlag := false\n",
-     "outputs": {},
+     "outputs": {
+      "out2": 0
+     },
      "objects": true
     },
     "meta": {
@@ -11647,10 +11649,6 @@
        "note": "`pivotLow` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
       },
       {
-       "name": "`barcolor` (line 39)",
-       "note": "`barcolor` (line 39) is not drawn: an `offset` on `barcolor` has no capture (tools/visual_conformance/probes/vw-bgcolor-barcolor.pine)."
-      },
-      {
        "name": "Drawings",
        "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
       }
@@ -11675,6 +11673,21 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "out2Color",
+      "type": "color",
+      "label": "out2 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out2Width",
+      "type": "int",
+      "label": "out2 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
      }
     ],
     "plots": [
@@ -11689,6 +11702,28 @@
        "decimals": 2
       },
       "hidden": true
+     },
+     {
+      "key": "out2",
+      "label": "out2",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true,
+      "forward": 0
+     }
+    ],
+    "paints": [
+     {
+      "kind": "barcolor",
+      "line": 39,
+      "colorMode": "column:out2",
+      "colorPacked": {},
+      "offset": -2
      }
     ]
    }
