@@ -752,9 +752,17 @@ def how_to_checklists_enabled() -> bool:
     return os.environ.get("HOW_TO_CHECKLISTS_ENABLED", "0").strip().lower() in _TRUTHY
 
 
+def research_fmp_depth_enabled() -> bool:
+    """FA/EE on FMP for the /research Financials and Estimates tabs (the terminal's
+    FA/EE panels show it unconditionally — the terminal is its own gate). Client-
+    only: the routes it reads answer every caller. Read PER CALL. Unset means OFF."""
+    return os.environ.get("RESEARCH_FMP_DEPTH_ENABLED", "0").strip().lower() in _TRUTHY
+
+
 _LANE_R_CLIENT_SURFACES = (
     ("charts_extra_groups_enabled", charts_extra_groups_enabled),
     ("how_to_checklists_enabled", how_to_checklists_enabled),
+    ("research_fmp_depth_enabled", research_fmp_depth_enabled),
 )
 
 
