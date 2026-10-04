@@ -30,7 +30,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.services import auth_db, auth_service, buzz_extract, buzz_universe
-from api.services.journal_two import note_tasks, notes, sample_notebook
+from api.services.journal_two import note_tasks, notes, sample_examples, sample_notebook
 from api.services.journal_two.notebook_schema import NOTEBOOK_TYPE_SCHEMA
 
 U1, U2, U3 = "u-sample-1", "u-sample-2", "u-sample-3"
@@ -43,6 +43,18 @@ def db(monkeypatch, tmp_path):
     path = str(tmp_path / "sample.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     auth_db.init_db()
+    # W14-E: one capability example (resurfacing) writes a `voice_proactive_insights` row,
+    # which carries a real `REFERENCES users(id)` -- unlike the j2_* family, which has none
+    # (account_purge.py's own docstring). A member who can click "Add a sample notebook" is
+    # always a real signed-up row; a test user needs one made for it explicitly.
+    c = auth_db.get_connection()
+    try:
+        for uid in (U1, U2, U3):
+            c.execute("INSERT INTO users (id, email, password_hash, display_name, role)"
+                     " VALUES (?, ?, 'x', 'x', 'member')", (uid, f"{uid}@example.test"))
+        c.commit()
+    finally:
+        c.close()
     return path
 
 
@@ -157,44 +169,96 @@ def test_seed_writes_the_sample_linked_and_records_its_ids(db):
     out = sample_notebook.seed(U1)
     c = _conn()
     try:
-        rows = c.execute("SELECT id, title, folder_id, ticker, import_source, properties_json FROM j2_notes"
-                         " WHERE user_id = ? ORDER BY created_at", (U1,)).fetchall()
-        assert len(rows) == 5
+        rows = c.execute("SELECT id, title, folder_id, ticker, import_source, properties_json,"
+                         " import_key FROM j2_notes WHERE user_id = ? ORDER BY created_at", (U1,)).fetchall()
+        # 5 base practice notes (wave 8) + 5 W14-E capability-example notes (plan, active
+        # setup, thesis, earnings-prep, transcript -- passed setups has no note of its own).
+        assert len(rows) == 10
         assert {r["id"] for r in rows} == set(out["ids"])
-        assert {r["folder_id"] for r in rows} == {out["folderId"]}
+        base = [r for r in rows if r["import_key"].startswith(sample_notebook.KEY_PREFIX)]
+        examples = [r for r in rows if r["import_key"].startswith(sample_examples.KEY_PREFIX)]
+        assert len(base) == 5 and len(examples) == 5
+        assert {r["folder_id"] for r in base} == {out["folderId"]}
         folder = c.execute("SELECT name, parent_id FROM j2_note_folders WHERE id = ?", (out["folderId"],)).fetchone()
         assert folder["name"] == "Sample notebook" and not folder["parent_id"]
-        assert all(r["ticker"] is None and r["import_source"] == "sample" for r in rows)
-        assert all(r["properties_json"] in (None, "", "{}") for r in rows)
-        by_title = {r["title"]: r["id"] for r in rows}
+        assert all(r["ticker"] is None and r["import_source"] == "sample" for r in base)
+        assert all(r["properties_json"] in (None, "", "{}") for r in base)
+        # the capability examples live in their own subfolder of the same sample notebook --
+        # "one sample notebook", not a second top-level folder to find and remove separately.
+        example_folder_ids = {r["folder_id"] for r in examples}
+        assert len(example_folder_ids) == 1 and next(iter(example_folder_ids)) != out["folderId"]
+        example_folder = c.execute("SELECT name, parent_id FROM j2_note_folders WHERE id = ?",
+                                   (next(iter(example_folder_ids)),)).fetchone()
+        assert example_folder["name"] == "Capability examples" and example_folder["parent_id"] == out["folderId"]
+        # at least one capability example genuinely names a real-looking ticker (unlike the
+        # five base notes, which must never -- wave 8, ruling D-C6, tested separately below).
+        assert any(r["ticker"] for r in examples)
+        by_title = {r["title"]: r["id"] for r in base}
         assert out["welcomeNoteId"] == by_title["Welcome to your sample notebook"]
         research, thesis = by_title["Research: how a base forms"], by_title["Thesis: leaders recover first"]
+        base_ids = {r["id"] for r in base}
         links = {(r["note_id"], r["target_note_id"]) for r in c.execute(
             "SELECT note_id, target_note_id FROM j2_note_links WHERE user_id = ?", (U1,))}
         assert (research, thesis) in links and (thesis, research) in links    # the pair links both ways
-        assert {t for w, t in links if w == out["welcomeNoteId"]} == set(out["ids"]) - {out["welcomeNoteId"]}
+        assert {t for w, t in links if w == out["welcomeNoteId"]} == base_ids - {out["welcomeNoteId"]}
         # every stored link points at a real sample note (no "@key" placeholder survived)
         assert all(t in out["ids"] for _, t in links)
     finally:
         c.close()
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
-    assert pref["v"] == 1 and pref["ids"] == out["ids"] and isinstance(pref["at"], str)
+    assert pref["v"] == 2 and pref["ids"] == out["ids"] and isinstance(pref["at"], str)
+    assert pref["examples"]["errors"] == {}, pref["examples"]["errors"]
+    assert pref["examples"]["tradeId"] and pref["examples"]["passedSetupId"] and pref["examples"]["insightId"]
 
 
 def test_after_seeding_nothing_reads_as_a_stock_or_a_reminder(db):
+    """The wave-8 base five, scoped on their own: still exactly the no-ticker, no-mention,
+    no-property, no-dated-task guarantee D-C6 ships (unaffected by W14-E)."""
     out = sample_notebook.seed(U1)
     c = _conn()
     try:
-        # the Awareness Engine's source (R6 thesis-stop) and the per-member query agree: empty
-        assert notes.bulk_member_mentioned_symbols(c).get(U1, set()) == set()
-        assert notes._member_mentioned_symbols(U1, c) == []
-        assert c.execute("SELECT COUNT(*) FROM j2_note_mentions WHERE user_id = ?", (U1,)).fetchone()[0] == 0
-        assert c.execute("SELECT COUNT(*) FROM j2_note_embeds WHERE user_id = ? AND symbol IS NOT NULL",
+        base_ids = tuple(r[0] for r in c.execute(
+            "SELECT id FROM j2_notes WHERE user_id = ? AND import_key LIKE ?",
+            (U1, f"{sample_notebook.KEY_PREFIX}%")))
+        assert len(base_ids) == 5
+        marks = ",".join("?" * len(base_ids))
+        assert c.execute(f"SELECT COUNT(*) FROM j2_note_mentions WHERE user_id = ? AND note_id IN ({marks})",
+                         (U1, *base_ids)).fetchone()[0] == 0
+        assert c.execute(f"SELECT COUNT(*) FROM j2_note_embeds WHERE user_id = ? AND symbol IS NOT NULL"
+                         f" AND note_id IN ({marks})", (U1, *base_ids)).fetchone()[0] == 0
+        # j2_note_properties holds PROPERTY DEFINITIONS (schema), not per-note values -- a
+        # user-wide count, not a per-note one. The one property a capability example sets
+        # (`builtin:thesis_status`, on the NVDA thesis example) is a code-defined builtin
+        # (note_properties.BUILTIN_PROPERTY_DEFS), so it creates no row here either.
+        assert c.execute("SELECT COUNT(*) FROM j2_note_properties WHERE user_id = ?",
                          (U1,)).fetchone()[0] == 0
-        assert c.execute("SELECT COUNT(*) FROM j2_note_properties WHERE user_id = ?", (U1,)).fetchone()[0] == 0
-        for nid in out["ids"]:
+        for nid in out["ids"]:    # no dated task anywhere, base notes or capability examples
             body = json.loads(c.execute("SELECT body_json FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0])
             assert all(t["due"] is None for t in note_tasks.extract_tasks(body))
+    finally:
+        c.close()
+
+
+def test_the_capability_examples_name_real_tickers_but_create_no_open_position(db):
+    """W14-E, by design, is the opposite guarantee from the base five: a capability example
+    MUST look like it names a real stock, or plan grading / the setups board / thesis chips
+    have nothing to show. What stays true: no example ever opens a POSITION (the one trade
+    is already closed), so `rule_thesis_stop_review` -- which fires only for a symbol that
+    is BOTH mentioned AND the symbol of a real OPEN position hitting its OWN real stop
+    (`awareness/rules.py`) -- can never fire from sample data alone; and removing the
+    sample removes the mention too, because the vocabulary query excludes trashed notes."""
+    sample_notebook.seed(U1)
+    c = _conn()
+    try:
+        mentioned = notes.bulk_member_mentioned_symbols(c).get(U1, set())
+        assert {sample_examples.SYM_PLAN, sample_examples.SYM_SETUP} <= mentioned
+        assert c.execute("SELECT COUNT(*) FROM j2_positions WHERE user_id = ?", (U1,)).fetchone()[0] == 0
+    finally:
+        c.close()
+    sample_notebook.remove(U1)
+    c = _conn()
+    try:
+        assert notes.bulk_member_mentioned_symbols(c).get(U1, set()) == set()
     finally:
         c.close()
 
@@ -263,7 +327,7 @@ def test_two_seeds_at_once_give_exactly_one_sample(db, monkeypatch):
     assert sorted(r[0] for r in results) == ["SampleRefused", "ok"]
     c = _conn()
     try:
-        assert c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (U1,)).fetchone()[0] == 5
+        assert c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (U1,)).fetchone()[0] == 10
     finally:
         c.close()
 
@@ -282,7 +346,7 @@ def test_a_members_sample_never_touches_another_members_notebook(db):
                                                " GROUP BY user_id")}
     finally:
         c.close()
-    assert live == {U2: 1, U3: 5}
+    assert live == {U2: 1, U3: 10}
     assert notes.get_note(U2, other) is not None
 
 
@@ -293,12 +357,22 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     notes.delete_note(U1, already)                  # the member trashed one sample note themselves
     notes.set_note_archived(U1, out["ids"][3], True)
     result = sample_notebook.remove(U1)
-    assert result == {"trashed": [i for i in out["ids"] if i != already]}
+    assert result["trashed"] == [i for i in out["ids"] if i != already]
+    assert result["examplesRemoved"] == {"tradeDeleted": True, "entryContextDeleted": True,
+                                         "passedSetupDismissed": True, "insightDismissed": True}
     assert notes.get_note(U1, mine) is not None     # the member's own note is untouched
     for nid in out["ids"]:
         assert notes.get_note(U1, nid) is None
         assert notes.get_note(U1, nid, include_deleted=True) is not None   # in Trash, restorable
-    assert sample_notebook.remove(U1) == {"trashed": []}
+    again = sample_notebook.remove(U1)
+    assert again["trashed"] == []
+    # tradeDeleted/entryContextDeleted/passedSetupDismissed are each False the second time --
+    # the trade and context row are gone, and passed_setups.dismiss() filters `dismissed_at
+    # IS NULL`. `voice_proactive_service.dismiss()` carries no such guard (it re-stamps the
+    # timestamp and reports True as long as the row exists) -- a property of that capability's
+    # own door, not a defect of this removal.
+    assert again["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
+                                        "passedSetupDismissed": False, "insightDismissed": True}
 
 
 def test_active_ids_reads_the_pref_and_the_trash(db):
@@ -335,7 +409,7 @@ def test_the_routes_seed_report_and_remove(app):
     body = r.json()
     assert set(body) == {"folderId", "welcomeNoteId"}
     status = client.get("/api/j2/onboarding/sample-notebook").json()
-    assert len(status["ids"]) == 5 and status["activeIds"] == status["ids"]
+    assert len(status["ids"]) == 10 and status["activeIds"] == status["ids"]
     assert body["welcomeNoteId"] in status["ids"]
     again = client.post("/api/j2/onboarding/sample-notebook")
     assert again.status_code == 409 and again.json()["detail"] == REFUSED
@@ -393,7 +467,7 @@ def test_the_delete_route_is_scoped_to_the_caller(app):
     _as(app, U3)
     assert client.post("/api/j2/onboarding/sample-notebook").status_code == 200
     assert client.delete("/api/j2/onboarding/sample-notebook").status_code == 200
-    assert len(sample_notebook.active_ids(U1)) == 5 and sample_notebook.active_ids(U3) == []
+    assert len(sample_notebook.active_ids(U1)) == 10 and sample_notebook.active_ids(U3) == []
 
 
 def test_a_locked_database_is_503_with_its_sentence(app, monkeypatch):
