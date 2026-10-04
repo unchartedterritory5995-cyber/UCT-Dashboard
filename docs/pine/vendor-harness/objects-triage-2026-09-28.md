@@ -181,6 +181,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 81 | CAP3 standing capture lane (section CAP3): Q-L2a rolling-vwap (RDDT plots 7/7 MATCH with the store, table cell DIVERGE), Q-RT5a (vendor rows pinned; still refused), Q-H4a (RDDT MATCH 4/4), Q-RT5b renko (RDDT MATCH), Q-RT6a-f (kalman + deadband MATCH, probe colours DIVERGE, nadaraya/atr-stepped INCONCLUSIVE, parabolic-sar DIVERGE); 69 of 71 SPY 1D gap captures (all but supertrend-explorer, refused by TradingView, and rolling-vwap, whose SPY capture is Q-L2a's): MATCH 19 / DIVERGE 48 / INCONCLUSIVE 2, pinned by signature | `b2794f9f34`, `0e083dd37a`, `296a085e9f`, `7eb130a8f5`, `fec87573d9`, `4744b3e6c7`, batch 7 | 69 SPY + 14 queue harness files | - | census (libraries loaded) 55 / 82 / 89 |
 | 82 | RT6 per-bar colour on the RUNTIME lane (section RT6): a plot's `color =` is an output of the same run (opt-in `plotColours`, appended after every other output), carried as a hidden packed-colour column (`colorPacked`) and drawn by the host renderer (`pool.columnColorsForPlot` -> `packedPointColour`; an `na` colour draws nothing); `bgcolor` / `barcolor` ride the runtime document as paints coloured by the run, with `transp =` or the v4 `bgcolor` default 90 (CAP round 4) folded into a provably opaque colour only; within one script the later `barcolor` wins (CAP round 4 P1/P2); `color.new` / `color.rgb` over `na` are `na` | `98cab84278`, `b8983a327c`, `10cadf56d2` | harness dir 295 (runtime pane permitted): MATCH 86 -> 87, DIVERGE 94 -> 91; inside-bar-range RDDT DIVERGE -> MATCH, vw-deadband-ticks AAPL / SPY DIVERGE -> INCONCLUSIVE (DBHF MATCH, the barcolor agrees); 0 MATCH -> DIVERGE | census on + runtime 87 -> 93 (atr-stepped-pdf-ma, deadband-hysteresis-filter, fvg-trend, kalman-price-filter, nadaraya-watson, parabolic-sar); off / on 0 rows changed |
 | 83 | RT7 the runtime lane's next walls (section RT7): reductions skip `na`, an empty `array.max/min` is `na`, `na` is found nowhere, v6 counts a negative index from the end (all from `vw-array-na-spy-1d`; wyckoff RDDT now draws TradingView's 12 boxes); `ta.valuewhen` / crosses inside a function per call site (`carried2Base`); a fixed pivot `rightbars` folded; `fixnan`; the VM dispatches through a jump table (5,000 bars: renko 797 -> 214 ms, dolphin 1,079 -> 221 ms, digests identical) | `pine/rt7-runtime-walls` | census 55 / 82 / 99 -> 55 / 82 / 99 (0 lost, 0 gained; 7 runtime rows to later walls) | harness identical except wyckoff RDDT objects INCONCLUSIVE -> MATCH |
+| 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -6792,3 +6793,75 @@ red); one dispatch literal changed (1 red); fixnan step returns its input (2 red
   the `ta.cci` source role (next: `pine:block`, `array.sort`), `ticker.heikinashi` (next: `haopen`
   in the library), `chart.left_visible_bar_time` (refused by name, `pine:builtin`).
 - Five corpus measure tests time out at 15 s under load (pre-existing: also at `b65e247685`).
+
+## H5 - host-lane values: default parameters, a listing's period anchor, a request timeframe through a parameter, `round_to_mintick`, `format.volume` (2026-10-03, step 84)
+
+Lane H5, branch `pine/h5-host-values`, base `integrate/wave16-2026-10-02` (`a66bae77b7`), merged
+with the wave-16 tip `c91e9fe3c8` before the final census. Target: the host (columnar) translator's
+next walls, plus F4's request-held drawings. One construct per commit.
+
+### Census at base (`memberDoorCensus`, off / on / on + runtime)
+
+Empty registry **55 / 80 / 87**; libraries loaded **55 / 82 / 90**. First refusals at H5's codes
+(objects on): `pine:function-def` 4 (empty registry) / 6 (libraries), `pine:request` 18. Every
+refusal of every script was read off `translatePine` with the door's options before building. The
+four empty-registry `function-def` scripts (blackflag, boom-hunter, macd-with-filter,
+optimized-trend-tracker) refuse for a function that ends in no value, not for defaults, so the
+default-parameter construct attaches none of them; it moves first walls and makes graded captures
+draw on the host lane.
+
+### What H5 served
+
+| commit | construct | outcome | evidence |
+|---|---|---|---|
+| `8579b64f75` | `interpret.js::periodAnchorMask` (+ `ast_interpret.py`) withheld the reach of "the bar before the series" even FROM THE LISTING | from the listing (ruling R-W, `opts.historyFromListing`) there is no earlier bar, so a read there is Pine's `na`, as `historyReadMask` already ruled; off the listing unchanged | `vendorHarness.h5ListingAnchor`: `vw-library-import-rddt-1d` L03/L04 (`var` maxima reset at a new month/week) at the top level, 636/636 MATCH (was 385 matching, 251 `na`); control off the listing keeps 385 / 251 in warm-up. `c49CapturedClock` re-pinned: SPY's new-period events are served and equal on bar 0. Parity fixture +2 cases. Mutations: JS 4 red, Python 2 red. Sweep: 0 verdicts changed |
+| `71ca1694c5` | `pine:function-def`: a user or library function whose parameters declare DEFAULTS | the plot lane reads the header (C47 confined it to the drawing lane to protect parameter ids; since C46 an id is the input's place in the source, so that hazard is gone). ONE default rule for both lanes, `pine.js::paramDefaultShapeOk` (a literal, a dotted built-in constant, a bar series); the runtime frontend imports it instead of keeping its own copy. A bar-series default that the caller's or the declaring scope rebinds is refused by name. A required parameter behind an optional one is read (only trailing omissions are filled; arity still enforced) | `vendorHarness.h5DefaultParams`: `vw-default-param-spy-1d` D01-D15 MATCH on 1,800 bars with the runtime pane OFF (control `k = 8` DIVERGES on D01 only); Q-L1 with the L2 fixture library, 7 plots MATCH on 636 bars on the host lane (control `source = low` DIVERGES on L05 only). `runtimeParamDefaults` now holds the host lane's columns equal to the forced runtime lane's. Mutations: 16 / 6 / 1 / 2 red. Census unchanged; first walls moved: adaptive-trend function-def -> block, atr-stop-loss function-def -> builtin (`syminfo.type`), volatility-stop-mtf tuple -> state, supertrend-relative-volume tuple -> timeout. Sweep: vw-default-param objects None -> MATCH (still INCONCLUSIVE overall: D00 withheld for `bar-index:window`) |
+| `0df971ee42` | `pine:request`: `f(string tf) => request.security(<own symbol>, tf, ...)` called with a literal or an input | the plot lane reads the parameter as its caller's argument (C33 did this on the object pass only, for the same parameter-id reason). An unservable timeframe keeps `pine:request` (control `f("3D")`) | `vendorHarness.h5RequestParam`: `average-day-range-adr-pivots-rddt-1d` with the runtime pane OFF, MATCH, 7 plots x 632 bars. `c33ObjectReads` re-pinned. Mutation red. Census 55 / 80 / 87 -> **56** / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90); camarilla request -> window, advanced-custom request -> block. Sweep: ADR (off) INCONCLUSIVE -> MATCH |
+| `7d12c5cbb8` | `math.round_to_mintick(x)` on the host lane | resolved in `resolveTableCall` as `math.round(x / syminfo.mintick) * syminfo.mintick`, so the tick is the binding's like every `syminfo.mintick`, and the host lane and RT5's runtime desugar compute the same thing | `vendorHarness.h5MulticatorValues`: a probe printing multicator's cell expressions (open, close, SMA 50/100/200, EMA 50, RSI 14, ATR 14) through `str.tostring(math.round_to_mintick(v))`, run through the member door on `multicator-table-{rddt,spy}-1d`'s own bars: all 8 equal TradingView's text on both symbols (control: plain `math.round` differs). Mutation 2 red. Sweep and census unchanged |
+| `7a8404c9f7` | `str.tostring(x, format.volume)` | read only where captures pin it (`pineTextFormat.js::volumeNumberText`): magnitude in millions or billions, three decimals, the third decimal non-zero, minus sign first. Below a million, a trailing zero, an exact tie, a unit roll-over and >= 10^12 are WITHHELD. `format.percent` stays unread (F3's rule) | witnesses, each our own computation on the capture's bars against TradingView's printed cell: RDDT volume 3,125,951 -> `3.126M`, SPY 46,335,295 -> `46.335M`, RDDT OBV from the listing -29,983,517 -> `-29.984M`; SPY `10.801B` pins the suffix. Through the door the volume cell prints TradingView's text on both symbols; the OBV cell is not drawn (`ta.obv` is not served on this lane, so it is dropped, never printed wrong). F3's `format.volume` pins re-stated on `format.percent`. Mutations: trailing-zero rule dropped 1 red; renderer bypassed 2 red |
+
+### Refused on purpose: F4's request-held drawings and the rest of the 18
+
+Rule: a request whose data we do not hold stays refused. Each request was read for what it resolves
+to:
+
+- **liquidity-heatmap** (14 label creates): every guard reads `resolutionInMinutes("3" | "240")`,
+  a request with `timeframe.multiplier` inside it. `3` is not a timeframe this store builds
+  (`LOWER_TF_SOURCE` has no `3`), `240` is behind the intraday gate (`lower-tf:store-unmeasured`),
+  and `timeframe.*` read inside a request is unmeasured. Not served; Q-H5b queued
+  (`vw-h5-request-timeframe-text`).
+- **htf-liquidity** cells: AUDUSD / EURUSD / GBPUSD / USDJPY and other symbols with no capture.
+  Data not held.
+- **ema-ribbon** cells: 15 / 60 / 240-minute requests, all `lower-tf:store-unmeasured`. That is the
+  product's intraday data gate, not a translator construct.
+- Others left at `pine:request`: other symbols (4c-nyse `USI:`, ad-line `SP:`, sub `INDEX:`,
+  swing-points / open-interest computed BINANCE symbols, previous-n-days `tickerid(..., session)`),
+  lower timeframes behind the intraday gate (mtf-dashboard, multi-timeframe-rsi, take-profit,
+  multi-timeframe-trend-indicator), and computed timeframes (cppivot's ternary, delta-volume's
+  `tostring(size)`, camarilla-screener).
+
+### Measured
+
+| | base `a66bae77b7` | after H5 (pre-merge) | merged with `c91e9fe3c8` |
+|---|---|---|---|
+| member door off / on / + runtime, empty registry | 55 / 80 / 87 | **56** / 80 / 87 | 56 / 80 / 96 |
+| same, libraries loaded | 55 / 82 / 90 | **56** / 82 / 90 | 56 / 82 / 99 |
+| previously attached lost | - | **0** | - |
+| `corpusMetric` host / screener | 77 / 66 | 77 / 66 (three rows' first guard changed) | - |
+| harness sweep | - | per commit: 0 MATCH -> DIVERGE | merged baseline (368 captures) off 73 / on 95 / runtime 107 MATCH; libraries 73 / 96 / 109 |
+
+The merged-tree column moves because of the lanes merged in, not H5's commits. `paramIds.test.js`
+green at every commit (nothing appended). Known reds left as found, all red identically on the base
+bytes: `vendorHarness.capRound4` (6, the Q-O1 pins), `pineProbeReplay`'s budget-step hash
+(72s-hull, adaptive-trend), `pineStrictCensus` (15 s timeout).
+
+### Open
+
+1. **`pineProbeReplay`**: adaptive-trend's step count moves with the default-parameter admission
+   (more of it translates). Re-pinning the table is the integrator's call; the rail was already
+   red at base.
+2. **Q-H5a / Q-H5b** (`docs/pine/capture-queue-2026-10-03-h5-values.md`): `format.volume` below a
+   million and with trailing zeros; `timeframe.*` inside a request at W / M / 240 / 3.
+3. **multicator-table** still cannot be drawn: its cells now compute correctly on the host lane,
+   but the whole drawing is withheld for the HUD's lost removals (`pine:object-removal-lost`), and
+   colour cells read `ThemePalette` UDT fields, which H5 did not attempt.
