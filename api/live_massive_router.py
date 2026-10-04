@@ -1179,6 +1179,46 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
+                     sym_params=()) -> tuple:
+    """(thresholds, gross_before, ask_prem_ledger, ask_vol_ledger) for one day —
+    the session-wide per-contract aggregates the classifier grades against. ONE
+    definition shared by the feed (_compute_recent_core) and the Market Read
+    (_build_day_stats) so the two classify identically (2026-10-03: the Market
+    Read built none, so Ask Accumulation / Alpha LEAPS never existed there and its
+    10/1 bull total read $199.9M vs the feed's $220.1M).
+
+    ONE full-session ask/bid projection feeds the clean-directional ledger (ask
+    VOLUME per contract, A/AA only), the Alpha LEAPS / Ask Accumulation ask-PREMIUM
+    ledger, and the Ask Accumulation ask-VOLUME ledger. Blank-side SWEEPs are pulled
+    too (Type projected) so the aggregate reflects the sweep_empty_side_as_ask
+    presumption the single-print path already applies — the PPTA fix (2026-09-05).
+    The close detector's long ledger is unaffected: a blank side adds 0 there."""
+    th = _load_thresholds()
+    close_on = th.get("close_detector_enabled", False)
+    alpha_leaps_on = th.get("alpha_leaps_enabled", True)
+    # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
+    # Alpha LEAPS, so build it when either tier is on.
+    ask_accum_on = th.get("ask_accum_enabled", True)
+    if not (close_on or alpha_leaps_on or ask_accum_on):
+        return th, {}, {}, {}
+    ledger_rows = conn.execute(f"""
+        SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
+          FROM flow
+         WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+           AND (Side IN ('A','AA','B','BB')
+                OR (COALESCE(Side,'') = ''
+                    AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
+    """, (today, *sym_params)).fetchall()
+    presume = bool(th.get("sweep_empty_side_as_ask", True))
+    gross_before = _build_session_long_ledger(ledger_rows) if close_on else {}
+    prem = (_build_session_ask_premium_ledger(ledger_rows, presume_sweep_ask=presume)
+            if (alpha_leaps_on or ask_accum_on) else {})
+    vol = (_build_session_ask_volume_ledger(ledger_rows, presume_sweep_ask=presume)
+           if ask_accum_on else {})
+    return th, gross_before, prem, vol
+
+
 def _build_session_ask_premium_ledger(rows, presume_sweep_ask: bool = True) -> dict:
     """ask_prem[row_id] = TOTAL ask-side PREMIUM on the row's contract across the
     whole session (ORDER-INDEPENDENT). Sibling of _build_session_long_ledger
@@ -2978,41 +3018,8 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # sided prints (A/AA/B/BB) are pulled (blank/mid never build/close a
         # trackable long). Runs only when enabled. Perf: a narrow 7-col
         # projection; cache it (watermark) if it ever strains RTH.
-        _close_th = _load_thresholds()
-        _close_on = _close_th.get("close_detector_enabled", False)
-        _alpha_leaps_on = _close_th.get("alpha_leaps_enabled", True)
-        # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
-        # Alpha LEAPS, so build it when either tier is on.
-        _ask_accum_on = _close_th.get("ask_accum_enabled", True)
-        if _close_on or _alpha_leaps_on or _ask_accum_on:
-            # ONE full-session ask/bid projection feeds the clean-directional ledger
-            # (ask VOLUME per contract, A/AA only), the Alpha LEAPS / Ask
-            # Accumulation ask-PREMIUM ledger, and the Ask Accumulation ask-VOLUME
-            # ledger. Blank-side SWEEPs are pulled too (Type projected) so the
-            # aggregate reflects the sweep_empty_side_as_ask presumption the
-            # single-print path already applies — the PPTA fix (2026-09-05). The
-            # close detector's long ledger is unaffected: a blank side adds 0 there.
-            _lc = conn.execute(f"""
-                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
-                  FROM flow
-                 WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-                   AND (Side IN ('A','AA','B','BB')
-                        OR (COALESCE(Side,'') = ''
-                            AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
-            """, (today, *sym_params))
-            _ledger_rows = _lc.fetchall()
-            _presume_sweep_ask = bool(_close_th.get("sweep_empty_side_as_ask", True))
-            _gross_before = _build_session_long_ledger(_ledger_rows) if _close_on else {}
-            _ask_prem_ledger = (_build_session_ask_premium_ledger(
-                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
-                                if (_alpha_leaps_on or _ask_accum_on) else {})
-            _ask_vol_ledger = (_build_session_ask_volume_ledger(
-                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
-                               if _ask_accum_on else {})
-        else:
-            _gross_before = {}
-            _ask_prem_ledger = {}
-            _ask_vol_ledger = {}
+        _close_th, _gross_before, _ask_prem_ledger, _ask_vol_ledger = _session_ledgers(
+            conn, source_clause, today, sym_clause, sym_params)
     finally:
         conn.close()
 
@@ -3536,7 +3543,15 @@ async def current_quotes(payload: CurrentQuotesPayload,
 # market looks like today" — only what THEY are looking at).
 
 _day_stats_cache: dict = {}  # date_key → (computed_at_unix, payload)
-_DAY_STATS_TTL = 30  # 30s — fast enough for live, slow enough to skip work
+_DAY_STATS_TTL = int(os.environ.get("MASSIVE_DAY_STATS_TTL", "120"))  # today
+# 2026-10-03: full-day Market Read (no row cap) costs 2-7s per build in the
+# ingesting flow-worker, so today refreshes every 2 min (was 30s while it only
+# read the newest 20k rows); stale is served instantly while one refresh runs.
+# Past days use _HISTORICAL_TTL — heals invalidate them (invalidate_date_caches).
+
+
+def _day_stats_ttl(day: str) -> float:
+    return _DAY_STATS_TTL if day == _today_mdyyyy() else _HISTORICAL_TTL
 _day_stats_lock = threading.Lock()  # single-flight: bound concurrent heavy recomputes to 1
 
 
@@ -3581,8 +3596,21 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
         sources = base_sources
 
     rows = []
+    ledgers = ({}, {}, {}, {})
+    capped_sources = []
     if sources:
-        cap = int(os.environ.get("MASSIVE_DAYSTATS_CAP", "20000"))
+        # Full day by default (2026-10-03). The old per-source newest-20000 cap
+        # (MASSIVE_DAYSTATS_CAP) dropped the MORNING on any day past 20k
+        # color-gate rows: 10/1 covered 11:46 AM on, reading 60% bull vs the full
+        # day's 52%; 10/2 covered 11:53 AM on ($222M bull vs $539M). Full-day
+        # cost measured on the flow-worker: 1.3s (10/1) / 2.1s (10/2) vs 0.8-1.0s
+        # capped, behind the 30s cache. MASSIVE_MARKETREAD_CAP > 0 re-imposes a
+        # per-source cap as an emergency valve; the payload then reports
+        # covers_from so the card can say the read is partial.
+        cap = int(os.environ.get("MASSIVE_MARKETREAD_CAP", "0") or 0)
+        sql_cap = cap if cap > 0 else -1          # SQLite: LIMIT -1 = no limit
+        override_sql_floor = int(_load_thresholds().get("premium_override", {})
+                                 .get("min_premium", 1_000_000))   # same floor as the feed
         select_cols = (
             "SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume, "
             "Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate, "
@@ -3598,7 +3626,7 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
                     f"{select_cols} FROM flow "
                     f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
                     f"ORDER BY id DESC LIMIT ?",
-                    (sources[0], today, override_sql_floor, cap),
+                    (sources[0], today, override_sql_floor, sql_cap),
                 )
             else:
                 # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union,
@@ -3615,23 +3643,46 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
                         f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
                         f"ORDER BY id DESC LIMIT ?)"
                     )
-                    params.extend([s, today, override_sql_floor, cap])
+                    params.extend([s, today, override_sql_floor, sql_cap])
                 cur = conn.execute(" UNION ALL ".join(subqueries), params)
-            # CAP (2026-07-09; per-source since 2026-07-10): _row_to_alert over an
-            # unbounded row set timed out (30s+) at midday, so we cap. Applied PER
-            # SOURCE so the ALL view is a real union of full-day partitions instead of
-            # a truncated latest-N of the merged pool. Sync endpoint (threadpool) +
-            # 30s cache absorbs the pass. Env-tunable via MASSIVE_DAYSTATS_CAP.
             rows = cur.fetchall()
+            if cap > 0:
+                for s in sources:
+                    if sum(1 for r in rows if r["source"] == s) >= cap:
+                        capped_sources.append(s)
+            # Same session ledgers as the feed → same tiers/directions.
+            src_clause = "source IN (%s)" % ",".join(f"'{s}'" for s in sources)
+            ledgers = _session_ledgers(conn, src_clause, today)
         finally:
             conn.close()
 
-    # Translate each row to an alert (includes direction + dte + ticker)
+    # Translate each row to an alert (includes direction + dte + ticker) exactly as
+    # the feed does: session ask aggregates + the clean-directional sell demotion.
+    # Full-day cost (10/2 "all": 8.9s cold) runs in the flow-worker process that
+    # also ingests the WS tape, so: TODAY reuses the feed's row-hash classify cache
+    # (the feed has usually just classified the same rows) — today only, since
+    # _incr_prepare clears the cache on a date change — and yields the GIL every
+    # _FILL_YIELD_ROWS rows like the feed's fill.
+    _l_th, _l_gross, _l_prem, _l_vol = ledgers
+    _use_incr = (today == _today_mdyyyy()
+                 and bool(_load_thresholds().get("incremental_scan", False)))
+    if _use_incr:
+        _incr_prepare(today)
     classified = []
-    for r in rows:
-        a = _row_to_alert(dict(r))
+    for _i, r in enumerate(rows):
+        if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
+            time.sleep(_FILL_YIELD_SEC)
+        _ap, _av = _l_prem.get(r["id"], 0.0), _l_vol.get(r["id"], 0.0)
+        a = (_incr_classify(r, agg_ask_premium=_ap, agg_ask_volume=_av) if _use_incr
+             else _row_to_alert(dict(r), agg_ask_premium=_ap, agg_ask_volume=_av))
         if a is not None:
+            if _l_th:
+                _demote_contaminated_sell(a, _l_gross, _l_th)
             classified.append(a)
+    covers_from = None
+    if capped_sources and classified:
+        covers_from = min((a["timestamp"] for a in classified if a.get("timestamp")),
+                          default=None)
 
     # Aggregate everything in one pass
     bull_prem = 0
@@ -3774,6 +3825,11 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
     return {
         "query_date": today,
         "total_classified": len(classified),
+        # Bull+Bear prints only — the base of every $ figure and bucket (the
+        # header used to show total_classified, which includes neutral prints).
+        "directional_count": bull_count + bear_count,
+        # Non-null only when MASSIVE_MARKETREAD_CAP truncated the day.
+        "covers_from": covers_from,
         "bull_premium": bull_prem,
         "bear_premium": bear_prem,
         "bull_count": bull_count,
@@ -3804,7 +3860,8 @@ def day_stats(
     macro view — but DOES honor the Stocks/ETFs toggle so the card and the
     feed agree on which universe they're describing.
 
-    Cached for 30s server-side per (date, exclude_algo, stock_etf). Historical
+    Cached per (date, exclude_algo, stock_etf): today 2 min (stale served while
+    one background refresh runs), past days 6h (heals invalidate). Historical
     dates never change so cache hit rate is near-100% after first request.
 
     When exclude_algo=true, the Algo tier (multi-leg complex strategies) is
@@ -3816,29 +3873,34 @@ def day_stats(
         stock_etf = "all"
     cache_key = (today, bool(exclude_algo), stock_etf)
     cached = _day_stats_cache.get(cache_key)
-    if cached and (now - cached[0]) < _DAY_STATS_TTL:
+    if cached and (now - cached[0]) < _day_stats_ttl(today):
         return cached[1]
     # Single-flight + stale-serve. Only ONE heavy recompute runs at a time; a
     # concurrent request holding a stale value gets it instantly instead of
     # launching a second 30s+ pass. Those parallel passes are what piled up in
     # the threadpool and starved /recent (feed lag). Staleness is bounded to one
     # refresh — identical to what the 30s cache already allowed.
-    if not _day_stats_lock.acquire(blocking=False):
-        if cached:
-            return cached[1]                      # serve stale, don't queue behind the compute
-        with _day_stats_lock:                     # first-ever for this key: must compute once
-            c2 = _day_stats_cache.get(cache_key)
-            if c2 and (time.time() - c2[0]) < _DAY_STATS_TTL:
-                return c2[1]
-            payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
-            _day_stats_cache[cache_key] = (time.time(), payload)
-            return payload
-    try:
+    if cached:
+        # STALE: serve it now; refresh in ONE background thread (2026-10-03 — a
+        # full-day build is 2-7s, too long to hold a request for).
+        if _day_stats_lock.acquire(blocking=False):
+            def _refresh():
+                try:
+                    p = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
+                    _day_stats_cache[cache_key] = (time.time(), p)
+                except Exception:
+                    logging.getLogger(__name__).exception("[massive] day-stats refresh failed")
+                finally:
+                    _day_stats_lock.release()
+            threading.Thread(target=_refresh, daemon=True, name="day-stats-refresh").start()
+        return cached[1]
+    with _day_stats_lock:                         # first-ever for this key: must compute once
+        c2 = _day_stats_cache.get(cache_key)
+        if c2 and (time.time() - c2[0]) < _day_stats_ttl(today):
+            return c2[1]
         payload = _build_day_stats(today, exclude_algo=exclude_algo, stock_etf=stock_etf)
         _day_stats_cache[cache_key] = (time.time(), payload)
         return payload
-    finally:
-        _day_stats_lock.release()
 
 
 # ─── By-Contract rollup (accumulation view) ───────────────────────────────
