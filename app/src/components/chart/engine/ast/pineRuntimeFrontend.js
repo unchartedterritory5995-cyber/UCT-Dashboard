@@ -6338,6 +6338,69 @@ function buildRuntimeIrLinked(source, opts, holder) {
       `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
   }
 
+  /** ⭐⭐ RT10 — A `switch` STATEMENT. Returns the statements; the caller owns
+   *  where they go.
+   *
+   *  ⛔ THE SUBJECT IS EVALUATED ONCE. Pine evaluates `switch expr` once and
+   *  compares that value with each arm; re-lowering a subject that carries state
+   *  (`switch ta.change(x)`) per arm would step a call site once per arm tested.
+   *  Anything but a bare name or literal is therefore bound into a slot no Pine
+   *  name can reach, before the first test.
+   *
+   *  ⛔ TEST BEFORE BODY, ARM BY ARM — source order, as the `if` statement
+   *  lowers (a body lowered first can move a refusal to a line not yet reached).
+   *
+   *  ⛔ NESTED IFs, NEVER A FLATTENED CONDITION — a later arm's test is not
+   *  evaluated once an earlier arm matched. */
+  const lowerSwitchStatement = (st, toks, scope, first) => {
+    const pre = []
+    const subjToks = toks.slice(1)
+    let subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    if (subject && !(subject.type === 'name' || subject.type === 'number' || subject.type === 'string')) {
+      const tmp = `switch@${first.line}:${first.column} subject`
+      const value = lowerExpr(subject, scope)
+      const slot = scope.declare(tmp, newSlot(tmp, false))
+      if (holdsText(subject, scope)) slots[slot].text = true
+      pre.push(declare(slot, value))
+      subject = { type: 'name', name: tmp, tok: first }
+    }
+    const cases = []
+    let fallback = null
+    for (const arm of (st.sub || [])) {
+      const h = arm.header || []
+      if (!h.length) continue
+      const at = findTop(h, (t) => isPunct(t, '=>'))
+      if (at < 0) {
+        throw new RuntimeRefusal('runtime:switch', 'an arm of this `switch` has no `=>`', locate(h[0]))
+      }
+      if (fallback) {
+        throw new RuntimeRefusal('runtime:switch', 'an arm follows the default `=>` arm', locate(h[0]))
+      }
+      const rhs = h.slice(at + 1)
+      // an inline arm is ONE statement (its own block, if it opens one, hangs
+      // under it); a bare arm's statements are the lines beneath it
+      const lines = rhs.length ? [{ ...arm, header: rhs }] : (arm.sub || [])
+      let test = null
+      if (at > 0) {
+        const match = parseWholeExpression(h.slice(0, at))
+        test = subject
+          ? lowerExpr({ type: 'binary', op: '==', left: subject, right: match, tok: h[0] }, scope)
+          : lowerExpr(match, scope)
+      }
+      const armScope = new Scope(scope)
+      const body = lowerStmts(lines, armScope)
+      objectBlocks.push({ scope: armScope, body })
+      if (at === 0) fallback = body
+      else cases.push({ test, body })
+    }
+    if (!cases.length && !fallback) {
+      throw new RuntimeRefusal('runtime:switch', 'a `switch` with no arms', locate(first))
+    }
+    let chain = fallback || []
+    for (let k = cases.length - 1; k >= 0; k -= 1) chain = [ifStmt(cases[k].test, cases[k].body, chain)]
+    return chain.length ? [...pre, ...chain] : pre
+  }
+
   const lowerSwitchInto = (armLines, subjToks, scope, slot, mkArm, label, atTok) => {
     // ── `name = switch …` ──
     //
@@ -6796,7 +6859,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (word === 'break') { out.push(breakStmt()); continue }
       if (word === 'continue') { out.push(continueStmt()); continue }
       if (BLOCK_WORDS.has(word)) { note('runtime:loop'); throw new RuntimeRefusal('runtime:loop', `\`${word}\``, locate(first)) }
-      if (word === 'switch') { note('runtime:switch'); throw new RuntimeRefusal('runtime:switch', null, locate(first)) }
+      // ⭐⭐ RT10 — `switch` AS A STATEMENT: the arms are run for their effect
+      // (`choice1 => leastPrecise := true`), and the value form's two rules hold
+      // (`lowerSwitchInto`): with a subject an arm matches by `==`, without one
+      // its expression is the condition; the first match runs and no later arm
+      // is tested; nothing matched runs the bare `=>` arm, or nothing.
+      if (word === 'switch') {
+        for (const s of lowerSwitchStatement(st, toks, scope, first)) out.push(s)
+        continue
+      }
 
       // ── a user function definition: `f(a, b) => …` ──
       {
