@@ -22,7 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine } from '../../engine/ast/pine'
+import { translatePine, hiddenOnChart } from '../../engine/ast/pine'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
@@ -229,10 +229,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // Carriage is not offer, and the acceptance pins that both ways.
   const carryable = (t.outputs || [])
     .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
-  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  // ⭐⭐ H8 — "seen" is `hiddenOnChart`, never `hidden`: a constant row (`plot(0)`)
+  // is hidden from the SCREENER and drawn by TradingView, so it is drawn here too.
+  const visible = carryable.filter((o) => !hiddenOnChart(o)).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
-    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .filter((o) => !hiddenOnChart(o) ? visibleSet.has(o) : true)
     .slice(0, DOC_CARRY_MAX)
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
@@ -385,7 +387,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // hidden row, so the field could only ever be false and said nothing. Now
       // it is the anchor's whole meaning: the renderer draws no series for it and
       // a fill may still reference it.
-      hidden: !!o.hidden,
+      // ⭐⭐ H8 — what the CHART hides (`pine.js::hiddenOnChart`): the author's
+      // `display.none` and the other drawn-nothing reasons, but not a constant
+      // TradingView draws (`plot(0)`, `plot(syminfo.mintick)`).
+      hidden: hiddenOnChart(o),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -1245,7 +1250,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     const out = runtimeByKind.get(o.kind)[ord]
     // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
     // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
-    if (o.hidden || o._authorHidden === true) {
+    // ⭐⭐ H8 — `hiddenOnChart`, the host lane's own rule: a constant TradingView
+    // draws (`D01_mintick`, fvg-trend's zero line) is a drawn row of the run.
+    if (hiddenOnChart(o) || o._authorHidden === true) {
       if (!runtimeRowOffset(o)) hiddenByOut.set(out, { o, index })
       else withheldOut.set(out, o.title || `${o.kind} ${ord + 1}`)
       continue
@@ -1481,7 +1488,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const undrawn = [...new Set([
     ...(t.outputs || [])
-      .filter((o) => o && !o.hidden && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
+      .filter((o) => o && !hiddenOnChart(o) && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
   ])]
   if (undrawn.length) {

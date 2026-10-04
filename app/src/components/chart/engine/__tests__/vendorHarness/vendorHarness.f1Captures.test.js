@@ -65,12 +65,12 @@ describe('F1 item 4 — `not` / `or` read an na operand as false, from the listi
     it.each(['B02_not_naBool', 'B03_naBool_and_true_CONTROL', 'B04_na_of_naBool_or_false',
       'B05_na_of_not_naBool', 'B07_not_naLiteral'])(`${id}: %s agrees on every bar`, (title) => {
       const p = item(grade(load(id)), title)
-      // B07 is the constant 1, which the pane draws no series for (`hidden (constant)`):
-      // its VALUES agree on every bar. ⭐ F8 — TradingView draws that line and our chart
-      // does not, so it grades NOT DRAWN; no row ever diverges on a value.
+      // B07 is the constant 1. ⚰️ F8 graded it NOT DRAWN (the pane drew no series for a
+      // `hidden (constant)` row); ⭐ H8 — the pane draws it as TradingView does, so every
+      // row here MATCHES, B07 included, on value and colour.
       expect(p.stats.valueMismatches + p.stats.naMismatches, p.reason).toBe(0)
-      if (p.verdict === 'DIVERGE') expect(p.stats.steady.first.kind, p.reason).toBe('not-drawn')
-      else expect(p.stats.steady.divergent, p.reason).toBe(0)
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats.steady.divergent, p.reason).toBe(0)
     })
   }
 })

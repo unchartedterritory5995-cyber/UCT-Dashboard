@@ -191,6 +191,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 90 | H6 host-lane state and UDT walls (section H6): `ta.obv` / v4 `obv` served on the host lane as Pine's reference definition `cum(sign(change(close)) * volume)`, its level withheld off the listing by name (`cum:window`, both lanes, plot and object); a user-defined type's field read off an instance that is the same on every bar becomes its constructor argument (`udtConstFields.js`). multicator RDDT OBV cell prints `-29.984M`, SPY withheld; its HUD colours 15 / 15 TradingView's on RDDT and SPY (control Light 15 / 15 differ); still withheld whole for the HUD's `visibleRange` tuple. H2's state walls routed per script: the runtime lane owns the attached ones (graded MATCH from the listing), the rest refused, Q-H6c queued | `7591471ccd`, `4fb83c72d5`, merge `09bef68824` | sweep 368 x 2: 0 entries changed, 0 MATCH -> DIVERGE | census 56 / 82 / 99 (libraries) and 56 / 80 / 96 unchanged, 0 lost; lorentzian `pine:type` -> `pine:reassign` | mutations M1-M6, U1-U7 red; Q-H6a-c |
 | 91 | CAP4 capture lane (section CAP4): the 2026-10-03 queues captured as unsaved drafts - Q-H5a format.volume (K below a million, trailing zeros trimmed, ties up, no roll-over `1000M`, `2.5T`), Q-H5b `timeframe.*` inside a request is the REQUESTED timeframe (W 10080, M 43830, 240, 3), Q-RT7a/b empty / all-na reductions are `na` and fixnan equals the replay (SPY full history, 8477 bars), Q-RT8a `ta.wma` rule A (W01 bar 26, W03 bar 58), Q-RT8b/c per-bar shape and fill colours, Q-RT8d v4 fill default transparency 90 | `cf5e6b7e8c`, `0738cc8edf`, `f4bf3beffa` | 6 harness files + `cap4-verdicts.json` (12 rows) | - | our grade: H5a DIVERGE (16 cells withheld), H5b INCONCLUSIVE (pine:request 240), RT7 INCONCLUSIVE (objects pine:na; runtime stops on `array.sum` of an empty array), RT8 followups DIVERGE (host lane wma rule B-like + bar-0 mid), RT8d MATCH (A/B; fills not graded) |
 | 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
+| 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7441,3 +7442,110 @@ on na (2 red), pane gate dropped (1 red). for-in: guard `>=` -> `>` (4 red), ind
 - Not taken (measured to need more than one wall or a ruling): `syminfo.type`, `input.time` /
   `input.timeframe`, session clocks over input / overnight sessions, `history-expression` inside an
   `if` body (per-execution series, not vendor-pinned), dynamic window lengths.
+
+## H8 - constant rows TradingView draws are drawn on the chart (2026-10-04, step 95)
+
+Lane H8, branch `pine/h8-constant-rows` (from `integrate/wave17-2026-10-03` `53ef7a20ef`, merged with
+`origin/pine/f8-ungraded` at `aad59133a5` for F8's NOT DRAWN grader; F8's side of this doc only
+re-added rows and sections wave 17 already carries, so wave 17's copy was kept, nothing duplicated).
+
+### Why the rule existed
+
+`pine.js` stamps `hidden: true, hiddenReason: 'constant'` on a row whose tree reads no bar
+(`flat = !readsBars(ast)`). It came in with `f19a350581` ("The door offered 173 columns and 126 could
+screen"): a constant is a SCREEN that matches nothing on every symbol (`03-rsi-directional-momentum-scanner`
+offered 14 literal-0 columns, one a saveable scan titled "Cont 3rd Short"). It is a fact about
+screening, and the translator already says so in words: strict mode treats a constant row as "this
+engine's judgement about SCREENING, not about drawing" and keeps `ok: true`. The chart consumers
+inherited the flag later: the member pane carried `hidden: !!o.hidden` (the renderer draws no series
+for a hidden row) and counted only `!o.hidden` rows as visible, and the runtime document skipped every
+`o.hidden` host output. Nothing protected the chart from drawing them: a flat line on the price scale
+is what TradingView draws too (an overlay `plot(0)` squashes its scale on both platforms), and a
+constant `na` draws nothing on either.
+
+### What TradingView does (the captures)
+
+Every constant row F8 graded NOT DRAWN is one TradingView draws in a visible colour on the bars where
+the value is not `na`: zero lines (`fvg-trend` RDDT `plot(0, color=color.black)`), `syminfo.mintick`
+(deadband `D01_mintick` 0.01; `w4-cross-round` `X12_mintick`), `ta.cum(1)` (`vw-bar-counters` `C05`), and
+the constant probe rows (`vw-gradient` G14/G17-G21, `w4-cross-round` X06-X15, `rt1-na-test` A05,
+`rt3-na-logic` B01/B06/B07/B09, `vw-input-tf-text` I01-I18, `vw-tf-period` T01-T08, `vw-int-div-assign`,
+`vw-int-cast`). Same plot style, same scale and pane as the script's other plots, the declared colour.
+What TradingView does NOT draw: `cc-yata`'s b1..b5 / s1..s5, which fold to `na` under the default
+inputs (`lastN == "1 to 9" ? buySet == 1 : na`); their vendor values are `na` on every bar.
+`display.none` and fully transparent colours are unchanged (author-hidden, or the colour itself).
+
+### The fix
+
+- `pine.js::hiddenOnChart(row)` (exported beside `readsBars`): `false` for a row that is not hidden; for
+  a hidden row, `true` unless its reason is `constant`, and for `constant` only when the tree is the
+  static `na` (`isStaticNa`, `0 / 0`). `hidden` / `hiddenReason` are untouched, so the screener,
+  `chooseOutput`, `usable` and `pine:constant-only` behave exactly as before.
+- `memberPaneDefinition.js`: the visible set and `CARRY_MAX` count `!hiddenOnChart(o)`; a carried row's
+  `hidden` is `hiddenOnChart(o)`; the runtime document's `hiddenByOut` and its undrawn-kinds note ask the
+  same predicate, so a constant the host hid is a drawn row of the run.
+- `paneGate.js`: `selected` never offers a constant (a screener rule), so a script whose only rows are
+  drawn constants (`plot(0)`) now passes the gate instead of "declares nothing a chart can draw";
+  `plot(na)` alone still refuses.
+- Harness (`ourSide.js`): `hiddenReason` / `hidden` / the missing-column sentence report what the CHART
+  hides. A drawn constant that another wall withholds (`bind:period-reads` on a W/M chart,
+  `runtime:history-start` off the listing) is named by that wall, never NOT DRAWN. F8's ND rule in
+  `compare.mjs` is unchanged and stays as the guard against the pane hiding these rows again.
+- Python mirror: no change. `api/services/ast_interpret.py` evaluates trees; it has no drawing or
+  `hidden` decision, and the newly drawn trees are evaluated by the JS pane only.
+
+### Grades (every capture under `tests/fixtures/vendor`, door states on + runtime, before = `aad59133a5`)
+
+Plot grades: NOT DRAWN 208 -> 0; DIVERGE -> MATCH 173, INCONCLUSIVE -> MATCH 2, DIVERGE -> INCONCLUSIVE 33
+(the period rows on SPY 1W / 1M, deadband BRK-A, `vw-array-na` N01-N04 on the runtime state: drawn
+rows now withheld by their real wall). **MATCH -> anything else: 0**, plots, objects and paints.
+Capture verdicts (746 graded): MATCH 221 -> 241, DIVERGE 258 -> 222, INCONCLUSIVE 267 -> 283.
+
+| capture | on | runtime |
+|---|---|---|
+| fvg-trend RDDT 1D | - | DIVERGE -> MATCH (zero line) |
+| atr-stepped-pdf-ma-loxx RDDT 1D | - | INCONCLUSIVE -> MATCH (Long, Short) |
+| rt1-na-test v4 / v5 RDDT 1D | DIVERGE -> MATCH (A05) | DIVERGE -> MATCH |
+| rt3-na-logic v5 / v4 RDDT 1D | DIVERGE -> MATCH (B01/B06/B07/B09) | DIVERGE -> MATCH |
+| vw-bar-counters RDDT 1D / 15 / 60 / 240 | DIVERGE -> MATCH (C05) | DIVERGE -> MATCH |
+| vw-bar-counters RDDT 5 | DIVERGE -> DIVERGE (C05 MATCH; C01-C07 window rows remain) | same |
+| vw-deadband-ticks SPY / AAPL 1D | - | DIVERGE -> MATCH (D01_mintick) |
+| vw-deadband-ticks BRK-A 1D | - | DIVERGE -> DIVERGE (D01 now `runtime:history-start`, INCONCLUSIVE) |
+| vw-gradient SPY 1D | DIVERGE -> INCONCLUSIVE (6 MATCH; the bar_index control is withheld) | same |
+| w4-cross-round SPY 1D | DIVERGE -> INCONCLUSIVE (X06-X15 MATCH; X00 withheld) | same |
+| vw-input-tf-text v5 / v6 SPY 1D | DIVERGE -> INCONCLUSIVE (18 MATCH; I00 withheld) | same |
+| vw-tf-period SPY 1D | DIVERGE -> INCONCLUSIVE (8 MATCH; T00 withheld) | same |
+| vw-tf-period SPY 1W / 1M | DIVERGE -> INCONCLUSIVE (T01-T07 `bind:period-reads`, T08 MATCH) | same |
+| vw-int-div-assign SPY 1D | DIVERGE -> INCONCLUSIVE (3 MATCH; D00 withheld) | same |
+| vw-int-cast SPY 1D | DIVERGE -> DIVERGE (6 MATCH; I00 bar_index control remains) | same |
+| vw-array-na SPY 1D | - | DIVERGE -> INCONCLUSIVE (N01-N04 `runtime:history-start`) |
+| cc-yata RDDT 1D | - | unchanged: b1..b5 / s1..s5 stay hidden (static `na`) |
+
+C38's joined vw-gradient grade: 17 -> 23 of 23 MATCH. C45's whole-history w4-cross-round: 6 -> 15 MATCH.
+CAP3 signatures regenerated by the writer (`cap3SpyGaps.measure`): atr-stepped (H8) and F8's known
+opening-range SPY row (M3); nothing else moved.
+
+### Rails
+
+`builder/memberPane/h8ConstantRows.test.js` (6: the predicate, the pane's drawn rows, `plot(0)` alone
+drawn, `plot(na)` alone refused) and `vendorHarness.h8ConstantRows.test.js` (8: each TV-drawn constant
+MATCHES with its colour compared; a withheld period row is named by its wall). F8's ND rails now
+exercise the rule on a pre-H8 copy of our side (no series, `hiddenReason: 'constant'`). Updated to the
+new grades: c38, c45, f1Captures, rt6 (the zero line MATCHES, and a document whose `fvgCounter` is
+withheld now attaches with the zero line instead of declining), coverageAudit (rt3 rows).
+
+Mutations (pine.js bytes captured and restored, sha verified):
+- `hiddenOnChart` returns `row.hidden` (constants hidden again): h8ConstantRows 3 red, vendor h8 8 of 8
+  red, f8Ungraded 2 red (the H8 MATCH tests).
+- the `na` exemption dropped (every constant drawn): h8ConstantRows 3 red, f8Ungraded 1 red (the
+  cc-yata control).
+
+### Open
+
+- `vw-rt8-runtime-followups` S03 (`plotshape(true, color = color.new(cond ? blue : orange, 40))`): drawn
+  now, and its colour diverges (ours the default gold); the host lane does not carry a colour condition
+  inside `color.new(...)`. Was NOT DRAWN; still DIVERGE, now on colour. Host-lane colour carriage.
+- Pre-existing reds on the base, unchanged: `hybridObjects` fixture (atr-support-and-resistance inputs),
+  `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
+  compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
+  (`memberPane/atrSrReplay.js` unreached).

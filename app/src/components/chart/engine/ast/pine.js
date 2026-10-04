@@ -27639,6 +27639,32 @@ export function readsBars(node, table = TABLE) {
   return false
 }
 
+/** ⭐⭐ H8 (step 95) — DOES A CHART DRAW NO SERIES FOR THIS ROW?
+ *
+ *  `hidden` answers the SCREENER's question ("is this a column a screen can
+ *  answer from?", `f19a350581`): the author's `display.none`, an untitled fill
+ *  anchor, a bare-source candle role, and a tree that reads no bar. The last is
+ *  a fact about SCREENING (the same number on every symbol matches nothing) and
+ *  was never a fact about DRAWING — `strictOk` above already says so in words.
+ *  The member pane read `hidden` as "draw nothing", so every `plot(0)` zero
+ *  line, `plot(syminfo.mintick)`, `ta.cum(1)` and constant probe row TradingView
+ *  draws was missing from the member's chart (F8's NOT DRAWN, 208 plot grades).
+ *
+ *  ⛔ ONE EXCEPTION, AND IT IS TRADINGVIEW'S: a constant that IS `na` (this
+ *  translator's `0 / 0`, e.g. `cond ? x : na` with `cond` folded false from an
+ *  input's default) draws nothing on TradingView either — cc-yata's b1..b5 /
+ *  s1..s5 are exactly that — so it stays undrawn, and a script whose only rows
+ *  are such constants still "declares nothing a chart can draw".
+ *  ⛔ Every other hidden reason is the AUTHOR's statement or this engine's
+ *  reading of one (`display.none`, a fill anchor, a passthrough candle) and is
+ *  unchanged: hidden on the chart too.
+ *  Every chart consumer asks THIS; none re-derives it from `hiddenReason`. */
+export function hiddenOnChart(row) {
+  if (!row || !row.hidden) return false
+  if (row.hiddenReason !== 'constant') return true
+  return isStaticNa(row.ast)
+}
+
 /** Compiled sentence rules for ONE table object, memoised.
  *
  *  ⚠️ `yieldsOf` takes COMPILED RULES, not a manifest, and `compileRules` probes

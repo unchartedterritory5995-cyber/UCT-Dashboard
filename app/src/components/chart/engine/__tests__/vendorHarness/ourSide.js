@@ -37,6 +37,9 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
 import { maxLookback } from '../../ast/interpret'
+// ⭐ H8 — what the member's CHART hides, the pane's own predicate (never `hidden`,
+// which is the screener's "not a column" and includes constants TradingView draws).
+import { hiddenOnChart } from '../../ast/pine'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -781,7 +784,7 @@ export function runOurSide(capture) {
           ? `withheld by name on this runtime document — ${String(disclosedWhy.get(doorLabel)).slice(0, 400)}`
           : o && o.refusal
             ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
-            : built.lane === 'runtime' && o && (o.hidden || o._authorHidden === true)
+            : built.lane === 'runtime' && o && (hiddenOnChart(o) || o._authorHidden === true)
               ? `hidden on this runtime document (${(o && o.hiddenReason) || 'display.none'}): a hidden row computes no column here`
               : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
@@ -796,10 +799,12 @@ export function runOurSide(capture) {
         // and why OUR side hid the row (`pine.js` `hiddenReason`), which the verdict
         // reads to tell "the author hid it" from "this engine did not draw it".
         kind: o ? o.kind || null : null,
-        hiddenReason: o && o.hidden ? (o.hiddenReason || 'unstated') : null,
+        // ⭐ H8 — only a row the CHART hides carries a reason: a constant the pane now
+        // draws (`plot(0)`) and that another wall withholds is named by that wall.
+        hiddenReason: o && hiddenOnChart(o) ? (o.hiddenReason || 'unstated') : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
-        hidden: !!(o && o.hidden),
+        hidden: !!(o && hiddenOnChart(o)),
         column: col || null,
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
@@ -812,7 +817,7 @@ export function runOurSide(capture) {
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
         colorsReason: row && !colours.byKey.has(row.key)
-          ? (o && o.hidden
+          ? (o && hiddenOnChart(o)
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
           : null,
