@@ -186,6 +186,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
+| 90 | H6 host-lane state and UDT walls (section H6): `ta.obv` / v4 `obv` served on the host lane as Pine's reference definition `cum(sign(change(close)) * volume)`, its level withheld off the listing by name (`cum:window`, both lanes, plot and object); a user-defined type's field read off an instance that is the same on every bar becomes its constructor argument (`udtConstFields.js`). multicator RDDT OBV cell prints `-29.984M`, SPY withheld; its HUD colours 15 / 15 TradingView's on RDDT and SPY (control Light 15 / 15 differ); still withheld whole for the HUD's `visibleRange` tuple. H2's state walls routed per script: the runtime lane owns the attached ones (graded MATCH from the listing), the rest refused, Q-H6c queued | `7591471ccd`, `4fb83c72d5`, merge `09bef68824` | sweep 368 x 2: 0 entries changed, 0 MATCH -> DIVERGE | census 56 / 82 / 99 (libraries) and 56 / 80 / 96 unchanged, 0 lost; lorentzian `pine:type` -> `pine:reassign` | mutations M1-M6, U1-U7 red; Q-H6a-c |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7000,3 +7001,88 @@ F5 with that evidence; the patched file is kept off-branch in the lane's scratch
 
 **Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
 out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
+
+## H6 - host-lane state and UDT walls: `ta.obv`'s level, a constant UDT instance's fields, and H2's state walls routed (2026-10-03, step 90)
+
+Lane H6, branch `pine/h6-host-state-udt`, base `integrate/wave16-2026-10-02` (`a83059a855`). Target: the
+host (columnar) translator. Census with the 50 production libraries loaded unless said.
+
+### What H6 served
+
+| commit | construct | outcome | evidence |
+|---|---|---|---|
+| `7591471ccd` | `ta.obv` / v4 `obv`, the LEVEL, host lane only | written as Pine's reference definition `cum(sign(change(close)) * volume)` (`pine.js::obvLevelTree`, gated like `cum` by `hostAdmissible`): up adds the volume, down subtracts it, an equal close adds 0, bar 0 is `na` (`cum`'s measured rule). A screen keeps the table's `obv` ruling; the bounded `obvN` rewrites run first and are unchanged. A running total never converges, so OFF the listing every bar of a tree reading the level is withheld, named `cum:window` (`interpret.js::cumulativeLevelMask`, `ast_interpret.cumulative_level_mask`; `CHART_CLOCK_WHOLE`) on the plot and object lanes. F5's seed-decay rule excludes `cum` by design; this mask is the "never converges" declaration it needs | `vendorHarness.h6Obv` (13): multicator RDDT 1D (636 bars from the listing) plot lane last bar -29,983,517 and bar 0 `na`, the cell prints TradingView's `-29.984M`; SPY 1D (off the listing) plot and cell withheld by name; CONTROL: SPY told it starts at the listing draws a number that is not TradingView's `10.801B`; hand-made bars pin up / down / equal / bar 0. `tests/test_h6_obv_level_mask.py` (4) holds the Python lane to the same column. Mutations M1-M6 each red |
+| `4fb83c72d5` | a user-defined type's field read off an instance that is the same on every bar | `ast/udtConstFields.js`, a token pre-pass after the library linker: `x.f` becomes its constructor argument in parentheses when the type is declared, `x` is bound once at the top level (`[var] [T] x = T.new(...)`, or through a helper whose whole body is `T.new(...)`), never written, never read bare (passed, `x[1]`, `x.m()`), every read a declared field on a later line, every read field bar-invariant by the walk's own rule (`barInvariantNames`), no invariant name in it shadowed by a function parameter, and no `input.*` CALL inside it (its copies would be inputs the script never wrote and move parameter ids). The script's own tokens stay its identity for the frozen parameter-id map (`tokens.unlinked`, the linker's precedent; without it lorentzian's legacy ids went absent in all three lanes). A UDT whose fields mutate per bar stays refused (runtime lane, H3) | `vendorHarness.h6UdtFields` (15): multicator's 95 `theme.<field>` reads resolve (10 fields); a probe with the script's OWN type, helper and theme input draws the HUD's 5 boxes and 5 labels at TradingView's recorded y through the member door: **15 / 15 colour slots agree on RDDT and on SPY** (`hudBorder`, `hudBg`, `hudText`); CONTROL Light theme 15 / 15 differ; 9 refusal cases. Mutations U1-U7 each red |
+
+### multicator-table after H6: what remains
+
+The object lane now carries every colour property it used to drop (`droppedProps` 156 -> 0; `droppedOps`
+62 -> 52 of 290; `update:props` 12 -> 2). Its cells' values were H5's (8 graded), its OBV cell is H6's
+(RDDT `-29.984M`), its colours are H6's (graded on the HUD's 15 slots). It is STILL withheld whole,
+`pine:object-removal-lost`, and nothing about types is in the way any more:
+
+- the HUD: `[visTop0, visBot0] = visibleRange(...)` is a tuple function the object lane cannot read
+  (`create box@607` / `create label@611`), so `hudBoxes` / `hudLabels` lose their pushes
+  (`coll:diverged`), and a later delete reads those lists (`assessObjectLoss` verdict `removes`);
+- `hvnPrice` (`create line@544`) is a running total in a counted `for` (R7, the runtime lane);
+- 7 `cell:text`, 9 `create:box`, 9 `create:label`, 18 `coll:push`, and `polyline.*` (out of scope).
+
+Drawing it needs the HUD served or a family-scoped withhold (F3's open item 1); RT9 (hybrid runtime
+objects) is the lane that can draw `visibleRange`'s boxes. The captures record no table-cell colours,
+so the 60 cells' colours are graded only through the HUD's fields (RT8: measurement).
+
+### H2's remaining state walls, per script
+
+Each first refusal read at the base; the runtime lane's state from the census (`runtimeDeclined`); the
+harness verdicts from the libraries-loaded sweep at the base.
+
+| shape | script | runtime lane | graded | H6 |
+|---|---|---|---|---|
+| S-a IIR (Wilder) | adx-and-di-for-v4 | attaches | RDDT runtime **MATCH**, SPY INCONCLUSIVE | runtime owns it: a host copy would duplicate a run already graded MATCH from the listing |
+| S-a IIR | deadband-hysteresis-filter-backquant | attaches | RDDT runtime **MATCH** | runtime owns it |
+| S-a IIR | smoothed-gaussian-trend-filter-algoalpha | declines `runtime:fill-gradient` | no capture | refused; Q-H6c |
+| S-c latches | inside-bar-range-mother-candle | attaches | RDDT runtime **MATCH**, SPY DIVERGE (F6) | runtime owns it |
+| S-c latches | wyckoff-accumulation-distribution | attaches | RDDT / SPY runtime DIVERGE (RT5 / RT9 objects) | runtime owns it |
+| S-c latches | smc-structures-and-multi-timeframe-fvg-ma-py | declines `pine:input-kind` (`input.timeframe`) | no capture | refused; Q-H6c |
+| S-e `varip` | ema-92150-vwap-macd-rsi-pro-v6 | declines `runtime:varip` | no capture | refused. Trial `varip` -> `var` (identical on every closed bar, and for a never-written `varip` on the forming bar too): next wall the install door's `compute.budget` (1210 > 960, a session `vwap` inside), so serving it attaches nothing; not built |
+| R-d `varip` + dynamic index | bolingger-bands-inside-bar-boxes, inside-bar-boxes | decline `runtime:varip` | no capture | refused; the `varip` -> `var` trial still stops at `pine:state` (the stateful `high[barIndex]`) |
+| S-f block-local stop | neural-network-buy-and-sell-signals | declines `runtime:history-expression` | no capture | refused; Q-H6c |
+| R-f tuple part through its own history | williams-fractal-trailing-stops | declines `pine:text-value` | no capture | refused; its next host wall is the `f_flip` latch (S-c); Q-H6c |
+
+No host admission was made in this wall: where the runtime lane attaches it is already graded from the
+listing, and where it does not there is no capture to grade a host answer against, so correctness over
+coverage keeps the refusal. Q-H6c (`docs/pine/capture-queue-2026-10-03-h6-state-udt.md`) queues a
+capture for each of the seven.
+
+### Measured
+
+| | base `a83059a855` | H6 tip |
+|---|---|---|
+| member door off / on / + runtime, libraries | 56 / 82 / 99 | 56 / 82 / 99, 0 attached lost |
+| same, empty registry | 56 / 80 / 96 | 56 / 80 / 96, 0 rows changed |
+| rows changed (libraries) | - | machine-learning-lorentzian-classification, 3 states: `pine:type` -> `pine:reassign` (its constant `Label` instances resolve; `filterSettings` keeps the refusal, inputs inside its constructor) |
+| `corpus_metric` host / screener | 77 / 67 (the committed artifact said 77 / 66, stale before H6) | 77 / 67; only the two lorentzian rows' guards move |
+| harness sweep (368 captures x 2 door states, libraries), capture MATCH on / runtime; objects MATCH on / runtime | 96 / 109; 156 / 187 | 96 / 109; 156 / 187 at `4fb83c72d5`: **0 entries changed**, 0 MATCH -> DIVERGE (at `7591471ccd` one entry read k-clustering RDDT runtime INCONCLUSIVE, load-sensitive, open item 4) |
+| merged with the wave-16 tip `20ba63f668` | - | census and sweep not measured on the merged tree (held while the wave-16 gate runs) |
+
+Rails re-pinned on purpose, each with its measured reason in a comment: `vendorHarness.h5MulticatorValues`
+(RDDT's OBV cell now prints `-29.984M`; SPY's is withheld), `vendorHarness.b1Paints` (atr-support RDDT
+plot_8 / plot_11, the OBV bar colour: `naBoth` -> `agree`, nothing drawn changed), `pine.test.js` (the
+UDT case is a field of a SERIES instance now; the constant one is served), `periodAnchorParity.test.js`
+and `test_ast_period_anchor_parity.py` (`cum:window` is set aside like `bar-index:`, railed by H6's own
+tests). `paramIdLegacy` / `paramIds` green, nothing appended. `pineProbeReplay` not moved by H6.
+
+Focused runs on the merged tree: the H6 rails and the rails it re-pinned (`h6Obv`, `h6UdtFields`, `h5MulticatorValues`, `periodAnchorParity`, `pine.test`, `paramIds`, `corpusMetric`, `pineProbeReplay`) Tests 279 passed | 1 skipped; `paramIdLegacy` + `paramIds` + `h6UdtFields` 26 passed | 1 skipped; pytest `test_h6_obv_level_mask`, `test_ast_period_anchor_parity`, `test_ast_bar_index_shift_parity` 189 passed. The whole `ast/` + `vendorHarness/` directories ran at `4fb83c72d5` on a loaded box (a worker died); every file that failed there was re-run on the merged tree with H6's source and with the wave-16 tip's source, same test files: 12 vs 13 failed, the SAME reds both ways (c41LowerTfServe 4, c47OhlmDivider, pineMathCeilAccept, pineTimenowAccept, syminfoMintick, freshness, udfTypedParams, varReadOrderLanes, b1Paints' census pin) except b1Paints' atr-support row, which is H6's re-pin. `tests/test_c45_withheld_doors.py`: 2 red identically on the base bytes.
+
+### Open
+
+1. **`cum` beyond `ta.obv`.** The host lane still draws a script's own `ta.cum(x)` level off the listing
+   (C29's rule: it sums the loaded bars), which is TradingView's minus a constant for any non-constant
+   `x`. `cumulativeLevelMask` covers `ta.obv`'s shape only, so nothing graded moved; widening it to every
+   `cum` level needs the shift-invariant uses (`cum(x) - cum(x)[n]`, a saturated threshold like
+   atr-trailing's `cum_1 < 16`) told apart first. F5 / integrator.
+2. **Bar 0 of `ta.obv`** (`na` here) and the per-bar level: Q-H6a / Q-H6b.
+3. **A never-written `varip`** is exactly `var` on every bar; a rule for it is cheap but attaches nothing
+   today (ema-92150 stops at the budget). Owner ruling if wanted.
+4. `k-clustering` RDDT runtime read INCONCLUSIVE once in a loaded sweep and DIVERGE in three direct
+   re-grades on the same tree (load-sensitive, not an H6 change).
