@@ -10,6 +10,32 @@ bar (trading journals and charting platforms, not Notion, Evernote or Obsidian),
 separately in `docs/notebook/WAVE-13-PLAN.md` section 1.3, so the clause counts are unchanged.
 Under rulings D18, D19 and D20, which stand (`WAVE-12-PLAN.md` §5), 13 of 16 is the ceiling.
 
+## Lanes that landed since this file was last written
+
+Six more lanes closed after this file's last edit. Each one line, with its evidence doc:
+
+- **13Q-3** fixed three of 13Q-2's click-budget findings: skip links into the key Notebook
+  regions, a "Today" action on Research Home, and the Insert-widget dialog's phone Tab cap.
+  `docs/notebook/wave13-13q3.md`
+- **13Q-4** gave the Journal's own top tab bar one Tab stop with arrow keys moving between
+  tabs. The same change for the app-wide NavBar was built too, but it was held out of this
+  landing as an owner decision (see the open item below and `docs/notebook/wave13-13q4.md`).
+- **13Q-5** gave the new-note template picker real keyboard reach (type to search, then
+  Arrow keys and Enter to pick a card) and added a documented Ctrl+Alt+B shortcut plus
+  Shift+Arrow row selection to the bulk-action bar. `docs/notebook/wave13-13q5.md`
+- **13X** walked the whole merged wave with all seventeen wave-13 flags on at once, one
+  coherent seeded story, across six runs. It found and fixed two real defects (an
+  under-sized chart control on the setups board, and a chart-plan panel that dropped
+  role-bearing annotations), and the final run passed all 17 of 17 checks.
+  `docs/notebook/wave13-13x.md`
+- **The new-note cursor fix** re-checked an earlier claim that a brand-new note starts
+  with the cursor in the note body. It did not: the click-budget instrument's own focus
+  call had been doing the member's job. Two product fixes were tried and measured; the
+  one that actually lands the cursor shipped. `docs/notebook/wave13-q1check.md`
+- **13H-4** gave a note's chart embed the same phone drawing bar the main chart already
+  had, replacing 13H-3's embed-growth workaround with the real fix.
+  `docs/notebook/wave13-13h4.md`
+
 ## 1. Switches to turn on (Railway, web service, Variables, then Deploy)
 
 All are read per request; unset means off. Turn on one change at a time, then check the site.
@@ -34,7 +60,7 @@ order the switches get flipped in after the wave-13 work merges is the owner's c
 | `NOTEBOOK_TA_FINGERPRINT_ENABLED=1` | Nothing a member sees by itself. This is the one engine that reads a chart's technical shape (distance from its moving averages, how tight its base is, its RS rank, and more) for the three features below it. | None. It is the foundation the next three rows build on. |
 | `NOTEBOOK_PLAN_GRADING_ENABLED=1` | Every closed trade is matched to the plan the member wrote before it and graded on four simple checks: did they get in close to plan, did they exit at or past their stop, was the size close to plan, and did the trade reach its target. A trade with no plan is labeled "Unplanned," never hidden. Insights gains a new Discipline tab over the last 20 and 60 trades. | None. Plain arithmetic, no AI. |
 | `NOTEBOOK_ENTRY_CONTEXT_ENABLED=1` | The market is frozen at the moment a member enters a trade: the overall mood, how many stocks are healthy, how the stock stacks up against others, and how many days until it next reports earnings. A card on the trade shows this, with a box to write "why did you take it." | None. Needs one vendor read (the earnings date) and no AI. |
-| `NOTEBOOK_CHART_PLAN_ENABLED=1` | A member can draw their plan right on a chart inside a note (entry, stop, target lines). The Notebook sizes the trade for them and lets them set a price alert with one click. Also adds a replay tool and side-by-side timeframe and before/after chart inserts. | See the open item on phone drawing below; the feature works, this is a rough edge on one screen size. |
+| `NOTEBOOK_CHART_PLAN_ENABLED=1` | A member can draw their plan right on a chart inside a note (entry, stop, target lines). The Notebook sizes the trade for them and lets them set a price alert with one click. Also adds a replay tool and side-by-side timeframe and before/after chart inserts. | Ready. Drawing on a phone-width chart was a rough edge; lane 13H-4 gave it the real fix (see Lanes that landed above). |
 | `NOTEBOOK_VISUAL_PLAYBOOK_ENABLED=1` | A picture gallery of every chart a member has tagged with a setup: the saved chart image, its technical shape, and whether that trade won or lost, filterable by setup, outcome, timeframe and more. Also a before-and-after view of a trade's entry and exit charts. | Reads the technical fingerprint and plan grading, so turn those two on first. |
 | `NOTEBOOK_PLAYBOOK_ENABLED=1` | My Playbook: one card per setup a member tags, with win rate, average R and expectancy, worded honestly by how many trades back it (a small number says "too few to judge" instead of a misleading number). Shows the notes linked to each setup and what the member wrote before their wins versus their losses. | None technical. |
 | `NOTEBOOK_SETUPS_BOARD_ENABLED=1` | A morning board: every open plan a member has drawn on a chart becomes a small live chart, sorted by how close it is to triggering. | Reads the chart-drawn plan, so turn chart plan on first. No menu link to it yet; that is a small follow-up, not a defect. |
@@ -117,14 +143,15 @@ Three items, each named by the lane that found it, so nobody re-discovers them f
   Compass review, needs a real Anthropic key to run, and this environment did not have one
   (`docs/notebook/evidence/wave13-13f/walk-6c95593ca8de6597acf3b2066015854d1076ff6a/`). The rest
   of the feature does not depend on this; it just means that one line is unproven until someone
-  re-runs the walk where a real key is reachable.
-- **Drawing more than one line on a phone-width chart still needs a real fix.** Lane 13H-3 made
-  drawing on a 390-pixel-wide screen work today by growing the chart to make room for the on-screen
-  drawing tools (proven 3 lines placed, 3 lines kept, in its own walk). The clean fix, a proper
-  bottom tray of drawing tools on phones instead of a taller chart, needs a change to the shared
-  chart component that another team owns. That work is reserved as its own future lane (branch
-  `feat/notebook-w13h4`) and has not been built yet. Nothing is broken for a member today; this is
-  a polish item, not a bug.
+  re-runs the walk where a real key is reachable, or until `NOTEBOOK_REVIEW_DRAFTS_ENABLED` is
+  armed and a real admin confirms it on production.
+- **The NavBar's own roving tabindex is built but held out of this landing, by owner
+  decision.** Lane 13Q-4 built the same one-Tab-stop, arrow-key mechanics for the app-wide
+  NavBar (the left sidebar, about 19 links) that it built for the Journal's own tab bar. NavBar
+  is shared, app-wide chrome with no composite ARIA role, so arrow keys moving focus there is a
+  product-wide behavior change the owner needs to approve first. It sits ready on
+  `feat/notebook-w13q4` (commit `75c4ef0e64`), not merged into this tree.
+  `docs/notebook/wave13-13q4.md`
 - **The Screener's "Save these results to a note" button stays a proposal, not a fix.** Lane 13Q's
   click count confirmed the member has to press Tab about 339 times, or click through roughly 34
   times, to reach that button today (ruling P5), far over the 10-click budget. Nobody built a fix
