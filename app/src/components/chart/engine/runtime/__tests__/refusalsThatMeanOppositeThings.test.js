@@ -132,13 +132,18 @@ describe('⭐⭐ two identical refusals that mean opposite things', () => {
     expect(hostGuard('plot(alma(close, 9, 0.85, 6))')).toBe('pine:function')
   })
 
-  it('⚠️ …and the capture settles NOTHING about `ta.alma` — which is untested', () => {
+  it('⚠️ …and the capture settles NOTHING about `ta.alma` — a SEPARATE capture did', () => {
     // ⛔ THE CAPTURE SAYS SO ITSELF, and over-reading it is the obvious trap:
     // only the BARE spelling was asked. The namespaced form is a different
-    // identifier and may well compile at the vendor. It refuses here too, and
-    // that refusal is recorded as UNADJUDICATED rather than endorsed.
+    // identifier.
     expect(String(ALMA._whatItDoesNOTSettle)).toMatch(/ta\.alma/)
-    expect(runtimeGuard('plot(ta.alma(close, 9, 0.85, 6))')).toBe('pine:function')
+    // ⚰️ RE-PINNED RT11 (2026-10-04), with the measurement that moved it: this
+    // line asserted `ta.alma` REFUSED as unadjudicated. `vw-alma-spy-1d-2026-09-27`
+    // then captured it (v6, 8472 SPY bars: raw, `floor`, first value at bar 8, an
+    // `na` poisoning the window) and `pine.js::BUILTIN_CALL_TREE.alma` serves it,
+    // graded bar for bar in `vendorHarness.rt11Alma.test.js`. The BARE spelling's
+    // refusal above is untouched.
+    expect(runtimeGuard('plot(ta.alma(close, 9, 0.85, 6))')).toBe('ok')
   })
 
   it('⭐⭐ `ta.correlation` — a REAL gap, with its window rule measured', () => {

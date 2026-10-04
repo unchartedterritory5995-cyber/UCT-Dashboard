@@ -2222,6 +2222,56 @@ export const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ RT11 — `ta.alma(src, length, offset, sigma[, floor])` (v5/v6) and v4's
+  // BARE `alma(src, length, offset, sigma)`: TradingView's published `pine_alma`,
+  // a Gaussian-weighted sum over the last `length` bars, written out here as the
+  // weighted sum of the window's own offsets — vocabulary this table already
+  // declares (`[k]`, `*`, `+`, `/`), so both interpreters run it unchanged.
+  //
+  //     m = offset * (length - 1)          (floored when `floor`)
+  //     s = length / sigma
+  //     w_i = exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))      i = 0 … length-1
+  //     alma = (Σ src[length - i - 1] * w_i) / Σ w_i
+  //
+  // ⭐ EVERY CLAUSE IS A CAPTURE, NOT A READING OF THE MANUAL:
+  //   · v4 bare `alma` COMPILES and equals that reference to 4.5e-13 on SPY and
+  //     exactly on RDDT, four argument sets (Q-H3c, `h3-alma-v4-{spy,rddt}-1d-2026-10-02`);
+  //   · `ta.alma` (v6): first value at bar `length - 1`, the `floor` form, and one
+  //     `na` in the source poisons the result for exactly `length` bars
+  //     (`vw-alma-spy-1d-2026-09-27`, A03 / A02 / A05) — which is what a plain sum
+  //     of `src[k]` terms does, and why no window-skipping is built here.
+  // ⛔ v6's BARE `alma` does NOT compile at the vendor (`r11-alma-spy-2026-09-11`),
+  // so the spelling is gated by version where this is dispatched; this builder
+  // never sees a spelling it should refuse.
+  // ⭐ The summation order is the reference's (oldest bar first, weights and norm
+  // accumulated together), so the rounding is the reference's too.
+  // ⛔ Every parameter must be a written number (a `length` the bar decides has no
+  // fixed weights); `length` a whole number 1…500 (the runtime lane's own bound,
+  // `pineRuntimeFrontend.js::runtimeRespelling`), `sigma` non-zero, `floor` 0/1.
+  alma: (a) => {
+    const num = (x) => (x && x.type === 'num' ? Number(x.value) : NaN)
+    const n = num(a[1])
+    const offset = num(a[2])
+    const sigma = num(a[3])
+    const floor = a[4] === undefined ? 0 : num(a[4])
+    if (a.length < 4 || a.length > 5) return null
+    if (!Number.isInteger(n) || n < 1 || n > 500) return null
+    if (!Number.isFinite(offset) || !Number.isFinite(sigma) || sigma === 0) return null
+    if (floor !== 0 && floor !== 1) return null
+    const m = floor ? Math.floor(offset * (n - 1)) : offset * (n - 1)
+    const s = n / sigma
+    let norm = 0
+    let sum = null
+    for (let i = 0; i <= n - 1; i += 1) {
+      const weight = Math.exp(-1 * Math.pow(i - m, 2) / (2 * Math.pow(s, 2)))
+      norm += weight
+      const back = n - i - 1
+      const term = cOp('*', [back === 0 ? a[0] : { type: 'offset', value: back, args: [a[0]] }, cNum(weight)])
+      sum = sum === null ? term : cOp('+', [sum, term])
+    }
+    if (!Number.isFinite(norm) || norm === 0) return null
+    return cOp('/', [sum, cNum(norm)])
+  },
   // ⭐⭐ `ta.correlation(source1, source2, length)` — THE PEARSON CORRELATION
   // COEFFICIENT, and it costs this table ZERO NEW VOCABULARY. TradingView's own
   // page: "Describes the degree to which two series tend to deviate from their
@@ -12386,7 +12436,15 @@ export class Resolver {
     const key = this.index.get(normaliseName(candidate))
     // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
     // table itself has no such name — so a future `roc` in `closedTable` wins.
-    if (!key && own(BUILTIN_CALL_TREE, bare)) {
+    // ⭐ RT11 — `alma` is served only in a spelling the script's version HAS:
+    // bare in v4 (Q-H3c), `ta.alma` from v5. Bare `alma` in v6 is a compile
+    // failure at the vendor (`r11-alma-spy-2026-09-11`), and bare in v1-v3 / v5
+    // and the version-less formula box are unmeasured: every other spelling keeps
+    // the ordinary `pine:function` refusal below.
+    const almaSpelling = bare !== 'alma' || (pineName === 'alma'
+      ? this.pineVersion === 4
+      : (pineName === 'ta.alma' && this.pineVersion !== null && this.pineVersion >= 5))
+    if (!key && own(BUILTIN_CALL_TREE, bare) && almaSpelling) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `iff(then = close, condition = close > open, otherwise = open)` translated
       // to `close ? close > open : open` before this line existed.
@@ -12512,6 +12570,19 @@ export class Resolver {
           + `TO UNBLOCK: read the bare \`${bare}\` (or \`${bare}(time)\`) for this `
           + `bar's own value${CLOCK_IDENTITY_FIELDS.has(bare) ? `, or \`${bare}(timenow)\` for the newest fetched bar's` : ''}.`,
           locate(tok))
+      }
+      if (bare === 'alma') {
+        // ⛔ RT11 — the weights are fixed numbers only when every parameter is;
+        // a parameter the bar decides is refused BY NAME here rather than left to
+        // travel on as a null tree.
+        const tree = BUILTIN_CALL_TREE.alma(built)
+        if (!tree) {
+          throw new PineRefusal('pine:arity',
+            `\`${pineName}\` weights the last \`length\` bars by a Gaussian fixed before bar 0, so it needs `
+            + 'a source, a whole-number length from 1 to 500, an offset, a non-zero sigma (and an optional '
+            + '`floor` written true/false), each written as a plain number or an input', locate(tok))
+        }
+        return tree
       }
       return BUILTIN_CALL_TREE[bare](built)
     }
