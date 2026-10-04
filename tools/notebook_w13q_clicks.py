@@ -520,36 +520,46 @@ def focus_editor_body(m: Meter):
         m.steps.append({"do": "already in body (free)", "on": "note body"})
         return
     if m.mode == "keys":
-        # 13Q-3, RE-VERIFIED AND STRENGTHENED by 13Q-Q1check (do not remove this again without
-        # new evidence -- a product-side fix was tried twice and BOTH measured to fail against
-        # the real product, see docs/notebook/wave13-q1check.md). bring_to_front() (run_one)
-        # makes the page genuinely foreground -- document.hasFocus()===true,
-        # visibilityState==='visible', both measured -- but a freshly-mounted editor's FIRST
-        # script-triggered .focus() call still silently fails in this harness even so.
+        # 13Q-3, RE-VERIFIED by 13Q-Q1check, then NARROWED by its controller follow-up (do not
+        # remove this again without new evidence beyond what is cited here).
         #
-        # 13Q-Q1check isolated the actual variable with a same-page, same-element, back-to-back
-        # A/B: the product's own effect (page-native JS, however it calls .focus() -- the
-        # original single call, a retried call, or a direct synchronous DOM call were ALL
-        # tried) leaves `document.activeElement` on BODY every time measured (40+ real reps
-        # across headed/headless, fresh/persistent context, with/without bring_to_front -- see
-        # docs/notebook/evidence/wave13-q1check/); the IDENTICAL `.focus()` call, injected a
-        # moment later via Playwright's OWN `.focus()` (a DevTools-protocol-level action, never
-        # page script), lands it immediately and reliably. A page's own code can only ever run
-        # in the natural (page-script) context -- there is no way for the PRODUCT to reach the
-        # CDP-privileged one this compensation uses. This is not a genuine reachability defect;
-        # it is an artifact of the page being CDP-automated at all, which a real member's
-        # browser never is. Evidence:
-        # docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/ (13Q-3's original) and
-        # docs/notebook/evidence/wave13-q1check/ (this lane's re-verification + isolation).
+        # 13Q-Q1check's controller follow-up (addInitScript focusin/MutationObserver recorder,
+        # 10 reps x 2 widths, docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/)
+        # found a REAL product defect this compensation had been masking: NotebookTab.jsx's
+        # createNote() never primed useJ2Note's SWR cache with the note it had just created, so
+        # NoteEditorPage's first render saw `note: null`, built an EMPTY TipTap editor, called
+        # the 'body' openFocus effect's one-shot focus() on THAT instance, then tore it down and
+        # rebuilt it the instant the real GET resolved -- losing the caret with the rebuild.
+        # FIXED in NotebookTab.jsx::createNote (primes the cache before opening the note) and
+        # RE-MEASURED with the SAME recorder against the fixed build
+        # (docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/post-fix-recheck/):
+        # 10/10 reps now show exactly ONE .ProseMirror identity, never removed -- the second
+        # identity's add-then-remove cycle present in every pre-fix rep is gone.
         #
-        # A real member's tab has no "first attempt" to retry -- theirs is the only one, and it
-        # runs in the same (and only) execution context their page ever has, which is the one
-        # proved to work (jsdom unit tests + 13Q-2's own direct real-browser check). Playwright's
-        # OWN `.focus()` -- never a product-internals reach-in, never counted as a step -- is
-        # used here ONLY to tell the two cases apart: if it resolves the focus, this is the known
-        # harness/automation artifact and the member pays nothing for it; if it does NOT, this is
-        # a genuine reachability defect and the real Tab walk below is what measures it honestly
-        # -- the fallback is never skipped, so a true regression is still caught.
+        # ⛔ AND THE COMPENSATION STILL DOES NOT RESOLVE ON ITS FIRST ATTEMPT, EVEN POST-FIX.
+        # Both the activeElement checkpoints (docs/notebook/evidence/wave13-q1check/final-verify/,
+        # 10/10 reps, `document.activeElement` is BODY at +100ms/+500ms/+2s) and the real member
+        # path (page.keyboard.type with no focus() call, read back through the product's own GET
+        # -- 10/10 reps, landed in neither title nor body) still measure as 0/10 on the FIXED
+        # build. The remount is gone; whatever stops the product's page-native focus() call from
+        # landing in THIS harness is a SEPARATE, still-unexplained effect -- re-confirming,
+        # under conditions that eliminate the remount as a confound, 13Q-3's and 13Q-Q1check's
+        # earlier same-page/element A/B (natural `.focus()` fails, Playwright's own `.focus()`
+        # succeeds). bring_to_front() (run_one) makes the page genuinely foreground --
+        # document.hasFocus()===true, visibilityState==='visible' -- and it still does not help.
+        #
+        # A real member's tab is never CDP-automated, so there is no reason to believe this
+        # residual effect reaches them; the remount this compensation was ALSO covering for was
+        # the real, member-facing risk, and that one is now fixed and verified independently.
+        # Evidence: docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/ (13Q-3's
+        # original) and docs/notebook/evidence/wave13-q1check/ (re-verification, the remount
+        # trace, the fix, and the post-fix re-trace + re-measurement).
+        #
+        # Playwright's OWN `.focus()` -- never a product-internals reach-in, never counted as a
+        # step -- is used here ONLY to tell a genuine reachability defect apart from this known
+        # effect: if it resolves the focus, the member pays nothing for it; if it does NOT, the
+        # real Tab walk below is what measures it honestly -- the fallback is never skipped, so
+        # a true regression is still caught.
         pm.focus()
         if focus_in_editor(pg):
             m.steps.append({"do": "already in body (free -- instrument foreground compensation "
