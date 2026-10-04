@@ -45,13 +45,24 @@ class AdjustmentBasis:
     dividends: bool | None    # ALWAYS None -- out of CP7's scope, see module docstring
     as_of: str | None         # ISO date of the newest action folded in
     applied_by: str | None    # 'vendor' | 'bars_sanitize' | 'bars_split_repair' | None
+    # TERM-055 (additive): the first session at the post-split scale of a declared split
+    # this series SHOWS AS A CLIFF (not applied, and nothing on the serve path heals it).
+    # Set only alongside `splits=False`; None everywhere else, including "undetermined".
+    unadjusted_split_at: str | None = None
 
     def to_dict(self) -> dict:
         return {"splits": self.splits, "dividends": self.dividends,
-                "as_of": self.as_of, "applied_by": self.applied_by}
+                "as_of": self.as_of, "applied_by": self.applied_by,
+                "unadjusted_split_at": self.unadjusted_split_at}
 
 
 UNDETERMINED = AdjustmentBasis(splits=None, dividends=None, as_of=None, applied_by=None)
+
+#: Intraday timeframes the basis answers for (TERM-055). Same set the bars route serves.
+INTRADAY_TFS = ("1", "5", "15", "30", "60")
+#: Rows read for an intraday basis: enough sessions for the ± window around a recent
+#: declared split on every intraday tf, still one local indexed read.
+_INTRADAY_ROWS = 5000
 
 
 def _ymd_to_iso(ts) -> str:
@@ -67,6 +78,8 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
 
     Never raises: any failure returns `UNDETERMINED` — a wrong "we don't
     know" is honest; a wrong "vendor" or "bars_sanitize" is not."""
+    if tf in INTRADAY_TFS:
+        return _intraday_basis(ticker, tf)
     if tf not in ("D", "W", "M"):
         return UNDETERMINED
     try:
@@ -105,8 +118,58 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
         # "adjusted by UCT" over the cliff.
         if not bars_sanitize.split_adjust_active():
             return AdjustmentBasis(splits=False, dividends=None,
-                                    as_of=newest_declared, applied_by=None)
+                                    as_of=newest_declared, applied_by=None,
+                                    unadjusted_split_at=max(u[0] for u in unadjusted).isoformat())
         return AdjustmentBasis(splits=True, dividends=None,
                                 as_of=newest_declared, applied_by="bars_split_repair")
+    except Exception:
+        return UNDETERMINED
+
+
+def _intraday_basis(ticker: str, tf: str) -> AdjustmentBasis:
+    """TERM-055 — the basis for an INTRADAY series.
+
+    ⛔ Nothing heals an intraday split: `bars_sanitize` is D/W/M only, and the intraday
+    payload is the vendor's `adjusted=true` feed served as-is
+    (tests/test_intraday_split_is_not_staleness.py). So there are exactly three answers:
+
+      * a declared split inside the stored series shows as a cliff
+        (`bars_sanitize.intraday_unadjusted_splits`) ⇒ `splits=False`, `applied_by=None`,
+        `unadjusted_split_at` = the first session at the new scale;
+      * a declared split inside the series shows NO cliff ⇒ the vendor adjusted it;
+      * no declared split inside the series ⇒ there is nothing to adjust in what is shown.
+
+    Same reads as the daily path (cache-only meta, one local store read) — never a vendor
+    fetch. Never raises."""
+    try:
+        from api.services import bars_sanitize, bars_sqlite
+
+        meta = bars_sanitize._meta_cached(ticker)
+        if meta is None:
+            return UNDETERMINED
+        splits = meta.get("splits") or []
+        rows = bars_sqlite.get_bars(ticker, tf, _INTRADAY_ROWS)
+        if not splits:
+            return AdjustmentBasis(splits=False, dividends=None, as_of=None, applied_by="vendor")
+        if not rows:
+            return UNDETERMINED
+        bars = [{"t": int(r[0]), "c": r[4]} for r in rows]
+        sessions = bars_sanitize.session_closes(bars)
+        if len(sessions) < 2:
+            return UNDETERMINED
+        first, last = sessions[0]["t"], sessions[-1]["t"]
+        # a split is "in" the series when its first post-split session is one the series
+        # reaches and at least one session precedes it
+        inside = [s for s in splits if first < str(s[0])[:10] <= last]
+        if not inside:
+            return AdjustmentBasis(splits=False, dividends=None, as_of=None, applied_by="vendor")
+        newest_inside = max(str(s[0])[:10] for s in inside)
+        cliffs = bars_sanitize.intraday_unadjusted_splits(bars, inside)
+        if cliffs:
+            return AdjustmentBasis(splits=False, dividends=None, as_of=newest_inside,
+                                    applied_by=None,
+                                    unadjusted_split_at=max(c[0] for c in cliffs).isoformat())
+        return AdjustmentBasis(splits=True, dividends=None, as_of=newest_inside,
+                                applied_by="vendor")
     except Exception:
         return UNDETERMINED

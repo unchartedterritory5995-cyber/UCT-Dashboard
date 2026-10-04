@@ -1,6 +1,6 @@
 // TERM-055 — the split label: says only what the adjustment-basis endpoint knows.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import AdjustmentLabel, { adjustmentText } from './AdjustmentLabel'
 
@@ -44,9 +44,55 @@ describe('AdjustmentLabel (TERM-055)', () => {
     }
   })
 
-  it('an intraday chart or an index symbol does not ask at all', () => {
-    renderLabel({ sym: 'NVDA', tf: '5' })
+  it('an index symbol or an unsupported timeframe does not ask at all', () => {
     renderLabel({ sym: '$IDX:AI', tf: 'D' })
+    renderLabel({ sym: 'NVDA', tf: '240' })
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  // ── TERM-055 remainder: the intraday split detector reaches the label ──
+  it('an intraday chart asks, and a split the series shows as a cliff is said out loud', async () => {
+    body = basis({ splits: false, as_of: '2024-06-10', unadjusted_split_at: '2024-06-10' })
+    renderLabel({ sym: 'NVDA', tf: '5' })
+    const el = await screen.findByTestId('adjustment-label')
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/adjustment-basis/NVDA?tf=5')
+    expect(el.textContent).toBe('Not split-adjusted · cliff at 2024-06-10')
+    expect(el.getAttribute('title')).toMatch(/NOT split-adjusted: the 2024-06-10 split shows as a price jump at 2024-06-10/)
+  })
+
+  it('splits=false WITHOUT a cliff (no split on record) still renders nothing', () => {
+    expect(adjustmentText({ splits: false, as_of: null, applied_by: 'vendor', unadjusted_split_at: null })).toBeNull()
+    expect(adjustmentText({ splits: null, unadjusted_split_at: null })).toBeNull()
+  })
+
+  // ── TERM-055 raw view: dark behind RAW_PRICE_VIEW_ENABLED ──
+  it('gate OFF (no raw_view key): no toggle, the label renders alone', async () => {
+    body = basis({ splits: true, as_of: '2024-06-10', applied_by: 'vendor' })
+    renderLabel({ sym: 'NVDA', tf: 'D' })
+    await screen.findByTestId('adjustment-label')
+    expect(screen.queryByTestId('raw-toggle')).toBeNull()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('gate ON: the toggle opens the as-traded closes beside the adjusted ones', async () => {
+    body = { ...basis({ splits: true, as_of: '2024-06-10', applied_by: 'vendor' }), raw_view: true }
+    renderLabel({ sym: 'NVDA', tf: 'D' })
+    const toggle = await screen.findByTestId('raw-toggle')
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    body = {
+      available: true,
+      rows: [
+        { t: '2024-06-07', raw: { c: 1208.88 }, adjusted: { c: 120.888 }, factor: 10 },
+        { t: '2024-06-10', raw: { c: 121.79 }, adjusted: { c: 121.79 }, factor: 1 },
+      ],
+    }
+    fireEvent.click(toggle)
+    const rows = await screen.findAllByTestId('raw-row')
+    expect(global.fetch.mock.calls.at(-1)[0]).toBe('/api/adjustment-basis/NVDA/raw?around=2024-06-10')
+    expect(rows.map((r) => r.textContent)).toEqual([
+      '2024-06-07$1208.88$120.8910',
+      '2024-06-10$121.79$121.791',
+    ])
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
   })
 })
