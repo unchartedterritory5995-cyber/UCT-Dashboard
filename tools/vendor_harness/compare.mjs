@@ -265,6 +265,21 @@ export function vendorPlotRoles(capture) {
 //       the same length AND every leftover title on both sides is a default
 //       (empty, or TradingView's "Plot"/"Plot N") — i.e. nothing on either side
 //       names a plot that the positional pairing would contradict.
+//   M3  ⭐ F8 (step 94) — A REPEATED TITLE, BY DECLARATION ORDER. TradingView
+//       lets several plots share one title (opening-range-initial-balance: seven
+//       "Shapes", two "OR Low", two "IB Low"); `study.plots` lists them in the
+//       order the script declares them, and our outputs are in source order
+//       (`pine.js` pushes each output call as its statement is read). So the
+//       k-th plot titled T on one side is the k-th on the other — ONLY when:
+//         · the number of plots titled T is the SAME on both sides, and
+//         · the KIND of every pair agrees (`plot` = line, `plotshape` = shapes,
+//           `plotchar` = chars, `plotarrow` = arrows), position by position.
+//       An untitled plot of ours is read under TradingView's per-call default
+//       (`DEFAULT_TITLE_OF_KIND`) for the grouping only. Tried only where M2
+//       does not apply, so no pairing M1/M2 made moves; M2 is then re-tried on
+//       what M3 left. A group whose counts or kinds disagree stays UNMAPPED.
+//       Proved non-vacuous by `vendorHarness.f8RepeatedTitles.test.js` (a
+//       pairing swapped inside a group DIVERGES).
 //   ⛔  Anything else is UNMAPPED and its verdict is INCONCLUSIVE, loudly, with
 //       the reason. A mapping the harness had to guess is a comparison of two
 //       unrelated columns wearing one plot's name.
@@ -274,6 +289,45 @@ export function vendorPlotRoles(capture) {
 // is "Chars" (probe-default-colour-v{3,4,6}-rddt-1d-2026-09-27). Knowing only
 // "Plot" left every untitled marker UNMAPPED and its colour never compared.
 const DEFAULT_TITLE = /^((plot|shapes|chars)( \d+)?)?$/i
+
+/** ⭐ F8 — the vendor plot TYPE each of our output KINDS draws as, and the title
+ *  TradingView gives that call when the author wrote none (measured, above). */
+const VENDOR_TYPE_OF_KIND = Object.freeze({ plot: 'line', plotshape: 'shapes', plotchar: 'chars', plotarrow: 'arrows' })
+const DEFAULT_TITLE_OF_KIND = Object.freeze({ plot: 'Plot', plotshape: 'Shapes', plotchar: 'Chars' })
+
+/** ⭐ F8 — M3: pair the k-th vendor plot titled T with our k-th, inside each title
+ *  group where the counts and every pair's kind agree. Returns the pairs made and
+ *  the vendor plots it left. Every condition can only REFUSE. */
+export function pairRepeatedTitles(leftVendor, leftOurs) {
+  const keyOfVendor = (v) => (v.title == null ? '' : String(v.title))
+  const keyOfOurs = (o) => (o.title == null || o.title === ''
+    ? (DEFAULT_TITLE_OF_KIND[o.kind] || '')
+    : String(o.title))
+  const groupsV = new Map()
+  for (const v of leftVendor) {
+    const k = keyOfVendor(v)
+    if (!groupsV.has(k)) groupsV.set(k, [])
+    groupsV.get(k).push(v)
+  }
+  const groupsO = new Map()
+  for (const o of leftOurs) {
+    const k = keyOfOurs(o)
+    if (!groupsO.has(k)) groupsO.set(k, [])
+    groupsO.get(k).push(o)
+  }
+  const pairs = []
+  const paired = new Set()
+  for (const [k, vs] of groupsV) {
+    const os = groupsO.get(k) || []
+    if (!k || vs.length < 2 || vs.length !== os.length) continue
+    if (!vs.every((v, i) => VENDOR_TYPE_OF_KIND[os[i].kind] === v.type)) continue
+    // Declaration order on both sides: the vendor's by its column in `study.plots`,
+    // ours by source order (the order `ourPlots` already holds).
+    const vSorted = [...vs].sort((a, b) => a.column - b.column)
+    vSorted.forEach((v, i) => { pairs.push({ vendor: v, ours: os[i], rule: 'M3-title-order' }); paired.add(v) })
+  }
+  return { pairs, left: leftVendor.filter((v) => !paired.has(v)) }
+}
 
 export function mapPlots(vendorValuePlots, ourPlots) {
   const pairs = []
@@ -290,7 +344,7 @@ export function mapPlots(vendorValuePlots, ourPlots) {
     vendorTitleCount.set(k, (vendorTitleCount.get(k) || 0) + 1)
   }
 
-  const leftVendor = []
+  let leftVendor = []
   for (const v of vendorValuePlots) {
     // M0
     if (v.selector && typeof v.selector === 'object') {
@@ -310,10 +364,18 @@ export function mapPlots(vendorValuePlots, ourPlots) {
     }
     leftVendor.push(v)
   }
-  const leftOurs = ourPlots.filter((o) => !usedOurs.has(o))
+  let leftOurs = ourPlots.filter((o) => !usedOurs.has(o))
 
   const allDefault = (xs) => xs.every((x) => DEFAULT_TITLE.test(x.title == null ? '' : String(x.title)))
-  if (leftVendor.length && leftVendor.length === leftOurs.length && allDefault(leftVendor) && allDefault(leftOurs)) {
+  const m2Applies = () => leftVendor.length && leftVendor.length === leftOurs.length && allDefault(leftVendor) && allDefault(leftOurs)
+  if (!m2Applies() && leftVendor.length) {
+    // M3 — only where M2 does not apply, so no M1/M2 pairing moves.
+    const m3 = pairRepeatedTitles(leftVendor, leftOurs)
+    for (const p of m3.pairs) { pairs.push(p); usedOurs.add(p.ours) }
+    leftVendor = m3.left
+    leftOurs = ourPlots.filter((o) => !usedOurs.has(o))
+  }
+  if (m2Applies()) {
     leftVendor.forEach((v, i) => { pairs.push({ vendor: v, ours: leftOurs[i], rule: 'M2-position-untitled' }); usedOurs.add(leftOurs[i]) })
   } else {
     for (const v of leftVendor) {
@@ -485,6 +547,22 @@ export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback }) {
   if (bar0) return warmupBars
   if (capture && capture.warmup && Number.isInteger(capture.warmup.bars)) return warmupBars
   return Number.isInteger(colorLookback) && colorLookback > warmupBars ? colorLookback : warmupBars
+}
+
+/** ⭐ F8 — the bars TradingView DRAWS a plot on: a value, and a decoded colour that
+ *  is not fully transparent, from the colour's warm-up on. `{bar, value, colour,
+ *  count}` of the first, or null. */
+export function firstVisibleVendorBar(vendorVals, colours, fromBar = 0) {
+  let first = null
+  let count = 0
+  for (let i = Math.max(0, fromBar); i < vendorVals.length; i++) {
+    const v = vendorVals[i]
+    const c = colours[i]
+    if (v === undefined || isNa(v) || typeof c !== 'string' || canonicalColour(c) === NO_COLOUR) continue
+    count += 1
+    if (!first) first = { bar: i, value: v, colour: c }
+  }
+  return first ? { ...first, count } : null
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
@@ -717,6 +795,23 @@ export function compareCapture(capture, ours, opts = {}) {
       return sparseNative ? null : undefined
     })
     if (!o.column) {
+      // ⭐ F8 — ND for a row with NO column: OUR engine hid it as reading no bar
+      // (`hiddenReason: 'constant'`), so the member's chart draws nothing, while
+      // TradingView draws it in a visible colour on some bar. Not drawn is an
+      // answer (the same rule as below); anything else stays unknown.
+      if (o.hiddenReason === 'constant') {
+        const vcN = vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
+        const vStyleN = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
+        const seen = vcN.measured && Array.isArray(vcN.colors) && !(vStyleN && vStyleN.display === 0)
+          ? firstVisibleVendorBar(vendorVals, vcN.colors, 0) : null
+        if (seen) {
+          const first = { bar: seen.bar, time: times[seen.bar], kind: 'not-drawn', vendor: seen.value, ours: null, vendorColor: seen.colour, ourColor: null }
+          base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'DIVERGE',
+            reason: `NOT DRAWN — TradingView draws this plot in a visible colour on ${seen.count} bars (first at bar ${seen.bar}: ${fmt(seen.value)} in ${seen.colour}); our chart draws nothing for it: this engine hid the row as a column that reads no bar (hiddenReason "constant")${o.missingReason ? ` — ${o.missingReason}` : ''}`,
+            stats: { notDrawn: seen.count, steady: { divergent: seen.count, compared: seen.count, first } } })
+          continue
+        }
+      }
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue
@@ -751,12 +846,32 @@ export function compareCapture(capture, ours, opts = {}) {
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
     const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
-    const pv = plotVerdict(r, {
+    let pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
       vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
       ourColorReason: o.colorsReason || null,
     })
+    // ⭐⭐ F8 (step 94) — NOT DRAWN IS AN ANSWER. The values agree, but OUR engine
+    // hid the row itself (`pine.js` `hiddenReason: 'constant'` — "this column reads
+    // no bar", the engine's own judgement, never the author's `display.none`), so
+    // the member's chart draws NO series for it, while TradingView draws it in a
+    // visible colour. That was graded INCONCLUSIVE ("our side's colour could not be
+    // resolved") — a missing line read as an unknown. It is a DIVERGE, named by
+    // the first bar TradingView draws.
+    // ⛔ ONLY `constant`; ONLY when the capture decodes a colour that is VISIBLE
+    // (not fully transparent) on a bar with a value; an author-hidden or a
+    // fill-anchor row is unchanged.
+    let stats = r
+    if (pv.verdict === 'INCONCLUSIVE' && o.hiddenReason === 'constant' && !ourColors
+      && !colourUngraded && vc.measured && Array.isArray(vc.colors)) {
+      const seen = firstVisibleVendorBar(vendorVals, vc.colors, colorWarmupBars)
+      if (seen) {
+        const first = { bar: seen.bar, time: times[seen.bar], kind: 'not-drawn', vendor: seen.value, ours: null, vendorColor: seen.colour, ourColor: null }
+        stats = { ...r, notDrawn: seen.count, steady: { ...r.steady, divergent: seen.count, first } }
+        pv = { verdict: 'DIVERGE', reason: `NOT DRAWN — TradingView draws this plot in a visible colour on ${seen.count} bars (first at bar ${seen.bar}: ${fmt(seen.value)} in ${seen.colour}); our chart draws no series for it: this engine hid the row as a column that reads no bar (hiddenReason "constant")` }
+      }
+    }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
@@ -767,7 +882,7 @@ export function compareCapture(capture, ours, opts = {}) {
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
               : ourColors ? 'compared' : 'unresolvable on our side',
-      stats: r,
+      stats,
     })
   }
   for (const o of map.unmappedOurs) base.notCompared.push({ ours: o.key, title: o.title, why: 'our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)' })

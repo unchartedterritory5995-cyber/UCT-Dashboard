@@ -152,6 +152,22 @@ export const RUNTIME_LIMIT_GUARD = 'runtime:limit'
 /** ⭐ RF — the guard a run that threw something unexpected carries. */
 export const RUNTIME_FAILED_GUARD = 'runtime:failed'
 
+/** ⭐ F8 — the guard a run carries when a column it draws moves with a value no
+ *  capture has measured (`array.sum` / `array.avg` over zero real elements). */
+export const RUNTIME_UNMEASURED_GUARD = 'runtime:unmeasured'
+
+/** ⭐ F8 — the unmeasured values the runtime PANE probes (`probeAllows`). */
+const PANE_PROBED = Object.freeze(['array.sum', 'array.avg'])
+
+const sameValue = (a, b) => Object.is(a, b) || (Number.isNaN(a) && Number.isNaN(b)) || a === b
+
+/** The title a member reads for a document row, for a sentence. */
+function plotTitleOf(def, key) {
+  const p = ((def && def.plots) || []).find((x) => x && x.key === key)
+  const name = p && (p.label || p.title)
+  return name ? JSON.stringify(String(name)) : key
+}
+
 /** The memo key for one run: the definition, its compute handle, and everything
  *  in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
 function runKey(def, ctx) {
@@ -286,8 +302,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // (`nativeRegistry.runtimeColumnsOrReasons`).
   let finished = -1
   let res
-  try {
-    res = execute(program, {
+  // ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS
+  // (`collections.js::probedZeroReals`): TradingView does not stop there
+  // (witnessed), and what it answers is unmeasured. The run answers the first
+  // probe; a run that met one is run AGAIN at the second, and every column this
+  // document draws must be the same number on every bar in both — a column that
+  // moves with the unknown answer stops the whole run by name (never a column
+  // dropped silently). Only these two reductions are probed here; every other
+  // unmeasured value keeps its stop.
+  const runAt = (probe) => {
+    const budget = new Budget()
+    budget.unmeasured = { ...probe, hits: [], only: PANE_PROBED }
+    let firstHitBar = -1
+    finished = -1
+    const r = execute(program, {
       bars: rows.length,
       series,
       columns: program.columns,
@@ -296,14 +324,56 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       confirmed: forming === false,
       barTimes: rows.map((b) => b.t),
     }, undefined, {
+      budget,
       onBar: (bar) => {
         finished = bar
+        if (firstHitBar < 0 && budget.unmeasured.hits.length) firstHitBar = bar
         if (budgetMs !== null) {
           const spent = now() - startedAt
           if (spent > budgetMs) throw new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
         }
       },
     })
+    return { res: r, hits: budget.unmeasured.hits, firstHitBar }
+  }
+  try {
+    const first = runAt(RUNTIME_PROBES[0])
+    res = first.res
+    if (first.hits.length) {
+      const what = first.hits[0]
+      const unmeasured = (tail) => refusal(RUNTIME_UNMEASURED_GUARD, `this script reads ${what} of an array with `
+        + `no real element (every element na, or none) from bar ${first.firstHitBar} of ${rows.length}. TradingView `
+        + 'draws on through it, but what it answers there has not been measured, and ' + tail
+        + ', so nothing is drawn rather than a guess.')
+      let second
+      try {
+        second = runAt(RUNTIME_PROBES[1])
+      } catch (err2) {
+        if (err2 instanceof RuntimeLimitError && err2.limit === 'WALL_TIME') throw err2
+        throw unmeasured('the run stops on one of the answers it could be')
+      }
+      for (const [plotKey, index] of Object.entries(outputs)) {
+        const a = first.res.outputs[index]
+        const b = second.res.outputs[index]
+        const moved = (!a) !== (!b) || (a && a.length !== b.length)
+          || (a && Array.prototype.findIndex.call(a, (x, i) => !sameValue(x, b[i])) >= 0)
+        if (moved) {
+          const at = a && b && a.length === b.length ? Array.prototype.findIndex.call(a, (x, i) => !sameValue(x, b[i])) : -1
+          throw unmeasured(`what this script draws (${plotTitleOf(def, plotKey)}) moves with that answer`
+            + (at >= 0 ? ` from bar ${at}` : ''))
+        }
+      }
+      if (ownObjects) {
+        // `finish()` is read ONCE per run: the first run's answer is kept and is
+        // the one served below, so nothing relies on `finish()` being idempotent.
+        const finA = first.res.objects ? first.res.objects.finish() : null
+        const finB = second.res.objects ? second.res.objects.finish() : null
+        if (JSON.stringify(finA) !== JSON.stringify(finB)) {
+          throw unmeasured('the drawings this script makes move with that answer')
+        }
+        if (finA) res = { ...first.res, objects: { finish: () => finA } }
+      }
+    }
   } catch (err) {
     if (err && err.name === 'runtime.error') err.bar = finished + 1
     if (err instanceof RuntimeLimitError && err.limit === 'WALL_TIME' && budgetMs !== null) {
