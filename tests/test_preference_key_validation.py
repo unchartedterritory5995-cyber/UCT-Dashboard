@@ -268,6 +268,32 @@ def test_prose_in_a_test_file_is_not_read_as_a_client_write():
     assert "charts_workspace_layout" in keys
 
 
+def test_the_getting_started_checklist_key_is_written_by_the_client_and_accepted(client):
+    """Wave 14 lane W14-D: the checklist's ONE key, end to end.
+
+    The derivation must READ it from the shipped writer (so the generic rail above
+    covers it from its own call site, not because this test names it), and the real
+    router must store the exact value the writer sends and serve it back.
+    """
+    keys, _ = derive_client_preference_keys()
+    assert "notebook_getting_started" in keys, (
+        "the scan no longer sees GettingStartedChecklist.jsx's setPref call site"
+    )
+    # Control: a key no shipped file writes is not in the derived set.
+    assert "notebook_getting_started_xyz" not in keys
+
+    value = json.dumps({"v": 1, "state": "dismissed", "at": "2026-10-04T12:00:00.000Z"})
+    resp = client.post("/api/auth/preferences", json={"key": "notebook_getting_started", "value": value})
+    assert resp.status_code == 200, resp.text
+    stored = client.get("/api/auth/preferences").json()
+    assert stored.get("notebook_getting_started") == value
+
+    # The row is load-bearing: a near-miss key is still refused by name.
+    resp = client.post("/api/auth/preferences", json={"key": "notebook_getting_startd", "value": value})
+    assert resp.status_code == 400
+    assert "notebook_getting_startd" in resp.json()["detail"]
+
+
 def test_widget_global_pref_keys_are_accepted(client):
     """`ChartsWorkspace.jsx:1342` writes these by lookup, not by literal."""
     src = _read(os.path.join(APP_SRC, "components", "chart", "chartThemes.js"))

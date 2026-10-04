@@ -22,6 +22,7 @@ import {
   reviewDraftsEnabled, draftDailyReview, draftWeeklyReview, draftMonthlyReview,
   todayDayIso, mondayOfIso, thisMonthIso,
 } from '../../lib/reviewDrafts'
+import GettingStartedChecklist from './GettingStartedChecklist'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -291,6 +292,7 @@ export default function ResearchHome({
           </button>
         </>
       )}
+      <GettingStartedChecklist hasAnyNotes={hasAnyNotes} onCreateNote={onCreateNote} onAddSample={isPaid ? addSample : null} />
     </>
   )
 

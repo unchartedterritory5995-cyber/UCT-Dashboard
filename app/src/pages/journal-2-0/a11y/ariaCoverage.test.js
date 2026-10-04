@@ -28,6 +28,8 @@ const TOKEN = /aria-|role=/
 export const EXEMPT = Object.freeze({
   'components/notebook/NotebookFlagGate.jsx':
     'renders its children or null; no markup or control of its own',
+  'components/notebook/GettingStartedChecklist.jsx':
+    'the eager gate: renders the lazy GettingStartedList (a named section) or null; no markup or control of its own',
   'components/notebook/CaptureHost.jsx':
     'mounts CaptureDialog (itself a named dialog) and a global key listener; no markup of its own',
   'components/notebook/NoteStats.jsx':
