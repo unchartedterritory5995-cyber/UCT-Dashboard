@@ -18185,6 +18185,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (decidedNow !== null) decidedIfArm.set(ifNode, decidedNow !== 0 ? then : other)
       return ifNode
     }
+    // ⭐⭐ F4 (step 85) — A TEXT THAT IS `na` IS THE EMPTY STRING. Pine's `text`
+    // is a series string and `na` there is the absent string: TradingView holds
+    // `""` for it. MEASURED: all-chart-patterns-theeccentrictrader SPY 1D, eight
+    // `var … = label.new(na, na, …, text = na, …)` labels that no pattern ever
+    // re-captions are recorded with `t: ""`. ⚰️ It fell to the numeric last
+    // resort and printed "NaN". (`str.tostring(na)` is NOT this: that call
+    // prints "NaN", F3.)
+    if (node.type === 'name' && node.name === 'na') return { t: 'lit', s: '' }
     if (node.type === 'name') {
       // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
       // `valueRef` already produces for a table written with a literal position,

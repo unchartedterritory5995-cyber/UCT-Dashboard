@@ -304,17 +304,30 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('trend-targets-algoalpha RDDT (runtime pane): MATCH', () => {
     expect(grade('trend-targets-algoalpha-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT objects now MATCH (label texts rounded to the tick, "TP1 ▸ 177.53"); the barcolor is not drawn; plots agree', () => {
+  it('control: RDDT objects now MATCH (label texts rounded to the tick, "TP1 ▸ 177.53"); the barcolor is drawn and agrees (RT6); plots agree', () => {
     const v = grade('trend-targets-algoalpha-rddt-1d-2026-10-02', 'runtime').v
     // ⭐ F3 — `str.tostring(x, format.mintick)` was read as "no format" and drew
     // "177.5276604489"; it now rounds to the witnessed NYSE tick (0.01) and keeps
     // the tick's decimals (`pineTextFormat.js::tickNumberText`).
     expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
     expect(v.objects.texts.find((x) => x.family === 'labels text').agree).toBe(true)
-    // ⛔ What still diverges is the PAINT: a runtime-lane document carries no
-    // `paints`, so the barcolor TradingView draws on every bar is not drawn (F1/RT).
-    expect(v.paints.reason).toMatch(/notDrawn/)
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE')).toEqual([])
+    // ⭐ RT6 — the runtime document now carries the barcolor as a colour column of
+    // the run, and it agrees with the one TradingView draws (it was `notDrawn`).
+    expect(v.paints.reason).toMatch(/agree/)
+    expect(v.paints.rows.map((r) => r.state)).toEqual(['agree'])
+    // ⭐ RT6 — `Baseline` (`plot(tL, color = trend == 1 ? … : …)`) was withheld for its
+    // per-bar colour and is now drawn: its COLOUR agrees on every compared bar, and what
+    // diverges is its VALUE's seed — na on bar 140 where TradingView has the first value,
+    // then a prefix converging to 1e-9 by bar 221 (a run value defect RT6 exposed, not
+    // a colour one). Pinned so a fix to the seed flips this line.
+    const base = item(v, 'Baseline')
+    expect(base.stats.colorMismatches).toBe(0)
+    expect(base.stats.colorCompared).toBeGreaterThan(400)
+    expect(base.stats.naMismatches).toBe(1)
+    expect(base.stats.firstDivergence).toMatchObject({ bar: 140, kind: 'na' })
+    expect(base.stats.steady.last.bar).toBeLessThanOrEqual(221)
+    expect(base.stats.maxRel).toBeLessThan(1e-3)
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual(['Baseline'])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
   it('trend-targets-algoalpha SPY (runtime pane): the run declines a window not from the listing (runtime:history-start) — draws nothing', () => {

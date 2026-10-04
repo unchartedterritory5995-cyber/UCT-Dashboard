@@ -1,0 +1,43 @@
+//@version=5
+indicator("UCTPROBE_VW_RT6_RUNTIME_COLOUR", overlay = false)
+
+// --- 2026-10-03 RT6 - a RUNTIME row's per-bar colour, and the `na` colour edges ---
+//
+// The runtime lane (per-bar VM) now carries a plot's per-bar colour, and a bgcolor /
+// barcolor's, as a packed colour column computed by the same run. This probe asks
+// TradingView for the colour rules that run relies on and that no committed capture
+// witnesses. Every row is a plot with a per-bar colour (the capture records each
+// bar's colour through the plot's colorer).
+//
+//   C01  a `var` colour switched by a state test (the kalman / deadband shape)
+//   C02  color.new(<var colour>, 40) over C01's colour
+//   C03  color.new(na, 40)            - engine: `na` (draws nothing)
+//   C04  color.new(color.red, na)     - engine: `na` (draws nothing)
+//   C05  color.rgb(na, 0, 0)          - engine: `na` (draws nothing)
+//   C06  cond ? color.green : na      - a plot point whose colour is `na`
+//   K00  bar_index control
+//
+// CAPTURE: NYSE:RDDT 1D from the listing (AMEX:SPY 1D as a second witness),
+// inputs at defaults, with tools/vendor_harness/tv_capture.js.
+
+float nv = na
+var int trend = 0
+if close > close[1]
+    trend := 1
+if close < close[1]
+    trend := -1
+var color c = color.white
+if trend == 1
+    c := #33ff00
+if trend == -1
+    c := #ff0000
+
+plot(bar_index, "K00_bar_index_CONTROL")
+plot(close, "C01_var_colour", color = c)
+plot(close, "C02_new_var_40", color = color.new(c, 40))
+plot(close, "C03_new_na_base", color = color.new(color(na), 40))
+plot(close, "C04_new_na_transp", color = color.new(color.red, nv))
+plot(close, "C05_rgb_na", color = color.rgb(nv, 0, 0))
+plot(close, "C06_cond_or_na", color = close > open ? color.green : na)
+barcolor(c, title = "B01_var_barcolor")
+bgcolor(close > open ? color.new(color.blue, 80) : na, title = "G01_bg_cond")
