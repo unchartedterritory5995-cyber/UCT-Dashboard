@@ -6594,6 +6594,68 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return chain.length ? [...pre, ...chain] : pre
   }
 
+  /** ⭐⭐ RT10 — `for … in` over an ARRAY, as the counted loop it means (see
+   *  the call site). Built from TOKENS so the element binding takes the ordinary
+   *  binding path — its drawing / record / text kind is decided exactly as a
+   *  hand-written `x = array.get(a, i)` is. */
+  const FOR_IN_BOUND = 2147483647
+  const lowerForInStatement = (st, toks, scope, first) => {
+    const at = locate(first)
+    const inAt = findTop(toks, (x) => x.kind === 'ident' && x.value === 'in')
+    const target = toks.slice(1, inAt)
+    const collToks = toks.slice(inAt + 1)
+    let idxTok = null
+    let elemTok = null
+    if (target.length === 1 && target[0].kind === 'ident') {
+      elemTok = target[0]
+    } else if (target.length === 5 && isPunct(target[0], '[') && target[1].kind === 'ident'
+      && isPunct(target[2], ',') && target[3].kind === 'ident' && isPunct(target[4], ']')) {
+      idxTok = target[1]
+      elemTok = target[3]
+    } else {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` names its element as `x` or `[i, x]`', at)
+    }
+    if (String(elemTok.value).includes('.') || (idxTok && String(idxTok.value).includes('.'))) {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` binds a plain name', at)
+    }
+    if (!collToks.length || collToks.length !== 1 || collToks[0].kind !== 'ident') {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop',
+        '`for … in` over a list made while the loop runs (a call or an expression) — '
+        + 'read the list into a name first', at)
+    }
+    const collNode = parseWholeExpression(collToks)
+    if (!holdsArray(collNode, scope)) {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` over a map or a matrix — only an array walks here', at)
+    }
+    const pos = { line: first.line, column: first.column, index: first.index }
+    const T = (kind, value) => ({ kind, value, ...pos })
+    const ctrName = `for-in@${first.line}:${first.column} index`
+    const ctrTok = T('ident', ctrName)
+    const guard = {
+      header: [T('ident', 'if'), ctrTok, T('punct', '>='), T('ident', 'array.size'), T('punct', '('),
+        ...collToks, T('punct', ')')],
+      sub: [{ header: [T('ident', 'break')], sub: [] }],
+    }
+    const binds = []
+    if (idxTok) binds.push({ header: [idxTok, T('punct', '='), ctrTok], sub: [] })
+    binds.push({
+      header: [elemTok, T('punct', '='), T('ident', 'array.get'), T('punct', '('), ...collToks,
+        T('punct', ','), ctrTok, T('punct', ')')],
+      sub: [],
+    })
+    const loopLine = {
+      ...st,
+      header: [T('ident', 'for'), ctrTok, T('punct', '='), T('number', 0), T('ident', 'to'),
+        T('number', FOR_IN_BOUND)],
+      sub: [guard, ...binds, ...(st.sub || [])],
+    }
+    return lowerStmts([loopLine], scope, false, false, true)
+  }
+
   const lowerSwitchInto = (armLines, subjToks, scope, slot, mkArm, label, atTok) => {
     // ── `name = switch …` ──
     //
@@ -6762,16 +6824,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  const lowerStmts = (list0, scope, rootHoist = false, frameHoist = false) => {
+  // `inline` (RT10): a rewritten statement lowered IN PLACE of the one the member
+  // wrote — same depth, same hoist sink — never a nested list of its own.
+  const lowerStmts = (list0, scope, rootHoist = false, frameHoist = false, inline = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
     const outerStmtOwner = stmtHoistOwner
-    stmtHoistSink = null
+    if (!inline) stmtHoistSink = null
     // RT5: every list but the root runs only on some bars (or per call).
-    if (!rootHoist) condDepth += 1
+    if (!rootHoist && !inline) condDepth += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
@@ -6927,8 +6991,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // rather than falling to "a `for` needs `name = from to to`", which reads as
       // a typo in a script that is perfectly good Pine.
       if (word === 'for' && findTop(toks, (x) => x.kind === 'ident' && x.value === 'in') > 0) {
-        note('runtime:loop')
-        throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
+        // ⭐⭐ RT10 — `for x in <array>` / `for [i, x] in <array>`, rewritten into
+        // the counted `for` this lane already lowers, over the LIVE list
+        // (C48, `vw-forin-collections-rddt-1d-2026-10-01`: the length is re-read
+        // before every pass — a shift shortens the walk, a push lengthens it —
+        // and a slot is read when its pass reaches it):
+        //     for <i> = 0 to <a large bound>
+        //         if <i> >= array.size(<array>)
+        //             break
+        //         [i = <i>]
+        //         x = array.get(<array>, <i>)
+        //         …the body
+        // The bound only gives the loop a shape; every pass is still charged to
+        // the run's loop budget (`limits.js`), so a body that keeps pushing stops
+        // BY NAME, never silently. ⛔ Only an array, named or read as a field
+        // (`a`, `store.lines`): a map or matrix walk, or a list made by a call
+        // (re-evaluating it each pass would be a different program), refuses.
+        const lowered = lowerForInStatement(st, toks, scope, first)
+        for (const s of lowered) out.push(s)
+        continue
       }
       if (word === 'for') {
         const nameTok = toks[1]
@@ -7882,7 +7963,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     } finally {
       stmtHoistSink = outerStmtSink
       stmtHoistOwner = outerStmtOwner
-      if (!rootHoist) condDepth -= 1
+      if (!rootHoist && !inline) condDepth -= 1
     }
     return out
   }
