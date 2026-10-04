@@ -242,7 +242,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   }
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
-    inputs: {},
+    // ⭐ RT9 (Q1) — a hybrid's objects run carries the member's moved numeric
+    // inputs it honours (`objectsRunDefinition`); every other document has none.
+    inputs: (compute.inputs && typeof compute.inputs === 'object') ? compute.inputs : {},
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),

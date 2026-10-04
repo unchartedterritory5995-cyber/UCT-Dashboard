@@ -468,6 +468,14 @@ function runtimeObjectsReport(def, bars, ctx, cols) {
     undrawnProps: payload.undrawnProps || {}, chartClock: [] }
 }
 
+/** ⭐⭐ RT9 — a hybrid document's drawings, made by its own run, in the same shape. */
+function hybridObjectsReport(payload, bars, ctx) {
+  const state = toRenderState(payload.live, { bars, tf: ctx.tf, pineVersion: payload.pineVersion })
+  return { ...heldReport(payload.live, state, payload.pineVersion),
+    runStatus: payload.status, runReason: payload.reason || null, runWithheld: payload.withheld || {},
+    undrawnProps: payload.undrawnProps || {}, chartClock: [] }
+}
+
 /** Counts, texts and held objects off a LIVE set and its render state. */
 function heldReport(live, state, pineVersion) {
   const cells = state.tables.flatMap((t) => t.cells || [])
@@ -785,9 +793,18 @@ export function runOurSide(capture) {
     // ⭐ RT4 — the binder's own gate: a runtime document whose run computed
     // nothing here draws none of its object program (`runtimeObjectsWithheld`).
     const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
+    // ⭐⭐ RT9 — a host document whose drawings come from its own run: the binder's
+    // own reader decides (`objectsRunFor`) — the run's drawings, or the host program.
+    const hybrid = objectsWithheld ? null : registry.objectsRunFor(def, bars, undefined, ctx)
+    if (hybrid && !hybrid.payload) {
+      notes.push(`drawings: the run's are not drawn here (${hybrid.withheld.guard}) — ${hybrid.withheld.message}; the host object program is graded instead`)
+    }
     const objects = objectsWithheld
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
-      : objectsOf(def, bars, ctx, cols, built)
+      : (hybrid && hybrid.payload
+        ? { ...hybridObjectsReport(hybrid.payload, bars, ctx), lane: 'hybrid' }
+        : objectsOf(def, bars, ctx, cols, built))
+    if (objects && hybrid) objects.objectsRun = { drawn: !!hybrid.payload, withheld: hybrid.withheld }
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)

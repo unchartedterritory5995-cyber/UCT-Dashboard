@@ -32,7 +32,7 @@ import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/ru
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
-import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { runtimeOwnObjectsOf, hybridObjectsOf } from './runtimeObjectsDoor'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -835,6 +835,51 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 
+  // ⭐⭐ RT9 — ONE DOCUMENT, TWO SOURCES. The host lane's drawing picture of this
+  // script is KNOWN incomplete (`hostDrawingLoss`), and the runtime lane builds the
+  // script with every drawing under the runtime document's own gates: the document
+  // keeps every host plot and tree, untouched, and carries the script beside them
+  // (`objectsRun`, `runtime/runtimeObjects.js`). Its drawings come from one run of
+  // it where that run computes (from the listing, at the script's defaults), and
+  // from the host program exactly as before everywhere else
+  // (`nativeRegistry.objectsRunFor`). Off, or declined, nothing here changes.
+  const hybrid = runtimePaneEnabled() ? hybridObjectsOf({ source, t }) : null
+  if (hybrid && hybrid.ok) {
+    definition.objectsRun = {
+      kind: 'runtime',
+      source,
+      repaint: hybrid.repaint.mode,
+      // the host compute this run was minted beside: a parameter edit moves it
+      trees: (definition.compute && (definition.compute.treesHash || definition.compute.fn)) || null,
+      // the script's own inputs: a member value in any of them moves the plots, not the run
+      inputs: (docInputs || []).map((spec) => spec.key),
+    }
+    const runNotes = [{
+      name: 'Drawings',
+      note: 'Its lines, labels, boxes and tables are made by running the script bar by bar, the way '
+        + "TradingView makes them, on a chart whose history starts at the symbol's first bar and at the "
+        + "script's default settings. Anywhere else they are drawn as described above.",
+    }]
+    if (hybrid.repaint.mode !== 'non-repainting') {
+      runNotes.push({
+        name: hybrid.repaint.mode === 'preview-repaints' ? 'Drawings settle one bar later' : 'Drawings repaint',
+        note: `${hybrid.repaint.mode === 'preview-repaints'
+          ? 'A drawing can move until the next bar arrives'
+          : 'A drawing can move after its bar has closed'}: the script reads `
+          + `${hybrid.repaint.reads.map((r) => `\`${r.name}\``).join(', ')}.`,
+      })
+    }
+    for (const n of runNotes) notes.push(n)
+    definition.meta = {
+      ...definition.meta,
+      // ⭐ the script's identity for the kill list and the allowlist (the server
+      // recomputes it from `objectsRun.source`, never trusts this one)
+      runtimeSourceHash: runtimeSourceHash(source),
+      disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    }
+    ensureRuntimeLane()
+  }
+
   return {
     ok: true,
     definition,
@@ -843,6 +888,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     translation: t,
     rows,
     notes,
+    // ⭐ RT9 — 'served' when the drawings may come from the run, the declining
+    // code when the run was asked and declined, null when it was not asked.
+    objectsRun: hybrid ? (hybrid.ok ? 'served' : hybrid.code) : null,
     // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.

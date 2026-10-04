@@ -77,7 +77,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, objectsRunFor } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -889,7 +889,15 @@ export function createBinder({ chart, LWC }) {
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
       // draws nothing — never a stale picture, never the host program's.
-      if (drawsRuntimeObjects(def)) {
+      // ⭐⭐ RT9 — A HOST DOCUMENT WHOSE DRAWINGS COME FROM ITS OWN RUN (`objectsRun`):
+      // the run's drawings when ONE run of the script on these bars made them, and
+      // otherwise the host object program below, exactly as before (`objectsRunFor`).
+      const hybrid = drawsRuntimeObjects(def) ? null
+        : attempt(() => objectsRunFor(def, bars, inst.inputs, {
+          tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming ?? null,
+          historyFromListing: ctx.historyFromListing === true,
+        })).value
+      if (drawsRuntimeObjects(def) || (hybrid && hybrid.payload)) {
         alive.add(inst.instanceId)
         if (typeof make !== 'function') continue
         let rlayer = objectLayers.get(inst.instanceId)
@@ -900,7 +908,7 @@ export function createBinder({ chart, LWC }) {
           objectLayers.set(inst.instanceId, rlayer)
         }
         const memo = computeMemo.get(inst.instanceId)
-        const payload = runtimeObjectsOf(memo && memo.cols)
+        const payload = hybrid ? hybrid.payload : runtimeObjectsOf(memo && memo.cols)
         if (!payload) { attempt(() => rlayer.set(null, '')); continue }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
