@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { translatePine } from '../../ast/pine.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 
@@ -132,5 +133,85 @@ describe('⭐⭐ RT14 — a root binding read where it has no slot is the every-
     // root copy of `y` would answer a different `ta.change(y)`.
     const r = build('float z = na\nif close > open\n    y = ta.valuewhen(close > close[1], close, 0)\n    if high > 104\n        z := ta.change(y)\nplot(z)\n')
     expect(JSON.stringify(r.ok ? r.ir : r.refusal)).not.toMatch(/y root/)
+  })
+})
+
+describe('⭐⭐ RT14 — v1–v4 bare `max` / `min` take three or more arguments, as `math.max` / `math.min`', () => {
+  // `translatePine` is the host lane AND the resolver the runtime lane asks for
+  // every column, so one rule serves both (blackflag-fts refused `pine:arity`).
+  const LF = '\n'
+  const formula = (src) => {
+    const out = translatePine(src, { strict: true })
+    if (!out.ok) return `REFUSED ${(out.refusal || {}).guard}`
+    return out.outputs[out.selected].formula
+  }
+  const v4 = (call) => formula(`//@version=4${LF}study("t")${LF}plot(${call})${LF}`)
+  const v5 = (call) => formula(`//@version=5${LF}indicator("t")${LF}plot(${call})${LF}`)
+
+  it('`max(a, b, c)` in v4 is v5\'s `math.max(a, b, c)` — the vendor-pinned left fold', () => {
+    expect(v4('max(high, low, close)')).toBe(v5('math.max(high, low, close)'))
+    expect(v4('min(high, low, close, open)')).toBe(v5('math.min(high, low, close, open)'))
+    expect(v4('max(high, low, close)')).toBe('max(max(high, low), close)')
+  })
+
+  it('CONTROL: two arguments keep the node they always resolved to', () => {
+    expect(v4('max(high, low)')).toBe('max(high, low)')
+  })
+
+  it('CONTROL: only max and min — v4 round(x, 2) is not given the v5 precision argument', () => {
+    // v4's `round` takes one argument; `math.round(x, n)` is a v5 builtin.
+    expect(v4('round(close, 2)')).toMatch(/^REFUSED pine:arity/)
+    expect(v4('round(close)')).toBe('round(close)')
+  })
+
+  it('CONTROL: v5 bare `max` with three arguments still refuses (not Pine v5)', () => {
+    expect(v5('max(high, low, close)')).toMatch(/^REFUSED pine:arity/)
+  })
+
+  it('CONTROL: a script\'s own `max` wins', () => {
+    const own = formula(`//@version=4${LF}study("t")${LF}max(a, b, c) => a + b + c${LF}plot(max(high, low, close))${LF}`)
+    expect(own).not.toMatch(/max\(max/)
+  })
+
+  it('the runtime lane computes it: equal to the nested spelling bar for bar', () => {
+    const r4 = (body) => {
+      const built = buildRuntimeIr(`//@version=4${LF}study("t")${LF}${body}`, { bars: BARS, inputs: {} })
+      if (!built.ok) throw new Error(`refused: ${built.refusal.guard}`)
+      const program = lowerIrProgram(built.ir)
+      return execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true }).outputs
+        .map((o) => Array.from(o))
+    }
+    const src = (e) => `var float m = 0.0${LF}m := ${e}${LF}plot(m)${LF}`
+    const nested = r4(src('max(max(max(high, low * 1.05), close + 1), nz(m[1]) - 1)'))
+    expect(r4(src('max(high, low * 1.05, close + 1, nz(m[1]) - 1)'))).toEqual(nested)
+    // non-vacuity: the state argument is read (a bar where it is the largest)
+    expect(nested[0].slice(1).every((v) => Number.isFinite(v))).toBe(true)
+  })
+
+  it('`math.max` / `math.min` with three arguments over runtime state (v5) fold the same way', () => {
+    const r5 = (e) => run(`var float m = 0.0${LF}m := ${e}${LF}plot(m)${LF}`)
+    expect(r5('math.max(high, close + 1, nz(m[1]) - 1)')).toEqual(r5('math.max(math.max(high, close + 1), nz(m[1]) - 1)'))
+    expect(r5('math.min(low, close - 1, nz(m[1]) + 1)')).toEqual(r5('math.min(math.min(low, close - 1), nz(m[1]) + 1)'))
+  })
+})
+
+describe('⭐⭐ RT14 — support-and-resistance\'s chain: bindings of bindings, read inside blocks', () => {
+  // The script's own shape, reduced: each name is a never-mutated root binding;
+  // the last two are read only inside `if` blocks.
+  const lines = [
+    'float lt = ta.valuewhen(high >= ta.highest(high, 3), high, 0)',
+    'float ltr = ta.change(lt) != 0 ? na : lt',
+    'bool isNew = ta.change(fixnan(ltr)) != 0',
+    'float r = na',
+    'if not na(ltr)',
+    '    if isNew',
+    '        r := ltr',
+    'plot(r)',
+  ]
+  it('builds, and equals the spelling where every binding is a mutated (slot) variable', () => {
+    const src = lines.join('\n') + '\n'
+    const slotted = lines.map((l) => l.replace(/^(float|bool) (\w+) = (.*)$/, (m, t, n, v) => (n === 'r' ? m : `${t} ${n} = na\n${n} := ${v}`)))
+      .join('\n') + '\n'
+    expect(run(src)).toEqual(run(slotted))
   })
 })

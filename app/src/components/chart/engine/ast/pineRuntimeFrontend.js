@@ -4427,8 +4427,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const rootMacros = new Map()
   let rootOut = null
   let rootScope = null
+  // A value the column resolver cannot read is asked the syntactic question
+  // instead: does it (through its own bindings) call one of Pine's stateful
+  // twins (`ta.valuewhen`, `ta.barssince`)? A style or text choice is not.
   const statefulMacro = (bound) => {
-    try { return statefulTree(makeResolver().resolve(bound.node), false) } catch { return false }
+    try { return statefulTree(makeResolver().resolve(bound.node), false) } catch { return holdsPineTwin(bound.node) }
   }
   const rootMacroSlot = (name, bound, force = false) => {
     if (!bound || bound.kind !== 'expr' || !bound.root) return null
@@ -4460,6 +4463,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return slot
   }
 
+  const variadicMinMax = (node) => {
+    if (!node || node.type !== 'call') return node
+    const nm = String(node.name || '')
+    const variadic = nm === 'math.max' || nm === 'math.min'
+      || ((nm === 'max' || nm === 'min') && pineVersion !== null && pineVersion <= 4)
+    const args = node.args || []
+    if (!variadic || args.length < 3 || definedNames.has(nm) || isUserFn(nm)
+      || args.some((a) => !a || a.name)) return node
+    const leaves = args.map((a) => (a.value !== undefined ? a.value : a))
+    return leaves.slice(1).reduce((acc, nx) => ({
+      type: 'call', name: nm, tok: node.tok,
+      args: [{ name: null, value: acc, tok: node.tok }, { name: null, value: nx, tok: node.tok }],
+    }), leaves[0])
+  }
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -4476,6 +4493,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
         node = folded
       }
     }
+    // ⭐⭐ RT14 — `math.max(a, b, c, …)` / `math.min(…)`, and v1–v4's bare `max` /
+    // `min` (the same variadic builtins): the LEFT FOLD of the two-argument call,
+    // `pine.js::variadicFold`'s own rule (vendor: max(5 args) = 5, min(5 args) = 1),
+    // made BEFORE the route decision so both routes see two-argument calls. Over
+    // runtime state it refused (bare: "takes 2 arguments, given 4") or threw inside
+    // the column resolver (`math.max`: a third argument it never read), while the
+    // host lane folded the same call. Only at three or more arguments, and never
+    // over a definition of the script's own.
+    node = variadicMinMax(node)
     // ⭐ THE ROUTE DECISION, ASKED ONCE PER SUBTREE. A pure subtree becomes one
     // column no matter how large it is, which is what keeps a stateful program
     // paying runtime cost only for the parts that are actually stateful.
