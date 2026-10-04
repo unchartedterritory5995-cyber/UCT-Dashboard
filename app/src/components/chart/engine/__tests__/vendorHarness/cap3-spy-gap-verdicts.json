@@ -1087,13 +1087,7 @@
         "plots": [],
         "objects": [
           "DIVERGE",
-          [
-            [
-              "tableCells",
-              30,
-              3
-            ]
-          ]
+          []
         ],
         "paints": null
       }
@@ -1174,18 +1168,7 @@
         "plots": [],
         "objects": [
           "DIVERGE",
-          [
-            [
-              "lines",
-              198,
-              34
-            ],
-            [
-              "labels",
-              449,
-              81
-            ]
-          ]
+          []
         ],
         "paints": null
       }
@@ -1907,11 +1890,11 @@
       "script": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
       "state": "on",
       "signature": {
-        "verdict": "MATCH",
+        "verdict": "DIVERGE",
         "reason": null,
         "plots": [],
         "objects": [
-          "MATCH",
+          "DIVERGE",
           []
         ],
         "paints": null

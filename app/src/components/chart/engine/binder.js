@@ -391,6 +391,25 @@ function pointColour(colColors, condColumn, i) {
  *  condition column read through `columnColorsForPlot` exactly as a fill's is, or
  *  its static colour with the opacity folded in. Exported so the vendor harness
  *  grades the very function the chart draws with. */
+/** ⭐⭐ F1 — WHERE a paint's per-bar colour is DRAWN. `offset` and `show_last` are
+ *  render-time only (CAP round 4, `vw-bgcolor-barcolor-spy-1d-2026-10-02`: the
+ *  per-bar record sits on the unshifted bar; the chart shades `offset` bars over,
+ *  and only the last `show_last` bars): bar `j` draws the colour computed on bar
+ *  `j - offset`, and nothing before `n - show_last`. A paint with neither is
+ *  returned as it is. */
+export function paintRenderColours(paint, colours, n) {
+  const off = paint && Number.isInteger(paint.offset) ? paint.offset : 0
+  const last = paint && Number.isInteger(paint.showLast) && paint.showLast >= 0 ? paint.showLast : null
+  if (!off && last === null) return colours
+  const out = new Array(n).fill(null)
+  for (let j = 0; j < n; j += 1) {
+    if (last !== null && j < n - last) continue
+    const from = j - off
+    out[j] = from >= 0 && from < n ? colours[from] : null
+  }
+  return out
+}
+
 export function paintColoursFor(paint, instanceId, columns, n) {
   if (!paint) return null
   if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
@@ -775,8 +794,9 @@ export function createBinder({ chart, LWC }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const colours = paintColoursFor(p, inst.instanceId, columns, n)
-        if (!colours) return
+        const computed = paintColoursFor(p, inst.instanceId, columns, n)
+        if (!computed) return
+        const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
           if (!host || typeof host.attachPrimitive !== 'function') return
           const key = `${inst.instanceId}#${i}`
@@ -953,6 +973,8 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
           // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
           readUnknown: reader.readUnknown,
+          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
+          offListing: reader.historyFromListing !== true,
         })
         return {
           run,

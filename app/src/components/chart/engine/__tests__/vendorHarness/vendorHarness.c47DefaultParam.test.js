@@ -20,10 +20,12 @@
 // chartTf)` — a timeframe below the chart's, with `timeframe.*` read inside the
 // request. Unwitnessed, refused (`pine:request`). Labels stay 27 / 0, withheld.
 //
-// ⛔ AND WHAT STAYS REFUSED: a default that is not one literal; a required
-// parameter behind an optional one; too many arguments; a named argument; and
-// the PLOT lane, where the function is still `pine:function-def` — so no
-// parameter is minted and `paramIds.test.js` does not move.
+// ⛔ AND WHAT STAYS REFUSED: a default that names anything but a built-in, or is
+// an expression or a call; too many arguments; a named argument.
+// ⭐ H5 (step 84) WIDENED THREE OF C47's REFUSALS, each re-stated below: a dotted
+// built-in constant or a bar series as the default (the runtime lane's L2 rule,
+// one rule, `paramDefaultShapeOk`); a required parameter behind an optional one;
+// and the PLOT lane (C46 made a newly served output APPEND parameter ids).
 //
 // ⚠️ THE WITNESS IS PINE'S REFERENCE, AND ONE CAPTURE THAT IS CONSISTENT WITH IT
 // WITHOUT SEPARATING IT: pro-trading-art calls `drawLL(…, color.lime)` with its
@@ -124,13 +126,30 @@ describe('⛔ C47 — what a default does NOT open', () => {
     const t = objectsOf(['f(x y = 2) => y', ...GUARDED('f()')])
     expect(drops(t)).not.toEqual({})
   })
-  it('a default that is not one literal keeps `pine:function-def`', () => {
-    for (const d of ['k = other', 'k = 1 + 1', 'k = math.max(1, 2)', 'k = label.style_label_down', 'k = close']) {
+  // ⭐ H5 (step 84) — re-stated on purpose: a dotted built-in constant and one of
+  // Pine's bar series are now READ (`paramDefaultShapeOk`, the runtime lane's L2
+  // rule, one rule for both lanes); a name, an expression or a call still is not.
+  it('a default that is a name, an expression or a call keeps `pine:function-def`', () => {
+    for (const d of ['k = other', 'k = 1 + 1', 'k = math.max(1, 2)']) {
       refusedAs(['other = 2', `f(x, ${d}) => x * k`, ...GUARDED('f(close)')], 'pine:function-def')
     }
   })
-  it('a required parameter behind an optional one keeps `pine:function-def`', () => {
-    refusedAs(['f(k = 2, x) => x * k', ...GUARDED('f(3, close)')], 'pine:function-def')
+  it('⭐ H5 — a bar-series default is read; one the script binds itself is refused BY NAME', () => {
+    const short = programOf(['f(x, k = close) => x * k', ...LABEL('f(high)')])
+    const full = programOf(['f(x, k) => x * k', ...LABEL('f(high, close)')])
+    expect(shape(short)).toBe(shape(full))
+    refusedAs(['close = 2', 'f(x, k = close) => x * k', ...GUARDED('f(high)')], 'pine:function-def')
+    // the sentence, on the plot lane where it is the output's own refusal
+    const t = translatePine([...HEAD, 'close = 2', 'f(x, k = close) => x * k', 'plot(f(high))'].join('\n'), { strict: true, basePeriod: 'D' })
+    const o = t.outputs.find((x) => x && x.kind !== 'alertcondition')
+    expect(o.ast).toBeFalsy()
+    expect(o.refusal.message).toMatch(/binds its own `close`/)
+  })
+  it('⭐ H5 — a required parameter behind an optional one is read when every argument is written', () => {
+    const t = objectsOf(['f(k = 2, x) => x * k', ...GUARDED('f(3, close)')])
+    expect(drops(t)).toEqual({})
+    // …and a call leaving the REQUIRED one out is the arity refusal it always was
+    refusedAs(['f(k = 2, x) => x * k', ...GUARDED('f(3)')], 'pine:arity')
   })
   it('too few arguments for the parameters WITHOUT a default is `pine:arity`', () => {
     refusedAs(['f(x, y, k = 2) => x * y * k', ...GUARDED('f(close)')], 'pine:arity')
@@ -145,13 +164,21 @@ describe('⛔ C47 — what a default does NOT open', () => {
     refusedAs(['f(x, k) => x * k', ...GUARDED('f(close)')], 'pine:arity')
   })
 
-  it('⛔ the PLOT lane: a function with a default is still `pine:function-def` — at a short call and at a full one', () => {
-    for (const call of ['f(close)', 'f(close, 2)']) {
+  // ⭐ H5 (step 84) — re-stated on purpose. The PLOT lane reads the header too: the
+  // C47 confinement existed because a newly served plot minted parameter ids ahead
+  // of saved ones, and since C46 an id is the input call's place in the source.
+  // Graded on the member door: `vw-default-param-spy-1d-2026-10-02` D01–D15 MATCH
+  // on 1,800 bars (`vendorHarness.h5DefaultParams`).
+  it('⭐ the PLOT lane: a short call is the program the full call is', () => {
+    const plotOf = (call) => {
       const t = translatePine([...HEAD, 'f(x, k = 2) => x * k', `plot(${call})`].join('\n'), { strict: true, basePeriod: 'D' })
-      const o = t.outputs.find((x) => x && x.kind !== 'alertcondition')
-      expect(o.ast, call).toBeFalsy()
-      expect(o.refusal.guard, call).toBe('pine:function-def')
+      return t.outputs.find((x) => x && x.kind !== 'alertcondition')
     }
+    const short = plotOf('f(close)')
+    const full = plotOf('f(close, 2)')
+    expect(short.ast, short.refusal && short.refusal.message).toBeTruthy()
+    expect(short.ast).toEqual(full.ast)
+    expect(plotOf('f(close, 3)').ast).not.toEqual(short.ast)
   })
   it('…and the control: the same function without the default plots', () => {
     const t = translatePine([...HEAD, 'f(x, k) => x * k', 'plot(f(close, 2))'].join('\n'), { strict: true, basePeriod: 'D' })

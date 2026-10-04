@@ -545,7 +545,20 @@ function objectsOf(def, bars, ctx, cols, built = null) {
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
       readUnknown: reader.readUnknown,
+      // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
+      // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
+      offListing: reader.historyFromListing !== true,
     })
+    if (run.withheldBy && run.withheldBy['objects:off-listing']) {
+      const fams = run.withheldBy['objects:off-listing']
+      // the same report shape as a drawing the door's gate withholds (F3,
+      // `drawingWithheldBy`): a withheld family is a gap, graded as one
+      return { drawsObjects: false, withheld: 'objects:off-listing',
+        reason: `the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable`,
+        // the run's live set, for DIAGNOSTICS only (F4's window analysis reads it):
+        // never graded — there is no `ok`, so `gradeCapture` pairs nothing
+        held: [...(run.live || []), ...(run.offListingLive || [])].sort((x, y) => x.id - y.id) }
+    }
     const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the

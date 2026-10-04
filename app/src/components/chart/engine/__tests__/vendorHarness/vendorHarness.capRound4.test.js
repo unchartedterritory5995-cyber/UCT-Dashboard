@@ -140,8 +140,12 @@ describe('Q-L1 — an imported library function is the same function written her
 // at that path (`L2_TA7_FIXTURE`, our own spelling of the three exports the probe
 // calls, each pinned by the capture itself: L01c/L02c say `ao`/`dema` ARE the
 // inline formulas, and L03–L05 pin `highestSince`). The member door then draws
-// the probe through the RUNTIME lane (the host lane refuses a header with
-// defaults), and the harness grades it against TradingView.
+// the probe and the harness grades it against TradingView.
+// ⭐ H5 (step 84): the HOST lane now reads a header with defaults (one rule with
+// this lane's, `paramDefaultShapeOk`), so it is the host lane that draws Q-L1
+// here — graded MATCH with the runtime pane off too
+// (`vendorHarness.h5DefaultParams`). The runtime lane's completion of an omitted
+// argument stays railed on its own (`runtimeParamDefaults`, forced to that lane).
 //
 // ⭐ What it proves is the LINKER and the runtime lane, not our fixture: two call
 // sites keep two `var` states (L03 ≠ L04 on 358 bars), and an omitted series
@@ -170,7 +174,7 @@ function gradeWithLibrary(cap, entry) {
 describe('⭐ L2 — Q-L1 with the library registry loaded (step 74)', () => {
   afterEach(() => { clearPineLibraries() })
 
-  it('⭐ door: all seven plots MATCH TradingView on all 636 bars (runtime lane, fixture library)', () => {
+  it('⭐ door: all seven plots MATCH TradingView on all 636 bars (fixture library; host lane since H5)', () => {
     const v = gradeWithLibrary(LIB, {
       path: 'TradingView/ta/7', source: L2_TA7_FIXTURE, licence: 'test-fixture', attribution: 'L2 rail fixture (no third-party code)',
     })
@@ -261,21 +265,23 @@ describe('Q-B1 — paints', () => {
     expect(V4.study.styleState.plot_2.transparency).toBe(90)
   })
 
-  it('door: P1 / P2 agree; O1..O4 and S1 are withheld by name', () => {
+  // ⭐ F1 — re-pinned: `offset` / `show_last` are render-time only and ride beside the
+  // colour (`binder.js::paintRenderColours`), so O1..O3 and S1 are graded and agree;
+  // O4 (`offset = na`) stays withheld by name.
+  it('door (F1): P1 / P2, O1..O3 and S1 agree; O4 (`offset = na`) is withheld by name', () => {
     const v = grade(PAINT)
     const rows = Object.fromEntries(v.paints.rows.map((r) => [r.id, r]))
-    expect(rows.plot_5.state).toBe('agree')
-    expect(rows.plot_6.state).toBe('agree')
-    for (const id of ['plot_0', 'plot_1', 'plot_2', 'plot_3', 'plot_4']) expect(rows[id].state, id).toBe('withheld')
+    for (const id of ['plot_0', 'plot_1', 'plot_2', 'plot_4', 'plot_5', 'plot_6']) expect(rows[id].state, id).toBe('agree')
+    expect(rows.plot_3.state).toBe('withheld')
+    expect(rows.plot_3.reason).toMatch(/offset/)
     expect(v.verdictWithoutPaints).toBe('MATCH')
   })
 
-  it('door: T2 agrees; T1 / T3 withheld by name (the default transparency is now witnessed: 90)', () => {
+  it('door (F1): T1 / T2 / T3 agree — a v4 bgcolor with no transp takes 90', () => {
     const v = grade(V4)
     const rows = Object.fromEntries(v.paints.rows.map((r) => [r.id, r]))
-    expect(rows.plot_1.state).toBe('agree')
-    expect(rows.plot_0.state).toBe('withheld')
-    expect(rows.plot_2.state).toBe('withheld')
+    for (const id of ['plot_0', 'plot_1', 'plot_2']) expect(rows[id].state, id).toBe('agree')
+    expect(v.verdict).toBe('MATCH')
   })
 })
 
@@ -326,24 +332,46 @@ describe('Q-O1 — what TradingView draws', () => {
   })
 })
 
-describe('Q-O1 — the door on this base (O1 not merged)', () => {
-  it.each([
-    ['fib-retracement', FIB, /pine:object-removal-lost/],
-    ['sonarlab RDDT', SONAR_RDDT, /pine:no-output/],
-    ['sonarlab SPY', SONAR_SPY, /pine:no-output/],
-    ['auto-trendline', ATL, /pine:state/],
-    ['pa-zigzag', PAZ, /pine:reassign/],
-  ])('%s: refused by name', (_, cap, re) => {
-    const v = grade(cap)
-    expect(v.verdict).toBe('INCONCLUSIVE')
-    expect(v.reason).toMatch(re)
+// ⭐ F1 (2026-10-02) — RE-PINNED. On `integrate/wave16-2026-10-02` O1 is merged, so the
+// door attaches each script and the rail GRADES it instead of asserting a refusal.
+describe('Q-O1 — the door on the wave-16 tree (O1 merged), graded', () => {
+  it('ternary helper: MATCH — 504 labels (T01 243 / I01 261) and the one T02 line', () => {
+    const v = grade(TDH)
+    expect(v.verdict, v.reason).toBe('MATCH')
+    const c = Object.fromEntries(v.objects.counts.map((x) => [x.family, x]))
+    expect([c.labels.vendor, c.labels.ours, c.lines.vendor, c.lines.ours]).toEqual([504, 504, 1, 1])
   })
 
-  it('ternary helper: R00 MATCH; objects DIVERGE (ours 328 labels / 0 lines vs 504 / 1)', () => {
-    const v = grade(TDH)
-    expect(item(v, 'R00').verdict).toBe('MATCH')
-    expect(v.objects.verdict).toBe('DIVERGE')
+  it('fib-retracement: MATCH — 7 lines and 7 labels', () => {
+    const v = grade(FIB)
+    expect(v.verdict, v.reason).toBe('MATCH')
     const c = Object.fromEntries(v.objects.counts.map((x) => [x.family, x]))
-    expect([c.labels.vendor, c.labels.ours, c.lines.vendor, c.lines.ours]).toEqual([504, 328, 1, 0])
+    expect([c.lines.ours, c.labels.ours]).toEqual([7, 7])
+  })
+
+  it('pa-zigzag: MATCH on all 10 items', () => {
+    const v = grade(PAZ)
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.plots.every((p) => p.verdict === 'MATCH')).toBe(true)
+  })
+
+  it('sonarlab RDDT (from the listing): MATCH — the 5 boxes', () => {
+    const v = grade(SONAR_RDDT)
+    expect(v.verdict, v.reason).toBe('MATCH')
+    expect(v.objects.counts.find((x) => x.family === 'boxes').ours).toBe(5)
+  })
+
+  it('⛔ sonarlab SPY (off the listing): the boxes are WITHHELD by name, never drawn as a subset (F1)', () => {
+    const v = grade(SONAR_SPY)
+    // a withheld drawing grades as a GAP (DIVERGE with its name), F3's rule
+    expect(v.objects.verdict).toBe('DIVERGE')
+    expect(v.objects.reason).toMatch(/withheld by name \(objects:off-listing\)/)
+  })
+
+  it('⛔ auto-trendline: 6 plots MATCH; the 2 lines are WITHHELD by name (the program lost a removal)', () => {
+    const v = grade(ATL)
+    expect(v.plots.filter((p) => p.verdict === 'MATCH').length).toBe(6)
+    expect(v.objects.verdict).toBe('DIVERGE')
+    expect(v.objects.reason).toMatch(/withheld by name \(pine:object-removal-lost\)/)
   })
 })

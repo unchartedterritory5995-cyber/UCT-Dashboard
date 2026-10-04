@@ -159,13 +159,14 @@ describe('C34 — a chart series read from inside a last-bar helper is the chart
     expect(ours).toEqual(theirs)
   })
 
-  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.wma`) is refused, and draws nothing", () => {
+  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.vwma`) is refused, and draws nothing", () => {
     const cap = capture()
     const levels = vendorLevels(cap)
     // ⭐ C42 — `ta.ema`: what `ta.sma` answers on a call's one run is witnessed now
     // ⭐ C48 re-pin — and `ta.ema`'s (`vw-call-site-history`, B05); `ta.wma` has no row
     const src = probe(levels).replace(/ {4}historyReference = bar_index - index/g,
-      '    historyReference = bar_index - index + int(ta.wma(close, 3) * 0)')
+      // ⭐ F1 re-pin — `ta.wma` is witnessed now (`vw-once-ta-helper` T06); `ta.vwma` has no row
+      '    historyReference = bar_index - index + int(ta.vwma(close, 3) * 0)')
     const { d, lines } = ourObjects(cap, src)
     expect(d.translation.objectDiagnostics.dropReasons['fn:conditional-history']).toBe(4)
     expect(lines).toHaveLength(0)

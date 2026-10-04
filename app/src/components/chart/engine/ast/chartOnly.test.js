@@ -41,7 +41,7 @@ describe('HOST lane — `bgcolor` / `barcolor` say how they draw, or why they do
   })
 
   it('a WITHHELD paint says it is not drawn, with the door\'s own reason', () => {
-    const t = translatePine(v5('plot(close)\nbgcolor(color.red, offset = 1)'), HOST)
+    const t = translatePine(v5('plot(close)\nbgcolor(color.red, offset = na)'), HOST)
     const rec = t.presentation.paints[0]
     expect(rec.withheld).toBeTruthy()
     expect(sayAt(t, 4)).toBe(`\`bgcolor\` is not drawn here: ${rec.withheld.reason}`)

@@ -4476,6 +4476,196 @@ let LOWER_TF_SINK = null
 /** ⭐ L1 — the library link of the translation in progress (`linkLibraries`), read
  *  back by `translatePine` to place library refusals on the member's import line. */
 let LIBRARY_LINK_SINK = null
+/** ⭐ F1 — the words written in front of each declared name of the translation in
+ *  flight (`declarationWordsOf`), keyed by the name token's source offset. Opened
+ *  and closed by `translatePine` beside the sinks above; read only by
+ *  `pineConstIntValue`. */
+let DECL_WORDS_SINK = null
+
+/** ⭐⭐ F1 — DOES PINE TRUNCATE THIS `/`? Before v6 it does exactly when BOTH
+ *  operands are `const int`; from v6 a `const int` quotient keeps its fraction
+ *  (`docs/pine/pine-version-evolution.md` row 47).
+ *
+ *  WITNESSED, `vw-int-div-assign` (AMEX:SPY 1D, v5, CAP round 4, 2026-10-02):
+ *    D02 `a = 28` `a /= 100`          → 0     both const int
+ *    D03 `28 / 100`                   → 0     both const int
+ *    D05 `c = 28` `c := c / 100`      → 0     a reassigned name is still const int
+ *    D01 `sens = input.int(28)` `sens /= 100` → 0.28   an INPUT int keeps the fraction
+ *    D04 `b = input.int(28)` `b / 100`        → 0.28
+ *  ⛔ A VERSION THIS ENGINE DOES NOT KNOW (null: no `//@version`, Pine's v1) is
+ *  BEFORE v6. */
+export const constIntDivisionTruncates = (version) => !(Number.isFinite(version) && version >= 6)
+
+/** ⭐ F1 — every declared name's leading words (`var`, `float`, `series`, …),
+ *  keyed by the NAME token's source offset: `float x = 5` → `x`'s offset → ['float']. */
+export function declarationWordsOf(tokens) {
+  const out = new Map()
+  for (let i = 0; i + 1 < (tokens || []).length; i += 1) {
+    const t = tokens[i]
+    if (!t || t.kind !== 'ident' || !isPunct(tokens[i + 1], '=')) continue
+    const words = []
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const w = tokens[j]
+      if (!w || w.kind !== 'ident' || w.line !== t.line
+        || !(TYPE_WORDS.has(w.value) || STATE_KEYWORDS.has(w.value))) break
+      words.push(String(w.value))
+    }
+    if (words.length) out.set(t.index, words)
+  }
+  return out
+}
+
+/** A declared name that cannot be a `const int`, whatever its value: a `var`, a
+ *  `series`/`simple`/`input` one, or one declared with any type but `int`. */
+function declaredNotConstInt(binding, declWords) {
+  const at = binding && (binding.declAt || binding.at)
+  const words = at && declWords ? declWords.get(at.index) : null
+  if (!words) return false
+  return words.some((w) => w !== 'int' && w !== 'const')
+}
+
+/** ⭐⭐ F1 — THE VALUE OF A PINE `const int` EXPRESSION, or null when the parse
+ *  tree is not one. A `const int` is an integer LITERAL (`28`, never `28.0` nor
+ *  `true`), `-` of one, `+ - * %` of two, `/` of two before v6
+ *  (`constIntDivisionTruncates`), or a name bound to one — through a
+ *  reassignment too (D02/D05). Everything else is not: an input, a call, a
+ *  ternary, a function parameter, a loop counter, a `var`, a `float` declaration.
+ *
+ *  ⛔ NULL IS "NOT PROVEN const int", which leaves `/` fractional — what this
+ *  engine drew before F1 and what TradingView draws for every non-const operand.
+ *  A `%` or `/` by zero is null (Pine's `na`), never a number.
+ *  ⭐ A lookup may answer `{kind: 'constInt', value}` for a name whose value the
+ *  caller settled itself (the runtime lane's mutable slots, `constIntSlotsOf`).
+ *  @param {object} node a PINE parse node (`parseWholeExpression`)
+ *  @param {(name: string) => object} lookup the binding a name reads
+ *  @param {{version: number|null, declWords: Map|null}} ctx the script's Pine
+ *    version, and `declarationWordsOf` its tokens */
+export function pineConstIntValue(node, lookup, ctx, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 64) return null
+  const version = ctx ? ctx.version : null
+  const sub = (n, lk = lookup) => pineConstIntValue(n, lk, ctx, depth + 1)
+  const ofBinding = (b) => {
+    if (b && b.kind === 'constInt') return Number.isSafeInteger(b.value) ? b.value : null
+    if (!b || b.kind !== 'expr' || !b.node || declaredNotConstInt(b, ctx && ctx.declWords)) return null
+    const env = b.env instanceof Map ? b.env : null
+    return sub(b.node, (n) => (env ? env.get(n) : undefined))
+  }
+  switch (node.type) {
+    case 'number': {
+      const t = node.tok
+      if (!t || t.kind !== 'number' || t.loopCounter || !/^\d+$/.test(String(t.raw))) return null
+      return Number.isSafeInteger(node.value) ? node.value : null
+    }
+    case 'unary': {
+      if (node.op !== '-') return null
+      const v = sub(node.arg)
+      return v === null ? null : -v
+    }
+    case 'binary': {
+      if (!['+', '-', '*', '%', '/'].includes(node.op)) return null
+      const a = sub(node.left)
+      if (a === null) return null
+      const b = sub(node.right)
+      if (b === null) return null
+      let v
+      if (node.op === '+') v = a + b
+      else if (node.op === '-') v = a - b
+      else if (node.op === '*') v = a * b
+      else if (b === 0) return null
+      else if (node.op === '%') v = a - b * Math.trunc(a / b)
+      else if (!constIntDivisionTruncates(version)) return null
+      else v = Math.trunc(a / b)
+      return Number.isSafeInteger(v) ? v + 0 : null
+    }
+    case 'name': return ofBinding(lookup(node.name, node))
+    case 'bound': return ofBinding(node.binding)
+    default: return null
+  }
+}
+
+/** ⭐⭐ F1 — THE RUNTIME LANE'S HALF: which top-level names hold a `const int`,
+ *  and what it is after each write. A name the runtime lane MUTATES is a slot,
+ *  not an `env` binding, so `a = 28` then `a /= 100` (D02) cannot be followed
+ *  through bindings the way the columnar lane follows it.
+ *
+ *  A name qualifies only when EVERY write to it is a top-level statement — a
+ *  declaration with no `var`/`varip`/`series`/`simple`/`input`/non-`int` word, a
+ *  `:=`, or a compound assignment — and every written value is itself a
+ *  `const int` (`pineConstIntValue`) given the names qualifying so far. A write
+ *  inside any block (`if`, a loop, a function body) disqualifies the name: its
+ *  value then depends on the path taken, which is not a `const`.
+ *
+ *  ⭐ A write is visible from the END of its statement, so the read of `a` inside
+ *  `a := a / 100` sees the value before the write.
+ *  @returns {{valueAt: (name: string, offset: number) => (number|null)}} */
+export function constIntWritesOf(stmts, ctx) {
+  const disq = new Set()
+  const order = []
+  const targetOf = (toks) => {
+    const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+    if (mut === 1 && toks[0].kind === 'ident') {
+      const op = toks[1].value
+      return { name: String(toks[0].value), tok: toks[0], op, rhs: toks.slice(2) }
+    }
+    if (mut > 0) return { other: true }
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    if (eq <= 0) return null
+    if (isPunct(toks[0], '[')) return { tuple: toks.slice(1, eq).filter((t) => t.kind === 'ident').map((t) => String(t.value)) }
+    const nameTok = boundName(toks, eq)
+    if (!nameTok) return null
+    const words = toks.slice(0, eq - 1).map((t) => String(t.value))
+    return { name: String(nameTok.value), tok: nameTok, op: '=', rhs: toks.slice(eq + 1), words }
+  }
+  const nested = (list) => {
+    for (const st of list || []) {
+      const w = targetOf(st.header || [])
+      if (w && w.name) disq.add(w.name)
+      if (w && w.tuple) for (const n of w.tuple) disq.add(n)
+      nested(st.sub)
+    }
+  }
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    nested(st.sub)
+    if (!toks.length || toks.some((t) => isPunct(t, '=>'))) continue
+    const w = targetOf(toks)
+    if (!w) continue
+    if (w.tuple) { for (const n of w.tuple) disq.add(n); continue }
+    if (!w.name) continue
+    if ((w.words || []).some((x) => x !== 'int' && x !== 'const') || !w.rhs.length) { disq.add(w.name); continue }
+    let rhs = null
+    try { rhs = parseWholeExpression(w.rhs) } catch { rhs = null }
+    if (!rhs) { disq.add(w.name); continue }
+    const node = w.op === '=' || w.op === ':=' ? rhs
+      : { type: 'binary', op: w.op[0], left: { type: 'name', name: w.name, tok: w.tok }, right: rhs, tok: w.tok }
+    const last = toks[toks.length - 1]
+    order.push({ name: w.name, at: (last && typeof last.index === 'number' ? last.index : w.tok.index) + 1, node })
+  }
+  let history = new Map()
+  for (let round = 0; round < 16; round += 1) {
+    history = new Map()
+    const now = new Map()
+    let changed = false
+    for (const w of order) {
+      if (disq.has(w.name)) continue
+      const v = pineConstIntValue(w.node, (n) => (now.has(n) && !disq.has(n)
+        ? { kind: 'constInt', value: now.get(n) } : undefined), ctx)
+      if (v === null) { disq.add(w.name); changed = true; continue }
+      now.set(w.name, v)
+      if (!history.has(w.name)) history.set(w.name, [])
+      history.get(w.name).push({ at: w.at, value: v })
+    }
+    if (!changed) break
+  }
+  return {
+    valueAt(name, offset) {
+      if (disq.has(name) || !Number.isFinite(offset)) return null
+      let v = null
+      for (const h of history.get(name) || []) if (h.at <= offset) v = h.value
+      return v
+    },
+  }
+}
 
 /** ⭐ C41 — does this resolved operand hold an `ltf` read? Asked only of the side a
  *  constant test may never take (the resolver's `ternary` and `and`/`or` cases),
@@ -6087,6 +6277,10 @@ export class Resolver {
      *  bar. That is not an offset — it is LOOK-AHEAD, and `PINE_NAMESPACED_TREE`
      *  says so itself: the `[R]` shift is what cancels it. */
     this.pineVersion = Number.isFinite(opts.pineVersion) ? opts.pineVersion : null
+    /** ⭐ F1 — `declarationWordsOf` this script's tokens, for a Resolver built
+     *  outside `translatePine` (the runtime lane's pure subtrees); inside it the
+     *  translation's own `DECL_WORDS_SINK` answers. */
+    this.declWords = opts.declWords instanceof Map ? opts.declWords : null
     /** ⭐ A NOTE SINK, DEFAULTING TO A NO-OP. The walk owns `notes`; the
      *  Resolver never needed to add one before, so every other caller keeps
      *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
@@ -9048,6 +9242,17 @@ export class Resolver {
         if (node.op === '%') {
           return cCall('mod', [this.resolve(node.left), this.resolve(node.right)])
         }
+        // ⭐⭐ F1 — `/` BETWEEN TWO `const int` TRUNCATES BEFORE v6, and the
+        // quotient is a constant, so it is written as the number Pine computes.
+        // Asked of the PINE tree: by the time an operand is resolved an
+        // `input.int` has folded to its default and reads exactly like a literal,
+        // and TradingView keeps the fraction for that one (`vw-int-div-assign`
+        // D01/D04). See `pineConstIntValue`.
+        if (node.op === '/') {
+          const q = pineConstIntValue(node, (n) => this.env.get(n),
+            { version: this.pineVersion, declWords: this.declWords || DECL_WORDS_SINK })
+          if (q !== null) return cNum(q)
+        }
         const mapped = PINE_OP_TO_TABLE[node.op]
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',
@@ -11138,12 +11343,14 @@ export class Resolver {
       // (average-day-range-adr-pivots) asks for the timeframe the call site
       // passed; read through the frame the resolver is inside, exactly as
       // `stringValueOf` reads a parameter (`throughBinding`), never guessed.
-      // ⛔ THE OBJECT PASS ONLY. On the plot lane a request that newly resolves is a
-      // newly served OUTPUT, and its inputs mint member parameters ahead of the ones
-      // a saved definition already addresses (`paramIds.test.js`: measured on
-      // advanced-custom-multi-ma-signals, whose `f_mtf_ma(…, _tf)` plots moved ten
-      // ids). A drawing's coordinate is not an output and mints nothing new there.
-      if (this.objectPass && bound && bound.kind === 'param') {
+      // ⭐ H5 (step 84) — AND ON THE PLOT LANE. C33 confined this to the object pass
+      // because a newly served plot minted member parameters ahead of saved ones
+      // (measured then on advanced-custom-multi-ma-signals: ten ids moved). Since
+      // C46 an id is the input call's place in the SOURCE (`paramIdSource.js`), so
+      // a newly served output only appends; `paramIds.test.js` stays green across
+      // the corpus with this rule on. The request is the one the member gets by
+      // writing the caller's argument at the call (`c33ObjectReads`, H5 block).
+      if (bound && bound.kind === 'param') {
         return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
       }
       return null
@@ -11941,7 +12148,21 @@ export class Resolver {
     const callerEnv = this.env
     const frame = node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv }))
     if (filled) {
-      for (let k = given; k < bound.params.length; k += 1) frame.push({ kind: 'expr', node: defaults[k], env: callerEnv })
+      for (let k = given; k < bound.params.length; k += 1) {
+        const d = defaults[k]
+        // ⛔ H5 — a bar-series default (`src = close`) means Pine's BUILT-IN. Where
+        // the caller's scope, or the scope the function was declared in, binds that
+        // name to something else, which of the two the default reads is not this
+        // engine's to guess: refused by name (the runtime lane's rule, L2).
+        if (d && d.type === 'name' && BAR_SERIES_DEFAULTS.has(d.name)
+          && (callerEnv.has(d.name) || (bound.defaultScope && bound.defaultScope.has(d.name)))) {
+          throw new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${name}\` is called without its argument whose default is `
+            + `\`${d.name}\`, and this script binds its own \`${d.name}\` — the default is Pine's built-in, not that binding`,
+            locate(node.tok))
+        }
+        frame.push({ kind: 'expr', node: d, env: callerEnv })
+      }
     }
     this.frames.push(frame)
     const prevEnv = this.env
@@ -12032,6 +12253,27 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
+    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x /
+    // syminfo.mintick) * syminfo.mintick`: Pine's reference, "the value rounded to
+    // the symbol's mintick … with ties rounding up", which is `math.round` on the
+    // tick count. Written HERE AS THAT PINE and resolved, so the tick is the
+    // binding's like every `syminfo.mintick` (settled per symbol from the
+    // witnessed table; a screen refuses it by name) and this lane and the runtime
+    // lane's RT5 desugar (`pineRuntimeFrontend.js`) are the same program.
+    // Graded on `multicator-table-{rddt,spy}-1d-2026-10-02`: the table cells
+    // TradingView printed through `str.tostring(math.round_to_mintick(…))` — open,
+    // close, three SMAs, an EMA, RSI and ATR on RDDT from the listing — are this
+    // lane's text on the same bars (`vendorHarness.h5MulticatorValues`).
+    if (pineName === 'math.round_to_mintick' && Array.isArray(args) && args.length === 1
+      && args[0] && !args[0].name) {
+      const x = args[0].value !== undefined ? args[0].value : args[0]
+      const mintick = { type: 'name', name: 'syminfo.mintick', tok }
+      return this.resolve({
+        type: 'binary', op: '*', tok, right: mintick,
+        left: { type: 'call', name: 'math.round', tok,
+          args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
+      })
+    }
     const bare = normaliseName(base)
     const ownCross = this.crossOfOwnState(base, args, tok)
     if (ownCross) return ownCross
@@ -15097,9 +15339,36 @@ export function functionParams(toks, arrow) {
   return params
 }
 
-/** ⭐⭐ C47 — `f(a, b = 5, c = false) =>`: A HEADER WHOSE TRAILING PARAMETERS
+/** ⭐⭐ H5 — THE ONE RULE FOR WHICH DEFAULT VALUE A HEADER MAY DECLARE, shared by
+ *  the host lane (`functionParamDefaults`, below) and the runtime lane
+ *  (`pineRuntimeFrontend.js::paramDefaultsOf`, L2), so the two cannot disagree
+ *  about which library export they read.
+ *
+ *  An omitted argument is compiled as the default WRITTEN AT THE CALL, which is
+ *  exact only for a value that cannot depend on where it is read:
+ *    · a literal: a number (or `-number`), a quoted string, `true`, `false`,
+ *      `na`, a `#hex` colour;
+ *    · a dotted built-in constant (`color.red`, `label.style_label_down`) — a
+ *      dotted name no script can bind;
+ *    · one of Pine's built-in bar series (`BAR_SERIES_DEFAULTS`) — the series
+ *      the body would read, with its own history. ⛔ Each lane refuses it by name
+ *      where the script binds that name to something else.
+ *  ⛔ Anything else (`len = other`, a call, an expression, `1 + 1`) is not this
+ *  shape and the header keeps the refusal it had. */
+export const BAR_SERIES_DEFAULTS = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time', 'time_close', 'bar_index'])
+const DEFAULT_CONSTANT_FAMILY = /^(color|display|shape|location|size|position|text|xloc|yloc|extend|line|label|plot|hline|font|order|currency|scale|format)\.[a-z_]+$/
+export function paramDefaultShapeOk(rest) {
+  const one = rest.length === 1 ? rest[0] : null
+  return !!((one && (one.kind === 'number' || one.kind === 'string' || one.kind === 'colour'
+      || (one.kind === 'ident' && (one.value === 'true' || one.value === 'false' || one.value === 'na'
+        || BAR_SERIES_DEFAULTS.has(String(one.value))
+        || DEFAULT_CONSTANT_FAMILY.test(String(one.value))))))
+    || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number'))
+}
+
+/** ⭐⭐ C47 / H5 — `f(a, b = 5, src = close) =>`: A HEADER WHOSE PARAMETERS
  *  DECLARE DEFAULT VALUES. `{ names, defaults }` — `defaults[k]` the parsed
- *  literal of parameter `k`, or `null` where it declares none — or `null` when
+ *  default of parameter `k`, or `null` where it declares none — or `null` when
  *  the header is not that shape.
  *
  *  Pine: a parameter may declare a default; a call that omits the argument runs
@@ -15107,14 +15376,13 @@ export function functionParams(toks, arrow) {
  *  identifier), so such a function was `pine:function-def` and everything read
  *  through it went with it (liquidity-heatmap: `resolutionInMinutes(tf = "")`).
  *
- *  ⛔ ONLY THE SHAPE WHOSE VALUE IS THE SAME AT EVERY CALL:
- *    · the default is ONE LITERAL — a number (or `-number`), a quoted string,
- *      `true`, `false` or `na`. A default that names anything (`len = other`,
- *      `style = label.style_label_down`, a call) is read in some scope at some
- *      time, and which is not this function's to decide: not this shape.
- *    · every parameter after the first default declares one too. A required
- *      parameter behind an optional one can only be reached by name, and named
- *      arguments on a user function are refused (`pine:named-argument`).
+ *  ⭐ WHICH DEFAULT: `paramDefaultShapeOk` (one rule for both lanes). C47 took
+ *  literals only; H5 takes L2's runtime rule, graded on the host lane by
+ *  `vw-default-param` (D01–D15, literals) and Q-L1 L05 (a bar-series default).
+ *  ⭐ A REQUIRED PARAMETER BEHIND AN OPTIONAL ONE IS READ TOO (L2's ruling 3):
+ *  `inlineUserFunction` completes only omitted TRAILING arguments, and only
+ *  while every one omitted declares a default, so a call leaving the required
+ *  one out keeps its `pine:arity` refusal.
  *  ⛔ A SEPARATE READER, NOT A LOOSER `functionParams`: that one is the runtime
  *  front end's too, whose calls are compiled against an exact arity. */
 export function functionParamDefaults(toks, arrow) {
@@ -15135,15 +15403,10 @@ export function functionParamDefaults(toks, arrow) {
     let node = null
     if (eq >= 0) {
       const rest = seg.slice(eq + 1)
-      const literal = (t) => t && (t.kind === 'number' || t.kind === 'string'
-        || (t.kind === 'ident' && (t.value === 'true' || t.value === 'false' || t.value === 'na')))
-      const ok = (rest.length === 1 && literal(rest[0]))
-        || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number')
-      if (!ok) return null
+      if (!paramDefaultShapeOk(rest)) return null
       try { node = parseWholeExpression(rest) } catch { return null }
+      if (!node) return null
       any = true
-    } else if (any) {
-      return null
     }
     names.push(name)
     defaults.push(node)
@@ -15775,7 +16038,7 @@ function unrollTextLoop(st, ctx, env) {
   const passBody = (v) => body.map((s) => ({
     ...s,
     header: s.header.map((t) => (t && t.kind === 'ident' && t.value === counter.value
-      ? { ...t, kind: 'number', value: v, raw: String(v) } : t)),
+      ? { ...t, kind: 'number', value: v, raw: String(v), loopCounter: true } : t)),
   }))
   try {
     for (let v = lo; v <= hi; v += 1) {
@@ -16517,6 +16780,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const mark = condCallMark(ctx, toks.slice(mut + 1), nameTok.value)
       const priorEnv = new Map(env)
       env.set(nameTok.value, exprBinding(node, priorEnv, locate(nameTok)))
+      // ⭐ F1 — a reassignment keeps what the name was DECLARED as (`float x = 5`).
+      env.get(nameTok.value).declAt = prior.declAt || prior.at
       if (mark && mark.node) env.get(nameTok.value).oneExecution = exprBinding(asWrite(mark.node), priorEnv, locate(nameTok))
       else if (mark) { env.get(nameTok.value).condCall = mark.refuse; env.get(nameTok.value).execGuard = ctx.execGuard || null }
       if (prior.blockLocal) {
@@ -18118,6 +18383,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const n = numNode(ast, undefined)
         return n ? { ...n, tick: 'syminfo.mintick' } : null
       }
+      // ⭐⭐ H5 (step 84) — `format.volume`: the number carried with the format
+      // NAMED, rendered by `pineTextFormat.js::volumeNumberText`, which draws only
+      // the M / B renderings captures pin (multicator-table: `"3.126M"`,
+      // `"-29.984M"`, `"46.335M"`, `"10.801B"`) and withholds the rest.
+      if (fmtNode && fmtNode.type === 'name' && fmtNode.name === 'format.volume') {
+        const n = numNode(ast, undefined)
+        return n ? { ...n, volume: true } : null
+      }
       // ⛔ ANY OTHER FORMAT THIS READER CANNOT SEE AS A LITERAL IS NEVER PRINTED AS
       // IF THERE WERE NONE: `format.volume` is `"3.126M"` on TradingView
       // (multicator-table), `format.percent` a `%`, a script's own
@@ -19458,7 +19731,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const id = `c${colls.length}`
       collId.set(name, id)
       // ⭐ C48 — `slots`: a list created holding that many `na` slots (`witnessedSlots`).
-      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}) })
+      // ⭐ F1 — `persist`: a `var` list, which holds what earlier bars put in it —
+      // bars before a chart's first one included (`objectRuntime` withholds its
+      // family off the listing).
+      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
+        ...(d.persist ? { persist: true } : {}) })
     } else {
       const id = `r${regs.length}`
       regId.set(name, id)
@@ -22199,7 +22476,9 @@ export function translatePine(source, opts = {}) {
   const outerPeriodSink = PERIOD_READ_SINK
   const outerLowerSink = LOWER_TF_SINK
   const outerLibrarySink = LIBRARY_LINK_SINK
+  const outerDeclWords = DECL_WORDS_SINK
   LIBRARY_LINK_SINK = null
+  DECL_WORDS_SINK = null
   const sink = new Map()
   const lowerSink = new Set()
   LOWER_TF_SINK = lowerSink
@@ -22216,6 +22495,7 @@ export function translatePine(source, opts = {}) {
     PERIOD_READ_SINK = outerPeriodSink
     LOWER_TF_SINK = outerLowerSink
     LIBRARY_LINK_SINK = outerLibrarySink
+    DECL_WORDS_SINK = outerDeclWords
   }
   if (!t || typeof t !== 'object') return t
   // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
@@ -22366,6 +22646,8 @@ function translatePineResult(source, opts = {}) {
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   beginPaletteScope(version)
+  // ⭐ F1 — what each declared name was declared AS, for `pineConstIntValue`.
+  DECL_WORDS_SINK = declarationWordsOf(tokens)
   if (tokens.length === 0) {
     const r = refusalValue('pine:empty', REFUSALS['pine:empty'], null)
     return { ...blank, version, refusal: r, refusals: [r] }
@@ -23207,10 +23489,16 @@ function translatePineResult(source, opts = {}) {
         if (bodyTrace.legacySwitch) throw Object.assign(bodyTrace.legacySwitch, { c47ObjectLane: self })
         // ⭐ C47 — and a header with defaults likewise: readable by the drawing
         // lane, `pine:function-def` (the sentence it had) to everything else.
+        // ⭐ H5 — and the PLOT lane reads it too. The C47 confinement (drawing lane
+        // only) existed because a newly served plot would mint parameter ids ahead
+        // of saved ones; since C46 an id is the input call's place in the SOURCE
+        // (`paramIdSource.js`), so a newly served output only APPENDS ids. Graded:
+        // `vw-default-param-spy-1d-2026-10-02` D01–D15 MATCH on 1,800 bars.
+        // `defaultScope` is the scope the function is declared in (a live view),
+        // read by the bar-series shadow refusal in `inlineUserFunction`.
         if (withDefaults) {
           self.defaults = withDefaults.defaults
-          throw Object.assign(new PineRefusal('pine:function-def', REFUSALS['pine:function-def'],
-            locate(toks[arrow])), { c47ObjectLane: self })
+          self.defaultScope = env
         }
         env.set(nameTok.value, self)
       } catch (err) {
@@ -23282,6 +23570,8 @@ function translatePineResult(source, opts = {}) {
         env.set(nameTok.value, exprBinding(op === ':=' ? rhs : {
           type: 'binary', op: op[0], left: boundNode(prior, nameTok.value, nameTok), right: rhs, tok: toks[mutAt],
         }, new Map(env), locate(nameTok)))
+        // ⭐ F1 — a reassignment keeps what the name was DECLARED as (`float x = 5`).
+        env.get(nameTok.value).declAt = prior.declAt || prior.at
         ctx.consumed.add(toks[mutAt].index)
       } catch (err) {
         const r = fromError(err)
@@ -26628,6 +26918,28 @@ const PAINT_SIGNATURES = Object.freeze({
   }),
 })
 const PAINT_PROBE = 'tools/visual_conformance/probes/vw-bgcolor-barcolor.pine'
+/** ⭐ F1 — the transparency a v3/v4 `bgcolor` takes with no `transp` (witnessed:
+ *  `vw-bgcolor-v4-default-spy-1d-2026-10-02`, `styleState.transparency` 90). */
+const V4_BGCOLOR_DEFAULT_TRANSP = 90
+
+/** A whole-number literal (`5`, `-2`, `0`) → its value; null for anything else
+ *  (`na`, a name, an expression). */
+function paintIntLiteral(n) {
+  if (n && n.type === 'number' && Number.isInteger(n.value)) return n.value
+  if (n && n.type === 'unary' && n.op === '-' && n.arg && n.arg.type === 'number' && Number.isInteger(n.arg.value)) return -n.arg.value
+  return null
+}
+
+/** Is this colour built only of plain colours — `color.*` names, hex literals and
+ *  `na`, joined by `?:` (whose tests are anything)? */
+function plainColourExpr(n, depth = 0) {
+  if (!n || depth > 32) return false
+  if (n.type === 'colour') return true
+  if (isNaColourLeaf(n)) return true
+  if (n.type === 'name') return /^color\.[a-z_]+$/.test(String(n.name))
+  if (n.type === 'ternary') return plainColourExpr(n.yes, depth + 1) && plainColourExpr(n.no, depth + 1)
+  return false
+}
 
 function resolvePaint(p, ctx) {
   const at = locate(p.tok)
@@ -26660,24 +26972,47 @@ function resolvePaint(p, ctx) {
       return withhold('paint:display', `a \`display\` other than \`display.all\` / \`display.none\` has no capture (${PAINT_PROBE})`)
     }
   }
-  for (const [k, code] of [['show_last', 'paint:show-last'], ['overlay', 'paint:overlay'], ['force_overlay', 'paint:overlay']]) {
+  for (const [k, code] of [['overlay', 'paint:overlay'], ['force_overlay', 'paint:overlay']]) {
     if (named.has(k)) return withhold(code, `\`${k}\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
   }
+  // ⭐⭐ F1 — `offset` AND `show_last` ARE RENDER-TIME ONLY (CAP round 4,
+  // `vw-bgcolor-barcolor-spy-1d-2026-10-02`): every row's per-bar colour sits on the
+  // UNSHIFTED bar (O1..O4 on the up bars, S1 on every bar), and the chart draws the
+  // shading `offset` bars over and only on the last `show_last` bars
+  // (`docs/pine/vendor-harness/cap-round4/…png`). So the colour is carried as it
+  // is, and the two numbers ride beside it for the binder's draw
+  // (`binder.js::paintRenderColours`). ⛔ Only a whole-number LITERAL: an `offset =
+  // na` (O4, overridden on every bar by a later `barcolor`, so the screenshot shows
+  // nothing of it) or a computed one stays withheld by name.
+  if (named.has('show_last')) {
+    const sl = paintIntLiteral(named.get('show_last'))
+    if (sl === null || sl < 0) return withhold('paint:show-last', `a \`show_last\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+    rec.showLast = sl
+  }
   if (named.has('offset')) {
-    const off = named.get('offset')
-    if (!(off && off.type === 'number' && Number(off.value) === 0)) {
-      return withhold('paint:offset', `an \`offset\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+    const off = paintIntLiteral(named.get('offset'))
+    if (off === null) {
+      return withhold('paint:offset', `an \`offset\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
     }
+    if (off !== 0) rec.offset = off
   }
   if (rec.hidden) return rec
   const colour = named.get('color')
   if (!colour) return withhold('paint:colour', `\`${p.kind}(…)\` names no colour`)
-  if (legacy && p.kind === 'bgcolor' && !named.has('transp') && !isNaColourLeaf(colour)) {
+  // ⭐⭐ F1 — A v3/v4 `bgcolor` WITH NO `transp` TAKES 90 (CAP round 4,
+  // `vw-bgcolor-v4-default-spy-1d-2026-10-02`: T1 `color.red` and T3 `cond ? color.lime
+  // : na` read `styleState.transparency` 90; the control T2 `transp = 0` reads 0).
+  // ⛔ Only for a colour built of plain colours (`color.*`, a hex literal, `na`,
+  // joined by `?:`): a colour with its own alpha (`color.new`) under the default is
+  // not witnessed, and stays withheld by name.
+  const v4DefaultTransp = legacy && p.kind === 'bgcolor' && !named.has('transp') && !isNaColourLeaf(colour)
+  if (v4DefaultTransp && !plainColourExpr(colour)) {
     return withhold('paint:v4-default-transp',
-      `a v${ctx.version} \`bgcolor\` with no \`transp\` takes a default transparency no capture shows (${PAINT_PROBE})`)
+      `a v${ctx.version} \`bgcolor\` with no \`transp\` over a colour with its own alpha has no capture (${PAINT_PROBE})`)
   }
   const args = [{ name: 'color', value: colour }]
   if (named.has('transp')) args.push({ name: 'transp', value: named.get('transp') })
+  else if (v4DefaultTransp) args.push({ name: 'transp', value: { type: 'number', value: V4_BGCOLOR_DEFAULT_TRANSP } })
   const r = ctx.resolver
   const minted = r ? r.paramMint : null
   if (r) r.paramMint = null

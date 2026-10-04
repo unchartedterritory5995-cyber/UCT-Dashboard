@@ -51,13 +51,35 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-function draw(source) {
+/** ⭐ H5 (step 84) — the HOST lane now reads a header with defaults too (the same
+ *  rule, `pine.js::paramDefaultShapeOk`), so a script whose only wall was the
+ *  header draws there first. To keep proving THIS lane's completion, `draw(src,
+ *  'runtime')` hands the door the host translation with every output refused
+ *  (`forcedToRuntime`, a test-only stand-in for "the host lane declined"), which
+ *  is the route the door takes for any host refusal (`runtimeFallbackOf`, RT1);
+ *  `draw(src, 'host')` reads the host lane's own columns. Each rail below asks
+ *  both, so the two lanes are also held to EACH OTHER on the same bars. */
+const forcedToRuntime = (t) => ({
+  ...t,
+  ok: false,
+  refusal: { guard: 'pine:state', message: '(test) the host lane declined: forced to the runtime lane' },
+  outputs: t.outputs.map((o) => ({ ...o, ast: null,
+    refusal: { guard: 'pine:state', message: '(test) the host lane declined: forced to the runtime lane' } })),
+})
+const CTX = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
+function draw(source, lane = 'runtime') {
   vi.stubEnv(FLAG, '1')
-  const built = memberPaneDefinition({ source, id: DEF_ID })
+  const translation = lane === 'runtime' ? forcedToRuntime(memberPaneDefinition({ source, id: DEF_ID }).translation) : null
+  const built = memberPaneDefinition({ source, id: DEF_ID, translation })
   expect(built.ok, built.reason || JSON.stringify(built.runtimeDeclined)).toBe(true)
-  expect(built.lane).toBe('runtime')
-  const cols = computeRuntimeColumns(built.definition, BARS,
-    { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+  expect(built.lane || 'host').toBe(lane)
+  if (lane === 'runtime') {
+    const cols = computeRuntimeColumns(built.definition, BARS, CTX)
+    return built.rows.map((r) => Array.from(cols[r.key]))
+  }
+  const { installed, errors } = registry.installUserDefinitions([built.definition])
+  expect(installed.length, errors.join(' | ')).toBe(1)
+  const cols = registry.computeFor(installed[0], BARS, undefined, CTX)
   return built.rows.map((r) => Array.from(cols[r.key]))
 }
 
@@ -77,6 +99,9 @@ plot(${call}, "A")
     const omitted = draw(body('osc()'))
     const written = draw(body('osc(hl2, 5, 34)'))
     expect(omitted).toEqual(written)
+    // ⭐ H5 — the host lane draws the same columns, omitted and written
+    expect(draw(body('osc()'), 'host')).toEqual(written)
+    expect(draw(body('osc(hl2, 5, 34)'), 'host')).toEqual(written)
     expect(finite(omitted[0])).toBe(N - 33) // non-vacuity: the 34-bar window warmed
     // ⛔ CONTROL: a DIFFERENT argument draws something else, so the equality above
     // is not two refusals or two empty columns agreeing.
@@ -91,6 +116,9 @@ plot(${call}, "B")
     expect(draw(body('band(close)'))).toEqual(draw(body('band(close, 10, 2.0)')))
     expect(draw(body('band(close, 4)'))).toEqual(draw(body('band(close, 4, 2.0)')))
     expect(draw(body('band(close, 4)'))).not.toEqual(draw(body('band(close)')))
+    // ⭐ H5 — the host lane, against this lane's own columns
+    expect(draw(body('band(close)'), 'host')).toEqual(draw(body('band(close, 10, 2.0)')))
+    expect(draw(body('band(close, 4)'), 'host')).toEqual(draw(body('band(close, 4, 2.0)')))
   })
 
   it("⭐ Q-L1's shape: an imported export with `var` state and a series default, at two call sites", () => {
@@ -155,14 +183,15 @@ plot(g())
     useFilter ? ta.atr(minLength) - ta.atr(maxLength) : 0.0
 plot(fv(2, 6, true), "V")
 `
-    // (the comparison header declares a default on every parameter, so both
-    // sides are the runtime lane's — a header with none is the host lane's)
+    // (the comparison header declares a default on every parameter)
     const pasted = `${HEAD}fv(simple int minLength=1, simple int maxLength=10, bool useFilter=false) =>
     useFilter ? ta.atr(minLength) - ta.atr(maxLength) : 0.0
 plot(fv(2, 6, true), "V")
 `
     const a = draw(src)
     expect(a).toEqual(draw(pasted))
+    // ⭐ H5 — and the host lane reads that header too (L2's ruling 3, one rule)
+    expect(draw(src, 'host')).toEqual(a)
     expect(finite(a[0])).toBeGreaterThan(N - 10)
   })
 

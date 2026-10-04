@@ -214,7 +214,7 @@ describe('C40 (H14) / C48 — a drawing list created WITH SLOTS: three `na` slot
       const t = tr(SRC(ctor))
       expect(diag(t).collsDivergedWhy).toBeUndefined()
       expect(diag(t).droppedOps).toBe(0)
-      expect(t.objects.colls).toEqual([{ id: 'c0', family: 'box', cap: 500, slots: 3 }])
+      expect(t.objects.colls).toEqual([{ id: 'c0', family: 'box', cap: 500, slots: 3, persist: true }])
       const r = run(t)
       expect(r.status).toBe('ok')
       expect(bornAt(r, 'box')).toEqual([59, 59, 59])

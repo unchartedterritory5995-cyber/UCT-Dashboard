@@ -1,0 +1,15 @@
+//@version=6
+indicator("UCTPROBE H5 timeframe inside request", overlay = false)
+// H5 (step 84) - what `timeframe.*` reads INSIDE `request.security(<own>, <tf>, ...)`.
+// liquidity-heatmap's label guards read `resolutionInMinutes("3" | "240")`, a request
+// whose expression is `timeframe.multiplier * (timeframe.isdaily ? 1440 : ...)`. On a
+// daily chart: does the request answer the REQUESTED timeframe's metadata (3, 240,
+// 10080) on every bar, or the chart's, or na? Rows read W / M (served timeframes on
+// this engine) and 240 / 3 (below the chart).
+f(tf) => request.security(syminfo.tickerid, tf, timeframe.multiplier * (timeframe.isminutes ? 1.0 : timeframe.isdaily ? 1440.0 : timeframe.isweekly ? 10080.0 : timeframe.ismonthly ? 43830.0 : na))
+plot(bar_index, "T00_bar_index_CONTROL")
+plot(f("W"), "T01_week")
+plot(f("M"), "T02_month")
+plot(f("240"), "T03_240")
+plot(f("3"), "T04_3")
+plot(timeframe.multiplier, "T05_chart_multiplier_CONTROL")

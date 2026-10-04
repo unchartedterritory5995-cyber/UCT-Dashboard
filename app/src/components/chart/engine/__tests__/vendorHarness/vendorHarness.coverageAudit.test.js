@@ -112,23 +112,20 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // cpr-with-mas-super-trend-vwap (wave-16 H2/H3 attach) ------------------------
-  it.fails('cpr-with-mas-super-trend-vwap RDDT: MATCH', () => {
+  // ⭐ F1 (step 73) — FLIPPED: on a daily chart every daily bar is its own `ta.vwap`
+  // session (CAP2 Q-H3a, `h3-vwap-source-spy-1d`), so the VWAP row is the bar's own
+  // source and the RDDT capture MATCHes on all 30 items.
+  it('cpr-with-mas-super-trend-vwap RDDT: MATCH (F1)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT VWAP is na on every one of 636 bars (TradingView: a value); the other 28 compared items agree', () => {
-    const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02')
-    const p = item(v, 'VWAP')
-    expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
-    expect(p.stats.steady.divergent).toBe(636)
-    expect(v.plots.filter((x) => x.verdict === 'DIVERGE').map((x) => x.title)).toEqual(['VWAP'])
-  }, T)
-  it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
+  // ⭐ F5 + F1 — FLIPPED on the merged tree: F1 made the VWAP row agree on every
+  // bar, F5 withholds the EMA(50)'s seed warm-up (its one remaining divergence).
+  it('cpr-with-mas-super-trend-vwap SPY: MATCH (F1 + F5)', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP na from bar 960 to the last; EMA agrees past its seed warm-up (F5); CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
+  it('control: SPY VWAP agrees on every bar now (F1); EMA agrees past its seed warm-up (F5); CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
-    expect(first(item(v, 'VWAP'))).toMatchObject({ bar: 960, kind: 'na' })
-    expect(item(v, 'VWAP').stats.steady.pattern.kind).toBe('persistent')
+    expect(item(v, 'VWAP').verdict).toBe('MATCH')
     for (const t of ['CP', 'BC', 'TC', 'D-S1', 'D-R1']) {
       const p = item(v, t)
       expect(p.verdict, t).toBe('MATCH')
@@ -358,12 +355,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       const v = grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v
       expect(v.objects.verdict).toBe('MATCH')
       expect(v.objects.counts.find((c) => c.family === 'boxes')).toMatchObject({ vendor: 12, ours: 12 })
-      expect(v.paints.reason).toMatch(/offset/)
+      // ⭐ F1 + RT6 (wave 16): the offset barcolor is placed at render time and carried by
+      // the run, so RDDT's paint now agrees with TradingView bar for bar.
+      expect(v.paints.verdict).toBe('MATCH')
+      expect(v.paints.reason).toMatch(/agree bar for bar/)
     }
     const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
     expect(v.objects.verdict).toBe('INCONCLUSIVE')
     expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
-    expect(v.paints.reason).toMatch(/offset/)
+    // SPY: the run computes nothing (off the listing / calc_bars_count), so its barcolor
+    // is not drawn, by name — withheld, never painted wrong (F1's own pin).
+    expect(v.paints.reason).toMatch(/notDrawn/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
