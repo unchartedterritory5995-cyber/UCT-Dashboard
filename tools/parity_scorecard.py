@@ -3376,7 +3376,7 @@ def build(pages_dir=None):
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 129, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 35, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 37, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
@@ -3520,7 +3520,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3777, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3871, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -3539,7 +3539,7 @@ def build(pages_dir=None):
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 28, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 34, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -3655,7 +3655,7 @@ def build(pages_dir=None):
       'tapped' + R18 + '; no Notion or Obsidian page fetched states a touch undo.')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
-    R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 47, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
+    R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 52, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
       {'N': ['N_bulkedit'], 'E': ['E_bulkmove'], 'O': ['O_multiselect']},
       'B09: two notes selected, the bulk export offered four formats. Each competitor\'s page' + R18 + ' states a '
       'multi-select with an action on it (Notion: edit properties; Evernote: move between notebooks; Obsidian: drag to a '
@@ -3692,7 +3692,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4351, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4445, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3708,7 +3708,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1202, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1453, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -3719,7 +3719,7 @@ def build(pages_dir=None):
       'a browser pass with a model key')
     R('G-163', 'D6', [D(6, 'Cold-start offline is out of scope')], {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'Recorded scope: the rollback story relies on no service worker (D6).')
-    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1085, 'Automate and App Automate are NOT on this account')],
+    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1094, 'Automate and App Automate are NOT on this account')],
       {'N': NA, 'E': NA, 'O': NA}, 'A release process, not a product feature; no competitor claim is made.',
       'owner: a device run per release (BrowserStack Live by hand, or Automate bought)')
     R('G-165', 'NV', [code(f'{JT}/writing_help.py', 48, 'ACTIONS = (SUMMARIZE, REWRITE, CONTINUE, TRANSLATE)'),
@@ -3753,7 +3753,7 @@ def build(pages_dir=None):
       {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': NFO},
       'PDF is the browser\'s Print (the row records it).')
     R('G-170', 'NA', [code('app/src/lib/errorBeacon.js', 856, 'export function installErrorBeacon()'),
-                      code('app/src/main.jsx', 10, 'installErrorBeacon()'),
+                      code('app/src/main.jsx', 11, 'installErrorBeacon()'),
                       code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
                       code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'),
                       test_vt('app/src/lib/errorBeacon.test.js')], {'N': NA, 'E': NA, 'O': NA},
@@ -4073,8 +4073,8 @@ def build(pages_dir=None):
          'by hand is not a PASS triggered BY the schedule, and the clause reads literally "on a schedule". The '
          'staged weekly task has not yet produced an unattended PASS. Owed: observe its next scheduled fire', BUILD),
         ('account deletion purges backups', 'MET',
-         [record('docs/account-deletion-manifest.md', 197, 'The deletion writes a TOMBSTONE, as its FIRST write'),
-          record('docs/account-deletion-manifest.md', 233, 'CLOSED, wave 10 lane AD'),
+         [record('docs/account-deletion-manifest.md', 198, 'The deletion writes a TOMBSTONE, as its FIRST write'),
+          record('docs/account-deletion-manifest.md', 234, 'CLOSED, wave 10 lane AD'),
           code('tools/authdb_restore_drill.py', 620, 'ap.add_argument("--archive"'),
           record('docs/notebook/gate-runs/wave10-L6/classification.md', 13, 'Landing: PASS'),
           test_f3('tests/test_account_tombstones.py'), test_l6('tests/test_authdb_archive_restore.py')],
@@ -4298,7 +4298,7 @@ def build(pages_dir=None):
     TELEM_FILES = sorted({f for e in TELEM_EVENTS for f in _rails_of(TELEMETRY_RAILS, e)})
     C[15] = [
         ('client + server error reporting on', 'MET',
-         [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
+         [code('app/src/main.jsx', 11, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
           test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)', None),
         ('Notebook telemetry for every core action', 'NOT MET' if TELEM_GAPS else 'MET',
          [code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
@@ -4331,7 +4331,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8362, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8528, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
