@@ -9,6 +9,11 @@ import useSWR, { preload } from 'swr'
 const NULL_IPO = Object.freeze({ list_date: null })
 const LS_PREFIX = 'tipo:'
 const LS_TTL = 30 * 24 * 60 * 60 * 1000 // 30 days (list_date never changes)
+// ⛔ Must EXCEED the hook's `dedupingInterval` (60 s below): SWR 2.x runs an interval
+// revalidation WITH dedupe, so a shorter poll is silently swallowed (measured: a 30 s
+// poll never refetched).
+const DEDUPE_MS = 60000
+export const NON_FINAL_POLL_MS = DEDUPE_MS + 5000
 
 function lsGet(sym) {
   try {
@@ -26,6 +31,12 @@ function lsPut(sym, data) {
   // Only persist a REAL listing date — never cache a null miss (a cold/renamed
   // ticker that resolves later must not be pinned to "no IPO date").
   if (!sym || !data || !data.list_date) return
+  // ⛔ And never a NON-FINAL answer. `/api/ticker-ipo` answers a cache miss at once
+  // with `first_trade_final: false` while it resolves the first-trade date in the
+  // background (`api/services/ticker_ipo.py`); persisting that for 30 days would pin
+  // the chart's listing statement to the uncorrected date long after the server
+  // knows better. A payload without the flag (a pod that predates it) persists as before.
+  if (data.first_trade_final === false) return
   try {
     localStorage.setItem(LS_PREFIX + sym, JSON.stringify({ t: Date.now(), d: data }))
   } catch {
@@ -45,6 +56,7 @@ export async function fetcher(url) {
   // sends it, and then the statement reads `list_date` exactly as before.
   const out = { list_date: j?.list_date ?? null }
   if (typeof j?.first_trade_date === 'string') out.first_trade_date = j.first_trade_date
+  if (typeof j?.first_trade_final === 'boolean') out.first_trade_final = j.first_trade_final
   return out
 }
 
@@ -67,10 +79,13 @@ export default function useTickerIpo(sym) {
       fallbackData,
       revalidateOnFocus: false,
       revalidateIfStale: true,     // a transient null-miss re-resolves on next view
-      dedupingInterval: 60000,
+      dedupingInterval: DEDUPE_MS,
       errorRetryCount: 4,
       errorRetryInterval: 4000,
       onSuccess: (d) => lsPut(sym, d),
+      // While the server is still resolving the first-trade date, ask again so the
+      // chart picks up the final answer in-session; a final answer stops polling.
+      refreshInterval: (d) => (d && d.first_trade_final === false ? NON_FINAL_POLL_MS : 0),
     },
   )
   return data || NULL_IPO
