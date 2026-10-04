@@ -179,7 +179,10 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: move both `pending_observation` blocks into `observed` with the step-4 SHA and put this
 #: literal back to 22. A ceiling left loose is how a debt list stops meaning anything —
 #: `lesson_a_documented_workaround_is_not_a_recovery_path`.
-DECLARED_UNOBSERVED_CEILING = 22
+#: 22 -> 20 (2026-10-03, TERMINAL-NEXT Lane P): G-16 and G-17, the wire coverage
+#: monitor's two guards, observed two-sided (tests/test_term018_wire_coverage_guards.py,
+#: proof 21e1467c5d) and moved to `observed`.
+DECLARED_UNOBSERVED_CEILING = 20
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.
@@ -222,9 +225,15 @@ def strip_comments_and_docstrings(src: str) -> str:
     one of the two passes still matches its own explanation.
     """
     starts = _line_offsets(src)
+    src_lines = src.splitlines(keepends=True)
 
     def off(lineno: int, col: int) -> int:
-        return starts[lineno - 1] + col
+        # ⛔ ast col offsets are UTF-8 BYTES; `src` is indexed by CHARACTERS. A
+        # docstring carrying non-ASCII (`coverage_monitor.run_check`'s arrows) made a
+        # raw byte offset overshoot into the next line's indentation and the stripped
+        # text stopped parsing. Convert on the line's own bytes.
+        line = src_lines[lineno - 1] if lineno - 1 < len(src_lines) else ""
+        return starts[lineno - 1] + len(line.encode("utf-8")[:col].decode("utf-8", "ignore"))
 
     tree = ast.parse(src)
     doc_spans: list[tuple[int, int]] = []
