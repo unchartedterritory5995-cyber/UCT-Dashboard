@@ -331,12 +331,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       const v = grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v
       expect(v.objects.verdict).toBe('MATCH')
       expect(v.objects.counts.find((c) => c.family === 'boxes')).toMatchObject({ vendor: 12, ours: 12 })
-      expect(v.paints.reason).toMatch(/offset/)
+      // ⭐ F1 + RT6 (wave 16): the offset barcolor is placed at render time and carried by
+      // the run, so RDDT's paint now agrees with TradingView bar for bar.
+      expect(v.paints.verdict).toBe('MATCH')
+      expect(v.paints.reason).toMatch(/agree bar for bar/)
     }
     const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
     expect(v.objects.verdict).toBe('INCONCLUSIVE')
     expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
-    expect(v.paints.reason).toMatch(/offset/)
+    // SPY: the run computes nothing (off the listing / calc_bars_count), so its barcolor
+    // is not drawn, by name — withheld, never painted wrong (F1's own pin).
+    expect(v.paints.reason).toMatch(/notDrawn/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v

@@ -199,8 +199,10 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // BISECTED: the wave's host-lane changes that add resolver work on conditions are
       // F2's v4/v5 and/or/not na re-read and H2's block-valued reassignment; recorded as
       // the measured wave-16 cost. Pre-wave-16: [102, 937, '6aa396f1a09699d5'] both.
+      // ⭐ F1 (wave 16) +1 Resolver, +33 steps: its const-int division fold
+      // (`pineConstIntValue`) resolves one more operand. Pre-F1: [103, 1450, 'ae4f9119eeecd7d5'].
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [103, 1450, 'ae4f9119eeecd7d5'], manifest: [103, 1450, 'ae4f9119eeecd7d5'] },
+        plain: [104, 1483, '5adeff2487d271ca'], manifest: [104, 1483, '5adeff2487d271ca'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {
