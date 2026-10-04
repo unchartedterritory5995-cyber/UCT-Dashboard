@@ -33,7 +33,7 @@ export default function ResurfaceVersionSheet({ noteId, versionId, onClose }) {
       maxWidth={760}
       footer={(
         <div className={styles.footer}>
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={onClose} data-tour="resurface-back">
             Back to the note as it is now
           </button>
         </div>
@@ -54,7 +54,7 @@ export default function ResurfaceVersionSheet({ noteId, versionId, onClose }) {
         )}
         {!isLoading && version && (
           <>
-            <p className={styles.note}>
+            <p className={styles.note} data-tour="resurface-then">
               Saved <time dateTime={version.createdAt}>{formatET(version.createdAt)}</time>. This is the
               version that first named the level. Your note itself is unchanged.
             </p>

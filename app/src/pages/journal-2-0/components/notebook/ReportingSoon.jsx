@@ -79,7 +79,7 @@ export default function ReportingSoon({ onOpenNote }) {
         </p>
       )}
       {items.length > 0 && (
-        <ul className={styles.list} aria-label="Names reporting soon">
+        <ul className={styles.list} aria-label="Names reporting soon" data-tour="reporting-soon-list">
           {items.map((item) => (
             <li key={item.symbol} className={styles.row}>
               <span className={styles.main}>
@@ -87,8 +87,8 @@ export default function ReportingSoon({ onOpenNote }) {
                   aria-label={`${item.symbol} research`}>
                   ${item.symbol}
                 </Link>
-                <span className={styles.when}>{whenText(item)}</span>
-                <span className={styles.chips}>
+                <span className={styles.when} data-tour="reporting-soon-when">{whenText(item)}</span>
+                <span className={styles.chips} data-tour="reporting-soon-sources">
                   {(item.sources || []).map((s) => <span key={s} className={styles.chip}>{sourceLabel(s)}</span>)}
                 </span>
               </span>
@@ -100,7 +100,7 @@ export default function ReportingSoon({ onOpenNote }) {
                 </button>
               ) : (
                 <button type="button" className={`${styles.action} ${styles.primary}`}
-                  onClick={() => create(item.symbol)} disabled={!!busy}
+                  onClick={() => create(item.symbol)} disabled={!!busy} data-tour="reporting-soon-prep"
                   aria-label={`Create prep note for ${item.symbol}`}>
                   <UIcon name="plus" size={13} gold={false} />
                   {busy === item.symbol ? ' Drafting…' : ' Create prep note'}

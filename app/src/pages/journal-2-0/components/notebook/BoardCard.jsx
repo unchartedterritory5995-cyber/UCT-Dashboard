@@ -63,13 +63,13 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
   const priceLines = useMemo(() => planPriceLines(card), [card])
   const days = card.daysInSetup
   return (
-    <li className={styles.card} data-board-card={card.symbol} data-state={card.state}>
+    <li className={styles.card} data-board-card={card.symbol} data-state={card.state} data-tour="setups-card">
       <div className={styles.cardHead}>
         <span className={styles.symbol}>{card.symbol}</span>
         <span className={styles.stateChip} data-state={card.state}>{STATE_LABEL[card.state] || card.state}</span>
         {days != null && <span className={styles.days}>{daysText(days)}</span>}
       </div>
-      <p className={styles.distance} data-distance="">{distanceText(card)}</p>
+      <p className={styles.distance} data-distance="" data-tour="setups-distance">{distanceText(card)}</p>
       <div className={styles.levels}>
         {['entry', 'stop', 'target'].map((role) => (
           <span key={role} className={styles.level} data-role={role}>
@@ -116,12 +116,12 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
         )}
       </div>
       <div className={styles.cardFoot}>
-        <Link className={styles.noteLink} to={notePath(card.noteId)}>
+        <Link className={styles.noteLink} to={notePath(card.noteId)} data-tour="setups-note">
           {card.noteTitle || 'Untitled note'}
         </Link>
         {onFindSimilar && card.similarEmbedKey && (
           <button type="button" className={styles.action}
-            aria-label={`Find more like ${card.symbol}`}
+            aria-label={`Find more like ${card.symbol}`} data-tour="setups-similar"
             onClick={() => onFindSimilar({ noteId: card.noteId, embedKey: card.similarEmbedKey, symbol: card.symbol })}>
             Find more like this
           </button>

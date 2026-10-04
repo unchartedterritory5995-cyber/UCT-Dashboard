@@ -83,7 +83,7 @@ function SliceStats({ stats }) {
     </dl>
   )
   return (
-    <section className={styles.stats} aria-label="This slice" data-testid="slice-stats" data-band={stats.band}>
+    <section className={styles.stats} aria-label="This slice" data-testid="slice-stats" data-band={stats.band} data-tour="vp-stats">
       <p className={styles.statHead}>
         <strong>{stats.trades}</strong> {stats.trades === 1 ? 'trade' : 'trades'} from <strong>{stats.charts}</strong>{' '}
         {stats.charts === 1 ? 'chart' : 'charts'}
@@ -122,12 +122,12 @@ function Card({ card }) {
           <span className={styles.sym}>{card.symbol}</span> <span className={styles.tag}>{card.setupTag}</span>
         </p>
         <p className={styles.cardMeta}>{card.asOf} · {card.timeframe}{card.fingerprintAsOf ? ` · fingerprint ${card.fingerprintAsOf}` : ' · not fingerprinted yet'}</p>
-        <ul className={styles.cardFields} aria-label="Fingerprint">
+        <ul className={styles.cardFields} aria-label="Fingerprint" data-tour="vp-card-fields">
           {CARD_FIELDS.map((f) => (
             <li key={f}>{FIELD_LABELS[f]} {formatFingerprintValue(f, card.values?.[f]) ?? 'n/a'}</li>
           ))}
         </ul>
-        <p className={`${styles.outcome} ${styles[`o_${card.outcome}`] || ''}`}>
+        <p className={`${styles.outcome} ${styles[`o_${card.outcome}`] || ''}`} data-tour="vp-card-outcome">
           {OUTCOME_WORDS[card.outcome]}
           {primary ? ` · ${rFmt(primary.rMultiple)}` : ''}
           {card.trades.length > 1 ? ` · ${card.trades.length} trades` : ''}
@@ -160,7 +160,7 @@ export function VisualPlaybookBody({ initialSetup = null }) {
 
   return (
     <div className={styles.body} data-testid="visual-playbook">
-      <form className={styles.filters} aria-label="Filter your playbook" onSubmit={(e) => e.preventDefault()}>
+      <form className={styles.filters} aria-label="Filter your playbook" onSubmit={(e) => e.preventDefault()} data-tour="vp-filters">
         <label className={styles.field}>
           <span>Setup</span>
           <select value={setupChoice} onChange={(e) => setSetupChoice(e.target.value)}>
@@ -224,7 +224,7 @@ export function VisualPlaybookBody({ initialSetup = null }) {
           ))}
           {data.pending > 0 && <p className={styles.muted}>{data.pending} more charts are still being fingerprinted.</p>}
           {data.cards.length ? (
-            <ul className={styles.grid} aria-label="Tagged charts">
+            <ul className={styles.grid} aria-label="Tagged charts" data-tour="vp-grid">
               {data.cards.map((c) => <Card key={`${c.noteId}/${c.embedKey}`} card={c} />)}
             </ul>
           ) : (

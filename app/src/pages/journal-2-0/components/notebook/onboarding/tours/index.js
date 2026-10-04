@@ -63,6 +63,9 @@
 // To add a track: create `tours/<track>.js` exporting `TOURS`, add one import
 // line and one spread below. Nothing else in the engine changes.
 
+import { TOURS as b3ResearchTours } from './b3Research'
+
 export const TRACK_TOURS = Object.freeze([
   // ...writingHelpTours,   <- one spread per track file, in registry order
+  ...b3ResearchTours,
 ])

@@ -92,7 +92,7 @@ export default function PassedSetups() {
         </span>
       </div>
 
-      <form className={styles.addRow} onSubmit={add} aria-label="Add a passed setup">
+      <form className={styles.addRow} onSubmit={add} aria-label="Add a passed setup" data-tour="passed-add">
         <label className={styles.field}>
           <span className={styles.fieldLabel}>Ticker</span>
           <input className={styles.input} value={symbol} onChange={(e) => setSymbol(e.target.value)}
@@ -118,7 +118,7 @@ export default function PassedSetups() {
       )}
 
       {items.length > 0 && (
-        <ul className={styles.list} aria-label="Passed setups">
+        <ul className={styles.list} aria-label="Passed setups" data-tour="passed-list">
           {items.map((item) => (
             <li key={item.id} className={styles.row} data-passed-symbol={item.symbol} data-status={item.status}>
               <div className={styles.main}>
@@ -140,7 +140,7 @@ export default function PassedSetups() {
               {item.noBarsLabel ? (
                 <p className={styles.quiet} data-no-bars="">{item.noBarsLabel}.</p>
               ) : (
-                <div className={styles.cells}>
+                <div className={styles.cells} data-tour="passed-outcomes">
                   {item.outcomes.map((o) => <Outcome key={o.key} o={o} />)}
                 </div>
               )}
