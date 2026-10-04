@@ -1,0 +1,185 @@
+/* MON — the watchlist monitor (lane T5). Dense by default; the touch tier (<=1024px)
+ * floors every control at --tap-min (styles/tapFloor.test.js), and a phone (<=640px)
+ * drops the `data-wide` columns so the table fits without a horizontal page scroll. */
+
+.monitor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.fieldLabel {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.select {
+  min-width: 0;
+  max-width: 220px;
+  height: 26px;
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs);
+}
+
+.status {
+  margin-left: auto;
+  color: var(--text-faint, var(--text-muted));
+  font-size: var(--text-xs);
+}
+
+.note,
+.empty {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.empty {
+  padding: var(--space-lg);
+}
+
+.scroller {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--bg-elevated, var(--bg));
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sortBtn {
+  width: 100%;
+  min-height: 24px;
+  padding: 0 var(--space-xs);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.table th[aria-sort='ascending'] .sortBtn,
+.table th[aria-sort='descending'] .sortBtn {
+  color: var(--accent);
+}
+
+.row {
+  cursor: pointer;
+}
+
+.row td {
+  height: 22px;
+  padding: 0 var(--space-xs);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+  white-space: nowrap;
+}
+
+.row:hover td {
+  background: var(--bg-hover);
+}
+
+.row[data-active='true'] td {
+  background: var(--bg-active, var(--bg-hover));
+}
+
+.row[data-linked='true'] .sym {
+  color: var(--accent);
+}
+
+.num {
+  text-align: right;
+}
+
+.table th.num .sortBtn {
+  text-align: right;
+}
+
+.sym {
+  font-weight: 700;
+}
+
+.table td[data-tone='up'] {
+  color: var(--up, var(--green, #4ade80));
+}
+
+.table td[data-tone='down'] {
+  color: var(--down, var(--red, #f87171));
+}
+
+/* ── TOUCH TIER (phone + tablet): every control and every row at the 44px floor ── */
+@media (max-width: 1024px) {
+  .select {
+    height: var(--tap-min);
+    min-height: var(--tap-min);
+    font-size: 16px; /* >=16px: iOS does not zoom the page on focus */
+  }
+
+  .sortBtn {
+    min-height: var(--tap-min);
+  }
+
+  .row td {
+    height: var(--tap-min);
+  }
+}
+
+/* ── PHONE: the wide columns drop out; what is left fits a 390px panel ── */
+@media (max-width: 640px) {
+  .table [data-wide='true'] {
+    display: none;
+  }
+
+  .status {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .select {
+    max-width: 100%;
+  }
+}

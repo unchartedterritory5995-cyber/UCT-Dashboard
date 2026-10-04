@@ -162,6 +162,12 @@ export const FUNCTIONS = [
   { code: 'BRD', label: 'Market breadth', group: 'Market', market: { surface: '/breadth' } },
   { code: 'SCR', label: 'Stock screener', group: 'Market', market: { surface: '/screener' } },
   { code: 'U20', label: 'UCT 20', group: 'Market', market: { surface: '/uct-20' } },
+  // Lane T5 (gap 5): the watchlist MONITOR over the member's own lists, flagged and tags.
+  // `drives`: a market panel whose row selection SETS its channel's security (the shell
+  // gives it a channel dot and an `onDrive`). No `W` alias: W is Wayfair, a real ticker,
+  // and a code is 2-5 characters (`W:3` stays the watchlist ADDRESS).
+  { code: 'MON', label: 'Watchlist monitor (your lists, live)', group: 'Market',
+    market: { panel: 'Monitor', drives: true, flag: 'terminalMonitorEnabled' } },
   { code: 'DASH', label: 'Dashboard', group: 'Market',
     market: { door: '/dashboard', why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
   { code: 'CHRT', label: 'Charts workspace', group: 'Market',

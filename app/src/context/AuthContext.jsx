@@ -50,6 +50,8 @@ export function AuthProvider({ children }) {
   const [researchPeopleEnabled, setResearchPeopleEnabled] = useState(false)
   const [estimateHistoryEnabled, setEstimateHistoryEnabled] = useState(false)
   const [filingsFeedEnabled, setFilingsFeedEnabled] = useState(false)
+  // TERMINAL-NEXT lane T5: the shell's MON watchlist monitor. Present in the payload ONLY when on.
+  const [terminalMonitorEnabled, setTerminalMonitorEnabled] = useState(false)
   // Research > Depth: one boolean per surface, all false until the payload says otherwise.
   const [researchDepth, setResearchDepth] = useState(() => readResearchDepth(null))
   // Research notices under the header (lane R: D-9/D-11/D-12): one boolean per surface.
@@ -135,6 +137,7 @@ export function AuthProvider({ children }) {
     ['research_people_enabled', (d) => d.research_people_enabled === true, setResearchPeopleEnabled],
     ['estimate_history_enabled', (d) => d.estimate_history_enabled === true, setEstimateHistoryEnabled],
     ['filings_feed_enabled', (d) => d.filings_feed_enabled === true, setFilingsFeedEnabled],
+    ['terminal_monitor_enabled', (d) => d.terminal_monitor_enabled === true, setTerminalMonitorEnabled],
     ['cohorts', (d) => (Array.isArray(d.cohorts) ? d.cohorts.filter((c) => typeof c === 'string') : []), setCohorts],
     // Research > Depth: several keys, each present only when on (researchDepthFlags.js).
     ['research_depth', readResearchDepth, setResearchDepth],
@@ -354,7 +357,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, terminalMonitorEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

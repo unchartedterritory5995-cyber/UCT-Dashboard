@@ -694,6 +694,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # payload; the client reads `=== true`, so absent and false mean the
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
+        **_terminal_monitor_flag(),
         **_filing_blackline_flag(),
         **_options_screener_flag(),
         **_research_depth_flags(),
@@ -769,6 +770,21 @@ def _lane_r_client_flags() -> dict:
         except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
             continue
     return out
+
+
+def _terminal_monitor_flag() -> dict:
+    """TERMINAL-NEXT lane T5: the shell's `MON` watchlist monitor panel.
+
+    ENABLEMENT polarity, read per request; the key rides the payload ONLY when
+    on (the client reads `=== true`, so absent and false are the same to it).
+    The panel adds no route and no storage -- it reads the member's existing
+    watchlists, flagged list and tags -- so this key is the whole switch.
+    """
+    try:
+        on = os.environ.get("TERMINAL_MONITOR_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+        return {"terminal_monitor_enabled": True} if on else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
 
 
 def _watchlist_copy_or_link_flag() -> dict:

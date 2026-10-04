@@ -135,19 +135,21 @@ function channelOf(layout, id) {
 }
 
 function Panel({
-  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
+  index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, onDrive, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
   const title = [r.sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
   const full = fullHref(r)
-  const linkable = isLinkable(panel)
+  // A `drives` panel (MON) follows no security but SETS its channel's, so it has a channel.
+  const drives = r.state === 'ready' && r.variant?.drives === true
+  const linkable = isLinkable(panel) || drives
   const dot = channel?.color || 'var(--border)'
   // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list),
   // tagged with what it is showing so a list it no longer shows cannot be run.
   const owner = rowsOwner(panel)
-  const rowsProp = useMemo(() => (focused && onRows ? (rows) => onRows(rows, owner) : undefined),
+  const rowsProp = useMemo(() => (focused && onRows ? (rows, go) => onRows(rows, owner, go) : undefined),
     [focused, onRows, owner])
   return (
     <section
@@ -214,6 +216,9 @@ function Panel({
             <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
               {r.name === 'Help'
                 ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                : drives
+                  ? <Comp onRows={rowsProp} onDrive={onDrive} channel={channel}
+                      linkedSym={channel ? syms?.[channel.id] || null : null} />
                 : r.name === 'Move'
                   ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
                   : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
@@ -267,8 +272,10 @@ export default function TerminalShell() {
   // The focused panel's numbered list (row <GO>): the command strings it published.
   // Tagged with the publishing panel (`rowsOwner`), so row <GO> never runs a stale list.
   const rowsRef = useRef({ owner: null, rows: [] })
-  const onRows = useCallback((rows, owner) => {
-    rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [] }
+  // `go` (optional): the panel acts on row i itself (MON drives its channel) instead of the
+  // row's command replacing the panel.
+  const onRows = useCallback((rows, owner, go) => {
+    rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [], go: typeof go === 'function' ? go : null }
   }, [])
 
   // V6b / V17: the member's aliases and command counts (server-owned, owner-scoped). A failed
@@ -408,6 +415,7 @@ export default function TerminalShell() {
         return null
       }
       countCommand(cmd)
+      if (rowsRef.current.go) { rowsRef.current.go(cmd.n - 1); return null }
       return run(target)
     }
     countCommand(cmd)
@@ -637,6 +645,16 @@ export default function TerminalShell() {
     if (!id) { setNotice({ kind: 'error', text: 'This board has the most groups it can hold.' }); return }
     save(setPanelChannel(withNew, i, id, symsRef.current))
   }
+  /** A `drives` panel (MON) set a security: its channel follows; the panel itself stays. */
+  const driveChannel = (i, sym) => {
+    const cur = layoutRef.current
+    const ch = panelChannel(cur.panels[i])
+    if (!ch) {
+      setNotice({ kind: 'error', text: `${cur.panels[i]?.code || 'This panel'} is not linked: pick a group on its dot to drive other panels.` })
+      return
+    }
+    save(commitChannelSym(cur, ch, sym))
+  }
   const retargetChannel = (sym, channelId) => {
     setSheet(null)
     save(commitChannelSym(layoutRef.current, channelId, sym))
@@ -820,6 +838,7 @@ export default function TerminalShell() {
                 }}
                 onRun={runTyped}
                 onRows={onRows}
+                onDrive={(sym) => driveChannel(i, sym)}
                 helpProps={helpProps}
                 onClose={() => onClose(i)}
                 onDuplicate={() => onDuplicate(i)}
