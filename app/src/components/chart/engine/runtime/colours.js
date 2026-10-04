@@ -34,7 +34,10 @@
 // not been observed on a chart. It is a difference of 1/255 in alpha, invisible
 // to a member and visible to a byte-for-byte vendor comparison, so it is
 // recorded rather than presented as measured.
-import { packColor, unpackColor, wholeTransparency, TRANSPARENCY_MAX, BYTE_MAX } from '../colorInt.js'
+import {
+  packColor, unpackColor, wholeTransparency, TRANSPARENCY_MAX, BYTE_MAX,
+  NA_BASE_RGB, colorNewTransparency, colorRgbChannel,
+} from '../colorInt.js'
 
 /** Thrown for a colour a member could have written differently. */
 export class ColourError extends Error {
@@ -295,16 +298,19 @@ export const COLOUR_FNS = Object.freeze({
   // is (`vm.js`: *"a typed array's element type is the FRONT END's to police,
   // not the VM's"*). Declaring `colour` here would make every correct call fail
   // the VM's kind check.
-  // ⭐⭐ RT6 — AN `na` OPERAND IS `na`, NEVER A COLOUR. `withTransparency` and
-  // `packColor` read a NaN byte as 0, so `color.new(na, 40)` answered TRANSPARENT
-  // BLACK at 40 — a visible dark shade where Pine holds the `na` colour (draws
-  // nothing). Harmless while a run's colour reached no drawing; a runtime row's
-  // per-bar colour reaches the chart (RT6), so the `na` is kept. A run reading
-  // `na` here draws that bar in no colour, the reading `na` has everywhere else.
-  // (Probe rows queued for CAP3: `docs/pine/capture-queue-2026-10-03-rt6-colour.md`.)
+  // ⚰️ RT6 made an `na` operand answer `na` (no colour), unwitnessed at the time.
+  // ⭐⭐ RT9 — CAP3 WITNESSED ALL THREE EDGES (`vw-rt6-runtime-colour`, RDDT and SPY
+  // 1D, every bar), and none of them is `na`: `color.new(na, 40)` is `#00000099`
+  // (an `na` base is black), `color.new(color.red, na)` is `#ff525200` (an `na`
+  // transparency is 100), `color.rgb(na, 0, 0)` is `#000000ff` (an `na` channel is
+  // 0). The rule lives in `colorInt.js` (`NA_BASE_RGB`, `colorNewTransparency`,
+  // `colorRgbChannel`), shared with the host lane's fold, never restated here.
+  // ⛔ `color.rgb`'s fourth argument `na` has no witness: it still answers `na`.
   'color.new': {
     args: ['number', 'number'], returns: 'colour', minArgs: 2, maxArgs: 2,
-    fn: (a) => (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1])) ? NaN : withTransparency(a[0], a[1])),
+    fn: (a) => withTransparency(
+      Number.isNaN(Number(a[0])) ? packColor({ ...NA_BASE_RGB, transparencyByte: 0 }) : a[0],
+      colorNewTransparency(a[1])),
   },
   // `color.rgb(r, g, b, transp = 0)` — three channels, Pine's own order.
   'color.rgb': {
@@ -312,8 +318,9 @@ export const COLOUR_FNS = Object.freeze({
     returns: 'colour',
     minArgs: 3,
     maxArgs: 4,
-    fn: (a) => (a.some((x) => Number.isNaN(Number(x))) ? NaN : packColor({
-      r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(pineTransparency(a.length > 3 ? a[3] : 0)),
+    fn: (a) => (a.length > 3 && Number.isNaN(Number(a[3])) ? NaN : packColor({
+      r: colorRgbChannel(a[0]), g: colorRgbChannel(a[1]), b: colorRgbChannel(a[2]),
+      transparencyByte: transparencyToByte(pineTransparency(a.length > 3 ? a[3] : 0)),
     })),
   },
   // ⭐⭐ C18 — `color.from_gradient(value, bottom, top, bottomColour, topColour)`

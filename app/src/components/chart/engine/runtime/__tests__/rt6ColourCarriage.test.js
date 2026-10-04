@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
-import { COLOUR_FNS, hexToPacked } from '../colours.js'
+import { COLOUR_FNS, hexToPacked, packedToObjectHex } from '../colours.js'
 import { probeRuntimeProgram } from '../runtimeColumns.js'
 import { packedPointColour, columnColorsForPlot } from '../../pool.js'
 import { validateDefinition, SCHEMA_VERSION } from '../../defSchema.js'
@@ -98,12 +98,20 @@ bgcolor(close > open ? color.green : na, transp = 90)
   })
 })
 
-describe('RT6 — an `na` operand is `na`, never transparent black', () => {
-  it('`color.new(na, t)`, `color.new(c, na)` and `color.rgb(na, …)` are na; a real colour is unchanged', () => {
-    expect(Number.isNaN(COLOUR_FNS['color.new'].fn([NaN, 40]))).toBe(true)
-    expect(Number.isNaN(COLOUR_FNS['color.new'].fn([hexToPacked('#ff0000'), NaN]))).toBe(true)
-    expect(Number.isNaN(COLOUR_FNS['color.rgb'].fn([NaN, 0, 0]))).toBe(true)
+// ⚰️ RT6 railed "an `na` operand is `na`" — unwitnessed then. ⭐⭐ RT9: CAP3 captured
+// it (`vw-rt6-runtime-colour`, RDDT / SPY 1D, rows C03-C05, every bar) and each is a
+// real colour; the rule is `colorInt.js`'s, shared with the host lane's fold.
+describe('RT9 — what `color.new` / `color.rgb` make of an `na` argument (CAP3, C03-C05)', () => {
+  it('`color.new(na, 40)` = #00000099, `color.new(red, na)` = alpha 0, `color.rgb(na, 0, 0)` = #000000ff', () => {
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([NaN, 40]))).toBe('#00000099')
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([hexToPacked('#ff5252'), NaN]))).toBe('#FF525200')
+    expect(packedToObjectHex(COLOUR_FNS['color.rgb'].fn([NaN, 0, 0]))).toBe('#000000')
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([NaN, NaN]))).toBe('#00000000')
+    // ⛔ `color.rgb`'s fourth argument `na` has no witness: still `na`.
+    expect(Number.isNaN(COLOUR_FNS['color.rgb'].fn([0, 0, 0, NaN]))).toBe(true)
+    // control: a real colour is unchanged
     expect(COLOUR_FNS['color.new'].fn([hexToPacked('#ff0000'), 40])).toBe(hexToPacked('#ff0000', 40))
+    expect(COLOUR_FNS['color.rgb'].fn([255, 0, 0])).toBe(hexToPacked('#ff0000'))
   })
 })
 

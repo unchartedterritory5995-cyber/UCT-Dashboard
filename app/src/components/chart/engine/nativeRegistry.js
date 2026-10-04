@@ -153,6 +153,12 @@ import {
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
 import { runtimeKillOf } from './runtimeKill'
 import { runtimePaneEnabled } from './runtimePaneGate'
+// ⭐⭐ RT9 — a host document whose drawings come from a run (`objectsRun`). The
+// module imports nothing, so no runtime lane rides into a chart's bundle with it.
+import {
+  OBJECTS_RUN_KEY, OBJECTS_RUN_GUARD, objectsRunOf, objectsRunDefinition, objectsRunWithheldOn,
+  runtimeObjectsOf, runtimeObjectsWithheldOf,
+} from './runtime/runtimeObjects.js'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -2294,6 +2300,55 @@ export function runtimeObjectsWithheld(def, cols) {
   }
 }
 
+// ─── ⭐⭐ RT9 — A HOST DOCUMENT'S DRAWINGS FROM ITS OWN RUN (`objectsRun`) ─────────
+//
+// `memberPaneDefinition` mints a host document that carries its script beside its
+// trees when the host lane's drawing program is incomplete and the runtime lane
+// builds the script with every drawing. ONE reader decides, per instance and chart,
+// whose drawings are drawn — the binder and the vendor harness both ask it:
+//
+//   · the run's own (`payload`), when ONE run of the script on THIS chart's bars made
+//     them (RT4: no run, no drawing — the run is the drawing);
+//   · otherwise the host object program, exactly as before RT9 (`withheld` says why
+//     the run's are not drawn: off the listing, a setting moved, the lane switched
+//     off for this member, the run still in flight, a named wall).
+// ⛔ Never both: one source of drawings per paint.
+
+/**
+ * @param {object} def the installed definition
+ * @param {object[]} bars the chart's bars (the object lane's, never a frame's)
+ * @param {object} [inputs] the instance's own inputs
+ * @param {object} [ctx] `{tf, symbol, newestBarIsForming, historyFromListing}`
+ * @returns {null | {payload: object|null, withheld: {guard: string, message: string}|null}}
+ *   null for any document that carries no `objectsRun`
+ */
+export function objectsRunFor(def, bars, inputs, ctx) {
+  const run = objectsRunDefinition(def)
+  if (!run) return null
+  const held = objectsRunWithheldOn(def, inputs)
+  if (held) return { payload: null, withheld: held }
+  if (!runtimePaneEnabled()) {
+    return { payload: null, withheld: { guard: OBJECTS_RUN_GUARD, message: 'scripts drawn bar by bar are not switched on here' } }
+  }
+  const c = ctx || {}
+  const cols = runtimeColumnsOrReasons(run, Array.isArray(bars) ? bars : [], undefined, {
+    tf: c.tf, symbol: c.symbol || null, newestBarIsForming: c.newestBarIsForming ?? null,
+    ...(c.historyFromListing === true ? { historyFromListing: true } : {}),
+  })
+  const payload = runtimeObjectsOf(cols)
+  if (payload) return { payload, withheld: null }
+  const named = runtimeObjectsWithheldOf(cols)
+  if (named) return { payload: null, withheld: { guard: named.guard, message: named.reason } }
+  const first = Object.values(columnErrors(cols))[0]
+  return {
+    payload: null,
+    withheld: first ? { guard: first.guard, message: String(first.message || '') }
+      : { guard: 'runtime:objects-pending', message: 'its run has not computed on this chart yet' },
+  }
+}
+
+export { objectsRunOf }
+
 // ─── ⭐⭐ RF — A RUNTIME PANE THAT DREW NOTHING SAYS WHY ───────────────────────
 //
 // `columnErrors` is "not UX" (C2A.8) and no surface rendered it, so a runtime
@@ -2892,6 +2947,9 @@ export const RUNTIME_LOAD_FAILED_GUARD = 'runtime:load-failed'
 
 function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   const keys = Object.keys((def.compute && def.compute.outputs) || {})
+  // ⭐ RT9 — a hybrid's drawing run maps no plot; its refusal is filed under one key
+  // so the drawings can say why they are not the run's (`objectsRunFor`).
+  if (!keys.length && def.meta && typeof def.meta.objectsRunFor === 'string') keys.push(OBJECTS_RUN_KEY)
   const reasonFor = (guard, message) => withColumnErrors({},
     Object.fromEntries(keys.map((k) => [k, { guard, message }])))
   if (!_runtimeLane) {
@@ -3564,6 +3622,22 @@ export function validateUserDefinitions(rawDefs) {
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
         continue
+      }
+      // ⭐⭐ RT9 — A HYBRID'S RUN IS UNDER THE RUNTIME DOCUMENT'S GATES, AND ONLY ITS
+      // RUN: a host document whose `objectsRun` is killed, ungraded (the server's
+      // stamps, or the latched kill list) installs WITHOUT the run's drawings — its
+      // plots and its host object program draw exactly as before RT9. Nothing is
+      // stored or deleted; the stamp rides this tab's copy only.
+      const run = objectsRunOf(def)
+      if (run) {
+        const meta = def.meta || {}
+        const why = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
+          || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
+          || runtimeKillOf({ defId: def.id, source: run.source })
+        if (why) {
+          defs.push({ ...def, meta: { ...meta, objectsRunWithheld: why } })
+          continue
+        }
       }
     }
     defs.push(def)

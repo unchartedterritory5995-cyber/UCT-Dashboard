@@ -2264,6 +2264,38 @@ export function validateSourceReferents(def, resolveColumns) {
  * table that is not there) and an unbound one on a V2 document (a duplicate
  * store). Either way the failure is named, not silent.
  */
+/**
+ * ⭐⭐ RT9 — `objectsRun`: a HOST document's drawings made by one run of its script
+ * (`runtime/runtimeObjects.js`, minted by `memberPaneDefinition`). A BEHAVIOURAL
+ * field, so it FAILS CLOSED: present means exactly this shape, on an `ast`
+ * document, or the definition is refused.
+ *
+ *   { kind: 'runtime', source: <non-empty Pine>, repaint: <REPAINT_MODES>,
+ *     trees: <non-empty string>, inputs: [<input key>, …] }
+ *
+ * The server's save door applies the same rules (`api/services/runtime_definitions.py::
+ * validate_objects_run`) and re-derives `repaint` from the source.
+ */
+function validateObjectsRunField(def, errors) {
+  if (def.objectsRun === undefined) return
+  const r = def.objectsRun
+  const at = 'objectsRun'
+  if (!isPlainObject(r)) {
+    errors.push(`${at}: when present, an object (a host document's drawings made by a run), got ${fmt(r)}`)
+    return
+  }
+  if (!isPlainObject(def.compute) || def.compute.kind !== 'ast') {
+    errors.push(`${at}: only an "ast" document carries a run for its drawings — a "runtime" document draws its own (compute.objects), got kind ${fmt(def.compute && def.compute.kind)}`)
+  }
+  if (r.kind !== 'runtime') errors.push(`${at}.kind: required "runtime", got ${fmt(r.kind)}`)
+  if (!isNonEmptyString(r.source)) errors.push(`${at}.source: the script the run executes — required non-empty string, got ${fmt(r.source)}`)
+  if (!REPAINT_MODES.includes(r.repaint)) errors.push(`${at}.repaint: one of ${REPAINT_MODES.join(', ')}, got ${fmt(r.repaint)}`)
+  if (!isNonEmptyString(r.trees)) errors.push(`${at}.trees: the host compute the run was minted beside — required non-empty string, got ${fmt(r.trees)}`)
+  if (!Array.isArray(r.inputs) || r.inputs.some((k) => !isNonEmptyString(k))) {
+    errors.push(`${at}.inputs: the script's own input keys — required array of strings, got ${fmt(r.inputs)}`)
+  }
+}
+
 function validateObjectProgramField(def, errors) {
   const program = def.objects
   if (program === undefined || program === null) return
@@ -2422,6 +2454,7 @@ export function validateDefinition(def) {
     validateFills(plots, errors)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
+    validateObjectsRunField(out, errors)
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
 
     // A definition with no plots and no events returns no columns: it computes

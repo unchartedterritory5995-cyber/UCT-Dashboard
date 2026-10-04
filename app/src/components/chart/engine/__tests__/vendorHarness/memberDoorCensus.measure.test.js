@@ -108,6 +108,9 @@ function row(file, flagOn, runtimeOn = false) {
         lane: door.built && door.built.lane ? door.built.lane : (door.def ? 'host' : null),
         runtimeDeclined: (door.built && door.built.runtimeDeclined) || null,
         withheld: (door.built && door.built.withheld) || [],
+        // ⭐ RT9 — a host document whose drawings may come from its own run:
+        // 'served', the declining code, or null when not asked.
+        objectsRun: (door.built && door.built.objectsRun) || null,
       } : {}),
     }
   } finally {

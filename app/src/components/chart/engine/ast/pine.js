@@ -133,7 +133,9 @@ import {
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
-import { wholeTransparency, unpackColor } from '../colorInt.js'
+import {
+  wholeTransparency, unpackColor, NA_BASE_HEX, NA_TRANSPARENCY, NA_CHANNEL,
+} from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
@@ -25687,6 +25689,29 @@ function colourChannelTree(colour, channel) {
   return cNum(channel === 't' ? byteTransparency(u.transparencyByte) : u[channel])
 }
 
+/** ⭐⭐ RT9 — IS THIS ARGUMENT PINE'S `na`, PROVABLY, AT TRANSLATION TIME?
+ *
+ *  `na`, `na()`, a cast of one (`color(na)`, `float(na)`, `int(na)`), or a name
+ *  the script bound to one and never reassigned (`float nv = na`). ⛔ A SHAPE
+ *  read, never "might be `na` on some bar": a series that is `na` only sometimes
+ *  is a per-bar colour and stays uncarried. Asked only by the `color.new` /
+ *  `color.rgb` fold below, which answers what TradingView draws for an `na`
+ *  argument (`colorInt.js`, `NA_BASE_HEX` / `NA_TRANSPARENCY` / `NA_CHANNEL`,
+ *  measured on `vw-rt6-runtime-colour` C03-C05). */
+function naConstantOf(node, env, depth = 0) {
+  if (!node || depth > 8) return false
+  if (isNaColourLeaf(node)) return true
+  if (node.type === 'call' && ['color', 'float', 'int'].includes(node.name)) {
+    const args = node.args || []
+    return args.length === 1 && !!args[0] && !args[0].name && naConstantOf(args[0].value, env, depth + 1)
+  }
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && naConstantOf(bound.node, bound.env || env, depth + 1)
+  }
+  return false
+}
+
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'bound') {
@@ -25736,7 +25761,12 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   // an author spelling the same fixed colour a different way. Alpha, when given,
   // is Pine's fourth argument and is a TRANSPARENCY like `color.new`'s.
   if (node.type === 'call' && node.name === 'color.rgb') {
-    const ch = (node.args || []).slice(0, 3).map((a) => numberValue((a || {}).value))
+    // ⭐⭐ RT9 — an `na` channel is 0 (`colorInt.js::NA_CHANNEL`, C05 `#000000ff`).
+    const ch = (node.args || []).slice(0, 3).map((a) => {
+      const v = (a || {}).value
+      const n = numberValue(v)
+      return n === null && naConstantOf(v, env) ? NA_CHANNEL : n
+    })
     if (ch.length === 3 && ch.every((v) => v !== null && v >= 0 && v <= 255)) {
       const hex = ch.map((v) => Math.round(v).toString(16).padStart(2, '0').toUpperCase()).join('')
       const a4 = (node.args || [])[3]
@@ -25775,7 +25805,9 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     // by `pine.presentation.test.js`'s own "never guessed" case, which is the
     // only reason this branch is strict.
     const t = ((node.args || [])[1] || {}).value
-    if (t !== undefined && alphaNumberOf(t, env, ctx) === null) return null
+    // ⭐⭐ RT9 — an `na` transparency is a colour too: transparency 100
+    // (`colorInt.js::NA_TRANSPARENCY`, C04 `#ff525200`), read by `colourHelperAlpha`.
+    if (t !== undefined && alphaNumberOf(t, env, ctx) === null && !naConstantOf(t, env)) return null
     // ⭐⭐ R33a — THE BASE IS RESOLVED LIKE EVERY OTHER COLOUR, BY RECURSION.
     //
     // ⛔ THIS REMOVES AN ASYMMETRY; IT ADDS NO CAPABILITY. Two lines up, a bare
@@ -25802,6 +25834,8 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     // null here exactly as it does anywhere else — `color.new(c, 30)` where
     // `c = cond ? green : red` stays dynamic, which its control pins.
     const base = ((node.args || [])[0] || {}).value
+    // ⭐⭐ RT9 — an `na` BASE is black (`colorInt.js::NA_BASE_HEX`, C03 `#00000099`).
+    if (naConstantOf(base, env)) return NA_BASE_HEX
     return staticColourOf(base, env, depth + 1, ctx)
   }
   // ⭐⭐ R35c — A SINGLE-EXPRESSION USER COLOUR HELPER IS SUBSTITUTED AND RE-WALKED.
@@ -25884,7 +25918,11 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
-  const raw = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
+  const slot = ((node.args || [])[arity] || {}).value
+  // ⭐⭐ RT9 — `color.new`'s `na` transparency is 100 (`colorInt.js`, C04). ⛔ Not
+  // `color.rgb`'s fourth argument: no capture witnesses that one.
+  const raw = arity === 1 && slot !== undefined && numberValue(slot) === null && naConstantOf(slot, env)
+    ? NA_TRANSPARENCY : alphaNumberOf(slot, env, ctx)
   // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` →
   // 70; measured on `vw-gradient-spy-1d-2026-09-30`), in the plot lane too.
   const t = raw === null ? null : wholeTransparency(raw)
