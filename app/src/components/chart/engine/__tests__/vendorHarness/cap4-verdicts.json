@@ -44,6 +44,117 @@
         ],
         "paints": null
       }
+    },
+    {
+      "id": "vw-h5-request-timeframe-text-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-request-timeframe-text.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-h5-request-timeframe-text-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-request-timeframe-text.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt7-empty-reduce-fixnan.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:na): this fills a gap by carrying",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt7-empty-reduce-fixnan.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "E00_bar_index_CONTROL",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            "E01_max_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E02_min_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E03_sum_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E04_avg_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E05_sum_all_na",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E06_avg_all_na",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "F00_x_CONTROL",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F01_fixnan",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F02a_fixnan_in_fn",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F02b_fixnan_in_fn_second_site",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     }
   ]
 }

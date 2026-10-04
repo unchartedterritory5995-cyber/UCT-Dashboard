@@ -19,6 +19,9 @@ import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { cap3Signature } from './cap3Signature'
 import { loadPineLibraryStore } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 import { clearPineLibraries } from '../../ast/pineLibraryStore'
+import { enterMemberDoor } from './ourSide'
+import * as registry from '../../nativeRegistry'
+import { runtimeColumnsFor, __gradeWithoutPaneClockForTests } from '../../runtime/runtimeColumns'
 
 afterEach(() => { vi.unstubAllEnvs() })
 const T = 600000
@@ -35,6 +38,16 @@ const cellsByRow = (c) => {
   const m = {}
   for (const x of c.objects.records.tableCells) (m[x.row] = m[x.row] || [])[x.col] = x.t
   return m
+}
+
+const gradeRow = (row) => {
+  if (row.library) loadPineLibraryStore(STORE_DIR)
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  if (row.state === 'runtime') vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  const v = gradeCapture(cap(row.id)).verdict
+  vi.unstubAllEnvs()
+  clearPineLibraries()
+  return v
 }
 
 describe('CAP4 - Q-H5a vw-h5-format-volume, AMEX:SPY 1D (vendor witness)', () => {
@@ -68,15 +81,82 @@ describe('CAP4 - Q-H5a vw-h5-format-volume, AMEX:SPY 1D (vendor witness)', () =>
   })
 })
 
-const gradeRow = (row) => {
-  if (row.library) loadPineLibraryStore(STORE_DIR)
-  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
-  if (row.state === 'runtime') vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
-  const v = gradeCapture(cap(row.id)).verdict
-  vi.unstubAllEnvs()
-  clearPineLibraries()
-  return v
-}
+describe('CAP4 - Q-H5b vw-h5-request-timeframe-text, AMEX:SPY 1D (vendor witness)', () => {
+  const ID = 'vw-h5-request-timeframe-text-spy-1d-2026-10-04'
+  it('the source is the committed probe; 300 bars (bar_index 8177..8476, not from the listing)', () => {
+    const c = cap(ID)
+    expect(c.source.sha256).toBe('a0dea71de09f4ab4e31454167dcf52522994d7b5ee9ae072a6f4e441a4476be2')
+    expect(c.bars.count).toBe(300)
+    const bi = col(c, 'T00_bar_index_CONTROL')
+    expect(bi[0]).toBe(8177)
+    expect(bi.every((x, i) => x === 8177 + i)).toBe(true)
+  })
+  it('inside request.security(<own>, tf, ...), timeframe.* is the REQUESTED timeframe on every bar: W 10080, M 43830, 240 -> 240, 3 -> 3; the chart reads multiplier 1', () => {
+    const c = cap(ID)
+    expect(new Set(col(c, 'T01_week'))).toEqual(new Set([10080]))
+    expect(new Set(col(c, 'T02_month'))).toEqual(new Set([43830]))
+    expect(new Set(col(c, 'T03_240'))).toEqual(new Set([240]))
+    expect(new Set(col(c, 'T04_3'))).toEqual(new Set([3]))
+    expect(new Set(col(c, 'T05_chart_multiplier_CONTROL'))).toEqual(new Set([1]))
+  })
+})
+
+describe('CAP4 - Q-RT7a/b vw-rt7-empty-reduce-fixnan, AMEX:SPY 1D FULL history (vendor witness)', () => {
+  const ID = 'vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04'
+  it('the source is the committed probe; 8477 bars from the listing (1993-01-29), bar_index 0..8476', () => {
+    const c = cap(ID)
+    expect(c.source.sha256).toBe('cbe8acbc6e871843cd191b855d8069a900e79d6be6eda1aede8b3913988b8140')
+    expect(c.history.startsAtBar0).toBe(true)
+    expect(c.bars.count).toBe(8477)
+    expect(c.bars.rows[0][0]).toBe(728317800)
+    expect(col(c, 'E00_bar_index_CONTROL').every((x, i) => x === i)).toBe(true)
+  })
+  it('E01-E06: max / min / sum / avg of an EMPTY array and sum / avg of (na, na) are na on every bar - no runtime error, and sum is NOT 0', () => {
+    const c = cap(ID)
+    for (const t of ['E01_max_empty', 'E02_min_empty', 'E03_sum_empty', 'E04_avg_empty', 'E05_sum_all_na', 'E06_avg_all_na']) {
+      expect(new Set(col(c, t)), t).toEqual(new Set([null]))
+    }
+  })
+  it('F01 / F02a / F02b: fixnan equals the hand replay (the last real value, na before the first) on all 8477 bars; two call sites keep two memories', () => {
+    const c = cap(ID)
+    const fix = (xs) => { let last = null; return xs.map((x) => { if (x !== null) last = x; return last }) }
+    const x = c.bars.rows.map((b, i) => (i < 3 || (i >= 20 && i <= 26) || i % 3 === 1 ? null : b[4]))
+    const hi = c.bars.rows.map((b, i) => (i % 4 === 0 ? b[2] : null))
+    expect(col(c, 'F00_x_CONTROL')).toEqual(x)
+    expect(col(c, 'F01_fixnan')).toEqual(fix(x))
+    expect(col(c, 'F02a_fixnan_in_fn')).toEqual(fix(x))
+    expect(col(c, 'F02b_fixnan_in_fn_second_site')).toEqual(fix(hi))
+  })
+})
+
+describe('CAP4 - why our door does not answer Q-H5b / Q-RT7 (the named walls these captures are the evidence for)', () => {
+  it('Q-H5b: both door states refuse the 240 request by name (pine:request, lower-tf:store-unmeasured)', () => {
+    for (const state of ['on', 'runtime']) {
+      const v = gradeRow({ id: 'vw-h5-request-timeframe-text-spy-1d-2026-10-04', state })
+      expect(v.verdict).toBe('INCONCLUSIVE')
+      expect(v.reason).toMatch(/pine:request/)
+      expect(v.reason).toMatch(/lower-tf:store-unmeasured/)
+    }
+  }, T)
+  it('Q-RT7: the objects pane refuses fixnan (pine:na); the runtime run stops on bar 0 by name at `array.sum of an empty array`, which TradingView answers na', () => {
+    const ID = 'vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04'
+    expect(gradeRow({ id: ID, state: 'on' }).reason).toMatch(/pine:na/)
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const c = cap(ID)
+    const door = enterMemberDoor(c.source.text)
+    expect(door.built.lane).toBe('runtime')
+    const bars = c.bars.rows.map((b) => ({ time: new Date(b[0] * 1000).toISOString().slice(0, 10), open: b[1], high: b[2], low: b[3], close: b[4], volume: b[5] }))
+    __gradeWithoutPaneClockForTests(true)
+    let err = null
+    try { runtimeColumnsFor(door.def, bars, undefined, { tf: 'D', symbol: 'SPY', historyFromListing: true, barIndexFromFirstBar: true }) } catch (e) { err = e }
+    __gradeWithoutPaneClockForTests(false)
+    registry.uninstallUserDefinition(door.def.id)
+    expect(err && err.guard).toBe('runtime:failed')
+    expect(String(err.message)).toMatch(/stopped on bar 0 of 8477 .*array\.sum of an empty array/)
+  }, T)
+})
+
 describe('CAP4 - our grade of each capture, pinned by measured signature', () => {
   it('every row carries a measured signature', () => {
     expect(CAP4.length).toBeGreaterThan(0)
