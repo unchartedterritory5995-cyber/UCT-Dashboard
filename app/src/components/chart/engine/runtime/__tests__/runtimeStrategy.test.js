@@ -120,10 +120,20 @@ describe('⛔ a `strategy.*` VALUE stays refused, by name', () => {
     })
   }
 
-  it('…including inside a condition the order call would have hidden', () => {
-    const built = build(`//@version=5\nstrategy("x")\nif strategy.position_size > 0\n    strategy.close("L")\nplot(close)\n`)
+  // ⭐⭐ RT15 (2026-10-04) — SUPERSEDES R1's "…including inside a condition the order
+  // call would have hidden". An `if` made ONLY of order calls is the order calls it
+  // holds (C50: the broker is not run), so its test reads nothing a drawing reads and
+  // the chain is skipped whole (`rt15Presentation.test.js` § 2). A broker value that
+  // reaches anything ELSE — a reassignment, a drawing, a plot — still refuses here.
+  it('…a condition that guards an order AND something else still refuses', () => {
+    const built = build(`//@version=5\nstrategy("x")\nvar n = 0\nif strategy.position_size > 0\n    strategy.close("L")\n    n := n + 1\nplot(n)\n`)
     expect(built.ok).toBe(false)
     expect(built.refusal.guard).toBe('pine:strategy-call')
+  })
+  it('…and a condition that guards ONLY orders is skipped with them (RT15)', () => {
+    const built = build(`//@version=5\nstrategy("x")\nif strategy.position_size > 0\n    strategy.close("L")\nplot(close)\n`)
+    expect(built.ok, JSON.stringify(built.refusal)).toBe(true)
+    expect(built.diagnostics.families['runtime:strategy-order']).toBe(1)
   })
 })
 

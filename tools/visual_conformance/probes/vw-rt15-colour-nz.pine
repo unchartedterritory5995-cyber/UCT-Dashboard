@@ -1,0 +1,24 @@
+// RT15 (2026-10-04) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-04-rt15-presentation.md
+// Chart: NYSE:RDDT 1D from the listing (and AMEX:SPY 1D as a second witness).
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//
+// Q-RT15b — what `nz(<colour>)` with NO replacement answers when the colour is `na`.
+// The engine refuses it by name (`runtime:colour-nz`); its old answer was the packed
+// integer 0 (#00000000, transparent black). Read the colorer values of N01..N03 on
+// bars 0..9 (where the colour is na) and the drawn bar colours (B01) there.
+//@version=5
+indicator("vw-rt15-colour-nz", overlay = true)
+
+// na on bars 0..9, then a colour that alternates
+var color c = na
+c := bar_index < 10 ? na : (close > open ? color.green : color.red)
+
+// N01: nz of an na colour, as a PLOT colour (colorer value on bars 0..9)
+plot(close, "N01 nz(c) plot colour", color = nz(c))
+// N02: nz of the colour's history (atr-trend-bands-misu's shape)
+plot(open, "N02 nz(c[1]) plot colour", color = nz(c[1]))
+// N03: the control — nz with a replacement
+plot(high, "N03 nz(c, gray) plot colour", color = nz(c, color.gray))
+// B01: nz of an na colour on BARCOLOR — does the bar keep the chart's colour (na)
+// or turn transparent (#00000000)? Screenshot bars 0..9 as well as the colorer.
+barcolor(nz(c), title = "B01 barcolor nz(c)")

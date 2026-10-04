@@ -1188,6 +1188,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
     if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
+    // ⭐ RT15 — and a script with NOTHING to plot is a drawing script: when its
+    // drawing build refused, that refusal is the true wall, not "nothing to plot"
+    // (strong-start-rvol-dashboard, a table-only dashboard, read `runtime:no-output`
+    // while its drawing build stopped at a `ta.sma` sized by a parameter).
+    if (r.guard === 'runtime:no-output' && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
@@ -1267,11 +1272,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     if (!pres.ok) { withheld.push({ label, why: pres.why }); withheldOut.set(out, label); continue }
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput })
   }
-  if (!carried.length && !ownObjects) {
-    return decline(withheld.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', withheld.length
-      ? `every output it draws is withheld (${withheld.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
-      : 'the script declares nothing a chart row draws')
-  }
+  // ⭐ RT15 — "draws nothing" is decided AFTER the paints are read (below): a
+  // script whose only output is a `barcolor` (visualizing-displacement-tfo) draws
+  // that bar colour on TradingView, and RT6 already carries a paint from the run.
+  const nothingCarried = !carried.length && !ownObjects
   const outputs = {}
   const drawnRows = carried.slice(0, CARRY_MAX)
   // ⭐⭐ RT6 — THE COLOUR COLUMNS, minted AFTER the drawn rows (a derived column
@@ -1385,6 +1389,23 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       })
     }
   }
+  if (nothingCarried && !docPaints.length) {
+    const all = [...withheld, ...paintWithheld.map(({ p, why }) => ({ label: p.kind, why }))]
+    return decline(all.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', all.length
+      ? `every output it draws is withheld (${all.map((w) => `\`${w.label}\`: ${w.why}`).join('; ')})`
+      : 'the script declares nothing a chart row draws')
+  }
+  // ⛔ RT15 — THE HOST LANE'S RULE FOR A PAINT-ONLY PANE SCRIPT, APPLIED HERE TOO
+  // (`memberPaneDefinition`'s `pine:paint-pane`): TradingView shades the script's
+  // OWN pane, and a pane exists here only when a series is bound in it — so a
+  // background with no row would land nowhere, or on the price pane. A `barcolor`
+  // recolours the chart's candles and needs no pane.
+  if (nothingCarried && !(t.presentation && t.presentation.overlay === true)
+      && docPaints.some((p) => p.kind === 'bgcolor')) {
+    return decline('pine:paint-pane', 'this script draws only a background in a pane of its own, and a pane '
+      + 'with no series in it is not built here — so the shading is not drawn rather than drawn over the '
+      + 'price chart')
+  }
   const objectsGate = paneObjectsGate(t)
   const drawsObjects = !ownObjects && objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
@@ -1486,10 +1507,19 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { label, why } of fillsOut.withheld) {
     notes.push({ name: label, note: `${label} is not drawn: ${why}. Nothing is drawn for it rather than a guess.` })
   }
+  // ⭐ RT15 — AND THE CANDLES THE RUN ITSELF SKIPPED (`probe.undrawn`), for a kind
+  // the host translation does not list at all: the host may have refused before it
+  // read the call, and a skipped candle must never go unsaid. A kind the host DOES
+  // list keeps the host's reading of it (an author-hidden candle draws nothing on
+  // TradingView either, and is not named).
+  const hostListedKinds = new Set((t.outputs || []).filter(Boolean).map((o) => o.kind))
   const undrawn = [...new Set([
     ...(t.outputs || [])
       .filter((o) => o && !hiddenOnChart(o) && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
+    ...(probe.undrawn || [])
+      .map((u) => u && u.call)
+      .filter((k) => Object.hasOwn(RUNTIME_UNDRAWN_KINDS, k) && !hostListedKinds.has(k)),
   ])]
   if (undrawn.length) {
     notes.push({
