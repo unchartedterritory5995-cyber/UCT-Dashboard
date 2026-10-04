@@ -99,8 +99,17 @@ def register_predicate_for_user(user_id: str, ticker: str, *, actions=None,
     entity_scope = _predicates.resolve_entity_scope(ticker)
     pid = _predicates.register_predicate(TYPE_ID, entity_scope, {"actions": acts}, user_id, None)
     items = baseline.get("items") or []
-    _predicates.update_last_seen_state(pid, {"key": action_key(items[0]) if items else None})
+    _predicates.update_last_seen_state(pid, _watermark(items))
     return pid
+
+
+def _watermark(items: list[dict]) -> dict:
+    """The ONE place the watermark is built: the newest action's key AND its
+    date. The date is the floor that keeps "no history replay" true when the
+    keyed action has aged out of the provider's window."""
+    if not items:
+        return {"key": None, "date": None}
+    return {"key": action_key(items[0]), "date": str(items[0].get("date") or "")[:10] or None}
 
 
 def _as_of(date: str) -> float:
@@ -110,11 +119,18 @@ def _as_of(date: str) -> float:
         return time.time()
 
 
-def _new_actions(items: list[dict], last_key: Optional[str]) -> list[dict]:
-    """Actions newer than the watermark (items are newest-first)."""
+def _new_actions(items: list[dict], last_key: Optional[str],
+                 last_date: Optional[str] = None) -> list[dict]:
+    """Actions newer than the watermark (items are newest-first).
+
+    Stops at the keyed action, OR at the first action dated BEFORE the
+    watermark's date -- without the date floor, a watermark whose action has
+    aged out of the feed would make every item "new" and replay history."""
     out = []
     for a in items:
         if last_key is not None and action_key(a) == last_key:
+            break
+        if last_date and str(a.get("date") or "")[:10] < last_date:
             break
         out.append(a)
     return out
@@ -128,11 +144,11 @@ def _evaluate_one(p: dict, cache: dict, fetch) -> dict:
     if "error" in res:
         return {"predicate_id": p["id"], "outcome": "error", "error": res["error"]}
     items = res.get("items") or []
-    last = (p.get("last_seen_state") or {}).get("key")
-    fresh = _new_actions(items, last)
+    seen = p.get("last_seen_state") or {}
+    fresh = _new_actions(items, seen.get("key"), seen.get("date"))
     if not items or not fresh:
         return {"predicate_id": p["id"], "outcome": "no_change"}
-    _predicates.update_last_seen_state(p["id"], {"key": action_key(items[0])})
+    _predicates.update_last_seen_state(p["id"], _watermark(items))
     wanted = set((p.get("params") or {}).get("actions") or DEFAULT_ACTIONS)
     hits = [a for a in fresh if (a.get("action") or "") in wanted]
     if not hits:

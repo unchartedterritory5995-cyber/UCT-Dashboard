@@ -81,6 +81,18 @@ def test_the_same_action_never_fires_twice(store):
     assert len(receipts.list_fires("u1", limit=10)) == 1
 
 
+def test_a_watermark_that_aged_out_of_the_feed_never_replays_history(store):
+    """The provider window slides: the keyed action can vanish from the feed.
+    An older upgrade still in the window is history, never a new alert."""
+    feed = Feed([OLD, A("2026-08-01", "Jefferies", "upgrade", "Hold", "Buy")])
+    rc.register_predicate_for_user("u1", "NVDA", fetch=feed)
+    feed.items = [A("2026-08-01", "Jefferies", "upgrade", "Hold", "Buy")]   # OLD aged out
+    assert rc.run_sweep(fetch=feed)["fired"] == 0 and store["sent"] == []
+    # CONTROL: an action dated after the watermark still fires.
+    feed.items = [A("2026-10-01", "Goldman", "upgrade", "Hold", "Buy")] + feed.items
+    assert rc.run_sweep(fetch=feed)["fired"] == 1
+
+
 def test_a_maintain_is_not_a_change_by_default(store):
     feed = Feed([OLD])
     rc.register_predicate_for_user("u1", "NVDA", fetch=feed)
