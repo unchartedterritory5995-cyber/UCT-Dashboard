@@ -1,0 +1,374 @@
+{
+  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand.",
+  "captures": [
+    {
+      "id": "vw-h5-format-volume-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              34,
+              18
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-h5-format-volume-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              34,
+              18
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-h5-request-timeframe-text-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-request-timeframe-text.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-h5-request-timeframe-text-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-request-timeframe-text.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt7-empty-reduce-fixnan.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:na): this fills a gap by carrying",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt7-empty-reduce-fixnan.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "E00_bar_index_CONTROL",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            "E01_max_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E02_min_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E03_sum_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E04_avg_empty",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E05_sum_all_na",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "E06_avg_all_na",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — the member pane did not carry this o"
+          ],
+          [
+            "F00_x_CONTROL",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F01_fixnan",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F02a_fixnan_in_fn",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "F02b_fixnan_in_fn_second_site",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-runtime-followups-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-runtime-followups.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "W01 wma gap warmup",
+            "DIVERGE",
+            20,
+            "na",
+            6,
+            "scattered"
+          ],
+          [
+            "W02 ema of wma",
+            "DIVERGE",
+            24,
+            "na",
+            46,
+            "scattered"
+          ],
+          [
+            "W03 wma bar0 then gap",
+            "DIVERGE",
+            50,
+            "na",
+            8,
+            "scattered"
+          ],
+          [
+            "R01 mid",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "R02 close",
+            "MATCH",
+            636
+          ],
+          [
+            "S01 shape per-bar",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ],
+          [
+            "S02 char per-bar with na",
+            "MATCH",
+            636
+          ],
+          [
+            "S03 shape color.new per-bar",
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
+          ],
+          [
+            "S04 shape per-bar with text",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-runtime-followups-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-runtime-followups.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "W01 wma gap warmup",
+            "DIVERGE",
+            20,
+            "na",
+            6,
+            "scattered"
+          ],
+          [
+            "W02 ema of wma",
+            "DIVERGE",
+            24,
+            "na",
+            46,
+            "scattered"
+          ],
+          [
+            "W03 wma bar0 then gap",
+            "DIVERGE",
+            50,
+            "na",
+            8,
+            "scattered"
+          ],
+          [
+            "R01 mid",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "R02 close",
+            "MATCH",
+            636
+          ],
+          [
+            "S01 shape per-bar",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ],
+          [
+            "S02 char per-bar with na",
+            "MATCH",
+            636
+          ],
+          [
+            "S03 shape color.new per-bar",
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
+          ],
+          [
+            "S04 shape per-bar with text",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-v4-fill-transp-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-v4-fill-transp.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "A",
+            "MATCH",
+            636
+          ],
+          [
+            "B",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-v4-fill-transp-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-v4-fill-transp.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "A",
+            "MATCH",
+            636
+          ],
+          [
+            "B",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    }
+  ]
+}
