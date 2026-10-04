@@ -12047,6 +12047,27 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
+    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x /
+    // syminfo.mintick) * syminfo.mintick`: Pine's reference, "the value rounded to
+    // the symbol's mintick … with ties rounding up", which is `math.round` on the
+    // tick count. Written HERE AS THAT PINE and resolved, so the tick is the
+    // binding's like every `syminfo.mintick` (settled per symbol from the
+    // witnessed table; a screen refuses it by name) and this lane and the runtime
+    // lane's RT5 desugar (`pineRuntimeFrontend.js`) are the same program.
+    // Graded on `multicator-table-{rddt,spy}-1d-2026-10-02`: the table cells
+    // TradingView printed through `str.tostring(math.round_to_mintick(…))` — open,
+    // close, three SMAs, an EMA, RSI and ATR on RDDT from the listing — are this
+    // lane's text on the same bars (`vendorHarness.h5MulticatorValues`).
+    if (pineName === 'math.round_to_mintick' && Array.isArray(args) && args.length === 1
+      && args[0] && !args[0].name) {
+      const x = args[0].value !== undefined ? args[0].value : args[0]
+      const mintick = { type: 'name', name: 'syminfo.mintick', tok }
+      return this.resolve({
+        type: 'binary', op: '*', tok, right: mintick,
+        left: { type: 'call', name: 'math.round', tok,
+          args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
+      })
+    }
     const bare = normaliseName(base)
     const ownCross = this.crossOfOwnState(base, args, tok)
     if (ownCross) return ownCross
