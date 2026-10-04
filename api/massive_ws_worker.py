@@ -126,6 +126,7 @@ _state = {
     "events_written_indexes": 0,
     "last_trade_ts": None,
     "last_write_ts": None,
+    "write_started_ts": None,   # set while a _write_events batch runs (flow_watchdog reads it)
     "reconnect_count": 0,
     "last_error": None,
     "thread": None,
@@ -870,27 +871,83 @@ def _load_ticker_metadata(symbols: list) -> dict:
     # with the table — the deploy-free day-over-day lag creep (Mon 4s → Wed
     # 18s). MktCap/Sector move on earnings timescales: cache 24h + bounded
     # newest-row lookups (rides idx_flow_symbol_created).
+    #
+    # ⛔ 2026-10-02 FREEZE — THIS FUNCTION NEVER WAITS ON SQL FOR LONG. The cache
+    # is filled at consumer start and every entry expires 24h later, so a process
+    # older than a day reaches the open with ALL of it expired at once. The old
+    # code then re-fetched every symbol of the first batch synchronously: 121.5s
+    # at the 10/2 open (yesterday: 1-80ms), and ~10 MINUTES on a cold boot while
+    # prewarm scanned the same table. flow_watchdog killed each restart before its
+    # first insert, ~30 times, and the whole session's tape was lost.
+    #   - an EXPIRED entry is served as-is and refreshed in the background
+    #     (metadata moves on earnings timescales; a day-old value is correct);
+    #   - a MISSING symbol is looked up inline only inside a hard time budget
+    #     (_META_SYNC_BUDGET_SEC, enforced by sqlite's progress handler so one
+    #     slow query cannot overrun it); whatever the budget does not cover is
+    #     written without metadata this batch and fetched in the background;
+    #   - every lookup is bounded to the newest _META_LOOKUP_ROWID_WINDOW rows, so
+    #     a symbol that never carries a MktCap (an ETF) cannot walk the table.
     now = time.time()
     out: dict = {}
     to_fetch = []
+    stale = []
     for sym in clean:
         entry = _META_CACHE.get(sym)
-        if entry and (now - entry[1]) < _META_TTL_SEC:
+        if entry:
             if entry[0]:
                 out[sym] = dict(entry[0])
+            if (now - entry[1]) >= _META_TTL_SEC:
+                stale.append(sym)
         else:
             to_fetch.append(sym)
+    if stale:
+        _queue_meta_refresh(stale)
     if not to_fetch:
         return out
 
+    deadline = time.monotonic() + _META_SYNC_BUDGET_SEC
+    fetched: dict = {}
     try:
-        with sqlite3.connect(db.db_path, timeout=10) as conn:
-            for sym in to_fetch:
+        fetched = _fetch_ticker_metadata(db.db_path, to_fetch, deadline=deadline)
+    except Exception as e:
+        logger.warning("[massive-ws] _load_ticker_metadata SQL failed: %s", e)
+    for sym, meta in fetched.items():
+        _META_CACHE[sym] = (meta, now)
+        if meta:
+            out[sym] = dict(meta)
+    missed = [s for s in to_fetch if s not in fetched]
+    if missed:
+        _state["meta_budget_misses"] = _state.get("meta_budget_misses", 0) + len(missed)
+        _queue_meta_refresh(missed)
+
+    return out
+
+
+def _fetch_ticker_metadata(db_path: str, symbols: list, *, deadline: float = None) -> dict:
+    """{symbol: meta} for each symbol looked up before `deadline` (monotonic).
+
+    A symbol absent from the result was NOT looked up — distinct from one that
+    was looked up and has no metadata, which maps to {}. Both queries are
+    bounded to the newest _META_LOOKUP_ROWID_WINDOW rows, and the deadline is
+    enforced inside a running query via the progress handler."""
+    import sqlite3
+    out: dict = {}
+    conn = sqlite3.connect(db_path, timeout=10)
+    try:
+        if deadline is not None:
+            conn.set_progress_handler(
+                lambda: 1 if time.monotonic() > deadline else 0, 10_000)
+        floor = max(0, (conn.execute("SELECT COALESCE(MAX(rowid),0) FROM flow")
+                        .fetchone()[0] or 0) - _META_LOOKUP_ROWID_WINDOW)
+        for sym in symbols:
+            if deadline is not None and time.monotonic() > deadline:
+                break
+            try:
                 meta = {}
                 row = conn.execute(
-                    "SELECT MktCap FROM flow WHERE Symbol = ? "
+                    "SELECT MktCap FROM flow WHERE Symbol = ? AND rowid >= ? "
                     "AND MktCap IS NOT NULL AND MktCap != '' AND MktCap != '0' "
-                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
+                    "ORDER BY rowid DESC LIMIT 1", (sym, floor)).fetchone()
                 if row:
                     try:
                         mc = int(float((row[0] or "0").strip()))
@@ -899,18 +956,60 @@ def _load_ticker_metadata(symbols: list) -> dict:
                     except (ValueError, TypeError):
                         pass
                 row = conn.execute(
-                    "SELECT Sector FROM flow WHERE Symbol = ? "
+                    "SELECT Sector FROM flow WHERE Symbol = ? AND rowid >= ? "
                     "AND Sector IS NOT NULL AND Sector != '' "
-                    "ORDER BY rowid DESC LIMIT 1", (sym,)).fetchone()
+                    "ORDER BY rowid DESC LIMIT 1", (sym, floor)).fetchone()
                 if row and (row[0] or "").strip():
                     meta["sector"] = row[0].strip()
-                _META_CACHE[sym] = (meta, now)
-                if meta:
-                    out[sym] = dict(meta)
-    except Exception as e:
-        logger.warning("[massive-ws] _load_ticker_metadata SQL failed: %s", e)
-
+            except sqlite3.OperationalError as e:
+                if "interrupt" in str(e).lower():
+                    break           # budget spent mid-query; leave sym un-fetched
+                raise
+            out[sym] = meta
+    finally:
+        conn.close()
     return out
+
+
+# Background metadata refresh (2026-10-02 freeze fix). Symbols whose cache entry
+# expired, or that the inline budget did not reach, are fetched here — off the
+# write path, so a slow lookup costs freshness, never the tape.
+_META_REFRESH_PENDING: set = set()
+_META_REFRESH_LOCK = threading.Lock()
+_META_REFRESH_THREAD = None
+_META_REFRESH_BATCH = 200
+
+
+def _queue_meta_refresh(symbols) -> None:
+    global _META_REFRESH_THREAD
+    with _META_REFRESH_LOCK:
+        _META_REFRESH_PENDING.update(symbols)
+        if _META_REFRESH_THREAD is None or not _META_REFRESH_THREAD.is_alive():
+            _META_REFRESH_THREAD = threading.Thread(
+                target=_meta_refresh_loop, daemon=True, name="massive-ws-meta-refresh")
+            _META_REFRESH_THREAD.start()
+
+
+def _meta_refresh_loop() -> None:
+    """Drain _META_REFRESH_PENDING, then exit; the next queue call restarts it."""
+    while True:
+        with _META_REFRESH_LOCK:
+            batch = [_META_REFRESH_PENDING.pop()
+                     for _ in range(min(_META_REFRESH_BATCH, len(_META_REFRESH_PENDING)))]
+            if not batch:
+                return
+        try:
+            from api.flow_db import FlowDB
+            fetched = _fetch_ticker_metadata(FlowDB().db_path, batch)
+            now = time.time()
+            for sym, meta in fetched.items():
+                _META_CACHE[sym] = (meta, now)
+            _state["meta_refreshed"] = _state.get("meta_refreshed", 0) + len(fetched)
+        except Exception as e:
+            logger.warning("[massive-ws] background metadata refresh failed: %s", e)
+            with _META_REFRESH_LOCK:
+                _META_REFRESH_PENDING.update(batch)
+            time.sleep(30)
 
 
 def _classify_events_side(events: list) -> None:
@@ -1534,6 +1633,12 @@ _tape_spool_fn = None
 # same class as _ER_CACHE). {symbol: ({'mktcap':..,'sector':..}, fetched_at)}
 _META_CACHE: dict = {}
 _META_TTL_SEC = 24 * 60 * 60    # metadata moves on earnings timescales
+# Inline lookup budget per batch for symbols with NO cache entry; the rest are
+# fetched in the background (2026-10-02 freeze fix — see _load_ticker_metadata).
+_META_SYNC_BUDGET_SEC = float(os.environ.get("MASSIVE_META_SYNC_BUDGET_SEC", "2.0"))
+# Per-symbol lookups only search the newest N rows (~2 weeks of tape), so a
+# symbol that never carries a MktCap cannot walk the whole flow table.
+_META_LOOKUP_ROWID_WINDOW = int(os.environ.get("MASSIVE_META_LOOKUP_ROWID_WINDOW", "2000000"))
 
 
 def _load_er_flags(symbols: list) -> dict:
@@ -1932,6 +2037,10 @@ def _write_events(events: list) -> None:
         _state["events_written_indexes"] += len(indexes)
         return
 
+    # The batch in progress, for flow_watchdog: a writer that is alive but inside
+    # a slow batch is not a frozen consumer, and restarting it makes the next
+    # batch slower (2026-10-02). Cleared in the finally below.
+    _state["write_started_ts"] = time.time()
     try:
         from api.flow_db import FlowDB
         db = FlowDB()
@@ -2053,6 +2162,8 @@ def _write_events(events: list) -> None:
     except Exception as e:
         logger.exception("[massive-ws] DB write failed: %s", e)
         _state["last_error"] = f"db_write: {e}"
+    finally:
+        _state["write_started_ts"] = None
 
 
 def _insert_with_retry(db, csv_str: str, source: str, attempts: int = 3) -> dict:

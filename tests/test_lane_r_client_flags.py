@@ -14,6 +14,7 @@ USER = {"id": "u1", "email": "m@example.com", "role": "member"}
 FLAGS = [
     ("CHARTS_EXTRA_GROUPS_ENABLED", "charts_extra_groups_enabled"),
     ("HOW_TO_CHECKLISTS_ENABLED", "how_to_checklists_enabled"),
+    ("RESEARCH_FMP_DEPTH_ENABLED", "research_fmp_depth_enabled"),
 ]
 
 
@@ -56,7 +57,8 @@ def test_on_adds_exactly_its_own_key(monkeypatch, env, key):
 def test_the_flags_are_read_per_call(monkeypatch):
     auth = _auth()
     for env, reader in (("HOW_TO_CHECKLISTS_ENABLED", auth.how_to_checklists_enabled),
-                        ("CHARTS_EXTRA_GROUPS_ENABLED", auth.charts_extra_groups_enabled)):
+                        ("CHARTS_EXTRA_GROUPS_ENABLED", auth.charts_extra_groups_enabled),
+                        ("RESEARCH_FMP_DEPTH_ENABLED", auth.research_fmp_depth_enabled)):
         monkeypatch.setenv(env, "1")
         assert reader() is True
         monkeypatch.setenv(env, "0")

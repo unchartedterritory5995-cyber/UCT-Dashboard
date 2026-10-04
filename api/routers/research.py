@@ -238,12 +238,38 @@ def research_financials(sym: str):
 
 
 @router.get("/api/research/estimates/{sym}")
-def research_estimates(sym: str):
-    try:
-        return get_estimates(sym)
-    except Exception as exc:
-        _logger.warning("research estimates failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+def research_estimates(sym: str, consensus: int = 0):
+    """yfinance forward estimates + revisions. `?consensus=1` (the terminal's EE
+    panel, and the research tab when RESEARCH_FMP_DEPTH_ENABLED is on) adds the
+    FMP multi-year consensus beside them, read CONCURRENTLY with the yfinance leg
+    so a cold load costs the slower of the two, not their sum. Without the
+    parameter the response is exactly what it always was."""
+    if not consensus:
+        try:
+            return get_estimates(sym)
+        except Exception as exc:
+            _logger.warning("research estimates failed for %s: %s", sym, exc)
+            return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+
+    from api.services.research.estimates_consensus import get_consensus
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-route") as ex:
+        f_yf = ex.submit(get_estimates, sym)
+        f_fmp = ex.submit(get_consensus, sym)
+        try:
+            out = dict(f_yf.result() or {})
+        except Exception as exc:
+            _logger.warning("research estimates failed for %s: %s", sym, exc)
+            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+        try:
+            out["consensus"] = f_fmp.result()
+        except Exception as exc:
+            _logger.warning("research consensus failed for %s: %s", sym, exc)
+            out["consensus"] = {"sym": (sym or "").upper(), "state": "error",
+                                "annual": [], "quarterly": []}
+    # Which vendor stands behind each block, for the on-screen source line.
+    out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
+                      "consensus": "FMP"}
+    return out
 
 
 @router.get("/api/research/analyst-ratings/{sym}")
