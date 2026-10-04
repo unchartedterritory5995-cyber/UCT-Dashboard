@@ -4100,6 +4100,11 @@ def interpret(ast: Any, bars: List[dict],
                     real[i] = math.nan
         column = real
     if not probing:
+        # F5 -- ``interpret.js::seedWarmupMask``: off the listing, in a Pine document,
+        # a recursive series' early bars are withheld by their own decay. Decided
+        # on the column BEFORE the three withholdings below, as the JS lane decides
+        # it beside them (``withheldReadMask`` computes every mask off one column).
+        seeded = seed_warmup_mask(ast, bars, inputs, budget, scalars, opts, raw=column)
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4110,6 +4115,8 @@ def interpret(ast: Any, bars: List[dict],
         indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
         if indexed is not None:
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
+        if seeded is not None:
+            column = [math.nan if seeded[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4202,6 +4209,10 @@ def _reads_recurrence_binding(tree: Any) -> bool:
         if isinstance(args, list):
             stack.extend(args)
     return False
+# F5 -- the seed warm-up bound lives in its own module (a 600-line pass kept out
+# of this file).
+from api.services.ast_seed_warmup import seed_warmup_mask  # noqa: E402
+
 # C45 -- the bar-index shift analysis lives in its own module (it catches its own
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
@@ -4398,6 +4409,8 @@ CHART_CLOCK_WHOLE = (
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars",
+    # F5 -- a recursive series seeded at the window (``ast_seed_warmup``)
+    "seed:window",
 )
 
 
@@ -5201,6 +5214,10 @@ def _interpret_column(ast: Any, bars: List[dict],
     #: never be handed to a different set of bars.
     _id_of, _free_of, _ = structural_maps(ast)
     _memo: dict = {}
+    # F5 -- ``ast_seed_warmup._Env`` reads every self-free node's value off ONE
+    # evaluation through this sink (``id(node)`` -> value). Absent, nothing is
+    # recorded and nothing else changes.
+    _value_sink = (opts or {}).get("seedValueSink")
 
     # C49 -- ``time(<period>)`` / ``time_close(<period>)`` on a New York session
     # chart are the VENDOR'S CALENDAR, not the tree's literal reading: the port of
@@ -5254,12 +5271,16 @@ def _interpret_column(ast: Any, bars: List[dict],
         _key = id(n)
         _slot = _id_of.get(_key) if _free_of.get(_key) else None
         if _slot is not None and _slot in _memo:
+            if _value_sink is not None:
+                _value_sink[_key] = _memo[_slot]
             return _memo[_slot]
         _value = _chart_clock_value(n)
         if _value is None:
             _value = _eval_raw(n)
         if _slot is not None:
             _memo[_slot] = _value
+            if _value_sink is not None:
+                _value_sink[_key] = _value
         return _value
 
     def _eval_raw(n: Any) -> Any:
@@ -5355,7 +5376,8 @@ def _interpret_column(ast: Any, bars: List[dict],
             # HTF code so a nested clock or `tf` reads the right base.
             child = _to_column(
                 interpret(n["args"][0], htf, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {}, tf=code)),
+                          scalars=scalars, opts=dict(opts or {}, tf=code,
+                                                     seedValueSink=None, seedWarmupSink=None)),
                 len(htf))
 
             # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
@@ -5414,7 +5436,8 @@ def _interpret_column(ast: Any, bars: List[dict],
 
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {})),
+                          scalars=scalars, opts=dict(opts or {}, seedValueSink=None,
+                                                     seedWarmupSink=None)),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.

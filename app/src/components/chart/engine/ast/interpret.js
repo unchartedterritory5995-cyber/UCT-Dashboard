@@ -4686,6 +4686,15 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
     + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
     + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ F5 — a recursive series seeded at this window (see `seedWarmupMask`).
+  'seed:window': () => 'Averages that carry their own past forward — `ta.ema`, `ta.rma`, `ta.rsi`, '
+    + '`ta.atr`, a MACD line, the DMI legs — start on TradingView from the symbol\'s first bar. This chart\'s '
+    + 'loaded bars start later, so here each one starts from a different value and only converges to '
+    + 'TradingView\'s over a run of bars. Until our value is provably within TradingView\'s own comparison '
+    + 'tolerance of theirs — computed from how fast each average forgets its start and from the range of the '
+    + 'data loaded — those early bars are withheld rather than drawn wrong; the rest is drawn. On a daily '
+    + 'chart whose bars start at the symbol\'s listing it draws from the first bar. What would settle it: '
+    + 'nothing to capture — bars reaching further back.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -5129,14 +5138,876 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
   return mask
 }
 
+// --------------------------------------------------------------------------- //
+// ⭐⭐ F5 — A RECURSIVE SERIES SEEDED AT THE WINDOW, OFF THE LISTING
+// --------------------------------------------------------------------------- //
+//
+// INTEGRATOR RULING (owner-delegated, 2026-10-03). TradingView runs a recursive
+// series — `ta.ema`, `ta.rma`, `ta.rsi`, `ta.atr`, the MACD line, the DMI legs —
+// from the symbol's FIRST bar. A chart whose loaded history starts later (every
+// long-history member chart: SPY 1D 5,000 bars) seeds the same series at ITS first
+// bar, so the early values are a different number that converges to TradingView's.
+// ⛔ A converging value is a WRONG value until it has converged, and this engine
+// never draws a wrong value: each such bar is WITHHELD (`NaN`, named
+// `seed:window`), computed EXACTLY from the series' own decay — never from where a
+// comparison happened to diverge.
+//
+// ⭐ THE BOUND, PER BAR, FOR EVERY NODE (`seedBoundOf`). `B[i]` bounds
+// |ours − TradingView's| on bar i, assuming the ONLY difference is the seed:
+//
+//   a smoother (`α`: EMA 2/(n+1), RMA 1/n)   e_seed = R + 2·max(b_in) + mean(b_in over
+//                                            the seed bars); then
+//                                            e_i = (1−α)·e_{i−1} + α·b_in_i, held on a
+//                                            hole exactly as the value is held
+//   R                                        the RANGE of the smoother's own input over
+//                                            the loaded window — "the max plausible
+//                                            seed error, bounded from the data actually
+//                                            seen" (ruling): both seeds are averages of
+//                                            that input
+//   + − · /, min / max, windows (sma, wma,   derived (interval arithmetic / Lipschitz
+//   stdev, highest …), offsets, nz, abs,     constants): a chain's bound is DERIVED,
+//   monotone maths                           never guessed
+//   a comparison, `and` / `or` / `not`,      exact where the margin exceeds the operands'
+//   a crossing, a rounding                   bound (or the bound is rounding noise), 1 —
+//                                            a boolean can be off by one — where not
+//   `?:` on an uncertain test                |a − b| + max(b_a, b_b): either arm
+//   rsi / dmi / stoch                        the two (three) smoothed states as
+//                                            intervals, pushed through the formula
+//   `accum` (a Pine `var`)                   exact where every input it reads in its own
+//                                            window is exact; unknown otherwise
+//   anything else                            exact if its inputs are, unknown otherwise
+//
+// and a plot's bar is withheld while
+//
+//     B[i] >= ½ · max(SEED_WARMUP_ABS, SEED_WARMUP_REL · (|value| − B[i]))
+//
+// — half the vendor harness's own tolerance (`compare.mjs::tolerancePolicy`: relative
+// 1e-9; the absolute floor where the symbol's tick is unknown, 1e-12). Past that bar
+// our value is within the harness's tolerance of TradingView's by construction.
+//
+// ⛔ ONLY OFF THE LISTING, ONLY FOR A PINE DOCUMENT — and that is exactly the fact
+// C45's `bar_index` withholding already rides on: `opts.barIndexAbsolute === true`
+// (`nativeRegistry.barIndexAbsoluteFor` — the member door's `recurrenceOrigin:
+// 'pine'`, and the series not stated to start at TradingView's bar 0) with
+// `opts.historyFromListing !== true`. Where the first bar IS TradingView's bar 0 our
+// seed IS TradingView's and nothing changes. ONE declaration, so every lane that
+// already carries it — the chart's plots, the object lane, a nested `tf` / `sym`
+// read, and the server's scan sweep and alert lanes (`ast_interpret.lane_opts_for`)
+// — withholds the same bars with no new key to thread and none to forget. The runtime lane is not
+// touched: it refuses an off-listing chart whole (`runtime:history-start`).
+//
+// ⚠️ WHAT THIS DOES NOT CLAIM. `cum`, `cumFrom`, `obvN`, `pvtN` and `avwap` carry a
+// history offset that never decays; they are outside the ruling and keep their
+// treatment. An `accum` whose own seed residual (≤ 1e-6 of its range after the
+// 250-bar window, `pine.js::forgetsItsSeed`) is above the tolerance is NOT counted
+// here — its window is the door's decision, recorded as an open question in § F5.
+
+/** Relative tolerance a withheld-or-drawn decision is made against — the vendor
+ *  harness's `REL_TOL` (railed equal in `seedWarmup.test.js`). */
+export const SEED_WARMUP_REL = 1e-9
+/** Absolute floor — the harness's `ABS_FLOOR_UNKNOWN_SCALE`: this engine is not
+ *  told the symbol's tick, so it never claims a coarser floor than the harness's
+ *  finest. */
+export const SEED_WARMUP_ABS = 1e-12
+/** A bound this small next to the values it qualifies is rounding, not a seed: a
+ *  comparison whose operands are known to this many parts is decided as computed
+ *  (the harness itself accepts 1e-9 as "the same arithmetic in another order"). */
+export const SEED_NOISE_REL = 1e-12
+/** The name a seed withholding is disclosed under (`CHART_CLOCK_WITHHELD`). */
+export const SEED_WARMUP_CODE = 'seed:window'
+
+/** The calls whose value carries a seed from the first bar. */
+export const SEEDED_CALLS = Object.freeze(['ema', 'rma', 'rsi', 'macd', 'atrPine', 'atr', 'adx', 'plusDI', 'minusDI'])
+const SEEDED = new Set(SEEDED_CALLS)
+
+/** Is THIS evaluation a Pine document's, on a series that does not start where
+ *  TradingView's does? */
+// ⛔ NOT THE OBJECT LANE. A drawing program reads its values as coordinates and
+// carries its own unknown-state taint (C17), and it is lane F4's: an uncertain
+// seed bar there poisons the program's state (an `array<line>` a withheld create
+// would push to) for every later bar. Measured: `rsi-horizontal-resistance-levels`
+// on AMEX:SPY 1D went objects MATCH -> DIVERGE when this applied there. The object
+// lane is the one caller that states `barIndexUse: 'position'`
+// (`objectColumns.js::barIndexOpts`), so that is the line.
+export const seedFromWindowOf = (opts) => !!opts && opts.barIndexAbsolute === true
+  && opts.historyFromListing !== true && typeof opts.prefixProbe !== 'number'
+  && opts.barIndexUse !== 'position'
+
+const SEED_INF = Infinity
+const absMax = (a, b) => Math.max(Math.abs(a), Math.abs(b))
+const seedNegligible = (b, a, c = 0) => b === 0 || b <= SEED_NOISE_REL * absMax(a, c)
+
+/** Does any node of `tree` carry a seed (`SEEDED_CALLS`)? Memoised per node. */
+function seedReachesIn(tree, memo) {
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (memo.has(n)) return memo.get(n)
+    memo.set(n, false)
+    let r = n.type === 'call' && SEEDED.has(n.name)
+    if (Array.isArray(n.args)) for (const a of n.args) if (visit(a)) r = true
+    memo.set(n, r)
+    return r
+  }
+  return visit(tree)
+}
+
+/** A recursive smoother's bound (`smoothStep`'s own hold and seed). `vs` its input
+ *  values, `bs` their bound (null = exact). */
+function smootherSeedBound(vs, bs, n, alpha, length) {
+  let lo = Infinity, hi = -Infinity, maxB = 0
+  for (let i = 0; i < length; i++) {
+    const v = vs[i]
+    if (!Number.isFinite(v)) continue
+    if (v < lo) lo = v
+    if (v > hi) hi = v
+    if (bs && Number.isFinite(bs[i]) && bs[i] > maxB) maxB = bs[i]
+  }
+  const out = new Float64Array(length)
+  if (lo > hi) return out
+  const R = hi - lo
+  // ⭐ THE CAP, AND IT IS THE SEED'S OWN PREMISE. Both states are averages of
+  // inputs that lie within the observed range widened by the inputs' own finite
+  // bound, so neither the state's error nor one input's can exceed `cap`. An
+  // input this pass could not bound (`Infinity`: a decision it could not make)
+  // therefore costs `cap` for one step and DECAYS — without the cap one unknown
+  // bar would poison every later bar of the average forever.
+  const cap = R + 2 * maxB
+  const inBound = (i) => {
+    const b = bs ? bs[i] : 0
+    return b === b && b < cap ? b : cap
+  }
+  let e = NaN, seen = 0, sumB = 0
+  for (let i = 0; i < length; i++) {
+    if (!Number.isFinite(vs[i])) {
+      // A hole HOLDS the state (`smoothStep`). If the hole itself is uncertain —
+      // TradingView may have stepped here — its value is unknown and the state
+      // may have moved by up to an input's error.
+      if (!Number.isNaN(e) && bs && bs[i] === SEED_INF) {
+        e = Math.min(cap, (1 - alpha) * e + alpha * cap)
+        out[i] = SEED_INF
+      }
+      continue
+    }
+    const bi = inBound(i)
+    if (Number.isNaN(e)) {
+      sumB += bi; seen += 1
+      if (seen < n) continue
+      e = Math.min(cap, R + 2 * maxB + sumB / n)
+    } else {
+      e = Math.min(cap, (1 - alpha) * e + alpha * bi)
+    }
+    out[i] = e
+  }
+  return out
+}
+
+/** The largest bound in each trailing window of `span` bars (Infinity absorbs). */
+function windowMaxBound(b, span, length) {
+  if (!b) return null
+  const out = new Float64Array(length)
+  const at = (j) => (b[j] === b[j] ? b[j] : SEED_INF)
+  const q = []
+  let head = 0
+  for (let i = 0; i < length; i++) {
+    const v = at(i)
+    while (q.length > head && at(q[q.length - 1]) <= v) q.pop()
+    q.push(i)
+    while (q[head] <= i - span) head += 1
+    out[i] = at(q[head])
+  }
+  return out
+}
+
+function windowSumBound(b, span, length) {
+  if (!b) return null
+  const out = new Float64Array(length)
+  let s = 0
+  let inf = 0
+  for (let i = 0; i < length; i++) {
+    if (b[i] === SEED_INF) inf += 1; else s += b[i]
+    if (i - span >= 0) { if (b[i - span] === SEED_INF) inf -= 1; else s -= b[i - span] }
+    out[i] = inf ? SEED_INF : s
+  }
+  return out
+}
+
+/** 1 where a 0/1 flag column holds a 1 anywhere in the trailing `span` bars. */
+function windowAny(flags, span, length) {
+  const out = new Float64Array(length)
+  let last = -Infinity
+  for (let i = 0; i < length; i++) {
+    if (flags[i]) last = i
+    if (i - last < span) out[i] = 1
+  }
+  return out
+}
+
+/** The interval quotient's largest distance from `a / b`, or Infinity when the
+ *  divisor's interval reaches zero. */
+function quotientBound(a, ea, b, eb) {
+  if (!(Math.abs(b) > eb)) return SEED_INF
+  const q = a / b
+  let m = 0
+  for (const x of [a - ea, a + ea]) for (const y of [b - eb, b + eb]) m = Math.max(m, Math.abs(x / y - q))
+  return m
+}
+
+/** The bound of `f` over `[v − b, v + b]` for a MONOTONE `f`, or Infinity where a
+ *  corner leaves its domain. */
+function monotoneBound(f, v, b) {
+  const y = f(v)
+  const lo = f(v - b)
+  const hi = f(v + b)
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return SEED_INF
+  return Math.max(Math.abs(lo - y), Math.abs(hi - y))
+}
+
+const SEED_MONOTONE = Object.freeze({
+  sqrt: Math.sqrt, ln: Math.log, log10: Math.log10, exp: Math.exp, atan: Math.atan, sinh: Math.sinh,
+})
+const SEED_LIPSCHITZ_ONE = new Set(['sin', 'cos', 'abs'])
+const SEED_STEP = Object.freeze({ sign: Math.sign, round: (x) => POINTWISE.round(x), floor: Math.floor, ceil: Math.ceil })
+const SEED_WINDOW_MAX = Object.freeze({
+  sma: 1, wma: 1, median: 1, highest: 1, lowest: 1, stdev: 1, dev: 2,
+  percentileLinearInterpolation: 1,
+})
+
+/** ⭐⭐ THE BOUND COLUMN of `tree` on `bars`: |ours − TradingView's| per bar,
+ *  assuming the only difference is where each recursive series was seeded. `null`
+ *  where the tree carries no seed (exact). See the section header for every rule.
+ *  `valueOf(node, env)` hands back a node's column on `env.bars` — the evaluation's
+ *  own memo first. */
+function seedBoundOf(tree, env) {
+  const { length } = env
+  const reach = env.reach
+  const memo = env.memo
+  const val = (n) => env.valueOf(n, env)
+
+  // ⭐ A BOUND IS ABOUT A VALUE. Where ours is a number it bounds |ours − theirs|,
+  // and a rule that could not say (`NaN`) is Infinity. ⛔ NO `try` (`budget.test.js`):
+  // a node this pass cannot evaluate refuses exactly as the evaluator would. Where ours is `NaN` there are only two answers: 0 — TradingView's is
+  // `na` too, as far as the seed goes (a window's warm-up, a hole in the data:
+  // structural, and NOT this pass's to excuse) — or Infinity, which only a rule
+  // that DECIDED something can produce: an uncertain test choosing between `na`
+  // and a number, a hole TradingView may have stepped over. Nothing is promoted to
+  // Infinity at a `NaN` bar by default, so a structural `na` is never excused.
+  const bound = (n) => {
+    if (!n || typeof n !== 'object') return null
+    if (!seedReachesIn(n, reach)) return null
+    if (memo.has(n)) return memo.get(n)
+    const b = boundRaw(n)
+    const v = b ? val(n) : null
+    if (b && v) for (let i = 0; i < length; i++) {
+      if (v[i] !== v[i]) { if (b[i] !== SEED_INF) b[i] = 0 }
+      else if (b[i] !== b[i]) b[i] = SEED_INF
+    }
+    memo.set(n, b)
+    return b
+  }
+
+  /** "Exact unless an input is not": 0 where every argument's bound within the
+   *  node's own reach is rounding noise, Infinity elsewhere. */
+  const generic = (n) => {
+    const args = Array.isArray(n.args) ? n.args : []
+    const bs = args.map(bound)
+    if (bs.every((b) => b === null)) return null
+    const reachBars = Math.max(0, maxLookback(n) | 0)
+    const flags = new Float64Array(length)
+    args.forEach((a, k) => {
+      const b = bs[k]
+      if (!b) return
+      const v = val(a)
+      for (let i = 0; i < length; i++) if (!seedNegligible(b[i], v[i])) flags[i] = 1
+    })
+    const any = windowAny(flags, reachBars + 1, length)
+    const out = new Float64Array(length)
+    for (let i = 0; i < length; i++) out[i] = any[i] ? SEED_INF : 0
+    return out
+  }
+
+  /** A decided 0/1 result: exact where `certain(i)`, off by at most one elsewhere. */
+  const decided = (certain) => {
+    const out = new Float64Array(length)
+    for (let i = 0; i < length; i++) out[i] = certain(i) ? 0 : 1
+    return out
+  }
+  const compareCertain = (va, ea, vb, eb, i) => {
+    const a = va[i]
+    const b = vb[i]
+    const e = (ea ? ea[i] : 0) + (eb ? eb[i] : 0)
+    if (a !== a || b !== b) return e !== SEED_INF
+    return seedNegligible(e, a, b) || Math.abs(a - b) > e
+  }
+  const truthCertain = (v, e, i) => {
+    const x = v[i]
+    const b = e ? e[i] : 0
+    if (x !== x) return b !== SEED_INF
+    return seedNegligible(b, x) || Math.abs(x) > b
+  }
+
+  const boundRaw = (n) => {
+    const args = Array.isArray(n.args) ? n.args : []
+    switch (n.type) {
+      case 'offset': {
+        const k = offsetBars(n)
+        const b = bound(args[0])
+        if (!b) return null
+        const out = new Float64Array(length)
+        for (let i = k; i < length; i++) out[i] = b[i - k]
+        return out
+      }
+      case 'op': return opBound(n, args)
+      case 'call': return callBound(n, args)
+      case 'tf':
+      case 'tf_live':
+      case 'sym':
+      case LTF:
+        return nestedBound(n)
+      default:
+        return generic(n)
+    }
+  }
+
+  const opBound = (n, args) => {
+    const name = n.name
+    if (name === '?:') {
+      const [t, a, b] = args
+      const bt = bound(t)
+      const ba = bound(a)
+      const bb = bound(b)
+      if (!bt && !ba && !bb) return null
+      const vt = val(t)
+      const va = val(a)
+      const vb = val(b)
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) {
+        const x = vt[i]
+        if (x !== x) { if (bt && bt[i] === SEED_INF) out[i] = SEED_INF; continue }
+        if (truthCertain(vt, bt, i)) { out[i] = x !== 0 ? (ba ? ba[i] : 0) : (bb ? bb[i] : 0); continue }
+        const p = va[i]
+        const q = vb[i]
+        out[i] = p !== p || q !== q ? SEED_INF : Math.abs(p - q) + Math.max(ba ? ba[i] : 0, bb ? bb[i] : 0)
+      }
+      return out
+    }
+    if (name === 'u-') return bound(args[0])
+    if (name === '!') {
+      const b = bound(args[0])
+      if (!b) return null
+      const v = val(args[0])
+      return decided((i) => truthCertain(v, b, i))
+    }
+    const ba = bound(args[0])
+    const bb = bound(args[1])
+    if (!ba && !bb) return null
+    const va = val(args[0])
+    const vb = val(args[1])
+    const out = new Float64Array(length)
+    const ea = (i) => (ba ? ba[i] : 0)
+    const eb = (i) => (bb ? bb[i] : 0)
+    switch (name) {
+      case '+':
+      case '-':
+        for (let i = 0; i < length; i++) out[i] = ea(i) + eb(i)
+        return out
+      case '*':
+      case '/':
+        for (let i = 0; i < length; i++) {
+          if (va[i] !== va[i] || vb[i] !== vb[i]) { out[i] = ea(i) === SEED_INF || eb(i) === SEED_INF ? SEED_INF : 0; continue }
+          out[i] = name === '*'
+            ? Math.abs(va[i]) * eb(i) + Math.abs(vb[i]) * ea(i) + ea(i) * eb(i)
+            : quotientBound(va[i], ea(i), vb[i], eb(i))
+        }
+        return out
+      case '>': case '<': case '>=': case '<=': case '==': case '!=':
+        return decided((i) => compareCertain(va, ba, vb, bb, i))
+      case '&&':
+      case '||': {
+        const want = name === '&&' ? 0 : 1
+        return decided((i) => {
+          const ca = truthCertain(va, ba, i)
+          const cb = truthCertain(vb, bb, i)
+          if (ca && cb) return true
+          if (ca && va[i] === va[i] && (va[i] !== 0 ? 1 : 0) === want) return true
+          if (cb && vb[i] === vb[i] && (vb[i] !== 0 ? 1 : 0) === want) return true
+          return false
+        })
+      }
+      default:
+        return generic(n)
+    }
+  }
+
+  const callBound = (n, args) => {
+    const name = n.name
+    if (name === 'ema' || name === 'rma') {
+      const len = windowLiteral(n, 1)
+      return smootherSeedBound(val(args[0]), bound(args[0]), len, CARRIED[name].alpha(len), length)
+    }
+    if (name === 'rsi') return rsiBound(val(args[0]), bound(args[0]), windowLiteral(n, 1))
+    if (name === 'macd') {
+      const fast = windowLiteral(n, 1)
+      const slow = windowLiteral(n, 2)
+      const s = val(args[0])
+      const b = bound(args[0])
+      const start = finiteTailStart([s], length)
+      const tail = s.subarray(start)
+      const bt = b ? b.subarray(start) : null
+      const ef = smootherSeedBound(tail, bt, fast, 2 / (fast + 1), length - start)
+      const es = smootherSeedBound(tail, bt, slow, 2 / (slow + 1), length - start)
+      const out = new Float64Array(length)
+      for (let i = start; i < length; i++) out[i] = ef[i - start] + es[i - start]
+      return out
+    }
+    if (name === 'atrPine' || name === 'atr') {
+      const [h, l, c] = args.slice(0, 3).map(val)
+      const [bh, bl, bc] = args.slice(0, 3).map(bound)
+      const len = windowLiteral(n, 3)
+      const tr = name === 'atrPine' ? trueRangeTrue(h, l, c) : houseTrueRange(h, l, c)
+      let bt = null
+      if (bh || bl || bc) {
+        bt = new Float64Array(length)
+        const at = (b, i) => (b && i >= 0 ? b[i] : 0)
+        for (let i = 0; i < length; i++) {
+          const range = at(bh, i) + at(bl, i)
+          const prev = i > 0 ? c[i - 1] : NaN
+          bt[i] = prev !== prev ? range : Math.max(range, at(bh, i) + at(bc, i - 1), at(bl, i) + at(bc, i - 1))
+        }
+      }
+      if (name === 'atr') {
+        // `computeATR` runs over `bindShipped`'s finite tail of the three inputs
+        const start = finiteTailStart([h, l, c], length)
+        const sub = smootherSeedBound(tr.subarray(start), bt ? bt.subarray(start) : null, len, 1 / len, length - start)
+        const out = new Float64Array(length)
+        out.set(sub, start)
+        return out
+      }
+      return smootherSeedBound(tr, bt, len, 1 / len, length)
+    }
+    if (name === 'adx' || name === 'plusDI' || name === 'minusDI') {
+      if (args.slice(0, 3).some((a) => bound(a))) return generic(n)
+      return dmiBound(args.slice(0, 3).map(val), windowLiteral(n, 3))[name]
+    }
+    if (name === 'stoch') {
+      const bs = args.slice(0, 3).map(bound)
+      if (bs.every((b) => !b)) return null
+      return stochBound(args.slice(0, 3).map(val), bs, windowLiteral(n, 3))
+    }
+    if (own(SEED_WINDOW_MAX, name)) {
+      const b = bound(args[0])
+      if (!b) return null
+      const span = windowLiteral(n, 1)
+      const m = windowMaxBound(b, span, length)
+      const k = SEED_WINDOW_MAX[name]
+      if (k !== 1) for (let i = 0; i < length; i++) m[i] *= k
+      return m
+    }
+    if (name === 'sum') return windowSumBound(bound(args[0]), windowLiteral(n, 1), length)
+    if (name === 'hma') {
+      const b = bound(args[0])
+      if (!b) return null
+      const len = windowLiteral(n, 1)
+      const root = Math.max(1, Math.round(Math.sqrt(len)))
+      const m = windowMaxBound(b, len + root - 1, length)
+      for (let i = 0; i < length; i++) m[i] *= 3
+      return m
+    }
+    if (name === 'change') {
+      const b = bound(args[0])
+      if (!b) return null
+      const out = new Float64Array(length)
+      for (let i = 1; i < length; i++) out[i] = b[i] + b[i - 1]
+      return out
+    }
+    if (SEED_LIPSCHITZ_ONE.has(name)) return bound(args[0])
+    if (name === 'min' || name === 'max') {
+      const ba = bound(args[0])
+      const bb = bound(args[1])
+      if (!ba && !bb) return null
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) out[i] = Math.max(ba ? ba[i] : 0, bb ? bb[i] : 0)
+      return out
+    }
+    if (name === 'nz') {
+      const ba = bound(args[0])
+      const bb = bound(args[1])
+      if (!ba && !bb) return null
+      const va = val(args[0])
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) {
+        out[i] = va[i] !== va[i]
+          ? (ba && ba[i] === SEED_INF ? SEED_INF : (bb ? bb[i] : 0))
+          : (ba ? ba[i] : 0)
+      }
+      return out
+    }
+    if (name === 'na') return null
+    if (own(SEED_MONOTONE, name)) {
+      const b = bound(args[0])
+      if (!b) return null
+      const v = val(args[0])
+      const f = SEED_MONOTONE[name]
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) if (v[i] === v[i]) out[i] = b[i] === 0 ? 0 : monotoneBound(f, v[i], b[i])
+      return out
+    }
+    if (own(SEED_STEP, name)) {
+      const b = bound(args[0])
+      if (!b) return null
+      const v = val(args[0])
+      const f = SEED_STEP[name]
+      return decided((i) => v[i] !== v[i] || b[i] === 0 || f(v[i] - b[i]) === f(v[i] + b[i]))
+    }
+    if (name === 'pow') {
+      const ba = bound(args[0])
+      const bb = bound(args[1])
+      if (!ba && !bb) return null
+      if (bb) return generic(n)
+      const va = val(args[0])
+      const vb = val(args[1])
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) {
+        if (va[i] !== va[i] || vb[i] !== vb[i] || ba[i] === 0) continue
+        const f = (x) => POINTWISE.pow(x, vb[i])
+        const y = f(va[i])
+        const pts = [va[i] - ba[i], va[i] + ba[i]]
+        if (va[i] - ba[i] < 0 && va[i] + ba[i] > 0) pts.push(0)
+        let m = 0
+        for (const x of pts) { const z = f(x); m = Number.isFinite(z) ? Math.max(m, Math.abs(z - y)) : SEED_INF }
+        out[i] = m
+      }
+      return out
+    }
+    if (name === 'crossOver' || name === 'crossUnder') {
+      const ba = bound(args[0])
+      const bb = bound(args[1])
+      if (!ba && !bb) return null
+      const va = val(args[0])
+      const vb = val(args[1])
+      return decided((i) => compareCertain(va, ba, vb, bb, i) && (i === 0 || compareCertain(va, ba, vb, bb, i - 1)))
+    }
+    if (name === 'cum') {
+      const b = bound(args[0])
+      if (!b) return null
+      const out = new Float64Array(length)
+      let s = 0
+      for (let i = 0; i < length; i++) { if (b[i] === b[i]) s += b[i]; out[i] = s }
+      return out
+    }
+    if (name === 'accum') return accumBound(n)
+    return generic(n)
+  }
+
+  /** `computeRSI` over the finite tail, the two Wilder states as intervals. */
+  const rsiBound = (s, b, len) => {
+    const out = new Float64Array(length)
+    const start = finiteTailStart([s], length)
+    if (length - start < len + 1) return b ? out : null
+    const gains = new Float64Array(length).fill(NaN)
+    const losses = new Float64Array(length).fill(NaN)
+    const bd = new Float64Array(length)
+    for (let i = start + 1; i < length; i++) {
+      const d = s[i] - s[i - 1]
+      if (!Number.isFinite(d)) continue
+      gains[i] = d > 0 ? d : 0
+      losses[i] = d < 0 ? -d : 0
+      bd[i] = b ? b[i] + b[i - 1] : 0
+    }
+    const eg = smootherSeedBound(gains, bd, len, 1 / len, length)
+    const el = smootherSeedBound(losses, bd, len, 1 / len, length)
+    let g = NaN, l = NaN, seen = 0, sg = 0, sl = 0
+    for (let i = start + 1; i < length; i++) {
+      if (!Number.isFinite(gains[i])) continue
+      if (Number.isNaN(g)) {
+        sg += gains[i]; sl += losses[i]; seen += 1
+        if (seen < len) continue
+        g = sg / len; l = sl / len
+      } else {
+        g = (g * (len - 1) + gains[i]) / len
+        l = (l * (len - 1) + losses[i]) / len
+      }
+      const rsiOf = (G, L) => (L <= 0 ? 100 : (G <= 0 ? 0 : 100 - 100 / (1 + G / L)))
+      const r = rsiOf(g, l)
+      const hi = rsiOf(g + eg[i], Math.max(0, l - el[i]))
+      const lo = rsiOf(Math.max(0, g - eg[i]), l + el[i])
+      out[i] = Math.max(Math.abs(hi - r), Math.abs(lo - r))
+    }
+    return out
+  }
+
+  /** `computeADX`'s three Wilder sums as intervals (inputs exact: high, low, close). */
+  const dmiBound = ([h, l, c], len) => {
+    const zero = () => new Float64Array(length)
+    const res = { adx: zero(), plusDI: zero(), minusDI: zero() }
+    const start = finiteTailStart([h, l, c], length)
+    const n = length - start
+    if (n < 2 * len) return res
+    const pdm = new Float64Array(length).fill(NaN)
+    const mdm = new Float64Array(length).fill(NaN)
+    const trs = new Float64Array(length).fill(NaN)
+    for (let i = start + 1; i < length; i++) {
+      const up = h[i] - h[i - 1]
+      const down = l[i - 1] - l[i]
+      const tr = Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1]))
+      if (!Number.isFinite(up) || !Number.isFinite(down) || !Number.isFinite(tr)) continue
+      pdm[i] = up > down && up > 0 ? up : 0
+      mdm[i] = down > up && down > 0 ? down : 0
+      trs[i] = tr
+    }
+    const range = (col) => {
+      let lo = Infinity, hi = -Infinity
+      for (let i = 0; i < length; i++) if (Number.isFinite(col[i])) { if (col[i] < lo) lo = col[i]; if (col[i] > hi) hi = col[i] }
+      return lo > hi ? 0 : hi - lo
+    }
+    const rp = range(pdm) * len
+    const rm = range(mdm) * len
+    const rt = range(trs) * len
+    const decay = 1 - 1 / len
+    let sP = 0, sM = 0, sT = 0, seen = 0, ready = false, eP = 0, eM = 0, eT = 0
+    const dx = new Float64Array(length).fill(NaN)
+    const edx = new Float64Array(length)
+    for (let i = start + 1; i < length; i++) {
+      if (!Number.isFinite(trs[i])) continue
+      if (!ready) {
+        sP += pdm[i]; sM += mdm[i]; sT += trs[i]; seen += 1
+        if (seen < len) continue
+        ready = true
+        eP = rp; eM = rm; eT = rt
+      } else {
+        sP = sP - sP / len + pdm[i]
+        sM = sM - sM / len + mdm[i]
+        sT = sT - sT / len + trs[i]
+        eP *= decay; eM *= decay; eT *= decay
+      }
+      const pdi = sT === 0 ? 0 : 100 * sP / sT
+      const mdi = sT === 0 ? 0 : 100 * sM / sT
+      const pq = sT - eT > 0 ? quotientBound(100 * sP, 100 * eP, sT, eT) : SEED_INF
+      const mq = sT - eT > 0 ? quotientBound(100 * sM, 100 * eM, sT, eT) : SEED_INF
+      res.plusDI[i] = pq
+      res.minusDI[i] = mq
+      const sum = pdi + mdi
+      dx[i] = sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum
+      if (pq === SEED_INF || mq === SEED_INF) { edx[i] = SEED_INF; continue }
+      const pLo = Math.max(0, pdi - pq), pHi = pdi + pq, mLo = Math.max(0, mdi - mq), mHi = mdi + mq
+      if (pLo + mLo <= 0) { edx[i] = SEED_INF; continue }
+      const f = (p, m) => 100 * Math.abs(p - m) / (p + m)
+      const top = Math.max(f(pHi, mLo), f(pLo, mHi))
+      const bottom = (pLo <= mHi && mLo <= pHi) ? 0 : Math.min(f(pLo, mHi), f(pHi, mLo))
+      edx[i] = Math.max(Math.abs(top - dx[i]), Math.abs(dx[i] - bottom))
+    }
+    res.adx = smootherSeedBound(dx, edx, len, 1 / len, length)
+    return res
+  }
+
+  /** `computeStochastic`'s %K as an interval quotient. */
+  const stochBound = ([h, l, c], [bh, bl, bc], len) => {
+    const start = finiteTailStart([h, l, c], length)
+    const out = new Float64Array(length)
+    const mh = windowMaxBound(bh || new Float64Array(length), len, length)
+    const ml = windowMaxBound(bl || new Float64Array(length), len, length)
+    for (let i = start + len - 1; i < length; i++) {
+      let lo = Infinity, hi = -Infinity
+      for (let j = i - len + 1; j <= i; j++) { if (l[j] < lo) lo = l[j]; if (h[j] > hi) hi = h[j] }
+      const ec = bc ? bc[i] : 0
+      out[i] = quotientBound(100 * (c[i] - lo), 100 * (ec + ml[i]), hi - lo, mh[i] + ml[i])
+    }
+    return out
+  }
+
+  /** ⭐ `accum` — a Pine `var`. Its bounded window re-runs the last `W` bars, so its
+   *  value on bar i reads its inputs on bars i−W..i: exact where every input it
+   *  reads there is exact, unknown otherwise. */
+  const accumBound = (n) => {
+    const spec = TABLE.functions.accum.recurrence
+    let W = windowLiteral(n, spec.warmup)
+    const inputs = []
+    // ⛔ CONSERVATIVE ABOUT NESTING: a subtree that reads ANY running value (this
+    // one's, or one nested in it) is opened rather than evaluated on its own, and a
+    // nested `accum` opened this way adds its own window to this one's reach.
+    const collect = (x) => {
+      if (!x || typeof x !== 'object') return
+      if (!readsAnyBinding(x)) { inputs.push(x); return }
+      if (x !== n && x.type === 'call' && own(RECURRENCES, x.name)) W += windowLiteral(x, spec.warmup)
+      if (Array.isArray(x.args)) x.args.forEach(collect)
+    }
+    collect(n.args[spec.body])
+    collect(n.args[spec.seed])
+    const flags = new Float64Array(length)
+    let any = false
+    for (const x of inputs) {
+      const b = bound(x)
+      if (!b) continue
+      const v = val(x)
+      for (let i = 0; i < length; i++) if (!seedNegligible(b[i], v[i])) { flags[i] = 1; any = true }
+    }
+    if (!any) return null
+    const w = windowAny(flags, W + 1, length)
+    const out = new Float64Array(length)
+    for (let i = 0; i < length; i++) out[i] = w[i] ? SEED_INF : 0
+    return out
+  }
+
+  /** A `tf` / `tf_live` / `sym` / `ltf` read: the child's bound on ITS bars, read
+   *  back through the node's own alignment. */
+  const nestedBound = (n) => {
+    const child = n.args[0]
+    const nested = env.nested(n)
+    // no supply (an unsupplied `sym` / `ltf`): the node is `NaN` on every bar by
+    // construction, and nothing about a seed can change that
+    if (!nested) return null
+    const cb = seedBoundOf(child, nested.env)
+    if (!cb) return null
+    const out = new Float64Array(length)
+    for (let i = 0; i < length; i++) {
+      const j = nested.at(i)
+      out[i] = j === null || j === undefined || j < 0 ? 0 : cb[j]
+    }
+    return out
+  }
+
+  return bound(tree)
+}
+
+/** Does `x` read a running value (`self`) anywhere — its own `accum`'s or one
+ *  nested in it? */
+function readsAnyBinding(x) {
+  const bind = TABLE.functions.accum.recurrence.binds
+  const stack = [x]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'series' && n.name === bind) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** `computeATR`'s true range: none on bar 0. */
+function houseTrueRange(h, l, c) {
+  const out = nan(c.length)
+  for (let i = 1; i < c.length; i++) {
+    out[i] = Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1]))
+  }
+  return out
+}
+
+/** The evaluation context the bound pass reads values through. */
+function seedEnv(bars, inputs, budget, scalars, opts, memoMap) {
+  const length = bars.length
+  const memo = memoMap instanceof Map ? memoMap : new Map()
+  const evalOpts = { ...(opts || {}), crossMemo: memo, seedWarmupSink: undefined, chartClockSink: undefined }
+  const env = {
+    length,
+    bars,
+    reach: new Map(),
+    memo: new Map(),
+    valueOf: (node) => {
+      if (memo.has(node)) return toColumn(memo.get(node), length)
+      return toColumn(interpretOnce(node, bars, inputs, budget, scalars, evalOpts), length)
+    },
+    nested: (n) => {
+      if (n.type === 'tf' || n.type === 'tf_live') {
+        const code = String(n.value)
+        const isos = bars.map((b) => isoDay(b && b.t))
+        const { htf, at } = resampleTo(bars, isos, code)
+        const sub = seedEnv(htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, scopedMemo(memo, `tf\u0001${code}`))
+        const live = n.type === 'tf_live'
+        return {
+          env: sub,
+          at: (i) => {
+            const iso = isos[i]
+            if (!iso) return null
+            const b = at.get(tfBucket(iso, code))
+            return live ? b : (b > 0 ? b - 1 : null)
+          },
+        }
+      }
+      if (n.type === 'sym') {
+        const ticker = String(n.value).trim().toUpperCase()
+        const series = (opts && opts.symbols) ? opts.symbols[ticker] : null
+        if (!Array.isArray(series) || !series.length) return null
+        const sub = seedEnv(series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined },
+          scopedMemo(memo, `sym\u0001${ticker}`))
+        const byT = new Map()
+        series.forEach((b, j) => { const k = b && typeof b === 'object' ? b.t : undefined; if (k !== undefined && k !== null && !byT.has(k)) byT.set(k, j) })
+        return { env: sub, at: (i) => { const b = bars[i]; const k = b && typeof b === 'object' ? b.t : undefined; return byT.has(k) ? byT.get(k) : null } }
+      }
+      if (n.type === LTF) {
+        const code = String(n.value)
+        const sup = lowerSupplyOf(opts, code)
+        if (!sup) return null
+        const sub = seedEnv(sup.bars, inputs, budget, scalars, { ...(opts || {}), tf: code, historyFromListing: undefined,
+          newestBarIsForming: null, symbols: undefined, lowerTf: undefined }, scopedMemo(memo, `ltf\u0001${code}`))
+        const groups = sup.groups(bars, maxLookback(n.args[0]))
+        return { env: sub, at: (i) => { const g = groups[i]; return g && g.length ? g[g.length - 1] : null } }
+      }
+      return null
+    },
+  }
+  return env
+}
+
+function scopedMemo(memo, key) {
+  let scoped = memo.get(key)
+  if (!(scoped instanceof Map)) { scoped = new Map(); memo.set(key, scoped) }
+  return scoped
+}
+
+/** ⭐⭐ F5 — THE BARS OF A PLOT WITHHELD FOR A SEED THIS WINDOW DOES NOT HOLD, as a
+ *  0/1 column (1 = withheld), or null when none is. `raw` is the tree's own
+ *  column when the caller already holds it. Reports `{mask, bound, raw}` to
+ *  `opts.seedWarmupSink` and names `seed:window` (`nameChartClock`). */
+export function seedWarmupMask(tree, bars, inputs, budget, scalars, opts, raw) {
+  if (!seedFromWindowOf(opts)) return null
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!n) return null
+  if (!seedReachesIn(tree, new Map())) return null
+  const env = seedEnv(bars, inputs, budget, scalars, opts, opts && opts.crossMemo)
+  // ⛔ TWO COLUMNS, AND THE DIFFERENCE IS LOAD-BEARING. `computed` is the tree's
+  // own evaluation, the one the bound is about; `value` is what this bar would
+  // DRAW, after every earlier withholding (`interpretAgreed`'s switched states,
+  // a history read, `bar_index`). A bar another rule already blanked keeps THAT
+  // reason: it is never relabelled a seed withholding, so the harness still
+  // grades it as the gap it is.
+  const computed = toColumn(env.valueOf(tree), n)
+  const value = isColumn(raw) ? raw : computed
+  if (!isColumn(value)) return null
+  const bound = seedBoundOf(tree, env)
+  if (!bound) return null
+  const mask = new Float64Array(n)
+  let any = false
+  for (let i = 0; i < n; i++) {
+    const v = value[i]
+    // a blank bar whose blankness is itself undecided (an uncertain test chose
+    // `na` here; TradingView may have drawn) is withheld too — so it is NAMED,
+    // never read as Pine's `na`
+    if (v !== v) { if (bound[i] === SEED_INF && computed[i] !== computed[i]) { mask[i] = 1; any = true } continue }
+    const b = bound[i]
+    if (!(b < 0.5 * Math.max(SEED_WARMUP_ABS, SEED_WARMUP_REL * Math.max(0, Math.abs(v) - b)))) { mask[i] = 1; any = true }
+  }
+  if (!any) return null
+  nameChartClock(opts, [SEED_WARMUP_CODE], opts.tf)
+  const sink = opts && opts.seedWarmupSink
+  if (sink && typeof sink === 'object') {
+    sink.mask = mask
+    sink.bound = bound
+    sink.raw = Float64Array.from(value)
+  }
+  return mask
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30), `historyReadMask` (C38) or `barIndexMask` (C45), one
- *  channel. */
-export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
+ *  `seedWarmupMask` (F5), one channel. `raw`: the tree's own column, when held. */
+export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, raw) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
+    // ⭐ F5 — a recursive series seeded at this window (`seedWarmupMask`)
+    seedWarmupMask(tree, bars, inputs, budget, scalars, opts, raw),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
@@ -5148,7 +6019,7 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
 function withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts) {
   if (opts && typeof opts.prefixProbe === 'number') return out
   if (!isColumn(out)) return out
-  const mask = withheldReadMask(ast, bars, inputs, budget, scalars, opts)
+  const mask = withheldReadMask(ast, bars, inputs, budget, scalars, opts, out)
   if (!mask) return out
   const copy = Float64Array.from(out)
   for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
@@ -5626,7 +6497,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
             { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined,
-              historyFromListing: undefined }),
+              historyFromListing: undefined, seedWarmupSink: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -5683,7 +6554,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // clock or `tf` reads the right base.
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
-            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined }),
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined,
+              seedWarmupSink: undefined }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -5731,7 +6603,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], sup.bars, inputs, budget, scalars,
             { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
-              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined }),
+              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined,
+              seedWarmupSink: undefined }),
           sup.bars.length)
         const groups = sup.groups(bars, maxLookback(n.args[0]))
         const out = nan(length)

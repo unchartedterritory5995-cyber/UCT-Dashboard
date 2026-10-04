@@ -125,7 +125,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('cpr-with-mas-super-trend-vwap SPY: MATCH', () => {
     expect(grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY VWAP na from bar 960 to the last; EMA a converging prefix; CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
+  it('control: SPY VWAP na from bar 960 to the last; EMA agrees past its seed warm-up (F5); CP/BC/TC/D-S1/D-R1 agree (F2: bar 1 colour sits inside the colour rule warm-up)', () => {
     const { v } = grade('cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02')
     expect(first(item(v, 'VWAP'))).toMatchObject({ bar: 960, kind: 'na' })
     expect(item(v, 'VWAP').stats.steady.pattern.kind).toBe('persistent')
@@ -136,7 +136,14 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(p.colorWarmupBars, t).toBe(2)
       expect(p.warmupBars, t).toBe(1)
     }
-    expect(item(v, 'EMA').stats.steady.pattern.kind).toBe('converging-prefix')
+    // ⭐ F5 — was "a converging prefix" (bars 50..412, error 7.7e-1 -> 3.9e-7): the
+    // window does not start at SPY's listing, so our EMA(50) is seeded where
+    // TradingView's is not. Its warm-up is now WITHHELD by its own decay, and every
+    // withheld bar sits inside the bound it was withheld by.
+    const ema = item(v, 'EMA')
+    expect(ema.verdict).toBe('MATCH')
+    expect(ema.stats.seedWithheld).toBeGreaterThan(400)
+    expect(ema.stats.seedBoundViolations).toBe(0)
   }, T)
 
   // implied-volatility-suite: MATCH since F2 (above) ---------------------------
@@ -174,7 +181,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY Upper/Basis/Lower are converging prefixes (a window not from the listing)', () => {
+  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY Upper/Basis/Lower agree past their seed warm-up (F5 — were converging prefixes)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
@@ -183,7 +190,14 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
       expect(p.stats.steady.divergent).toBe(1)
     }
     const s = grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v
-    for (const t of ['Upper', 'Basis', 'Lower']) expect(item(s, t).stats.steady.pattern.kind, t).toBe('converging-prefix')
+    for (const t of ['Upper', 'Basis', 'Lower']) {
+      expect(item(s, t).verdict, t).toBe('MATCH')
+      expect(item(s, t).stats.seedWithheld, t).toBeGreaterThan(50)
+      expect(item(s, t).stats.seedBoundViolations, t).toBe(0)
+    }
+  }, T)
+  it('⭐ F5 — optimized-keltner-channels-sltp-strategy SPY: MATCH (the converging prefixes were a seed warm-up, now withheld by its decay)', () => {
+    expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
 
   // pmax-explorer ---------------------------------------------------------------
@@ -194,6 +208,9 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const s = grade('pmax-explorer-spy-1d-2026-10-02').v
     expect(first(item(s, 'PMax'))).toMatchObject({ bar: 512, kind: 'na' })
     expect(item(s, 'PMax').stats.steady.divergent).toBe(1139)
+    // ⭐ F5 — the MA was a converging prefix (bars 10..84): its seed warm-up is withheld
+    expect(item(s, 'Moving Avg Line').verdict).toBe('MATCH')
+    expect(item(s, 'Moving Avg Line').stats.seedWithheld).toBeGreaterThan(50)
     // ⭐ F3 — the screener label lists 38 other symbols' PMax states
     // (`request.security` per symbol): withheld by name, never drawn.
     expect(s.objects.withheld).toBe('pine:object-ops-refused')
