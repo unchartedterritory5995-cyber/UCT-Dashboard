@@ -108,8 +108,15 @@ describe('🔴 the half-window the advice names is the one the manifest declares
   })
 
 
+  // ⭐ F1 (2026-10-02) — the length is an INPUT here, never three literals. Before
+  // v6, `55 * 1/2` written as literals is `const int` arithmetic and TradingView
+  // truncates it to 27 (`vw-int-div-assign` D03, CAP round 4), so it is no longer a
+  // fractional window at all — pinned in the last case below. An `input.int`
+  // keeps the fraction (D01/D04), which is the shape this advice is for.
+  const HALF = 'n = input.int(55)\nplot(ta.wma(close, n * 1/2))'
+
   it('⭐ the advice names BOTH whole numbers, with their values, when they differ', () => {
-    const r = refusalFor('plot(ta.wma(close, 55 * 1/2))')
+    const r = refusalFor(HALF)
     expect(r.guard).toBe('pine:window')
     expect(r.message).toContain('reduces to 27.5')
     // Both spellings, both answers — the member can see that a choice exists.
@@ -118,7 +125,7 @@ describe('🔴 the half-window the advice names is the one the manifest declares
   })
 
   it('⭐ …and on a HALF-INTEGER it names which way this engine`s own `hma` goes', () => {
-    const r = refusalFor('plot(ta.wma(close, 55 * 1/2))')
+    const r = refusalFor(HALF)
     expect(r.message).toContain('_functions_hull')
     expect(r.message).toMatch(/DOWNWARD/)
     // ⛔ It points at the declared function rather than at the expansion, because
@@ -132,7 +139,7 @@ describe('🔴 the half-window the advice names is the one the manifest declares
     // describe and nothing about Hull to say. Without this control the Hull
     // paragraph could be appended to every fractional window and the test above
     // would not notice.
-    const r = refusalFor('plot(ta.sma(close, 10 / 3))')
+    const r = refusalFor('n = input.int(10)\nplot(ta.sma(close, n / 3))')
     expect(r.guard).toBe('pine:window')
     expect(r.message).toContain('reduces to 3.33')
     expect(r.message).not.toContain('_functions_hull')
@@ -141,5 +148,11 @@ describe('🔴 the half-window the advice names is the one the manifest declares
 
   it('⛔ CONTROL — a whole-number length is not refused at all, so the advice never fires', () => {
     expect(refusalFor('plot(ta.sma(close, 10 + 4))')).toBe(null)
+  })
+
+  it('⭐ F1 — three LITERALS are `const int` arithmetic before v6: `55 * 1/2` is the window 27, never refused', () => {
+    expect(refusalFor('plot(ta.wma(close, 55 * 1/2))')).toBe(null)
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.wma(close, 55 * 1/2))\n')
+    expect(out.outputs[0].formula).toMatch(/wma\(close, 27\)/)
   })
 })

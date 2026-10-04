@@ -2045,6 +2045,9 @@ function validatePaints(paints, columnKeys, errors) {
       errors.push(`${path}.opacity: expected a number in [0, 1], got ${fmt(p.opacity)}`)
     }
     if (p.color !== undefined && !isColour(p.color)) errors.push(`${path}.color: expected a colour string, got ${fmt(p.color)}`)
+    // ⭐ F1 — render-time placement (`binder.js::paintRenderColours`).
+    if (p.offset !== undefined && !Number.isInteger(p.offset)) errors.push(`${path}.offset: expected a whole number, got ${fmt(p.offset)}`)
+    if (p.showLast !== undefined && !(Number.isInteger(p.showLast) && p.showLast >= 0)) errors.push(`${path}.showLast: expected a non-negative whole number, got ${fmt(p.showLast)}`)
     if (p.colorMode === undefined) {
       if (!isColour(p.color)) errors.push(`${path}: a paint must declare a colour (color, or colorMode "column:<key>")`)
       return

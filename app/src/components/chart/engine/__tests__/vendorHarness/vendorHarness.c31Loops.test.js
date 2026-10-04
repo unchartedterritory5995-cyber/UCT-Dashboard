@@ -172,7 +172,8 @@ describe('C31 — ema-ribbon: a text loop folds, and a conditional call is refus
       'float top = ta.highest(close, 50)',
       'var table d = table.new(position.top_right, 3, 1)',
       'if barstate.islast',
-      '    float inner = ta.wma(close, 50)',
+      // ⭐ F1 re-pin — `ta.wma` stood here; `vw-once-ta-helper` (B06) witnesses its one run now
+      '    float inner = ta.vwma(close, 50)',
       '    float once = ta.highest(close, 50)',
       '    table.cell(d, 0, 0, str.tostring(top))',
       '    table.cell(d, 1, 0, str.tostring(inner))',

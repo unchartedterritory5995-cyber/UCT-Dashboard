@@ -23,6 +23,16 @@
 //   A05  DIVERGE all 636 bars (ours `na`, TradingView 2) on v4 and v5.
 // The two DIVERGE rows are `it.fails`: they turn RED the moment the door is fixed, so
 // whoever fixes it flips them to `it` in the same commit.
+//
+// ⭐⭐ F1 (2026-10-02) — FIXED, and flipped. From the listing, a v4+ document reads a
+// `?:` whose test is `na` as Pine does (`interpret.js::PINE_TERNARY`, gated by
+// `pineTernaryFor`: the listing fact AND `meta.naConditionFalse`, which the member
+// door writes from `naConditionIsFalse(version)`). A02 now agrees on all 636 bars of
+// all three versions, A05 on all 636 of v4 and v5 (its column; the pane draws no
+// series for it because the row is the constant 2 — `hidden (constant)`, the
+// pre-existing pane rule for a column that reads no bar). Off the listing the rule
+// does not apply (a `NaN` there may be a value behind the curtain): the control
+// below grades the same capture with `startsAtBar0` false and still reads `na`.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
@@ -95,21 +105,31 @@ describe('CAP round 4 — Q-NA, the member door against it', () => {
         expect(diffs(v, title)).toEqual([])
       })
 
-    it.fails(`⛔ ${v}: A02_cross_na_test — KNOWN DIVERGE bars 0..19 (ours na, TradingView 2)`, () => {
+    it(`⭐ ${v}: A02_cross_na_test MATCH on every bar (F1 — an na test takes the else branch)`, () => {
       expect(diffs(v, 'A02_cross_na_test')).toEqual([])
     })
   }
 
   for (const v of ['v5', 'v4']) {
-    it.fails(`⛔ ${v}: A05_na_bool_test — KNOWN DIVERGE on all 636 bars (ours na, TradingView 2)`, () => {
+    it(`⭐ ${v}: A05_na_bool_test agrees on all 636 bars (F1)`, () => {
       expect(diffs(v, 'A05_na_bool_test')).toEqual([])
     })
   }
 
-  it('control: the A02 divergence is exactly bars 0..19, nothing after', () => {
-    const d = diffs('v5', 'A02_cross_na_test')
-    expect(d.length).toBe(20)
-    expect(d[0]).toBe('#0 ours na tv 2')
-    expect(d[19]).toBe('#19 ours na tv 2')
+  it('⛔ control: OFF the listing the rule does not apply — A02 reads na on exactly bars 0..19', () => {
+    // The same capture, its listing fact withdrawn: a `NaN` test there may be a
+    // value TradingView holds behind the curtain, so `TERNARY`'s `na` stands.
+    const cap = CAPS.v5
+    const off = { ...cap, history: { ...cap.history, startsAtBar0: false } }
+    const saved = CAPS.v5
+    CAPS.v5 = off
+    try {
+      const d = diffs('v5', 'A02_cross_na_test')
+      expect(d.length).toBe(20)
+      expect(d[0]).toBe('#0 ours na tv 2')
+      expect(d[19]).toBe('#19 ours na tv 2')
+    } finally {
+      CAPS.v5 = saved
+    }
   })
 })

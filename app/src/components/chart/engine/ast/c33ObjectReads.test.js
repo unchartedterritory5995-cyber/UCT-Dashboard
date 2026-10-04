@@ -246,9 +246,29 @@ describe('C33 (4) — a request timeframe that is a parameter, on the object pas
     expect(yTree(viaParam)).toBe(yTree(direct))
   })
 
-  it('⛔ the PLOT lane is unchanged: a newly served output would mint parameters ahead of saved ones', () => {
-    const t = host(src(6, 'tfi = input.timeframe("W", "TF")', 'f(string tf) =>',
+  // ⭐ H5 (step 84) re-pin: this read "⛔ the PLOT lane is unchanged: a newly served
+  // output would mint parameters ahead of saved ones". Since C46 an id is the input
+  // call's place in the source (`paramIdSource.js`), so a newly served output only
+  // APPENDS ids (`paramIds.test.js` green across the corpus with this rule on). The
+  // plot lane now reads a parameter as its caller's argument too: the request is
+  // the one the member gets by writing the argument there.
+  it('⭐ H5 — the PLOT lane: `f(tf) => request.security(…, tf, …)` is the request the caller\'s argument names', () => {
+    const viaParam = host(src(6, 'tfi = input.timeframe("W", "TF")', 'f(string tf) =>',
       '    request.security(syminfo.tickerid, tf, close, lookahead = barmerge.lookahead_on)', 'plot(f(tfi))'))
+    const direct = host(src(6, 'tfi = input.timeframe("W", "TF")',
+      'plot(request.security(syminfo.tickerid, tfi, close, lookahead = barmerge.lookahead_on))'))
+    expect(direct.outputs[0].ast).toBeTruthy()
+    expect(viaParam.outputs[0].ast).toEqual(direct.outputs[0].ast)
+    // a literal argument too, and two call sites keep two timeframes
+    const two = host(src(6, 'f(string tf) => request.security(syminfo.tickerid, tf, close, lookahead = barmerge.lookahead_on)',
+      'plot(f("W"))', 'plot(f("M"))'))
+    expect(two.outputs[0].ast).toBeTruthy()
+    expect(two.outputs[1].ast).toBeTruthy()
+    expect(two.outputs[0].ast).not.toEqual(two.outputs[1].ast)
+  })
+
+  it('⛔ a parameter whose caller passes a timeframe this engine cannot serve keeps `pine:request`', () => {
+    const t = host(src(6, 'f(string tf) => request.security(syminfo.tickerid, tf, close)', 'plot(f("3D"))'))
     expect(t.outputs[0].refusal && t.outputs[0].refusal.guard).toBe('pine:request')
   })
 })

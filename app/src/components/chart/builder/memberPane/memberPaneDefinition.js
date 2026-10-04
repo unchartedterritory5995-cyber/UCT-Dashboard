@@ -27,6 +27,7 @@ import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/p
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
+import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
@@ -492,6 +493,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         kind: p.kind,
         ...(Number.isInteger(p.line) ? { line: p.line } : {}),
         ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+        // ⭐ F1 — render-time placement, witnessed (`pine.js::resolvePaint`).
+        ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+        ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
       }
       if (typeof p.color === 'string') doc.color = p.color
       if (Number.isFinite(p.opacity)) doc.opacity = p.opacity
@@ -789,6 +793,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // and it rides OUTSIDE the trees, so no tree hash moves. A document without
     // it (saved before this, or from another translator) keeps the bounded window.
     recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
+    // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
+    // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
+    // (`nativeRegistry.listingOptsFor`). Outside the trees, so no tree hash moves;
+    // a document without it keeps `TERNARY`'s answer.
+    ...(naConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
@@ -1169,7 +1179,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const colourKeyByOutput = new Map()
   const colourKeyOf = (outputIndex) => {
     if (colourKeyByOutput.has(outputIndex)) return colourKeyByOutput.get(outputIndex)
-    const key = keyAt(drawnRows.length + colourRows.length)
+    // ⭐ F1 — a document with NO drawn row keeps `value` for the RT5 anchor row
+    // (below), so its colour columns start one slot later. Reached once F1 carried a
+    // paint's `offset`: wyckoff's only output is an offset `barcolor`, and its colour
+    // column took `value` beside the anchor — a duplicate key the install door refuses.
+    const key = keyAt(Math.max(drawnRows.length, 1) + colourRows.length)
     outputs[key] = outputIndex
     colourKeyByOutput.set(outputIndex, key)
     colourRows.push({
@@ -1219,8 +1233,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // Paired by kind and source order, the rule the host and the vendor harness
   // use (Pine allows these calls only at global scope); a count that disagrees
   // carries none of that kind. A paint the host withheld for a reason OTHER than
-  // its colour (an offset, `show_last`, an argument it cannot read, …) stays
-  // withheld here: the run computes a colour, not where TradingView draws it.
+  // its colour (an argument it cannot read, …) stays withheld here.
+  // ⭐ F1 — a whole-number `offset` / `show_last` is render-time only (CAP round 4,
+  // `vw-bgcolor-barcolor-spy-1d-2026-10-02`): the host record carries the two numbers
+  // and they ride here unchanged, so the binder places the run's colour exactly as it
+  // places the host lane's (`binder.js::paintRenderColours`).
   const docPaints = []
   const paintWithheld = []
   {
@@ -1252,6 +1269,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
           ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
           colorMode: `column:${colourKeyOf(rk[i])}`,
           colorPacked: c.colorPacked,
+          ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+          ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
         })
       })
     }

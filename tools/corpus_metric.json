@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-03",
+  "measured_at": "2026-10-04",
   "scripts": 266,
   "host_ok": 77,
-  "screener_ok": 66,
+  "screener_ok": 67,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -60,14 +60,12 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
       ],
       "screenerGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
@@ -76,8 +74,9 @@
     {
       "file": "advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
+        "pine:block",
         "pine:request"
       ],
       "screenerGuards": [
@@ -428,11 +427,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:request",
         "pine:window"
       ],
       "screenerGuards": [
-        "pine:request",
         "pine:window",
         "pine:function"
       ]
@@ -902,12 +899,10 @@
       "screener": true,
       "hostGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ]
     },
@@ -1623,10 +1618,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:statement"
+        "pine:block"
       ],
       "screenerGuards": [
-        "pine:statement"
+        "pine:block"
       ]
     },
     {
@@ -1941,11 +1936,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:window",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:window",
         "pine:function"
       ]
     },

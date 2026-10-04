@@ -235,7 +235,9 @@ describe('C42 — a `ta.*` call in a BLOCK that runs once', () => {
       // ⭐ C48 re-pin — `ta.lowest(low, 10)`, `ta.ema(close, 3)`, `ta.highest(10)` and
       // `ta.rsi(close, 14)` stood in these four slots; `vw-call-site-history`
       // (A02, A04, A08, A05) witnesses each now (`vendorHarness.c48CallSite`).
-      '    float a = ta.wma(low, 10)',
+      // ⭐ F1 re-pin — `ta.wma(low, 10)` stood here; `vw-once-ta-helper` (B06 / T06)
+      // witnesses it now, so `ta.vwma`, which no capture reads on one run, takes its slot.
+      '    float a = ta.vwma(low, 10)',
       '    float b = ta.sma(close, len)',
       '    float c = ta.ema(close, 1)',
       '    float e = ta.lowest(10)',
@@ -365,10 +367,11 @@ describe('C42 — a HELPER called once: what stays refused, by name', () => {
       // `vw-call-site-history` and graded in `vendorHarness.c48CallSite`:
       // `ta.lowest(low, k)` (B04), `ta.ema(close, k)` (B05), `ta.highest(k)` (B08),
       // `ta.sma(close, 1)` (B09), `time_close[k]` (B02), `hlcc4[k]` (B03), `y[0]` (B06).
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.wma(low, k)))'], ['g(3)'], /`ta\.wma`/],
+      // ⭐ F1 re-pin — `ta.wma(low, k)` and `ta.rsi(close, k)` left this list:
+      // `vw-once-ta-helper` (T06 / T01) witnesses both inside a helper called once.
+      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.vwma(low, k)))'], ['g(3)'], /`ta\.vwma`/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.ema(close, k)))'], ['g(1)'], /whose length is not a whole number above 1/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.lowest(k)))'], ['g(3)'], /in a form no capture reads/],
-      [['g(int k) =>', '    label.new(bar_index, high, str.tostring(ta.rsi(close, k)))'], ['g(14)'], /witnessed in a block that runs once, not inside a function called once/],
       [['g(float src) =>', '    y = src + 1', '    label.new(bar_index, high, str.tostring(y[bar_index - 600]))'], ['g(close)'], /`y\[…\]`.*whole number above 0/],
       [['g(int k) =>', '    label.new(bar_index, high, str.tostring(bar_index[k]))'], ['g(0)'], /`bar_index\[…\]`.*whole number above 0/],
     ]
@@ -419,10 +422,19 @@ describe('C42 — the same call, reached another way, is never the every-bar num
       '    label.new(bar_index, low, "OK|" + str.tostring(fok(close)))',
       '    label.new(bar_index, low, "TOP|" + str.tostring(top))',
     ))
-    // 🔴 CONTROLS — a function that reads only the current bar, and the same
-    // history function called at the TOP LEVEL (every bar), are both read
-    expect(labels.map((l) => l.text).sort()).toEqual(['OK|284.88', 'TOP|161.67'])
-    expect(diag.dropReasons['create:label']).toBe(4)
+    // ⭐ F1 re-pin — a ONE-EXPRESSION value helper called from the block is read as
+    // its one-run body (`vw-once-ta-helper` T01–T06): `fv()` / `fs()` are
+    // `ta.highest(high, 10)` on one run = the bar's high (C04 / A01 / B10), and
+    // `fp(src) => src[1]` is the call's own history on its one run = `na`. The local
+    // `fl = fv()` declared in the block takes another path and stays refused.
+    const texts = labels.map((l) => l.text).sort()
+    expect(texts).toContain('OK|284.88')
+    expect(texts).toContain('TOP|161.67')
+    expect(texts).toContain('FS|T151.8899')
+    expect(texts).toContain('FP|NaN')
+    expect(texts).toContain('F|151.8899')
+    // 🔴 CONTROL — the every-bar 10-bar maximum is NOT what the one-run call prints
+    expect(texts).not.toContain('F|161.67')
   })
 
   it('⛔ a `var` written from a `ta.*` call in a block that runs once is refused where a drawing reads it', () => {

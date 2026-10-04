@@ -1118,6 +1118,9 @@ export function assertObjectProgram(program) {
     }
     // ⭐ C48 — `slots`: the list is created holding that many `na` slots
     // (`var … = array.new_label(3)`, capture `vw-forin-collections` Z01–Z03).
+    if (c.persist !== undefined && c.persist !== true) {
+      throw new Error(`objects: collection ${c.id} persist must be true when present, got ${JSON.stringify(c.persist)}`)
+    }
     if (c.slots !== undefined && (!Number.isInteger(c.slots) || c.slots < 1 || c.slots > c.cap)) {
       throw new Error(`objects: collection ${c.id} is created with an integer slot count in 1..${c.cap}, got ${JSON.stringify(c.slots)}`)
     }

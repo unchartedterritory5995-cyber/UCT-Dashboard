@@ -226,7 +226,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -236,7 +236,7 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "MATCH",
           []
         ],
         "paints": null
