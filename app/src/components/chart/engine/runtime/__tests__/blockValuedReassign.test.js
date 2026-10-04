@@ -30,11 +30,11 @@
 // case runs once an earlier one matched. That is the same extraction the
 // function-body form forced, for the same reason.
 //
-// ⚠️ `var x = if|switch` IS DELIBERATELY STILL REFUSED, and now says why. `var`
-// initialises ONCE — the value is computed on the first bar and kept — which
-// needs the once-only guard (`JUMP_IF_INIT`) wrapped around the whole chain, not
-// just a slot seeded differently. Lowering it like a plain binding would
-// re-evaluate the block every bar and silently make `var` mean nothing.
+// ⚠️ `var x = if|switch` WAS REFUSED HERE until a once-only guard existed: `var`
+// initialises ONCE — the value is computed on the first bar and kept — and
+// lowering it like a plain binding would re-evaluate the block every bar and
+// silently make `var` mean nothing. RT14 built the guard (a persistent flag
+// declared once around the chain); the two controls below now pin the ONCE.
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
@@ -111,32 +111,42 @@ describe('⭐⭐ a block in value position on the right of `:=`', () => {
       .toEqual(BARS.map((b) => (b.c > 102 ? 1 : 2)))
   })
 
-  it('⛔⛔ CONTROL — `var x = switch` STILL REFUSES, and now says why', () => {
-    // ⚠️ `var` INITIALISES ONCE. Lowering it like a plain binding would
-    // re-evaluate the block every bar and silently make `var` mean nothing —
-    // which is worse than refusing, because nothing would look wrong.
-    const r = refusalOf(`${head}s = 1\nvar x = switch s\n    1 => 10\n    => 20\nplot(x)\n`)
-    expect(r.guard).toBe('runtime:block-value')
-    expect(r.message).toMatch(/once/i)
-    // ⛔ AND IT NO LONGER BLAMES THE VALUE MODEL. `pine:block` says "this engine
-    // stores a single expression", which is false about a lane that has just
-    // lowered the same block one line above.
-    expect(r.message).not.toMatch(/single expression/)
+  // ⚰️ RE-PINNED BY RT14 (2026-10-04), with the measured reason: these two
+  // CONTROLS pinned the refusal *"`var x = if|switch …` initialises ONCE, and this
+  // lane has no once-only guard around a block yet"*. RT14 built that guard (a
+  // second persistent slot, declared `0` once, around the chain), so the controls
+  // now pin what the refusal protected: the block is evaluated on the FIRST bar
+  // only and its value kept — never re-evaluated every bar.
+  it('⛔⛔ `var x = switch` initialises ONCE (RT14 — it refused until the guard existed)', () => {
+    // `s` moves bar to bar, so a re-evaluated switch would change with it.
+    const out = run(`${head}s = close > 102 ? 1 : 2
+var x = switch s
+    1 => 10
+    => 20
+plot(x)
+`)
+    expect(out).toEqual(BARS.map(() => 20))
   })
 
-  it('⛔ CONTROL — `var x = if` refuses for the SAME reason, by the same branch', () => {
-    // ⛔ THE SECOND HALF OF ONE PREDICATE. The refusal reads
-    // `varBlk.value === 'if' || varBlk.value === 'switch'`, and a case for only
-    // one disjunct cannot tell a working guard from one whose `if` half was
-    // dropped — `lesson_a_guard_that_tests_the_adjacent_thing`.
-    const r = refusalOf(`${head}var x = if close > 102
+  it('⛔ `var x = if` initialises ONCE too, by the same branch', () => {
+    // ⛔ THE SECOND HALF OF ONE PREDICATE (`varBlk.value === 'if' || … 'switch'`).
+    const out = run(`${head}var x = if close > 102
     1
 else
     2
 plot(x)
 `)
-    expect(r.guard).toBe('runtime:block-value')
-    expect(r.message).toMatch(/once/i)
+    expect(out).toEqual(BARS.map(() => 2))
+  })
+
+  it('⛔ CONTROL — `varip x = if` still refuses BY NAME (intrabar persistence)', () => {
+    const r = refusalOf(`${head}varip x = if close > 102
+    1
+else
+    2
+plot(x)
+`)
+    expect(['runtime:varip', 'runtime:block-value']).toContain(r.guard)
   })
 
   it('⛔ CONTROL — an armless `switch` still refuses BY NAME', () => {
