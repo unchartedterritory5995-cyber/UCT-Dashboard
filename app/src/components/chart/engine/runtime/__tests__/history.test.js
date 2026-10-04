@@ -346,8 +346,12 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
   })
 
   it('history over an EXPRESSION inside a FUNCTION still refuses', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+    // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
+    // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
+    // subexpression WITH state, which a hoist would step on calls that never reach it.
+    expect(refusalOf(`${head}f(v) =>\n    (ta.ema(v, 3) + 1)[1]\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
+    expect(() => runPine(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`)).not.toThrow()
   })
 
   it('⭐ history over a FUNCTION-LOCAL value now EXECUTES — see udfHistory.test.js', () => {

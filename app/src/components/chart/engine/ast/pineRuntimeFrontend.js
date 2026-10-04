@@ -3143,6 +3143,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  would lift a refusal nobody asked to lift — the exact failure recorded for
    *  the wider deferred-function inlining a few lines below. */
   let stmtHoistSink = null
+  /** ⭐ RT10 — WHOSE list `stmtHoistSink` is: `null` for the root walk, a
+   *  function's index for its own body (`frameHoist`). A hoist lands only in a
+   *  sink owned by the frame being lowered, so a function body never declares
+   *  into the caller's root list (a slot shared by every call site). */
+  let stmtHoistOwner = null
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
@@ -4114,7 +4119,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
    */
   const hoistCommittedSeries = (srcNode, scope, label) => {
     if (!stmtHoistSink) return null
-    if (owner !== null) return null
+    // ⭐⭐ RT10 — INSIDE A FRAME, into the frame's OWN body list only, and only an
+    // expression with no state of its own (`hoistSafe`): the slot is then exactly
+    // the local a member would write on the line above, and its history is the
+    // call site's (`fnHistorySlotFor`), as every body local's is. A stateful
+    // subexpression stays where it was written, because hoisting would step it
+    // on calls whose branch never reached it.
+    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name' || !hoistSafe(srcNode, scope))) return null
     if (!srcNode || typeof srcNode !== 'object') return null
     // ⭐ A NAME NO PINE IDENTIFIER CAN COLLIDE WITH — it carries spaces, exactly
     // as the request region's own hoisted sources do.
@@ -4123,6 +4134,45 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const slot = scope.declare(tmp, newSlot(tmp, false))
     stmtHoistSink.push(declare(slot, value))
     return { slot, label: tmp }
+  }
+
+  /** ⭐ RT10 — an expression with no state of its own: names, literals,
+   *  operators, a fixed-offset read, and pointwise calls (`pointwiseTarget`, `na`,
+   *  `nz`), none of them the script's own function. Evaluating it on a line of
+   *  its own just before the statement that reads it computes the same values. */
+  //  ⛔ And every name it reads is this FRAME's (a parameter or a body local) or
+  //  no slot at all: a function reading a mutable GLOBAL is its own wall
+  //  (`runtime:function-global-state`), which a hoist must not lift.
+  const hoistSafe = (n, scope, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return false
+    switch (n.type) {
+      case 'name': {
+        const sl = scope.lookup(n.name)
+        return sl === null || slots[sl].owner === owner
+      }
+      case 'number': case 'string': case 'colour': return true
+      case 'binary': return hoistSafe(n.left, scope, depth + 1) && hoistSafe(n.right, scope, depth + 1)
+      case 'unary': return hoistSafe(n.arg, scope, depth + 1)
+      case 'ternary': return hoistSafe(n.test, scope, depth + 1) && hoistSafe(n.yes, scope, depth + 1) && hoistSafe(n.no, scope, depth + 1)
+      case 'offset': return hoistSafe(n.arg, scope, depth + 1)
+        && ((Number.isInteger(n.n) && n.n >= 0) || hoistSafe(n.n, scope, depth + 1))
+      case 'call': {
+        const nm = String(n.name || '')
+        if (definedNames.has(nm)) return false
+        if (!(nm === 'na' || nm === 'nz' || pointwiseTarget(nm))) return false
+        return (n.args || []).every((a) => !(a && a.name) && hoistSafe(a && a.value !== undefined ? a.value : a, scope, depth + 1))
+      }
+      default: return false
+    }
+  }
+  /** ⭐ RT10 — lower a function's RESULT with its own body as the hoist sink, so
+   *  `f(x) => ta.sma(x * 2, 5)` gives `x * 2` its committed series in the frame. */
+  const intoFrameSink = (body, fn) => {
+    const prevSink = stmtHoistSink
+    const prevOwner = stmtHoistOwner
+    stmtHoistSink = body
+    stmtHoistOwner = owner
+    try { return fn() } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner }
   }
 
   /** ⭐⭐ RT10 — is this call Pine's pivot (`ta.pivothigh/low`, or the bare
@@ -4792,6 +4842,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
             slotHistoryGuard(hoisted.slot, at)
+            // RT10: a frame's hoisted slot is a body local; its ring is per call site.
+            if (owner !== null) return histSlot(hoisted.slot, fnHistorySlotFor(owner, hoisted.slot, hb, at), hb)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
           const varSlot = scope.lookup(node.arg.name)
@@ -5469,7 +5521,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
             return binary('-', read(hoisted.slot),
-              histSlot(hoisted.slot, historySlotFor(hoisted.slot, 1, at), 1))
+              histSlot(hoisted.slot, owner !== null
+                ? fnHistorySlotFor(owner, hoisted.slot, 1, at) : historySlotFor(hoisted.slot, 1, at), 1))
           }
           const varSlot = scope.lookup(srcNode.name)
           if (varSlot === null) {
@@ -6683,12 +6736,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  const lowerStmts = (list0, scope, rootHoist = false) => {
+  const lowerStmts = (list0, scope, rootHoist = false, frameHoist = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
+    const outerStmtOwner = stmtHoistOwner
     stmtHoistSink = null
     // RT5: every list but the root runs only on some bars (or per call).
     if (!rootHoist) condDepth += 1
@@ -6698,7 +6752,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // mid-statement, and it always points at THIS list's `out` — which holds
       // every statement lowered so far, i.e. exactly the position immediately
       // before the statement being lowered now.
-      if (rootHoist) stmtHoistSink = out
+      if (rootHoist || frameHoist) { stmtHoistSink = out; stmtHoistOwner = owner }
       const st = list[i]
       let toks = st.header || []
       if (!toks.length) continue
@@ -7801,6 +7855,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     } finally {
       stmtHoistSink = outerStmtSink
+      stmtHoistOwner = outerStmtOwner
       if (!rootHoist) condDepth -= 1
     }
     return out
@@ -8040,13 +8095,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // compiled VALUELESS: every statement lowered, its result `na`, and a
           // call that READS the result refused by name at the call site. Called
           // on a line of its own, the result is discarded and nothing is lost.
-          body = lowerStmts(lines, fnScope)
+          body = lowerStmts(lines, fnScope, false, true)
           record.valueless = true
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
         } else if (chainAt >= 0) {
-          body = lowerStmts(lines.slice(0, chainAt), fnScope)
+          body = lowerStmts(lines.slice(0, chainAt), fnScope, false, true)
           // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
           // that does not match has NO value; seeding with 0, or with the
           // matched arm, hands a member a confident number for a branch their
@@ -8060,7 +8115,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           body.push(chain.stmt)
           result = read(vSlot)
         } else {
-          body = lowerStmts(lines.slice(0, -1), fnScope)
+          body = lowerStmts(lines.slice(0, -1), fnScope, false, true)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
           // `return`. A final binding yields the value it bound; a final bare
           // expression yields itself.
@@ -8069,7 +8124,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const eq = findTop(lt, (t) => isPunct(t, '='))
           const walrus = findTop(lt, (t) => isPunct(t, ':='))
           if (walrus > 0 || (eq > 0 && !isPunct(lt[0], '['))) {
-            body = body.concat(lowerStmts([last], fnScope))
+            body = body.concat(lowerStmts([last], fnScope, false, true))
             const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
             const slot = bound ? fnScope.lookup(bound.value) : null
             if (slot === null) {
@@ -8079,7 +8134,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             result = read(slot)
           } else {
             try {
-              result = lowerResult(parseWholeExpression(lt), fnScope)
+              result = intoFrameSink(body, () => lowerResult(parseWholeExpression(lt), fnScope))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
               // slot there), so the refusal it always gave is HELD for the call
@@ -8094,7 +8149,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
       } else {
-        result = lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope)
+        result = intoFrameSink(body, () => lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope))
       }
       record.body = body
       record.result = result
