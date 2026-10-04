@@ -4527,8 +4527,35 @@ def _cream_row_direction(a: dict, size_min_ask: float):
         return d, False
     if (a.get("_tierKey") == "size" and (a.get("aggAskPremium") or 0) >= size_min_ask
             and a.get("cp") in ("C", "P")):
+        if _cream_deep_itm(a):
+            return None, False
         return ("Bull" if a.get("cp") == "C" else "Bear"), True
     return None, False
+
+
+def _cream_deep_itm(a: dict) -> bool:
+    """Deep-ITM beyond direction_max_itm_pct — the SAME line _row_to_alert uses to
+    strip a print's direction. Recovery must not hand it back: 10/2 GOOG 500P
+    12/17/27 (500 @ $160, spot $341.78, 31.6% ITM — ~all intrinsic, a stock-like
+    hedge) was nulled to "Size - Not Clean" by the classifier, then printed as a
+    $8.0M BEAR on the Top Flow card by call/put recovery. Without spot, uses the
+    classifier's parity trip (price vs strike) under 365 DTE."""
+    try:
+        cap = float(_load_thresholds().get("direction_max_itm_pct", 20.0) or 0)
+    except Exception:
+        cap = 20.0
+    if cap <= 0:
+        return False
+    pct, label = a.get("moneynessPct"), a.get("moneynessLabel")
+    if pct is not None and label:
+        return label == "ITM" and pct > cap
+    price, strike = a.get("averageFillPrice") or 0, a.get("strike") or 0
+    dte = a.get("dte")
+    if not (price > 0 and strike > 0 and isinstance(dte, (int, float)) and 0 < dte < 365):
+        return False
+    trip = (strike * (cap / (100.0 + cap)) if a.get("cp") == "P"
+            else strike * (cap / max(100.0 - cap, 1.0)))
+    return price > trip
 
 
 def _cream_rank_side(rows: list, side: str, top_n: int, max_per_ticker: int) -> list:
