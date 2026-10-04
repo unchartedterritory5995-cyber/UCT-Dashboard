@@ -345,6 +345,8 @@ export function beginObjects(program, ctx) {
    *  off the listing on SPY 1D (CAP2). Any other op on the list is no proof. */
   const fifoCapped = fifoCappedColls(program)
   const fifoEvicted = new Set()
+  /** ⭐ F1 — a capped list one of whose removals did NOT take its oldest element. */
+  const fifoBroken = new Set()
   /** Per list, a boolean per slot, kept in step with `colls`. */
   const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(false)]))
   /** table instanceId → Set<"col,row"> | '*'. */
@@ -1974,7 +1976,11 @@ export function beginObjects(program, ctx) {
             arr.splice(i, 1)
             collSlotTaint.get(op.coll).splice(i, 1)
             // ⭐ F1 — a FIFO-capped list evicted its oldest on THIS run's own length.
-            if (i === 0 && fifoCapped.has(op.coll)) fifoEvicted.add(op.coll)
+            const oldest = fifoCapped.get(op.coll)
+            if (oldest) {
+              if ((oldest === 'front' && i === 0) || (oldest === 'end' && i === arr.length)) fifoEvicted.add(op.coll)
+              else fifoBroken.add(op.coll)
+            }
           }
           break
         }
@@ -2056,8 +2062,9 @@ export function beginObjects(program, ctx) {
   // (`ctx.offListing === true`); a caller that says nothing keeps today's answer.
   const offListingFams = new Set()
   if (ctx.offListing === true) {
+    const renewed = renewedColls(program)
     for (const c of program.colls || []) {
-      if (c.persist === true && c.family && !fifoEvicted.has(c.id)) offListingFams.add(c.family)
+      if (c.persist === true && c.family && !(fifoEvicted.has(c.id) && !fifoBroken.has(c.id)) && !renewed.has(c.id)) offListingFams.add(c.family)
     }
   }
   for (const fam of offListingFams) withheldFams.add(fam)
@@ -2114,6 +2121,11 @@ export function beginObjects(program, ctx) {
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
     ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
+    // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
+    // vendor harness's window analysis); never drawn — the binder reads `live`.
+    ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]
+      .filter((o) => offListingFams.has(o.family)).sort((x, y) => x.id - y.id)
+      .map((o) => ({ family: o.family, id: o.id, site: o.site, createdBar: o.createdBar, props: { ...o.props } })) } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,
@@ -2169,36 +2181,86 @@ export function beginObjects(program, ctx) {
  *  lane wants, and the ONE driver for everyone who has no bar loop of their own.
  *  ⛔ DERIVED FROM THE STEPPER, NEVER A SECOND COPY OF THE WALK. */
 /** ⭐ F1 — the collections whose every op is a FIFO cap (see `fifoCapped` in
- *  `beginObjects`). Read off the program, never off a name. */
+ *  `beginObjects`), each mapped to the end its OLDEST element sits at: `'front'`
+ *  (index 0) when it grows by `array.push`, `'end'` (index size - 1) when it grows
+ *  by `array.unshift`. Every removal must take that oldest element, under a guard
+ *  that tests the list's own size (`array.size(arr) > n` / `>= n`, alone or in an
+ *  `and`). CAP3 SPY 1D: `average-day-range-adr-pivots` (push · `>=` · remove 0)
+ *  and `htf-liquidity-dashboard-tfo` (unshift · `>` · remove size - 1) both MATCH
+ *  off the listing on those lists. Read off the program, never off a name. */
 function fifoCappedColls(program) {
   const ops = []
   const walk = (list) => { for (const op of list || []) { ops.push(op); if (op && op.k === 'loop') walk(op.body) } }
   walk(program.ops)
   const latches = new Map(ops.filter((o) => o && o.k === 'latch').map((o) => [o.id, o]))
-  const capLatch = (when, coll) => {
+  // the guards a list grows under: two lists pushed under the SAME guards, at the
+  // same end, hold the same number of elements on every bar, so a cap on one's size
+  // caps the other (`htf-liquidity-dashboard-tfo`: the high and low lines of a level
+  // are unshifted together and trimmed by `_hline.size() > n`)
+  const growth = (coll) => JSON.stringify(ops.filter((o) => o && o.k === 'push' && o.coll === coll)
+    .map((o) => [o.front === true, o.when || null]))
+  const isCap = (when, coll) => {
     const l = when && when.v === 'latch' ? latches.get(when.id) : null
     const c = l && l.cond
-    return !!c && c.v === 'cmp' && c.op === '>' && Array.isArray(c.args) && c.args[0]
-      && c.args[0].v === 'size' && c.args[0].coll === coll
+    const sized = !!c && c.v === 'cmp' && (c.op === '>' || c.op === '>=') && Array.isArray(c.args) && c.args[0]
+      && c.args[0].v === 'size' ? c.args[0].coll : null
+    return sized === coll || (sized !== null && growth(sized) === growth(coll))
   }
-  const front = (idx) => !!idx && idx.v === 'const' && idx.value === 0
-  const out = new Set()
+  const capLatch = (when, coll) => isCap(when, coll)
+    || (!!when && when.v === 'bool' && when.op === 'and' && Array.isArray(when.args) && when.args.some((a) => isCap(a, coll)))
+  const atFront = (idx) => !!idx && idx.v === 'const' && idx.value === 0
+  const atEnd = (idx, coll) => !!idx && idx.v === 'op' && idx.op === '-' && Array.isArray(idx.args)
+    && idx.args[0] && idx.args[0].v === 'size' && idx.args[0].coll === coll && !!idx.args[1]
+  // ⚠️ `size - k` with a computed `k` cannot be read off the program as `size - 1`:
+  // the run checks it instead — a removal that lands anywhere but the oldest end
+  // breaks the exemption for that list (`fifoBroken` in `beginObjects`)
+  const out = new Map()
   for (const c of program.colls || []) {
     if (c.persist !== true) continue
     const touching = ops.filter((o) => o && (o.coll === c.id
       || (o.target && o.target.r === 'coll' && o.target.id === c.id)
       || JSON.stringify(o).includes(`"coll":"${c.id}"`)))
+    const pushes = touching.filter((o) => o.k === 'push' && o.coll === c.id)
+    if (!pushes.length) continue
+    const fronts = new Set(pushes.map((o) => o.front === true))
+    if (fronts.size !== 1) continue
+    const oldest = fronts.has(true) ? 'end' : 'front'
+    const isOldest = (idx) => (oldest === 'front' ? atFront(idx) : atEnd(idx, c.id))
     let evicts = false
     const ok = touching.every((o) => {
       if (o.k === 'push' && o.coll === c.id) return true
       if (o.k === 'latch') return true
-      if (o.k === 'collremove' && o.coll === c.id && front(o.index) && capLatch(o.when, c.id)) { evicts = true; return true }
-      if (o.k === 'delete' && o.target && o.target.r === 'coll' && o.target.id === c.id && front(o.target.index)
+      // a property written on a member never changes which objects the list holds
+      if (o.k === 'update' && o.target && o.target.r === 'coll' && o.target.id === c.id) return true
+      // the oldest element read into a register, under the cap, before it is removed
+      // (`box = array.get(arr, 0)` · `box.delete(box)` · `array.remove(arr, 0)`)
+      if (o.k === 'setreg' && o.value && o.value.r === 'coll' && o.value.id === c.id && isOldest(o.value.index)
+        && capLatch(o.when, c.id)) return true
+      if (o.k === 'collremove' && o.coll === c.id && isOldest(o.index) && capLatch(o.when, c.id)) { evicts = true; return true }
+      if (o.k === 'delete' && o.target && o.target.r === 'coll' && o.target.id === c.id && isOldest(o.target.index)
         && capLatch(o.when, c.id)) return true
       return false
     })
-    if (ok && evicts) out.add(c.id)
+    if (ok && evicts) out.set(c.id, oldest)
   }
+  return out
+}
+
+/** ⭐ F1 — the collections a run RENEWS: emptied unconditionally (`collclear` with
+ *  no guard, on every bar or on the last bar only), so what one holds at the end
+ *  was put there after its last clear, on bars this run has — never an object an
+ *  earlier, unseen bar left. CAP3 `ict-killzones-pivots-tfo-spy-1d-2026-10-03`
+ *  (its pivot labels are cleared and redrawn on the last bar) MATCHes off the
+ *  listing. */
+function renewedColls(program) {
+  const out = new Set()
+  const walk = (list) => {
+    for (const op of list || []) {
+      if (op && op.k === 'collclear' && op.when == null) out.add(op.coll)
+      if (op && op.k === 'loop') walk(op.body)
+    }
+  }
+  walk(program.ops)
   return out
 }
 

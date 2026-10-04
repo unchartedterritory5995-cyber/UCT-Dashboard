@@ -554,7 +554,10 @@ function objectsOf(def, bars, ctx, cols, built = null) {
       // the same report shape as a drawing the door's gate withholds (F3,
       // `drawingWithheldBy`): a withheld family is a gap, graded as one
       return { drawsObjects: false, withheld: 'objects:off-listing',
-        reason: `the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable` }
+        reason: `the ${fams.join(' / ')} drawings live in a \`var\` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable`,
+        // the run's live set, for DIAGNOSTICS only (F4's window analysis reads it):
+        // never graded — there is no `ok`, so `gradeCapture` pairs nothing
+        held: [...(run.live || []), ...(run.offListingLive || [])].sort((x, y) => x.id - y.id) }
     }
     const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])
