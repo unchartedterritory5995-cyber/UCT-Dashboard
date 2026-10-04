@@ -26711,6 +26711,64 @@ function securityColourRule(node, env, depth, ctx) {
   return inner
 }
 
+/** ⭐⭐ F9 — `color.new(<a per-bar colour rule>, t)` IS THAT RULE AT ONE ALPHA.
+ *
+ *  ⚰️ MEASURED (CAP4 `vw-rt8-runtime-followups-rddt-1d-2026-10-04`, S03:
+ *  `plotshape(true, color = color.new(close > mid ? color.blue : color.orange, 40))`):
+ *  TradingView draws `#2962ff99` / `#ff980099` per bar; this door read no rule in a
+ *  `color.new` call and drew the pane's gold on 636 of 636 bars.
+ *
+ *  `color.new(c, t)` REPLACES `c`'s transparency with `t` (Pine's rule, the one the
+ *  static path already follows in `colourHelperAlpha`), so over a conditional it
+ *  is the same conditional with every leaf at alpha `1 - t/100`: the rule's test
+ *  or index tree is unchanged, and only the opacity moves.
+ *
+ *  ⛔ ONLY A `t` THAT FOLDS (a literal, an input's default — `alphaNumberOf`),
+ *  truncated as Pine holds it (`wholeTransparency`, C29); a per-bar `t` declines.
+ *  ⛔ A RULE WITH AN `na` LEAF DECLINES: `color.new(na, t)` is TradingView's black
+ *  at `t` (RT9, C03), not "nothing", and no capture shows that leaf inside a
+ *  conditional under `color.new` (queued, `capture-queue-2026-10-04-f9-divergences.md`).
+ *  Returns `undefined` for a call that is not this shape (the caller goes on),
+ *  else the rule or null. New rules never mint (`withholdMint`, R36). */
+function colorNewOverRule(node, env, depth, ctx) {
+  if (node.name !== 'color.new') return undefined
+  const args = node.args || []
+  if (args.length !== 2 || args.some((a) => !a || (a.name && a.name !== 'color' && a.name !== 'transp'))) {
+    return undefined
+  }
+  const baseArg = args.find((a) => a.name === 'color') || args.find((a) => !a.name)
+  const tArg = args.find((a) => a.name === 'transp') || args.filter((a) => !a.name)[baseArg.name ? 0 : 1]
+  if (!baseArg || !tArg || baseArg === tArg) return undefined
+  // A base that folds to one static colour is `staticColourOf`'s, not a rule.
+  if (staticColourOf(baseArg.value, env, 0, ctx)) return undefined
+  const raw = alphaNumberOf(tArg.value, env, ctx)
+  if (raw === null) return null
+  const t = wholeTransparency(raw)
+  if (t === null) return null
+  const alpha = Math.max(0, Math.min(1, 1 - t / 100))
+  const inner = colourConditional(baseArg.value, env, depth + 1, ctx)
+  if (!inner) return null
+  if (inner.test && typeof inner.up === 'string' && typeof inner.down === 'string') {
+    return { ...inner, opacity: alpha, withholdMint: true }
+  }
+  if (inner.indexTree && Array.isArray(inner.palette)) {
+    const palette = inner.palette.map(paletteEntryHex)
+    if (palette.some((h) => !h)) return null
+    return { ...inner, palette, opacity: alpha, withholdMint: true }
+  }
+  return null
+}
+
+/** A palette entry (`#RRGGBB` or `rgba(r, g, b, a)`) → its `#rrggbb`, ignoring the
+ *  alpha; null for the transparent `na` entry or anything else. */
+function paletteEntryHex(entry) {
+  if (typeof entry !== 'string' || entry === TRANSPARENT_PALETTE_ENTRY) return null
+  if (/^#[0-9a-f]{6}$/i.test(entry)) return entry
+  const m = /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)$/.exec(entry)
+  if (!m) return null
+  return `#${[m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('').toUpperCase()}`
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'bound') {
@@ -26748,6 +26806,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   // the outer call's arguments.
   if (node.type === 'call') {
     if (ctx && ctx.inline) return null
+    const renewed = colorNewOverRule(node, env, depth, ctx)
+    if (renewed !== undefined) return renewed
     const requested = securityColourRule(node, env, depth, ctx)
     if (requested !== undefined) return requested
     const helper = openColourHelper(node, env, ctx)

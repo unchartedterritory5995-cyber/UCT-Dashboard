@@ -1360,12 +1360,24 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
   // vendor-pinned 2026-09-08, 380ok/0bad on an arithmetic source.
   let src = series
+  // ⭐⭐ F9 — AND IT FIRST ANSWERS ON ITS n-TH FINITE INPUT (rule A). The count of
+  // finite inputs seen so far, per bar; the runtime lane's twin is `vm.js`
+  // OP.WINDOW `ffill` (`winObsN`). ⚰️ MEASURED (CAP4 `vw-rt8-runtime-followups-
+  // rddt-1d-2026-10-04`, from the listing): `ta.wma(src, 10)` over a source finite
+  // on bars 0-2, `na` on 3-19, finite from 20 first answers on bar 26 (W01; W03,
+  // finite on bar 0 only then from 50, on bar 58). This lane answered on the first
+  // FULL filled window (bars 20 and 50): 6 + 8 bars drawn where TradingView draws
+  // none, and 46 more through `ta.ema` of it (W02).
+  let finiteSeen = null
   if (policy === NA.FFILL) {
     src = new Float64Array(series.length)
+    finiteSeen = new Int32Array(series.length)
     let carry = NaN
+    let seen = 0
     for (let i = 0; i < series.length; i++) {
-      if (Number.isFinite(series[i])) carry = series[i]
+      if (Number.isFinite(series[i])) { carry = series[i]; seen += 1 }
       src[i] = carry
+      finiteSeen[i] = seen
     }
   }
   for (let i = n - 1; i < series.length; i++) {
@@ -1373,7 +1385,7 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
     // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
     // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
     // every hole and lose the half of the rule that says otherwise.
-    if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    if (policy === NA.FFILL && (!Number.isFinite(series[i]) || finiteSeen[i] < n)) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
     else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
