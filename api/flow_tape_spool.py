@@ -707,7 +707,7 @@ def replay_gaps(target: date = None) -> dict:
                 run_color_rebuild(mdy)      # older signature fallback
             except Exception as e:
                 logger.warning("[tape-spool] color rebuild failed: %s", e)
-            _bump_version()
+            _bump_version(mdy)
 
         out = {"status": "aborted_live_conflict" if aborted else "completed",
                "target": target.isoformat(), "windows": results,

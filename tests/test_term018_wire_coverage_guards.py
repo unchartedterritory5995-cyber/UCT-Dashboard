@@ -62,3 +62,19 @@ def test_the_two_guards_never_share_a_severity(monkeypatch):
     _, a = _drive(monkeypatch, [_cov(missing=["X"]), _cov(missing=["X"])])
     _, b = _drive(monkeypatch, [_cov(measured=False)])
     assert a[0][1] != b[0][1]
+
+
+def test_CONTROL_a_gap_the_heal_closes_never_pages(monkeypatch):
+    """The incomplete guard's other side: a gap the forced heal CLOSES is the normal
+    lag, not an outage, and must not page."""
+    out, sent = _drive(monkeypatch, [_cov(missing=["SLAB"]), _cov()])
+    assert out["healed"] is True and out["ok"] is True and out["alerted"] is False
+    assert sent == []
+
+
+def test_the_unmeasured_warning_names_its_session_and_skips_the_heal(monkeypatch):
+    """Unmeasured is reported ONCE, as a warning carrying the session, and the heal
+    (which cannot make a dead provider measurable) is never attempted."""
+    out, sent = _drive(monkeypatch, [_cov(measured=False)])
+    assert out["healed"] is False
+    assert len(sent) == 1 and sent[0][1] == "warning" and MD in sent[0][2]

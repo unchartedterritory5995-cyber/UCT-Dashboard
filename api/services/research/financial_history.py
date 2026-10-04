@@ -19,6 +19,7 @@ chart has to remember to do it.
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
@@ -30,6 +31,132 @@ _TTL = 12 * 3_600          # statements change quarterly; 12h is generous
 _TTL_FAIL = 600
 MAX_QUARTERS = 24
 MAX_ANNUAL = 12
+
+
+# ── The line items, declared as DATA: (key, statement leg, FMP field names) ──
+#
+# Field names are FMP's `/stable/*-statement` spellings, with the legacy v3
+# spelling beside them where the two differ (`epsDiluted` / `epsdiluted`), so a
+# row in either shape is read. The first NUMERIC field wins. A field FMP does
+# not send for a company (a bank has no `inventory`) is None — a GAP, never a
+# zero, because a zero reads as a fact about the business.
+#
+# ⛔ The first ten keys are what the six statement PANELS read
+# (statementSeries.js); they keep their names and fields exactly.
+LINE_ITEMS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("revenue", "income", ("revenue",)),
+    ("operating_income", "income", ("operatingIncome",)),
+    ("net_income", "income", ("netIncome",)),
+    ("eps", "income", ("eps", "epsdiluted")),
+    ("gross_profit", "income", ("grossProfit",)),
+    ("operating_expenses", "income", ("operatingExpenses", "costAndExpenses")),
+    ("total_assets", "balance", ("totalAssets",)),
+    ("total_liabilities", "balance", ("totalLiabilities",)),
+    ("free_cash_flow", "cash", ("freeCashFlow",)),
+    ("operating_cash_flow", "cash", ("operatingCashFlow", "netCashProvidedByOperatingActivities")),
+    # income statement
+    ("cost_of_revenue", "income", ("costOfRevenue",)),
+    ("research_and_development", "income", ("researchAndDevelopmentExpenses",)),
+    ("sga", "income", ("sellingGeneralAndAdministrativeExpenses",)),
+    ("ebitda", "income", ("ebitda",)),
+    ("interest_expense", "income", ("interestExpense",)),
+    ("pretax_income", "income", ("incomeBeforeTax",)),
+    ("income_tax", "income", ("incomeTaxExpense",)),
+    ("eps_diluted", "income", ("epsDiluted", "epsdiluted")),
+    ("shares_diluted", "income", ("weightedAverageShsOutDil",)),
+    # balance sheet
+    ("cash_and_equivalents", "balance", ("cashAndCashEquivalents",)),
+    ("short_term_investments", "balance", ("shortTermInvestments",)),
+    ("receivables", "balance", ("netReceivables",)),
+    ("inventory", "balance", ("inventory",)),
+    ("total_current_assets", "balance", ("totalCurrentAssets",)),
+    ("ppe_net", "balance", ("propertyPlantEquipmentNet",)),
+    ("goodwill", "balance", ("goodwill",)),
+    ("accounts_payable", "balance", ("accountPayables", "accountsPayables")),
+    ("total_current_liabilities", "balance", ("totalCurrentLiabilities",)),
+    ("long_term_debt", "balance", ("longTermDebt",)),
+    ("total_debt", "balance", ("totalDebt",)),
+    ("net_debt", "balance", ("netDebt",)),
+    ("total_equity", "balance", ("totalStockholdersEquity", "totalEquity")),
+    # cash flow
+    ("depreciation_amortization", "cash", ("depreciationAndAmortization",)),
+    ("stock_based_compensation", "cash", ("stockBasedCompensation",)),
+    ("capital_expenditure", "cash", ("capitalExpenditure", "investmentsInPropertyPlantAndEquipment")),
+    ("acquisitions", "cash", ("acquisitionsNet",)),
+    ("dividends_paid", "cash", ("commonDividendsPaid", "netDividendsPaid", "dividendsPaid")),
+    ("buybacks", "cash", ("commonStockRepurchased",)),
+)
+
+SOURCE_ENDPOINTS = ("/stable/income-statement", "/stable/balance-sheet-statement",
+                    "/stable/cash-flow-statement")
+
+
+def _ratio(a, b, scale: float = 100.0):
+    """a / b (x scale), or None when either side is missing or b is zero. A
+    ratio over a negative denominator (negative equity) is returned as
+    computed: the sign is information, and hiding it would be a judgement."""
+    if a is None or b is None or b == 0:
+        return None
+    return round(a / b * scale, 2)
+
+
+def _yoy(values: list, back: int) -> list:
+    """Growth against the same period one year earlier (4 quarters / 1 year
+    back), in percent. None for the first `back` points, and across a zero or
+    a sign change, where a percentage stops meaning anything."""
+    out = []
+    for i, v in enumerate(values):
+        p = values[i - back] if i >= back else None
+        if v is None or p is None or p == 0 or (p < 0) != (v < 0):
+            out.append(None)
+        else:
+            out.append(round((v - p) / abs(p) * 100, 2))
+    return out
+
+
+def _ttm(values: list, period: str) -> list:
+    """Trailing-twelve-month sum of a quarterly flow (None until four quarters
+    are present, or when any of the four is missing); the value itself for an
+    annual series."""
+    if period == "annual":
+        return list(values)
+    out = []
+    for i in range(len(values)):
+        win = values[i - 3:i + 1] if i >= 3 else []
+        out.append(sum(win) if len(win) == 4 and all(x is not None for x in win) else None)
+    return out
+
+
+def derive_ratios(series: dict, period: str) -> dict:
+    """Key ratios per period, DERIVED from the statements in this same payload
+    — no second fetch, so a ratio can never disagree with the line items it is
+    shown beside.
+
+    Margins are per period. Returns (ROE, ROA) use TRAILING-twelve-month net
+    income on quarterly data: one quarter's income over a balance sheet would
+    understate them four-fold. The client labels them "(TTM)" on that basis."""
+    n = len(series.get("revenue") or [])
+
+    def col(k):
+        return series.get(k) or [None] * n
+
+    rev, ni = col("revenue"), col("net_income")
+    back = 1 if period == "annual" else 4
+    ni_ttm = _ttm(ni, period)
+    return {
+        "gross_margin": [_ratio(a, b) for a, b in zip(col("gross_profit"), rev)],
+        "operating_margin": [_ratio(a, b) for a, b in zip(col("operating_income"), rev)],
+        "ebitda_margin": [_ratio(a, b) for a, b in zip(col("ebitda"), rev)],
+        "net_margin": [_ratio(a, b) for a, b in zip(ni, rev)],
+        "fcf_margin": [_ratio(a, b) for a, b in zip(col("free_cash_flow"), rev)],
+        "revenue_growth": _yoy(rev, back),
+        "eps_growth": _yoy(col("eps"), back),
+        "roe": [_ratio(a, b) for a, b in zip(ni_ttm, col("total_equity"))],
+        "roa": [_ratio(a, b) for a, b in zip(ni_ttm, col("total_assets"))],
+        "debt_to_equity": [_ratio(a, b, 1.0) for a, b in zip(col("total_debt"), col("total_equity"))],
+        "current_ratio": [_ratio(a, b, 1.0) for a, b in zip(col("total_current_assets"),
+                                                           col("total_current_liabilities"))],
+    }
 
 
 def _cache():
@@ -82,7 +209,9 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
     period = "annual" if period == "annual" else "quarter"
     limit = MAX_ANNUAL if period == "annual" else MAX_QUARTERS
 
-    ck = f"fin_hist::{sym}::{period}"
+    # v2: the payload grew the full line-item set, `dates`, `ratios` and
+    # `source`; a v1 entry still in the process cache would lack all four.
+    ck = f"fin_hist::v2::{sym}::{period}"
     hit = _cache().get(ck)
     if hit is not None:
         return hit
@@ -130,28 +259,23 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
                 return v
         return None
 
-    periods, series = [], {
-        "revenue": [], "operating_income": [], "net_income": [], "eps": [],
-        "gross_profit": [], "operating_expenses": [],
-        "total_assets": [], "total_liabilities": [],
-        "free_cash_flow": [], "operating_cash_flow": [],
-    }
+    periods, dates = [], []
+    series: dict[str, list] = {key: [] for key, _leg, _names in LINE_ITEMS}
     for r in rows:
         d = r["date"]
         periods.append(_label(d, r.get("period"), period))
-        series["revenue"].append(num(r, "revenue"))
-        series["operating_income"].append(num(r, "operatingIncome"))
-        series["net_income"].append(num(r, "netIncome"))
-        series["eps"].append(num(r, "eps", "epsdiluted"))
-        series["gross_profit"].append(num(r, "grossProfit"))
-        series["operating_expenses"].append(num(r, "operatingExpenses", "costAndExpenses"))
-        b, c = bal.get(d), cash.get(d)
-        series["total_assets"].append(num(b, "totalAssets"))
-        series["total_liabilities"].append(num(b, "totalLiabilities"))
-        series["free_cash_flow"].append(num(c, "freeCashFlow"))
-        series["operating_cash_flow"].append(num(c, "operatingCashFlow"))
+        dates.append(d[:10])
+        legs = {"income": r, "balance": bal.get(d), "cash": cash.get(d)}
+        for key, leg, names in LINE_ITEMS:
+            series[key].append(num(legs[leg], *names))
 
-    out = {"sym": sym, "period": period, "periods": periods, "series": series,
-           "count": len(periods)}
+    out = {"sym": sym, "period": period, "periods": periods, "dates": dates,
+           "series": series, "ratios": derive_ratios(series, period),
+           "count": len(periods),
+           # Provenance the client shows on screen: who, which endpoints, on
+           # what period basis, and when this server read them.
+           "source": {"vendor": "FMP", "basis": "fiscal",
+                      "endpoints": list(SOURCE_ENDPOINTS),
+                      "fetched_at": int(time.time())}}
     _cache().set(ck, out, _TTL)
     return out

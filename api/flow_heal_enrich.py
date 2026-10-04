@@ -29,11 +29,13 @@ function of OI, so OI MUST land before the color rebuild):
                       live-captured baseline. A heal that diverges sharply is
                       reported INCOMPLETE instead of silently green.
 
-Known drift (harmless today): the tick test aggregates at AGG_WINDOW_NS=100ms
-while the fill pipeline (massive_processor.batch_process) uses 500ms, so patch
-keys and inserted rows derive first_ts from different event boundaries. The
-60s matching window in run_patches_backfill absorbs it — know this before
-tightening that window.
+Event boundaries: the tick test aggregates at AGG_WINDOW_NS=100ms while the
+fill pipeline (massive_processor.batch_process) uses 500ms. Every 500ms event
+opens on a trade >500ms after the contract's previous one, which also opens a
+100ms window — so a row and its patch share the same first trade, and the heal
+matches within 1s (was 60s, which let a different trade's patch claim a row:
+10/2 AVGO 355C 11/6). Since 2026-10-03 the fill also stamps each row's side
+itself (batch_process tick_side=True); this step only fills rows left blank.
 
 Gate: FLOW_HEAL_ENRICH_ENABLED (default 1 — the whole point is that tomorrow's
 heal classifies without an env edit). Manual trigger:
@@ -64,6 +66,10 @@ OI_MAX_STALE_DAYS = int(os.environ.get("FLOW_HEAL_OI_MAX_STALE_DAYS", "7"))
 # original) and massive_processor's condition-code sets. ──────────────────
 CANCEL = {201, 203, 205, 207}
 MULTI_LEG = set(range(232, 248))
+try:
+    from api.massive_processor import ML_MIN_SIZE_FRAC
+except Exception:   # keep the heal importable even if the processor isn't
+    ML_MIN_SIZE_FRAC = 0.20
 SWEEP_CODES = {219}
 BLOCK_CODES = {227, 228, 229, 230, 231}
 AGG_WINDOW_NS = 100_000_000     # 100ms — build_patches boundary (NOT the fill's 500ms)
@@ -164,7 +170,10 @@ def _tick_test_contract(ticker, ts_arr, px_arr, sz_arr, cd_arr, patches, stats):
             k = m + 1
             continue
         code_set = set(int(c) for c in codes)
-        if code_set & MULTI_LEG:
+        # Size-weighted ML, as massive_processor (ML_MIN_SIZE_FRAC): a 16-lot [236]
+        # sliver must not void a 1,891-lot sweep's side (10/2 AVGO 355C 11/6).
+        ml_size = int(sum(int(s) for s, c in zip(sizes, codes) if int(c) in MULTI_LEG))
+        if ml_size > 0 and ml_size >= total_size * ML_MIN_SIZE_FRAC:
             typ = "ML/"
         elif code_set & SWEEP_CODES:
             typ = "SWEEP"
@@ -570,7 +579,9 @@ def _enrich_day_locked(target: date, gz_path: str, mdy: str, out: dict,
                 json.dump(patches, f)
             try:
                 from api.backfill_from_patches import run_patches_backfill
-                apply_stats = run_patches_backfill(patches_path, mdy)
+                # 1s: tape patches and healed rows open on the same first trade.
+                apply_stats = run_patches_backfill(patches_path, mdy,
+                                                   match_window_sec=1)
             finally:
                 try:
                     os.remove(patches_path)

@@ -80,6 +80,8 @@ export function AuthProvider({ children }) {
   // phone doors. Each key rides the payload ONLY when on; absent reads as false.
   const [terminalChromeEnabled, setTerminalChromeEnabled] = useState(false)
   const [chartsPhoneDoorsEnabled, setChartsPhoneDoorsEnabled] = useState(false)
+  // FA/EE on FMP for the /research Financials + Estimates tabs. Default FALSE.
+  const [researchFmpDepthEnabled, setResearchFmpDepthEnabled] = useState(false)
   // Breadth Data Charts V2 increments (DC-2 §2). Default FALSE, same enablement
   // polarity and the same reason. ⭐ These REPLACE the build-time
   // `VITE_BREADTH_CHARTS_V2_ENABLED`: baked into the bundle, a flip was a rebuild,
@@ -156,6 +158,7 @@ export function AuthProvider({ children }) {
     ['how_to_checklists_enabled', (d) => d.how_to_checklists_enabled === true, setHowToChecklistsEnabled],
     ['terminal_chrome_enabled', (d) => d.terminal_chrome_enabled === true, setTerminalChromeEnabled],
     ['charts_phone_doors_enabled', (d) => d.charts_phone_doors_enabled === true, setChartsPhoneDoorsEnabled],
+    ['research_fmp_depth_enabled', (d) => d.research_fmp_depth_enabled === true, setResearchFmpDepthEnabled],
     // Not a boolean: the server's derived list. `readFeatureStatus` returns null for
     // anything it cannot vouch for, so a missing field reads as "not measured".
     ['feature_status', readFeatureStatus, setFeatureStatus],
@@ -360,7 +363,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, terminalChromeEnabled, chartsPhoneDoorsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, terminalChromeEnabled, chartsPhoneDoorsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

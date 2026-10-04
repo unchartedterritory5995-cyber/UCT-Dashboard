@@ -360,6 +360,83 @@
           }
         ]
       }
+    },
+    {
+      "guard": "api/services/wire/coverage_monitor.py::_alert_incomplete::wire_coverage_incomplete::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-16"
+      ],
+      "what_the_guard_decides": "Whether an earnings wire gap that SURVIVES the forced heal (calendar rebuild + tick) pages the operator at `critical` with the missing names in the message, instead of reading as a quiet session.",
+      "predicate": {
+        "file": "api/services/wire/coverage_monitor.py",
+        "scope": "_alert_incomplete",
+        "pinned": "chart_health_alerts.emit(\"wire_coverage_incomplete\", \"critical\", summary,",
+        "mutation": "chart_health_alerts.emit(\"wire_coverage_incomplete\", \"warning\", summary,"
+      },
+      "observed_by": [
+        "tests/test_term018_wire_coverage_guards.py::test_a_gap_that_survives_the_heal_pages_critical",
+        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity",
+        "tests/test_term018_wire_coverage_guards.py::test_CONTROL_a_gap_the_heal_closes_never_pages",
+        "tests/test_term018_wire_coverage_guards.py::test_CONTROL_a_complete_feed_emits_nothing"
+      ],
+      "proof": {
+        "commit": "fd4465140b",
+        "quote": "critical demoted to warning (2 red: gap_survives, never_share)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "coverage_monitor.run_check"
+          },
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "wire_coverage_monitor"
+          }
+        ],
+        "note": "Weekdays 9:40/13:40/17:40/21:40 ET, registered inside the wire block of api/main.py; coverage_monitor.enabled() defaults ON (WIRE_COVERAGE_MONITOR_ENABLED). No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/wire/coverage_monitor.py::_alert_unmeasured::wire_coverage_unmeasured::warning",
+      "in_population": true,
+      "audit_rows": [
+        "G-17"
+      ],
+      "what_the_guard_decides": "Whether a session whose coverage could NOT be measured (both provider legs failed) is reported as a `warning` - unknown, not broken - and never as a page, which would get the monitor muted.",
+      "predicate": {
+        "file": "api/services/wire/coverage_monitor.py",
+        "scope": "_alert_unmeasured",
+        "pinned": "\"wire_coverage_unmeasured\", \"warning\",",
+        "mutation": "\"wire_coverage_unmeasured\", \"critical\","
+      },
+      "observed_by": [
+        "tests/test_term018_wire_coverage_guards.py::test_unmeasured_is_a_warning_and_never_a_page",
+        "tests/test_term018_wire_coverage_guards.py::test_the_two_guards_never_share_a_severity",
+        "tests/test_term018_wire_coverage_guards.py::test_the_unmeasured_warning_names_its_session_and_skips_the_heal"
+      ],
+      "proof": {
+        "commit": "fd4465140b",
+        "quote": "warning promoted to critical (3 red: unmeasured_warning, never_share, names_its_session)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "coverage_monitor.run_check"
+          },
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "wire_coverage_monitor"
+          }
+        ],
+        "note": "Weekdays 9:40/13:40/17:40/21:40 ET, registered inside the wire block of api/main.py; coverage_monitor.enabled() defaults ON (WIRE_COVERAGE_MONITOR_ENABLED). No flag state is asserted here."
+      }
     }
   ],
   "declared_unobserved": [
@@ -492,22 +569,6 @@
       ],
       "audit_class": "FIREABLE",
       "why": "No test names the key."
-    },
-    {
-      "guard": "api/services/wire/coverage_monitor.py::_alert_incomplete::wire_coverage_incomplete::critical",
-      "audit_rows": [
-        "G-16"
-      ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_wire_coverage_monitor.py. One-sided."
-    },
-    {
-      "guard": "api/services/wire/coverage_monitor.py::_alert_unmeasured::wire_coverage_unmeasured::warning",
-      "audit_rows": [
-        "G-17"
-      ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_wire_coverage_monitor.py. One-sided."
     },
     {
       "guard": "api/services/wisdom/capture/health.py::page::<computed>::critical",
