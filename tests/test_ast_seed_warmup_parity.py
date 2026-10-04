@@ -162,3 +162,18 @@ def test_a_reader_is_withheld_along_the_paths_that_hold_the_state():
     assert ai.path_reach(root, a) == 23
     assert ai.max_lookback(root) - ai.max_lookback(a) == 150
     assert ai.path_reach(a, a) == 0
+
+
+def test_the_dependency_mask_reaches_a_held_state_along_its_own_paths():
+    """``seedWarmup.test.js``'s twin: a reader beside a 400-bar window is withheld on
+    the held state's own unknown bars, not 150 more (``path_reach``)."""
+    doc = _doc()
+    case = next(c for c in doc["cases"] if c["name"] == "held level · off the listing")
+    lvl = case["ast"]
+    assert ai.holds_until_set(lvl)
+    root = {"type": "op", "name": "+",
+            "args": [lvl, {"type": "call", "name": "sma", "args": [_CLOSE, {"type": "num", "value": 400}]}]}
+    dep = ai.switched_dependency_mask(root, doc["bars"], {}, opts=case["opts"])
+    unknown = [1 if v is None else 0 for v in case["expected"]]
+    assert list(dep) == unknown
+    assert sum(unknown) == 1 + 120
