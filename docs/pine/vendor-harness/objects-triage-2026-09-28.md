@@ -185,6 +185,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 83 | RT7 the runtime lane's next walls (section RT7): reductions skip `na`, an empty `array.max/min` is `na`, `na` is found nowhere, v6 counts a negative index from the end (all from `vw-array-na-spy-1d`; wyckoff RDDT now draws TradingView's 12 boxes); `ta.valuewhen` / crosses inside a function per call site (`carried2Base`); a fixed pivot `rightbars` folded; `fixnan`; the VM dispatches through a jump table (5,000 bars: renko 797 -> 214 ms, dolphin 1,079 -> 221 ms, digests identical) | `pine/rt7-runtime-walls` | census 55 / 82 / 99 -> 55 / 82 / 99 (0 lost, 0 gained; 7 runtime rows to later walls) | harness identical except wyckoff RDDT objects INCONCLUSIVE -> MATCH |
 | 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
+| 87 | RT8 the runtime lane's follow-ups (section RT8): the vendor harness and census enter each door state explicitly (GT's permission + grade-all IN the state; the corpus CLI graded at collection time and its "runtime" numbers were the objects-only ones) and every grade runs without the runtime pane's wall clock (the product path keeps D3's 1,000 ms budget, railed); `ta.wma` FFILL + warm-up on the n-th finite input in the VM (trend-targets RDDT DIVERGE -> MATCH); runtime fills carried from the run (graded on atr-trailing-stop's per-bar fill colour, 636/636); inside-bar SPY bars 0/2 proved off-listing; per-bar shape colour stays withheld by name | `b9b93ad0ef`, `25c43f4f7a`, `070ff45450` | harness dir (335), true runtime state, integrate `c91e9fe3c8` -> RT8: MATCH 99 -> **100**, DIVERGE 114 -> 113 (with libraries 101 -> **102**, 116 -> 115); off and on unchanged; 0 MATCH -> DIVERGE | unchanged | member door 55 / 80 / 96 (libraries 55 / 82 / 99), 0 moved |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -7000,3 +7001,131 @@ F5 with that evidence; the patched file is kept off-branch in the lane's scratch
 
 **Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
 out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
+## RT8 - the runtime lane's follow-ups: the measurement made true, `ta.wma`'s warm-up, runtime fills, and the off-listing seed (2026-10-03, step 87)
+
+Branch `pine/rt8-runtime-followups`, base `integrate/wave16-2026-10-02` (`476412b297`), merged forward to `c91e9fe3c8`
+(RT7, CAP3, F4). Commits `b9b93ad0ef` (door states), `25c43f4f7a` (wma, fills, off-listing), `070ff45450` (clock).
+
+### 1. The measurement, made true
+
+**The defect.** `vendorHarness.corpus.test.js` graded in its `describe` body - at collection time, before the
+`src/test-setup.js` `beforeEach` that latches GT's per-member permission and grades every script. With
+`VITE_PINE_RUNTIME_PANE_ENABLED=1` the runtime gate still answered no, so the CLI's "runtime" table was the objects-only
+table (measured at `476412b297`: MATCH 79 / DIVERGE 80 / INCONCLUSIVE 136 either way).
+
+**The fix.** `harness.js::enterDoorState / withDoorState / doorGates / doorStateMismatch / ambientDoorState`: both build
+flags stubbed explicitly, and for `runtime` the member permitted and every script graded IN the state; a state whose gates
+disagree is refused, never measured. The CLI grades inside a test in `VENDOR_HARNESS_STATE` (`off` / `on` / `runtime`,
+default the ambient flags), writes `state`, `gates` and `librariesLoaded` into `verdicts.json`, and loads
+`PINE_LIBRARY_STORE` opt-in as the census does. The census rows enter their state the same way.
+
+**The clock.** The synchronous runtime lane applied `RUNTIME_PANE_TIME_BUDGET_MS` (1,000 ms wall clock) inside every grade,
+so a runtime verdict depended on machine load (CAP3 saw atr-stepped flip MATCH <-> INCONCLUSIVE and nadaraya stop at
+1,202 ms). `harness.js::gradeCapture` now runs our side with the pane clock off
+(`runtimeColumns.js::__gradeWithoutPaneClockForTests`, rails only) and puts it back; the VM's instruction-counted limits
+(`limits.js`) still bound every run. The PRODUCT path keeps D3's budget: `runtimePaneClock.test.js` stops a run past
+1,000 ms by name on a slow clock, and completes it with the switch on or a real clock. ⚠️ Without the clock the whole-dir
+grade holds more memory (htf-liquidity-dashboard-tfo RDDT takes ~60 s and the 335-capture runtime run exited its worker
+once at the default heap); the measurements below ran with `NODE_OPTIONS=--max-old-space-size=8192`.
+
+**Rails:** `vendorHarness.rt8DoorState.test.js` (9): the cold-latch failure reproduced; runtime entered from a cold latch;
+off/on never reach the runtime lane; mismatched gates refused (with controls); flag names derived off both gates' sources;
+a 50 ms-per-read clock leaves fvg-trend's runtime verdict unchanged; NON-VACUITY on fvg-trend RDDT (runtime-only): cold
+latch == on, runtime != on, runtime draws `fvgCounter` MATCH.
+
+**The TRUE numbers** (frozen snapshots, `--maxWorkers=1`, harness dir; census `corpus/committed`, 266 scripts):
+
+| tree | state | harness MATCH / DIVERGE / INCONCLUSIVE | + libraries (50) | census attach |
+|---|---|---|---|---|
+| `b9b93ad0ef` (wave-16 `476412b297` + door states, 295 captures) | off | 56 / 62 / 177 | 56 / 62 / 177 | 55 (lib 55) |
+| | on | 79 / 80 / 136 | 79 / 82 / 134 | 80 (lib 82) |
+| | runtime | **89 / 87 / 119** (the CLI had said 79 / 80 / 136) | 90 / 90 / 115 | 96 (lib 99) |
+| integrate `c91e9fe3c8` + the RT8 instrument (no clock), 335 captures | off | 63 / 78 / 194 | 63 / 78 / 194 | 55 (lib 55) |
+| | on | 87 / 106 / 142 | 88 / 107 / 140 | 80 (lib 82) |
+| | runtime | 99 / 114 / 122 | 101 / 116 / 118 | 96 (lib 99) |
+| RT8 tip `070ff45450` | off | 63 / 78 / 194 | 63 / 78 / 194 | 55 (lib 55) |
+| | on | 87 / 106 / 142 | 88 / 107 / 140 | 80 (lib 82) |
+| | runtime | **100 / 113 / 122** | **102 / 115 / 118** | 96 (lib 99) |
+
+Verdict by verdict, integrate -> RT8: one change in each runtime column, trend-targets-algoalpha RDDT DIVERGE -> MATCH; off
+and on identical; census rows identical in all three states (attach and plot counts). **0 MATCH -> DIVERGE, 0 attaches lost.**
+The clock's own effect on `c91e9fe3c8` was not measured separately.
+
+### 2. Per-bar colour for `plotshape` / `plotchar` on a runtime document - WITHHELD BY NAME
+
+No capture of a runtime document records a per-bar shape colour: across the harness dir only sector-rotation RDDT has a
+shape colorer with more than one value, and it is a host-lane document (and requests other symbols, `runtime:request`). No
+corpus script that reaches the runtime lane today writes one either (census of the runtime-state documents). So the marker
+layer is not taught a per-point colour without evidence: the row stays withheld with its sentence (railed in
+`vendorHarness.rt8Followups`), and Q-RT8b queues the capture (probe rows S01-S04, including an `na` shape colour with text).
+
+### 3. Runtime FILL colour - CARRIED, graded
+
+The runtime lane already emitted each `fill(p1, p2, colour)` as an output whose value IS the colour; the document carried
+none, and SAID none: the `fill` entry of `RUNTIME_UNDRAWN_KINDS` reads `t.outputs`, which never lists a fill (the host keeps
+them under `presentation.fills`). Now:
+* `pineRuntimeFrontend.js::emitFill` records `display`, `show_last`, `fillgaps`, `title`, `line` (opt-in, `plotColours`).
+* `memberPaneDefinition.js::runtimeFillsOf` puts each band on an edge row (`plots[].fill = {with, colorMode, colorPacked}`,
+  set on the built plot), minting a HIDDEN anchor row for an edge the author hid (`display.none`), coloured by the run's
+  packed colour column - the RT6 reader, so a run `na` colour is a gap (R30), as TradingView leaves it unpainted.
+* Withheld by name: a script below v5 (a v4 `transp` default no capture pins - Q-RT8d); `show_last`; `fillgaps` other than
+  `false`; a `display` other than `display.all` / `display.none`; an edge this document does not draw; a third band on one
+  pair of rows. A `display.none` fill draws nothing on TradingView either and is not named.
+
+**Graded** (`vendorHarness.rt8Followups.test.js`): no runtime-lane corpus script writes a fill today, so each script is put
+through the door's FALLBACK by handing the door its own host translation marked refused (`forcedRuntime`): the door, the run
+and the renderer's colour reader are the member's; only the host verdict is forced.
+* **atr-trailing-stop-by-ceyhun RDDT 1D** (v5, from the listing; the script above `//InfoPanel`, whose label text is RT7's
+  wall): the band rides a hidden anchor (`TS1` is `display.none`) and its colour **agrees with TradingView's `fill_0`
+  colorer on 636 / 636 bars** (both colours, 297 / 339); `Slow Trail` agrees to 1e-9 on every valued bar; the document
+  validates (`defSchema.validateDefinition`).
+* **donchian-channels RDDT** (v6): seven constant bands, each its literal `color.new(#hex, t)` on every bar (hand replay: no
+  capture records a constant fill colour per bar).
+* Q-RT8c queues a direct capture with no forcing.
+
+### 4. Runtime seed defects
+
+**4a trend-targets-algoalpha RDDT - a real bug, fixed.** The run's `ta.wma` window was declared `ffill` in `FINITE_WINDOW`
+(closedTable `wma_na_resolution`) but the VM never implemented `ffill`: it fell through to the propagate ring, so one `na`
+in the lookback blanked it. `math.avg(lwr, upr)` is finite on bar 0 (= 0: the ratchet's `nz` and v6's false `na`
+comparisons) and from bar 89. TradingView's `Baseline` (`ta.ema(ta.wma(…, 40), 14)`) first answers on bar 140; seeding the
+ema from TradingView's own bar-140 value and recursing over our wma reproduces every later bar to 7e-16, and solving the
+SMA seed for the missing wma slot gives bar 0's 0 in the oldest position (to 1e-10): the wma first answers on bar 127, its
+40th FINITE input. `runtime/vm.js` OP.WINDOW `ffill` now carries the last finite input at its own weight, answers `na` on an
+`na` bar, and first answers on the n-th finite input. **Baseline MATCH, the script MATCH** (the coverageAudit `it.fails`
+flipped). ⚠️ The HOST lane's `rolling` FFILL warms up differently (first full filled window: it would answer this shape
+from bar 89) - not changed here (host lane); Q-RT8a separates rule A (n-th finite input) from rule B (n-1 finite in the
+window) and decides whether the host must move.
+
+**4b inside-bar-range SPY bars 0 / 2 - the off-listing rule, proved.** On the capture's bars the two barcolors differ on
+bar 0 and bar 2 only. Bar 0 is an inside bar of the bar BEFORE the window (`high[1] > high and low[1] < low`); the same bar
+sets `mhigh = high[1]`, which is bar 2's breakout. With ONE synthetic bar before the window (high 290, low 280: any range
+containing bar 0's with high in [287.97, 293.62)) the two agree on all 1,800 bars. Ruling R-W, not a run defect.
+
+### Mutations (bytes captured, restored, sha verified)
+
+`rt8_mutate.py`, each alone: ffill branch removed; warm-up count dropped; carry unused; answer on the `na` bar; door state not
+permitted; not graded-all; mismatch never reported (first GREEN - unrailed - then railed: RED); fill v5 gate removed; fill
+colour not set on the built plot; hidden edge not minted; `show_last` / `fillgaps` / unread `display` ignored;
+`display.none` drawn; withheld edge unchecked; second band not moved to the other edge; frontend `display.none` unread;
+`fillgaps = false` read as true; grade keeps the pane clock; product path ignores the budget; rails' switch inert -
+**21 of 21 red.** One guard REMOVED on its mutation: a second clock switch in `enterDoorState` (redundant with
+`gradeCapture`'s - its mutation left every rail green).
+
+### Tests (totals lines)
+
+vitest (`--maxWorkers=1`): RT8 + harness + runtime-door batch on the merged tree (rt8DoorState, rt8Followups,
+coverageAudit, rt6, rt1, h4, f4, rt7 rails, runtimePaneClock, finiteWindow, runtimeAsync, round trip, runtime objects door,
+memberPaneDefinition, runtimeSwitchOn) **20 files passed | 1 skipped; 389 passed | 10 skipped**; param ids (paramIds,
+paramIdPinned, paramIdSourceStability) 10 passed | 1 skipped; `memberPane/` + `runtime/__tests__/` before the merge 1,474
+passed, 5 failed - the five corpus `*.measure` tests that time out at 15 s under load (identical at the base snapshot).
+pytest: `test_runtime_document_round_trip.py` + `test_runtime_definitions.py` + `test_pine_runtime_switch_on.py` **70 passed**.
+Pre-existing reds, identical at the base: `vendorHarness.b1Paints` (the paint pin list predates CAP3's captures) and
+`vendorHarness.capRound4` Q-O1 (6, "O1 not merged").
+
+### Open
+
+- Q-RT8a-d (`docs/pine/capture-queue-2026-10-03-rt8-runtime-followups.md`, probes `vw-rt8-runtime-followups.pine`,
+  `vw-rt8-v4-fill-transp.pine`).
+- The host lane's `wma` warm-up across a leading gap (above) - host lane's call, after Q-RT8a.
+- Memory of an unclocked whole-dir runtime grade (above): the CLI needs a larger heap.
