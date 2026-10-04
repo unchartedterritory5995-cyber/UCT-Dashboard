@@ -3,9 +3,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   SETUP_TAG_MAX, SIZED_BY, SIZED_BY_LABEL, TA_VERSION, UNIQUE_PLAN_ROLES,
-  accountRiskDollars, canCarryPlanRole, evaluateStarter, normalizeTa, planSide, rewardToRisk,
-  riskPerShare, setPlanRole, sizePlan, starterPositionSize, withFingerprint, withPlanRole,
-  withPlanShares, withSetupTag,
+  accountRiskDollars, canCarryPlanRole, drawingLevelPrice, evaluateStarter, normalizeTa, planSide,
+  rewardToRisk, riskPerShare, setPlanRole, sizePlan, starterPositionSize, withFingerprint,
+  withPlanRole, withPlanShares, withSetupTag,
 } from './chartPlan'
 import { STARTER_FORMULAS, evaluateFormula } from './formula/computed'
 import { PRICE_ROLES } from './planLevels'
@@ -72,6 +72,24 @@ describe('plan roles ride the drawing (13A\'s write interface)', () => {
     expect(() => withPlanRole(null, 'stop')).toThrow()
     // the vocabulary is 13A's (planLevels.PRICE_ROLES), not a copy
     for (const r of PRICE_ROLES) expect(withPlanRole(line('a', 50), r).role).toBe(r)
+  })
+
+  it('reads `price` when there is no anchor — `planLevels.planAnnotation(role, price)`\'s own '
+     + 'shape (no `drawing` given), the one `plan_extract.py`\'s `_annotation_price` also accepts '
+     + 'first — never just a `points` reading (found by the wave-13 integration walk: a level '
+     + 'seeded this exact way, the shape 13A/13J\'s own fixtures already use, rendered zero rows '
+     + 'in the chart-plan panel before this fix)', () => {
+    const priceOnly = { id: 'a', type: 'horizontal', role: 'entry', price: 42 }
+    expect(canCarryPlanRole(priceOnly)).toBe(true)
+    expect(drawingLevelPrice(priceOnly)).toBe(42)
+    // An anchored drawing still reads its anchor, never a stale `price` left beside it.
+    expect(drawingLevelPrice(line('a', 50))).toBe(50)
+    // Precedence matches the backend's exactly (price first) for the one case `withPlanRole`
+    // promises never to produce on its own: both fields present at once.
+    expect(drawingLevelPrice({ ...line('a', 50), price: 47 })).toBe(47)
+    // No anchor and no usable price: still absent, never a thrown error or a zero.
+    expect(drawingLevelPrice({ id: 'a', type: 'horizontal' })).toBe(null)
+    expect(canCarryPlanRole({ id: 'a', type: 'horizontal', role: 'entry', price: -1 })).toBe(false)
   })
 
   it('one entry and one stop per block; targets stack as scale-outs', () => {

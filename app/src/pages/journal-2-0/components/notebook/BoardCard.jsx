@@ -104,6 +104,12 @@ function BoardCard({ card, mounted, onBarsReady, onFindSimilar }) {
             volumeSeparatePane
             volumePaneHeightPct={12}
             hideExtHoursToolbarToggle
+            // Found by the wave-13 integration walk (13X) at 390px: the shared A/L/%
+            // scale-toggle (StockChart.jsx's `hideScaleToggle` veto) renders at 11px
+            // tall in this card's lite profile, under the --tap-min touch floor. Same
+            // host-chrome-veto shape as `TradeBeforeAfter.jsx`'s identical fix -- a
+            // read-only mini-chart this small never needs an A/L/% picker.
+            hideScaleToggle
           />
         ) : (
           <span className={styles.chartWait}>Chart waiting its turn…</span>
