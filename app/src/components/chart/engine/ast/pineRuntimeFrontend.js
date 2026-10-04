@@ -4124,6 +4124,105 @@ function buildRuntimeIrLinked(source, opts, holder) {
     stmtHoistSink.push(declare(slot, value))
     return { slot, label: tmp }
   }
+
+  /** ⭐⭐ RT10 — is this call Pine's pivot (`ta.pivothigh/low`, or the bare
+   *  v1–v4 spelling, which `pine.js::namespacedName` reads as the same
+   *  function)? Returns `{ high, src, leftNode, rightNode }` with the source
+   *  defaulted the way `pivotAtConfirmation` defaults it, or `null`.
+   *  ⛔ The script's own definition of the name wins; a named argument keeps
+   *  the path it had (`refuseUnmeasuredNamedArgs` is the host's ruling on it). */
+  const runtimePivotOf = (node) => {
+    const name = typeof node.name === 'string' ? node.name : ''
+    const bare = name.replace(/^ta\./, '')
+    if (bare !== 'pivothigh' && bare !== 'pivotlow') return null
+    if (name === bare && !(pineVersion !== null && pineVersion <= 4)) return null
+    if (definedNames.has(name)) return null
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
+    if (given.length !== 2 && given.length !== 3) return null
+    const high = bare === 'pivothigh'
+    const three = given.length === 3
+    const src = three ? given[0] : { type: 'name', name: high ? 'high' : 'low', tok: node.tok }
+    return { high, src, leftNode: three ? given[1] : given[0], rightNode: three ? given[2] : given[1] }
+  }
+
+  /** ⭐⭐ RT10 — the pivot as a WINDOW over the source's committed ring.
+   *  `null` when the source is not runtime state (the caller keeps the host
+   *  path, unchanged). The two bar counts are fixed before bar 0 exactly as a
+   *  window length is (`constValueOf`; a frame name specialises the call site). */
+  const lowerPivotOverState = (node, pv, scope) => {
+    if (!needsRuntime(pv.src, scope)) return null
+    const at = locate(node.tok)
+    const bound = (n, which) => {
+      const c = constValueOf(n, scope)
+      if (c && typeof c.frameName === 'string') {
+        throw frameBoundRefusal(c.frameName, at, `sets \`${which}\` of \`${node.name}\``)
+      }
+      if (!c || !Number.isInteger(c.value) || c.value < 0) {
+        note('runtime:history-dynamic-offset')
+        throw new RuntimeRefusal('runtime:history-dynamic-offset',
+          `\`${which}\` of \`${node.name}\` is only known while the bar is running, `
+          + 'so the ring it needs cannot be sized before bar 0', at)
+      }
+      return c.value
+    }
+    // ⛔ A `rightbars` only known while the bar runs keeps the BUILDER'S own
+    // refusal (`pivotAtConfirmation`: "write it as a plain whole number"), the
+    // sentence RT7 pinned; only a fixed one reaches this window.
+    const rc = constValueOf(pv.rightNode, scope)
+    if (!rc || (typeof rc.frameName !== 'string' && !(Number.isInteger(rc.value) && rc.value >= 0))) return null
+    const left = bound(pv.leftNode, 'leftbars')
+    const right = bound(pv.rightNode, 'rightbars')
+    const span = left + right + 1
+    let varSlot = pv.src.type === 'name' ? scope.lookup(pv.src.name) : null
+    let srcLabel = pv.src.type === 'name' ? pv.src.name : null
+    if (varSlot === null && hoistSink) {
+      const tmp = `${node.name} src ${hoistSink.length}`
+      const slot = scope.declare(tmp, newSlot(tmp, false))
+      hoistSink.push(declare(slot, lowerExpr(pv.src, scope)))
+      varSlot = slot
+      srcLabel = tmp
+    }
+    if (varSlot === null) {
+      const hoisted = hoistCommittedSeries(pv.src, scope, node.name)
+      if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
+    }
+    if (varSlot === null) {
+      if (pv.src.type !== 'name') {
+        note('runtime:history-expression')
+        throw new RuntimeRefusal('runtime:history-expression',
+          `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+      }
+      note('runtime:function-global-state')
+      throw new RuntimeRefusal('runtime:function-global-state', `\`${pv.src.name}\``, at)
+    }
+    if (span > 1) {
+      if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 1, at)
+      else historySlotFor(varSlot, span - 1, at)
+    }
+    const histIndex = span > 1
+      ? (owner !== null ? functions[owner].historyByVarSlot.get(varSlot) : historyByVarSlot.get(varSlot))
+      : 0
+    const entry = {
+      fn: pv.high ? 'pivothighPine' : 'pivotlowPine',
+      name: `${node.name}(${srcLabel},${left},${right})`,
+      historySlot: histIndex,
+      span,
+      left,
+    }
+    let widx
+    if (owner !== null) {
+      const list = functions[owner].windowLocals || (functions[owner].windowLocals = [])
+      widx = list.length
+      list.push(entry)
+    } else {
+      widx = windowsMain.length
+      windowsMain.push(entry)
+    }
+    conditionalHistoryGuard('a stateful built-in', null)
+    return windowCall(widx, read(varSlot))
+  }
   /**
    * The detail a family refusal carries — and for `runtime:object-op`, WHO WAS
    * ASKED matters more than which call it was.
@@ -4901,6 +5000,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⛔ A BUILDER'S OWN REFUSAL IS HONOURED, so a shape it will not take
         // says why in its own words instead of arriving as "not a shape the
         // translator reads" pointing at the statement.
+        // ⭐⭐ RT10 — A PIVOT OVER RUNTIME STATE, AT ITS CONFIRMATION BAR.
+        // `ta.pivothigh(x, L, R)` (and v1–v4's bare spelling, which the host's
+        // `namespacedName` gives the same meaning) answers on bar t with x[R]
+        // when x[R] is the extreme of x[R+L] … x[0] — the host's `pivotCol` rule
+        // read at the confirmation bar, which is what its `[R]` shift computes.
+        // Over a source the columnar lane holds the host column still answers
+        // (no change); over runtime state the window is the source's own
+        // committed ring, L+R+1 bars, one plan entry per call site.
+        {
+          const pv = runtimePivotOf(node)
+          if (pv) {
+            const pivoted = lowerPivotOverState(node, pv, scope)
+            if (pivoted) return pivoted
+          }
+        }
         if (typeof node.name === 'string'
             && Object.prototype.hasOwnProperty.call(PINE_NAMESPACED_TREE, node.name)) {
           const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))

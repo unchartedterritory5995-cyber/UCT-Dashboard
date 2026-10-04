@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, windowSpecOf, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -381,18 +381,21 @@ export function execute(program, ctx, limits, opts) {
   // The columnar lane reaches the same field for the same member, so the two
   // cannot disagree about what an `na` means — which is the whole reason the
   // policy lives in the table rather than beside each driver.
-  const winNa = winPlan.map((w) => FINITE_WINDOW[w.fn].na)
+  // ⭐ RT10 — `windowSpecOf`: a `FINITE_WINDOW` member, or a runtime-only one
+  // (`RUNTIME_WINDOW`, Pine's pivot at its confirmation bar).
+  const winSpec = winPlan.map((w) => windowSpecOf(w.fn))
+  const winNa = winPlan.map((w, i) => (winSpec[i] ? winSpec[i].na : undefined))
   // ⛔ `skip` NEEDS THE LAST n FINITE OBSERVATIONS, AND THEY MAY LIE FURTHER
   // BACK THAN n BARS. The history ring is `span - 1` deep and cannot answer
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  const winObs = winPlan.map((w, i) => (winNa[i] === 'skip' ? new Float64Array(w.span) : null))
   const winObsN = new Int32Array(winPlan.length)
-  const winReduce = winPlan.map((w) => {
-    const spec = FINITE_WINDOW[w.fn]
+  const winReduce = winPlan.map((w, i) => {
+    const spec = winSpec[i]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    return spec.reduceFor ? spec.reduceFor(w) : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
