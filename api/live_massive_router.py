@@ -371,6 +371,17 @@ DEFAULT_THRESHOLDS = {
     # (restores the pre-2026-07-28 "demote every leg" behavior). Fixes MU 835C
     # 7/28: a $5.17M ask sweep nulled because 10+ MU strikes printed in 90s.
     "multileg_dominant_premium_frac": 0.6,
+    # Leg-structure detection (2026-10-03) — the default. "cluster" = the 7/24
+    # rule above (N distinct contracts in multileg_window_sec), which on active
+    # names (SPCX/NVDA/SPY/QQQ) fires all day: 10/2 SPCX's four clean 1.5-3k-lot
+    # ask sweeps on 172.5C were nulled for having other strikes print within 90s
+    # (81% of 10/2's feed was "Not Clean", 21,450 by this rule). "structure"
+    # demotes only real legs: different contracts within multileg_pair_window_sec
+    # whose sizes match (1:1/1:2/1:3 within multileg_size_tol) AND which are
+    # opposite-sided or OPRA-typed ML/.
+    "multileg_mode": "structure",
+    "multileg_pair_window_sec": 2.0,
+    "multileg_size_tol": 0.10,
     # Keep-as-Size floor (2026-07-20). When the side can't be trusted (deep-ITM
     # guard, ambiguous at-bid 'B', or blank single-venue NBBO) direction is None
     # and the row would be dropped. If premium clears this floor, KEEP it as a
@@ -5822,11 +5833,18 @@ def _demote_multileg_structures(alerts: list) -> None:
     """
     try:
         _t = _load_thresholds()
+        mode = str(_t.get("multileg_mode", "structure") or "structure")
         window = float(_t.get("multileg_window_sec", 90.0) or 0)
         min_legs = int(_t.get("multileg_min_legs", 3) or 0)
         dom_frac = float(_t.get("multileg_dominant_premium_frac", 0.6) or 0)
+        pair_window = float(_t.get("multileg_pair_window_sec", 2.0) or 0)
+        size_tol = float(_t.get("multileg_size_tol", 0.10) or 0)
     except Exception:
-        window, min_legs, dom_frac = 90.0, 3, 0.6
+        mode, window, min_legs, dom_frac = "structure", 90.0, 3, 0.6
+        pair_window, size_tol = 2.0, 0.10
+    if mode == "structure":
+        _demote_matched_legs(alerts, pair_window, size_tol)
+        return
     if window <= 0 or min_legs <= 1 or not alerts:
         return
 
@@ -5874,6 +5892,71 @@ def _demote_multileg_structures(alerts: list) -> None:
                 i = j
             else:
                 i += 1
+
+
+def _legs_size_match(a: float, b: float, tol: float) -> bool:
+    """Spread legs trade equal or simple-ratio size (1:1, 1:2, 1:3 — verticals,
+    ratio spreads, butterflies' wings)."""
+    if a <= 0 or b <= 0:
+        return False
+    r = max(a, b) / min(a, b)
+    return any(abs(r - m) <= m * tol for m in (1.0, 2.0, 3.0))
+
+
+def _side_bucket(a: dict) -> str:
+    s = (a.get("_side") or "").strip().upper()
+    return "ask" if s in ("A", "AA") else ("bid" if s in ("B", "BB") else "")
+
+
+def _demote_matched_legs(alerts: list, pair_window: float, size_tol: float) -> None:
+    """multileg_mode="structure": demote only prints that pair up as legs of one
+    order — DIFFERENT contracts, same underlying, within pair_window seconds,
+    size-matched, and opposite-sided (one bought, one sold) or OPRA-typed ML/.
+
+    Busy-chain buying is not a structure: 10/2 SPCX 172.5C 9:51:25 (3,012 lots,
+    all condition 209, ask) sat among 26 prints / 13 contracts in 90s — none
+    within 15% of its size, none bid-side. The 7/24 SNDK calendar it was built
+    for (two $1500 calls, same second, one ask one bid) still pairs."""
+    if pair_window <= 0 or not alerts:
+        return
+    by_ticker = {}
+    for a in alerts:
+        ts = a.get("timestamp") or 0
+        if ts:
+            by_ticker.setdefault(a.get("ticker", ""), []).append((ts, a))
+    for _tk, entries in by_ticker.items():
+        if len(entries) < 2:
+            continue
+        entries.sort(key=lambda e: e[0])
+        legs = set()
+        n = len(entries)
+        for i in range(n):
+            ti, ai = entries[i]
+            ci = f"{ai.get('cp','')}|{ai.get('strike','')}|{ai.get('exp','')}"
+            for j in range(i + 1, n):
+                tj, aj = entries[j]
+                if tj - ti > pair_window:
+                    break
+                if f"{aj.get('cp','')}|{aj.get('strike','')}|{aj.get('exp','')}" == ci:
+                    continue                       # same contract = accumulation
+                if not _legs_size_match(float(ai.get("tradeSize") or 0),
+                                        float(aj.get("tradeSize") or 0), size_tol):
+                    continue
+                si, sj = _side_bucket(ai), _side_bucket(aj)
+                opposite = bool(si and sj and si != sj)
+                ml = "ML" in (ai.get("_type") or "").upper() or "ML" in (aj.get("_type") or "").upper()
+                if opposite or ml:
+                    legs.add(id(ai))
+                    legs.add(id(aj))
+        if not legs:
+            continue
+        for _ts, a in entries:
+            if id(a) in legs and (a.get("_direction") or "").strip() in ("Bull", "Bear"):
+                a["_direction"] = None
+                a["_directionUnconfirmed"] = True
+                a["_multileg"] = True
+                a["alertName"] = "UCT Size - Not Clean"
+                a["_tierKey"] = "size"
 
 
 def _demote_two_way_flow(alerts: list) -> None:
@@ -6477,6 +6560,9 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_window_sec",       # cluster window for structure detection
         "multileg_min_legs",         # distinct contracts that make it a structure
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
+        "multileg_mode",             # "structure" (matched legs, default) | "cluster" (7/24 rule)
+        "multileg_pair_window_sec",  # structure: max seconds between two legs
+        "multileg_size_tol",         # structure: leg-size ratio tolerance around 1/2/3
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
         "autopush_incremental",      # perf: 60s auto-push scans only new-activity symbols (dark)
         "scan_offload",              # perf: run the heavy dashboard scan in a subprocess (dark)

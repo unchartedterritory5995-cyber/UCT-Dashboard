@@ -32,7 +32,8 @@ def _leg(ticker, strike, prem, direction="Bull", typ="SWEEP", ts=1000.0, cp="C",
 
 
 def _ml_thresholds(dom_frac=0.6):
-    return {"multileg_window_sec": 90.0, "multileg_min_legs": 3,
+    return {"multileg_mode": "cluster",          # the 7/24 rule these tests pin
+            "multileg_window_sec": 90.0, "multileg_min_legs": 3,
             "multileg_dominant_premium_frac": dom_frac}
 
 
@@ -761,3 +762,67 @@ def test_clean_gate_disabled_is_noop():
     a = _dalert(4, "BB", 10000)
     m._demote_contaminated_sell(a, {4: 9000.0}, {"close_detector_enabled": False})
     assert a["_direction"] == "Bear"
+
+
+# ── multileg_mode="structure" (2026-10-03): only matched legs are spreads ──
+
+def _sleg(strike, size, side, ts, typ="SWEEP", cp="C", exp="10/30/2026", ticker="SPCX",
+          direction="Bull"):
+    return {"ticker": ticker, "strike": strike, "cp": cp, "exp": exp, "timestamp": ts,
+            "tradeSize": size, "_side": side, "_type": typ, "_direction": direction,
+            "alertPremium": 100_000}
+
+
+def _structure(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {
+        "multileg_mode": "structure", "multileg_pair_window_sec": 2.0,
+        "multileg_size_tol": 0.10})
+
+
+def test_busy_chain_buying_is_not_a_spread(monkeypatch):
+    # 10/2 SPCX 172.5C 9:51:25: a 3,012-lot ask sweep among other-strike ask buys.
+    _structure(monkeypatch)
+    big = _sleg(172.5, 3012, "A", 1000.0)
+    legs = [_sleg(157.5, 162, "", 1000.0), big, _sleg(150, 250, "A", 1003.0, cp="P"),
+            _sleg(155, 174, "A", 1005.0), _sleg(157.5, 627, "A", 1013.0)]
+    m._demote_multileg_structures(legs)
+    assert big["_direction"] == "Bull" and not big.get("_multileg")
+    assert all(not l.get("_multileg") for l in legs)
+
+
+def test_calendar_pair_is_demoted(monkeypatch):
+    # 7/24 SNDK: two $1500 calls, same second, 100 lots each, one bid one ask.
+    _structure(monkeypatch)
+    a = _sleg(1500, 100, "B", 1000.0, exp="8/7/2026", ticker="SNDK", direction="Bear")
+    b = _sleg(1500, 100, "A", 1000.4, exp="9/18/2026", ticker="SNDK")
+    m._demote_multileg_structures([a, b])
+    assert a["_direction"] is None and b["_direction"] is None
+    assert a["_multileg"] and b["alertName"] == "UCT Size - Not Clean"
+
+
+def test_ratio_spread_and_ml_type_pair(monkeypatch):
+    _structure(monkeypatch)
+    a = _sleg(100, 100, "A", 1000.0)
+    b = _sleg(110, 205, "B", 1001.0, direction="Bear")      # ~1:2 within 10%
+    m._demote_multileg_structures([a, b])
+    assert a["_multileg"] and b["_multileg"]
+    c = _sleg(100, 50, "A", 2000.0, typ="ML/")
+    d = _sleg(105, 50, "A", 2000.5)                          # same side, but ML-typed
+    m._demote_multileg_structures([c, d])
+    assert d["_multileg"]
+
+
+def test_unmatched_size_same_side_or_far_apart_kept(monkeypatch):
+    _structure(monkeypatch)
+    legs = [_sleg(100, 100, "A", 1000.0), _sleg(105, 100, "A", 1000.5),   # same side
+            _sleg(110, 100, "A", 3000.0), _sleg(115, 160, "B", 3000.5),   # size 1.6x
+            _sleg(120, 100, "A", 5000.0), _sleg(125, 100, "B", 5003.0)]   # 3s apart
+    m._demote_multileg_structures(legs)
+    assert not any(l.get("_multileg") for l in legs)
+
+
+def test_same_contract_is_accumulation_not_a_leg(monkeypatch):
+    _structure(monkeypatch)
+    legs = [_sleg(172.5, 2000, "B", 1000.0, direction="Bear"), _sleg(172.5, 2000, "A", 1001.0)]
+    m._demote_multileg_structures(legs)
+    assert not any(l.get("_multileg") for l in legs)
