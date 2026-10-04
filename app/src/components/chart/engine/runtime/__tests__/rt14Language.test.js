@@ -215,3 +215,32 @@ describe('⭐⭐ RT14 — support-and-resistance\'s chain: bindings of bindings,
     expect(run(src)).toEqual(run(slotted))
   })
 })
+
+describe('⭐⭐ RT14 — `var x = if …` / `var x = switch …` initialise ONCE', () => {
+  // closes: 100, 102, 104, 101, 103, 100, 102, 104
+  const col = (src) => run(src)[0]
+
+  it('`var … = if`: the first bar\'s branch value, kept on every later bar', () => {
+    const src = 'var float x = if close > 101\n    close\nelse\n    -1.0\nplot(x)\n'
+    expect(col(src)).toEqual(Array(N).fill(-1))
+    // CONTROL: without `var` the same block is evaluated on every bar
+    expect(col(src.replace('var float x', 'float x'))).toEqual([-1, 102, 104, -1, 103, -1, 102, 104])
+  })
+
+  it('`var … = switch`: evaluated on the first bar only', () => {
+    const src = 'var float s = switch\n    close > 99 => close\n    => -2.0\nplot(s)\n'
+    expect(col(src)).toEqual(Array(N).fill(100))
+    const subj = 'var float t = switch close\n    102.0 => 1.0\n    100.0 => 2.0\n    => 3.0\nplot(t)\n'
+    expect(col(subj)).toEqual(Array(N).fill(2))
+  })
+
+  it('an unmatched `var … = if` with no else is `na` on every bar', () => {
+    expect(col('var float u = if close > 500\n    close\nplot(u)\n')).toEqual(Array(N).fill(null))
+  })
+
+  it('a `var` block inside a block initialises on that block\'s first run', () => {
+    // the block first runs on bar 1 (close 102); `v` takes 102 then and keeps it
+    const src = 'float r = na\nif close > 101\n    var float v = if close > 0\n        close\n    r := v\nplot(r)\n'
+    expect(col(src)).toEqual([null, 102, 102, null, 102, null, 102, 102])
+  })
+})

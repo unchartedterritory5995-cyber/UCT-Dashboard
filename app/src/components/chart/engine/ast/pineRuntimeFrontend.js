@@ -7680,10 +7680,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const varBlk = toks[eq + 1]
         if (varBlk && varBlk.kind === 'ident'
             && (varBlk.value === 'if' || varBlk.value === 'switch')) {
-          note('runtime:block-value')
-          throw new RuntimeRefusal('runtime:block-value',
-            `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
-            + 'lane has no once-only guard around a block yet', locate(first))
+          // ⭐⭐ RT14 — THE ONCE-ONLY GUARD, BUILT FROM WHAT THE LANE ALREADY HAS.
+          // A `var` declaration's `declare` runs once (`JUMP_IF_INIT`), so the
+          // variable is declared `na` once and a second persistent slot, declared
+          // `0` once, says whether the block has run: the chain runs on the first
+          // execution of this line and assigns, and every later execution skips
+          // it — Pine's `var` (the initialiser is evaluated on the first bar and
+          // the value kept). The arms are the binding form's own
+          // (`armAssignerFor`, `lowerIfChainInto`, `lowerSwitchInto`), so an
+          // unmatched chain leaves the `na` it was declared with.
+          const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
+          out.push(declare(slot, naValue()))
+          const onceName = `${nameTok.value} var once`
+          const once = scope.declare(onceName, newSlot(onceName, true))
+          out.push(declare(once, num(0)))
+          const mkArm = armAssignerFor(slot, `var ${nameTok.value} = ${varBlk.value} …`, scope)
+          let body
+          if (varBlk.value === 'if') {
+            const chain = lowerIfChainInto(list, i, toks.slice(eq + 2), scope, mkArm)
+            i = chain.next
+            body = [chain.stmt]
+          } else {
+            body = lowerSwitchInto(st.sub, toks.slice(eq + 2), scope, slot, mkArm,
+              `var ${nameTok.value} =`, varBlk)
+          }
+          out.push(ifStmt(binary('==', read(once), num(0)), [...body, assign(once, num(1))], []))
+          continue
         }
         const value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
