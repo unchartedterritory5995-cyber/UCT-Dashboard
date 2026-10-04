@@ -520,51 +520,34 @@ def focus_editor_body(m: Meter):
         m.steps.append({"do": "already in body (free)", "on": "note body"})
         return
     if m.mode == "keys":
-        # 13Q-3, RE-VERIFIED by 13Q-Q1check, then NARROWED by its controller follow-up (do not
-        # remove this again without new evidence beyond what is cited here).
+        # ✅ CLOSED, 13Q-Q1check controller follow-up #2. The 13Q-3 instrument-foreground
+        # compensation that used to live here (a Playwright-native `pm.focus()` call, tried
+        # before the real Tab walk) is REMOVED, not just narrowed -- the product defect it was
+        # masking is fixed and independently re-measured.
         #
-        # 13Q-Q1check's controller follow-up (addInitScript focusin/MutationObserver recorder,
-        # 10 reps x 2 widths, docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/)
-        # found a REAL product defect this compensation had been masking: NotebookTab.jsx's
-        # createNote() never primed useJ2Note's SWR cache with the note it had just created, so
-        # NoteEditorPage's first render saw `note: null`, built an EMPTY TipTap editor, called
-        # the 'body' openFocus effect's one-shot focus() on THAT instance, then tore it down and
-        # rebuilt it the instant the real GET resolved -- losing the caret with the rebuild.
-        # FIXED in NotebookTab.jsx::createNote (primes the cache before opening the note) and
-        # RE-MEASURED with the SAME recorder against the fixed build
-        # (docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/post-fix-recheck/):
-        # 10/10 reps now show exactly ONE .ProseMirror identity, never removed -- the second
-        # identity's add-then-remove cycle present in every pre-fix rep is gone.
+        # Full chain, each step with its own commit: 13Q-Q1check's remount-trace recorder found
+        # NotebookTab.jsx::createNote() never primed useJ2Note's SWR cache, so NoteEditorPage's
+        # first render saw `note: null`, built an EMPTY editor, fired the 'body' openFocus
+        # effect's one-shot call on THAT instance, then tore it down the instant the real GET
+        # resolved -- losing the caret with the rebuild. FIXED (globalMutate prime) and
+        # re-measured clean (docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/).
+        # That still left a SEPARATE defect, also 10/10 reproducible
+        # (docs/notebook/evidence/wave13-q1check/focus-hook-probe/, commit a90976c005): the
+        # body-focus effect fired while `editor.view.dom.isConnected` was FALSE --
+        # @tiptap/react's `EditorContent` attaches that DOM in its own, later commit, and
+        # `focus()` on a disconnected node is a silent no-op. FIXED in NoteEditorPage.jsx (poll
+        # `editor.view.dom.isConnected` across animation frames, fire the one-shot only once
+        # true) and re-measured clean
+        # (docs/notebook/evidence/wave13-q1check/attach-fix-reverify/, commit b6206896e4):
+        # 10/10 reps, both widths, activeElement in `.ProseMirror` AND the real
+        # `page.keyboard.type`-typed text landing in the note's body via the product's own
+        # GET /api/j2/notes/{id}.
         #
-        # ⛔ AND THE COMPENSATION STILL DOES NOT RESOLVE ON ITS FIRST ATTEMPT, EVEN POST-FIX.
-        # Both the activeElement checkpoints (docs/notebook/evidence/wave13-q1check/final-verify/,
-        # 10/10 reps, `document.activeElement` is BODY at +100ms/+500ms/+2s) and the real member
-        # path (page.keyboard.type with no focus() call, read back through the product's own GET
-        # -- 10/10 reps, landed in neither title nor body) still measure as 0/10 on the FIXED
-        # build. The remount is gone; whatever stops the product's page-native focus() call from
-        # landing in THIS harness is a SEPARATE, still-unexplained effect -- re-confirming,
-        # under conditions that eliminate the remount as a confound, 13Q-3's and 13Q-Q1check's
-        # earlier same-page/element A/B (natural `.focus()` fails, Playwright's own `.focus()`
-        # succeeds). bring_to_front() (run_one) makes the page genuinely foreground --
-        # document.hasFocus()===true, visibilityState==='visible' -- and it still does not help.
-        #
-        # A real member's tab is never CDP-automated, so there is no reason to believe this
-        # residual effect reaches them; the remount this compensation was ALSO covering for was
-        # the real, member-facing risk, and that one is now fixed and verified independently.
-        # Evidence: docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/ (13Q-3's
-        # original) and docs/notebook/evidence/wave13-q1check/ (re-verification, the remount
-        # trace, the fix, and the post-fix re-trace + re-measurement).
-        #
-        # Playwright's OWN `.focus()` -- never a product-internals reach-in, never counted as a
-        # step -- is used here ONLY to tell a genuine reachability defect apart from this known
-        # effect: if it resolves the focus, the member pays nothing for it; if it does NOT, the
-        # real Tab walk below is what measures it honestly -- the fallback is never skipped, so
-        # a true regression is still caught.
-        pm.focus()
-        if focus_in_editor(pg):
-            m.steps.append({"do": "already in body (free -- instrument foreground compensation "
-                                   "confirmed it, 13Q-3)", "on": "note body"})
-            return
+        # No CDP-vs-natural-context theory was ever needed -- both defects were ordinary React
+        # timing bugs with ordinary fixes. With the product now landing focus on its own,
+        # 10/10, this branch no longer needs (or does) anything beyond the real Tab walk any
+        # other mode would take. ⛔ Do not re-add a `pm.focus()` compensation without NEW
+        # evidence that supersedes the measurement cited above.
         m.tab_to("el.closest && el.closest('.ProseMirror')", "note body")
     else:
         m.pointer(pm, "note body")
