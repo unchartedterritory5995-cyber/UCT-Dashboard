@@ -279,3 +279,31 @@ describe('⭐⭐ RT14 — an `if` arm whose value is a `switch`', () => {
     expect(run(noDefault)[0]).toEqual([0, null, 2, 0, null, 0, null, 2])
   })
 })
+
+describe('⭐⭐ RT14 — a user-type field declared an array is an array', () => {
+  // closes: 100, 102, 104, 101, 103, 100, 102, 104
+  const T = (decl) => `type T\n    ${decl}\nvar T t = T.new(array.new_float())\n`
+  const sums = [100, 202, 306, 407, 510, 610, 712, 816]
+
+  it('`for … in t.xs` walks the field, as `for … in` a named array does', () => {
+    const src = T('array<float> xs') + 'array.push(t.xs, close)\nfloat s = 0.0\nfor x in t.xs\n    s += x\nplot(s)\n'
+    expect(run(src)[0]).toEqual(sums)
+  })
+
+  it('the method form on the field (`t.xs.push(x)`, `t.xs.size()`) is `array.push(t.xs, x)`', () => {
+    const src = T('array<float> xs') + 't.xs.push(close)\nplot(t.xs.size())\n'
+    expect(run(src)[0]).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  })
+
+  it('`float[] xs` and `float [] xs` declare the same field as `array<float> xs`', () => {
+    const body = 't.xs.push(close)\nfloat s = 0.0\nfor x in t.xs\n    s += x\nplot(s)\n'
+    expect(run(T('float[] xs') + body)[0]).toEqual(sums)
+    expect(run(T('float [] xs') + body)[0]).toEqual(sums)
+  })
+
+  it('CONTROL: a field declared a number is not walked as an array', () => {
+    const r = build('type U\n    float v\nvar U u = U.new(1.0)\nfloat s = 0.0\nfor x in u.v\n    s += x\nplot(s)\n')
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:loop')
+  })
+})

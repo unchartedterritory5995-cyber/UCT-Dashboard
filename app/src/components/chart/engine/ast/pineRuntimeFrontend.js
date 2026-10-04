@@ -454,10 +454,16 @@ function readTypeFields(toks) {
     if (idents.length < 2) continue
     const nameTok = idents[idents.length - 1]
     const typeTok = idents[idents.length - 2]
+    // ⭐ RT14 — `line [] f` / `float[] f` IS `array<line> f` (Pine's two spellings
+    // of one type). Read as its element type it made an ARRAY field look like a
+    // drawing handle or a number.
+    const ti = head.indexOf(typeTok)
+    const suffixArray = ti >= 0 && isPunct(head[ti + 1], '[') && isPunct(head[ti + 2], ']')
     out.push({
       name: nameTok.value,
-      type: typeTok.value,
-      typeArgs: Array.isArray(typeTok.typeArgs) ? typeTok.typeArgs.slice() : null,
+      type: suffixArray ? 'array' : typeTok.value,
+      typeArgs: suffixArray ? [String(typeTok.value)]
+        : (Array.isArray(typeTok.typeArgs) ? typeTok.typeArgs.slice() : null),
       def: eq > 0 ? run.slice(eq + 1) : null,
       tok: nameTok,
     })
@@ -1679,6 +1685,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       const uf = splitMethodName(String(node.name || ''))
       if (uf && lookupReadable(uf.recv, scope) !== null) return true
+      // ⭐ RT14 — and a method called on a FIELD of a user type (`t.xs.size()`):
+      // the same head rule the field read below uses.
+      if (uf && String(uf.recv).indexOf('.') > 0
+        && udtHeadOf({ type: 'name', name: uf.recv, tok: node.tok }, scope)) return true
     }
     // ⭐⭐ A FIELD PATH READS ITS HEAD, AND THE HEAD IS A SLOT. `ob.top`
     // arrives as ONE dotted `name` token, so the plain lookup above cannot see
@@ -2321,10 +2331,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].collection)
+      // ⭐ RT14 — a field path whose field is DECLARED an array (`store.lines`)
+      if (arrayField(node.name, scope)) return true
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
     }
     return false
+  }
+  /** ⭐ RT14 — `a.b.f` where the user type declares `f` an array. */
+  const arrayField = (name, scope) => {
+    if (!String(name).includes('.')) return false
+    const p = fieldPathOf({ type: 'name', name: String(name) }, scope)
+    return !!(p && p.leaf && p.leaf.type === 'array')
   }
 
   // ── ⭐⭐ USER-DEFINED TYPES, RESOLVED ────────────────────────────────────
@@ -2465,9 +2483,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     if (!type) return null
     const steps = []
+    let leaf = null
     for (let i = 1; i < parts.length; i += 1) {
       const spec = fieldSpec(type, parts[i])
       if (!spec) return null
+      leaf = spec
       steps.push(parts[i])
       // ⭐ THE NEXT STEP'S TYPE IS THE FIELD'S DECLARED ONE — which is a user
       // type for `ob.info.top` and a Pine word (`float`, `box`) at the leaf.
@@ -2476,7 +2496,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       type = udtTypes.has(spec.type) ? spec.type : null
       if (!type && i < parts.length - 1) return null
     }
-    return { head, steps, type, slot }
+    return { head, steps, type, slot, leaf }
   }
 
   /**
@@ -5445,7 +5465,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             return admitArrayCall(methodFormCall(node, () => 'array', (m) => definedNames.has(m)).node,
               scope, false)
           }
-          if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
+          // ⭐ RT14 — and a receiver that is a field DECLARED an array (`t.xs.size()`)
+          if ((rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection)
+            || (uf && !definedNames.has(uf.method) && (rslot === null || rslot === undefined)
+              && arrayField(uf.recv, scope))) {
             const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
               return admitArrayCall(rew.node, scope, false)
@@ -8123,7 +8146,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
               () => 'array', (m) => definedNames.has(m)).node, scope))
             continue
           }
-          if (rslot !== null && slots[rslot] && slots[rslot].collection) {
+          if ((rslot !== null && slots[rslot] && slots[rslot].collection)
+            || ((rslot === null || rslot === undefined) && arrayField(uf.recv, scope))) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
