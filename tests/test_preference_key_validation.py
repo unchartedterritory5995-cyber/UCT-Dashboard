@@ -316,6 +316,31 @@ def test_the_coach_mark_write_is_accepted(client):
     assert resp.status_code == 200, resp.text
 
 
+def test_the_per_tour_seen_state_key_is_accepted(client):
+    """Wave 14 (W14-0): every registered tour beyond the base one records its
+    `{v, state, step}` in ONE map, `notebook_tours`, keyed by tour id
+    (`tourSeenState.js`). The key is read from that file, never retyped, and
+    the write is the shape `recordTourState` actually sends. Without the row
+    in `_PREFERENCE_KEYS` this 400s and no tour's progress ever persists.
+    """
+    src = _read(os.path.join(
+        APP_SRC, "pages", "journal-2-0", "components", "notebook", "onboarding", "tourSeenState.js"))
+    m = re.search(r"export\s+const\s+TOURS_PREF\s*=\s*['\"]([^'\"]+)['\"]", src)
+    assert m, "tourSeenState.js no longer declares TOURS_PREF"
+    key = m.group(1)
+    assert key == "notebook_tours"
+    assert "setPrefMerged(TOURS_PREF" in src, "control: recordTourState no longer writes TOURS_PREF"
+
+    value = json.dumps({"writing-help": {"v": 1, "state": "started", "step": "s1"},
+                        "chart-plan": {"v": 1, "state": "dismissed", "step": None}})
+    resp = client.post("/api/auth/preferences", json={"key": key, "value": value})
+    assert resp.status_code == 200, resp.text
+    # and the base tour's own key is a DIFFERENT row, still accepted
+    resp = client.post("/api/auth/preferences",
+                       json={"key": "notebook_tour", "value": json.dumps({"v": 1, "state": "done", "step": None})})
+    assert resp.status_code == 200, resp.text
+
+
 def test_an_unknown_hub_field_from_an_older_build_is_carried(client):
     """`withDefaults` spreads the stored blob into every later write, so one
     stale field would otherwise become a permanent 400 on all hub settings."""

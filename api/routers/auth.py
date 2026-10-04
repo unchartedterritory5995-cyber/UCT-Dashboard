@@ -2650,6 +2650,13 @@ _PREFERENCE_KEYS = {
     # persisted — the tour reopened on every visit.
     "notebook_sample": _PREF_OPAQUE,
     "notebook_tour": _PREF_OPAQUE,
+    # Wave 14 (lane W14-0): the per-tour seen state for every registered tour
+    # beyond the base one -- ONE map keyed by tour id (tourSeenState.js
+    # `TOURS_PREF`), written read-modify-write through `setPrefMerged`. Without
+    # this row every such save answered 400 "Unknown preference key" (caught by
+    # the W14-D lane before any tour shipped; the 9/26 `notebook_daily_template`
+    # class). The base tour keeps its own `notebook_tour` row above.
+    "notebook_tours": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

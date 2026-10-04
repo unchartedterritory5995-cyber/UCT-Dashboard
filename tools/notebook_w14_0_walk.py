@@ -100,9 +100,9 @@ def walk_one_width(browser, admin_req, base: str, email: str, width: int, height
     try:
         dialog.wait_for(state="visible", timeout=5000)
         title = dialog.get_by_role("heading", level=2).inner_text()
-        progress_text = dialog.get_by_text(f"Step 1 of {FIRST_RUN_STEP_COUNT}")
-        record(f"{label}: tour auto-starts on step 1", title == "Welcome to your Notebook" and progress_text.count() == 1,
-               title=title, progress_count=progress_text.count())
+        cur, total = progress_of(dialog)
+        record(f"{label}: tour auto-starts on step 1", title == "Welcome to your Notebook" and cur == 1 and bool(total),
+               title=title, step=cur, of=total)
     except Exception as e:  # noqa: BLE001
         record(f"{label}: tour auto-starts on step 1", False, error=str(e)[:300])
         member_ctx.close()
@@ -158,10 +158,10 @@ def walk_one_width(browser, admin_req, base: str, email: str, width: int, height
         replay.click()
         dialog.wait_for(state="visible", timeout=5000)
         reopened_title = dialog.get_by_role("heading", level=2).inner_text()
-        reopened_progress = dialog.get_by_text(f"Step 1 of {FIRST_RUN_STEP_COUNT}")
+        cur, total = progress_of(dialog)
         record(f"{label}: Replay reopens the tour at step one, dismissed state notwithstanding",
-               reopened_title == "Welcome to your Notebook" and reopened_progress.count() == 1,
-               title=reopened_title, progress_count=reopened_progress.count())
+               reopened_title == "Welcome to your Notebook" and cur == 1 and bool(total),
+               title=reopened_title, step=cur, of=total)
     except Exception as e:  # noqa: BLE001
         record(f"{label}: Help > Walkthroughs replay", False, error=str(e)[:300])
 
