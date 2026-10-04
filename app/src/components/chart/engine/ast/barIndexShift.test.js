@@ -70,6 +70,13 @@ const PINE = {
   ], 'inv', 0],
   'floor(mean of two indices) - index': [['plot(math.floor((bar_index + bar_index[2]) / 2) - bar_index)'], 'inv', 0],
   'no index at all': [['plot(ta.sma(close, 10))'], 'inv', 0],
+  // ── ⭐ F9: a running count of a constant IS the index (`c · (bar_index + 1)`) ──
+  'ta.cum(1)': [['plot(ta.cum(1))'], 'pos', 0],
+  'ta.cum(1) - ta.cum(1)[5]': [['plot(ta.cum(1) - ta.cum(1)[5])'], 'inv', 0],
+  'ta.cum(1) - index': [['plot(ta.cum(1) - bar_index)'], 'inv', 0],
+  'ta.cum(1) < 16 (atr-trailing-stoploss)': [['plot(ta.cum(1) < 16 ? close : open)'], 'inv', 1],
+  'ta.cum(2)': [['plot(ta.cum(2))'], 'dep', 0],
+  'ta.cum(close) (a series total: not a count)': [['plot(ta.cum(close))'], 'inv', 0],
   // ── a THRESHOLD: known where a larger D can only confirm it ───────────────────
   'index > 50': [['plot(bar_index > 50 ? close : open)'], 'inv', 1],
   'index >= 50': [['plot(bar_index >= 50 ? close : open)'], 'inv', 1],
@@ -92,7 +99,9 @@ const PINE = {
 const treeOf = (key) => {
   const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${PINE[key][0].join('\n')}\n`, { strict: true })
   if (!t.ok) throw new Error(`${key}: ${t.refusal && t.refusal.message}`)
-  return t.outputs[t.selected].ast
+  // ⭐ F9 — `plot(ta.cum(1))` reads no bar, so the screener never SELECTS it (a
+  // constant, H8); the chart draws it, and its tree is the one output.
+  return (t.outputs[t.selected] || t.outputs[0]).ast
 }
 
 const PINE_DOC = { tf: 'D', barIndexAbsolute: true }
@@ -100,7 +109,7 @@ const PINE_DOC = { tf: 'D', barIndexAbsolute: true }
  *  formula-language document (no claim about TradingView's index). */
 const CASES = [
   ...Object.keys(PINE).map((k) => [`${k} · off the listing`, k, PINE_DOC]),
-  ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum']
+  ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum', 'ta.cum(1)']
     .map((k) => [`${k} · from the listing`, k, { ...PINE_DOC, historyFromListing: true }]),
   ...['index', 'index % 3', 'index > 50'].map((k) => [`${k} · the formula language's own barindex`, k, { tf: 'D' }]),
   // the object lane's reading: an index is a POSITION there, and keeps its column
@@ -160,7 +169,8 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
     expect(counts.pos).toBeGreaterThanOrEqual(8)
     expect(counts.inv).toBeGreaterThanOrEqual(15)
     expect(counts.dep).toBeGreaterThanOrEqual(8)
-    for (const key of Object.keys(PINE)) expect(readsBarIndex(treeOf(key)), key).toBe(key !== 'no index at all')
+    const READS_NONE = new Set(['no index at all', 'ta.cum(close) (a series total: not a count)'])
+    for (const key of Object.keys(PINE)) expect(readsBarIndex(treeOf(key)), key).toBe(!READS_NONE.has(key))
   })
 
   it('a threshold is unknown exactly where a larger D could change the answer', () => {
@@ -189,6 +199,10 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
     const shifted = (n, d) => {
       if (!n || typeof n !== 'object') return n
       if (n.type === 'series' && BAR_INDEX_LEAVES.includes(n.name)) return { type: 'op', name: '+', args: [n, { type: 'num', value: d }] }
+      // ⭐ F9 — a running count of a constant `c` over D more bars is `c · D` larger.
+      if (n.type === 'call' && n.name === 'cum' && n.args && n.args.length === 1 && n.args[0] && n.args[0].type === 'num') {
+        return { type: 'op', name: '+', args: [n, { type: 'num', value: n.args[0].value * d }] }
+      }
       return Array.isArray(n.args) ? { ...n, args: n.args.map((a) => shifted(a, d)) } : n
     }
     const run = (ast) => Array.from(interpret(ast, BARS, {}, undefined, undefined, { tf: 'D' }))
