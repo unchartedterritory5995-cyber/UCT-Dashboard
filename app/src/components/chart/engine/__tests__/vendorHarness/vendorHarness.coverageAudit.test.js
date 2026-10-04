@@ -102,13 +102,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('atr-trailing-stop-by-ceyhun SPY: MATCH', () => {
     expect(grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: SPY Slow Trail / BUY / SELL are na on ours where TradingView has a value, from bar 522 (scattered); barcolor differs from bar 0', () => {
+  it('control: SPY Slow Trail / BUY / SELL are na on ours where TradingView has a value, from bar 522 (scattered); the barcolor AGREES', () => {
     const { v } = grade('atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02')
     expect(first(item(v, 'Slow Trail'))).toMatchObject({ bar: 522, kind: 'na' })
     expect(item(v, 'Slow Trail').stats.steady.divergent).toBe(949)
     expect(first(item(v, 'BUY'))).toMatchObject({ bar: 554, kind: 'na' })
     expect(first(item(v, 'SELL'))).toMatchObject({ bar: 531, kind: 'na' })
-    expect(v.paints.verdict).toBe('DIVERGE')
+    // ⭐ RC1 — was DIVERGE ("barcolor differs from bar 0"): the paint is now replayed over
+    // SPY's own proved history with the supplier's listing flag (`ourSide.warmBarsSupply`)
+    // and agrees on all 1800 bars. The PLOT lane above still replays the window cold and
+    // without the listing flag, so its na-from-bar-522 divergence is unchanged.
+    expect(v.paints.verdict).toBe('MATCH')
   }, T)
 
   // cpr-with-mas-super-trend-vwap (wave-16 H2/H3 attach) ------------------------
@@ -582,7 +586,11 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
 // `cap3SpyGaps.measure.test.js` from the harness's own verdict, never by hand. MATCH
 // rows are an `expect`; a DIVERGE row is an `it.fails` asserting MATCH beside the
 // signature control that names what diverges (item, first bar, kind, count; object
-// families vendor vs ours). Most SPY value divergences are converging prefixes: the
+// families vendor vs ours). ⭐ RC1 (2026-10-04): the `paints` field of seven SPY rows
+// moved DIVERGE -> MATCH, and fibonacci-pivot-points-cc's whole verdict with it, when
+// the paint lane started replaying over SPY's proved history (`warmBarsSupply`). Those
+// eight values were edited by hand from this rail's own failing output, because the
+// measure test that writes the file could not be run beside a live gate. Most SPY value divergences are converging prefixes: the
 // 1800-bar window does not start at SPY's listing, so a recursive series (EMA, RMA)
 // seeds differently (CAP2 records the same); the signature says which.
 /** ⛔ Scripts whose DRAWN COUNTS read the wall clock (`timenow`): black-scholes computes
