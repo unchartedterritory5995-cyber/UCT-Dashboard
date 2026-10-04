@@ -295,9 +295,16 @@ export const COLOUR_FNS = Object.freeze({
   // is (`vm.js`: *"a typed array's element type is the FRONT END's to police,
   // not the VM's"*). Declaring `colour` here would make every correct call fail
   // the VM's kind check.
+  // ⭐⭐ RT6 — AN `na` OPERAND IS `na`, NEVER A COLOUR. `withTransparency` and
+  // `packColor` read a NaN byte as 0, so `color.new(na, 40)` answered TRANSPARENT
+  // BLACK at 40 — a visible dark shade where Pine holds the `na` colour (draws
+  // nothing). Harmless while a run's colour reached no drawing; a runtime row's
+  // per-bar colour reaches the chart (RT6), so the `na` is kept. A run reading
+  // `na` here draws that bar in no colour, the reading `na` has everywhere else.
+  // (Probe rows queued for CAP3: `docs/pine/capture-queue-2026-10-03-rt6-colour.md`.)
   'color.new': {
     args: ['number', 'number'], returns: 'colour', minArgs: 2, maxArgs: 2,
-    fn: (a) => withTransparency(a[0], a[1]),
+    fn: (a) => (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1])) ? NaN : withTransparency(a[0], a[1])),
   },
   // `color.rgb(r, g, b, transp = 0)` — three channels, Pine's own order.
   'color.rgb': {
@@ -305,9 +312,9 @@ export const COLOUR_FNS = Object.freeze({
     returns: 'colour',
     minArgs: 3,
     maxArgs: 4,
-    fn: (a) => packColor({
+    fn: (a) => (a.some((x) => Number.isNaN(Number(x))) ? NaN : packColor({
       r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(pineTransparency(a.length > 3 ? a[3] : 0)),
-    }),
+    })),
   },
   // ⭐⭐ C18 — `color.from_gradient(value, bottom, top, bottomColour, topColour)`
   // COMPILES, and its colour is NEVER invented. TradingView's interpolation curve

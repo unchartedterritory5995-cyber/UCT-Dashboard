@@ -335,7 +335,8 @@
      "outputs": {
       "value": 0,
       "out2": 1
-     }
+     },
+     "objects": true
     },
     "meta": {
      "name": "fibonacci-dolphintradebot",
@@ -353,12 +354,12 @@
      "runtimeHistory": "listing",
      "disclosures": [
       {
-       "name": "Drawings",
-       "note": "100 of 100 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 100 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.)"
-      },
-      {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+      },
+      {
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
       }
      ],
      "requirementTags": []
@@ -797,7 +798,9 @@
      "source": "// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © tarun171977\n\n//@version=5\nindicator(\"Inside Bar Range + Mother Candle Breakout/Breakdown with Volume Confirmation\", shorttitle=\"IBRBVC\", overlay=true)\n\n// Input for volume threshold display\nshowVolumeThreshold = input.bool(false, title=\"Show Volume Threshold\")\n\n// Input for line color\nlineColor = input(color.new(#b2b5be, 0), title=\"Line Color\")\n\n// Input for inside bar color\ninsideBarColor = color.orange\n\n// Input for line width\nlineWidth = input.int(2, title=\"Line Width\")\n\n// Input for line style\nstyleOption = input.string(\"────\", title=\"Line Style\",\n     options=[\"────\", \"┈┈┈\", \"╌╌╌\"])\n\nlineStyle = styleOption == \"dotted (┈)\" ? line.style_dotted :\n     styleOption == \"dashed (╌)\" ? line.style_dashed :\n     styleOption == \"arrow left (←)\" ? line.style_arrow_left :\n     styleOption == \"arrow right (→)\" ? line.style_arrow_right :\n     styleOption == \"arrows both (↔)\" ? line.style_arrow_both :\n         line.style_solid\n\n// Function to identify inside bars\nisInsideBar() =>\n    high[1] > high and low[1] < low\n\n// Color the inside bars\nbarcolor(isInsideBar() ? insideBarColor : na, title=\"Inside Bar\")\n\n// Initialize variables\nvar float mhigh = na\nvar float mlow = na\nvar line mhighLine = na\nvar line mlowLine = na\n\n// Track if breakout or breakdown has already occurred\nvar bool breakoutOccurred = false\nvar bool breakdownOccurred = false\n\n// If the current bar is an inside bar, set mhigh and mlow to the previous bar's high and low\nif (isInsideBar())\n    mhigh := high[1]\n    mlow := low[1]\n\n    // Delete previous lines\n    if (not na(mhighLine))\n        line.delete(mhighLine)\n    if (not na(mlowLine))\n        line.delete(mlowLine)\n\n    // Draw new lines\n    mhighLine := line.new(x1=bar_index[1], y1=mhigh, x2=bar_index+10, y2=mhigh, color=lineColor, width=lineWidth, style=lineStyle)\n    mlowLine := line.new(x1=bar_index[1], y1=mlow, x2=bar_index+10, y2=mlow, color=lineColor, width=lineWidth, style=lineStyle)\n\n    // Reset breakout/breakdown occurrence tracking\n    breakoutOccurred := false\n    breakdownOccurred := false\n\n// Define volume threshold\nvolumeThreshold = showVolumeThreshold ? 100000 : na\n\n// Logic for breakout or breakdown with volume confirmation\nbreakout = (not na(mhigh)) and (close > mhigh) and (not na(volumeThreshold) ? volume > volumeThreshold : true) and not breakdownOccurred\nbreakdown = (not na(mlow)) and (close < mlow) and (not na(volumeThreshold) ? volume > volumeThreshold : true) and not breakoutOccurred\n\n// Label and bar color handling\nplotshape(series=breakout and not breakoutOccurred, style=shape.triangleup, location=location.belowbar, color=color.green, text=\"Breakout\", textcolor=color.green, size=size.tiny)\nplotshape(series=breakdown and not breakdownOccurred, style=shape.triangledown, location=location.abovebar, color=color.red, text=\"Breakdown\", textcolor=color.red, size=size.tiny)\n\n// Change bar color to yellow when breakout or breakdown label is printed\nbarcolor((breakout and not breakoutOccurred) or (breakdown and not breakdownOccurred) ? color.yellow : na, title=\"\")\n\n// Update breakout/breakdown occurrence tracking\nif (breakout)\n    breakoutOccurred := true\nif (breakdown)\n    breakdownOccurred := true\n",
      "outputs": {
       "value": 1,
-      "out2": 2
+      "out2": 2,
+      "out3": 0,
+      "out4": 3
      }
     },
     "meta": {
@@ -817,10 +820,6 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
-      },
-      {
-       "name": "Not drawn by this pane",
-       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
       }
      ],
      "requirementTags": []
@@ -854,6 +853,36 @@
       "key": "out2Width",
       "type": "int",
       "label": "out2 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out3Color",
+      "type": "color",
+      "label": "out3 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out3Width",
+      "type": "int",
+      "label": "out3 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out4Color",
+      "type": "color",
+      "label": "out4 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out4Width",
+      "type": "int",
+      "label": "out4 width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -900,6 +929,47 @@
        "text": "Breakdown"
       },
       "forward": 0
+     },
+     {
+      "key": "out3",
+      "label": "out3",
+      "style": "line",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true,
+      "forward": 0
+     },
+     {
+      "key": "out4",
+      "label": "out4",
+      "style": "line",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true,
+      "forward": 0
+     }
+    ],
+    "paints": [
+     {
+      "kind": "barcolor",
+      "line": 35,
+      "title": "Inside Bar",
+      "colorMode": "column:out3",
+      "colorPacked": {}
+     },
+     {
+      "kind": "barcolor",
+      "line": 78,
+      "colorMode": "column:out4",
+      "colorPacked": {}
      }
     ]
    }
@@ -1028,7 +1098,8 @@
            },
            {
             "t": "num",
-            "tree": 1
+            "tree": 1,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1118,7 +1189,8 @@
            },
            {
             "t": "num",
-            "tree": 2
+            "tree": 2,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1208,7 +1280,8 @@
            },
            {
             "t": "num",
-            "tree": 3
+            "tree": 3,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1298,7 +1371,8 @@
            },
            {
             "t": "num",
-            "tree": 4
+            "tree": 4,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1388,7 +1462,8 @@
            },
            {
             "t": "num",
-            "tree": 5
+            "tree": 5,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1758,7 +1833,8 @@
            },
            {
             "t": "num",
-            "tree": 1
+            "tree": 1,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1848,7 +1924,8 @@
            },
            {
             "t": "num",
-            "tree": 8
+            "tree": 8,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -1938,7 +2015,8 @@
            },
            {
             "t": "num",
-            "tree": 9
+            "tree": 9,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -2028,7 +2106,8 @@
            },
            {
             "t": "num",
-            "tree": 10
+            "tree": 10,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -2118,7 +2197,8 @@
            },
            {
             "t": "num",
-            "tree": 11
+            "tree": 11,
+            "tick": "syminfo.mintick"
            }
           ]
          }
@@ -11191,8 +11271,11 @@
      "outputs": {
       "value": 0,
       "out2": 1,
-      "out3": 4,
-      "out4": 5
+      "out3": 2,
+      "out6": 15,
+      "out4": 4,
+      "out5": 5,
+      "out7": 3
      }
     },
     "meta": {
@@ -11213,14 +11296,6 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
-      },
-      {
-       "name": "Baseline",
-       "note": "`Baseline` is not drawn: its colour changes from bar to bar, which a script drawn bar by bar does not carry yet. Nothing is drawn for it rather than a guess."
-      },
-      {
-       "name": "Not drawn by this pane",
-       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
       }
      ],
      "requirementTags": []
@@ -11262,13 +11337,13 @@
      {
       "key": "out3Color",
       "type": "color",
-      "label": "Bullish Trend Change colour",
-      "default": "#00ffbb"
+      "label": "Baseline colour",
+      "default": "#c9a84c"
      },
      {
       "key": "out3Width",
       "type": "int",
-      "label": "Bullish Trend Change width",
+      "label": "Baseline width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -11277,13 +11352,58 @@
      {
       "key": "out4Color",
       "type": "color",
-      "label": "Bearish Trend Change colour",
-      "default": "#ff1100"
+      "label": "Bullish Trend Change colour",
+      "default": "#00ffbb"
      },
      {
       "key": "out4Width",
       "type": "int",
+      "label": "Bullish Trend Change width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out5Color",
+      "type": "color",
+      "label": "Bearish Trend Change colour",
+      "default": "#ff1100"
+     },
+     {
+      "key": "out5Width",
+      "type": "int",
       "label": "Bearish Trend Change width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out6Color",
+      "type": "color",
+      "label": "out6 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out6Width",
+      "type": "int",
+      "label": "out6 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+     },
+     {
+      "key": "out7Color",
+      "type": "color",
+      "label": "out7 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "out7Width",
+      "type": "int",
+      "label": "out7 width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -11374,10 +11494,24 @@
      },
      {
       "key": "out3",
-      "label": "Bullish Trend Change",
-      "style": "markers",
+      "label": "Baseline",
+      "style": "line",
       "color": "$out3Color",
       "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "forward": 0,
+      "colorMode": "column:out6",
+      "colorPacked": {}
+     },
+     {
+      "key": "out4",
+      "label": "Bullish Trend Change",
+      "style": "markers",
+      "color": "$out4Color",
+      "width": "$out4Width",
       "role": "secondary",
       "legend": {
        "decimals": 2
@@ -11392,11 +11526,11 @@
       "forward": 0
      },
      {
-      "key": "out4",
+      "key": "out5",
       "label": "Bearish Trend Change",
       "style": "markers",
-      "color": "$out4Color",
-      "width": "$out4Width",
+      "color": "$out5Color",
+      "width": "$out5Width",
       "role": "secondary",
       "legend": {
        "decimals": 2
@@ -11409,6 +11543,40 @@
        "size": 0.8
       },
       "forward": 0
+     },
+     {
+      "key": "out6",
+      "label": "out6",
+      "style": "line",
+      "color": "$out6Color",
+      "width": "$out6Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true,
+      "forward": 0
+     },
+     {
+      "key": "out7",
+      "label": "out7",
+      "style": "line",
+      "color": "$out7Color",
+      "width": "$out7Width",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true,
+      "forward": 0
+     }
+    ],
+    "paints": [
+     {
+      "kind": "barcolor",
+      "line": 76,
+      "colorMode": "column:out7",
+      "colorPacked": {}
      }
     ]
    }
@@ -11425,13 +11593,8 @@
      "fn": "runtime:u_0000000000f6",
      "rev": 1,
      "source": "// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © faytterro\n\n//@version=5\nindicator(\"Wyckoff Accumulation Distribution\", overlay=true, max_boxes_count = 500, calc_bars_count = 1000)\n\n// === Genel ayar ===\ncolor_ = input.color(color.white, \"Text Color\")\n\n// RSI hesaplama\nrsilen = input.int(14, \"RSI Length\")\nrsi = ta.rsi(close, rsilen)\nrsisens = input.int(20, title= \"trend Sensitivity\", maxval=50, minval=0, \n tooltip = \"When it increases, bull and bear signals decrease and horizontal trend signals increase.\")\n\nutad = rsi<50+rsisens and rsi[1]>50+rsisens\nspring = rsi>50-rsisens and rsi[1]<50-rsisens\n\n// Yüksek ve düşük hesaplama fonksiyonları\nmyhigh(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, high[i])\n    array.max(x)\n\nmylow(len) =>\n    x = array.new_float()\n    for i = 0 to len - 1\n        array.push(x, low[i])\n    array.min(x)\n\n// Yatay, yükseliş ve düşüş koşulları\nside = (rsi < 50 + rsisens and rsi > 50 - rsisens) or (rsi[1] < 50 + rsisens and rsi[1] > 50 - rsisens)\nbull = rsi > 50 + rsisens and rsi[1] > 50 + rsisens\nbear = rsi < 50 - rsisens and rsi[1] < 50 - rsisens \n\nboxlen = ta.barssince(side and not side[1])\n\nbarcolor(bull ? color.lime : bear ? color.purple : na, offset = -2)\n\nx1 = ta.valuewhen(side and not side[1], bar_index, 0)\nx2 = ta.valuewhen(not side and side[1], bar_index[1], 0)-1\ny1 = myhigh(math.max(1, boxlen+1))[2]\ny2 = mylow(math.max(1, boxlen+1))[2]\n\n// Kutuyu çizme\nvar box trendBox = na\nif side[1] and not side\n    trendBox := box.new(x1, y1, x2, y2, color.gray, 1, line.style_solid, extend.none, xloc.bar_index, x1 < x2 ? color.rgb(120, 123, 134, 90) : na, text_color = color.new(color_,80))\n\nvar string after_trend = na\nif bull\n    after_trend := \"Accumulation\"\nelse if bear\n    after_trend := \"Distribution\"\n\nif not na(trendBox) and after_trend == \"Accumulation\"\n    box.set_bgcolor(trendBox, color.rgb(76, 175, 79, 95))\n    box.set_text(trendBox, \"Accumulation\")\nelse if not na(trendBox) and after_trend == \"Distribution\"\n    box.set_bgcolor(trendBox, color.rgb(255, 82, 82, 95))\n    box.set_text(trendBox, \"Distribution\")\n\npivotLen = input.int(5, \"Pivot Length\", minval=1)\nrsiLow = 50 - rsisens\nrsiHigh = 50 + rsisens\noffsetVal = -pivotLen\n\npivotLow = ta.pivotlow(low, pivotLen, pivotLen)\npivotHigh = ta.pivothigh(high, pivotLen, pivotLen)\nrsiAtPivot = rsi[pivotLen]\n\n// Flagler\nvar bool isSCFlag = false\nvar bool isARFlag = false\nvar bool isSTFlag = false\nvar bool isBCFlag = false\nvar bool isDARFlag = false\nvar bool isDSTFlag = false\n\n// SC\nisSC = pivotLow and rsiAtPivot < rsiLow and not isSCFlag and not spring\nplotshape(isSC, \"The Selling Climax\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"SC\", textcolor=color_, display = display.pane)\nisSCFlag := isSC ? true : isSCFlag\n\n// AR\nvar int scBarIndex = na\nif isSC\n    scBarIndex := bar_index - pivotLen\nisAR = false\nif not na(scBarIndex)\n    if pivotHigh and (bar_index - pivotLen > scBarIndex) and not isARFlag\n        isAR := true\n        scBarIndex := na\nisARFlag := isAR ? true : isARFlag\nplotshape(isAR, \"Automatic Rally\", style=shape.triangledown, location=location.abovebar, color=color.green, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// ST (Accumulation)\nvar int pivotCounter = 0\nif pivotLow\n    pivotCounter := pivotCounter + 1\nif rsiAtPivot < rsiLow\n    pivotCounter := 0\nisST = pivotCounter == 1 and pivotLow and not isSTFlag \nplotshape(isST,\"the Secondary Test\", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\nisSTFlag := isST ? true : isSTFlag\n\n// BC\nisBC = rsiAtPivot > rsiHigh and pivotHigh and not isBCFlag and not utad\nplotshape(isBC,\"The Buying Climax\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"BC\", textcolor=color_, display = display.pane)\nisBCFlag := isBC ? true : isBCFlag\n\n// DAR\nvar int bcBarIndex = na\nif isBC\n    bcBarIndex := bar_index - pivotLen\nisDAR = false\nif not na(bcBarIndex)\n    if pivotLow and (bar_index - pivotLen > bcBarIndex) and not isDARFlag\n        isDAR := true\n        bcBarIndex := na\nisDARFlag := isDAR ? true : isDARFlag\nplotshape(isDAR,\"Automatic Reaction\", location=location.belowbar, style=shape.triangleup, color=color.red, size=size.tiny, offset=offsetVal, text=\"AR\", textcolor=color_, display = display.pane)\n\n// DST\nvar int darBarIndex = na\nif isDAR\n    darBarIndex := bar_index - pivotLen\nisDST = false\nif not na(darBarIndex)\n    if pivotHigh and (bar_index - pivotLen > darBarIndex) and not isDSTFlag and not isBC\n        isDST := true\n        darBarIndex := na\nisDSTFlag := isDST ? true : isDSTFlag\nplotshape(isDST,\"The Secondary Test\", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text=\"ST\", textcolor=color_, display = display.pane)\n\n// Diğer pivotlar (turuncu)\nplotshape(pivotLow and not isSC and not isST and not isAR and not isDAR, \"pivotHigh\", location=location.belowbar, style=shape.triangleup, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\nplotshape(pivotHigh and not isAR and not isDST and not isBC,\"pivotLow\", location=location.abovebar, style=shape.triangledown, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)\n\n// Reset flagler\nif bar_index != bar_index[1]\n    isSCFlag := false\n    isARFlag := false\n    isSTFlag := false\n    isBCFlag := false\n    isDARFlag := false\n    isDSTFlag := false\n",
-     "outputs": {
-      "value": 2,
-      "out2": 5,
-      "out3": 6,
-      "out4": 7,
-      "out5": 8
-     }
+     "outputs": {},
+     "objects": true
     },
     "meta": {
      "name": "wyckoff-accumulation-distribution",
@@ -11448,16 +11611,16 @@
      "runtimeSourceHash": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
      "disclosures": [
       {
-       "name": "Drawings",
-       "note": "5 of 5 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 5 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.)"
-      },
-      {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
       },
       {
        "name": "The Selling Climax",
        "note": "`The Selling Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "Automatic Rally",
+       "note": "`Automatic Rally` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
       },
       {
        "name": "the Secondary Test",
@@ -11468,8 +11631,28 @@
        "note": "`The Buying Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
       },
       {
-       "name": "Not drawn by this pane",
-       "note": "This script also writes a bar colour, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not."
+       "name": "Automatic Reaction",
+       "note": "`Automatic Reaction` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "The Secondary Test",
+       "note": "`The Secondary Test` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "pivotHigh",
+       "note": "`pivotHigh` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "pivotLow",
+       "note": "`pivotLow` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
+      },
+      {
+       "name": "`barcolor` (line 39)",
+       "note": "`barcolor` (line 39) is not drawn: an `offset` on `barcolor` has no capture (tools/visual_conformance/probes/vw-bgcolor-barcolor.pine)."
+      },
+      {
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
       }
      ],
      "requirementTags": []
@@ -11482,7 +11665,7 @@
       "key": "color",
       "type": "color",
       "label": "Color",
-      "default": "#4CAF50"
+      "default": "#c9a84c"
      },
      {
       "key": "lineWidth",
@@ -11492,166 +11675,20 @@
       "min": 1,
       "max": 4,
       "step": 1
-     },
-     {
-      "key": "out2Color",
-      "type": "color",
-      "label": "Automatic Reaction colour",
-      "default": "#FF5252"
-     },
-     {
-      "key": "out2Width",
-      "type": "int",
-      "label": "Automatic Reaction width",
-      "default": 1,
-      "min": 1,
-      "max": 4,
-      "step": 1
-     },
-     {
-      "key": "out3Color",
-      "type": "color",
-      "label": "The Secondary Test colour",
-      "default": "#FF5252"
-     },
-     {
-      "key": "out3Width",
-      "type": "int",
-      "label": "The Secondary Test width",
-      "default": 1,
-      "min": 1,
-      "max": 4,
-      "step": 1
-     },
-     {
-      "key": "out4Color",
-      "type": "color",
-      "label": "pivotHigh colour",
-      "default": "#FF9800"
-     },
-     {
-      "key": "out4Width",
-      "type": "int",
-      "label": "pivotHigh width",
-      "default": 1,
-      "min": 1,
-      "max": 4,
-      "step": 1
-     },
-     {
-      "key": "out5Color",
-      "type": "color",
-      "label": "pivotLow colour",
-      "default": "#FF9800"
-     },
-     {
-      "key": "out5Width",
-      "type": "int",
-      "label": "pivotLow width",
-      "default": 1,
-      "min": 1,
-      "max": 4,
-      "step": 1
      }
     ],
     "plots": [
      {
       "key": "value",
-      "label": "Automatic Rally",
-      "style": "markers",
+      "label": "wyckoff-accu",
+      "style": "line",
       "color": "$color",
       "width": "$lineWidth",
       "role": "primary",
       "legend": {
        "decimals": 2
       },
-      "marker": {
-       "shape": "arrowDown",
-       "pineShape": "shape.triangledown",
-       "shapeApprox": true,
-       "position": "aboveBar",
-       "size": 0.5,
-       "text": "AR"
-      },
-      "forward": 0
-     },
-     {
-      "key": "out2",
-      "label": "Automatic Reaction",
-      "style": "markers",
-      "color": "$out2Color",
-      "width": "$out2Width",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "marker": {
-       "shape": "arrowUp",
-       "pineShape": "shape.triangleup",
-       "shapeApprox": true,
-       "position": "belowBar",
-       "size": 0.5,
-       "text": "AR"
-      },
-      "forward": 0
-     },
-     {
-      "key": "out3",
-      "label": "The Secondary Test",
-      "style": "markers",
-      "color": "$out3Color",
-      "width": "$out3Width",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "marker": {
-       "shape": "arrowDown",
-       "pineShape": "shape.triangledown",
-       "shapeApprox": true,
-       "position": "aboveBar",
-       "size": 0.5,
-       "text": "ST"
-      },
-      "forward": 0
-     },
-     {
-      "key": "out4",
-      "label": "pivotHigh",
-      "style": "markers",
-      "color": "$out4Color",
-      "width": "$out4Width",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "marker": {
-       "shape": "arrowUp",
-       "pineShape": "shape.triangleup",
-       "shapeApprox": true,
-       "position": "belowBar",
-       "size": 1
-      },
-      "forward": 0
-     },
-     {
-      "key": "out5",
-      "label": "pivotLow",
-      "style": "markers",
-      "color": "$out5Color",
-      "width": "$out5Width",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "marker": {
-       "shape": "arrowDown",
-       "pineShape": "shape.triangledown",
-       "shapeApprox": true,
-       "position": "aboveBar",
-       "size": 1
-      },
-      "forward": 0
+      "hidden": true
      }
     ]
    }

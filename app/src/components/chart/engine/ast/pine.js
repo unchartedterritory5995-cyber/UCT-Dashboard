@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -8850,7 +8850,8 @@ export class Resolver {
    *  reads there. See `implicitBoolCast` for the rule and its evidence status.
    *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
   condition(tree, site, tok) {
-    const out = implicitBoolCast(tree, this.pineVersion, this.table)
+    const cast = implicitBoolCast(tree, this.pineVersion, this.table)
+    const out = naOperandReadAsFalse(cast, site, this.pineVersion)
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({
@@ -18242,6 +18243,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (decidedNow !== null) decidedIfArm.set(ifNode, decidedNow !== 0 ? then : other)
       return ifNode
     }
+    // ⭐⭐ F4 (step 85) — A TEXT THAT IS `na` IS THE EMPTY STRING. Pine's `text`
+    // is a series string and `na` there is the absent string: TradingView holds
+    // `""` for it. MEASURED: all-chart-patterns-theeccentrictrader SPY 1D, eight
+    // `var … = label.new(na, na, …, text = na, …)` labels that no pattern ever
+    // re-captions are recorded with `t: ""`. ⚰️ It fell to the numeric last
+    // resort and printed "NaN". (`str.tostring(na)` is NOT this: that call
+    // prints "NaN", F3.)
+    if (node.type === 'name' && node.name === 'na') return { t: 'lit', s: '' }
     if (node.type === 'name') {
       // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
       // `valueRef` already produces for a table written with a literal position,
@@ -25339,6 +25348,42 @@ const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
  *
  *  Only when the caller opted in (`ctx.foldSelectors`, a shared counter the
  *  caller reads afterwards to learn that a fold happened). */
+/** ⭐⭐ F2 (2026-10-02) — AN ARM OF `x = if …` IS OPENED LIKE A NAME.
+ *
+ *  `foldIfChain` builds the value of an if EXPRESSION as a ternary whose arms are
+ *  `bound` nodes (`boundNode(<the arm's binding>)`), never `name` nodes — so every
+ *  colour reader below, which opens a NAME to its binding, stopped at the arm and
+ *  answered "a colour this door cannot say". ⚰️ MEASURED on the vendor harness
+ *  (CAP2, `implied-volatility-suite`, RDDT 1D and SPY 1D, 2026-10-02):
+ *
+ *      col = if (VolatilityChoice == "IV Percentile")
+ *          pctileRank < 50 ? color.red : …
+ *      else if (VolatilityChoice == "IV Rank")
+ *          IVR < 50 ? color.red : IVR >= 50 ? color.green : color.green
+ *      …
+ *      plot(VolatilityData, color = col)
+ *
+ *  drew the pane's gold on every valued bar (272 / 1,388) where TradingView draws
+ *  red or green — a WRONG colour, live. The same rule written as a ternary was
+ *  already carried; only the `if` spelling hid it.
+ *
+ *  ⛔ ONLY AN `expr` BINDING (the text reader's rule, `textNodeOf`), and ONLY an
+ *  arm whose scope is the chain's own: an arm that declared or rebound a name of
+ *  its own reads a scope the plot's colour rule is not resolved in, so it stays
+ *  unopened (declined, as before) rather than read in the wrong scope.
+ *  @returns {{node: object, env: Map}|null} */
+function openBoundArm(node, env) {
+  if (!node || node.type !== 'bound') return null
+  const b = node.binding
+  if (!b || b.kind !== 'expr' || !b.node) return null
+  const own = b.env
+  if (own && own !== env) {
+    if (!env || typeof env.get !== 'function' || typeof own.get !== 'function' || own.size !== env.size) return null
+    for (const [k, v] of own) if (env.get(k) !== v) return null
+  }
+  return { node: b.node, env: own || env }
+}
+
 function constantColourSelector(node, env, ctx) {
   const r = ctx && ctx.resolver
   if (!r || !ctx.foldSelectors || !node || node.type !== 'ternary') return node
@@ -25398,6 +25443,13 @@ function settledColourNode(node, env, ctx) {
       if (!b || b.kind !== 'expr') break
       cur = b.node
       e = b.env || e
+      continue
+    }
+    if (cur.type === 'bound') {
+      const arm = openBoundArm(cur, e)
+      if (!arm) break
+      cur = arm.node
+      e = arm.env
       continue
     }
     if (cur.type !== 'ternary') break
@@ -25701,6 +25753,10 @@ function colourChannelTree(colour, channel) {
 
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? staticColourOf(arm.node, arm.env, depth + 1, ctx) : null
+  }
   // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is its branch.
   if (node.type === 'ternary') {
     const taken = constantColourSelector(node, env, ctx)
@@ -25850,6 +25906,10 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  */
 function colourHelperAlpha(node, env, ctx, depth = 0) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourHelperAlpha(arm.node, arm.env, ctx, depth + 1) : null
+  }
   // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
   // `staticColourOf` opens them — otherwise the two readers disagree about the
   // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
@@ -26160,6 +26220,10 @@ function openColourHelper(node, env, ctx) {
  *  any leaf is not a static colour. Bounded like every other chase here. */
 function staticColourArity(node, env, depth = 0, seen = new Set(), ctx = null) {
   if (!node || depth > 8) return 0
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? staticColourArity(arm.node, arm.env, depth + 1, seen, ctx) : 0
+  }
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen, ctx)
@@ -26234,6 +26298,10 @@ function paletteEntryWithAlpha(hex, a) {
 
 function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourIndexChain(arm.node, arm.env, ctx, depth + 1, acc) : null
+  }
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
@@ -26321,6 +26389,10 @@ function securityColourRule(node, env, depth, ctx) {
 
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  if (node.type === 'bound') {
+    const arm = openBoundArm(node, env)
+    return arm ? colourConditional(arm.node, arm.env, depth + 1, ctx) : null
+  }
   if (node.type === 'name') {
     const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (bound && bound.kind === 'expr') {
@@ -27399,6 +27471,61 @@ export function conditionKindOf(node, table = TABLE) {
  *  version that carries the implicit cast; everything else comes back as the
  *  very same object it went in as. A numeric CONSTANT folds to its truth value
  *  (`cNum(1)`/`cNum(0)`) rather than printing `5 != 0`. */
+/** ⭐⭐ F2 (2026-10-02) — RT3 Q-NL, SETTLED: AN `na` OPERAND OF `and` / `or` /
+ *  `not` READS AS FALSE, AND THE ANSWER IS NEVER `na`.
+ *
+ *  ⚰️ MEASURED (CAP2, `rt3-na-logic` v5 and `rt3-na-logic-v4`, NYSE:RDDT 1D from
+ *  the listing, 2026-10-02), with `w` an `na` bool on bars 0..18 and `b` an `na`
+ *  bool literal on every bar, TradingView answers, in v4 AND v5:
+ *      `(not w) ? 1 : 2` → 1     `(w and true) ? 1 : 2` → 2
+ *      `na(w or false) ? 1 : 2` → 2     `na(not w) ? 1 : 2` → 2     `(not b) ? 1 : 2` → 1
+ *  The shared `logical` / `!` carry a `NaN` operand through (the `{0,1,NaN}`
+ *  domain), so this door drew `na` on B02 / B03 / B07 and a WRONG 1 on B04 / B05.
+ *
+ *  ⭐ ONE RULE, ASKED OF ITS ONE AUTHORITY: where `interpret.js::naConditionIsFalse`
+ *  says this script's version reads an `na` condition as false (v4 and v5 here — see
+ *  the last ⛔ for v6), an operand of a
+ *  logical operator is read AS A CONDITION — `x != 0`, which IS
+ *  `interpret.js::pineBool` by construction (`cmp` answers 0 for `NaN`; the same
+ *  cast the runtime lane's `asCondition` emits) and needs no new operator in
+ *  either lane (the Python mirror's `!=` is the same `_cmp`).
+ *  ⛔ An operand that can never be `na` (a comparison, a literal, a logical
+ *  operator over such operands) is left as it is, so every tree that could not
+ *  move keeps its bytes. ⛔ Below v4 nothing is claimed: unchanged.
+ *  ⚠️ OFF THE LISTING a `NaN` operand can also be "not computable from this
+ *  window" (a warm-up bar); it now reads false there, exactly as a NUMBER operand
+ *  already did under `implicitBoolCast` — inside the tree's own warm-up, and a
+ *  switched recurrence's unknown bars stay withheld by the root agreement
+ *  (`interpret.js::interpretAgreed` probes them; `!= 0` is one of its literals).
+ *  ⛔ ONLY `and` / `or` / `not`: a `?:` test is not this site.
+ *  ⛔ v4 and v5 ONLY — the versions the captures witness. A v6 `bool` is never `na`,
+ *  and this door's v6 logic is left byte-for-byte as it was: measured, applying the
+ *  cast there too moved `trend-duration-forecast-chartprime` (v6, `var trend =
+ *  bool(na)`, `if trend or not trend`) from MATCH to DIVERGE — its latch's `!= 0`
+ *  became a probe literal, and every label went unknown. */
+const NA_FALSE_LOGIC_SITES = new Set(['and', 'or', 'not', '&&', '||', '!'])
+const NEVER_NA_OPS = new Set(['<', '<=', '>', '>=', '==', '!='])
+export function conditionNeverNa(tree) {
+  if (!tree || typeof tree !== 'object') return false
+  if (tree.type === 'num') return Number.isFinite(tree.value)
+  // a member's declared input (its default rides non-enumerably — see the declare
+  // mode in the input resolver): a number the member sets, never `na`
+  if (tree.type === 'series') return tree.inputName !== undefined && Number.isFinite(tree.inputDefault)
+  if (tree.type !== 'op' || !Array.isArray(tree.args)) return false
+  if (NEVER_NA_OPS.has(tree.name)) return true
+  if (tree.name === '!' || tree.name === '&&' || tree.name === '||' || tree.name === '?:') {
+    return tree.args.every(conditionNeverNa)
+  }
+  return false
+}
+export function naOperandReadAsFalse(out, site, pineVersion) {
+  if (!NA_FALSE_LOGIC_SITES.has(site) || !naConditionIsFalse(pineVersion) || !(Number(pineVersion) <= 5)) return out
+  // A proven NUMBER is `implicitBoolCast`'s (v1–v5 already cast it to `x != 0`;
+  // v6 does not compile one in a bool context) — never cast twice, never here.
+  if (out.kind === 'num' || conditionNeverNa(out.tree)) return out
+  return { ...out, tree: cOp('!=', [out.tree, cNum(0)]), naReadAsFalse: true }
+}
+
 export function implicitBoolCast(tree, pineVersion, table = TABLE) {
   const kind = conditionKindOf(tree, table)
   if (kind !== 'num' || !implicitBoolCastApplies(pineVersion)) return { tree, kind, cast: false }

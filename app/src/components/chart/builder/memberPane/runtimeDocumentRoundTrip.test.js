@@ -123,15 +123,20 @@ describe('RF — a reloaded document (as the store serves it back) installs and 
 })
 
 describe('RF — what a runtime document does not draw is named, paints included', () => {
-  it('⛔ inside-bar-range writes two `barcolor`s TradingView paints; the runtime document draws none and SAYS so', () => {
+  it('⭐ RT6 — inside-bar-range writes two `barcolor`s TradingView paints; the runtime document now DRAWS both, from the run', () => {
     flagsOn()
     const k = RUNTIME_ONLY.indexOf('inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat')
     const { built } = mint(RUNTIME_ONLY[k], k)
     const paints = (built.translation.presentation || {}).paints || []
     expect(paints.filter((p) => p.kind === 'barcolor').length).toBe(2) // non-vacuity: the paints exist
-    expect(built.definition.paints).toBeUndefined() // the runtime document carries no paint
-    const note = built.definition.meta.disclosures.find((d) => d.name === 'Not drawn by this pane')
-    expect(note && note.note).toMatch(/a bar colour/)
+    // RF disclosed them as undrawn; RT6 carries each as a colour column of the run
+    expect(built.definition.paints.map((p) => p.kind)).toEqual(['barcolor', 'barcolor'])
+    for (const p of built.definition.paints) {
+      expect(p.colorMode).toMatch(/^column:/)
+      expect(p.colorPacked).toEqual({})
+      expect(Number.isInteger(built.definition.compute.outputs[p.colorMode.slice('column:'.length)])).toBe(true)
+    }
+    expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
   })
 
   it('⭐ CONTROL — a runtime document whose script paints nothing carries no such note', () => {
