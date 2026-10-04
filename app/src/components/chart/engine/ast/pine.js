@@ -11218,7 +11218,9 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    // ⭐ RT16 — `""` IS THE CHART'S OWN TIMEFRAME HERE, by the reference's own
+    // words for this parameter (`emptyTimeframeOf`).
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.emptyTimeframeOf(tfNode)
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
     if (!isOwnTf && code !== this.basePeriod) {
@@ -11385,6 +11387,27 @@ export class Resolver {
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
     return null
+  }
+
+  /** ⭐⭐ RT16 — is this `time()` timeframe argument the EMPTY STRING? Pine's
+   *  reference, for `time`'s first parameter, in every version this engine reads
+   *  (extracted from TradingView's own reference bundles 2026-10-04,
+   *  `docs/pine/capture-queue-2026-10-04-rt16-clock.md` § manual):
+   *    v4 `time(resolution, …)`: "Resolution. An empty string is interpreted as
+   *       the current resolution of the chart."
+   *    v5 `time(timeframe, …)`: "Timeframe. An empty string is interpreted as the
+   *       current timeframe of the chart."
+   *    v6 `time(timeframe, …)`: "The timeframe of the timestamp calculation. If the
+   *       value is an empty string, the function uses the script's main timeframe."
+   *  So `time("", …)` asks what `time(timeframe.period, …)` asks, and is answered
+   *  by the same node — the measured readings stay the only semantics.
+   *  ⛔ ONLY `time` asks this. The same words stand under `time_close`, whose
+   *  `timeframe.period` form is itself unmeasured and refused, so `""` stays refused
+   *  there with it; and `timeframe.in_seconds` / `input.timeframe` say nothing of
+   *  the kind (C48 measured an `input.timeframe("")` PRINTING as empty text, not as
+   *  the chart's period). Exactly `''`: a string of spaces is not empty. */
+  emptyTimeframeOf(node) {
+    return this.timeframeLiteralOf(node) === ''
   }
 
   timeframeLiteralOf(node, depth = 0) {
@@ -12702,6 +12725,8 @@ export class Resolver {
         // ⭐⭐ C36 — the chart's OWN timeframe, asked FIRST for the reason
         // `ownTimeframeOf` states (a rebound `period` is not the chart's).
         if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
+        // ⭐ RT16 — and `""`, which the reference defines as that same timeframe.
+        if (this.emptyTimeframeOf(argNode)) return this.chartOwnTimeOf('""', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
         // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
