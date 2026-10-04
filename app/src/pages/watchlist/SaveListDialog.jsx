@@ -8,6 +8,7 @@
  * mode), so this dialog cannot create a list without one.
  */
 import { useState } from 'react'
+import Radio from '../../components/ui/Radio'
 import Sheet from '../../components/mobile/Sheet'
 import { originLine } from './watchlistOrigin'
 import styles from './SaveListDialog.module.css'
@@ -76,8 +77,7 @@ export default function SaveListDialog({ source, onClose, onSaved }) {
           <legend className={styles.srOnly}>Copy or link</legend>
           {CHOICES.map(c => (
             <label key={c.mode} className={`${styles.choice}${mode === c.mode ? ' ' + styles.choiceOn : ''}`}>
-              <input
-                type="radio"
+              <Radio
                 name="wl-save-mode"
                 value={c.mode}
                 checked={mode === c.mode}

@@ -57,6 +57,7 @@
 // decision (the `useUserDefinitions` rule).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../ui/UIcon'
+import Radio from '../ui/Radio'
 import useScreenerMeta from '../../pages/screener/hooks/useScreenerMeta'
 import styles from './RunNowButton.module.css'
 
@@ -333,15 +334,15 @@ export default function RunNowButton({ defId, name, session, onResult, onClear =
           {lists.length > 0 && (
             <div className={styles.modes} role="radiogroup" aria-label="Universe">
               <label className={styles.mode}>
-                <input
-                  type="radio" name={`run-mode-${defId}`} checked={mode === 'paste'}
+                <Radio
+                  name={`run-mode-${defId}`} checked={mode === 'paste'}
                   onChange={() => setMode('paste')} aria-label="Paste symbols"
                 />
                 Paste symbols
               </label>
               <label className={styles.mode}>
-                <input
-                  type="radio" name={`run-mode-${defId}`} checked={mode === 'list'}
+                <Radio
+                  name={`run-mode-${defId}`} checked={mode === 'list'}
                   onChange={() => setMode('list')} aria-label="From a list"
                 />
                 From a list

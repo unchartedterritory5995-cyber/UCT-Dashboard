@@ -14,8 +14,26 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
+import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
 
 const fetcher = url => fetch(url).then(r => r.json())
+
+// ── TERM-065: the list's header decisions come from the DataGrid seed ──────────
+// The list keeps its numeric direction (-1 desc / 1 asc, read by its comparator)
+// and its third click back to rank order; the seed decides the flip, the
+// `aria-sort` value and the caret. Parity with the hand-rolled code:
+// lib/presentation/dataGrid/pageGrids.seedParity.test.js
+const uct20ToSeed = (s) => s && { key: s.key, dir: s.dir === -1 ? DESC : ASC }
+export function nextUct20Sort(prev, key) {
+  if (prev?.key === key && prev.dir !== -1) return null   // desc → asc → reset
+  const n = nextSort(uct20ToSeed(prev), key)
+  return { key, dir: n.dir === DESC ? -1 : 1 }
+}
+export const uct20AriaSort = (sort, key) => ariaSortFor(uct20ToSeed(sort), key, 'none')
+export function uct20Caret(sort, key) {
+  const c = sortCaretFor(uct20ToSeed(sort), key)
+  return c ? ` ${c}` : ''
+}
 
 function num(v) {
   const n = typeof v === 'number' ? v : parseFloat(v)
@@ -469,9 +487,7 @@ export default function UCT20() {
   }, [ranked, sort, posMap])
 
   const toggleSort = useCallback(key => {
-    setSort(prev => prev?.key === key
-      ? (prev.dir === -1 ? { key, dir: 1 } : null)   // desc → asc → reset
-      : { key, dir: -1 })
+    setSort(prev => nextUct20Sort(prev, key))   // desc → asc → reset
   }, [])
 
   const copyTickers = useCallback(() => {
@@ -488,11 +504,11 @@ export default function UCT20() {
       title={title}
       role="button"
       tabIndex={0}
-      aria-sort={sort?.key === k ? (sort.dir === -1 ? 'descending' : 'ascending') : 'none'}
+      aria-sort={uct20AriaSort(sort, k)}
       onClick={() => toggleSort(k)}
       onKeyDown={e => { if (e.key === 'Enter') toggleSort(k) }}
     >
-      {label}{sort?.key === k ? (sort.dir === -1 ? ' ▼' : ' ▲') : ''}
+      {label}{uct20Caret(sort, k)}
     </span>
   )
 
