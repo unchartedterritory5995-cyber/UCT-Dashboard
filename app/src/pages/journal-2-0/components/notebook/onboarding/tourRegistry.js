@@ -45,8 +45,14 @@ import { TRACK_TOURS } from './tours'
 
 export const BASE_TOUR_ID = 'notebook-basics'
 
-/** The exact field set every entry carries (tours/index.js, authoring contract). */
+/** The field set every entry carries (tours/index.js, authoring contract)... */
 export const ENTRY_FIELDS = Object.freeze(['flag', 'id', 'load', 'replayable', 'title'])
+/** ...plus the fields an entry MAY carry. `start` is the location the tour
+ *  starts at (plan 4.2): a path under NOTEBOOK_ROOT, because that is where the
+ *  generic engine is mounted (NotebookTab -> RegistryToursGate); a start
+ *  anywhere else would unmount the engine that navigated there. */
+export const OPTIONAL_FIELDS = Object.freeze(['start'])
+export const NOTEBOOK_ROOT = '/journal/notebook'
 
 const BASE_ENTRY = Object.freeze({
   id: BASE_TOUR_ID,
@@ -70,8 +76,13 @@ export function assembleRegistry(...lists) {
     ;(list || []).forEach((e, ei) => {
       const where = li === 0 ? `base entry ${ei}` : `track list ${li}, entry ${ei}`
       const keys = e && typeof e === 'object' ? Object.keys(e).sort() : []
-      if (keys.join() !== ENTRY_FIELDS.join()) {
-        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e?.id)}) must have exactly the fields ${ENTRY_FIELDS.join(', ')}; it has ${keys.join(', ') || 'none'}`)
+      const required = keys.filter((k) => !OPTIONAL_FIELDS.includes(k))
+      if (required.join() !== ENTRY_FIELDS.join()) {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e?.id)}) must have exactly the fields ${ENTRY_FIELDS.join(', ')} (optionally ${OPTIONAL_FIELDS.join(', ')}); it has ${keys.join(', ') || 'none'}`)
+      }
+      if ('start' in e && !(typeof e.start === 'string'
+        && (e.start === NOTEBOOK_ROOT || e.start.startsWith(`${NOTEBOOK_ROOT}/`) || e.start.startsWith(`${NOTEBOOK_ROOT}?`)))) {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) start must be a path under ${NOTEBOOK_ROOT}; it is ${JSON.stringify(e.start)}`)
       }
       if (typeof e.id !== 'string' || !e.id || typeof e.flag !== 'string' || !e.flag
         || typeof e.title !== 'string' || typeof e.replayable !== 'boolean' || typeof e.load !== 'function') {
@@ -94,6 +105,13 @@ export const TOUR_REGISTRY = assembleRegistry([BASE_ENTRY], TRACK_TOURS)
  *  module's state. */
 export function getTourEntry(id, registry = TOUR_REGISTRY) {
   return registry.find((t) => t.id === id) || null
+}
+
+/** Where a Replay / open link for this tour goes: its declared `start`, else
+ *  the Notebook root (the base tour's own, unchanged, destination). */
+export function startPath(entryOrId, registry = TOUR_REGISTRY) {
+  const e = typeof entryOrId === 'string' ? getTourEntry(entryOrId, registry) : entryOrId
+  return (e && e.start) || NOTEBOOK_ROOT
 }
 
 /** Every tour Help should offer a Replay button for, in registry order. */

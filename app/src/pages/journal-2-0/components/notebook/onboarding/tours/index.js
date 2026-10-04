@@ -39,7 +39,14 @@
 //   * `title`      plain text, sentence case.
 //   * `replayable` boolean; false only for a passive explainer that is not a stepper.
 //   * `load`       `() => Promise<{ steps, copy }>`, resolved ONLY when the tour is
-//                  wanted. Exactly these five fields; the registry rail refuses more.
+//                  wanted.
+//   * `start`      OPTIONAL. The location the tour starts at (plan 4.2: "the screen
+//                  where a member would naturally first meet it"), a path under
+//                  `/journal/notebook`, e.g. `'/journal/notebook?view=all'`. Help's
+//                  Replay links there, and when a tour is opened elsewhere while its
+//                  FIRST step's anchor is not on screen, the engine navigates there.
+//                  Either way it then waits up to START_WAIT_MS for that anchor.
+//   Those five fields, plus optionally `start`; the registry rail refuses any other.
 //
 //   steps: `[{ id, anchor, file }]` in tour order, 3 to 6 of them (plan 4.2).
 //   copy:  `{ [step.id]: { title, body } }`, one entry per step.

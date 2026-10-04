@@ -4,7 +4,7 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
-import { replayableTours, startState } from './journal-2-0/components/notebook/onboarding/tourRegistry'
+import { replayableTours, startPath, startState } from './journal-2-0/components/notebook/onboarding/tourRegistry'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import styles from './Support.module.css'
 
@@ -340,7 +340,7 @@ function WalkthroughsSection() {
         {live.map((t) => (
           <li key={t.id} className={styles.walkthroughRow}>
             <span>{t.title}</span>
-            <Link to="/journal/notebook" state={startState(t)} className={styles.walkthroughReplay}>
+            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}>
               Replay
             </Link>
           </li>

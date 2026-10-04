@@ -4,11 +4,12 @@
 // component code walks either one correctly, records under the SHARED
 // `notebook_tours` key, and never touches the base tour's own `notebook_tour` key.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useEffect, useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import GenericTourEngine from './GenericTourEngine'
+import GenericTourEngine, { START_WAIT_MS, atStart } from './GenericTourEngine'
 import { TOURS_PREF } from './tourSeenState'
 import { installTourLayout } from './__fixtures__/tourLayout'
 
@@ -55,14 +56,14 @@ const TOUR_B = {
   }),
 }
 
-function Page({ entry, anchors, onCloseSpy = () => {} }) {
+function Page({ entry, anchors, onCloseSpy = () => {}, startWaitMs }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <MemoryRouter>
         <div>
           <button type="button">before the tour</button>
           {anchors.map((a) => <div key={a} data-tour={a}>anchor {a}</div>)}
-          <GenericTourEngine entry={entry} onClose={onCloseSpy} />
+          <GenericTourEngine entry={entry} onClose={onCloseSpy} {...(startWaitMs != null ? { startWaitMs } : {})} />
         </div>
       </MemoryRouter>
     </SWRConfig>
@@ -118,9 +119,11 @@ describe('multi-tour: the SAME engine walks two different tours correctly', () =
 })
 
 describe('with no anchor on the page', () => {
-  it('there is no tour, nothing is recorded, and onClose fires', async () => {
+  // (W14-D finding: the engine now WAITS, bounded, for the starting anchor
+  // before deciding there is no tour -- so this case shortens that wait.)
+  it('there is no tour, nothing is recorded, and onClose fires once the bounded wait runs out', async () => {
     const onCloseSpy = vi.fn()
-    render(<Page entry={TOUR_A} anchors={[]} onCloseSpy={onCloseSpy} />)
+    render(<Page entry={TOUR_A} anchors={[]} onCloseSpy={onCloseSpy} startWaitMs={200} />)
     await waitFor(() => expect(onCloseSpy).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(toursWrites()).toEqual([])
@@ -169,5 +172,106 @@ describe('how it walks (same contract as the base engine)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(document.querySelector('[data-tour="anchor-a1"]')).not.toHaveAttribute('data-tour-active')
     expect(document.querySelector('[data-tour="anchor-a2"]')).toHaveAttribute('data-tour-active', 'true')
+  })
+})
+
+// ── the starting screen (W14-D finding; plan 4.2: a tour starts at its
+// capability's screen) ─────────────────────────────────────────────────────
+
+/** Renders its anchors only after `delayMs` -- a page still loading its data. */
+function LateAnchors({ anchors, delayMs }) {
+  const [on, setOn] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setOn(true), delayMs); return () => clearTimeout(t) }, [delayMs])
+  return on ? anchors.map((a) => <div key={a} data-tour={a}>anchor {a}</div>) : null
+}
+
+let seenPath = null
+function PathProbe() { const l = useLocation(); seenPath = l.pathname + l.search; return null }
+
+/** A two-screen notebook: the tour's anchors live only on `?view=all`. */
+function TwoScreens({ entry, initial = '/journal/notebook', onCloseSpy = () => {}, startWaitMs }) {
+  const Screen = () => {
+    const l = useLocation()
+    const onAll = new URLSearchParams(l.search).get('view') === 'all'
+    return (
+      <div>
+        {onAll && <LateAnchors anchors={['anchor-a1', 'anchor-a2']} delayMs={300} />}
+        <PathProbe />
+        <GenericTourEngine entry={entry} onClose={onCloseSpy} {...(startWaitMs != null ? { startWaitMs } : {})} />
+      </div>
+    )
+  }
+  return (
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <MemoryRouter initialEntries={[initial]}>
+        <Routes><Route path="/journal/notebook" element={<Screen />} /></Routes>
+      </MemoryRouter>
+    </SWRConfig>
+  )
+}
+
+describe('the starting anchor arrives after the content (opened from Help, page still loading)', () => {
+  it('the tour WAITS for it and opens at step one, instead of closing', async () => {
+    const onCloseSpy = vi.fn()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter>
+          <LateAnchors anchors={['anchor-a1', 'anchor-a2']} delayMs={400} />
+          <GenericTourEngine entry={TOUR_A} onClose={onCloseSpy} />
+        </MemoryRouter>
+      </SWRConfig>,
+    )
+    const d = await dialog({ timeout: 3000 })
+    expect(d).toHaveAccessibleName('A step one')
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    expect(onCloseSpy).not.toHaveBeenCalled()
+  })
+
+  it('the wait is bounded: START_WAIT_MS is a few seconds, not forever', () => {
+    expect(START_WAIT_MS).toBeGreaterThanOrEqual(2000)
+    expect(START_WAIT_MS).toBeLessThanOrEqual(15000)
+  })
+})
+
+describe('an entry with a `start` location', () => {
+  const TOUR_S = { ...TOUR_A, id: 'w14-0-tour-s', start: '/journal/notebook?view=all' }
+
+  it('opened on another notebook screen, it navigates to its start and opens at step one there', async () => {
+    seenPath = null
+    const onCloseSpy = vi.fn()
+    render(<TwoScreens entry={TOUR_S} onCloseSpy={onCloseSpy} />)
+    const d = await dialog({ timeout: 3000 })
+    expect(seenPath).toBe('/journal/notebook?view=all')
+    expect(d).toHaveAccessibleName('A step one')
+    expect(onCloseSpy).not.toHaveBeenCalled()
+  })
+
+  it('already at its start, it does not navigate', async () => {
+    seenPath = null
+    render(<TwoScreens entry={TOUR_S} initial="/journal/notebook?view=all&folder=f1" />)
+    await dialog({ timeout: 3000 })
+    expect(seenPath).toBe('/journal/notebook?view=all&folder=f1')
+  })
+
+  it('CONTROL: the same tour WITHOUT a start never reaches its screen and closes after the wait', async () => {
+    seenPath = null
+    const onCloseSpy = vi.fn()
+    render(<TwoScreens entry={TOUR_A} onCloseSpy={onCloseSpy} startWaitMs={500} />)
+    await waitFor(() => expect(onCloseSpy).toHaveBeenCalledTimes(1), { timeout: 3000 })
+    expect(seenPath).toBe('/journal/notebook')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(toursWrites()).toEqual([])
+  })
+})
+
+describe('atStart', () => {
+  const loc = (pathname, search = '') => ({ pathname, search })
+  it('matches the path and every query parameter the start names', () => {
+    expect(atStart('/journal/notebook?view=all', loc('/journal/notebook', '?view=all&folder=f1'))).toBe(true)
+    expect(atStart('/journal/notebook?view=all', loc('/journal/notebook', '?view=board'))).toBe(false)
+    expect(atStart('/journal/notebook?view=all', loc('/journal/notebook'))).toBe(false)
+    expect(atStart('/journal/notebook', loc('/journal/notebook', '?anything=1'))).toBe(true)
+    expect(atStart('/journal/notebook/x', loc('/journal/notebook'))).toBe(false)
+    expect(atStart(undefined, loc('/anywhere'))).toBe(true)
   })
 })

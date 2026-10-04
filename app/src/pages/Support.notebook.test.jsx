@@ -14,6 +14,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Support, { FAQS, inferSourceTopic, visibleFaqs } from './Support'
 import { AuthContext } from '../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from './journal-2-0/lib/offline/notebookFlags'
+import { replayableTours, startPath } from './journal-2-0/components/notebook/onboarding/tourRegistry'
 
 const JsxParser = Parser.extend(jsx())
 const SRC = path.resolve(process.cwd(), 'src')
@@ -70,7 +71,18 @@ const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'Walkthroug
 function notebookLinks() {
   const links = []
   const collect = (node) => visit(node, (n) => {
-    if (n.type === 'JSXElement' && n.openingElement.name?.name === 'Link') links.push(literal(attr(n, 'to')))
+    if (n.type !== 'JSXElement' || n.openingElement.name?.name !== 'Link') return
+    const to = attr(n, 'to')
+    // Help > Walkthroughs links each tour to `startPath(t)` (its declared start,
+    // else the Notebook root). That is not a literal, so every value it can take
+    // -- one per replayable registered tour -- is checked instead; any OTHER
+    // expression still reads as null and fails below.
+    const ex = to?.value?.expression
+    if (ex?.type === 'CallExpression' && ex.callee?.name === 'startPath') {
+      links.push(...replayableTours().map((t) => startPath(t)))
+    } else {
+      links.push(literal(to))
+    }
   })
   visit(parse('pages/Support.jsx'), (n) => {
     if (n.type === 'ObjectExpression') {

@@ -10,7 +10,8 @@ import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY } from './tourCopy'
 import { TOUR_START_STATE } from './tourControl'
 import {
-  BASE_TOUR_ID, ENTRY_FIELDS, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours, startState,
+  BASE_TOUR_ID, ENTRY_FIELDS, NOTEBOOK_ROOT, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours,
+  startPath, startState,
 } from './tourRegistry'
 import { TRACK_TOURS } from './tours'
 
@@ -215,5 +216,29 @@ describe('tours/index.js wiring (AST)', () => {
     const src = "import { TOURS as a } from './a'\nexport const TRACK_TOURS = Object.freeze([...a])\n"
     const { imported, spreads } = indexWiring(src)
     expect(spreads).toEqual(imported)
+  })
+})
+
+describe('the optional `start` location (plan 4.2: a tour starts at its screen)', () => {
+  it('an entry may name a start under the Notebook, and Replay links there', () => {
+    const reg = assembleRegistry([tour('base')], [tour('s', { start: '/journal/notebook?view=all' })])
+    expect(getTourEntry('s', reg).start).toBe('/journal/notebook?view=all')
+    expect(startPath('s', reg)).toBe('/journal/notebook?view=all')
+  })
+
+  it('without a start, Replay goes to the Notebook root -- the base tour unchanged', () => {
+    expect(NOTEBOOK_ROOT).toBe('/journal/notebook')
+    expect(startPath(BASE_TOUR_ID)).toBe('/journal/notebook')
+    expect(startPath(getTourEntry(BASE_TOUR_ID))).toBe('/journal/notebook')
+  })
+
+  it.each([['/support'], ['/journal'], ['/journal/notebookx'], ['journal/notebook'], [42]])(
+    'refuses a start outside the Notebook (%s), naming the tour', (start) => {
+      expect(() => assembleRegistry([tour('base')], [tour('far', { start })])).toThrow(/"far"\) start must be a path under/)
+    },
+  )
+
+  it('any OTHER extra field is still refused', () => {
+    expect(() => assembleRegistry([tour('base')], [tour('x', { route: '/journal/notebook' })])).toThrow(/exactly the fields/)
   })
 })

@@ -24,6 +24,7 @@
 // (NotebookTour.module.css -- one stylesheet, not a second one).
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
@@ -33,6 +34,28 @@ import styles from './NotebookTour.module.css'
 
 const ACTIVE_ATTR = 'data-tour-active'
 
+/** How long an opened tour waits for its STARTING anchor before it settles for
+ *  whatever is on screen (or, with nothing, closes). A tour opened from Help
+ *  lands on a page that is still loading its notes, and a tour with a `start`
+ *  location is navigated there first -- in both cases the anchor arrives a
+ *  moment AFTER the tour's content does, and closing on the first look was the
+ *  W14-D finding ("closes immediately when opened from Help"). Bounded, so a
+ *  tour whose screen never shows its anchor still ends quietly. */
+export const START_WAIT_MS = 8000
+const START_POLL_MS = 100
+
+/** Whether the router location already IS the entry's start location: same
+ *  pathname, and every query parameter the start names present with the same
+ *  value (extra parameters on the current URL are fine). */
+export function atStart(start, location) {
+  if (!start) return true
+  const u = new URL(start, 'http://notebook.invalid')
+  if (u.pathname !== location.pathname) return false
+  const here = new URLSearchParams(location.search || '')
+  for (const [k, v] of u.searchParams) if (here.get(k) !== v) return false
+  return true
+}
+
 /** The steps whose anchors are on screen now, in the tour's own order -- the same
  *  rule `NotebookTour.jsx`'s `availableSteps` applies to `TOUR_STEPS`, generalized
  *  to whichever tour is open. */
@@ -40,8 +63,10 @@ function availableSteps(steps) {
   return steps.filter((s) => anchorFor(s.anchor))
 }
 
-export default function GenericTourEngine({ entry, onClose }) {
+export default function GenericTourEngine({ entry, onClose, startWaitMs = START_WAIT_MS }) {
   const { setPrefMerged } = usePreferences()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [content, setContent] = useState(null)   // {steps, copy} once entry.load() resolves
   const [steps, setSteps] = useState(null)        // the available steps once opened
   const [index, setIndex] = useState(0)
@@ -61,22 +86,56 @@ export default function GenericTourEngine({ entry, onClose }) {
     recordTourState(setPrefMerged, entry.id, state, stepId)
   }, [setPrefMerged, entry.id])
 
-  // Open at step one the moment the content is in. If, by the time it arrives, no
-  // anchor is on screen at all, there is no tour and nothing is recorded -- the
-  // same "no anchor, no tour" rule the base engine applies.
+  // Open at step one once the content is in AND the tour's starting anchor is on
+  // screen. Plan 4.2: a tour starts "at the screen where a member would naturally
+  // first meet it" -- so an entry may name a `start` location (tours/index.js);
+  // if the member is not there, the engine navigates there first. Then it waits
+  // (bounded, START_WAIT_MS) for the FIRST step's anchor. If the wait runs out it
+  // opens on whatever steps are on screen; with none at all there is no tour and
+  // nothing is recorded -- the same "no anchor, no tour" rule the base engine
+  // applies, just no longer decided on the very first look.
+  const navigatedRef = useRef(false)
   useEffect(() => {
-    if (!content || steps) return
-    const available = availableSteps(content.steps)
-    if (!available.length) {
-      onClose()
-      return
+    if (!content || steps || navigatedRef.current) return
+    if (!content.steps.length || anchorFor(content.steps[0].anchor)) return
+    if (entry.start && !atStart(entry.start, location)) {
+      navigatedRef.current = true
+      navigate(entry.start, { state: location.state })
     }
-    if (!returnFocusRef.current) returnFocusRef.current = document.activeElement
-    setSteps(available)
-    setIndex(0)
-    record(TOUR_STATES.started, available[0].id)
-    // content/record/onClose are intentionally not deps: this effect fires exactly
-    // once per mount, the instant `content` first lands (`steps` guards re-entry).
+    // location is read once, at the moment the content lands; a later location
+    // change must not re-navigate (navigatedRef also guards that).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content])
+
+  useEffect(() => {
+    if (!content || steps) return undefined
+    let done = false
+    let timer = null
+    const stop = () => { done = true; if (timer) clearInterval(timer) }
+    const open = (available) => {
+      stop()
+      if (!returnFocusRef.current) returnFocusRef.current = document.activeElement
+      setSteps(available)
+      setIndex(0)
+      record(TOUR_STATES.started, available[0].id)
+    }
+    const first = content.steps[0]
+    const tryOpen = (final) => {
+      if (done) return
+      if (first && anchorFor(first.anchor)) { open(availableSteps(content.steps)); return }
+      if (!final) return
+      const available = availableSteps(content.steps)
+      stop()
+      if (available.length) open(available)
+      else onClose()
+    }
+    tryOpen(false)
+    if (done) return undefined
+    const started = Date.now()
+    timer = setInterval(() => tryOpen(Date.now() - started >= startWaitMs), START_POLL_MS)
+    return stop
+    // content/record/onClose are intentionally not deps: this runs once per
+    // mount, the instant `content` first lands (`steps` guards re-entry).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content])
 
