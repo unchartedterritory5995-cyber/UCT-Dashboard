@@ -6,8 +6,11 @@
 //   * W14-D's "get started" checklist has ONE mount line, rendered in every Home state.
 //
 // ⛔ Copy contract: rendered text, never state.
+// ⛔ The preview is a LAZY chunk, so every absence below is asserted only after something
+//    proves the chunk has rendered (its list, or its promotion) -- never against a page that
+//    simply has not loaded it yet.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { readFileSync } from 'node:fs'
@@ -70,7 +73,7 @@ describe('first-run welcome -- the buttons members already know (D1)', () => {
 })
 
 describe('first-run welcome -- the capability preview', () => {
-  it('names only the capabilities armed for this member', () => {
+  it('names only the capabilities armed for this member', async () => {
     latchNotebookFlags({
       notebook_onboarding_enabled: true,
       notebook_chart_plan_enabled: true,
@@ -78,7 +81,7 @@ describe('first-run welcome -- the capability preview', () => {
       notebook_playbook_enabled: false,
     })
     renderHome()
-    const list = screen.getByRole('list', { name: PREVIEW_COPY.heading })
+    const list = await screen.findByRole('list', { name: PREVIEW_COPY.heading })
     const text = list.textContent
     expect(text).toContain(byFlag('notebook_chart_plan_enabled').line)
     expect(text).toContain(byFlag('notebook_earnings_prep_enabled').line)
@@ -86,30 +89,41 @@ describe('first-run welcome -- the capability preview', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(2)
   })
 
-  it('nothing armed: no preview list, the welcome reads as it did before', () => {
+  it('nothing armed: no preview list, the welcome reads as it did before', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true })
     renderHome()
+    // the chunk HAS rendered (its promotion is there), and it rendered no list
+    expect(await screen.findByText(PREVIEW_COPY.sampleTail, { exact: false })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: PREVIEW_COPY.heading })).toBeNull()
   })
 
-  it('the onboarding flag off: no preview and no promotion, whatever else is armed', () => {
+  it('the onboarding flag off: no preview and no promotion, whatever else is armed', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: false, notebook_plan_grading_enabled: true })
+    // ⛔ Preload the chunk's module, so a preview rendered by mistake would land within the
+    // wait below (mutation M1 proves this test can see it).
+    await import('./onboarding/CapabilityPreview')
     renderHome()
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.getByRole('button', { name: 'Start a note' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: PREVIEW_COPY.heading })).toBeNull()
     expect(screen.queryByText(PREVIEW_COPY.sampleTail, { exact: false })).toBeNull()
   })
 
-  it('is not on the Home a member with notes sees', () => {
+  it('is not on the Home a member with notes sees', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_plan_grading_enabled: true })
+    await import('./onboarding/CapabilityPreview')
     renderHome({ hasAnyNotes: true })
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(screen.getByText('Nothing needs your attention right now.')).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: PREVIEW_COPY.heading })).toBeNull()
   })
 })
 
 describe('first-run welcome -- the sample notebook promotion', () => {
-  it('a paid member with no sample: the promotion describes the sample button', () => {
+  it('a paid member with no sample: the promotion describes the sample button', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true })
     renderHome()
+    await screen.findByText(PREVIEW_COPY.sampleTail, { exact: false })
     const add = screen.getByRole('button', { name: SAMPLE_COPY.add })
     const id = add.getAttribute('aria-describedby')
     expect(id).toBeTruthy()
@@ -118,16 +132,18 @@ describe('first-run welcome -- the sample notebook promotion', () => {
       `${PREVIEW_COPY.sampleLead} ${PREVIEW_COPY.sampleButton} ${PREVIEW_COPY.sampleTail}`)
   })
 
-  it('an unpaid member: no button, so no promotion of it', () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+  it('an unpaid member: no button, so no promotion of it', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_plan_grading_enabled: true })
     renderHome({ paid: false })
+    await screen.findByRole('list', { name: PREVIEW_COPY.heading })   // the chunk has rendered
     expect(screen.queryByRole('button', { name: SAMPLE_COPY.add })).toBeNull()
     expect(screen.queryByText(PREVIEW_COPY.sampleTail, { exact: false })).toBeNull()
   })
 
   it('a member who already had the sample: no button, so no promotion of it', async () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_plan_grading_enabled: true })
     renderHome({ prefs: { notebook_sample: JSON.stringify({ v: 1, ids: ['w1'], at: 'x' }) } })
+    await screen.findByRole('list', { name: PREVIEW_COPY.heading })   // the chunk has rendered
     // the preference arrives asynchronously; once it has, the button (and the promotion) go
     await screen.findByRole('button', { name: SAMPLE_COPY.tour })
     await vi.waitFor(() => expect(screen.queryByRole('button', { name: SAMPLE_COPY.add })).toBeNull())

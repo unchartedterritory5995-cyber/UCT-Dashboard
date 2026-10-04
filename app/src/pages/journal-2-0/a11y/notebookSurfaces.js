@@ -245,4 +245,8 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // a11y/entryContext.a11y.test.jsx.
   'components/EntryContextCard.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
   'components/WhyPrompt.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
+  // Wave 14 lane W14-A: the first-run welcome's capability preview (a lazy chunk of
+  // ResearchHome, under components/notebook/onboarding/, so outside the derived population);
+  // rail a11y/capabilityPreview.a11y.test.jsx (with the first-run-welcome recipe).
+  'components/notebook/onboarding/CapabilityPreview.jsx': { recipe: 'capability-preview', railFile: 'a11y/capabilityPreview.a11y.test.jsx' },
 })
