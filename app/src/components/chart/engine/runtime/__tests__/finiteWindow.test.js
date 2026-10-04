@@ -294,15 +294,48 @@ describe('⭐⭐ the NA POLICIES, over a GAPPY RUNTIME SERIES (2026-09-08 ruling
   })
 
   it('⭐⭐ a PROPAGATE member still uses the committed RING, per call site', () => {
-    // `wma` stayed on `propagate`, so it is what now exercises `historyBase` and
-    // the ring depth that `sma` used to cover.
-    const src = `${head}f(v) =>\n    ta.wma(v, 4)\nplot(f(close))\nplot(f(open * 3))\n`
+    // ⚰️ RT8: this rail used `wma`, on the claim that it "stayed on propagate" —
+    // but `FINITE_WINDOW.wma.na` has been `ffill` since 2026-09-08 and this VM had
+    // simply never implemented `ffill` (it fell through to the ring). `dev` is the
+    // member that really propagates, so it is what exercises `historyBase` now.
+    expect(FINITE_WINDOW.dev.na).toBe('propagate')
+    const src = `${head}f(v) =>\n    ta.dev(v, 4)\nplot(f(close))\nplot(f(open * 3))\n`
     const { outs, program } = runPine(src)
     expect(program.history.length, 'one ring per call site').toBe(2)
     for (const h of program.history) expect(h.depth, 'depth is span - 1').toBe(3)
     expect(program.callSites[0].historyBase).not.toBe(program.callSites[1].historyBase)
-    sameSeries(outs[0], pureLane('ta.wma(close, 4)'), 'wma site 0')
-    sameSeries(outs[1], pureLane('ta.wma(open * 3, 4)'), 'wma site 1')
+    sameSeries(outs[0], pureLane('ta.dev(close, 4)'), 'dev site 0')
+    sameSeries(outs[1], pureLane('ta.dev(open * 3, 4)'), 'dev site 1')
+  })
+
+  // ⭐⭐ RT8 (step 87) — FFILL, which this VM did not implement (an `ffill` window
+  // fell through to the propagate ring, so one `na` in the lookback blanked it).
+  const wmaOf = (vals) => vals.reduce((a, v, k) => a + v * (k + 1), 0) / (vals.length * (vals.length + 1) / 2)
+  it('⭐⭐ FFILL — `wma` carries the last finite input across a hole at its own weight, and is na ON the hole', () => {
+    const { out } = runPine(`${head}${gappy}plot(ta.wma(x, 4))\n`)
+    const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
+    let carry = NaN
+    const filled = src.map((v) => (Number.isFinite(v) ? (carry = v) : carry))
+    for (let i = 3; i < N; i += 1) {
+      if (Number.isNaN(src[i])) { expect(Number.isNaN(out[i]), `bar ${i} is the hole`).toBe(true); continue }
+      expect(out[i], `bar ${i}`).toBeCloseTo(wmaOf(filled.slice(i - 3, i + 1)), 9)
+    }
+    // ⛔ NON-VACUITY: the bar after a hole answers (propagate would blank it) and
+    // differs from the last-4-finite (skip) answer.
+    const after = 8
+    expect(Number.isFinite(out[after])).toBe(true)
+    expect(out[after]).not.toBeCloseTo(wmaOf([src[4], src[5], src[6], src[8]]), 6)
+  })
+
+  it('⭐⭐ FFILL warm-up — the first answer is on the n-th FINITE input, the carried value in the oldest slot', () => {
+    // The witness: trend-targets-algoalpha's `ta.wma(math.avg(lwr, upr), 40)` on
+    // NYSE:RDDT from the listing — finite on bar 0 (= 0), na to bar 88, finite
+    // from 89; TradingView's Baseline seeds on bar 140, which needs the wma first
+    // on bar 127 with bar 0's 0 in the oldest slot. Here: finite on bar 0, na to 9.
+    const { out } = runPine(`${head}var x = 0.0\nx := bar_index == 0 ? 7.0 : bar_index < 10 ? na : close\nplot(ta.wma(x, 4))\n`)
+    for (let i = 0; i < 12; i += 1) expect(Number.isNaN(out[i]), `bar ${i}: fewer than 4 finite inputs`).toBe(true)
+    expect(out[12]).toBeCloseTo(wmaOf([7, BARS[10].c, BARS[11].c, BARS[12].c]), 9)
+    expect(out[13]).toBeCloseTo(wmaOf([BARS[10].c, BARS[11].c, BARS[12].c, BARS[13].c]), 9)
   })
 })
 describe('⭐ length semantics and resources', () => {
