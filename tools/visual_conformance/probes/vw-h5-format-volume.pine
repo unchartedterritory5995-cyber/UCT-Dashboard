@@ -1,0 +1,15 @@
+//@version=6
+indicator("UCTPROBE H5 format.volume", overlay = true)
+// H5 (step 84) - what `str.tostring(x, format.volume)` prints, row by row. Four
+// witnesses (multicator-table: 3.126M, 46.335M, -29.984M, 10.801B) pin M / B with
+// three non-zero decimals; every row below is a rendering no capture shows yet.
+// The values are constants, so the text is the same on every bar; one table cell
+// per row, printed on the last bar.
+vals = array.from(0.0, 7.0, 999.0, 1000.0, 1500.0, 12345.0, 999999.0, 1000000.0, 3100000.0, 3125500.0, 3125501.0, 999999600.0, 1000000000.0, -1500.0, -3100000.0, 2.5e12)
+var table t = table.new(position.top_right, 2, 17)
+if barstate.islast
+    table.cell(t, 0, 0, "H00_control", text_color = color.white, bgcolor = color.black)
+    table.cell(t, 1, 0, str.tostring(3125951.0, format.volume), text_color = color.white, bgcolor = color.black)
+    for i = 0 to array.size(vals) - 1
+        table.cell(t, 0, i + 1, "H" + str.tostring(i + 1), text_color = color.white, bgcolor = color.black)
+        table.cell(t, 1, i + 1, str.tostring(array.get(vals, i), format.volume), text_color = color.white, bgcolor = color.black)

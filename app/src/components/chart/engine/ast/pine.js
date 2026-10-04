@@ -18176,6 +18176,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const n = numNode(ast, undefined)
         return n ? { ...n, tick: 'syminfo.mintick' } : null
       }
+      // ⭐⭐ H5 (step 84) — `format.volume`: the number carried with the format
+      // NAMED, rendered by `pineTextFormat.js::volumeNumberText`, which draws only
+      // the M / B renderings captures pin (multicator-table: `"3.126M"`,
+      // `"-29.984M"`, `"46.335M"`, `"10.801B"`) and withholds the rest.
+      if (fmtNode && fmtNode.type === 'name' && fmtNode.name === 'format.volume') {
+        const n = numNode(ast, undefined)
+        return n ? { ...n, volume: true } : null
+      }
       // ⛔ ANY OTHER FORMAT THIS READER CANNOT SEE AS A LITERAL IS NEVER PRINTED AS
       // IF THERE WERE NONE: `format.volume` is `"3.126M"` on TradingView
       // (multicator-table), `format.percent` a `%`, a script's own

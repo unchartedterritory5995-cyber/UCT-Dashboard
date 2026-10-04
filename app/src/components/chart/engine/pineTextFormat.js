@@ -310,3 +310,33 @@ export function tickNumberText(n, tickText) {
   if (k === 0 && n < 0) return null
   return (k * tick).toFixed(Math.min(decimals, 20))
 }
+
+/**
+ * ⭐⭐ H5 (step 84) — `str.tostring(n, format.volume)`, ONLY where captures pin it,
+ * else `null` (WITHHELD). `na` prints `NaN`, as every other `str.tostring` does.
+ *
+ * WITNESSED (multicator-table, 2026-10-02, each against OUR computation of the same
+ * value on the capture's own bars): RDDT volume 3,125,951 → `"3.126M"`, SPY volume
+ * 46,335,295 → `"46.335M"`, RDDT OBV from the listing −29,983,517 → `"-29.984M"`;
+ * and SPY's OBV `"10.801B"` (its value is not reproducible off the listing, so it
+ * pins only the `B` suffix and the three decimals). So: a magnitude in millions or
+ * billions, divided by 10^6 / 10^9, rounded to three decimals, a minus sign before
+ * it, the suffix after.
+ * ⛔ WITHHELD, each because no capture shows it: below one million (`K`, or no
+ * suffix?); a third decimal that rounds to 0 (are trailing zeros kept, `3.100M`, or
+ * trimmed, `3.1M`?); an exact tie at the third decimal; 1,000 billion or more; a
+ * value that rounds up to the next unit (`999.9996M`).
+ */
+export const VOLUME_UNITS = Object.freeze([[1e9, 'B'], [1e6, 'M']])
+export function volumeNumberText(n) {
+  if (typeof n !== 'number') return null
+  if (!Number.isFinite(n)) return 'NaN'
+  const a = Math.abs(n)
+  const unit = VOLUME_UNITS.find(([u]) => a >= u)
+  if (!unit || a >= 1e12) return null
+  const q = (a / unit[0]) * 1000
+  if (Math.abs(q - Math.floor(q) - 0.5) < 1e-9) return null
+  const k = Math.round(q)
+  if (k % 10 === 0 || k >= 1e6) return null
+  return `${n < 0 ? '-' : ''}${(k / 1000).toFixed(3)}${unit[1]}`
+}

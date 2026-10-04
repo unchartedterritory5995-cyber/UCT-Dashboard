@@ -51,7 +51,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText } from './pineTextFormat'
+import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -821,6 +821,12 @@ export function beginObjects(program, ctx) {
           if (typeof t.fmtUnread === 'string') {
             if (Number.isFinite(n)) { textsWithheld += 1; return null }
             return 'NaN'
+          }
+          // ⭐⭐ H5 — `format.volume`: the witnessed M / B rendering or nothing.
+          if (t.volume === true) {
+            const s = volumeNumberText(n)
+            if (s === null) textsWithheld += 1
+            return s
           }
           // ⭐⭐ F3 — `format.mintick`: the binding's tick or nothing.
           if (typeof t.tick === 'string') {

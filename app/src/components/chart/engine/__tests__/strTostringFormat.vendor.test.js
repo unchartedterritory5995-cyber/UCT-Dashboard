@@ -26,7 +26,7 @@ import path from 'node:path'
 
 import {
   tickNumberText, formatPatternedNumber, formatPlainNumber, tostringPatternOf,
-  isPlainNumberPattern, TOSTRING_GROUPING_LIMIT,
+  isPlainNumberPattern, TOSTRING_GROUPING_LIMIT, volumeNumberText,
 } from '../pineTextFormat.js'
 import { translatePine } from '../ast/pine'
 import { bindObjectProgram } from '../ast/objectProgram.js'
@@ -166,12 +166,21 @@ describe('D — the translator: `format.mintick` becomes a tick node; any other 
     expect(num).toMatchObject({ t: 'num', tick: 'syminfo.mintick' })
     expect(num.fmt).toBeUndefined()
   })
-  it('⛔ str.tostring(volume, format.volume) is carried with the format NAMED as unread, never as ten decimals', () => {
-    const { t, create } = textOfLabel('//@version=6\nindicator("t", overlay=true)\nif barstate.islast\n    label.new(bar_index, close, "V " + str.tostring(volume, format.volume))\n')
+  // ⭐ H5 (step 84) re-pin: `format.volume` is READ now (`volumeNumberText`, the M / B
+  // renderings multicator-table's capture pins); `format.percent` is the format
+  // still carried as unread.
+  it('⛔ str.tostring(volume, format.percent) is carried with the format NAMED as unread, never as ten decimals', () => {
+    const { t, create } = textOfLabel('//@version=6\nindicator("t", overlay=true)\nif barstate.islast\n    label.new(bar_index, close, "V " + str.tostring(volume, format.percent))\n')
     expect(create).toBeTruthy()
-    expect(findNum(create.props)).toMatchObject({ t: 'num', fmtUnread: 'tostring:format.volume' })
+    expect(findNum(create.props)).toMatchObject({ t: 'num', fmtUnread: 'tostring:format.percent' })
     expect(findNum(create.props).fmt).toBeUndefined()
-    expect(t.objectDiagnostics.textFormatUnread).toMatchObject({ 'tostring:format.volume': 1 })
+    expect(t.objectDiagnostics.textFormatUnread).toMatchObject({ 'tostring:format.percent': 1 })
+  })
+  it('⭐ H5 — str.tostring(volume, format.volume) is a VOLUME node (no ten decimals, nothing unread)', () => {
+    const { t, create } = textOfLabel('//@version=6\nindicator("t", overlay=true)\nif barstate.islast\n    label.new(bar_index, close, "V " + str.tostring(volume, format.volume))\n')
+    expect(findNum(create.props)).toMatchObject({ t: 'num', volume: true })
+    expect(findNum(create.props).fmtUnread).toBeUndefined()
+    expect((t.objectDiagnostics.textFormatUnread || {})['tostring:format.volume']).toBeUndefined()
   })
   it('control: a literal pattern is unchanged', () => {
     const { create } = textOfLabel('//@version=6\nindicator("t", overlay=true)\nif barstate.islast\n    label.new(bar_index, close, str.tostring(close, "#.##"))\n')
@@ -228,15 +237,32 @@ describe('F — the object runtime draws what the vendor draws, and holds back t
     expect(state.dropped.label).toBe(1)
     expect(r.stats.textsWithheld).toBeGreaterThan(0)
   })
-  it('⛔ an unread format (format.volume) withholds a finite value; `na` prints NaN', () => {
-    const fin = run('str.tostring(volume, format.volume)')
+  it('⛔ an unread format (format.percent) withholds a finite value; `na` prints NaN', () => {
+    const fin = run('str.tostring(volume, format.percent)')
     expect(fin.held[0].props.text).toBeNull()
     expect(fin.state.labels).toHaveLength(0)
-    const na = run('str.tostring(close / 0 * 0, format.volume)')
+    const na = run('str.tostring(close / 0 * 0, format.percent)')
     expect(na.held[0].props.text).toBe('NaN')
   })
   it('⭐ through the member door: position-size-calculator RDDT still MATCHES ("Position Size : NaN" under a computed format)', () => {
     const v = gradeCapture(capture('position-size-calculator-rddt-1d-2026-09-28')).verdict
     expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   }, 600000)
+})
+
+describe('⭐ H5 — `format.volume` (`volumeNumberText`): the witnessed M / B rendering, the rest withheld', () => {
+  it('the multicator-table witnesses, each its own value computed off the capture bars', () => {
+    expect(volumeNumberText(3125951)).toBe('3.126M') // RDDT volume, last bar
+    expect(volumeNumberText(46335295)).toBe('46.335M') // SPY volume, last bar
+    expect(volumeNumberText(-29983517)).toBe('-29.984M') // RDDT OBV from the listing
+    expect(volumeNumberText(10801000123)).toBe('10.801B') // SPY OBV: the suffix and three decimals
+  })
+  it('withheld: below a million, a trailing zero, an exact tie, a unit roll-over, 10^12', () => {
+    expect(volumeNumberText(999999)).toBeNull()
+    expect(volumeNumberText(3100000)).toBeNull()
+    expect(volumeNumberText(3125500)).toBeNull()
+    expect(volumeNumberText(999999600)).toBeNull()
+    expect(volumeNumberText(1e12)).toBeNull()
+    expect(volumeNumberText(NaN)).toBe('NaN')
+  })
 })

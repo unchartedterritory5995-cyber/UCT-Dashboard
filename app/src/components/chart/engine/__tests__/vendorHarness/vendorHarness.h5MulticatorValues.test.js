@@ -78,3 +78,32 @@ describe('⭐ H5 — `math.round_to_mintick` in multicator-table\'s cells', () =
     expect(got).not.toEqual(MINTICK_CELLS.map((r) => r[2]))
   })
 })
+
+/** `str.tostring(x, format.volume)` — RDDT from the listing, SPY not. */
+const VOLUME = (v, r, s) => [v, 'str.tostring(V, format.volume)', r, s]
+const VOLUME_CELLS = [VOLUME('volume', '3.126M', '46.335M'), VOLUME('ta.obv', '-29.984M', '10.801B')]
+
+describe('⭐ H5 — `format.volume` in multicator-table cells', () => {
+  it.each([['rddt', 2], ['spy', 3]])('vendor: %s — the expected texts are the capture own cells', (sym, col) => {
+    const texts = cap(sym).objects.texts.tableCells
+    for (const row of VOLUME_CELLS) expect(texts, row[0]).toContain(row[col])
+  })
+
+  // ⚠️ The OBV cell is not drawn on either symbol: `ta.obv` (a running total) is
+  // not served by this lane, so the cell is dropped, never printed wrong. The
+  // `"-29.984M"` witness is pinned by `volumeNumberText`'s unit rail instead
+  // (`strTostringFormat.vendor`), against OBV computed off RDDT's own bars.
+  it('⭐ door: RDDT (from the listing) — the volume prints TradingView text; the OBV cell is not drawn', () => {
+    expect(cellsThroughTheDoor(cap('rddt'), VOLUME_CELLS)).toEqual(['3.126M'])
+  })
+
+  it('⭐ door: SPY — the volume prints TradingView text; the OBV is NOT drawn wrong', () => {
+    const got = cellsThroughTheDoor(cap('spy'), VOLUME_CELLS)
+    expect(got[0]).toBe('46.335M')
+    // a running total over a window that does not start at the listing is not
+    // TradingView's number; whatever the door does with it, it does not print a
+    // different OBV in the vendor's format
+    expect(got[1] === '10.801B' || got[1] === null || got[1] === undefined || got.length === 1).toBe(true)
+  })
+})
+
