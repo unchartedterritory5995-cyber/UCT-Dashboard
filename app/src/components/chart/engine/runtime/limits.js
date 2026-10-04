@@ -31,6 +31,8 @@ export const LIMIT_NAMES = Object.freeze([
   'IR_SIZE',
   'INSTRUCTIONS_PER_BAR',
   'TOTAL_INSTRUCTIONS',
+  // ⭐⭐ RT10 (2026-10-04) — the passes ALL loops may take on ONE BAR. A PEAK,
+  // reset every bar, like `INSTRUCTIONS_PER_BAR`; never a run-wide total.
   'LOOP_ITERATIONS',
   // ⭐⭐ C18 — the passes ONE ENTRY of one `while` may take. A PEAK, reset each
   // time the loop is reached, so a loop that finishes costs nothing here and
@@ -88,7 +90,34 @@ export const DEFAULT_LIMITS = Object.freeze({
   // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
-  LOOP_ITERATIONS: 100000,
+  // ⭐⭐ RT10 (2026-10-04) — PER BAR, NOT PER RUN. It was a run-wide 100,000, and
+  // a run-wide count of a per-bar cost scales with HISTORY, not with the script:
+  // delta-rsi-oscillator-strategy walks a fixed regression window, 1,163 passes
+  // every bar, and stopped at bar 85 of RDDT's 636 — the same script would have
+  // drawn on a 60-bar chart. Wyckoff (324 passes at its worst bar) stopped the same
+  // way on 5,000 AAPL bars. What a run-wide loop total was standing in for —
+  // runaway TIME on the one thread a member's chart runs on — is already bounded
+  // by the limits whose job that is: `TOTAL_INSTRUCTIONS` for the run and the
+  // pane's wall clock (`runtimeColumns.js`, RUNTIME_PANE_TIME_BUDGET_MS).
+  //
+  // ⭐ WHY 11,000, AND WHY IT IS THIS NARROW. Measured (RT10, 5,000 AAPL daily
+  // bars, every corpus script the runtime builds): the most passes any script
+  // takes on one bar is 1,163 (delta-rsi), then 542 (options-max-pain) and 324
+  // (wyckoff). The ceiling must sit:
+  //   · ABOVE `WHILE_ITERATIONS` — a `while` pass ticks this counter too, and the
+  //     while bound is the stop that NAMES THE LINE; a lower per-bar ceiling
+  //     would fire first and make that guard unreachable;
+  //   · BELOW what `INSTRUCTIONS_PER_BAR` already allows — the cheapest `for`
+  //     pass costs 18 instructions (`continue` body), so 200,000 / 18 = 11,111
+  //     passes; at or above that this ceiling could never fire (a dead guard).
+  // ⚠️ Two scripts take more on ONE bar — k-clustering 22,820 passes on its last
+  // RDDT bar, poor-man's volume profile 40,401 — and both already stop on that bar
+  // by `INSTRUCTIONS_PER_BAR` (R-B: not raised), so this ceiling changes neither.
+  // A test that raises the bar's instructions must raise this with it.
+  // 11,000 is ~9x the worst bar any script FINISHES; a runaway is stopped on the bar it runs
+  // away in, by this name or by `INSTRUCTIONS_PER_BAR`, in milliseconds
+  // (`rt10LoopPerBar.test.js`).
+  LOOP_ITERATIONS: 11000,
   // ⛔⛔ AN ENGINE LIMIT, NOT A PINE CLAIM. TradingView stops a runaway loop on
   // ELAPSED TIME, and no capture or document in this repo pins that limit, so no
   // pass count can be said to be Pine's. A `while` that finishes within this many
@@ -96,8 +125,8 @@ export const DEFAULT_LIMITS = Object.freeze({
   // body); one that does not is REFUSED for that evaluation — never cut short and
   // read. 10,000 is three orders above every `while` measured in the corpus
   // (k-clustering converges in 15 passes on its RDDT capture; max-pain's loops are
-  // bounded by its strike count, 20) and far below what `LOOP_ITERATIONS` already
-  // allows a whole run.
+  // bounded by its strike count, 20) and below what `LOOP_ITERATIONS` allows one
+  // bar (it must stay below it — see there).
   WHILE_ITERATIONS: 10000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,

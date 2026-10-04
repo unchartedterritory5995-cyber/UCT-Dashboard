@@ -662,7 +662,7 @@ export function lowerIrProgram(ir, opts = {}) {
           //
           //     count = 0
           //   top:
-          //     LOOP_TICK depth                 (the run-wide LOOP_ITERATIONS)
+          //     LOOP_TICK depth                 (this BAR's LOOP_ITERATIONS)
           //     if not test → end               (`na` is false, as in `if`)
           //     count = count + 1
           //     WHILE_BOUND line (count)        (this ENTRY's WHILE_ITERATIONS)
