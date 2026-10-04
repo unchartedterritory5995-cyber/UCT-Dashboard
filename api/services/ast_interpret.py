@@ -714,8 +714,10 @@ NA_FFILL = "ffill"
 #:   RESTART   -- the window begins again after a hole, so one bar later
 #:                ``highest == lowest ==`` the lone observation.
 #:   FFILL     -- an ``na`` in the LOOKBACK is replaced by the last finite value
-#:                and keeps its bar-position weight; the answer is ``na`` only
-#:                when the CURRENT bar is ``na``. Vendor-pinned 2026-09-08.
+#:                and keeps its bar-position weight; the answer is ``na`` when the
+#:                CURRENT bar is ``na``. Vendor-pinned 2026-09-08. It first
+#:                answers on its ``n``-th FINITE input (F7, step 93; the runtime
+#:                VM's rule, RT8): see ``_rolling``.
 WINDOW_NA: Dict[str, str] = {
     "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
     "highest": NA_RESTART, "lowest": NA_RESTART,
@@ -771,33 +773,44 @@ def _rolling(series: Sequence[float], n: int,
     ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE, in O(N). Gathering it
     per-bar would make one bar's cost depend on how long the preceding gap was.
     The JS twin is ``interpret.js::rolling``.
+
+    ⭐⭐ F7 (step 93) -- AN FFILL WINDOW FIRST ANSWERS ON ITS ``n``-TH FINITE
+    INPUT, the runtime VM's rule (``runtime/vm.js`` OP.WINDOW ``ffill``, RT8).
+    Witness: trend-targets-algoalpha on NYSE:RDDT from the listing,
+    ``ta.wma(math.avg(lwr, upr), 40)`` whose input is finite on bar 0 (= 0), ``na``
+    to bar 88 and finite from 89. TradingView's Baseline (``ta.ema(wma, 14)``)
+    first answers on bar 140, which needs the wma first on bar 127 -- its 40th
+    finite input -- with bar 0's 0 carried into the oldest slot. A full filled
+    window alone (the rule this lane had) answers from bar 89. ⚠️ Q-RT8a: "the
+    window holds ``n - 1`` finite inputs" fits the same witness; the count is
+    kept because it is the one the VM implements, so the two lanes are ONE rule.
     """
     out = _nan_col(len(series))
     src: Sequence[float] = series
-    # H7 (step 92) -- RULE A: an FFILL window first answers on its n-th FINITE
-    # input; ``seen[i]`` counts the finite inputs through bar ``i``. Measured on
-    # CAP4 Q-RT8a (``vw-rt8-runtime-followups-rddt-1d-2026-10-04``): W01 first on
-    # bar 26, W03 on bar 58. JS twin: ``interpret.js::rolling``.
-    seen: List[int] = []
     if policy == NA_FFILL:
         filled: List[float] = []
         carry = NAN
-        count = 0
         for v in series:
             if math.isfinite(v):
                 carry = v
-                count += 1
             filled.append(carry)
-            seen.append(count)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
+    # F7 -- the finite inputs seen through bar ``i`` (FFILL's warm-up count)
+    seen = 0
+    for v in series[:max(n - 1, 0)]:
+        if math.isfinite(v):
+            seen += 1
     for i in range(n - 1, len(series)):
+        if math.isfinite(series[i]):
+            seen += 1
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
         # being asked about.
         if policy == NA_FFILL and not math.isfinite(series[i]):
             continue
-        if policy == NA_FFILL and seen[i] < n:
+        # ⭐⭐ F7 -- and it answers only once ``n`` FINITE inputs have arrived
+        if policy == NA_FFILL and seen < n:
             continue
         w = _window_operands(src, n, i, inner)
         if w is not None:

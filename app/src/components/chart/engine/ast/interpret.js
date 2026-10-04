@@ -1242,6 +1242,8 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
  *  symbol. `RESTART` answers with a PARTIAL run after a hole because that IS
  *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
  *  Two rules that look like one, and only one of them has evidence.
+ *  ⭐ F7 (step 93): FFILL (`wma`) is the one exception with evidence — its first
+ *  answer is on the n-th FINITE input, witnessed from a listing (see `rolling`).
  */
 const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart', FFILL: 'ffill' })
 
@@ -1280,34 +1282,34 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
   // vendor-pinned 2026-09-08, 380ok/0bad on an arithmetic source.
   let src = series
-  // ⭐⭐ H7 (step 92) — RULE A: the window first answers on its n-th FINITE input.
-  // `seen[i]` counts the finite inputs through bar i. MEASURED, CAP4 Q-RT8a
-  // (`vw-rt8-runtime-followups-rddt-1d-2026-10-04`, NYSE:RDDT from the listing):
-  // `ta.wma(src, 10)` over finite bars 0-2, `na` 3-19, finite from 20 first answers on
-  // bar 26 (W01: its 10th finite input), and over bar 0 then `na` to 49 on bar 58
-  // (W03); the ema of W01 (W02) first on bar 30. ⚰️ The filled window alone answered
-  // W01 from bar 20 and W03 from bar 50 (rule-B-like: a carried slot counted as an
-  // input). The runtime VM's `ffill` (RT8) already counts this way; the two lanes
-  // now agree. Mirror: `ast_interpret._rolling`.
-  let seen = null
   if (policy === NA.FFILL) {
     src = new Float64Array(series.length)
-    seen = new Int32Array(series.length)
     let carry = NaN
-    let count = 0
     for (let i = 0; i < series.length; i++) {
-      if (Number.isFinite(series[i])) { carry = series[i]; count += 1 }
+      if (Number.isFinite(series[i])) carry = series[i]
       src[i] = carry
-      seen[i] = count
     }
   }
+  // ⭐⭐ F7 (step 93) — AN FFILL WINDOW FIRST ANSWERS ON ITS n-TH FINITE INPUT,
+  // the runtime VM's rule (`runtime/vm.js` OP.WINDOW `ffill`, RT8), so the two
+  // lanes are ONE rule. Witness: trend-targets-algoalpha on NYSE:RDDT from the
+  // listing, `ta.wma(math.avg(lwr, upr), 40)` whose input is finite on bar 0
+  // (= 0), `na` to bar 88 and finite from 89: TradingView's Baseline
+  // (`ta.ema(wma, 14)`) first answers on bar 140, which needs the wma first on
+  // bar 127 — its 40th finite input — with bar 0's 0 carried into the oldest
+  // slot. A full filled window alone (this lane's rule before F7) answers from
+  // bar 89. ⚠️ Q-RT8a: "the window holds n - 1 finite inputs" fits the same one
+  // witness; the count is kept because it is what the VM implements.
+  let seen = 0
+  for (let i = 0; i < n - 1 && i < series.length; i++) if (Number.isFinite(series[i])) seen += 1
   for (let i = n - 1; i < series.length; i++) {
+    if (Number.isFinite(series[i])) seen += 1
     // ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE FILLED
     // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
     // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
     // every hole and lose the half of the rule that says otherwise.
     if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
-    if (policy === NA.FFILL && seen[i] < n) continue
+    if (policy === NA.FFILL && seen < n) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
     else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
