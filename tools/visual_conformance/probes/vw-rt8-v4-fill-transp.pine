@@ -1,0 +1,11 @@
+// RT8 (2026-10-03) — probe for CAP3: a v4 `fill`'s style transparency.
+// Queue: docs/pine/capture-queue-2026-10-03-rt8-runtime-followups.md. Chart: NYSE:RDDT 1D.
+// ⚠️ Not compiled on TradingView yet.
+//@version=4
+study("vw-rt8-v4-fill-transp", overlay = true)
+a = plot(sma(close, 10), "A")
+b = plot(sma(close, 30), "B")
+// V01: no `transp` — what does TradingView draw (styleState of fill_0)?
+fill(a, b, color = close > open ? color.green : color.red, title = "V01 no transp")
+// V02: `transp = 60` written
+fill(a, b, color = color.blue, transp = 60, title = "V02 transp 60")

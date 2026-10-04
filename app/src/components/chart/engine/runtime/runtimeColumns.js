@@ -127,6 +127,22 @@ const _memo = new WeakMap()
  *  a run costs the member no frame either way, and this is what stops it. */
 export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 
+/** ⭐⭐ RT8 (step 87) — THE VENDOR HARNESS GRADES THE COMPUTATION, NOT THE CLOCK.
+ *
+ *  The budget above is a property of the device (ruling D3 keeps it on the
+ *  product path, unchanged). A GRADE is a property of the script: run under a
+ *  wall clock it depended on how busy the box was (CAP3, 2026-10-03: atr-stepped
+ *  flipped MATCH <-> INCONCLUSIVE, nadaraya stopped at 1,202 ms under load). The
+ *  harness's runtime state (`vendorHarness/harness.js::enterDoorState`) switches
+ *  the wall clock off for the synchronous lane; the VM's declared, instruction-
+ *  counted limits (`limits.js`) still bound every run. Rails only — product code
+ *  never calls it; `runtimePaneClock.test.js` proves the product path still stops
+ *  a run at the budget. */
+let _paneClockOff = false
+export function __gradeWithoutPaneClockForTests(off) { _paneClockOff = off === true }
+/** The budget the synchronous pane lane applies right now (null = no wall clock). */
+export function paneBudgetMs() { return _paneClockOff ? null : RUNTIME_PANE_TIME_BUDGET_MS }
+
 /** The guard a run that passes the budget carries. */
 export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'
 
@@ -388,7 +404,7 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
     return {}
   }
   try {
-    const out = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    const out = computeRuntimeColumns(def, rows, ctx, { budgetMs: paneBudgetMs() })
     perBars.set(key, out)
     return out
   } catch (err) {
