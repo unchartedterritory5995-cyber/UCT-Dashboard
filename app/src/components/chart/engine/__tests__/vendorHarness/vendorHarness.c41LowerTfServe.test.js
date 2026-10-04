@@ -116,17 +116,20 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     const g = grade(ours, vendorRow(SPY_1D, 'L02'))
     expect(g.wrong).toEqual([])
     expect(g.numberWhereVendorNa).toBe(0)
-    // every session the committed 60m capture (2015 →) holds whole: 2,950 of its 2,951
-    // days — the one held short is 2017-11-24, a half-day TradingView's session does
-    // not apply (5 of 7 buckets), withheld
-    expect(g.compared).toBe(2950)
+    // every session the committed 60m captures (2015 →) hold whole: 2,952 days — the
+    // one held short is 2017-11-24, a half-day TradingView's session does not apply
+    // (5 of 7 buckets), withheld. ⭐ F7 (step 93): 2,950 → 2,952 when CAP round 4
+    // committed `vw-request-htf-alignment-spy-60-2026-10-02`, whose bars supply
+    // 2026-09-29 and 09-30 (the 2015 capture ends 09-28); both agree with TradingView.
+    // Bars it holds from AFTER this capture's own clock are not supplied (`ourSide`).
+    expect(g.compared).toBe(2952)
     // and it is NOT the chart's own close: the daily bar is not the intraday aggregate
     const bars = toProductBars(SPY_1D)
     const differs = ours.filter((v, i) => Number.isFinite(v) && v !== bars[i].c).length
     expect(differs).toBeGreaterThan(2500)
     // ⛔ every bar before the supply (2007 → 2014), and every session it holds short, is
     // WITHHELD — TradingView has a number there (its 60m history is deeper than ours)
-    expect(g.withheld).toBe(4800 - 2950)
+    expect(g.withheld).toBe(4800 - 2952)
     expect(ours.slice(0, 1800).every((v) => Number.isNaN(v))).toBe(true)
     // ⭐ the real binder drew a point on exactly the bars that are known
     const drawn = (run.plots.find((p) => p.title === 'L02').colors || []).filter((c) => typeof c === 'string').length
@@ -137,7 +140,7 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     const ours = columnOf(run, 'L03')
     const g = grade(ours, vendorRow(SPY_1D, 'L03'))
     expect(g.wrong).toEqual([])
-    expect(g.compared).toBe(2950)
+    expect(g.compared).toBe(2952)
     const minutes = new Map()
     const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
     for (const t of ours) {
@@ -170,8 +173,8 @@ describe('C41 — AMEX:SPY 1D: the probe\'s served rows against TradingView\'s o
     const c = grade(columnOf(run, 'L16'), vendorRow(SPY_1D, 'L16'))
     expect(t.wrong).toEqual([])
     expect(c.wrong).toEqual([])
-    expect(t.compared).toBe(2950)
-    expect(c.compared).toBe(2950)
+    expect(t.compared).toBe(2952)
+    expect(c.compared).toBe(2952)
   })
 
   it('⛔ L05 / L06 — where the committed captures hold no 15m / 5m history, the read is WITHHELD', () => {
