@@ -115,6 +115,7 @@ import time
 import traceback
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 REPO = Path(__file__).resolve().parents[1]
@@ -386,6 +387,11 @@ def seed_pre_boot(data_dir: Path, out: Path, d_amd: date) -> dict:
         "ZQVA": [(TODAY.isoformat(), 100.0)],
         "ZQVB": [(TODAY.isoformat(), 50.0)],
         "ZQVC": [(TODAY.isoformat(), 200.0)],
+        # W5b's Unplanned-chip trade: only its OWN chart needs daily bars (one point, same
+        # minimal shape as ZQVA/B/C) so its trade page doesn't 503 on the D-tf request that
+        # the 503-is-expected warming contract never covers (that contract is for an
+        # UNSEEDED symbol -- IBM here IS seeded, deliberately, so this isn't that case).
+        "IBM": [(TODAY.isoformat(), 200.0)],
     }
     spec = {
         "bars": bars,
@@ -811,6 +817,94 @@ def run_walk(base: str, art: Path) -> None:
                    grade_text=grade_text[:400], before_after_present=ba_present, screenshot="W5-trade-1200.png")
             pg.close()
         w5()
+
+        # ── W5b: two more of 13A's own surfaces this lane's walk had not yet exercised --
+        # the Unplanned chip (a closed trade with no matching plan note anywhere in the
+        # seeded story) and the Write-review-note door on the trade w5() already graded
+        # "planned". Added per controller instruction after 13A's own lane doc recorded
+        # that none of its three walks reached a clean shutdown checkpoint, and asked this
+        # integration lane to cover plan grade card, discipline record (both already in
+        # W5/W6 above), the Unplanned chip and the review note (neither was, until now).
+        @guarded("W5b_unplanned_chip_and_review_note")
+        def w5b():
+            # IBM: a symbol with no note anywhere in the seeded story -- 13A's matcher has
+            # nothing in the 30-day window to link this trade to.
+            pos2 = M.post(base + "/api/j2/positions", data={
+                "symbol": "IBM", "side": "Long", "shares": 10, "entryPrice": 200.0,
+                "stopPrice": 190.0, "entryDate": TODAY.isoformat()})
+            if pos2.status not in (200, 201):
+                raise h.SetupFailed(f"opening the unplanned position failed: HTTP {pos2.status} {pos2.text()[:200]}")
+            pos2_id = pos2.json()["id"]
+            closed2 = M.post(base + f"/api/j2/positions/{pos2_id}/close", data={
+                "shares": 10, "exitPrice": 205.0, "exitDate": TODAY.isoformat()})
+            if closed2.status != 200:
+                raise h.SetupFailed(f"closing the unplanned position failed: HTTP {closed2.status} {closed2.text()[:200]}")
+            tid2 = (closed2.json().get("trade") or closed2.json()).get("id")
+            state["unplanned_trade_id"] = tid2
+
+            statuses = (M.get(base + f"/api/j2/plan-grades/status?ids={state['trade_id']},{tid2}")
+                       .json().get("statuses") or {})  # {tradeId: {tradeRef, status}} -- notebook_plan_grades.py:110
+            planned_status = (statuses.get(state["trade_id"]) or {}).get("status")
+            unplanned_status = (statuses.get(tid2) or {}).get("status")
+
+            # the Unplanned chip, on the Trade Journal's closed-trades table (TradesTable.jsx)
+            pg = new_page(member, "W5b-trades-table")
+            pg.goto(base + "/journal/trades?seg=closed", wait_until="domcontentloaded")
+            h._dismiss_intro(pg)
+            chip = pg.get_by_test_id("unplanned-chip")
+            chip_present = False
+            try:
+                chip.first.wait_for(state="visible", timeout=30000)
+                chip_present = True
+            except Exception as e:  # noqa: BLE001 -- recorded as absent, not fatal to the row
+                state["W5b_chip_error"] = str(e)[:300]
+            pg.screenshot(path=str(art / "W5b-trades-unplanned-chip.png"), full_page=True)
+            pg.close()
+
+            # the same status, on the unplanned trade's OWN grade card
+            pg2 = new_page(member, "W5b-unplanned-trade-page")
+            pg2.goto(base + f"/journal-2-0/trade/{tid2}", wait_until="domcontentloaded")
+            h._dismiss_intro(pg2)
+            badge_present = False
+            try:
+                pg2.get_by_test_id("plan-grade-unplanned").wait_for(state="visible", timeout=30000)
+                badge_present = True
+            except Exception as e:  # noqa: BLE001
+                state["W5b_badge_error"] = str(e)[:300]
+            pg2.screenshot(path=str(art / "W5b-unplanned-trade-1200.png"), full_page=True)
+            pg2.close()
+
+            # the review-note door, on the PLANNED (NVDA) trade w5() already graded
+            pg3 = new_page(member, "W5b-review-note")
+            pg3.goto(base + f"/journal-2-0/trade/{state['trade_id']}", wait_until="domcontentloaded")
+            h._dismiss_intro(pg3)
+            note_id = None
+            try:
+                review_btn = pg3.get_by_role("button", name="Write review note")
+                review_btn.wait_for(state="visible", timeout=30000)
+                review_btn.click()
+                pg3.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                note_id = parse_qs(urlparse(pg3.url).query).get("note", [None])[0]
+            except Exception as e:  # noqa: BLE001
+                state["W5b_review_nav_error"] = str(e)[:300]
+            review_tags = []
+            if note_id:
+                nres = M.get(base + f"/api/j2/notes/{note_id}")
+                if nres.status == 200:
+                    review_tags = (nres.json().get("note") or {}).get("tags") or []  # GET /notes/{id} -> {"note": ...}
+            pg3.screenshot(path=str(art / "W5b-review-note.png"), full_page=True)
+            pg3.close()
+
+            ok = (chip_present and badge_present and planned_status == "planned"
+                  and unplanned_status in ("unplanned", "member_none")
+                  and bool(note_id) and "plan-review" in review_tags)
+            record("W5b_unplanned_chip_and_review_note", "PASS" if ok else "FAIL",
+                   unplanned_trade=tid2, planned_status=planned_status, unplanned_status=unplanned_status,
+                   chip_present=chip_present, badge_present=badge_present, review_note_id=note_id,
+                   review_note_tags=review_tags,
+                   screenshots=["W5b-trades-unplanned-chip.png", "W5b-unplanned-trade-1200.png",
+                               "W5b-review-note.png"])
+        w5b()
 
         # ── W6: Insights, three sections, with every other flag also on ────────────────────
         @guarded("W6_insights_1200")
