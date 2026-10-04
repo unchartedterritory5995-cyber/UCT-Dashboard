@@ -49,7 +49,11 @@ function compare(src, bars) {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   const d = memberPaneDefinition({ source: src, id: 'u_h1_ratchet', name: 'h1' })
   expect(d.ok, d.reason).toBe(true)
-  const ctx = { tf: 'D', newestBarIsForming: false }
+  // ⭐ F5 — `barIndexFromFirstBar`: these rails compare the RATCHET machinery behind
+  // the curtain with the listing run; the seed warm-up (`interpret.js::seedWarmupMask`)
+  // is a different rule with its own rails (`seedWarmup.test.js`), so it is stated
+  // off here — bar 0 of these bars is the reference's bar 0.
+  const ctx = { tf: 'D', newestBarIsForming: false, barIndexFromFirstBar: true }
   const curtain = computeFor(d.definition, bars, undefined, ctx)
   const listed = computeFor(d.definition, bars, undefined, { ...ctx, historyFromListing: true })
   let both = 0

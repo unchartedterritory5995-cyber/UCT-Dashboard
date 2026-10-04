@@ -51,7 +51,17 @@ function grade(listing, title) {
     const b = v[i]
     if (b === null || Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b))) wrong.push(`#${i} ours ${a} tv ${b}`)
   })
-  return { drawn, wrong }
+  // ⭐ F5 — the bars the seed warm-up withheld: the ratchet's own value there,
+  // and how many of them are TradingView's exactly
+  let seedExact = 0
+  if (p.seedWithheld) {
+    for (let i = 0; i < col.length; i++) {
+      const r = p.seedWithheld.raw[i]
+      if (!p.seedWithheld.mask[i] || r !== r || v[i] === null) continue
+      if (Math.abs(r - v[i]) <= 1e-9 * Math.max(1, Math.abs(v[i]))) seedExact += 1
+    }
+  }
+  return { drawn, wrong, seedExact }
 }
 
 describe('H1 — pivot-point-supertrend is TradingView\'s', () => {
@@ -72,9 +82,12 @@ describe('H1 — pivot-point-supertrend is TradingView\'s', () => {
   })
 
   it('⭐ behind the curtain: every bar drawn is TradingView\'s, and there are well over a hundred', () => {
-    const { drawn, wrong } = grade(false, 'PP SuperTrend')
+    const { drawn, wrong, seedExact } = grade(false, 'PP SuperTrend')
     expect(wrong).toEqual([])
-    expect(drawn).toBeGreaterThan(100)
+    // ⭐ F5 — on 632 bars that do not start at TradingView's bar 0 the line reads
+    // `ta.atr` through a 250-bar ratchet, so its seed warm-up withholds the bars
+    // drawn here before; the ratchet's own value on them is still TradingView's
+    expect(drawn + seedExact).toBeGreaterThan(100)
   })
 })
 

@@ -406,8 +406,12 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   colour is compared from bar C on (default W).
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
+ * @param {object|null} [a.seedWithheld] F5 — our side's seed withholding for this
+ *                                   plot (`nativeRegistry.seedWarmupReport`):
+ *                                   `{mask, bound, raw}`, index-aligned with `ours`.
+ *                                   See `seedWithheldAt`.
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, seedWithheld = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -430,6 +434,13 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     firstDivergence: null,
     warmup: { bars: Math.min(warmupBars, n), compared: 0, divergent: 0, first: null },
     steady: { bars: Math.max(0, n - warmupBars), compared: 0, divergent: 0, first: null, last: null },
+    // ⭐ F5 — bars our side withheld for a seed this window does not hold, each
+    // checked against its OWN derived bound (`seedWithheldAt`): within it they are
+    // not compared and are counted here; outside it they are a divergence.
+    seedWithheld: 0,
+    seedWithheldFirst: null,
+    seedWithheldLast: null,
+    seedBoundViolations: 0,
   }
   let firstRowSeen = false
   let gapAfterRows = 0
@@ -447,12 +458,20 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     firstRowSeen = true
     if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
     const o = ours[i]
+    const seed = seedWithheldAt(seedWithheld, i, o, v, tol)
+    if (seed === 'within') {
+      res.seedWithheld += 1
+      if (res.seedWithheldFirst === null) res.seedWithheldFirst = i
+      res.seedWithheldLast = i
+      continue
+    }
     res.compared += 1
     if (!isNa(v)) res.valued += 1
     const region = i < warmupBars ? res.warmup : res.steady
     region.compared += 1
     let kind = null
-    if (isNa(v) !== isNa(o)) { kind = 'na'; res.naMismatches += 1 }
+    if (seed === 'violated') { kind = 'seed-bound'; res.seedBoundViolations += 1 }
+    else if (isNa(v) !== isNa(o)) { kind = 'na'; res.naMismatches += 1 }
     else if (!isNa(v)) {
       const d = Math.abs(o - v)
       const rel = d / Math.max(Math.abs(v), Number.MIN_VALUE)
@@ -473,6 +492,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       const rec = {
         bar: i, time: times[i], kind,
         vendor: isNa(v) ? null : v, ours: isNa(o) ? null : Number(o),
+        ...(kind === 'seed-bound' ? { withheldValue: seedWithheld.raw[i], bound: seedWithheld.bound[i] } : {}),
         ...(kind === 'color' ? { vendorColor: vendorColors[i], ourColor: ourColors[i] } : {}),
       }
       if (!res.firstDivergence) res.firstDivergence = rec
@@ -490,6 +510,43 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
   res.vendorRowGapsAfterStart = gapAfterRows
   res.steady.pattern = divergencePattern(steadyComparedBars, steadyDivergentBars, res.steady)
   return res
+}
+
+/** ⭐⭐ F5 — ONE BAR OUR SIDE WITHHELD FOR A SEED, GRADED BY ITS OWN BOUND.
+ *
+ *  Off the listing a recursive series (`ta.ema`, `ta.rma`, `ta.rsi`, `ta.atr` …)
+ *  is seeded at the window's first bar while TradingView's runs from the listing,
+ *  so our early bars are a different number that converges. Our side WITHHOLDS
+ *  them (`interpret.js::seedWarmupMask`) and hands the harness, per bar, the value
+ *  it withheld (`raw`) and the bound on |ours − TradingView's| the decision was
+ *  made from (`bound`) — both computed from the series' own decay and the data
+ *  loaded, never from the vendor's numbers.
+ *
+ *    'within'    the bar is withheld (`ours` is `na`), TradingView drew a value,
+ *                and the value we withheld IS within its bound of it: the
+ *                withholding is correct, the bar is not compared, and it is
+ *                counted (`seedWithheld`).
+ *    'violated'  withheld, TradingView drew a value, and ours is OUTSIDE the
+ *                bound we claimed: the bound was wrong, so the bar is a
+ *                divergence of its own kind (`seed-bound`) — never excused.
+ *    null        not a seed-withheld bar, or TradingView drew nothing there
+ *                (then both sides draw nothing and the bar is compared as usual).
+ *
+ *  ⛔ THE REGION IS THE PRODUCT'S, NEVER "WHERE IT DIVERGED". The mask and the
+ *  bound arrive from our side before any vendor value is read; this function
+ *  can only CONFIRM a withheld bar or turn it into a divergence. It cannot excuse
+ *  a bar our side drew, and a wrong value that a withheld bar would hide must sit
+ *  inside a bound the decay maths derived without seeing it. */
+export function seedWithheldAt(seedWithheld, i, o, v, tol) {
+  if (!seedWithheld || !seedWithheld.mask || !seedWithheld.mask[i]) return null
+  if (!isNa(o) || isNa(v)) return null
+  const raw = seedWithheld.raw ? seedWithheld.raw[i] : NaN
+  const b = seedWithheld.bound ? seedWithheld.bound[i] : NaN
+  // a blank our side could not decide (an uncertain test chose `na`) claims no
+  // value at all, so only an unbounded claim covers it
+  if (isNa(raw)) return b === Infinity ? 'within' : 'violated'
+  if (!(b >= 0)) return 'violated'
+  return Math.abs(raw - v) <= b + tol.abs ? 'within' : 'violated'
 }
 
 /**
@@ -579,7 +636,9 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
     return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${readingOf(f)})${shape}` }
   }
   if (r.steady.compared === 0) {
-    return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
+    return { verdict: 'INCONCLUSIVE', reason: r.compared === 0
+      ? (r.seedWithheld ? `no bar was compared — ${seedNote(r)}` : 'no bar was compared')
+      : 'every compared bar is inside the warm-up region — nothing in steady state to judge' + (r.seedWithheld ? ` (${seedNote(r)})` : '') }
   }
   // ⛔ A COLOUR THE CAPTURE HOLDS BUT THE HARNESS COULD NOT DECODE IS NOT A MATCH.
   // ⚰️ It was: a palette-less colorer read `colors: null`, our side had colours,
@@ -597,7 +656,14 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   if (colorMeasured && !colorResolvable && (r.colorComparable === undefined || r.colorComparable > 0)) {
     return { verdict: 'INCONCLUSIVE', reason: `values agree, but the capture records per-bar colour and our side's colour could not be resolved${ourColorReason ? ` (${ourColorReason})` : ''}` }
   }
-  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree` + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
+  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree` + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '')
+    + (r.seedWithheld ? `; ${seedNote(r)}` : '') }
+}
+
+/** The sentence a verdict carries for bars withheld by the seed warm-up. */
+function seedNote(r) {
+  return `${r.seedWithheld} bar(s) withheld by the seed warm-up (seed:window, bars ${r.seedWithheldFirst}..${r.seedWithheldLast}), `
+    + 'each within its derived bound of TradingView\'s value — not compared'
 }
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
@@ -856,7 +922,11 @@ export function compareCapture(capture, ours, opts = {}) {
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
+    // ⭐ F5 — the seed withholding travels with the column, shifted the same way.
+    const seedWithheld = o.seedWithheld && o.seedWithheld.mask
+      ? { mask: leadBy(o.seedWithheld.mask, treeShift), bound: leadBy(o.seedWithheld.bound, treeShift), raw: leadBy(o.seedWithheld.raw, treeShift) }
+      : null
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null, seedWithheld })
     let pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,

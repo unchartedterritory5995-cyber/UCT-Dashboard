@@ -191,11 +191,8 @@
           ],
           [
             "R01 mid",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R02 close",
@@ -204,11 +201,8 @@
           ],
           [
             "S01 shape per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "S02 char per-bar with na",
@@ -222,11 +216,8 @@
           ],
           [
             "S04 shape per-bar with text",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ]
         ],
         "objects": [
@@ -271,11 +262,8 @@
           ],
           [
             "R01 mid",
-            "DIVERGE",
-            0,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R02 close",
@@ -284,11 +272,8 @@
           ],
           [
             "S01 shape per-bar",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "S02 char per-bar with na",
@@ -302,11 +287,8 @@
           ],
           [
             "S04 shape per-bar with text",
-            "DIVERGE",
-            0,
-            "color",
-            1,
-            "scattered"
+            "MATCH",
+            636
           ]
         ],
         "objects": [

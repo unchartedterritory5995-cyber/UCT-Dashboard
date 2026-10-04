@@ -649,6 +649,13 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/** What a withholding code is about, for the note that names it. */
+function whatWithheld(code) {
+  if (code.startsWith('bar-index:')) return '`bar_index`'
+  if (code.startsWith('seed:')) return 'a recursive series\' seed'
+  return 'time(<timeframe>)'
+}
+
 /**
  * Run the member door on the capture's bars.
  *
@@ -730,10 +737,13 @@ export function runOurSide(capture) {
     // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
     // (changing another lane's verdict is not this one's to do).
     const clockReport = registry.chartClockReport(cols)
+    // ⭐ F5 — per plot, the bars a recursive series' seed withholds off the
+    // listing, with the bound each was decided from (`compare.mjs::seedWithheldAt`).
+    const seedReport = registry.seedWarmupReport(cols)
     const withheldWhole = new Map()
     if (clockReport) {
       for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+        const what = whatWithheld(r.code)
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
         // ⭐ H6 — `cum:window` (`ta.obv`'s level off the listing) is the same kind
         // of withholding: every bar, by name, never a value that differs.
@@ -806,6 +816,8 @@ export function runOurSide(capture) {
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // ⭐ F5 — the seed withholding, or null (see `seedReport`).
+        seedWithheld: row && col && seedReport && seedReport[row.key] ? seedReport[row.key] : null,
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
@@ -834,7 +846,7 @@ export function runOurSide(capture) {
         : objectsOf(def, bars, ctx, cols, built))
     if (objects && hybrid) objects.objectsRun = { drawn: !!hybrid.payload, withheld: hybrid.withheld }
     for (const r of (objects && objects.chartClock) || []) {
-      const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
+      const what = whatWithheld(r.code)
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
     }
     if (objects && objects.ok && objects.drawn) {

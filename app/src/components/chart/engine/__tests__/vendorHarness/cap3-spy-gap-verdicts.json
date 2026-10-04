@@ -104,35 +104,23 @@
           ],
           [
             "DRM Oscillator",
-            "DIVERGE",
-            29,
-            "value",
-            225,
-            "converging-prefix"
+            "MATCH",
+            1474
           ],
           [
             "Signal Line",
-            "DIVERGE",
-            36,
-            "value",
-            221,
-            "converging-prefix"
+            "MATCH",
+            1460
           ],
           [
             "Bull Cross Dot",
-            "DIVERGE",
-            47,
-            "value",
-            13,
-            "scattered"
+            "MATCH",
+            1781
           ],
           [
             "Bear Cross Dot",
-            "DIVERGE",
-            76,
-            "value",
-            12,
-            "scattered"
+            "MATCH",
+            1782
           ],
           [
             "OB Level",
@@ -166,12 +154,12 @@
             [
               "lines",
               171,
-              33
+              37
             ],
             [
               "labels",
               198,
-              38
+              42
             ],
             [
               "tableCells",
@@ -189,24 +177,18 @@
       "script": "corpus/committed/atr-bands__ad60b125e6.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "Upper ATR Band",
-            "DIVERGE",
-            3,
-            "value",
-            37,
-            "converging-prefix"
+            "MATCH",
+            1749
           ],
           [
             "Lower ATR Band",
-            "DIVERGE",
-            3,
-            "value",
-            38,
-            "converging-prefix"
+            "MATCH",
+            1749
           ],
           [
             "Upper Take-Profit Band",
@@ -238,33 +220,27 @@
           [
             "Impulse Up",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Impulse Down",
             "MATCH",
-            1800
+            1797
           ],
           [
             "RSI Mid Line Support",
-            "DIVERGE",
-            15,
-            "na",
-            4,
-            "scattered"
+            "MATCH",
+            1797
           ],
           [
             "RSI Mid Line Resistance",
-            "DIVERGE",
-            16,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1795
           ],
           [
             "RSI Overbought",
             "MATCH",
-            1800
+            1778
           ],
           [
             "RSI Oversold",
@@ -274,12 +250,12 @@
           [
             "Ran Previous High",
             "MATCH",
-            1800
+            1797
           ],
           [
             "Ran Previous Low",
             "MATCH",
-            1800
+            1798
           ],
           [
             "Moving Average",
@@ -316,21 +292,18 @@
         "plots": [
           [
             "ATR Trailing Stoploss",
-            "DIVERGE",
-            15,
-            "value",
-            47,
-            "converging-prefix"
+            "MATCH",
+            1709
           ],
           [
             "BUY",
             "MATCH",
-            1800
+            1799
           ],
           [
             "SELL",
             "MATCH",
-            1800
+            1798
           ]
         ],
         "objects": [
@@ -477,29 +450,23 @@
           ],
           [
             "Fast EMA",
-            "DIVERGE",
-            12,
-            "value",
-            90,
-            "converging-prefix"
+            "MATCH",
+            1668
           ],
           [
             "Slow EMA",
-            "DIVERGE",
-            25,
-            "value",
-            196,
-            "converging-prefix"
+            "MATCH",
+            1526
           ],
           [
             "Bull",
             "MATCH",
-            1800
+            1796
           ],
           [
             "Bear",
             "MATCH",
-            1800
+            1797
           ]
         ],
         "objects": [
@@ -634,40 +601,28 @@
       "script": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "Plot",
-            "DIVERGE",
-            14,
-            "value",
-            130,
-            "converging-prefix"
+            "MATCH",
+            1643
           ],
           [
             "Plot",
-            "DIVERGE",
-            14,
-            "value",
-            127,
-            "converging-prefix"
+            "MATCH",
+            1641
           ],
           [
             "Plot",
-            "DIVERGE",
-            28,
-            "value",
-            129,
-            "converging-prefix"
+            "MATCH",
+            1625
           ],
           [
             "Plot",
-            "DIVERGE",
-            14,
-            "value",
-            148,
-            "converging-prefix"
+            "MATCH",
+            1617
           ]
         ],
         "objects": [
@@ -689,7 +644,7 @@
           [
             "Basis",
             "MATCH",
-            1800
+            1798
           ],
           [
             "Upper Donchian",
@@ -699,7 +654,7 @@
           [
             "Upper Donchian | Inner",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Upper .786",
@@ -709,12 +664,12 @@
           [
             "Upper Mid",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Upper.702",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Upper .382",
@@ -729,12 +684,12 @@
           [
             "Lower .702",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Lower Mid",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Lower .786",
@@ -744,7 +699,7 @@
           [
             "Lower Donchian | Inner",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Lower Donchian",
@@ -791,11 +746,8 @@
         "plots": [
           [
             "Plot",
-            "DIVERGE",
-            35,
-            "value",
-            336,
-            "converging-prefix"
+            "MATCH",
+            1349
           ]
         ],
         "objects": [
@@ -815,73 +767,58 @@
         "plots": [
           [
             "Fast EMA",
-            "DIVERGE",
-            8,
-            "value",
-            51,
-            "converging-prefix"
+            "MATCH",
+            1712
           ],
           [
             "Mid EMA",
-            "DIVERGE",
-            21,
-            "value",
-            161,
-            "converging-prefix"
+            "MATCH",
+            1569
           ],
           [
             "Slow EMA",
-            "DIVERGE",
-            55,
-            "value",
-            402,
-            "converging-prefix"
+            "MATCH",
+            1205
           ],
           [
             "F×M ▲",
             "MATCH",
-            1800
+            1799
           ],
           [
             "F×M ▼",
-            "DIVERGE",
-            39,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            1799
           ],
           [
             "F×S ▲",
             "MATCH",
-            1800
+            1797
           ],
           [
             "F×S ▼",
             "MATCH",
-            1800
+            1799
           ],
           [
             "M×S ▲",
             "MATCH",
-            1800
+            1799
           ],
           [
             "M×S ▼",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Squeeze Start",
-            "DIVERGE",
-            140,
-            "value",
-            2,
-            "scattered"
+            "MATCH",
+            1798
           ],
           [
             "Squeeze Release ▲",
             "MATCH",
-            1800
+            1799
           ],
           [
             "Squeeze Release ▼",
@@ -890,11 +827,8 @@
           ],
           [
             "Squeeze Release ◆",
-            "DIVERGE",
-            141,
-            "value",
-            1,
-            "scattered"
+            "MATCH",
+            1799
           ]
         ],
         "objects": [
@@ -926,7 +860,7 @@
           [
             "bearish",
             "MATCH",
-            1800
+            1798
           ]
         ],
         "objects": [
@@ -1270,7 +1204,7 @@
       "script": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -1280,11 +1214,8 @@
           ],
           [
             "outerhigh",
-            "DIVERGE",
-            272,
-            "value",
-            62,
-            "converging-prefix"
+            "MATCH",
+            1007
           ],
           [
             "innerhigh",
@@ -1308,11 +1239,8 @@
           ],
           [
             "outerlow",
-            "DIVERGE",
-            272,
-            "value",
-            64,
-            "converging-prefix"
+            "MATCH",
+            1006
           ],
           [
             "extra low line",
@@ -1382,64 +1310,43 @@
       "script": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "Basis",
-            "DIVERGE",
-            20,
-            "value",
-            152,
-            "converging-prefix"
+            "MATCH",
+            1580
           ],
           [
             "Upper 1",
-            "DIVERGE",
-            20,
-            "value",
-            151,
-            "converging-prefix"
+            "MATCH",
+            1580
           ],
           [
             "Lower 1",
-            "DIVERGE",
-            20,
-            "value",
-            153,
-            "converging-prefix"
+            "MATCH",
+            1580
           ],
           [
             "Upper 2",
-            "DIVERGE",
-            20,
-            "value",
-            150,
-            "converging-prefix"
+            "MATCH",
+            1580
           ],
           [
             "Lower 2",
-            "DIVERGE",
-            20,
-            "value",
-            154,
-            "converging-prefix"
+            "MATCH",
+            1579
           ],
           [
             "Upper 3",
-            "DIVERGE",
-            20,
-            "value",
-            148,
-            "converging-prefix"
+            "MATCH",
+            1580
           ],
           [
             "Lower 3",
-            "DIVERGE",
-            20,
-            "value",
-            155,
-            "converging-prefix"
+            "MATCH",
+            1579
           ]
         ],
         "objects": [
@@ -1629,56 +1536,38 @@
       "script": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "Histogram Long",
-            "DIVERGE",
-            28,
-            "value",
-            164,
-            "converging-prefix"
+            "MATCH",
+            1525
           ],
           [
             "MACD Long",
-            "DIVERGE",
-            19,
-            "value",
-            175,
-            "converging-prefix"
+            "MATCH",
+            1537
           ],
           [
             "Signal Long",
-            "DIVERGE",
-            28,
-            "value",
-            172,
-            "converging-prefix"
+            "MATCH",
+            1535
           ],
           [
             "Histogram Short",
-            "DIVERGE",
-            29,
-            "value",
-            173,
-            "converging-prefix"
+            "MATCH",
+            1518
           ],
           [
             "MACD Short",
-            "DIVERGE",
-            20,
-            "value",
-            185,
-            "converging-prefix"
+            "MATCH",
+            1524
           ],
           [
             "Signal Short",
-            "DIVERGE",
-            29,
-            "value",
-            181,
-            "converging-prefix"
+            "MATCH",
+            1524
           ]
         ],
         "objects": [
@@ -1693,152 +1582,98 @@
       "script": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "MMA05",
-            "DIVERGE",
-            5,
-            "value",
-            34,
-            "converging-prefix"
+            "MATCH",
+            1570
           ],
           [
             "MMA10",
-            "DIVERGE",
-            10,
-            "value",
-            75,
-            "scattered"
+            "MATCH",
+            1533
           ],
           [
             "MMA15",
-            "DIVERGE",
-            15,
-            "value",
-            113,
-            "scattered"
+            "MATCH",
+            1538
           ],
           [
             "MMA20",
-            "DIVERGE",
-            20,
-            "value",
-            153,
-            "scattered"
+            "MATCH",
+            1542
           ],
           [
             "MMA25",
-            "DIVERGE",
-            25,
-            "value",
-            196,
-            "converging-prefix"
+            "MATCH",
+            1526
           ],
           [
             "MMA30",
-            "DIVERGE",
-            30,
-            "value",
-            237,
-            "converging-prefix"
+            "MATCH",
+            1472
           ],
           [
             "MMA35",
-            "DIVERGE",
-            35,
-            "value",
-            274,
-            "converging-prefix"
+            "MATCH",
+            1419
           ],
           [
             "MMA40",
-            "DIVERGE",
-            40,
-            "value",
-            307,
-            "converging-prefix"
+            "MATCH",
+            1366
           ],
           [
             "MMA45",
-            "DIVERGE",
-            45,
-            "value",
-            331,
-            "converging-prefix"
+            "MATCH",
+            1313
           ],
           [
             "MMA50",
-            "DIVERGE",
-            50,
-            "value",
-            363,
-            "converging-prefix"
+            "MATCH",
+            1259
           ],
           [
             "MMA55",
-            "DIVERGE",
-            55,
-            "value",
-            402,
-            "converging-prefix"
+            "MATCH",
+            1205
           ],
           [
             "MMA60",
-            "DIVERGE",
-            60,
-            "value",
-            444,
-            "converging-prefix"
+            "MATCH",
+            1149
           ],
           [
             "MMA65",
-            "DIVERGE",
-            65,
-            "value",
-            489,
-            "converging-prefix"
+            "MATCH",
+            1094
           ],
           [
             "MMA70",
-            "DIVERGE",
-            70,
-            "value",
-            531,
-            "converging-prefix"
+            "MATCH",
+            1037
           ],
           [
             "MMA75",
-            "DIVERGE",
-            75,
-            "value",
-            576,
-            "converging-prefix"
+            "MATCH",
+            984
           ],
           [
             "MMA80",
-            "DIVERGE",
-            80,
-            "value",
-            619,
-            "converging-prefix"
+            "MATCH",
+            930
           ],
           [
             "MMA85",
-            "DIVERGE",
-            85,
-            "value",
-            662,
-            "converging-prefix"
+            "MATCH",
+            879
           ],
           [
             "MMA90",
-            "DIVERGE",
-            90,
-            "value",
-            703,
-            "converging-prefix"
+            "MATCH",
+            825
           ]
         ],
         "objects": [
@@ -1883,7 +1718,7 @@
             [
               "lines",
               117,
-              21
+              19
             ],
             [
               "labels",
@@ -1984,7 +1819,7 @@
       "script": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -1999,11 +1834,8 @@
           ],
           [
             "Momentum Histogram",
-            "DIVERGE",
-            42,
-            "value",
-            235,
-            "converging-prefix"
+            "MATCH",
+            1455
           ],
           [
             "Vol Upper",
@@ -2017,24 +1849,18 @@
           ],
           [
             "Bullish Shift",
-            "DIVERGE",
-            23,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            1797
           ],
           [
             "Bearish Shift",
-            "DIVERGE",
-            41,
-            "na",
-            1,
-            "scattered"
+            "MATCH",
+            1798
           ],
           [
             "Extreme Bull",
             "MATCH",
-            1800
+            1796
           ],
           [
             "Extreme Bear",
@@ -2049,7 +1875,7 @@
           [
             "Bear Divergence",
             "MATCH",
-            1800
+            1789
           ]
         ],
         "objects": [
@@ -2201,7 +2027,7 @@
       "script": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -2211,67 +2037,43 @@
           ],
           [
             " 0.000",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.236",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.382",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.500",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.618",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-1.000",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-1.618",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-3.141",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ]
         ],
         "objects": [
@@ -2292,17 +2094,17 @@
           [
             "PP SuperTrend",
             "MATCH",
-            1800
+            980
           ],
           [
             "Buy",
             "MATCH",
-            1800
+            1789
           ],
           [
             "Sell",
             "MATCH",
-            1800
+            1789
           ],
           [
             "Shapes",
@@ -2484,12 +2286,12 @@
           [
             "QQE long",
             "MATCH",
-            1800
+            1778
           ],
           [
             "QQE short",
             "MATCH",
-            1800
+            1777
           ]
         ],
         "objects": [
@@ -2504,64 +2306,43 @@
       "script": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "Scale High",
-            "DIVERGE",
-            42,
-            "value",
-            214,
-            "converging-prefix"
+            "MATCH",
+            1502
           ],
           [
             "High Alert",
-            "DIVERGE",
-            42,
-            "value",
-            219,
-            "converging-prefix"
+            "MATCH",
+            1500
           ],
           [
             "Low Alert",
-            "DIVERGE",
-            42,
-            "value",
-            214,
-            "converging-prefix"
+            "MATCH",
+            1506
           ],
           [
             "Scale Low",
-            "DIVERGE",
-            42,
-            "value",
-            167,
-            "converging-prefix"
+            "MATCH",
+            1569
           ],
           [
             "SMI EQ Price",
-            "DIVERGE",
-            42,
-            "value",
-            184,
-            "converging-prefix"
+            "MATCH",
+            1495
           ],
           [
             "Signal Line Cross",
-            "DIVERGE",
-            55,
-            "value",
-            199,
-            "converging-prefix"
+            "MATCH",
+            1503
           ],
           [
             "Zero Line Cross",
-            "DIVERGE",
-            42,
-            "value",
-            223,
-            "converging-prefix"
+            "MATCH",
+            1498
           ]
         ],
         "objects": [
@@ -2963,35 +2744,23 @@
         "plots": [
           [
             "Plot",
-            "DIVERGE",
-            30,
-            "value",
-            100,
-            "converging-prefix"
+            "MATCH",
+            1621
           ],
           [
             "Plot",
-            "DIVERGE",
-            15,
-            "value",
-            110,
-            "converging-prefix"
+            "MATCH",
+            1634
           ],
           [
             null,
-            "DIVERGE",
-            50,
-            "value",
-            1,
-            "scattered"
+            "MATCH",
+            1798
           ],
           [
             null,
-            "DIVERGE",
-            39,
-            "na",
-            2,
-            "scattered"
+            "MATCH",
+            1798
           ]
         ],
         "objects": [
