@@ -66,3 +66,71 @@ describe('⭐⭐ RT14 — `T[] name` in a function header is `array<T> name`', (
     expect(out[0][2]).toBe(SERIES[3][1] + 1)
   })
 })
+
+describe('⭐⭐ RT14 — a root binding read where it has no slot is the every-bar variable', () => {
+  // The reference spelling: the same value written as a MUTATED root variable,
+  // which the lane has always held as a slot assigned on every bar.
+  const asSlot = (decl) => decl.replace(/^float (\w+) = (.*)$/m, 'float $1 = na\n$1 := $2')
+
+  it('`ta.change(top)` over a never-mutated `ta.valuewhen` binding equals the slot spelling', () => {
+    const src = [
+      'float top = ta.valuewhen(high > high[1], high, 0)',
+      'plot(ta.change(top))',
+    ].join('\n') + '\n'
+    const got = run(src)
+    expect(got).toEqual(run(asSlot(src)))
+    expect(got[0].some((v) => v !== null)).toBe(true)
+  })
+
+  it('the same read inside a block reads the variable, not a copy stepped only there', () => {
+    const src = [
+      'float top = ta.valuewhen(high > high[1], high, 0)',
+      'float r = na',
+      'if close > open',
+      '    r := ta.change(top)',
+      'plot(r)',
+    ].join('\n') + '\n'
+    expect(run(src)).toEqual(run(asSlot(src)))
+  })
+
+  it('a STATEFUL binding expanded inside a block steps on every bar (`ta.valuewhen`)', () => {
+    // `v` is the last up-close on EVERY bar. The block runs only where close < 102
+    // (bars 0, 3, 5) and every up-close happens on OTHER bars — so a copy of the
+    // call stepped only inside the block would never see one and answer na.
+    const src = [
+      'float v = ta.valuewhen(close > close[1], close, 0)',
+      'float r = na',
+      'if close < 102',
+      '    r := v',
+      'plot(r)',
+    ].join('\n') + '\n'
+    const got = run(src)
+    expect(got).toEqual(run(asSlot(src)))
+    expect(got[0][3]).toBe(104)
+  })
+
+  it('a binding read from several blocks is given ONE root slot', () => {
+    const src = [
+      'float v = ta.valuewhen(close > close[1], close, 0)',
+      'float r = na',
+      'if close < 102',
+      '    r := v',
+      'if close > 103',
+      '    r := v + ta.change(v)',
+      'plot(r)',
+    ].join('\n') + '\n'
+    const b = build(src)
+    expect(b.ok).toBe(true)
+    const names = JSON.stringify(b.ir).match(/v root \d+/g) || []
+    expect(names.length).toBeGreaterThan(0)
+    expect(new Set(names)).toEqual(new Set(['v root 0']))
+    expect(run(src)).toEqual(run(asSlot(src)))
+  })
+
+  it('CONTROL: a binding made INSIDE a block is that block\'s, never hoisted to the root', () => {
+    // Pine keeps a block-local's history per execution of the block; an every-bar
+    // root copy of `y` would answer a different `ta.change(y)`.
+    const r = build('float z = na\nif close > open\n    y = ta.valuewhen(close > close[1], close, 0)\n    if high > 104\n        z := ta.change(y)\nplot(z)\n')
+    expect(JSON.stringify(r.ok ? r.ir : r.refusal)).not.toMatch(/y root/)
+  })
+})

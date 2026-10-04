@@ -4399,6 +4399,67 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return folded === null ? null : folded !== 0
   }
 
+  /** ⭐⭐ RT14 — A ROOT BINDING IS A VARIABLE PINE EVALUATES ON EVERY BAR.
+   *
+   *  A name this script binds at the root and never mutates, to a value reading
+   *  no slot, is an `env` MACRO here: substituted at each use, so the columnar
+   *  lane can run it as one column. That is exact wherever the use runs on every
+   *  bar too. It is NOT exact where the use sits in a block (or a loop body) and
+   *  the value carries its own state — a `ta.valuewhen`, a `ta.change` ring —
+   *  because the substituted call then steps only on the bars the block runs,
+   *  while Pine stepped the declaration on every bar. RT5 made such a binding a
+   *  slot at the binding for the drawing build (`topLevelHistory`); in the pane
+   *  build the use either refused (`ta.change(top)` had no slot to read:
+   *  `runtime:function-global-state`, support-and-resistance) or stepped wrong.
+   *
+   *  So the slot is made when it is first needed: the binding's value lowered
+   *  in the ROOT list's context and declared at the END of that list as it stands
+   *  — immediately before the root statement being lowered. Its position inside
+   *  the bar does not matter: a macro reads no slot, so its value depends on the
+   *  bar alone, and the root list runs once on every bar. Every later use reads
+   *  the same slot.
+   *
+   *  ⛔ Only a ROOT binding (`root`), never a parameter or body local of an
+   *  inlined call (`frame`), never from inside a function's own frame or a
+   *  request's value, and — unless the caller needs a slot (`force`, the
+   *  `ta.change` read) — only for a STATEFUL value used in a block. A text,
+   *  colour, collection or drawing value keeps its expansion. */
+  const rootMacros = new Map()
+  let rootOut = null
+  let rootScope = null
+  const statefulMacro = (bound) => {
+    try { return statefulTree(makeResolver().resolve(bound.node), false) } catch { return false }
+  }
+  const rootMacroSlot = (name, bound, force = false) => {
+    if (!bound || bound.kind !== 'expr' || !bound.root) return null
+    if (rootOut === null || owner !== null || stmtHoistOwner !== null || inRequestValue || hoistSink) return null
+    if (rootMacros.has(bound)) return rootMacros.get(bound)
+    if (!force && !(condDepth > 0 && statefulMacro(bound))) return null
+    const v = bound.node
+    if (holdsText(v, rootScope) || holdsColour(v, rootScope) || holdsArray(v, rootScope)
+      || holdsRunObject(v) || holdsObjectCall(v)) return null
+    const saved = { sink: stmtHoistSink, depth: condDepth, entries: [...env.entries()] }
+    stmtHoistSink = rootOut
+    condDepth = 0
+    env.clear()
+    for (const [k, b] of (bound.env || saved.entries)) env.set(k, b)
+    let slot
+    try {
+      const value = lowerExpr(v, rootScope)
+      // declared while the root context stands: the slot is the root's, at depth 0
+      const tmp = `${name} root ${rootMacros.size}`
+      slot = rootScope.declare(tmp, newSlot(tmp, false))
+      rootOut.push(declare(slot, value))
+    } finally {
+      stmtHoistSink = saved.sink
+      condDepth = saved.depth
+      env.clear()
+      for (const [k, b] of saved.entries) env.set(k, b)
+    }
+    rootMacros.set(bound, slot)
+    return slot
+  }
+
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -4696,7 +4757,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
           }
           const bound = env.get(node.name)
-          if (bound && bound.kind === 'expr') return lowerExpr(bound.node, scope)
+          if (bound && bound.kind === 'expr') {
+            // RT14: a root binding already given its every-bar slot is read from it,
+            // and a STATEFUL one expanded inside a block is given that slot now.
+            const rooted = rootMacroSlot(node.name, bound)
+            if (rooted !== null) return read(rooted)
+            return lowerExpr(bound.node, scope)
+          }
           // ⭐ A PLOT ID IS NOT A NUMBER, and saying so is the whole point of
           // binding it. Falling through from here reached `runtime:unbound` —
           // *"this Pine name was never given a value"* — about a name the script
@@ -5593,7 +5660,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
               histSlot(hoisted.slot, owner !== null
                 ? fnHistorySlotFor(owner, hoisted.slot, 1, at) : historySlotFor(hoisted.slot, 1, at), 1))
           }
-          const varSlot = scope.lookup(srcNode.name)
+          let varSlot = scope.lookup(srcNode.name)
+          // RT14: `ta.change(top)` over a ROOT binding (`float top = ta.valuewhen(…)`,
+          // never mutated, so an `env` macro with no slot) reads the binding's
+          // every-bar slot — the variable Pine keeps, history included.
+          if (varSlot === null) varSlot = rootMacroSlot(srcNode.name, env.get(srcNode.name), true)
           if (varSlot === null) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
@@ -6922,6 +6993,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
+    // RT14: the root list and its scope, where `materializeRootMacro` declares.
+    if (rootHoist && !frameHoist && !inline && owner === null && rootOut === null) { rootOut = out; rootScope = scope }
     const outerStmtSink = stmtHoistSink
     const outerStmtOwner = stmtHoistOwner
     if (!inline) stmtHoistSink = null
@@ -7804,7 +7877,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // block would expand (and so evaluate) only on the bars the block runs.
         if (!mutable && !isCollection && !readsSlot(value, scope) && !holdsRunObject(value)
           && !topLevelHistory(value)) {
-          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth })
+          env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok), depth: condDepth,
+            // RT14: a ROOT binding (the list that runs on every bar) — see `materializeRootMacro`.
+            root: rootHoist && owner === null && condDepth === 0 })
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
