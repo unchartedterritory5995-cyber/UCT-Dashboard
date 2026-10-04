@@ -228,6 +228,11 @@ const replayPush = () => {
       for (let k = 1; k < arr.length; k += 1) s += arr[k]
       out.AVG.push([i, s / arr.length])
       out.MAX.push([i, Math.max(...arr)])
+    } else {
+      // ⭐ H7 (step 92) — an EMPTY array's avg / max is `na`, MEASURED (CAP4 Q-RT7a):
+      // the label is drawn at `na`, as FIRST / LAST below are (it was withheld)
+      out.AVG.push([i, null])
+      out.MAX.push([i, null])
     }
     out.FIRST.push([i, num(arr[0])])
     out.LAST.push([i, num(arr[arr.length - 1])])
@@ -274,7 +279,7 @@ const replayUnshift = () => {
       let s = arr[0]
       for (let k = 1; k < arr.length; k += 1) s += arr[k]
       out.SUM.push([i, s])
-    }
+    } else out.SUM.push([i, null]) // ⭐ H7 — an empty sum is `na` (CAP4 Q-RT7a), drawn
     out.LAST.push([i, num(arr[arr.length - 1])])
     // bar 0 searches for `high[1]`, which is na there: withheld (ambiguous)
     if (i > 0) out.IDX.push([i, arr.indexOf(BARS[i - 1].h)])

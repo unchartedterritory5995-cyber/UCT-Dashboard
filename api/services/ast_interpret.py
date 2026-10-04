@@ -774,13 +774,21 @@ def _rolling(series: Sequence[float], n: int,
     """
     out = _nan_col(len(series))
     src: Sequence[float] = series
+    # H7 (step 92) -- RULE A: an FFILL window first answers on its n-th FINITE
+    # input; ``seen[i]`` counts the finite inputs through bar ``i``. Measured on
+    # CAP4 Q-RT8a (``vw-rt8-runtime-followups-rddt-1d-2026-10-04``): W01 first on
+    # bar 26, W03 on bar 58. JS twin: ``interpret.js::rolling``.
+    seen: List[int] = []
     if policy == NA_FFILL:
         filled: List[float] = []
         carry = NAN
+        count = 0
         for v in series:
             if math.isfinite(v):
                 carry = v
+                count += 1
             filled.append(carry)
+            seen.append(count)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
     for i in range(n - 1, len(series)):
@@ -788,6 +796,8 @@ def _rolling(series: Sequence[float], n: int,
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
         # being asked about.
         if policy == NA_FFILL and not math.isfinite(series[i]):
+            continue
+        if policy == NA_FFILL and seen[i] < n:
             continue
         w = _window_operands(src, n, i, inner)
         if w is not None:

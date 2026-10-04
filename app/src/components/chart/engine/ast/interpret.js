@@ -1280,12 +1280,25 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
   // vendor-pinned 2026-09-08, 380ok/0bad on an arithmetic source.
   let src = series
+  // ⭐⭐ H7 (step 92) — RULE A: the window first answers on its n-th FINITE input.
+  // `seen[i]` counts the finite inputs through bar i. MEASURED, CAP4 Q-RT8a
+  // (`vw-rt8-runtime-followups-rddt-1d-2026-10-04`, NYSE:RDDT from the listing):
+  // `ta.wma(src, 10)` over finite bars 0-2, `na` 3-19, finite from 20 first answers on
+  // bar 26 (W01: its 10th finite input), and over bar 0 then `na` to 49 on bar 58
+  // (W03); the ema of W01 (W02) first on bar 30. ⚰️ The filled window alone answered
+  // W01 from bar 20 and W03 from bar 50 (rule-B-like: a carried slot counted as an
+  // input). The runtime VM's `ffill` (RT8) already counts this way; the two lanes
+  // now agree. Mirror: `ast_interpret._rolling`.
+  let seen = null
   if (policy === NA.FFILL) {
     src = new Float64Array(series.length)
+    seen = new Int32Array(series.length)
     let carry = NaN
+    let count = 0
     for (let i = 0; i < series.length; i++) {
-      if (Number.isFinite(series[i])) carry = series[i]
+      if (Number.isFinite(series[i])) { carry = series[i]; count += 1 }
       src[i] = carry
+      seen[i] = count
     }
   }
   for (let i = n - 1; i < series.length; i++) {
@@ -1294,6 +1307,7 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
     // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
     // every hole and lose the half of the rule that says otherwise.
     if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    if (policy === NA.FFILL && seen[i] < n) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
     else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent

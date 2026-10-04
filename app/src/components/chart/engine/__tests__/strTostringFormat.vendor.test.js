@@ -257,12 +257,21 @@ describe('⭐ H5 — `format.volume` (`volumeNumberText`): the witnessed M / B r
     expect(volumeNumberText(-29983517)).toBe('-29.984M') // RDDT OBV from the listing
     expect(volumeNumberText(10801000123)).toBe('10.801B') // SPY OBV: the suffix and three decimals
   })
-  it('withheld: below a million, a trailing zero, an exact tie, a unit roll-over, 10^12', () => {
-    expect(volumeNumberText(999999)).toBeNull()
-    expect(volumeNumberText(3100000)).toBeNull()
-    expect(volumeNumberText(3125500)).toBeNull()
-    expect(volumeNumberText(999999600)).toBeNull()
-    expect(volumeNumberText(1e12)).toBeNull()
+  // ⭐ H7 (step 92): CAP4 Q-H5a (`vw-h5-format-volume-spy-1d-2026-10-04`) printed the
+  // renderings H5 withheld; each row below is that capture's cell, verbatim.
+  it('H7 — the CAP4 Q-H5a cells: K below a million, trailing zeros trimmed, a tie up, no roll-over, T', () => {
+    const cap4 = [[0, '0'], [7, '7'], [999, '999'], [1000, '1K'], [1500, '1.5K'], [12345, '12.345K'],
+      [999999, '999.999K'], [1000000, '1M'], [3100000, '3.1M'], [3125500, '3.126M'], [3125501, '3.126M'],
+      [999999600, '1000M'], [1000000000, '1B'], [-1500, '-1.5K'], [-3100000, '-3.1M'], [2.5e12, '2.5T'],
+      [3125951, '3.126M']]
+    for (const [v, s] of cap4) expect(volumeNumberText(v), String(v)).toBe(s)
+  })
+  it('still withheld (no capture): a non-whole or negative value below 1,000, a negative tie, -0, 10^15', () => {
+    expect(volumeNumberText(7.25)).toBeNull()
+    expect(volumeNumberText(-7)).toBeNull()
+    expect(volumeNumberText(-3125500)).toBeNull()
+    expect(volumeNumberText(-0)).toBeNull()
+    expect(volumeNumberText(1e15)).toBeNull()
     expect(volumeNumberText(NaN)).toBe('NaN')
   })
 })

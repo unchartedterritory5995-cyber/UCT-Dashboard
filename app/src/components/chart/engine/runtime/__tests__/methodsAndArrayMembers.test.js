@@ -234,10 +234,11 @@ describe('⛔ C — the unmeasured and the impossible stop BY NAME, never answer
 
   // ⚰️ RT7 — an `na` ELEMENT and an `na` SEARCH value are MEASURED now
   // (`vw-array-na-spy-1d-2026-10-02`, `rt7ArrayNa.test.js`): skipped, and found nowhere.
-  // What stays unmeasured is `sum` / `avg` over ZERO real elements.
-  it('a sum / avg over zero real elements is unmeasured and stops', () => {
-    expect(() => runPine('a = array.new_float(2)\nplot(a.sum())\n')).toThrow(/array\.sum of an array whose every element is na/)
-    expect(() => runPine('a = array.new_float(0)\nplot(a.avg())\n')).toThrow(/array\.avg of an empty array/)
+  // ⭐ H7 (step 92) — and `sum` / `avg` over ZERO real elements are MEASURED now
+  // (CAP4 Q-RT7a, E03-E06): `na`, never 0, and no stop.
+  it('a sum / avg over zero real elements is na (measured), in the method form too', () => {
+    expect(nan(runPine('a = array.new_float(2)\nplot(a.sum())\n')[0]).every((x) => x === null)).toBe(true)
+    expect(nan(runPine('a = array.new_float(0)\nplot(a.avg())\n')[0]).every((x) => x === null)).toBe(true)
   })
 
   it('an na SEARCH value finds nothing (measured), in the method form too', () => {

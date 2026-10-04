@@ -78,9 +78,11 @@ describe('⭐ C18 — k-clustering', () => {
     const b = runAt(RUNTIME_PROBES[1])
     expect(a.budget.counts.WHILE_ITERATIONS).toBe(15)
     expect(a.budget.counts.INSTRUCTIONS_PER_BAR).toBeGreaterThan(DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR)
-    // the empty clusters (k = 3 of 6) are averaged on every pass: the probe runs
-    // agree everywhere, so no served value depends on what Pine answers there
-    expect(a.budget.unmeasured.hits.length).toBeGreaterThan(0)
+    // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ H7 (step 92) —
+    // that answer is MEASURED now (`array.avg` of an empty array is `na`, CAP4
+    // Q-RT7a), so it no longer takes the probe: no hit, and the two runs agree
+    // everywhere because nothing in them is unknown.
+    expect(a.budget.unmeasured.hits).toEqual([])
     const last = bars.length - 1
     const value = (res, k) => res.outputs[built.objectAtOutputs[k]][last]
     const vals = rt.at.map((_, k) => value(a.res, k))

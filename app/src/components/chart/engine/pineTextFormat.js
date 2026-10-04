@@ -312,31 +312,40 @@ export function tickNumberText(n, tickText) {
 }
 
 /**
- * ⭐⭐ H5 (step 84) — `str.tostring(n, format.volume)`, ONLY where captures pin it,
- * else `null` (WITHHELD). `na` prints `NaN`, as every other `str.tostring` does.
+ * ⭐⭐ H5 (step 84) + H7 (step 92) — `str.tostring(n, format.volume)`, ONLY where
+ * captures pin it, else `null` (WITHHELD). `na` prints `NaN`, as every other
+ * `str.tostring` does.
  *
- * WITNESSED (multicator-table, 2026-10-02, each against OUR computation of the same
- * value on the capture's own bars): RDDT volume 3,125,951 → `"3.126M"`, SPY volume
- * 46,335,295 → `"46.335M"`, RDDT OBV from the listing −29,983,517 → `"-29.984M"`;
- * and SPY's OBV `"10.801B"` (its value is not reproducible off the listing, so it
- * pins only the `B` suffix and the three decimals). So: a magnitude in millions or
- * billions, divided by 10^6 / 10^9, rounded to three decimals, a minus sign before
- * it, the suffix after.
- * ⛔ WITHHELD, each because no capture shows it: below one million (`K`, or no
- * suffix?); a third decimal that rounds to 0 (are trailing zeros kept, `3.100M`, or
- * trimmed, `3.1M`?); an exact tie at the third decimal; 1,000 billion or more; a
- * value that rounds up to the next unit (`999.9996M`).
+ * WITNESSED. multicator-table (2026-10-02, each against OUR computation of the same
+ * value on the capture's own bars): 3,125,951 → `3.126M`, 46,335,295 → `46.335M`,
+ * −29,983,517 → `-29.984M`, SPY OBV `10.801B`. CAP4 Q-H5a
+ * (`vw-h5-format-volume-spy-1d-2026-10-04`, one table cell per constant): 0 → `0`,
+ * 7 → `7`, 999 → `999`, 1,000 → `1K`, 1,500 → `1.5K`, 12,345 → `12.345K`,
+ * 999,999 → `999.999K`, 1,000,000 → `1M`, 3,100,000 → `3.1M`, 3,125,500 → `3.126M`
+ * (an exact tie rounds UP), 3,125,501 → `3.126M`, 999,999,600 → `1000M` (the unit is
+ * chosen by the RAW magnitude and does NOT roll over after rounding),
+ * 1,000,000,000 → `1B`, −1,500 → `-1.5K`, −3,100,000 → `-3.1M`, 2.5e12 → `2.5T`.
+ * So: the unit is the largest of K / M / B / T at or below |n|; |n| / unit rounded
+ * to three decimals (a tie up), trailing zeros trimmed, a minus sign before it.
+ * Below 1,000 there is no suffix (0, 7 and 999 are whole numbers).
+ * ⛔ STILL WITHHELD, each because no capture shows it: a non-whole number below
+ * 1,000 (`7.25`, or `7`?); a negative number below 1,000; a NEGATIVE exact tie
+ * (half up on the magnitude, or toward +inf?); negative zero; 10^15 (1,000 T) or more.
  */
-export const VOLUME_UNITS = Object.freeze([[1e9, 'B'], [1e6, 'M']])
+export const VOLUME_UNITS = Object.freeze([[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']])
 export function volumeNumberText(n) {
   if (typeof n !== 'number') return null
   if (!Number.isFinite(n)) return 'NaN'
+  if (n === 0) return Object.is(n, -0) ? null : '0'
   const a = Math.abs(n)
+  if (a >= 1e15) return null
   const unit = VOLUME_UNITS.find(([u]) => a >= u)
-  if (!unit || a >= 1e12) return null
-  const q = (a / unit[0]) * 1000
-  if (Math.abs(q - Math.floor(q) - 0.5) < 1e-9) return null
+  if (!unit) return n > 0 && Number.isInteger(n) ? String(n) : null
+  // thousandths of the unit. Dividing by unit / 1000 (an exact power of ten) keeps a
+  // whole-number tie exact: 3,125,500 / 1,000 = 3125.5, where (3,125,500 / 10^6) * 1000
+  // is 3125.4999… and would round DOWN.
+  const q = a / (unit[0] / 1000)
+  if (n < 0 && Math.abs(q - Math.floor(q) - 0.5) < 1e-9) return null
   const k = Math.round(q)
-  if (k % 10 === 0 || k >= 1e6) return null
-  return `${n < 0 ? '-' : ''}${(k / 1000).toFixed(3)}${unit[1]}`
+  return `${n < 0 ? '-' : ''}${String(k / 1000)}${unit[1]}`
 }

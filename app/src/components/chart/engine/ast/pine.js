@@ -8763,14 +8763,31 @@ export class Resolver {
     const order = w.order === 'unshift' ? elements : elements.slice().reverse()
     const ambiguity = []
     const orAmb = (toks) => { if (ambiguity.length) ambiguity.push(I('or')); ambiguity.push(P('('), ...toks, P(')')) }
+    // ⭐⭐ H7 (step 92) — ZERO REAL ELEMENTS IS MEASURED: `na`. CAP4 Q-RT7a
+    // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`) reads `array.max / min / sum
+    // / avg` of an EMPTY array and `sum` / `avg` of `(na, na)` as `na` on every bar,
+    // with no runtime error — and the folds below already answer `na` there (an
+    // empty growing window's slots are `na`; an all-`na` fold is `na`; `avg` divides
+    // by a size of 0). So the read is ambiguous only where a real element and an
+    // `na` one are BOTH present (the fold would carry the `na`, where Pine skips it:
+    // RT7's `vw-array-na`). ⚰️ This withheld an empty window and an all-`na` one too.
+    const naOr = []
+    const realOr = []
+    const orInto = (list, toks) => { if (list.length) list.push(I('or')); list.push(P('('), ...toks, P(')')) }
     if (member === 'indexof') {
       orAmb([I('na'), P('('), I('__uct_win_search'), P(')')])
     } else if (w.fixed) {
-      for (const j of elements) orAmb([I('na'), P('('), ...v(j), P(')')])
+      for (const j of elements) {
+        orInto(naOr, [I('na'), P('('), ...v(j), P(')')])
+        orInto(realOr, [I('not'), I('na'), P('('), ...v(j), P(')')])
+      }
     } else {
-      orAmb([...sizeToks(), P('=='), N(0)])
-      for (const j of elements) orAmb([...has(j), P('=='), N(1), I('and'), I('na'), P('('), ...v(j), P(')')])
+      for (const j of elements) {
+        orInto(naOr, [...has(j), P('=='), N(1), I('and'), I('na'), P('('), ...v(j), P(')')])
+        orInto(realOr, [...has(j), P('=='), N(1), I('and'), I('not'), I('na'), P('('), ...v(j), P(')')])
+      }
     }
+    if (naOr.length) orAmb([P('('), ...naOr, P(')'), I('and'), P('('), ...realOr, P(')')])
     if (doubleAmb) orAmb(doubleAmb)
     const extra = member === 'indexof' ? new Map([['__uct_win_search', operand(1)]]) : null
     let body
@@ -10527,7 +10544,32 @@ export class Resolver {
         && !this.shadowedByDefinition(name)) {
       return this.resolve(node.args[0].value)
     }
+    // ⭐⭐ H7 (step 92) — `fixnan(x)` IS `ta.valuewhen(not na(x), x, 0)`, served by
+    // the table's `valuewhenOccurrence` in BOTH lanes (`interpret.js` /
+    // `ast_interpret._fn_valuewhen_occurrence`): x where it is real, else the x of the
+    // most recent bar where it was, `na` before the first. MEASURED: CAP4 Q-RT7b
+    // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`, AMEX:SPY 1D from the listing)
+    // — TradingView's F01 / F02a / F02b equal that hand replay on all 8,477 bars, and
+    // two call sites keep two memories, which two separate trees are. ⚰️ The refusal
+    // this replaces said the carry is unbounded state with no warm-up a member could
+    // state; that is true, and it is exactly `valuewhenOccurrence`'s property, which
+    // C45 admitted for a pane and contains for every comparability consumer by the
+    // `occurrence_dependent` tag — the desugared tree carries the same tag. Off the
+    // listing the carried value from before the first loaded bar is a hole (`na`),
+    // never a guess. ⛔ Any other arity, or a member's own `fixnan`, keeps the refusal.
     if (name === 'fixnan') {
+      if (node.args.length === 1 && !node.args[0].name && !this.shadowedByDefinition(name)) {
+        const x = node.args[0].value
+        const tok = node.tok
+        return this.resolve({
+          type: 'call', name: 'ta.valuewhen', tok,
+          args: [
+            { value: { type: 'unary', op: 'not', tok, arg: { type: 'call', name: 'na', tok, args: [{ value: x }] } } },
+            { value: x },
+            { value: { type: 'number', value: 0, tok } },
+          ],
+        })
+      }
       throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
     }
     if (ns === 'input' || name === 'input') return this.resolveInput(node)
@@ -19355,6 +19397,40 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  so (`runtimeError`), never an `na` cell. Each slot and the length are read
    *  where the call stands (`windowReadVerdict`), so a read the window model is
    *  not exact at keeps its refusal. Anything else returns null. */
+  /** ⭐⭐ H7 (step 92) — `array.get(a, i)` / `a.get(i)` where `a = array.from(e0, e1, …)`
+   *  is NEVER CHANGED and `i` is the loop counter → the same `{v:'wget'}` a window
+   *  pick is, in index order (`order: 'unshift'`: index k is element k), each slot the
+   *  per-bar tree of `array.get(a, j)` read where the call stands — the resolver's own
+   *  answer for a constant index, so nothing here is a second reading of the vector.
+   *  CAP4 Q-H5a's probe (`for i = 0 to array.size(vals) - 1 … array.get(vals, i)`) is
+   *  the shape. ⛔ "Never changed" is read off the SOURCE, conservatively: every
+   *  mention of the name must be its own `array.from` binding, an `array.get` /
+   *  `array.size` of it, or its `.get` / `.size` method — a name passed anywhere else
+   *  (a mutator, a user function, a `:=`) could change it per pass, and keeps the
+   *  refusal (`loopValuesUnresolved`). */
+  const loopFromGetOf = (recvName, k, node) => {
+    const b = scopeEnv && typeof scopeEnv.get === 'function' ? scopeEnv.get(recvName) : null
+    if (!b || b.kind !== 'vector' || b.window || !Array.isArray(b.elementNodes) || b.member !== 'from') return null
+    const n = b.elementNodes.length
+    if (!n || n > 64 || typeof source !== 'string') return null
+    const esc = recvName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const allowed = new RegExp(`(^|\\n)[ \\t]*(?:var[ \\t]+)?(?:[A-Za-z_][\\w<>.]*[ \\t]+)?${esc}[ \\t]*=[ \\t]*array\\.from[ \\t]*\\(`
+      + `|array\\.(?:get|size)[ \\t]*\\([ \\t]*${esc}\\b(?![ \\t]*\\.)|\\b${esc}[ \\t]*\\.[ \\t]*(?:get|size)[ \\t]*\\(`, 'g')
+    const every = source.match(new RegExp(`(?<![\\w.])${esc}(?![\\w])`, 'g')) || []
+    const ok = source.match(allowed) || []
+    if (every.length !== ok.length) return null
+    const recv = { type: 'name', name: recvName, tok: node.tok }
+    const slots = []
+    for (let j = 0; j < n; j += 1) {
+      const at = { type: 'call', name: 'array.get', tok: node.tok,
+        args: [{ value: recv }, { value: { type: 'number', value: j, tok: node.tok } }] }
+      let tree = null
+      try { tree = resolveTree(at) } catch { tree = null }
+      if (!tree) return null
+      slots.push(tree)
+    }
+    return { v: 'wget', order: 'unshift', args: [k, { v: 'const', value: n }, ...slots] }
+  }
   const loopWindowGetOf = (node) => {
     if (!hostPasses || !node || node.type !== 'call' || !Array.isArray(node.args)) return null
     let recvName = null
@@ -19376,7 +19452,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const r = makeResolver(scopeEnv)
     const vec = r.windowVectorOf(recvName)
     const w = vec && vec.window
-    if (!w) return null
+    if (!w) return loopFromGetOf(recvName, k, node)
     const recv = { type: 'name', name: recvName, tok: node.tok }
     try {
       const size = w.fixed ? { v: 'const', value: w.cap } : internTree(r.resolveWindowRead(w, 'size', [recv], node))
@@ -19431,9 +19507,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         && Array.isArray(node.args) && node.args.length >= 1 && node.args.length <= 2
         && node.args.every((a) => a && !a.name)) {
       const fmtNode = node.args[1] && node.args[1].value
-      if (fmtNode && fmtNode.type !== 'string') return null
+      // ⭐ H7 (step 92) — `format.volume` per pass: the number carried with the
+      // format NAMED (`volume: true`), rendered by `volumeNumberText` exactly as the
+      // per-bar `{t:'num', volume}` is. Any other non-literal format keeps its refusal.
+      const volume = !!(fmtNode && fmtNode.type === 'name' && fmtNode.name === 'format.volume')
+      if (fmtNode && fmtNode.type !== 'string' && !volume) return null
       const v = loopNumOf(node.args[0].value)
       if (!v) return null
+      if (volume) return { t: 'val', v, volume: true }
       return { t: 'val', v, ...(fmtNode ? { fmt: String(fmtNode.value) } : {}) }
     }
     return null
@@ -25220,7 +25301,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version })
   sayChartOnly()
 
   const result = {
@@ -27167,6 +27248,26 @@ function resolvePaints(paints, ctx) {
   return out
 }
 
+/** ⭐ H7 (step 92) — the transparency a v3/v4 `fill` takes with no `transp`.
+ *  MEASURED: CAP4 Q-RT8d (`vw-rt8-v4-fill-transp-rddt-1d-2026-10-04` + the fill
+ *  state read beside it, `docs/pine/vendor-harness/cap4-rt8d-fill-state-2026-10-04.json`):
+ *  V01 `fill(a, b, color = close > open ? color.green : color.red)` holds
+ *  `transparency` 90 in both `defaults.filledAreasStyle` and the study's state; the
+ *  control V02 `transp = 60` holds 60. The same number as a v4 `bgcolor`'s (F1). */
+const V4_FILL_DEFAULT_TRANSP = 90
+/** v3/v4 `fill(p1, p2, color, transp, title, editable, fillgaps)`: the arguments with
+ *  the default `transp` added when none is written. ⛔ Only over a colour built of
+ *  plain colours (`plainColourExpr`), F1's bound: a colour with its own alpha under
+ *  the style default is not witnessed, and is passed on as it was. */
+function v4FillArgs(args, version) {
+  if (!(Number.isInteger(version) && version <= 4) || !Array.isArray(args)) return args
+  const positional = args.filter((a) => a && !a.name)
+  if (args.some((a) => a && a.name === 'transp') || positional.length >= 4) return args
+  const colour = (args.find((a) => a && a.name === 'color') || {}).value || (positional[2] && positional[2].value)
+  if (!colour || isNaColourLeaf(colour) || !plainColourExpr(colour)) return args
+  return [...args, { name: 'transp', value: { type: 'number', value: V4_FILL_DEFAULT_TRANSP } }]
+}
+
 function resolveFillHandles(fills, outputs, resolved, ctx) {
   if (!fills.length) return []
   const byHandle = new Map()
@@ -27182,7 +27283,7 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
       // ⛔ FAIL-SOFT, as the collector's own `catch` always was: a colour this
       // grammar cannot read must not cost the member the BAND. The edges are the
       // indicator; the colour is the annotation.
-      pres = outputPresentation(f.args || [], {
+      pres = outputPresentation(v4FillArgs(f.args || [], ctx && ctx.version), {
         env: f.env || (ctx && ctx.env),
         resolver: ctx && ctx.resolver,
         kind: 'fill',

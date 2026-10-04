@@ -183,8 +183,12 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
     // One hand-checkable row from the capture: values 58, 95, na, 68 with
     // weights 1,2,3,4 read 80.5 — which is (58·1 + 95·2 + 95·3 + 68·4)/10, the
     // hole carrying the previous value FORWARD at its own bar's weight.
-    const src = Float64Array.from([58, 95, NaN, 68])
-    expect(FN.wma(src, 4)[3]).toBeCloseTo(80.5, 12)
+    // ⭐ H7 (step 92) — one finite bar LEADS the row now: the window first answers on
+    // its n-th FINITE input (rule A, CAP4 Q-RT8a), and the capture's row sat deep in
+    // history; `[58, 95, na, 68]` from bar 0 has only three, and is `na` there.
+    const src = Float64Array.from([10, 58, 95, NaN, 68])
+    expect(FN.wma(src, 4)[4]).toBeCloseTo(80.5, 12)
+    expect(Number.isFinite(FN.wma(Float64Array.from([58, 95, NaN, 68]), 4)[3]), 'three finite inputs: rule A answers na').toBe(false)
   })
 
   it('⭐⭐ wma answers `na` on the bar it is ASKED about, and fills only what it looks BACK at', () => {
