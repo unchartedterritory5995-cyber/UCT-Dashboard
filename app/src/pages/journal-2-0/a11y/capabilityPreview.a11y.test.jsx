@@ -25,7 +25,8 @@ const ALL_ON = Object.fromEntries(CAPABILITY_PREVIEW.map((c) => [c.flag, true]))
 
 beforeEach(() => {
   __resetNotebookFlags()
-  latchNotebookFlags({ ...ALL_ON, notebook_onboarding_enabled: true })
+  // integration ruling: the preview rides the checklist's gate (onboarding AND getting-started)
+  latchNotebookFlags({ ...ALL_ON, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
   global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
 })
 afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })

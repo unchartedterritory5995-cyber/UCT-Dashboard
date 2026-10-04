@@ -23,6 +23,7 @@ import {
   todayDayIso, mondayOfIso, thisMonthIso,
 } from '../../lib/reviewDrafts'
 import GettingStartedChecklist from './GettingStartedChecklist'
+import { checklistEnabled } from './onboarding/gettingStartedPref'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -175,6 +176,12 @@ export default function ResearchHome({
   // for a paid member who has never had the sample (its ids are in `notebook_sample`).
   // While any recorded sample note is still out of Trash, a strip offers to remove them.
   const onboarding = notebookFlag('notebook_onboarding_enabled') === true
+  // Wave 14 integration ruling: W14-A's capability preview and sample promotion are NOT
+  // live on merge. They ride the SAME check as W14-D's checklist (checklistEnabled: the
+  // onboarding flag AND notebook_getting_started_enabled) -- one gate, no second flag.
+  // Off, the first-run screen is the pre-wave-14 screen: no preview chunk, no promotion,
+  // and no aria-describedby on the sample button.
+  const welcomeExtras = checklistEnabled(notebookFlag)
   const isPaid = useIsPaid()
   const { prefs, setPref } = usePreferences()
   const { mutate } = useSWRConfig()
@@ -329,8 +336,8 @@ export default function ResearchHome({
   if (!hasAnyNotes) {
     // Wave 14 lane W14-A (plan 4.1, default D1): today's buttons stay exactly as they are,
     // first. Under them, a short text preview of what the Notebook can do (only the
-    // capabilities armed for this member) and the sample notebook's promotion. Both ride the
-    // onboarding flag, the same gate as the sample and tour doors they sit beside.
+    // capabilities armed for this member) and the sample notebook's promotion. Both ride
+    // `welcomeExtras` (onboarding AND the checklist's own flag; integration ruling).
     const canAddSample = onboarding && isPaid && !sample
     return (
       <div className={styles.firstRun}>
@@ -356,7 +363,7 @@ export default function ResearchHome({
           )}
           {canAddSample && (
             <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}
-              aria-describedby={samplePromoId}>
+              aria-describedby={welcomeExtras ? samplePromoId : undefined}>
               <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
             </button>
           )}
@@ -367,7 +374,7 @@ export default function ResearchHome({
           )}
         </div>
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
-        {onboarding && (
+        {welcomeExtras && (
           <Suspense fallback={null}>
             <CapabilityPreview canAddSample={canAddSample} promoId={samplePromoId} />
           </Suspense>
