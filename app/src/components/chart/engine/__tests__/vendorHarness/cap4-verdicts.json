@@ -1,0 +1,49 @@
+{
+  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand.",
+  "captures": [
+    {
+      "id": "vw-h5-format-volume-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              34,
+              18
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-h5-format-volume-spy-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              34,
+              18
+            ]
+          ]
+        ],
+        "paints": null
+      }
+    }
+  ]
+}
