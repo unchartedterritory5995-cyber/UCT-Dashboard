@@ -1135,6 +1135,46 @@ def trigger_reside(run_id: int, dry_run: bool = True,
     return JSONResponse({"status": "started", "check": "/api/flow-gap-fill/reside-last"})
 
 
+_LAST_SPOT: dict = {}
+
+
+@router.post("/fill-spot")
+def trigger_fill_spot(target_date: str, dry_run: bool = True,
+                      _auth: dict = Depends(require_flow_admin)):
+    """Fill missing Spot on a healed day's rows from the stock minute aggs (see
+    flow_heal_enrich.fill_spot_day). target_date 'YYYY-MM-DD'; dry_run defaults
+    TRUE. Daemon thread; result at GET /fill-spot-last."""
+    try:
+        target = date.fromisoformat(target_date)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="target_date must be YYYY-MM-DD")
+
+    def _do():
+        _LAST_SPOT.clear()
+        _LAST_SPOT.update({"status": "running", "target_date": target_date, "dry_run": dry_run})
+        try:
+            from api import flow_heal_enrich
+            res = flow_heal_enrich.fill_spot_day(target, dry_run=dry_run)
+            res["status"] = "dry_run" if dry_run else "completed"
+            if not dry_run and res.get("filled"):
+                _bump_version(_mdy(target))
+                _post_discord(f"\U0001F527 FLOW SPOT FILL {_mdy(target)}: {res['filled']:,} rows "
+                              f"filled, {res.get('no_bar', 0):,} without a stock bar")
+        except Exception as e:
+            logger.exception("[gap-fill] spot fill failed: %s", e)
+            res = {"status": "failed", "error": str(e)[:300]}
+        _LAST_SPOT.clear()
+        _LAST_SPOT.update(res)
+
+    threading.Thread(target=_do, daemon=True, name="flow-gap-fill-spot").start()
+    return JSONResponse({"status": "started", "check": "/api/flow-gap-fill/fill-spot-last"})
+
+
+@router.get("/fill-spot-last")
+def fill_spot_last(_auth: dict = Depends(require_flow_admin)):
+    return JSONResponse(dict(_LAST_SPOT) or {"status": "never_run"})
+
+
 @router.get("/reside-last")
 def reside_last(_auth: dict = Depends(require_flow_admin)):
     return JSONResponse(dict(_LAST_RESIDE) or {"status": "never_run"})
