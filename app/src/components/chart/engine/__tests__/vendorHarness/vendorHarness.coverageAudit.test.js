@@ -320,7 +320,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
-  it('control: wyckoff — TradingView holds 12 (RDDT) / 22 (SPY) boxes; the run that owns them (RT5) draws none, by name; the offset barcolor is withheld', () => {
+  it('control: wyckoff — RDDT: the run draws the 12 boxes TradingView draws (RT7); SPY (22): withheld by name; the offset barcolor is withheld', () => {
     // RT5 (step 72): the run now OWNS its drawings, so the objects verdict reads the
     // run's own answer: RDDT stops on an engine error (the same one that leaves the
     // 8 plots without a column), SPY on `calc_bars_count = 1000` against 1,800 bars.
@@ -328,13 +328,20 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     // column at all, so RT4's gate (`runtime:objects-without-run`: no drawings without a
     // run that computed) answers first, as "the run drew nothing". Either named reason
     // is a refusal; what this control pins is that nothing is DRAWN.
-    for (const [id, why] of [['wyckoff-accumulation-distribution-rddt-1d-2026-10-02', /engine-error: array\.max of an empty array|the run drew nothing/],
-      ['wyckoff-accumulation-distribution-spy-1d-2026-10-02', /runtime:calc-bars-count|the run drew nothing/]]) {
-      const v = grade(id, 'runtime').v
-      expect(v.objects.verdict, id).toBe('INCONCLUSIVE')
-      expect(v.objects.reason, id).toMatch(why)
-      expect(v.paints.reason, id).toMatch(/offset/)
+    // ⭐ RT7: RDDT's `array.max` / `array.min` of an EMPTY array (`for i = 0 to na`
+    // pushes nothing) answer na now, as Pine does (`vw-array-na` N05; TradingView draws
+    // through those bars) — so its run draws its 12 boxes, and they agree with
+    // TradingView's 12 in count, text and colour (coordinates: `vendorHarness.rt7Walls`).
+    {
+      const v = grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v
+      expect(v.objects.verdict).toBe('MATCH')
+      expect(v.objects.counts.find((c) => c.family === 'boxes')).toMatchObject({ vendor: 12, ours: 12 })
+      expect(v.paints.reason).toMatch(/offset/)
     }
+    const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
+    expect(v.objects.verdict).toBe('INCONCLUSIVE')
+    expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
+    expect(v.paints.reason).toMatch(/offset/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
@@ -581,6 +588,7 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
  *  function of the hour; for these the control pins everything except those counts. */
 const WALL_CLOCK = new Set(['black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03'])
 const CAP3_SPY = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-spy-gap-verdicts.json'), 'utf8')).captures
+const CAP3_RT6 = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-rt6-verdicts.json'), 'utf8')).captures
 const gradeRow = (row) => {
   if (row.library) loadPineLibraryStore(STORE_DIR)
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -600,7 +608,7 @@ describe('CAP3 — SPY 1D captures of the census gap list', () => {
       expect(row.signature, row.id).toBeTruthy()
     }
   }, T)
-  for (const row of CAP3_SPY) {
+  for (const row of [...CAP3_SPY, ...CAP3_RT6]) {
     const run = row.library && !STORE_DIR ? it.skip : it
     if (row.signature && row.signature.verdict === 'MATCH') {
       run(`${row.id} (${row.state}): MATCH`, () => {

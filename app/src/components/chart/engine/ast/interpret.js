@@ -1857,6 +1857,17 @@ const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
  */
 const BARSSINCE_PINE_CELLS = 1
 
+/** ⭐⭐ RT7 — PINE'S `fixnan(x)`: `x` with every `na` replaced by the most recent
+ *  non-`na` value of `x`, and `na` until `x` has had one (Pine reference:
+ *  "replaces NaN values with previous nearest non-NaN value"). One cell, the
+ *  last real value; stepped only on a bar the call runs, as every member here. */
+const FIXNAN_PINE_CELLS = 1
+function fixnanPineInit(st, o) { st[o] = NaN }
+function fixnanPineStep(st, o, v) {
+  if (typeof v === 'number' && !Number.isNaN(v)) st[o] = v
+  return st[o]
+}
+
 function barsSincePineInit(st, o) { st[o] = NaN }
 
 /** One bar of Pine's `ta.barssince`.
@@ -2367,6 +2378,17 @@ export const CARRIED = Object.freeze({
     cells: BARSSINCE_PINE_CELLS,
     init: barsSincePineInit,
     step: barsSincePineStep,
+    runtimeOnly: true,
+  },
+  // ⭐⭐ RT7 — Pine's `fixnan`. `runtimeOnly` for the same reason: the columnar lane
+  // refuses `fixnan` by design (`pine:na`, an unbounded carry has no window), so
+  // there is no column to differentiate it against; `rt7Fixnan.test.js` holds it
+  // to a hand replay of the reference's rule instead. The key is not `fixnan` so a
+  // name lookup by bare spelling can never reach it from the columnar lane.
+  fixnanPine: {
+    cells: FIXNAN_PINE_CELLS,
+    init: fixnanPineInit,
+    step: fixnanPineStep,
     runtimeOnly: true,
   },
 })

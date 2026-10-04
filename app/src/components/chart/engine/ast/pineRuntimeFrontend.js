@@ -144,9 +144,12 @@ function fromCanonical(node, tok) {
       tok: at,
       args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
     }
+    // ⭐ RT7 — a canonical `x[k]` becomes this lane's own parse shape
+    // (`{type:'offset', arg, n}`, as `runtimeRespelling` writes one): the
+    // canonical `{value, args}` spelling reached `lowerExpr` with no `n` and was
+    // refused "a bar offset counts backwards in whole bars" for a literal shift.
     case 'offset': return {
-      type: 'offset', value: node.value, tok: at,
-      args: (node.args || []).map((a) => fromCanonical(a, at)),
+      type: 'offset', arg: fromCanonical((node.args || [])[0], at), n: node.value, tok: at,
     }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
     // a builder embeds verbatim. Rewriting it would be this bridge inventing a
@@ -378,6 +381,9 @@ export const RUNTIME_PINE_TWINS = Object.freeze({
   valuewhen: null,
   'ta.barssince': 1,
   barssince: 1,
+  // ⭐ RT7 — `fixnan(x)`, Pine's carry of the last non-na value (the columnar lane
+  // refuses it, `pine:na`). Arity 1: the only one Pine has.
+  fixnan: 1,
 })
 
 /** Does this lane own `name` called with `argc` arguments? */
@@ -1299,6 +1305,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** Two-input carried instances — `ta.valuewhen`. Main program only; see the
    *  refusal in its lowering for why there is no per-call-site block. */
   const carried2Main = []
+  /** ⭐⭐ RT7 — a two-input carried instance, frame-relative inside a user function
+   *  exactly as `carriedLocals` are: materialised per call site (`carried2Base`). */
+  const pushCarried2 = (entry) => {
+    if (owner !== null) {
+      const list = functions[owner].carried2Locals || (functions[owner].carried2Locals = [])
+      list.push(entry)
+      return list.length - 1
+    }
+    carried2Main.push(entry)
+    return carried2Main.length - 1
+  }
   const carried = []
   const functions = []
   const fnByName = new Map()
@@ -4860,6 +4877,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (typeof node.name === 'string'
             && Object.prototype.hasOwnProperty.call(PINE_NAMESPACED_TREE, node.name)) {
           const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          // ⭐⭐ RT7 — `rightbars` IS A NUMBER FIXED BEFORE BAR 0, NOT A LITERAL.
+          // `pivotAtConfirmation` needs `R` as a whole number because the
+          // confirmation shift `[R]` is a field of the node. A parse literal, an
+          // input, a top-level constant or a parameter the CALL SITE fixes are all
+          // that number here; they are folded with `constValueOf` (the fold every
+          // length and offset in this lane uses) and handed in as a canonical
+          // `num`. A frame name stops the fold carrying its name, so the call site
+          // specialises on it (C35), as a window sized by a parameter does. A value
+          // only known while the bar runs keeps the builder's own refusal.
+          if (node.name === 'ta.pivothigh' || node.name === 'ta.pivotlow') {
+            const ri = args.length >= 3 ? 2 : 1
+            if (args[ri] && !node.args.some((x) => x && x.name)) {
+              const c = constValueOf(args[ri], scope)
+              if (c && typeof c.frameName === 'string') {
+                throw frameBoundRefusal(c.frameName, locate(node.tok), `sets \`rightbars\` of \`${node.name}\``)
+              }
+              if (c && Number.isInteger(c.value) && c.value >= 0) args[ri] = { type: 'num', value: c.value }
+            }
+          }
           const built = PINE_NAMESPACED_TREE[node.name](args)
           if (built && built.refusal) {
             throw new RuntimeRefusal('runtime:statement', built.refusal, locate(node.tok))
@@ -4927,7 +4963,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             } catch { /* fall through to the shared frame, and its refusal */ }
           }
           if (fn.rt5History || (fn.historyLocals || []).length || (fn.windowLocals || []).length
-            || (fn.carriedLocals || []).length) {
+            || (fn.carriedLocals || []).length || (fn.carried2Locals || []).length) {
             conditionalHistoryGuard(`\`${node.name}\`, a function whose body keeps history,`, locate(node.tok))
           }
           const site = callSites.length
@@ -5516,14 +5552,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⛔ SAME RING-SHARING LIMIT AS `ta.valuewhen`: `OP.CARRIED2` has no
           // frame-relative base, so two invocations inside one user function
           // would share one previous-pair and answer a plausible wrong series.
-          if (owner !== null) {
-            throw new RuntimeRefusal('runtime:statement',
-              `\`${node.name}\` inside a user function is not served yet — each `
-              + 'invocation needs its own previous-bar pair, and sharing one would '
-              + 'answer a plausible wrong series rather than refuse', at)
-          }
-          const idx = carried2Main.length
-          carried2Main.push({ fn: RUNTIME_CROSS_CARRIED[node.name], n: 0, name: node.name })
+          // ⭐ RT7 — inside a user function the pair is the CALL SITE's own
+          // (`carried2Base`, as `OP.CARRIED`'s `carriedBase`), so two invocations of
+          // one body keep two previous-bar pairs.
+          const idx = pushCarried2({ fn: RUNTIME_CROSS_CARRIED[node.name], n: 0, name: node.name })
           // ⭐ FIRST ARGUMENT FIRST — `crossover(a, b)` is "a crossed ABOVE b",
           // and the pair is NOT symmetric. The VM hands them to the step in
           // this order; `crossFamily.test.js` asserts swapping them changes the
@@ -5557,15 +5589,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ring would answer a PLAUSIBLE WRONG NUMBER on every bar. A named
           // refusal is the honest version of that limit, and it is the same
           // choice `runtime:object-op` makes about drawings used as values.
-          if (owner !== null) {
-            throw new RuntimeRefusal('runtime:statement',
-              `\`${node.name}\` inside a user function is not served yet — each `
-              + 'invocation needs its own occurrence ring, and sharing one would '
-              + 'answer a plausible wrong number rather than refuse', at)
-          }
+          // ⭐ RT7 — inside a user function the ring is the CALL SITE's own
+          // (`carried2Base`), and the occurrence may be a value that call site fixes.
           const occ = foldConstNode(given[2], at,
             `the occurrence of \`${node.name}\` is only known while the bar is `
-            + 'running, so the ring it needs cannot be sized before bar 0')
+            + 'running, so the ring it needs cannot be sized before bar 0', scope)
           if (!Number.isInteger(occ) || occ < 0) {
             throw new RuntimeRefusal('runtime:statement',
               `the occurrence of \`${node.name}\` counts firings back from this `
@@ -5579,8 +5607,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `the occurrence of \`${node.name}\` is ${occ}, past this engine's `
               + `ceiling of ${MAX_VALUEWHEN_OCCURRENCE} firings`, at)
           }
-          const idx = carried2Main.length
-          carried2Main.push({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
+          const idx = pushCarried2({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
           // ⭐ CONDITION THEN SOURCE — the order `lowerIr` walks them in.
           conditionalHistoryGuard('a stateful built-in', null)
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
@@ -5647,6 +5674,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(aidx, lowerExpr(given[0], scope))
+        }
+        // ⭐⭐ RT7 — PINE'S `fixnan(x)`: the last non-`na` value of `x` (CARRIED
+        // `fixnanPine`, frame-relative like every carried member, so two call
+        // sites of one function keep two memories). The script's own definition wins.
+        if (node.name === 'fixnan' && runtimeOwnsPineTwin(node.name, node.args.length)
+          && !definedNames.has(node.name)) {
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (node.args.some((a) => a && a.name)) {
+            throw new RuntimeRefusal('runtime:statement', '`fixnan` takes one series, by position', locate(node.tok))
+          }
+          const entry = { fn: 'fixnanPine', n: 1, name: 'fixnan(…)' }
+          let fidx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            fidx = list.length
+            list.push(entry)
+          } else {
+            fidx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          conditionalHistoryGuard('a stateful built-in', null)
+          return carriedCall(fidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
         if (car) {
@@ -8534,6 +8583,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         fn.carriedCount = (fn.carriedLocals || []).length
         delete fn.carriedLocals
       }
+    }
+    // ⭐⭐ RT7 — and the two-input carried store, the same way (`carried2Base`).
+    {
+      let c2base = carried2Main.length
+      for (let i = 0; i < callSites.length; i += 1) {
+        const cs = callSites[i]
+        const locals = functions[cs.fn].carried2Locals || []
+        cs.carried2Base = c2base
+        for (const c of locals) carried2Main.push({ ...c, site: i })
+        c2base += locals.length
+      }
+      for (const fn of functions) delete fn.carried2Locals
     }
 
     if (history.length > MAX_HISTORY_SLOTS) {

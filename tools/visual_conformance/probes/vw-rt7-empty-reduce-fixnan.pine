@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_RT7_EMPTY_REDUCE_FIXNAN", overlay = false)
+
+// ─── 2026-10-03 — RT7: reductions over ZERO real elements, and `fixnan` (Q-RT7a, Q-RT7b) ─
+//
+// `vw-array-na-spy-1d-2026-10-02` settled reductions over an array that HOLDS an `na`
+// (skipped), `array.min` of an all-`na` array (`na`), `indexof(na)` (-1) and v6
+// `get(a, -1)` (the last element). RT7 serves those. What no capture shows yet:
+//   E01  array.max of an EMPTY array        RT7 serves na (zero real elements, as N05)
+//   E02  array.min of an EMPTY array        RT7 serves na
+//   E03  array.sum of an EMPTY array        unmeasured: 0 | na | a runtime error
+//   E04  array.avg of an EMPTY array        unmeasured: na | a runtime error
+//   E05  array.sum of (na, na)              unmeasured: 0 | na
+//   E06  array.avg of (na, na)              unmeasured: na | a runtime error
+//   F01  fixnan(x), x na on bars 0-2, on every 3rd bar, and on bars 20-26 (RT7 serves:
+//        x where real, else the last real x, na before the first)
+//   F02  fixnan inside a function called twice (two independent memories)
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, >= 200 bars, no inputs. A runtime error is itself a reading:
+// record the message and the row, comment that row out, re-add the study, repeat.
+
+plot(bar_index, "E00_bar_index_CONTROL")
+e = array.new_float(0)
+plot(array.max(e), "E01_max_empty")
+plot(array.min(e), "E02_min_empty")
+plot(array.sum(e), "E03_sum_empty")
+plot(array.avg(e), "E04_avg_empty")
+nn = array.from(float(na), float(na))
+plot(array.sum(nn), "E05_sum_all_na")
+plot(array.avg(nn), "E06_avg_all_na")
+
+x = bar_index < 3 or (bar_index >= 20 and bar_index <= 26) or bar_index % 3 == 1 ? na : close
+plot(x, "F00_x_CONTROL")
+plot(fixnan(x), "F01_fixnan")
+f(s) => fixnan(s)
+plot(f(x), "F02a_fixnan_in_fn")
+plot(f(bar_index % 4 == 0 ? high : na), "F02b_fixnan_in_fn_second_site")

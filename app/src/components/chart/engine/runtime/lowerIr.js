@@ -877,7 +877,7 @@ export function lowerIrProgram(ir, opts = {}) {
     carried2: (ir.carried2 || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0,
-      carriedBase: c.carriedBase || 0, windowBase: c.windowBase || 0, at: c.at || null,
+      carriedBase: c.carriedBase || 0, carried2Base: c.carried2Base || 0, windowBase: c.windowBase || 0, at: c.at || null,
     })),
     // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
     // decided which values bear history and how deep; this only copies it, so the
