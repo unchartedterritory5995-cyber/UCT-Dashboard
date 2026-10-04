@@ -886,3 +886,39 @@ def test_is_single_stock():
     assert m._is_single_stock({"StockEtf": "STOCK", "source": "stocks"})
     assert m._is_single_stock({"StockEtf": "stock"})
     assert not m._is_single_stock({"StockEtf": "ETF", "source": "indexes"})
+
+
+# ── Top Flow (cream) direction recovery respects the deep-ITM guard ──────────
+# 10/2 GOOG 500P 12/17/27: 500 @ $160, spot $341.78 → 31.6% ITM (≈ all intrinsic,
+# a stock-like hedge). The classifier nulled its direction; call/put recovery
+# printed it as an $8.0M BEAR on the posted card.
+
+def _cream_size_row(**over):
+    a = {"_tierKey": "size", "_direction": None, "aggAskPremium": 8_000_000, "cp": "P",
+         "strike": 500.0, "averageFillPrice": 160.0, "dte": 441,
+         "moneynessPct": 31.6, "moneynessLabel": "ITM"}
+    a.update(over)
+    return a
+
+
+def test_cream_recovery_skips_deep_itm(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    assert m._cream_row_direction(_cream_size_row(), 1_000_000) == (None, False)
+
+
+def test_cream_recovery_keeps_near_money_and_otm(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    assert m._cream_row_direction(_cream_size_row(moneynessPct=8.0), 1_000_000) == ("Bear", True)
+    assert m._cream_row_direction(_cream_size_row(moneynessPct=-12.0, moneynessLabel="OTM"),
+                                  1_000_000) == ("Bear", True)
+
+
+def test_cream_recovery_spotless_parity_trip(monkeypatch):
+    # No spot: a put trading above strike*cap/(100+cap) is ~intrinsic → deep ITM.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: {"direction_max_itm_pct": 20.0})
+    deep = _cream_size_row(moneynessPct=None, moneynessLabel=None, strike=17.5,
+                           averageFillPrice=6.0, dte=77)            # trip = 2.92
+    assert m._cream_row_direction(deep, 1_000_000) == (None, False)
+    near = _cream_size_row(moneynessPct=None, moneynessLabel=None, strike=17.5,
+                           averageFillPrice=1.2, dte=77)
+    assert m._cream_row_direction(near, 1_000_000) == ("Bear", True)
