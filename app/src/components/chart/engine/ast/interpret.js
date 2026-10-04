@@ -4708,10 +4708,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
     + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
     + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ H6 — `ta.obv`'s level (see `cumulativeLevelMask`).
+  'cum:window': () => '`ta.obv` is a running total from the first bar of the symbol\'s history on '
+    + 'TradingView: each bar adds its volume when the close rose and subtracts it when the close fell. This '
+    + 'chart\'s loaded bars start later, so its total is TradingView\'s minus the volume signed before its first '
+    + 'bar, a constant it cannot know, and the difference never shrinks. Everything this indicator draws from '
+    + 'that total is withheld on this chart rather than drawn off by that constant. A change in it over a '
+    + 'number of bars (`ta.obv - ta.obv[5]`, `ta.obv > ta.obv[1]`) is drawn. On a daily chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window'])
+  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
+  'cum:window'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -5158,14 +5167,67 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
   return mask
 }
 
+/** ⭐⭐ H6 — IS THIS NODE `ta.obv`'S LEVEL? `cum(sign(change(close)) * volume)`, the
+ *  tree `pine.js::obvLevelTree` writes, in either operand order (the same running
+ *  total spelled out by hand is the same quantity with the same offset). */
+export function isObvLevelNode(node) {
+  if (!node || node.type !== 'call' || node.name !== 'cum' || !Array.isArray(node.args) || node.args.length !== 1) return false
+  const prod = node.args[0]
+  if (!prod || prod.type !== 'op' || prod.name !== '*' || !Array.isArray(prod.args) || prod.args.length !== 2) return false
+  const isVolume = (n) => !!n && n.type === 'series' && n.name === 'volume'
+  const isSignedChange = (n) => !!n && n.type === 'call' && n.name === 'sign' && Array.isArray(n.args) && n.args.length === 1
+    && !!n.args[0] && n.args[0].type === 'call' && n.args[0].name === 'change' && Array.isArray(n.args[0].args)
+    && n.args[0].args.length === 1 && !!n.args[0].args[0] && n.args[0].args[0].type === 'series'
+    && n.args[0].args[0].name === 'close'
+  const [a, b] = prod.args
+  return (isSignedChange(a) && isVolume(b)) || (isVolume(a) && isSignedChange(b))
+}
+
+/** ⭐⭐ H6 — THE BARS A TREE READING `ta.obv`'S LEVEL IS WITHHELD ON: every bar, off
+ *  the listing, in a document that means Pine's numbers; null otherwise.
+ *
+ *  ⛔ A RUNNING TOTAL NEVER CONVERGES. Off the listing the loaded series starts after
+ *  bars TradingView summed, so the total here is TradingView's minus a constant that
+ *  is not known and does not decay — F5's seed-decay ruling (a smoother's error
+ *  shrinking by `1 - alpha` per bar) has nothing to bound here, and this mask is the
+ *  declaration that says so. Anything above the level inherits the offset (an
+ *  average of it, a comparison with it, a text printed from it), so the WHOLE tree
+ *  is withheld, by name (`cum:window`).
+ *  ⭐ The bounded forms never reach here: `obv > obv[k]`, `obv - obv[k]` and `obv`
+ *  against its own average are rewritten by the translator onto `obvN`, whose
+ *  difference cancels the constant.
+ *  ⛔ Asked ONLY of a document that declares Pine's meaning off the listing
+ *  (`opts.barIndexAbsolute === true`, `opts.historyFromListing !== true`) — the same
+ *  question `barIndexMask` asks, for the same reason: where the series starts.
+ *  ⚠️ Only `ta.obv`'s shape. A `cum` the script writes itself keeps the host lane's
+ *  older rule (it sums the loaded bars; C29's note in `pine.js`), which this lane
+ *  does not change. */
+export function cumulativeLevelMask(tree, bars, inputs, budget, scalars, opts) {
+  if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
+  const stack = [tree]
+  const seen = new Set()
+  let found = false
+  while (stack.length && !found) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (isObvLevelNode(node)) found = true
+    else if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!found) return null
+  nameChartClock(opts, ['cum:window'], opts.tf)
+  return new Float64Array(Array.isArray(bars) ? bars.length : 0).fill(1)
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30), `historyReadMask` (C38) or `barIndexMask` (C45), one
- *  channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
+ *  `cumulativeLevelMask` (H6), one channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
+    cumulativeLevelMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))

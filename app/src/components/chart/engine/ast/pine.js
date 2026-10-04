@@ -1368,6 +1368,32 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   ]),
 })
 
+/** ⭐⭐ H6 — `ta.obv`, THE LEVEL, ON THE HOST LANE ONLY.
+ *
+ *  Pine's definition, from its own reference (v4 manual, `obv`):
+ *  `cum(sign(change(close)) * volume)` — each bar adds its volume when the close
+ *  rose, subtracts it when the close fell, and adds 0 when the close is unchanged
+ *  (`sign(0)` is 0). Bar 0 has no `change`, so its term is `na` and `cum`'s
+ *  measured rule applies: `na` before the first finite input, held across an `na`.
+ *
+ *  ⛔ IT IS A RUNNING TOTAL FROM THE SYMBOL'S FIRST BAR, so it is TradingView's
+ *  number only on a series that starts at the listing. Off the listing it is
+ *  TradingView's minus an unknown constant (the volume signed before our bar 0),
+ *  and that offset never decays — `interpret.js::cumulativeLevelMask` withholds
+ *  every bar of a tree that reads this level there, by name (`cum:window`).
+ *  The bounded rewrites (`obv > obv[k]` → `obvN`, `obv` against its own average)
+ *  run first and are untouched: their difference cancels the constant.
+ *
+ *  ⛔ HOST ONLY. A screen compares symbols and runs over whatever fetch it was
+ *  given; `cum`'s pane exemption (`_functions_cumulative`) is what admits this,
+ *  so the gate is the same one `cum` passes (`hostAdmissible`). */
+function obvLevelTree() {
+  return cCall('cum', [cOp('*', [
+    cCall('sign', [cCall('change', [cSeries('close')])]),
+    cSeries('volume'),
+  ])])
+}
+
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
  *
  *  These are NOT approximations, and that distinction is the whole reason they are
@@ -7837,6 +7863,16 @@ export class Resolver {
     return null
   }
 
+  /** ⭐ H6 — is `ta.obv`'s LEVEL served here? The host lane only, and only while
+   *  the pieces it is spelled from are the table's (`cum` admitted for a pane by
+   *  `_requirement_tags`, `sign` and `change` declared). A screen keeps the table's
+   *  `obv` ruling. */
+  obvLevelServed() {
+    if (!this.strict) return false
+    const fns = (this.table && this.table.functions) || {}
+    return hostAdmissible(this.table).has('cum') && own(fns, 'cum') && own(fns, 'sign') && own(fns, 'change')
+  }
+
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
    *  saying `pine:builtin` about either would name the wrong thing. A dotted name
    *  whose first segment is a type the script DECLARED, or a local the script
@@ -9922,6 +9958,8 @@ export class Resolver {
         // asked of something that is not one. Unconditional: see
         // `PINE_MATH_CONSTANTS` for why this one is not strict-gated.
         if (own(PINE_MATH_CONSTANTS, name)) return PINE_MATH_CONSTANTS[name]()
+        // ⭐ H6 — `ta.obv` on the HOST lane (see `obvLevelTree`).
+        if (short === 'obv' && this.obvLevelServed()) return obvLevelTree()
         return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',
@@ -9939,6 +9977,9 @@ export class Resolver {
     if (this.index.has(normaliseName(name)) || own(PINE_CALL_SHAPES, normaliseName(name))) {
       return this.resolveTableCall(name, name, [], node.tok)
     }
+    // ⭐ H6 — v4's bare `obv` is the same built-in variable as v5's `ta.obv`. Reached
+    // only after every binding the script wrote, so a member's own `obv` wins.
+    if (name === 'obv' && this.obvLevelServed()) return obvLevelTree()
 
     // Everything else: a Pine built-in with no home here, or a name the script
     // never bound. The two are different facts and get different guards.

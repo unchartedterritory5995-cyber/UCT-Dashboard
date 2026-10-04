@@ -106,9 +106,13 @@ def test_the_fixture_is_not_vacuous():
     # C45: the two `bar-index:` codes ride the same channel and are exercised by their
     # OWN fixture (tests/test_ast_bar_index_shift_parity.py) -- this one has no Pine
     # document reading `bar_index`, so they are set aside here by prefix, not by name.
-    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES if not c.startswith("bar-index:")}
+    # H6: `cum:window` (``ta.obv``'s level off the listing) is the same kind of set-aside:
+    # it is exercised by its own rail (tests/test_h6_obv_level_mask.py), not by a
+    # ``time(<timeframe>)`` reading.
+    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
+             if not c.startswith("bar-index:") and not c.startswith("cum:")}
     assert clock - named == {"time-anchor:other-bars"}
-    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars"}
+    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars", "cum:window"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

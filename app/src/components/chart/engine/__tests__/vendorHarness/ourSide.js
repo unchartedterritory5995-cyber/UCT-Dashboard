@@ -710,7 +710,9 @@ export function runOurSide(capture) {
       for (const r of clockReport.withheld) {
         const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
-        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+        // ⭐ H6 — `cum:window` (`ta.obv`'s level off the listing) is the same kind
+        // of withholding: every bar, by name, never a value that differs.
+        if (r.code === 'bar-index:window' || r.code === 'cum:window') for (const key of r.plots) withheldWhole.set(key, r.code)
       }
     }
 
