@@ -4,7 +4,7 @@ and show a rail goes RED.
 
     python tools/notebook_w14a_mutation_proof.py docs/notebook/evidence/wave14-w14a/mutation-<sha>.txt
 
-Guards: the preview rides the onboarding flag; each line shows only when its OWN flag is
+Guards: the preview rides the checklist's gate (onboarding AND getting-started; M1, M8, M9); each line shows only when its OWN flag is
 armed; "armed" means `=== true`, never truthy; the sample button points at its promotion
 (aria-describedby); the promotion shows only while the sample button does; the W14-D slot is
 rendered in every Home return; the preview never claims the first-run stage.
@@ -38,8 +38,8 @@ STAGE_IMPORT = "import { claimFirstRunStage } from '../../../../../components/fi
 
 # (id, what it breaks, file, [(old, new), ...], rail files)
 MUTATIONS = [
-    ("M1", "preview ignores the onboarding flag", RH,
-     [("        {onboarding && (\n          <Suspense fallback={null}>",
+    ("M1", "preview ignores its gate entirely", RH,
+     [("        {welcomeExtras && (\n          <Suspense fallback={null}>",
        "        {(\n          <Suspense fallback={null}>")], [T_WELCOME]),
     ("M2", "every line shows whatever its flag says", CL,
      [("CAPABILITY_PREVIEW.filter((c) => flag(c.flag) === true)", "CAPABILITY_PREVIEW.filter(() => true)")],
@@ -47,7 +47,7 @@ MUTATIONS = [
     ("M3", "truthy instead of === true", CL,
      [("flag(c.flag) === true)", "Boolean(flag(c.flag)))")], [T_LIST]),
     ("M4", "the sample button loses aria-describedby", RH,
-     [("\n              aria-describedby={samplePromoId}>", ">")], [T_WELCOME]),
+     [("\n              aria-describedby={welcomeExtras ? samplePromoId : undefined}>", ">")], [T_WELCOME]),
     ("M5", "the promotion shows without the sample button", RH,
      [("<CapabilityPreview canAddSample={canAddSample}", "<CapabilityPreview canAddSample")], [T_WELCOME]),
     ("M6", "one Home return drops the W14-D slot", RH,
@@ -56,12 +56,20 @@ MUTATIONS = [
      [("import { useId } from 'react'\n", "import { useId } from 'react'\n" + STAGE_IMPORT + "\n"),
       ("  const lines = armedCapabilities()\n", "  const lines = armedCapabilities()\n  claimFirstRunStage()\n")],
      [T_PREVIEW]),
+    # Wave 14 integration ruling: the preview and the promotion ride the checklist's gate
+    # (onboarding AND notebook_getting_started_enabled), so they are not live on merge.
+    ("M8", "the integration gate removed (preview rides onboarding alone)", RH,
+     [("  const welcomeExtras = checklistEnabled(notebookFlag)\n", "  const welcomeExtras = onboarding\n")],
+     [T_WELCOME]),
+    ("M9", "aria-describedby ungated (names a promotion that is not on screen)", RH,
+     [("aria-describedby={welcomeExtras ? samplePromoId : undefined}>", "aria-describedby={samplePromoId}>")],
+     [T_WELCOME]),
 ]
 
 
 def run_tests(files):
     rel = [f[len("app/"):] for f in files]
-    r = subprocess.run(["cmd", "/c", "npx", "vitest", "run", *rel], cwd=APP, capture_output=True,
+    r = subprocess.run(["cmd", "/c", "npx", "vitest", "run", *rel, "--maxWorkers=2"], cwd=APP, capture_output=True,
                        text=True, encoding="utf-8", errors="replace")
     out = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout + r.stderr)
     tot = [l.strip() for l in out.splitlines() if l.strip().startswith("Tests ")]
