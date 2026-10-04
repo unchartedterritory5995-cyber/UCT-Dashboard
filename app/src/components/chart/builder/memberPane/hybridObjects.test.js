@@ -24,7 +24,8 @@ import { memberPaneDefinition } from './memberPaneDefinition'
 import { hostDrawingLoss } from './runtimeObjectsDoor'
 import * as registry from '../../engine/nativeRegistry'
 import { validateDefinition } from '../../engine/defSchema'
-import { objectsRunOf, objectsRunWithheldOn } from '../../engine/runtime/runtimeObjects'
+import { objectsRunOf, objectsRunWithheldOn, honouredInputsOf } from '../../engine/runtime/runtimeObjects'
+import { atrSrBoxes } from './atrSrReplay'
 import { setRuntimeKillList, runtimeSourceHash, __resetRuntimeAllowList, setRuntimeAllowList } from '../../engine/runtimeKill'
 import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { loadCapture, HARNESS_DIR } from '../../engine/__tests__/vendorHarness/harness'
@@ -54,6 +55,9 @@ const install = (def) => {
   expect(errors).toEqual([])
   return installed[0]
 }
+/** Box price pairs, each as [low, high], sorted — the comparison is by price. */
+const pairs = (rows) => rows.map(([a, b]) => [Math.min(a, b), Math.max(a, b)])
+  .sort((p, q) => p[0] - q[0] || p[1] - q[1])
 const families = (payload) => {
   const n = { line: 0, label: 0, box: 0 }
   for (const o of payload.live) if (o.family in n) n[o.family] += 1
@@ -164,19 +168,45 @@ describe('RT9 — whose drawings a chart draws (`objectsRunFor`)', () => {
     expect(got.withheld.guard).toBe('runtime:history-start')
   })
 
-  it('a SCRIPT setting moved from its default: withheld by name; a plot\'s STYLE knob moves nothing', () => {
+  it('a SCRIPT setting the run cannot take, moved from its default: withheld by name; a plot\'s STYLE knob moves nothing', () => {
     flags(true)
     const def = install(build(ATR_SR).definition)
-    const key = def.objectsRun.inputs[0]
+    // `showMA` is an input.bool: the host exposes it as 0/1, the run does not read it
+    const key = 'showMA'
+    expect(def.objectsRun.inputs).toContain(key)
+    expect(honouredInputsOf(def.objectsRun).has(key)).toBe(false)
     const dflt = def.inputs.find((i) => i.key === key).default
     const bars = toProductBars(rddt())
-    const moved = registry.objectsRunFor(def, bars, { [key]: typeof dflt === 'number' ? dflt + 1 : !dflt }, ctxOf(true))
+    const moved = registry.objectsRunFor(def, bars, { [key]: typeof dflt === 'number' ? (dflt ? 0 : 1) : !dflt }, ctxOf(true))
     expect(moved.payload).toBeNull()
     expect(moved.withheld.guard).toBe('runtime:objects-settings')
     // the default itself, and a style input (not the script's), keep the run
     const style = def.inputs.find((i) => !def.objectsRun.inputs.includes(i.key))
     expect(style).toBeTruthy()
     expect(objectsRunWithheldOn(def, { [key]: dflt, [style.key]: '#123456' })).toBeNull()
+  })
+
+  it('⭐⭐ Q1 — a NUMERIC script input the run honours: the run takes it, and its boxes equal a hand replay at that value', () => {
+    flags(true)
+    const def = install(build(ATR_SR).definition)
+    const c = rddt()
+    const bars = toProductBars(c)
+    expect(honouredInputsOf(def.objectsRun).has('mult')).toBe(true)
+    // the oracle first: at the defaults the replay IS TradingView's RDDT capture
+    const capPairs = pairs((c.objects.records.boxes || []).map((b) => [b.y1, b.y2]))
+    expect(capPairs).toHaveLength(20)
+    expect(pairs(atrSrBoxes(bars).map((b) => [b.top, b.bottom]))).toEqual(capPairs)
+    // then a value no capture reaches: mult 1.8
+    const want = pairs(atrSrBoxes(bars, { mult: 1.8 }).map((b) => [b.top, b.bottom]))
+    expect(want).toHaveLength(10)
+    expect(objectsRunWithheldOn(def, { mult: 1.8 })).toBeNull()
+    const got = registry.objectsRunFor(def, bars, { mult: 1.8 }, ctxOf(true))
+    expect(got.withheld).toBeNull()
+    const boxes = got.payload.live.filter((o) => o.family === 'box')
+    expect(pairs(boxes.map((o) => [o.props.top, o.props.bottom]))).toEqual(want)
+    // CONTROL: the default run still draws TradingView's 20 — a moved value is a new run
+    const dflt = registry.objectsRunFor(def, bars, { mult: 1.55 }, ctxOf(true))
+    expect(families(dflt.payload).box).toBe(20)
   })
 
   it('a PARAMETER edit (the trees moved): withheld by name', () => {
@@ -313,14 +343,21 @@ describe('RT9 — the CHART binding asks the same reader', () => {
     expect(got.opts.lane).not.toBe('runtime')
   })
 
-  it('⭐ a script setting moved: the HOST program draws, never the run at its defaults', () => {
+  it('⭐ a script setting the run cannot take, moved: the HOST program draws, never the run at its defaults', () => {
     flags(true)
     const d = build(ATR_SR).definition
-    const key = d.objectsRun.inputs[0]
+    const key = 'showMA'
+    expect(d.objectsRun.inputs).toContain(key)
     const dflt = d.inputs.find((i) => i.key === key).default
     registry.uninstallUserDefinition(ID)
-    const got = layer({ listing: true, inputs: { [key]: typeof dflt === 'number' ? dflt + 1 : !dflt } })
+    const got = layer({ listing: true, inputs: { [key]: typeof dflt === 'number' ? (dflt ? 0 : 1) : !dflt } })
     expect(got).toBeTruthy()
     expect(got.opts.lane).not.toBe('runtime')
+  })
+
+  it('⭐⭐ Q1 — a numeric input the run honours, moved: the CHART draws the run at that value (mult 1.8: 10 boxes)', () => {
+    const got = layer({ listing: true, inputs: { mult: 1.8 } })
+    expect(got && got.opts.lane).toBe('runtime')
+    expect(got.state.boxes).toHaveLength(10)
   })
 })

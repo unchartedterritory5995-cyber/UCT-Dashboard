@@ -80,36 +80,82 @@ export function objectsRunOf(def) {
     ? r : null
 }
 
+/** ⭐⭐ RT9 (Q1 ruling) — the script inputs a run HONOURS when a member moves them:
+ *  a key the source binds as `key = input.int(…)` or `key = input.float(…)` — the
+ *  numeric inputs the runtime lane reads by bound name (`Resolver.inputValues`,
+ *  `memberNumber`, the author's own bounds refused by name). ⛔ Nothing else: a
+ *  colour input is folded at its default in the run, a bool rides the host as a
+ *  0/1 number the run does not read, and a generic `input(…)` is not named here —
+ *  a move of any of those still withholds the drawings by name. Graded: the
+ *  hybrid rail moves atr-support-and-resistance's `mult` and the run's boxes equal
+ *  a hand replay of the script at that value (`atrSrReplay.js`, itself equal to
+ *  TradingView's RDDT capture at the default). */
+const _honoured = new WeakMap()
+export function honouredInputsOf(run) {
+  if (!run || typeof run !== 'object') return new Set()
+  const hit = _honoured.get(run)
+  if (hit) return hit
+  const out = new Set()
+  for (const k of Array.isArray(run.inputs) ? run.inputs : []) {
+    if (typeof k !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) continue
+    const re = new RegExp(String.raw`^[ \t]*(?:var[ \t]+)?(?:(?:int|float)[ \t]+)?` + k + String.raw`[ \t]*=[ \t]*input\.(?:int|float)[ \t]*\(`, 'm')
+    if (re.test(String(run.source || ''))) out.add(k)
+  }
+  _honoured.set(run, out)
+  return out
+}
+
+/** The member's moved values the run honours: `{key: number}` for every honoured
+ *  key whose instance value differs from its declared default, else `{}`. */
+function movedHonoured(def, run, inputs) {
+  const honoured = honouredInputsOf(run)
+  const out = {}
+  for (const spec of def.inputs || []) {
+    if (!spec || !honoured.has(spec.key) || !inputs) continue
+    if (!Object.prototype.hasOwnProperty.call(inputs, spec.key)) continue
+    const v = inputs[spec.key]
+    if (JSON.stringify(v) === JSON.stringify(spec.default)) continue
+    out[spec.key] = v
+  }
+  return out
+}
+
 const _runDefs = new WeakMap()
 /** The drawing-only runtime document ONE run of the hybrid's source is: no plot, its
  *  objects its own (`compute.objects`), from the listing (R-W, as every fallback
- *  document), keyed by the source's hash so a re-saved source is a new run. */
-export function objectsRunDefinition(def) {
+ *  document), keyed by the source's hash and the honoured inputs it is given, so a
+ *  re-saved source or a moved setting is a new run. */
+export function objectsRunDefinition(def, inputs) {
   const run = objectsRunOf(def)
   if (!run) return null
-  const hit = _runDefs.get(def)
+  const given = movedHonoured(def, run, inputs)
+  const sig = JSON.stringify(Object.keys(given).sort().map((k) => [k, given[k]]))
+  let perDef = _runDefs.get(def)
+  if (!perDef) { perDef = new Map(); _runDefs.set(def, perDef) }
+  const hit = perDef.get(sig)
   if (hit) return hit
   const hash = (def.meta && typeof def.meta.runtimeSourceHash === 'string' && def.meta.runtimeSourceHash) || 'unhashed'
   const made = {
     id: `${def.id}#objects`,
     version: def.version,
     compute: {
-      kind: 'runtime', fn: `runtime:objects:${hash}`, rev: 1, source: run.source, outputs: {}, objects: true,
+      kind: 'runtime', fn: `runtime:objects:${hash}:${sig}`, rev: 1, source: run.source, outputs: {}, objects: true,
+      ...(Object.keys(given).length ? { inputs: given } : {}),
     },
     meta: { runtimeHistory: 'listing', objectsRunFor: def.id, runtimeSourceHash: hash },
   }
-  _runDefs.set(def, made)
+  perDef.set(sig, made)
   return made
 }
 
 /**
  * Why a hybrid document's run may NOT draw on this instance, or null.
  *
- * ⛔ The run draws the script at its DEFAULTS (a runtime run takes no member
- * input). A host document is edited two ways — an instance input, and a parameter
- * edit that rewrites a tree (`applyParamEdit`) — and either would put the plots
- * at one setting and the drawings at another, a picture TradingView never draws.
- * So the drawings are withheld, by name, the moment either has moved.
+ * ⛔ A host document is edited two ways — an instance input, and a parameter edit
+ * that rewrites a tree (`applyParamEdit`). A parameter edit always withholds (the
+ * run was minted beside the trees it no longer matches). An instance input the run
+ * honours (`honouredInputsOf`) is handed to the run; any other moved script input
+ * withholds, so plots at one setting never sit beside drawings at another.
  */
 export function objectsRunWithheldOn(def, inputs) {
   const run = objectsRunOf(def)
@@ -119,16 +165,17 @@ export function objectsRunWithheldOn(def, inputs) {
   }
   const trees = (def.compute && (def.compute.treesHash || def.compute.fn)) || null
   if (run.trees !== trees) {
-    return { guard: 'runtime:objects-settings', message: "a setting of this script was changed from its default, and its drawings are made by a run at the script's own defaults, so they are not drawn beside plots at another setting" }
+    return { guard: 'runtime:objects-settings', message: "a setting of this script was changed from its default in a way its drawings' run cannot follow, so they are not drawn beside plots at another setting" }
   }
   // Only the SCRIPT's own inputs (`run.inputs`, named at mint); a plot's style knob
   // (its colour, its width) moves no value the run computes.
   const scriptKeys = new Set(Array.isArray(run.inputs) ? run.inputs : [])
+  const honoured = honouredInputsOf(run)
   const declared = new Map((def.inputs || []).filter((i) => i && scriptKeys.has(i.key)).map((i) => [i.key, i.default]))
   for (const [k, v] of Object.entries(inputs || {})) {
-    if (!declared.has(k)) continue
+    if (!declared.has(k) || honoured.has(k)) continue
     if (JSON.stringify(v) !== JSON.stringify(declared.get(k))) {
-      return { guard: 'runtime:objects-settings', message: `the setting \`${k}\` was changed from its default, and this script's drawings are made by a run at its own defaults, so they are not drawn beside plots at another setting` }
+      return { guard: 'runtime:objects-settings', message: `the setting \`${k}\` was changed from its default, and this script's drawings are made by a run that cannot take that setting, so they are not drawn beside plots at another setting` }
     }
   }
   return null

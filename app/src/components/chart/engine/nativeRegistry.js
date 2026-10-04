@@ -2323,7 +2323,7 @@ export function runtimeObjectsWithheld(def, cols) {
  *   null for any document that carries no `objectsRun`
  */
 export function objectsRunFor(def, bars, inputs, ctx) {
-  const run = objectsRunDefinition(def)
+  const run = objectsRunDefinition(def, inputs)
   if (!run) return null
   const held = objectsRunWithheldOn(def, inputs)
   if (held) return { payload: null, withheld: held }
