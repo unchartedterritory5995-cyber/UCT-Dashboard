@@ -588,6 +588,7 @@ describe('CAP3 — Q-RT5b renko-candles-overlay (the runtime lane draws its own 
  *  function of the hour; for these the control pins everything except those counts. */
 const WALL_CLOCK = new Set(['black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03'])
 const CAP3_SPY = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-spy-gap-verdicts.json'), 'utf8')).captures
+const CAP3_RT6 = JSON.parse(fs.readFileSync(path.join(__dirname, 'cap3-rt6-verdicts.json'), 'utf8')).captures
 const gradeRow = (row) => {
   if (row.library) loadPineLibraryStore(STORE_DIR)
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -607,7 +608,7 @@ describe('CAP3 — SPY 1D captures of the census gap list', () => {
       expect(row.signature, row.id).toBeTruthy()
     }
   }, T)
-  for (const row of CAP3_SPY) {
+  for (const row of [...CAP3_SPY, ...CAP3_RT6]) {
     const run = row.library && !STORE_DIR ? it.skip : it
     if (row.signature && row.signature.verdict === 'MATCH') {
       run(`${row.id} (${row.state}): MATCH`, () => {

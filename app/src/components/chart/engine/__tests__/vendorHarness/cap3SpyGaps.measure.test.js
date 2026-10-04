@@ -15,9 +15,10 @@ import { cap3Signature } from './cap3Signature'
 import { loadPineLibraryStore } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 import { clearPineLibraries } from '../../ast/pineLibraryStore'
 
-const FILE = path.join(__dirname, 'cap3-spy-gap-verdicts.json')
+const FILES = ['cap3-spy-gap-verdicts.json', 'cap3-rt6-verdicts.json'].map((f) => path.join(__dirname, f))
 
 it.skipIf(!process.env.CAP3_SPY_MEASURE)('CAP3 SPY gap captures: rewrite the pinned signatures from the harness', () => {
+  for (const FILE of FILES) {
   const doc = JSON.parse(fs.readFileSync(FILE, 'utf8'))
   const store = process.env.PINE_LIBRARY_STORE || ''
   for (const row of doc.captures) {
@@ -31,4 +32,5 @@ it.skipIf(!process.env.CAP3_SPY_MEASURE)('CAP3 SPY gap captures: rewrite the pin
     clearPineLibraries()
   }
   fs.writeFileSync(FILE, `${JSON.stringify(doc, null, 2)}\n`)
+  }
 }, 3600000)
