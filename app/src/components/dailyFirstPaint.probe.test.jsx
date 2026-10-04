@@ -19,8 +19,23 @@
  * candle paint) and its observation (an effective visible range) returns INVALID,
  * never PASS.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
+
+// ⛔ THE CLOCK IS PINNED TO A TRADING SESSION (G16, 2026-10-04). Every scenario here
+// asks about TODAY's developing daily bar, and `_developingBarISO` answers null on a
+// day the market is shut (`isTradingSessionTodayET`). Read off the wall clock, this
+// file was a function of the DAY: green Mon-Fri, red on every weekend and holiday
+// (measured Sunday 2026-10-04 on production f50fb208d5 AND wave 16: `expected null
+// to be '2026-10-04'`). Pinned to Wednesday 2026-09-30 15:00 ET, mid-session, so the
+// probe measures the same thing every day. Only `Date` is faked, and it ADVANCES, so
+// testing-library's real timers and any elapsed-time arithmetic still run. Hoisted so
+// the pin is in place before StockChart (or anything it imports) reads the clock.
+vi.hoisted(() => {
+  vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+  vi.setSystemTime(new Date('2026-09-30T19:00:00Z'))
+})
+afterAll(() => { vi.useRealTimers() })
 
 const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null }))
 const seriesLog = vi.hoisted(() => ({ calls: [] }))

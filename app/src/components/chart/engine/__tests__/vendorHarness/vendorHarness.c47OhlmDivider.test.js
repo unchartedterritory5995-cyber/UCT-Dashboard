@@ -136,8 +136,16 @@ describe('C47 — high-low-open-mid-ranges: the one line we do not hold is the f
     for (let b = 0; b < r.bars.length; b++) if (r.reader.readUnknown(tree, b)) unknownAt.push(b)
     // wave 12 (C49): only bar 0 (the listing day: the week's open is before the series) is
     // unknown now; bars 1-2 are answered from the calendar, and bar 2 draws the divider.
-    expect(unknownAt).toEqual([0])
-    expect(r.out.stats.withheldUnknown).toBe(1)
+    // ⚰️ RE-PINNED 2026-10-04 (G16, the wave-16 gate): WAS `[0]` / 1 withheld. H5
+    // (8579b64f75, ruling R-W) stopped withholding a period anchor for "the bar before
+    // the series" when the run is FROM THE LISTING: there is no such bar, and Pine reads
+    // na there, which is what this lane answers (graded: C49 SPY W 1758/1758, M 406/406
+    // events equal TradingView on bar 0). So bar 0 is answered now - and it draws NO
+    // divider, which is TradingView's answer too: we still hold 504 of its 504 lines (the
+    // first test, unchanged), and one more divider is still one too many (the control).
+    expect(unknownAt).toEqual([])
+    expect(r.out.stats.withheldUnknown || 0).toBe(0)  // the key is absent when nothing is withheld
+    expect(r.reader.readNode(tree, 0) ? 1 : 0).toBe(0)
     // the listing: a Thursday, then Friday, then the first Monday
     const week = (b) => tfBucket(isoDay(r.bars[b].t), 'W')
     expect(r.cap.history.startsAtBar0).toBe(true)

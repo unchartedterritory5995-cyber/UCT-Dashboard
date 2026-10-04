@@ -37,55 +37,13 @@
 // a tab that has not heard from the server (or a backend too old to send the key)
 // never draws through the runtime lane.
 
-let _permitted = null
-let _latchedAt = null
-let _ignored = 0
-
-/** Feed an auth payload in. The first one carrying a boolean
- *  `pine_runtime_pane_enabled` latches it. ⛔ Never throws (it runs on the auth
- *  paths, and a flag read must never fail a sign-in). */
-export function latchRuntimePanePermission(payload) {
-  try {
-    const v = payload ? payload.pine_runtime_pane_enabled : undefined
-    if (typeof v !== 'boolean') return _permitted
-    if (_permitted !== null) {
-      if (v !== _permitted) _ignored += 1
-      return _permitted
-    }
-    _permitted = v
-    _latchedAt = Date.now()
-    return _permitted
-  } catch {
-    return _permitted
-  }
-}
-
-/** The latched per-member permission: `true` only when the server said so. */
-export function runtimePanePermitted() {
-  return _permitted === true
-}
-
-/** What an operator needs to tell a stale answer from a current one. */
-export const runtimePanePermissionDebug = () => ({
-  permitted: _permitted, latchedAt: _latchedAt, ignoredDisagreements: _ignored,
-})
-
-/** Rails only — the latch is module state. */
-export function __resetRuntimePanePermission() {
-  _permitted = null
-  _latchedAt = null
-  _ignored = 0
-}
-
-/** Rails only (`src/test-setup.js`): the suites that exercise the runtime LANE
- *  run as a permitted member, so they keep measuring the lane rather than this
- *  gate. The gate itself is railed with the latch reset
- *  (`engine/__tests__/runtimeSwitchOn.test.js`). Never called by product code. */
-export function __permitRuntimePaneForTests() {
-  _permitted = true
-  _latchedAt = 0
-  _ignored = 0
-}
+// ⭐ The latch itself lives in `src/lib/runtimePanePermission.js` (it is fed by
+// AuthContext on the entry chunk, which may not reach this directory).
+export {
+  latchRuntimePanePermission, runtimePanePermitted, runtimePanePermissionDebug,
+  __resetRuntimePanePermission, __permitRuntimePaneForTests,
+} from '../../../lib/runtimePanePermission'
+import { runtimePanePermitted } from '../../../lib/runtimePanePermission'
 
 /** Is the build flag on? (`VITE_PINE_RUNTIME_PANE_ENABLED === '1'`).
  *  @param {object} [env] injectable for tests; defaults to `import.meta.env`. */
