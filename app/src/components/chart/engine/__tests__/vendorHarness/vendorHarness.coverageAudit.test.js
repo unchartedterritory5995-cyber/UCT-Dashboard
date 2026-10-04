@@ -346,9 +346,13 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
     expect(v.objects.verdict).toBe('INCONCLUSIVE')
     expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
-    // SPY: the run computes nothing (off the listing / calc_bars_count), so its barcolor
-    // is not drawn, by name — withheld, never painted wrong (F1's own pin).
-    expect(v.paints.reason).toMatch(/notDrawn/)
+    // ⭐ RT10 (2026-10-04): SPY's barcolor used to be not drawn because the run met the
+    // RUN-WIDE `LOOP_ITERATIONS` (100,000) part-way through 1,800 bars. The ceiling is
+    // per bar now (`limits.js`; wyckoff's worst bar is 324 passes), the run finishes,
+    // and the paint agrees with TradingView bar for bar. The OBJECTS stay withheld by
+    // name (calc_bars_count, above) — that gate is about the drawings, not the paint.
+    expect(v.paints.verdict).toBe('MATCH')
+    expect(v.paints.reason).toMatch(/agree bar for bar/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v

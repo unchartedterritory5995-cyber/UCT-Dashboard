@@ -192,6 +192,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 91 | CAP4 capture lane (section CAP4): the 2026-10-03 queues captured as unsaved drafts - Q-H5a format.volume (K below a million, trailing zeros trimmed, ties up, no roll-over `1000M`, `2.5T`), Q-H5b `timeframe.*` inside a request is the REQUESTED timeframe (W 10080, M 43830, 240, 3), Q-RT7a/b empty / all-na reductions are `na` and fixnan equals the replay (SPY full history, 8477 bars), Q-RT8a `ta.wma` rule A (W01 bar 26, W03 bar 58), Q-RT8b/c per-bar shape and fill colours, Q-RT8d v4 fill default transparency 90 | `cf5e6b7e8c`, `0738cc8edf`, `f4bf3beffa` | 6 harness files + `cap4-verdicts.json` (12 rows) | - | our grade: H5a DIVERGE (16 cells withheld), H5b INCONCLUSIVE (pine:request 240), RT7 INCONCLUSIVE (objects pine:na; runtime stops on `array.sum` of an empty array), RT8 followups DIVERGE (host lane wma rule B-like + bar-0 mid), RT8d MATCH (A/B; fills not graded) |
 | 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
+| 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7594,3 +7595,43 @@ disclosure lookup / hidden reason.
   sum / avg now (`interimProbedZeroReals` without a scope list) - neutral over the sweep, removed with it.
 * H8: the constant rule. RT10: `LOOP_ITERATIONS` run-wide ceiling.
 * `objectReaderFor returned null` on vw-tf-period 1M / 1W (not measured why).
+
+### RT10b - `LOOP_ITERATIONS` per bar, not per run (2026-10-04, wave-17 base `53ef7a20ef`, `c59f755799`)
+
+F8 found delta-rsi-oscillator-strategy RDDT stopped by the run-wide `LOOP_ITERATIONS` (100,000) on
+bar 85 of 636. The ceiling counted a PER-BAR cost across the RUN, so it scaled with history: the
+same script draws on a short chart and stops on a long one. What it stood in for (runaway time on
+the one thread a member's chart runs on, the 524 class) is already bounded by `TOTAL_INSTRUCTIONS`
+(run) and the pane wall clock (`RUNTIME_PANE_TIME_BUDGET_MS`, 1,000 ms).
+
+Measured per-bar passes (scratch, 5,000 AAPL daily bars, every corpus script the runtime builds;
+delta-rsi through the harness door): worst FINISHING bar 1,163 (delta-rsi), then 542
+(options-max-pain), 324 (wyckoff), 86 (volume-divergence-by-mm). Run totals on 5,000 bars reach
+430,000 (volume-divergence-by-mm), 380,226 (wyckoff), 320,000 (nonlinear-regression-zlma): six
+scripts the old ceiling would stop on a long chart. Two scripts take more on one bar - k-clustering
+22,820 on its last RDDT bar, poor-man's volume profile 40,401 - and both already stop there on
+`INSTRUCTIONS_PER_BAR` (R-B, not raised). Cheapest `for` pass: 18 instructions (`continue` body).
+
+Rule: `LOOP_ITERATIONS` is the passes of all loops on ONE bar, reset each bar, count = peak
+(`vm.js` OP.LOOP_TICK). Ceiling **11,000**: above `WHILE_ITERATIONS` (10,000; the stop that names
+its line stays reachable) and below 200,000 / 18 = 11,111 (otherwise `INSTRUCTIONS_PER_BAR` always
+fires first and this is a dead guard). ~9x the worst finishing bar. No other limit moved.
+
+Rail `rt10LoopPerBar.test.js` (7 passed): 1,200 passes x 2,000 bars runs (24x the old run
+ceiling); per-bar peak control (301); `for i = 0 to 1e9` with a `continue` body stops by
+`LOOP_ITERATIONS` on bar 0, with a real body by `INSTRUCTIONS_PER_BAR`, `while true` by
+`WHILE_ITERATIONS` at line 4, each in milliseconds; the ordering derived from a measured pass cost;
+a near-ceiling loop on every bar still stops by `TOTAL_INSTRUCTIONS`. Mutations (restored from
+captured bytes, sha-verified): counter run-wide again (3 red), ceiling 12,000 (2 red), ceiling 9,000
+(4 red), end-of-bar peak dropped (4 red), tick not counted (5 red).
+
+Measured after: harness 340 files, runtime pane permitted: MATCH 109 / DIVERGE 106 / INC 125
+(objects MATCH 191) vs wave-17 109 / 107 / 124; one row moved, wyckoff SPY DIVERGE -> INCONCLUSIVE
+(its barcolor was notDrawn by the run-wide stop and now agrees bar for bar; its objects stay
+withheld by `calc_bars_count`); 0 MATCH lost. delta-rsi RDDT on wave 17 alone still stops earlier
+on `array.sum` of an all-`na` array (F8's fix, `pine/f8-ungraded`); with F8 merged in a local
+scratch branch: **Buy / Sell / Exit Long / Exit Short MATCH, 636 steady-state bars agree**; same
+merge with the old limits: `LOOP_ITERATIONS ... reached 100001 on bar 85 of 636` (control). SPY
+stays INCONCLUSIVE on `runtime:history-start`. Re-pinned: c18 k-clustering's test-only budget
+(raises `LOOP_ITERATIONS` with `INSTRUCTIONS_PER_BAR`; pins 22,820), coverageAudit wyckoff SPY
+paint (notDrawn -> MATCH). Server rails 70 passed.
