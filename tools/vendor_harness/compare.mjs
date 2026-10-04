@@ -795,6 +795,23 @@ export function compareCapture(capture, ours, opts = {}) {
       return sparseNative ? null : undefined
     })
     if (!o.column) {
+      // ⭐ F8 — ND for a row with NO column: OUR engine hid it as reading no bar
+      // (`hiddenReason: 'constant'`), so the member's chart draws nothing, while
+      // TradingView draws it in a visible colour on some bar. Not drawn is an
+      // answer (the same rule as below); anything else stays unknown.
+      if (o.hiddenReason === 'constant') {
+        const vcN = vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
+        const vStyleN = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
+        const seen = vcN.measured && Array.isArray(vcN.colors) && !(vStyleN && vStyleN.display === 0)
+          ? firstVisibleVendorBar(vendorVals, vcN.colors, 0) : null
+        if (seen) {
+          const first = { bar: seen.bar, time: times[seen.bar], kind: 'not-drawn', vendor: seen.value, ours: null, vendorColor: seen.colour, ourColor: null }
+          base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'DIVERGE',
+            reason: `NOT DRAWN — TradingView draws this plot in a visible colour on ${seen.count} bars (first at bar ${seen.bar}: ${fmt(seen.value)} in ${seen.colour}); our chart draws nothing for it: this engine hid the row as a column that reads no bar (hiddenReason "constant")${o.missingReason ? ` — ${o.missingReason}` : ''}`,
+            stats: { notDrawn: seen.count, steady: { divergent: seen.count, compared: seen.count, first } } })
+          continue
+        }
+      }
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue

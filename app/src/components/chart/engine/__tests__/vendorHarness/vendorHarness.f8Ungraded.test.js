@@ -134,6 +134,34 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
     }
   }, T)
 
+  it('ND with no column (runtime pane): deadband SPY `D01_mintick` (a constant TradingView draws at 0.01) is NOT DRAWN', () => {
+    const { verdict: v } = grade('vw-deadband-ticks-spy-1d-2026-09-28', 'runtime')
+    const p = itemsTitled(v, 'D01_mintick')[0]
+    expect(p.verdict).toBe('DIVERGE')
+    expect(p.reason).toMatch(/NOT DRAWN.*hidden on this runtime document \(constant\)/)
+    expect(p.stats.steady.first).toMatchObject({ bar: 0, kind: 'not-drawn', vendor: 0.01, ours: null })
+  }, T)
+
+  it('⛔ CONTROL — a hidden constant row TradingView never draws visibly stays unknown (cc-yata b1..b5 / s1..s5)', () => {
+    const { verdict: v } = grade('cc-yata-rddt-1d-2026-09-27', 'runtime')
+    for (const t of ['b1', 'b2', 'b3', 'b4', 'b5', 's1', 's2', 's3', 's4', 's5']) {
+      const p = itemsTitled(v, t)[0]
+      expect(p.verdict, t).toBe('INCONCLUSIVE')
+      expect(p.reason, t).toMatch(/hidden on this runtime document \(constant\)/)
+    }
+    // and M3 pairs its five repeated titles (b9 / s9 / + / os13 / oa13), all agreeing
+    const m3 = v.plots.filter((p) => p.rule === 'M3-title-order')
+    expect(m3.length).toBe(10)
+    expect(m3.every((p) => p.verdict === 'MATCH')).toBe(true)
+  }, T)
+
+  it("R — a row a runtime document withholds by name carries its door's sentence (wyckoff RDDT, `offset`)", () => {
+    const { verdict: v } = grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime')
+    const p = itemsTitled(v, 'Automatic Rally')[0]
+    expect(p.verdict).toBe('INCONCLUSIVE')
+    expect(p.reason).toMatch(/withheld by name on this runtime document — `Automatic Rally` is not drawn: it is drawn away from its own bar \(`offset`\)/)
+  }, T)
+
   it('⛔ CONTROL — a vendor plot that is fully transparent on every bar is not "drawn"', () => {
     expect(firstVisibleVendorBar([1, 1, null], ['#2962ff00', '#00000000', '#2962ffff'])).toBe(null)
     expect(firstVisibleVendorBar([null, 1], ['#2962ffff', '#2962ff80'])).toEqual({ bar: 1, value: 1, colour: '#2962ff80', count: 1 })
