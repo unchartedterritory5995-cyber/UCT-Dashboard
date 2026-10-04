@@ -2498,7 +2498,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-            ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+            ...listingOptsFor(def, ctx),
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
@@ -2526,7 +2526,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
         undefined, { tf: ctx && ctx.tf,
           newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...listingOptsFor(def, ctx),
           ...(other ? { symbols: other.symbols } : {}), crossMemo,
           chartClockSink: new Map() }))
       if (runsWhy) {
@@ -2562,7 +2562,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...listingOptsFor(def, ctx),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2572,7 +2572,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...listingOptsFor(def, ctx),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2707,6 +2707,18 @@ export const PINE_RECURRENCE_ORIGIN = 'pine'
 export function historyFromListingFor(def, ctx) {
   return !!(ctx && ctx.historyFromListing === true
     && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
+}
+
+/** ⭐⭐ F1 — the listing facts `interpret` reads, as ONE spread: the listing
+ *  (`historyFromListingFor`) and, with it, whether this document's Pine version
+ *  reads an `na` `?:` test as false (`meta.naConditionFalse`, written by the
+ *  member door from `interpret.js::naConditionIsFalse`; `interpret.js::
+ *  pineTernaryFor`). Off the listing, or for a document that does not declare
+ *  it, nothing changes. */
+export function listingOptsFor(def, ctx) {
+  if (!historyFromListingFor(def, ctx)) return {}
+  return { historyFromListing: true,
+    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}) }
 }
 
 /** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?
