@@ -41,6 +41,13 @@ function ChartEmbed({
   // (height:100%) so the chart tracks the embed's live size during a resize
   // drag; the parent (WidgetEmbedView body) owns the pixel height.
   attrs, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+  // Wave 13 lane 13H-4: on a coarse pointer, present Draw mode's toolbar as
+  // StockChart's MobileDrawBar instead of the desktop ChartToolbar it would
+  // otherwise wrap into three rows over most of the embed's canvas (the
+  // 13H-3 bug). The caller (WidgetEmbedView) already knows annotate + pointer
+  // coarseness; this is a straight pass-through, gated a second time below so
+  // the prop can never reach StockChart true while annotate is false.
+  mobileDrawBar = false,
   // Linked crosshair (spec Phase 6 #6): the per-note bus every chart embed
   // shares. StockChart owns both halves already — onCrosshairMove publishes,
   // subscribeCrosshair applies payloads imperatively with echo suppression
@@ -130,8 +137,12 @@ function ChartEmbed({
     annotationsEditable: !!annotate,
     ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
     ...(backgroundWarm ? {} : { backgroundWarm: false }),
+    // Second gate on `annotate`: a stale `true` arriving the same render Draw
+    // mode exits must never light up StockChart's MobileDrawBar swap over a
+    // read-only chart.
+    mobileDrawBar: !!annotate && !!mobileDrawBar,
   }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
-    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm])
+    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm, mobileDrawBar])
 
   return (
     // Wave 8 (8A): a figure named by the embed's own caption (the same words

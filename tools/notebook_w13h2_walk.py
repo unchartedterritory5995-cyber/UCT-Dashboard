@@ -353,7 +353,14 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
     for frac in (0.28, 0.5, 0.72):
         # The drawing toolbar is the chart's own (ChartToolbar); it may portal outside the embed
         # frame, so it is looked for on the page. Run 1 found nothing inside the frame.
-        tool = pg.get_by_role("button", name=re.compile(r"^Horizontal Line"))
+        # 13H-4: a coarse pointer (V390 in this walk) now gets StockChart's MobileDrawBar
+        # instead of ChartToolbar (hiddenHost hides it), and MobileDrawBar's equivalent tool
+        # is labelled plain "Horizontal" (MobileDrawBar.jsx DRAW_TOOLS), not "Horizontal
+        # Line (H)" -- the regex matches EITHER so this one locator still finds the real
+        # tool under both presentations. `( Line|$)` excludes "Horizontal Ray (Alt+J)" (its
+        # own, unrelated tool) on purpose -- it is neither "Horizontal Line…" nor bare
+        # "Horizontal".
+        tool = pg.get_by_role("button", name=re.compile(r"^Horizontal( Line|$)"))
         try:
             tool.first.wait_for(state="visible", timeout=15000)
         except Exception:
@@ -382,6 +389,43 @@ def draw_three_lines(pg, frame, touch: bool, w: Walk, tag: str, req=None, base=N
         # armed -- never unconditionally.
         armed_before = tool_armed_state(tool)
         w.raw.setdefault(f"{tag}_armed_before_tap", []).append({"frac": frac, **armed_before})
+        # 13H-4 diagnostic: V390's tool-ARM press (not the canvas tap, which already
+        # uses raw coordinates below) intercepts on <html>, the bar's own div, or the
+        # "All drawing tools" button -- never cleanly on the tool itself. Before
+        # guessing why, read the ACTUAL geometry MobileDrawBar rendered: the bar, the
+        # scrollable .tools rail (found via the Horizontal button's own parent, since
+        # the CSS module hashes the class name), .allTools and .side (via Eraser's
+        # parent), and what the browser says is really on top at the button's own
+        # reported center. Cheap, read-only, kept for every frac so a value that
+        # changes between attempts is visible rather than averaged away.
+        w.raw.setdefault(f"{tag}_drawbar_geometry", []).append({"frac": frac, **pg.evaluate("""() => {
+            const rect = (el) => el ? (() => { const r = el.getBoundingClientRect();
+                return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)] })() : null;
+            const bar = document.querySelector('[data-testid="mobile-draw-bar"]');
+            const horiz = document.querySelector('[aria-label="Horizontal"]');
+            const allTools = document.querySelector('[aria-label="All drawing tools"]');
+            const done = document.querySelector('[aria-label="Done drawing"]');
+            const eraser = document.querySelector('[aria-label="Eraser"]');
+            const tools = horiz ? horiz.parentElement : null;
+            const side = eraser ? eraser.parentElement : null;
+            let cx = null, cy = null, at = null;
+            if (horiz) {
+                const r = horiz.getBoundingClientRect();
+                cx = r.x + r.width / 2; cy = r.y + r.height / 2;
+                const e = document.elementFromPoint(cx, cy);
+                at = e ? (e.tagName + '.' + String(e.className || '').slice(0, 60) + '[' +
+                    (e.getAttribute('aria-label') || '').slice(0, 30) + ']') : null;
+            }
+            const toolsCs = tools ? getComputedStyle(tools) : null;
+            return {
+                bar: rect(bar), tools: rect(tools), allTools: rect(allTools), done: rect(done), side: rect(side),
+                horizCenter: cx != null ? [Math.round(cx), Math.round(cy)] : null,
+                elementAtHorizCenter: at,
+                toolsScrollWidth: tools ? tools.scrollWidth : null,
+                toolsClientWidth: tools ? tools.clientWidth : null,
+                toolsOverflowX: toolsCs ? toolsCs.overflowX : null,
+            }
+        }""")})
         if not armed_before["armed"]:
             press(tool.first, touch)
         if touch:
@@ -744,8 +788,12 @@ def main(argv=None) -> int:
     if why:
         print(f"REFUSED: {why}")
         return 3
-    if not 8615 <= args.port <= 8619:
-        print("REFUSED: this lane's walk uses ports 8615-8619 only")
+    # 8615-8619: the original 13H-2 lane's range. 8690-8694: 13H-4's own assignment
+    # (a concurrent lane's gate/walk may still own 8615-8619 on this shared box) --
+    # this driver is re-run, unmodified otherwise, by whichever lane the controller
+    # hands it to next, so the accepted range grows rather than being re-typed.
+    if not (8615 <= args.port <= 8619 or 8690 <= args.port <= 8694):
+        print("REFUSED: this walk uses ports 8615-8619 or 8690-8694 only")
         return 3
     if h.port_busy(args.port):
         print(f"REFUSED: port {args.port} already has a listener -- this walk never kills it")

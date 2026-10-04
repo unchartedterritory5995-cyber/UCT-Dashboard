@@ -1,9 +1,9 @@
-import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
   retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
-  EMBED_MAX_H, annotateEffectiveHeight,
+  EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
@@ -22,8 +22,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 const EMBED_MIN_W = 260
 const EMBED_MAX_W = 3200
 const EMBED_MIN_H = 160
-// EMBED_MAX_H lives in widgetEmbedCore.js — shared with the Draw-mode toolbar-
-// clearance height (annotateEffectiveHeight), which must obey the same ceiling.
+// EMBED_MAX_H lives in widgetEmbedCore.js (shared with the resize handles).
 
 // How long a live embed gets to settle (bars fetched, chart painted) before
 // the self-archive rasterizes it. A late capture is fine — a blank one isn't.
@@ -556,49 +555,18 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotate, editor])
 
-  // ── Draw-mode clearance (13H-3: touch taps lost while drawing inside a note) ──
+  // ⚰️ Wave 13 lane 13H-3 had a Draw-mode toolbar-clearance MEASUREMENT here
+  // (`drawClearance` + a `useLayoutEffect` reading the floating ChartToolbar's
+  // bottom edge) feeding `widgetEmbedCore.annotateEffectiveHeight`. **13H-4
+  // removed both**: the complete fix is StockChart's own MobileDrawBar swap
+  // (passed below via `mobileDrawBar`), which replaces the floating desktop
+  // toolbar with a fixed-height, bottom-docked, single-row strip on a coarse
+  // pointer — there is nothing left to measure or grow the embed around. See
+  // widgetEmbedCore.js's `EMBED_MAX_H` comment and wave13-13h4.md §3-4.
   //
-  // The MECHANISM and the arithmetic are documented once, beside the pure function
-  // that applies them: widgetEmbedCore.js's `annotateEffectiveHeight` +
-  // `ANNOTATE_DRAW_BUFFER_PX` (also docs/notebook/wave13-13h3.md §2-4). This effect
-  // is only the MEASUREMENT: how far down the top-anchored `ChartToolbar` actually
-  // extends, read from the real DOM rather than assumed. Nothing here is
-  // persisted — `drawClearance` resets to 0 the moment Draw mode exits.
+  // `isCoarsePointer` stays: it is what decides whether THIS note's chart embed
+  // asks StockChart for MobileDrawBar at all (same read the 13H-3 effect used).
   const isCoarsePointer = useCoarsePointer()
-  const [drawClearance, setDrawClearance] = useState(0)
-  // ⛔⛔ MEASURED AND KILLED (docs/notebook/evidence/wave13-13h3/diag-run4-after-fix):
-  // an EARLIER version of this effect re-measured on a ResizeObserver watching
-  // `bodyRef.current` itself. Growing the body's OWN height to add clearance fired
-  // that same observer, which re-measured, which (because some chart chrome is
-  // anchored near the chart's own BOTTOM edge, whose viewport Y grows WITH the
-  // body) read a larger `maxBottom` and grew the height again — an unbounded
-  // feedback loop that reached 16,285px in one run. Two independent fixes, both
-  // required: (1) re-measure only on WIDTH change (`wrapWidth`, from the
-  // pre-existing OUTER ResizeObserver on the wrapper, never on our own height
-  // write) — the toolbar's row count is a function of width, never of the height
-  // this effect sets; (2) only count a button within `TOOLBAR_BAND_PX` of the
-  // body's own top, so bottom-anchored chrome can never be mistaken for the
-  // top-anchored floating toolbar this measurement exists to clear.
-  // 400, not the measured ~170px at 390px wide: an even narrower phone needs more
-  // wrapped rows (a taller real toolbar), and this band only has to stay well
-  // under "near the chart's own BOTTOM edge" (which, by construction, scales with
-  // whatever height this effect sets) to do its job.
-  const TOOLBAR_BAND_PX = 400
-  useLayoutEffect(() => {
-    if (!annotate || !isCoarsePointer || attrs.widgetId !== 'chart') { setDrawClearance(0); return }
-    const bodyEl = bodyRef.current
-    if (!bodyEl) return
-    const bodyTop = bodyEl.getBoundingClientRect().top
-    let maxBottom = 0
-    bodyEl.querySelectorAll('button[aria-label]').forEach((b) => {
-      if (!b.offsetParent) return // not actually rendered (display:none)
-      const r = b.getBoundingClientRect()
-      if (r.top - bodyTop > TOOLBAR_BAND_PX) return // not the top-anchored toolbar
-      if (r.bottom > maxBottom) maxBottom = r.bottom
-    })
-    setDrawClearance(maxBottom > 0 ? Math.max(0, maxBottom - bodyTop) : 0)
-  }, [annotate, isCoarsePointer, attrs.widgetId, wrapWidth])
-  const effectiveHeight = annotateEffectiveHeight(height, drawClearance)
 
   // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
   const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
@@ -615,13 +583,19 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           <Live
             ref={attrs.widgetId === 'chart' ? chartRef : undefined}
             attrs={attrs}
-            height={effectiveHeight}
+            height={height}
             annotate={annotate}
             onAnnotationsChange={annotate ? handleAnnotationsChange : null}
             onBarsReady={handleBarsReady}
             crosshairBus={crosshairBus}
             peekToNow={canPeek && peek}
             onStoreSettings={onEmbedSettings}
+            // 13H-4: the complete fix for the touch Draw-mode bug 13H-3 worked
+            // around by growing the embed — give StockChart's annotationsEditable
+            // branch the same MobileDrawBar swap showDrawingTools already has, on
+            // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
+            // Draw mode ask for it; every other widget type ignores an unused prop.
+            mobileDrawBar={annotate && isCoarsePointer}
           />
         </Suspense>
       </EmbedErrorBoundary>
@@ -804,7 +778,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           fix). Keep this attribute on whatever element wraps the live
           chart/drawing surface; moving the ref without moving the marker
           reopens the bug silently. */}
-      <div ref={bodyRef} data-widget-embed-body="" className={styles.body} style={decision.kind === 'live' && !shareView ? { height: effectiveHeight } : undefined}>
+      <div ref={bodyRef} data-widget-embed-body="" className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
       {planDoors && inView && (

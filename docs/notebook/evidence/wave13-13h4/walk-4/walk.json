@@ -1,0 +1,3490 @@
+{
+ "tool": "tools/notebook_w13h2_walk.py",
+ "base": "http://127.0.0.1:8691",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13h4\\walk-4\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 20:51:58",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 20:53:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 20:55:00",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 20:56:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13h4\\walk-4\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h4\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T20-51-45.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_chart_plan_enabled=True"
+  },
+  {
+   "id": "V1200-1_insert_chart",
+   "verdict": "PASS",
+   "detail": "/chart typed + Enter -> stored widgetEmbed NVDA D to=2026-06-15 embedId=a4d86415-869f-425c-ac64-d2e6c4aaef4a"
+  },
+  {
+   "id": "V1200-2_draw_and_assign_roles",
+   "verdict": "PASS",
+   "detail": "3 lines placed by click, 3 stored; roles stored {'target': 146.9441023942476, 'entry': 135.50067366503848, 'stop': 124.0572449358293} (target > entry > stop: True); no price copy"
+  },
+  {
+   "id": "V1200-3_rr_and_size_with_engine_label",
+   "verdict": "PASS",
+   "detail": "panel R:R=1.00R risk/share=$11.44 account risk=$1,000.00 size=87 sh; label='Sized by the Position size formula (account risk ÷ risk per share)'; server plan_extract reading entry/stop/target == the drawn roles: True"
+  },
+  {
+   "id": "V1200-4_arm_alert_listed",
+   "verdict": "PASS",
+   "detail": "panel says armed=True; alerts list row drawing_id='nb:a4d86415-869f-425c-ac64-d2e6c4aaef4a:c35456a3-4386-4a3d-9cde-6e2fc4f14d54' found=True sym=NVDA direction=below price=124.0572449358293"
+  },
+  {
+   "id": "V1200-5_replay_step_forward",
+   "verdict": "PASS",
+   "detail": "dialog opened at the note's as-of; Step -> '1 bar after the note'"
+  },
+  {
+   "id": "V1200-6_timeframe_switch",
+   "verdict": "PASS",
+   "detail": "embed toolbar -> W; stored params.tf=W; a tf=W bars request was made=True"
+  },
+  {
+   "id": "V1200-7_vs_insert",
+   "verdict": "PASS",
+   "detail": "/vs NVDA SPY -> 2 half-width charts, same to=True"
+  },
+  {
+   "id": "V390-1_insert_chart",
+   "verdict": "PASS",
+   "detail": "/chart typed + Enter -> stored widgetEmbed NVDA D to=2026-06-15 embedId=6180f064-9443-45c5-9015-97925b63fd99"
+  },
+  {
+   "id": "V390-2_draw_and_assign_roles",
+   "verdict": "PASS",
+   "detail": "3 lines placed by tap, 3 stored; roles stored {'target': 146.58871074523395, 'entry': 134.86098544194104, 'stop': 123.13326013864813} (target > entry > stop: True); no price copy"
+  },
+  {
+   "id": "V390-3_rr_and_size_with_engine_label",
+   "verdict": "PASS",
+   "detail": "panel R:R=1.00R risk/share=$11.73 account risk=$1,000.00 size=85 sh; label='Sized by the Position size formula (account risk ÷ risk per share)'; server plan_extract reading entry/stop/target == the drawn roles: True"
+  },
+  {
+   "id": "V390-4_arm_alert_listed",
+   "verdict": "PASS",
+   "detail": "panel says armed=True; alerts list row drawing_id='nb:6180f064-9443-45c5-9015-97925b63fd99:ce8d314f-42c8-4638-a4e1-83b09fc6421d' found=True sym=NVDA direction=below price=123.13326013864813"
+  },
+  {
+   "id": "V390-5_replay_step_forward",
+   "verdict": "PASS",
+   "detail": "dialog opened at the note's as-of; Step -> '1 bar after the note'"
+  },
+  {
+   "id": "V390-6_timeframe_switch",
+   "verdict": "PASS",
+   "detail": "embed toolbar -> W; stored params.tf=W; a tf=W bars request was made=True"
+  },
+  {
+   "id": "V390-7_vs_insert",
+   "verdict": "PASS",
+   "detail": "/vs NVDA SPY -> 2 half-width charts, same to=True"
+  },
+  {
+   "id": "V390-8_phone_floor_and_no_sideways_scroll",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs clientWidth 390; 16 panel controls, under 44px: []"
+  },
+  {
+   "id": "W9_mtf_weekly_stack",
+   "verdict": "PASS",
+   "detail": "/mtf NVDA W -> stored tfs ['W', 'D', '60']"
+  },
+  {
+   "id": "W10_gate_off_client",
+   "verdict": "PASS",
+   "detail": "Plan absent=True, Replay absent=True, /vs offers nothing=True, chart-plan requests=[]"
+  },
+  {
+   "id": "W11_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "account_seed": {
+   "account": "527e2b07-f8f0-44ae-8f51-a5f4f3268434",
+   "put": 200,
+   "accountSize": 100000.0
+  },
+  "V1200_note": "11ff0d579a994d09aed41a716da82484",
+  "V1200_inserted_chart": {
+   "embedId": "a4d86415-869f-425c-ac64-d2e6c4aaef4a",
+   "params": {
+    "symbol": "NVDA",
+    "tf": "D",
+    "to": "2026-06-15",
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "mode": "snapshot"
+  },
+  "V1200_archive_landed": {
+   "landed": true,
+   "after_s": 6.0
+  },
+  "V1200_draw_attempts": [
+   {
+    "stuck": true,
+    "events": [
+     [
+      "pointerdown",
+      13146,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "mousedown",
+      13146,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "pm-blur",
+      13150
+     ],
+     [
+      "pm-focus",
+      13159,
+      "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+     ],
+     [
+      "mouseup",
+      13161,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "click",
+      13161,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "class",
+      "annotating",
+      13173
+     ]
+    ]
+   }
+  ],
+  "V1200_canvas_box": [
+   415,
+   343.28125,
+   696,
+   383
+  ],
+  "V1200_tool_matches": [
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal Line (H)",
+     "text": "",
+     "rect": [
+      479,
+      349,
+      24,
+      22
+     ],
+     "visible": true
+    }
+   ],
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal Line (H)",
+     "text": "",
+     "rect": [
+      479,
+      349,
+      24,
+      22
+     ],
+     "visible": true
+    }
+   ],
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal Line (H)",
+     "text": "",
+     "rect": [
+      479,
+      349,
+      24,
+      22
+     ],
+     "visible": true
+    }
+   ]
+  ],
+  "V1200_armed_before_tap": [
+   {
+    "frac": 0.28,
+    "armed": false,
+    "basis": "box-shadow:inset",
+    "ariaPressed": null,
+    "boxShadow": "none"
+   },
+   {
+    "frac": 0.5,
+    "armed": false,
+    "basis": "box-shadow:inset",
+    "ariaPressed": null,
+    "boxShadow": "none"
+   },
+   {
+    "frac": 0.72,
+    "armed": false,
+    "basis": "box-shadow:inset",
+    "ariaPressed": null,
+    "boxShadow": "none"
+   }
+  ],
+  "V1200_drawbar_geometry": [
+   {
+    "frac": 0.28,
+    "bar": null,
+    "tools": null,
+    "allTools": null,
+    "done": null,
+    "side": null,
+    "horizCenter": null,
+    "elementAtHorizCenter": null,
+    "toolsScrollWidth": null,
+    "toolsClientWidth": null,
+    "toolsOverflowX": null
+   },
+   {
+    "frac": 0.5,
+    "bar": null,
+    "tools": null,
+    "allTools": null,
+    "done": null,
+    "side": null,
+    "horizCenter": null,
+    "elementAtHorizCenter": null,
+    "toolsScrollWidth": null,
+    "toolsClientWidth": null,
+    "toolsOverflowX": null
+   },
+   {
+    "frac": 0.72,
+    "bar": null,
+    "tools": null,
+    "allTools": null,
+    "done": null,
+    "side": null,
+    "horizCenter": null,
+    "elementAtHorizCenter": null,
+    "toolsScrollWidth": null,
+    "toolsClientWidth": null,
+    "toolsOverflowX": null
+   }
+  ],
+  "V1200_tap_points": [
+   {
+    "frac": 0.28,
+    "box": [
+     415,
+     343.28125,
+     696,
+     383
+    ],
+    "x": 728.2,
+    "y": 450.5
+   },
+   {
+    "frac": 0.5,
+    "box": [
+     415,
+     343.28125,
+     696,
+     383
+    ],
+    "x": 728.2,
+    "y": 534.8
+   },
+   {
+    "frac": 0.72,
+    "box": [
+     415,
+     343.28125,
+     696,
+     383
+    ],
+    "x": 728.2,
+    "y": 619.0
+   }
+  ],
+  "V1200_lines_after_tap": [
+   {
+    "attempt": 1,
+    "stored_count": 1,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   },
+   {
+    "attempt": 2,
+    "stored_count": 2,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   },
+   {
+    "attempt": 3,
+    "stored_count": 3,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   }
+  ],
+  "V1200_drawn": [
+   {
+    "id": "c284f01c-d6e4-4790-8481-ba0291cf9f10",
+    "price": 146.9441023942476
+   },
+   {
+    "id": "7e2b8dbb-3f08-4be7-ae07-baf1af6e1ec6",
+    "price": 135.50067366503848
+   },
+   {
+    "id": "c35456a3-4386-4a3d-9cde-6e2fc4f14d54",
+    "price": 124.0572449358293
+   }
+  ],
+  "V1200_roles_stored": {
+   "target": {
+    "id": "c284f01c-d6e4-4790-8481-ba0291cf9f10",
+    "price": 146.9441023942476,
+    "has_price_copy": false
+   },
+   "entry": {
+    "id": "7e2b8dbb-3f08-4be7-ae07-baf1af6e1ec6",
+    "price": 135.50067366503848,
+    "has_price_copy": false
+   },
+   "stop": {
+    "id": "c35456a3-4386-4a3d-9cde-6e2fc4f14d54",
+    "price": 124.0572449358293,
+    "has_price_copy": false
+   }
+  },
+  "V1200_panel_values": {
+   "rr": "1.00R",
+   "rps": "$11.44",
+   "acct": "$1,000.00",
+   "shares": "87 sh",
+   "label": "Sized by the Position size formula (account risk ÷ risk per share)"
+  },
+  "V1200_replay_status": "What happened next · NVDA\ndaily bars\n✕\n\t\n\t\n\n\t\n\t\n1 BAR AFTER THE NOTE\n-0.08%\n▶ Play\nStep ▸\n1×\n2×\n4×\n8×",
+  "V1200_tf_after": {
+   "symbol": "NVDA",
+   "tf": "W",
+   "to": "2026-06-15",
+   "settings": {
+    "chartType": "candles",
+    "invertScale": false,
+    "candles": {
+     "upColor": "#2faf68",
+     "downColor": "#df4646",
+     "upBorder": "#2faf68",
+     "downBorder": "#df4646",
+     "upWick": "#2faf68",
+     "downWick": "#df4646",
+     "oneColor": "#2faf68",
+     "thinBars": true
+    },
+    "candleColorMode": "netchange",
+    "background": "#17181a",
+    "bgMode": "solid",
+    "bgGradient": {
+     "top": "#16233b",
+     "bottom": "#17181a"
+    },
+    "textColor": "#706b5e",
+    "textSize": 11,
+    "grid": {
+     "color": "rgba(46,49,39,0.25)",
+     "visible": true
+    },
+    "crosshair": {
+     "enabled": true,
+     "color": "#706b5e",
+     "style": 1,
+     "width": 1,
+     "magnet": false
+    },
+    "header": {
+     "titleMode": "company",
+     "showChange": true,
+     "timeframes": [
+      "1",
+      "5",
+      "15",
+      "30",
+      "60",
+      "D",
+      "W",
+      "M"
+     ],
+     "customTimeframes": [],
+     "showMarketCap": true,
+     "showNextEarnings": true,
+     "showUctRating": true,
+     "showLegend": true,
+     "legendLayout": "vertical",
+     "colors": {}
+    },
+    "overlays": [
+     {
+      "enabled": true,
+      "type": "EMA",
+      "period": 9,
+      "color": "#4ade80",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:0"
+     },
+     {
+      "enabled": true,
+      "type": "EMA",
+      "period": 20,
+      "color": "#f472b6",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:1"
+     },
+     {
+      "enabled": true,
+      "type": "SMA",
+      "period": 50,
+      "color": "#60a5fa",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:2"
+     },
+     {
+      "enabled": true,
+      "type": "SMA",
+      "period": 200,
+      "color": "#fb923c",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:3"
+     }
+    ],
+    "volume": {
+     "visible": true,
+     "upColor": "#2faf68",
+     "downColor": "#df4646",
+     "hvcEnabled": true,
+     "separatePane": false,
+     "paneHeightPct": 22,
+     "labelVisible": true,
+     "labelColor": "#9b9684",
+     "maPeriod": 0,
+     "maColor": "rgba(168,162,144,0.55)",
+     "maLineWidth": 1,
+     "maLineStyle": "solid",
+     "barStyle": "columns",
+     "plotStyle": "histogram"
+    },
+    "watermark": {
+     "visible": true,
+     "opacity": 0.07,
+     "color": "#a8a290",
+     "sizeScale": 1.25,
+     "weight": 500,
+     "lines": {
+      "ticker": true,
+      "company": true,
+      "sector": true,
+      "industry": true,
+      "theme": true
+     },
+     "x": 0.5,
+     "y": 0.5
+    },
+    "drawingDefaults": {
+     "color": "#c9a84c",
+     "width": 1,
+     "style": "solid",
+     "fontSize": 13
+    },
+    "indicators": {
+     "volumeProfile": {
+      "enabled": false,
+      "bins": 24,
+      "color": "rgba(120,160,100,0.25)",
+      "pocColor": "rgba(200,160,40,0.65)"
+     }
+    },
+    "swingLabels": {
+     "enabled": false,
+     "sensitivity": "medium",
+     "color": "#d4d0c4",
+     "tintByType": false,
+     "upColor": "#4ade80",
+     "downColor": "#f87171",
+     "bgEnabled": true,
+     "bg": null
+    },
+    "heikinAshi": false,
+    "logScale": false,
+    "percentScale": false,
+    "comparisonSymbols": [],
+    "compareHideBase": false,
+    "markers": {
+     "earnings": false,
+     "splits": false,
+     "dividends": false,
+     "news": false,
+     "ipo": true,
+     "earningsBeat": "#2faf68",
+     "earningsMiss": "#df4646",
+     "ipoColor": "#dcbb5e"
+    },
+    "prevDayLevels": {
+     "high": {
+      "enabled": true,
+      "color": "#3cb868",
+      "style": "dashed",
+      "width": 1
+     },
+     "low": {
+      "enabled": true,
+      "color": "#e74c3c",
+      "style": "dashed",
+      "width": 1
+     },
+     "close": {
+      "enabled": true,
+      "color": "#9aa0a6",
+      "style": "dotted",
+      "width": 1
+     }
+    },
+    "countdown": false,
+    "showPatterns": false,
+    "showPriceLabels": true,
+    "showMaLabels": false,
+    "darkPool": {
+     "enabled": false,
+     "barColor": "#c9a84ccc",
+     "labelColor": "#c9a84c"
+    },
+    "signature": {
+     "darkPoolLevels": false,
+     "gexWalls": false,
+     "flowSignals": false
+    },
+    "settingsVersion": 2,
+    "indicatorInstances": [
+     {
+      "instanceId": "ovl:0",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 9,
+       "maType": "ema",
+       "color": "#4ade80"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:1",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 20,
+       "maType": "ema",
+       "color": "#f472b6"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:2",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 50,
+       "maType": "sma",
+       "color": "#60a5fa"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:3",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 200,
+       "maType": "sma",
+       "color": "#fb923c"
+      },
+      "hidden": false
+     }
+    ],
+    "paneOrder": [],
+    "paneSizes": {},
+    "paneSeriesOrder": {},
+    "hideDrawings": false,
+    "extendedHoursShading": true,
+    "sessionView": "regular",
+    "volumeOverlayIndicators": [],
+    "theme": "dark",
+    "positionCalc": {
+     "accountSize": 50000,
+     "riskPct": 1
+    },
+    "preset": "classic"
+   }
+  },
+  "V1200_vs_pair": [
+   {
+    "caption": "NVDA · vs SPY",
+    "params": {
+     "symbol": "NVDA",
+     "tf": "D",
+     "to": 1791078787,
+     "settings": {
+      "chartType": "candles",
+      "invertScale": false,
+      "candles": {
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "upBorder": "#2faf68",
+       "downBorder": "#df4646",
+       "upWick": "#2faf68",
+       "downWick": "#df4646",
+       "oneColor": "#2faf68",
+       "thinBars": true
+      },
+      "candleColorMode": "netchange",
+      "background": "#17181a",
+      "bgMode": "solid",
+      "bgGradient": {
+       "top": "#16233b",
+       "bottom": "#17181a"
+      },
+      "textColor": "#706b5e",
+      "textSize": 11,
+      "grid": {
+       "color": "rgba(46,49,39,0.25)",
+       "visible": true
+      },
+      "crosshair": {
+       "enabled": true,
+       "color": "#706b5e",
+       "style": 1,
+       "width": 1,
+       "magnet": false
+      },
+      "header": {
+       "titleMode": "company",
+       "showChange": true,
+       "timeframes": [
+        "1",
+        "5",
+        "15",
+        "30",
+        "60",
+        "D",
+        "W",
+        "M"
+       ],
+       "customTimeframes": [],
+       "showMarketCap": true,
+       "showNextEarnings": true,
+       "showUctRating": true,
+       "showLegend": true,
+       "legendLayout": "vertical",
+       "colors": {}
+      },
+      "overlays": [
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 9,
+        "color": "#4ade80",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:0"
+       },
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 20,
+        "color": "#f472b6",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:1"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 50,
+        "color": "#60a5fa",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:2"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 200,
+        "color": "#fb923c",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:3"
+       }
+      ],
+      "volume": {
+       "visible": true,
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "hvcEnabled": true,
+       "separatePane": false,
+       "paneHeightPct": 22,
+       "labelVisible": true,
+       "labelColor": "#9b9684",
+       "maPeriod": 0,
+       "maColor": "rgba(168,162,144,0.55)",
+       "maLineWidth": 1,
+       "maLineStyle": "solid",
+       "barStyle": "columns",
+       "plotStyle": "histogram"
+      },
+      "watermark": {
+       "visible": true,
+       "opacity": 0.07,
+       "color": "#a8a290",
+       "sizeScale": 1.25,
+       "weight": 500,
+       "lines": {
+        "ticker": true,
+        "company": true,
+        "sector": true,
+        "industry": true,
+        "theme": true
+       },
+       "x": 0.5,
+       "y": 0.5
+      },
+      "drawingDefaults": {
+       "color": "#c9a84c",
+       "width": 1,
+       "style": "solid",
+       "fontSize": 13
+      },
+      "indicators": {
+       "volumeProfile": {
+        "enabled": false,
+        "bins": 24,
+        "color": "rgba(120,160,100,0.25)",
+        "pocColor": "rgba(200,160,40,0.65)"
+       }
+      },
+      "swingLabels": {
+       "enabled": false,
+       "sensitivity": "medium",
+       "color": "#d4d0c4",
+       "tintByType": false,
+       "upColor": "#4ade80",
+       "downColor": "#f87171",
+       "bgEnabled": true,
+       "bg": null
+      },
+      "heikinAshi": false,
+      "logScale": false,
+      "percentScale": false,
+      "comparisonSymbols": [],
+      "compareHideBase": false,
+      "markers": {
+       "earnings": false,
+       "splits": false,
+       "dividends": false,
+       "news": false,
+       "ipo": true,
+       "earningsBeat": "#2faf68",
+       "earningsMiss": "#df4646",
+       "ipoColor": "#dcbb5e"
+      },
+      "prevDayLevels": {
+       "high": {
+        "enabled": true,
+        "color": "#3cb868",
+        "style": "dashed",
+        "width": 1
+       },
+       "low": {
+        "enabled": true,
+        "color": "#e74c3c",
+        "style": "dashed",
+        "width": 1
+       },
+       "close": {
+        "enabled": true,
+        "color": "#9aa0a6",
+        "style": "dotted",
+        "width": 1
+       }
+      },
+      "countdown": false,
+      "showPatterns": false,
+      "showPriceLabels": true,
+      "showMaLabels": false,
+      "darkPool": {
+       "enabled": false,
+       "barColor": "#c9a84ccc",
+       "labelColor": "#c9a84c"
+      },
+      "signature": {
+       "darkPoolLevels": false,
+       "gexWalls": false,
+       "flowSignals": false
+      },
+      "settingsVersion": 2,
+      "indicatorInstances": [
+       {
+        "instanceId": "ovl:0",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 9,
+         "maType": "ema",
+         "color": "#4ade80"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:1",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 20,
+         "maType": "ema",
+         "color": "#f472b6"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:2",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 50,
+         "maType": "sma",
+         "color": "#60a5fa"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:3",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 200,
+         "maType": "sma",
+         "color": "#fb923c"
+        },
+        "hidden": false
+       }
+      ],
+      "paneOrder": [],
+      "paneSizes": {},
+      "paneSeriesOrder": {},
+      "hideDrawings": false,
+      "extendedHoursShading": true,
+      "sessionView": "regular",
+      "volumeOverlayIndicators": [],
+      "theme": "dark",
+      "positionCalc": {
+       "accountSize": 50000,
+       "riskPct": 1
+      },
+      "preset": "classic"
+     }
+    },
+    "layout": {
+     "width": "half",
+     "height": null
+    }
+   },
+   {
+    "caption": "vs SPY",
+    "params": {
+     "symbol": "SPY",
+     "tf": "D",
+     "to": 1791078787,
+     "settings": {
+      "chartType": "candles",
+      "invertScale": false,
+      "candles": {
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "upBorder": "#2faf68",
+       "downBorder": "#df4646",
+       "upWick": "#2faf68",
+       "downWick": "#df4646",
+       "oneColor": "#2faf68",
+       "thinBars": true
+      },
+      "candleColorMode": "netchange",
+      "background": "#17181a",
+      "bgMode": "solid",
+      "bgGradient": {
+       "top": "#16233b",
+       "bottom": "#17181a"
+      },
+      "textColor": "#706b5e",
+      "textSize": 11,
+      "grid": {
+       "color": "rgba(46,49,39,0.25)",
+       "visible": true
+      },
+      "crosshair": {
+       "enabled": true,
+       "color": "#706b5e",
+       "style": 1,
+       "width": 1,
+       "magnet": false
+      },
+      "header": {
+       "titleMode": "company",
+       "showChange": true,
+       "timeframes": [
+        "1",
+        "5",
+        "15",
+        "30",
+        "60",
+        "D",
+        "W",
+        "M"
+       ],
+       "customTimeframes": [],
+       "showMarketCap": true,
+       "showNextEarnings": true,
+       "showUctRating": true,
+       "showLegend": true,
+       "legendLayout": "vertical",
+       "colors": {}
+      },
+      "overlays": [
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 9,
+        "color": "#4ade80",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:0"
+       },
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 20,
+        "color": "#f472b6",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:1"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 50,
+        "color": "#60a5fa",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:2"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 200,
+        "color": "#fb923c",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:3"
+       }
+      ],
+      "volume": {
+       "visible": true,
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "hvcEnabled": true,
+       "separatePane": false,
+       "paneHeightPct": 22,
+       "labelVisible": true,
+       "labelColor": "#9b9684",
+       "maPeriod": 0,
+       "maColor": "rgba(168,162,144,0.55)",
+       "maLineWidth": 1,
+       "maLineStyle": "solid",
+       "barStyle": "columns",
+       "plotStyle": "histogram"
+      },
+      "watermark": {
+       "visible": true,
+       "opacity": 0.07,
+       "color": "#a8a290",
+       "sizeScale": 1.25,
+       "weight": 500,
+       "lines": {
+        "ticker": true,
+        "company": true,
+        "sector": true,
+        "industry": true,
+        "theme": true
+       },
+       "x": 0.5,
+       "y": 0.5
+      },
+      "drawingDefaults": {
+       "color": "#c9a84c",
+       "width": 1,
+       "style": "solid",
+       "fontSize": 13
+      },
+      "indicators": {
+       "volumeProfile": {
+        "enabled": false,
+        "bins": 24,
+        "color": "rgba(120,160,100,0.25)",
+        "pocColor": "rgba(200,160,40,0.65)"
+       }
+      },
+      "swingLabels": {
+       "enabled": false,
+       "sensitivity": "medium",
+       "color": "#d4d0c4",
+       "tintByType": false,
+       "upColor": "#4ade80",
+       "downColor": "#f87171",
+       "bgEnabled": true,
+       "bg": null
+      },
+      "heikinAshi": false,
+      "logScale": false,
+      "percentScale": false,
+      "comparisonSymbols": [],
+      "compareHideBase": false,
+      "markers": {
+       "earnings": false,
+       "splits": false,
+       "dividends": false,
+       "news": false,
+       "ipo": true,
+       "earningsBeat": "#2faf68",
+       "earningsMiss": "#df4646",
+       "ipoColor": "#dcbb5e"
+      },
+      "prevDayLevels": {
+       "high": {
+        "enabled": true,
+        "color": "#3cb868",
+        "style": "dashed",
+        "width": 1
+       },
+       "low": {
+        "enabled": true,
+        "color": "#e74c3c",
+        "style": "dashed",
+        "width": 1
+       },
+       "close": {
+        "enabled": true,
+        "color": "#9aa0a6",
+        "style": "dotted",
+        "width": 1
+       }
+      },
+      "countdown": false,
+      "showPatterns": false,
+      "showPriceLabels": true,
+      "showMaLabels": false,
+      "darkPool": {
+       "enabled": false,
+       "barColor": "#c9a84ccc",
+       "labelColor": "#c9a84c"
+      },
+      "signature": {
+       "darkPoolLevels": false,
+       "gexWalls": false,
+       "flowSignals": false
+      },
+      "settingsVersion": 2,
+      "indicatorInstances": [
+       {
+        "instanceId": "ovl:0",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 9,
+         "maType": "ema",
+         "color": "#4ade80"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:1",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 20,
+         "maType": "ema",
+         "color": "#f472b6"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:2",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 50,
+         "maType": "sma",
+         "color": "#60a5fa"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:3",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 200,
+         "maType": "sma",
+         "color": "#fb923c"
+        },
+        "hidden": false
+       }
+      ],
+      "paneOrder": [],
+      "paneSizes": {},
+      "paneSeriesOrder": {},
+      "hideDrawings": false,
+      "extendedHoursShading": true,
+      "sessionView": "regular",
+      "volumeOverlayIndicators": [],
+      "theme": "dark",
+      "positionCalc": {
+       "accountSize": 50000,
+       "riskPct": 1
+      },
+      "preset": "classic"
+     }
+    },
+    "layout": {
+     "width": "half",
+     "height": null
+    }
+   }
+  ],
+  "V390_note": "97409b9055d14389b3f4b42def73cd4d",
+  "V390_inserted_chart": {
+   "embedId": "6180f064-9443-45c5-9015-97925b63fd99",
+   "params": {
+    "symbol": "NVDA",
+    "tf": "D",
+    "to": "2026-06-15",
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "mode": "snapshot"
+  },
+  "V390_archive_landed": {
+   "landed": true,
+   "after_s": 6.8
+  },
+  "V390_draw_attempts": [
+   {
+    "stuck": true,
+    "events": [
+     [
+      "pointerdown",
+      12505,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "mousedown",
+      12511,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "pm-blur",
+      12511
+     ],
+     [
+      "pm-focus",
+      12513,
+      "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+     ],
+     [
+      "mouseup",
+      12514,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "click",
+      12514,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "class",
+      "annotating",
+      12525
+     ]
+    ]
+   }
+  ],
+  "V390_canvas_box": [
+   61,
+   272.28125,
+   268,
+   300
+  ],
+  "V390_tool_matches": [
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal",
+     "text": "Horizontal",
+     "rect": [
+      175,
+      523,
+      60,
+      44
+     ],
+     "visible": true
+    }
+   ],
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal",
+     "text": "Horizontal",
+     "rect": [
+      121,
+      523,
+      60,
+      44
+     ],
+     "visible": true
+    }
+   ],
+   [
+    {
+     "tag": "BUTTON",
+     "label": "Horizontal",
+     "text": "Horizontal",
+     "rect": [
+      121,
+      523,
+      60,
+      44
+     ],
+     "visible": true
+    }
+   ]
+  ],
+  "V390_armed_before_tap": [
+   {
+    "frac": 0.28,
+    "armed": false,
+    "basis": "aria-pressed",
+    "ariaPressed": "false",
+    "boxShadow": "none"
+   },
+   {
+    "frac": 0.5,
+    "armed": false,
+    "basis": "aria-pressed",
+    "ariaPressed": "false",
+    "boxShadow": "none"
+   },
+   {
+    "frac": 0.72,
+    "armed": false,
+    "basis": "aria-pressed",
+    "ariaPressed": "false",
+    "boxShadow": "none"
+   }
+  ],
+  "V390_drawbar_geometry": [
+   {
+    "frac": 0.28,
+    "bar": [
+     61,
+     518,
+     268,
+     54
+    ],
+    "tools": [
+     121,
+     523,
+     59,
+     44
+    ],
+    "allTools": [
+     182,
+     523,
+     44,
+     44
+    ],
+    "done": [
+     65,
+     523,
+     54,
+     44
+    ],
+    "side": [
+     228,
+     523,
+     97,
+     44
+    ],
+    "horizCenter": [
+     205,
+     545
+    ],
+    "elementAtHorizCenter": "SPAN._glyph_j4mjm_161[]",
+    "toolsScrollWidth": 1099,
+    "toolsClientWidth": 59,
+    "toolsOverflowX": "auto"
+   },
+   {
+    "frac": 0.5,
+    "bar": [
+     61,
+     518,
+     268,
+     54
+    ],
+    "tools": [
+     121,
+     523,
+     59,
+     44
+    ],
+    "allTools": [
+     182,
+     523,
+     44,
+     44
+    ],
+    "done": [
+     65,
+     523,
+     54,
+     44
+    ],
+    "side": [
+     228,
+     523,
+     97,
+     44
+    ],
+    "horizCenter": [
+     151,
+     545
+    ],
+    "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+    "toolsScrollWidth": 1099,
+    "toolsClientWidth": 59,
+    "toolsOverflowX": "auto"
+   },
+   {
+    "frac": 0.72,
+    "bar": [
+     61,
+     518,
+     268,
+     54
+    ],
+    "tools": [
+     121,
+     523,
+     59,
+     44
+    ],
+    "allTools": [
+     182,
+     523,
+     44,
+     44
+    ],
+    "done": [
+     65,
+     523,
+     54,
+     44
+    ],
+    "side": [
+     228,
+     523,
+     97,
+     44
+    ],
+    "horizCenter": [
+     151,
+     545
+    ],
+    "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+    "toolsScrollWidth": 1099,
+    "toolsClientWidth": 59,
+    "toolsOverflowX": "auto"
+   }
+  ],
+  "V390_tap_points": [
+   {
+    "frac": 0.28,
+    "box": [
+     61,
+     272.28125,
+     268,
+     300
+    ],
+    "x": 181.6,
+    "y": 356.3
+   },
+   {
+    "frac": 0.5,
+    "box": [
+     61,
+     272.28125,
+     268,
+     300
+    ],
+    "x": 181.6,
+    "y": 422.3
+   },
+   {
+    "frac": 0.72,
+    "box": [
+     61,
+     272.28125,
+     268,
+     300
+    ],
+    "x": 181.6,
+    "y": 488.3
+   }
+  ],
+  "V390_lines_after_tap": [
+   {
+    "attempt": 1,
+    "stored_count": 1,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   },
+   {
+    "attempt": 2,
+    "stored_count": 2,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   },
+   {
+    "attempt": 3,
+    "stored_count": 3,
+    "reached_in_10s": true,
+    "class": "_frame_1qu7a_5 _full_1qu7a_41  _annotating_1qu7a_81  "
+   }
+  ],
+  "V390_drawn": [
+   {
+    "id": "713b3cb7-c539-4b1c-a497-1f20f0ce8f1e",
+    "price": 146.58871074523395
+   },
+   {
+    "id": "6a00f776-d2a0-4c87-a25a-aa7de44aa212",
+    "price": 134.86098544194104
+   },
+   {
+    "id": "ce8d314f-42c8-4638-a4e1-83b09fc6421d",
+    "price": 123.13326013864813
+   }
+  ],
+  "V390_roles_stored": {
+   "target": {
+    "id": "713b3cb7-c539-4b1c-a497-1f20f0ce8f1e",
+    "price": 146.58871074523395,
+    "has_price_copy": false
+   },
+   "entry": {
+    "id": "6a00f776-d2a0-4c87-a25a-aa7de44aa212",
+    "price": 134.86098544194104,
+    "has_price_copy": false
+   },
+   "stop": {
+    "id": "ce8d314f-42c8-4638-a4e1-83b09fc6421d",
+    "price": 123.13326013864813,
+    "has_price_copy": false
+   }
+  },
+  "V390_panel_values": {
+   "rr": "1.00R",
+   "rps": "$11.73",
+   "acct": "$1,000.00",
+   "shares": "85 sh",
+   "label": "Sized by the Position size formula (account risk ÷ risk per share)"
+  },
+  "V390_replay_status": "What happened next · NVDA\ndaily bars\n✕\n\t\n\t\n\n\t\n\t\n1 BAR AFTER THE NOTE\n-0.08%\n▶ Play\nStep ▸\n1×\n2×\n4×\n8×",
+  "V390_tf_after": {
+   "symbol": "NVDA",
+   "tf": "W",
+   "to": "2026-06-15",
+   "settings": {
+    "chartType": "candles",
+    "invertScale": false,
+    "candles": {
+     "upColor": "#2faf68",
+     "downColor": "#df4646",
+     "upBorder": "#2faf68",
+     "downBorder": "#df4646",
+     "upWick": "#2faf68",
+     "downWick": "#df4646",
+     "oneColor": "#2faf68",
+     "thinBars": true
+    },
+    "candleColorMode": "netchange",
+    "background": "#17181a",
+    "bgMode": "solid",
+    "bgGradient": {
+     "top": "#16233b",
+     "bottom": "#17181a"
+    },
+    "textColor": "#706b5e",
+    "textSize": 11,
+    "grid": {
+     "color": "rgba(46,49,39,0.25)",
+     "visible": true
+    },
+    "crosshair": {
+     "enabled": true,
+     "color": "#706b5e",
+     "style": 1,
+     "width": 1,
+     "magnet": false
+    },
+    "header": {
+     "titleMode": "company",
+     "showChange": true,
+     "timeframes": [
+      "1",
+      "5",
+      "15",
+      "30",
+      "60",
+      "D",
+      "W",
+      "M"
+     ],
+     "customTimeframes": [],
+     "showMarketCap": true,
+     "showNextEarnings": true,
+     "showUctRating": true,
+     "showLegend": true,
+     "legendLayout": "vertical",
+     "colors": {}
+    },
+    "overlays": [
+     {
+      "enabled": true,
+      "type": "EMA",
+      "period": 9,
+      "color": "#4ade80",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:0"
+     },
+     {
+      "enabled": true,
+      "type": "EMA",
+      "period": 20,
+      "color": "#f472b6",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:1"
+     },
+     {
+      "enabled": true,
+      "type": "SMA",
+      "period": 50,
+      "color": "#60a5fa",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:2"
+     },
+     {
+      "enabled": true,
+      "type": "SMA",
+      "period": 200,
+      "color": "#fb923c",
+      "lineWidth": 1,
+      "lineStyle": "solid",
+      "offset": 0,
+      "plotStyle": "line",
+      "onTop": false,
+      "removed": true,
+      "adopted": "ovl:3"
+     }
+    ],
+    "volume": {
+     "visible": true,
+     "upColor": "#2faf68",
+     "downColor": "#df4646",
+     "hvcEnabled": true,
+     "separatePane": false,
+     "paneHeightPct": 22,
+     "labelVisible": true,
+     "labelColor": "#9b9684",
+     "maPeriod": 0,
+     "maColor": "rgba(168,162,144,0.55)",
+     "maLineWidth": 1,
+     "maLineStyle": "solid",
+     "barStyle": "columns",
+     "plotStyle": "histogram"
+    },
+    "watermark": {
+     "visible": true,
+     "opacity": 0.07,
+     "color": "#a8a290",
+     "sizeScale": 1.25,
+     "weight": 500,
+     "lines": {
+      "ticker": true,
+      "company": true,
+      "sector": true,
+      "industry": true,
+      "theme": true
+     },
+     "x": 0.5,
+     "y": 0.5
+    },
+    "drawingDefaults": {
+     "color": "#c9a84c",
+     "width": 1,
+     "style": "solid",
+     "fontSize": 13
+    },
+    "indicators": {
+     "volumeProfile": {
+      "enabled": false,
+      "bins": 24,
+      "color": "rgba(120,160,100,0.25)",
+      "pocColor": "rgba(200,160,40,0.65)"
+     }
+    },
+    "swingLabels": {
+     "enabled": false,
+     "sensitivity": "medium",
+     "color": "#d4d0c4",
+     "tintByType": false,
+     "upColor": "#4ade80",
+     "downColor": "#f87171",
+     "bgEnabled": true,
+     "bg": null
+    },
+    "heikinAshi": false,
+    "logScale": false,
+    "percentScale": false,
+    "comparisonSymbols": [],
+    "compareHideBase": false,
+    "markers": {
+     "earnings": false,
+     "splits": false,
+     "dividends": false,
+     "news": false,
+     "ipo": true,
+     "earningsBeat": "#2faf68",
+     "earningsMiss": "#df4646",
+     "ipoColor": "#dcbb5e"
+    },
+    "prevDayLevels": {
+     "high": {
+      "enabled": true,
+      "color": "#3cb868",
+      "style": "dashed",
+      "width": 1
+     },
+     "low": {
+      "enabled": true,
+      "color": "#e74c3c",
+      "style": "dashed",
+      "width": 1
+     },
+     "close": {
+      "enabled": true,
+      "color": "#9aa0a6",
+      "style": "dotted",
+      "width": 1
+     }
+    },
+    "countdown": false,
+    "showPatterns": false,
+    "showPriceLabels": true,
+    "showMaLabels": false,
+    "darkPool": {
+     "enabled": false,
+     "barColor": "#c9a84ccc",
+     "labelColor": "#c9a84c"
+    },
+    "signature": {
+     "darkPoolLevels": false,
+     "gexWalls": false,
+     "flowSignals": false
+    },
+    "settingsVersion": 2,
+    "indicatorInstances": [
+     {
+      "instanceId": "ovl:0",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 9,
+       "maType": "ema",
+       "color": "#4ade80"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:1",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 20,
+       "maType": "ema",
+       "color": "#f472b6"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:2",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 50,
+       "maType": "sma",
+       "color": "#60a5fa"
+      },
+      "hidden": false
+     },
+     {
+      "instanceId": "ovl:3",
+      "defId": "movingAverage",
+      "inputs": {
+       "source": "close",
+       "period": 200,
+       "maType": "sma",
+       "color": "#fb923c"
+      },
+      "hidden": false
+     }
+    ],
+    "paneOrder": [],
+    "paneSizes": {},
+    "paneSeriesOrder": {},
+    "hideDrawings": false,
+    "extendedHoursShading": true,
+    "sessionView": "regular",
+    "volumeOverlayIndicators": [],
+    "theme": "dark",
+    "positionCalc": {
+     "accountSize": 50000,
+     "riskPct": 1
+    },
+    "preset": "classic"
+   }
+  },
+  "V390_vs_pair": [
+   {
+    "caption": "NVDA · vs SPY",
+    "params": {
+     "symbol": "NVDA",
+     "tf": "D",
+     "to": 1791078876,
+     "settings": {
+      "chartType": "candles",
+      "invertScale": false,
+      "candles": {
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "upBorder": "#2faf68",
+       "downBorder": "#df4646",
+       "upWick": "#2faf68",
+       "downWick": "#df4646",
+       "oneColor": "#2faf68",
+       "thinBars": true
+      },
+      "candleColorMode": "netchange",
+      "background": "#17181a",
+      "bgMode": "solid",
+      "bgGradient": {
+       "top": "#16233b",
+       "bottom": "#17181a"
+      },
+      "textColor": "#706b5e",
+      "textSize": 11,
+      "grid": {
+       "color": "rgba(46,49,39,0.25)",
+       "visible": true
+      },
+      "crosshair": {
+       "enabled": true,
+       "color": "#706b5e",
+       "style": 1,
+       "width": 1,
+       "magnet": false
+      },
+      "header": {
+       "titleMode": "company",
+       "showChange": true,
+       "timeframes": [
+        "1",
+        "5",
+        "15",
+        "30",
+        "60",
+        "D",
+        "W",
+        "M"
+       ],
+       "customTimeframes": [],
+       "showMarketCap": true,
+       "showNextEarnings": true,
+       "showUctRating": true,
+       "showLegend": true,
+       "legendLayout": "vertical",
+       "colors": {}
+      },
+      "overlays": [
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 9,
+        "color": "#4ade80",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:0"
+       },
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 20,
+        "color": "#f472b6",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:1"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 50,
+        "color": "#60a5fa",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:2"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 200,
+        "color": "#fb923c",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:3"
+       }
+      ],
+      "volume": {
+       "visible": true,
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "hvcEnabled": true,
+       "separatePane": false,
+       "paneHeightPct": 22,
+       "labelVisible": true,
+       "labelColor": "#9b9684",
+       "maPeriod": 0,
+       "maColor": "rgba(168,162,144,0.55)",
+       "maLineWidth": 1,
+       "maLineStyle": "solid",
+       "barStyle": "columns",
+       "plotStyle": "histogram"
+      },
+      "watermark": {
+       "visible": true,
+       "opacity": 0.07,
+       "color": "#a8a290",
+       "sizeScale": 1.25,
+       "weight": 500,
+       "lines": {
+        "ticker": true,
+        "company": true,
+        "sector": true,
+        "industry": true,
+        "theme": true
+       },
+       "x": 0.5,
+       "y": 0.5
+      },
+      "drawingDefaults": {
+       "color": "#c9a84c",
+       "width": 1,
+       "style": "solid",
+       "fontSize": 13
+      },
+      "indicators": {
+       "volumeProfile": {
+        "enabled": false,
+        "bins": 24,
+        "color": "rgba(120,160,100,0.25)",
+        "pocColor": "rgba(200,160,40,0.65)"
+       }
+      },
+      "swingLabels": {
+       "enabled": false,
+       "sensitivity": "medium",
+       "color": "#d4d0c4",
+       "tintByType": false,
+       "upColor": "#4ade80",
+       "downColor": "#f87171",
+       "bgEnabled": true,
+       "bg": null
+      },
+      "heikinAshi": false,
+      "logScale": false,
+      "percentScale": false,
+      "comparisonSymbols": [],
+      "compareHideBase": false,
+      "markers": {
+       "earnings": false,
+       "splits": false,
+       "dividends": false,
+       "news": false,
+       "ipo": true,
+       "earningsBeat": "#2faf68",
+       "earningsMiss": "#df4646",
+       "ipoColor": "#dcbb5e"
+      },
+      "prevDayLevels": {
+       "high": {
+        "enabled": true,
+        "color": "#3cb868",
+        "style": "dashed",
+        "width": 1
+       },
+       "low": {
+        "enabled": true,
+        "color": "#e74c3c",
+        "style": "dashed",
+        "width": 1
+       },
+       "close": {
+        "enabled": true,
+        "color": "#9aa0a6",
+        "style": "dotted",
+        "width": 1
+       }
+      },
+      "countdown": false,
+      "showPatterns": false,
+      "showPriceLabels": true,
+      "showMaLabels": false,
+      "darkPool": {
+       "enabled": false,
+       "barColor": "#c9a84ccc",
+       "labelColor": "#c9a84c"
+      },
+      "signature": {
+       "darkPoolLevels": false,
+       "gexWalls": false,
+       "flowSignals": false
+      },
+      "settingsVersion": 2,
+      "indicatorInstances": [
+       {
+        "instanceId": "ovl:0",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 9,
+         "maType": "ema",
+         "color": "#4ade80"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:1",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 20,
+         "maType": "ema",
+         "color": "#f472b6"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:2",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 50,
+         "maType": "sma",
+         "color": "#60a5fa"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:3",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 200,
+         "maType": "sma",
+         "color": "#fb923c"
+        },
+        "hidden": false
+       }
+      ],
+      "paneOrder": [],
+      "paneSizes": {},
+      "paneSeriesOrder": {},
+      "hideDrawings": false,
+      "extendedHoursShading": true,
+      "sessionView": "regular",
+      "volumeOverlayIndicators": [],
+      "theme": "dark",
+      "positionCalc": {
+       "accountSize": 50000,
+       "riskPct": 1
+      },
+      "preset": "classic"
+     }
+    },
+    "layout": {
+     "width": "half",
+     "height": null
+    }
+   },
+   {
+    "caption": "vs SPY",
+    "params": {
+     "symbol": "SPY",
+     "tf": "D",
+     "to": 1791078876,
+     "settings": {
+      "chartType": "candles",
+      "invertScale": false,
+      "candles": {
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "upBorder": "#2faf68",
+       "downBorder": "#df4646",
+       "upWick": "#2faf68",
+       "downWick": "#df4646",
+       "oneColor": "#2faf68",
+       "thinBars": true
+      },
+      "candleColorMode": "netchange",
+      "background": "#17181a",
+      "bgMode": "solid",
+      "bgGradient": {
+       "top": "#16233b",
+       "bottom": "#17181a"
+      },
+      "textColor": "#706b5e",
+      "textSize": 11,
+      "grid": {
+       "color": "rgba(46,49,39,0.25)",
+       "visible": true
+      },
+      "crosshair": {
+       "enabled": true,
+       "color": "#706b5e",
+       "style": 1,
+       "width": 1,
+       "magnet": false
+      },
+      "header": {
+       "titleMode": "company",
+       "showChange": true,
+       "timeframes": [
+        "1",
+        "5",
+        "15",
+        "30",
+        "60",
+        "D",
+        "W",
+        "M"
+       ],
+       "customTimeframes": [],
+       "showMarketCap": true,
+       "showNextEarnings": true,
+       "showUctRating": true,
+       "showLegend": true,
+       "legendLayout": "vertical",
+       "colors": {}
+      },
+      "overlays": [
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 9,
+        "color": "#4ade80",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:0"
+       },
+       {
+        "enabled": true,
+        "type": "EMA",
+        "period": 20,
+        "color": "#f472b6",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:1"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 50,
+        "color": "#60a5fa",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:2"
+       },
+       {
+        "enabled": true,
+        "type": "SMA",
+        "period": 200,
+        "color": "#fb923c",
+        "lineWidth": 1,
+        "lineStyle": "solid",
+        "offset": 0,
+        "plotStyle": "line",
+        "onTop": false,
+        "removed": true,
+        "adopted": "ovl:3"
+       }
+      ],
+      "volume": {
+       "visible": true,
+       "upColor": "#2faf68",
+       "downColor": "#df4646",
+       "hvcEnabled": true,
+       "separatePane": false,
+       "paneHeightPct": 22,
+       "labelVisible": true,
+       "labelColor": "#9b9684",
+       "maPeriod": 0,
+       "maColor": "rgba(168,162,144,0.55)",
+       "maLineWidth": 1,
+       "maLineStyle": "solid",
+       "barStyle": "columns",
+       "plotStyle": "histogram"
+      },
+      "watermark": {
+       "visible": true,
+       "opacity": 0.07,
+       "color": "#a8a290",
+       "sizeScale": 1.25,
+       "weight": 500,
+       "lines": {
+        "ticker": true,
+        "company": true,
+        "sector": true,
+        "industry": true,
+        "theme": true
+       },
+       "x": 0.5,
+       "y": 0.5
+      },
+      "drawingDefaults": {
+       "color": "#c9a84c",
+       "width": 1,
+       "style": "solid",
+       "fontSize": 13
+      },
+      "indicators": {
+       "volumeProfile": {
+        "enabled": false,
+        "bins": 24,
+        "color": "rgba(120,160,100,0.25)",
+        "pocColor": "rgba(200,160,40,0.65)"
+       }
+      },
+      "swingLabels": {
+       "enabled": false,
+       "sensitivity": "medium",
+       "color": "#d4d0c4",
+       "tintByType": false,
+       "upColor": "#4ade80",
+       "downColor": "#f87171",
+       "bgEnabled": true,
+       "bg": null
+      },
+      "heikinAshi": false,
+      "logScale": false,
+      "percentScale": false,
+      "comparisonSymbols": [],
+      "compareHideBase": false,
+      "markers": {
+       "earnings": false,
+       "splits": false,
+       "dividends": false,
+       "news": false,
+       "ipo": true,
+       "earningsBeat": "#2faf68",
+       "earningsMiss": "#df4646",
+       "ipoColor": "#dcbb5e"
+      },
+      "prevDayLevels": {
+       "high": {
+        "enabled": true,
+        "color": "#3cb868",
+        "style": "dashed",
+        "width": 1
+       },
+       "low": {
+        "enabled": true,
+        "color": "#e74c3c",
+        "style": "dashed",
+        "width": 1
+       },
+       "close": {
+        "enabled": true,
+        "color": "#9aa0a6",
+        "style": "dotted",
+        "width": 1
+       }
+      },
+      "countdown": false,
+      "showPatterns": false,
+      "showPriceLabels": true,
+      "showMaLabels": false,
+      "darkPool": {
+       "enabled": false,
+       "barColor": "#c9a84ccc",
+       "labelColor": "#c9a84c"
+      },
+      "signature": {
+       "darkPoolLevels": false,
+       "gexWalls": false,
+       "flowSignals": false
+      },
+      "settingsVersion": 2,
+      "indicatorInstances": [
+       {
+        "instanceId": "ovl:0",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 9,
+         "maType": "ema",
+         "color": "#4ade80"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:1",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 20,
+         "maType": "ema",
+         "color": "#f472b6"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:2",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 50,
+         "maType": "sma",
+         "color": "#60a5fa"
+        },
+        "hidden": false
+       },
+       {
+        "instanceId": "ovl:3",
+        "defId": "movingAverage",
+        "inputs": {
+         "source": "close",
+         "period": 200,
+         "maType": "sma",
+         "color": "#fb923c"
+        },
+        "hidden": false
+       }
+      ],
+      "paneOrder": [],
+      "paneSizes": {},
+      "paneSeriesOrder": {},
+      "hideDrawings": false,
+      "extendedHoursShading": true,
+      "sessionView": "regular",
+      "volumeOverlayIndicators": [],
+      "theme": "dark",
+      "positionCalc": {
+       "accountSize": 50000,
+       "riskPct": 1
+      },
+      "preset": "classic"
+     }
+    },
+    "layout": {
+     "width": "half",
+     "height": null
+    }
+   }
+  ],
+  "V390_geometry": {
+   "sw": 390,
+   "cw": 390,
+   "controls": [
+    {
+     "name": "None",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Entry",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Stop",
+     "h": 44,
+     "w": 50
+    },
+    {
+     "name": "Target",
+     "h": 44,
+     "w": 58
+    },
+    {
+     "name": "Alert direction at 146.59",
+     "h": 44,
+     "w": 125
+    },
+    {
+     "name": "Arm alert at this level, 146.59",
+     "h": 57,
+     "w": 111
+    },
+    {
+     "name": "None",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Entry",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Stop",
+     "h": 44,
+     "w": 50
+    },
+    {
+     "name": "Target",
+     "h": 44,
+     "w": 58
+    },
+    {
+     "name": "Alert direction at 134.86",
+     "h": 44,
+     "w": 125
+    },
+    {
+     "name": "Arm alert at this level, 134.86",
+     "h": 57,
+     "w": 111
+    },
+    {
+     "name": "None",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Entry",
+     "h": 44,
+     "w": 54
+    },
+    {
+     "name": "Stop",
+     "h": 44,
+     "w": 50
+    },
+    {
+     "name": "Target",
+     "h": 44,
+     "w": 58
+    }
+   ]
+  },
+  "bars_fixture_served": [
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-06-15",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=5000",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-06-15",
+    "n": 70
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/SPY?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/SPY?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/SPY?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-06-15",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=5000",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-06-15",
+    "n": 70
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-06-15",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-10-03",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600&warm=1",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/SPY?tf=D&bars=12500&to=2026-10-03",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-06-15",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/SPY?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/SPY?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/SPY?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   }
+  ]
+ }
+}
