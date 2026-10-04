@@ -26,7 +26,7 @@ import { translatePine, hiddenOnChart } from '../../engine/ast/pine'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
+import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
@@ -885,9 +885,33 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     ensureRuntimeLane()
   }
 
+  // ⭐⭐ RT13 — THE INSTALL DOOR'S REFUSAL IS A HOST REFUSAL TOO. The builder
+  // can mint a host document the install door then refuses (a tree over the
+  // series-reference or lookback budget, a window that is not a whole-number
+  // literal): the member saw that refusal while the per-bar lane, which has its
+  // own budgets and folds no window into a literal, was never asked — the census
+  // read those rows as `none:install`. The door's own validation is asked here,
+  // read-only (`validateUserDefinitions` installs nothing), and only while the
+  // runtime pane is on; a refused document is offered to the per-bar lane. If it
+  // declines, the host document is returned exactly as before and the install
+  // door refuses it with its own sentence; the decline rides beside it.
+  let installDeclined = null
+  if (runtimePaneEnabled()) {
+    const { defs: validDefs, errors: installErrors } = validateUserDefinitions([definition])
+    if (!validDefs.length && installErrors.length) {
+      const viaRuntime = runtimeLaneDefinition({
+        source, id, name, t, hostReason: `install door refused: ${installErrors.join(' | ')}`,
+        hostGuard: 'install', routed: false, no,
+      })
+      if (viaRuntime.ok) return viaRuntime
+      installDeclined = viaRuntime.runtimeDeclined || null
+    }
+  }
+
   return {
     ok: true,
     definition,
+    ...(installDeclined ? { runtimeDeclined: installDeclined } : {}),
     reason: null,
     guard: null,
     translation: t,
