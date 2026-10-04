@@ -2454,17 +2454,67 @@ export default function NoteEditorPage({
   // conclusion 13Q-2/13Q-3 reached, now with a controlled, same-element A/B
   // measurement behind it rather than an assumption.
   //
-  // ⛔ DO NOT retry this fix without new evidence that changes the above. The
-  // product reverted to its PRE-13Q-Q1check single call below; the click-
-  // budget instrument's compensation in
-  // `tools/notebook_w13q_clicks.py::focus_editor_body` stays, documented with
-  // this same finding.
+  // ⛔⛔ SUPERSEDED, 13Q-Q1check controller follow-up #2 -- the CDP-vs-natural
+  // theory two paragraphs above was the wrong explanation and no longer
+  // governs this effect; read this note instead before touching it again.
+  //
+  // Measured directly (R-RAW,
+  // `docs/notebook/evidence/wave13-q1check/focus-hook-probe/results.json`,
+  // commit a90976c005, 10/10 reps across both widths, no harness help):
+  // at the exact moment this effect used to call `editor.commands.focus('end')`,
+  // `editor.view.dom.isConnected` was FALSE. `@tiptap/react`'s `EditorContent`
+  // is a class component that attaches `editor.view.dom`'s contents into its
+  // own rendered container inside ITS OWN `componentDidMount`/
+  // `componentDidUpdate` (`node_modules/@tiptap/react/dist/index.js`), which
+  // is a CHILD effect relative to this `useLayoutEffect` -- and on the first
+  // commit `editor.view.dom.parentNode` is not yet truthy, so that attach is
+  // deferred past this effect's first (and, before this fix, only) run. The
+  // SAME `.ProseMirror` node (tracked by stable WeakMap identity) was then
+  // observed becoming connected to the document 135-807ms later in every one
+  // of the 10 reps. `focus()` on a disconnected node is a silent no-op -- no
+  // `focusin`, no `document.activeElement` change -- which is exactly what
+  // every earlier measurement in this lane saw (`BODY` stays active, 0/10),
+  // including the two PRODUCT fixes recorded above as having failed: a
+  // second `focus('end')` call and a synchronous `editor.view.dom.focus()`
+  // call. Both were measured to fail because both still fired before the
+  // node was attached; neither retried. No CDP/automation-context theory is
+  // needed to explain any of it.
+  //
+  // THE FIX: poll `editor.view.dom.isConnected` across animation frames and
+  // fire the one-shot focus only once it is true (and the editor is still
+  // editable), giving up quietly after a bounded number of frames rather
+  // than retrying forever. `openFocusDoneRef.current` is still set exactly
+  // once, and only at the moment focus is actually applied -- so if the note
+  // is destroyed/unmounted before the DOM ever attaches, nothing claims the
+  // one-shot and nothing throws. The title/landmark effect above is
+  // untouched.
   useLayoutEffect(() => {
     if (openFocus !== 'body' || openFocusDoneRef.current) return
     if (!editor || editor.isDestroyed) return
-    openFocusDoneRef.current = true
-    editor.commands.focus('end')
-    onOpenFocused?.()
+    let cancelled = false
+    let rafId = null
+    let frames = 0
+    // ~3s at 60fps -- generous against the measured 135-807ms attach gap.
+    const FRAME_CAP = 180
+    const tryFocus = () => {
+      if (cancelled) return
+      if (!editor || editor.isDestroyed) return
+      const dom = editor.view && editor.view.dom
+      if (dom && dom.isConnected && editor.isEditable) {
+        openFocusDoneRef.current = true
+        editor.commands.focus('end')
+        onOpenFocused?.()
+        return
+      }
+      frames += 1
+      if (frames >= FRAME_CAP) return
+      rafId = requestAnimationFrame(tryFocus)
+    }
+    tryFocus()
+    return () => {
+      cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
   }, [openFocus, editor, onOpenFocused])
   const unreadable = useUnreadableNote(editor)
   // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.

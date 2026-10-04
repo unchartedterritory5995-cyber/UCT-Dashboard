@@ -24,13 +24,30 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 // instance the 'body' openFocus effect's one-shot call already fired
 // against.
 //
-// ⛔ This is a CHARACTERIZATION test, not a green rail for the shipped fix --
-// the shipped fix (NotebookTab.jsx::createNote's `globalMutate` prime) works
-// by making sure NoteEditorPage NEVER sees this race for the "+ New note"
-// path, so it lives upstream of this file and this file's mock cannot see
-// it. What this test pins is WHY priming the cache is load-bearing: if any
-// future caller opens `openFocus="body"` on a note useJ2Note has not already
-// cached, this is the failure it will hit.
+// ⛔⛔ UPDATED, 13Q-Q1check controller follow-up #2. This WAS a
+// characterization of a defect: the old one-shot body-focus effect consumed
+// `openFocusDoneRef.current` the instant it ran, whether or not the call
+// actually landed -- so a remount after that premature claim stranded focus
+// forever, and the only thing standing between a member and that outcome was
+// NotebookTab.jsx's upstream SWR-cache prime keeping this component from
+// ever seeing the race.
+//
+// The follow-up #2 fix (poll `editor.view.dom.isConnected` across animation
+// frames, claim the one-shot ONLY at the moment focus is actually applied)
+// closes this at the EFFECT level too, independent of the upstream prime:
+// editor #1 (built while `note?.id` is still undefined) never gets to
+// connect its DOM before the note resolves and `useEditor` rebuilds it, so
+// it never consumes the one-shot claim either -- the effect's cleanup
+// cancels editor #1's pending poll, and the re-run against editor #2 (the
+// stable, post-rebuild instance) finds its DOM already connected (by the
+// time this effect's dependency array picks up the new `editor` identity,
+// `EditorContent`'s own `componentDidMount` for editor #2 has already run in
+// the same commit -- React runs child layout effects before parent ones)
+// and fires normally. This file now asserts that corrected, self-healing
+// behavior rather than the defect it used to characterize. The upstream
+// prime in NotebookTab.jsx is UNCHANGED and still correct defense in depth --
+// it means the "+ New note" path never has to rely on this effect's own
+// recovery at all.
 
 const P = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
 const blankNote = (id) => ({
@@ -86,8 +103,8 @@ async function renderEditorWaitingOnNote() {
   return { onOpenFocused }
 }
 
-describe('13Q-Q1check: the remount a late-arriving note causes (characterization)', () => {
-  it('reproduces the mechanism: a note that loads AFTER mount rebuilds the editor and the one-shot body focus is lost', async () => {
+describe('13Q-Q1check: the remount a late-arriving note causes is now self-healed', () => {
+  it('a note that loads AFTER mount rebuilds the editor, and the retry-based body focus still lands on the post-rebuild editor', async () => {
     const { onOpenFocused } = await renderEditorWaitingOnNote()
 
     // Now the SWR fetch "resolves" -- same transition NotebookTab.jsx's
@@ -102,10 +119,13 @@ describe('13Q-Q1check: the remount a late-arriving note causes (characterization
     // no further DOM churn after the swap.
     await new Promise((r) => setTimeout(r, 50))
 
-    // This is the measured defect, pinned here against the real component:
-    // the guard already claimed against the pre-rebuild render means the
-    // now-stable, post-rebuild editor never gets the command a second time.
-    expect(document.activeElement?.closest('.ProseMirror')).toBeFalsy()
+    // Pre-fix this read FALSY: the guard had already claimed against the
+    // pre-rebuild editor (which never connected before being torn down), so
+    // the now-stable, post-rebuild editor never got the command at all. The
+    // follow-up #2 fix only claims the one-shot at the moment it actually
+    // fires, so editor #1's aborted poll never consumes it and editor #2's
+    // fresh poll succeeds.
+    expect(document.activeElement?.closest('.ProseMirror')).toBeTruthy()
     expect(onOpenFocused).toHaveBeenCalledTimes(1)
   })
 
