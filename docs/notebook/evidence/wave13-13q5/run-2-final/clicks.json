@@ -1,7 +1,7 @@
 {
  "tool": "tools/notebook_w13q_clicks.py",
- "tree": "69355d35274132eb86ec410fe482994721e44469",
- "started": "2026-10-03T15:47:31+00:00",
+ "tree": "64127beacb630dba823e85a6ac582d1469381907",
+ "started": "2026-10-04T01:56:16+00:00",
  "partial": {
   "flows": [
    "Q11",
@@ -179,7 +179,4846 @@
    "owner": "13J"
   }
  },
- "rows": [],
+ "rows": [
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 4,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 5,
+   "taps": 0,
+   "time_s": 1.02,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "Templates"
+    },
+    {
+     "do": "click",
+     "on": "template card thesis"
+    },
+    {
+     "do": "click",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "click",
+     "on": "into the body (saves the ticker on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "42a9c0fddebd41498bc4228e4e1fad26",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-mouse-1200.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 6,
+   "measured": 177,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 172,
+   "keystrokes": 5,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 6.63,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "All notes",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 10",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 64,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 10",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#thesis 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA plan (w13q)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA plan (w13q) 1m $NVDA",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Risk rules",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Risk rules 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select PLTR pullback plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "PLTR pullback plan 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Market regime journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market regime journal 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select CRWD base watch",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CRWD base watch 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Weekly review draft",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Weekly review draft 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select AMD earnings recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD earnings recap 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Semis rotation notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis rotation notes 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Train Me — teach the assistant a preference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a chart screenshot for vision analysis (or paste from",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Choose a specialist agent",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Templates",
+     "presses": 13,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Templates"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Long/Short Thesis",
+     "on": "search templates"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "pick the highlighted match (Long/Short Thesis)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Ticker field",
+     "presses": 84,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Remove tag thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand toggle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SUMMARY",
+       "role": "",
+       "name": "How to use this template",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Today",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Calendar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Insights",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Compass",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $101,960.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 11",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 10",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#thesis 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "key",
+     "key": "Tab",
+     "on": "leave the Ticker field (saves on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "14ae07ce6d78465289fd7f49614fb5e0",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-keys-1200.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "keys",
+   "width": "390",
+   "budget": 6,
+   "measured": 135,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 130,
+   "keystrokes": 5,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.37,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "All notes",
+     "presses": 8,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 11",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 66,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 11",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#thesis 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA plan (w13q)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA plan (w13q) 1m $NVDA",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Risk rules",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Risk rules 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select PLTR pullback plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "PLTR pullback plan 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Market regime journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market regime journal 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select CRWD base watch",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CRWD base watch 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Weekly review draft",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Weekly review draft 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select AMD earnings recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD earnings recap 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Semis rotation notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis rotation notes 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis 1m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show joystick",
+       "testid": "hub-edge-tab",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "Templates",
+     "presses": 13,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Templates"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "Long/Short Thesis",
+     "on": "search templates"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "pick the highlighted match (Long/Short Thesis)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Ticker field",
+     "presses": 39,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Remove tag thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add evidence",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Review thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CHANGELOG",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand toggle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SUMMARY",
+       "role": "",
+       "name": "How to use this template",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show joystick",
+       "testid": "hub-edge-tab",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open menu",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market movers",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Notifications",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Journal tools",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Today",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Trades",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Calendar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Insights",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Compass",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Back to notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "key",
+     "key": "Tab",
+     "on": "leave the Ticker field (saves on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "d44395319a464884a0692d4694e326ac",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-keys-390.png"
+  },
+  {
+   "flow": "Q2",
+   "name": "new note from a template with a ticker",
+   "owner": "Notebook templates (12B)",
+   "mode": "taps",
+   "width": "390",
+   "budget": 4,
+   "measured": 5,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 5,
+   "time_s": 1.41,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "All notes"
+    },
+    {
+     "do": "tap",
+     "on": "Templates"
+    },
+    {
+     "do": "tap",
+     "on": "template card thesis"
+    },
+    {
+     "do": "tap",
+     "on": "Ticker field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "NVDA",
+     "on": "ticker"
+    },
+    {
+     "do": "tap",
+     "on": "into the body (saves the ticker on blur)"
+    }
+   ],
+   "outcome": {
+    "note": "03946d02210c430ebc15679ff18fc65f",
+    "template": "thesis",
+    "ticker": "NVDA"
+   },
+   "notes": "",
+   "screenshot": "Q2-taps-390.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "mouse",
+   "width": "1200",
+   "budget": 8,
+   "measured": 12,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 12,
+   "taps": 0,
+   "time_s": 2.91,
+   "steps": [
+    {
+     "do": "click",
+     "on": "All notes"
+    },
+    {
+     "do": "click",
+     "on": "tick note 4"
+    },
+    {
+     "do": "click",
+     "on": "tick note 3"
+    },
+    {
+     "do": "click",
+     "on": "tick note 2"
+    },
+    {
+     "do": "click",
+     "on": "tick note 1"
+    },
+    {
+     "do": "click",
+     "on": "tick note 0"
+    },
+    {
+     "do": "click",
+     "on": "Tags"
+    },
+    {
+     "do": "click",
+     "on": "tag field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qmouse1200",
+     "on": "tag"
+    },
+    {
+     "do": "click",
+     "on": "Add tag"
+    },
+    {
+     "do": "click",
+     "on": "Move to select (open)"
+    },
+    {
+     "do": "choose option (counted 1)",
+     "on": "Semis mouse-1200"
+    },
+    {
+     "do": "click",
+     "on": "Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "555b2dfda7e2455893b3dd9d3232cc88",
+     "2882cb6d958a45eab6200719e2a394c0",
+     "6264bc846e834351925ee2cba8af42e7",
+     "a03e2a9d91da44daaadb6871b49cbbab",
+     "879d565a4702432e9a8f1ff0bafc6540"
+    ],
+    "tag": "w13qmouse1200",
+    "folder": "Semis mouse-1200"
+   },
+   "notes": "",
+   "screenshot": "Q11-mouse-1200.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1200",
+   "budget": 15,
+   "measured": 144,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 130,
+   "keystrokes": 14,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 4.39,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "All notes",
+     "presses": 10,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 91,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 18",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#w13qmouse1200 5",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#thesis 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 4 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 3",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 3 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 2 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 1 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 0 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 4 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 3",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 3 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 2 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 1 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 0 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis 1m $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA plan (w13q)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA plan (w13q) 2m $NVDA",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Risk rules",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Risk rules 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select PLTR pullback plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "PLTR pullback plan 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Market regime journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market regime journal 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select CRWD base watch",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CRWD base watch 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Weekly review draft",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Weekly review draft 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select AMD earnings recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD earnings recap 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Semis rotation notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis rotation notes 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 4",
+     "presses": 15,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 4",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 4"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 3",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 4 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 3",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 3"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 2",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 3 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 2",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 2"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 1",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 2 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 1",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 1"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 0",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 1 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 0",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 0"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Tags",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tags",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Tags"
+    },
+    {
+     "do": "tab-run",
+     "to": "tag field",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Tag to add to the selected notes",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qkeys1200",
+     "on": "tag"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Add tag"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move to select",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown (choose folder; counted 1)",
+     "on": "Move to"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "689763fdd63b4db0838851177a0efbd1",
+     "2a72feb9aefa4deaba4708b08418c66d",
+     "c52fba160e7e4003ae48509271a247bd",
+     "7f61bcc7cc9046e59ce872ea525b57a1",
+     "d994f755d941444a9036ac8e0c9927ce"
+    ],
+    "tag": "w13qkeys1200",
+    "folder": "Semis keys-1200"
+   },
+   "notes": "",
+   "screenshot": "Q11-keys-1200.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 15,
+   "measured": 159,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 145,
+   "keystrokes": 14,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 6.0,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "All notes",
+     "presses": 10,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 28",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate All notes"
+    },
+    {
+     "do": "tab-run",
+     "to": "Skip to notes list",
+     "presses": 106,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 18",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#w13qkeys1200 5",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#w13qmouse1200 5",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "#thesis 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 4 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 3",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 3 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 2 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 1 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 0 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 4 now #w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 3",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 3 now #w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 2 now #w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 1 now #w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys1200 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys1200 0 now #w13qkeys1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 4",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 4 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 3",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 3 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 2 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 1 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qmouse1200 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qmouse1200 0 now #w13qmouse1200",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis now $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis 1m $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Investment Thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Investment Thesis 1m $NVDA #thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA plan (w13q)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA plan (w13q) 2m $NVDA",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Risk rules",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Risk rules 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select PLTR pullback plan",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "PLTR pullback plan 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Market regime journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Market regime journal 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select CRWD base watch",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "CRWD base watch 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Weekly review draft",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Weekly review draft 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select AMD earnings recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "AMD earnings recap 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Semis rotation notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis rotation notes 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis 2m",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show joystick",
+       "testid": "hub-edge-tab",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to notes list"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 4",
+     "presses": 15,
+     "trail": [
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Sort notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "List view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Table view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Board view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Calendar view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Graph view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Timeline view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tasks view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Save this view",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Import",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Export",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open today's daily note (Ctrl+Alt+D)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Templates",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 4",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 4"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 3",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 4 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 3",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 3"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 2",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 3 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 2",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 2"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 1",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 2 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 1",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 1"
+    },
+    {
+     "do": "tab-run",
+     "to": "select note 0",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Bulk w13qkeys390 1 now",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Select Bulk w13qkeys390 0",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Space",
+     "on": "tick note 0"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Tags",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tags",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Tags"
+    },
+    {
+     "do": "tab-run",
+     "to": "tag field",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Tag to add to the selected notes",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qkeys390",
+     "on": "tag"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "Add tag"
+    },
+    {
+     "do": "key",
+     "key": "Control+Alt+b",
+     "on": "jump to the bulk-action bar (Ctrl+Alt+B)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move to select",
+     "presses": 0,
+     "trail": []
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown (choose folder; counted 1)",
+     "on": "Move to"
+    },
+    {
+     "do": "tab-run",
+     "to": "Move",
+     "presses": 1,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "e1cbebc6092542e9beb1d26660423178",
+     "f2ddafcf0aaf466ab18a1ba3dcffbc33",
+     "aa47ee575a5a49b2a462b7791d001592",
+     "9b5f59b8756740fdaacd281b4f74f733",
+     "7f102458ab434f75b18f8d66b5ebf951"
+    ],
+    "tag": "w13qkeys390",
+    "folder": "Semis keys-390"
+   },
+   "notes": "",
+   "screenshot": "Q11-keys-390.png"
+  },
+  {
+   "flow": "Q11",
+   "name": "tag and move 5 notes",
+   "owner": "Notebook core",
+   "mode": "taps",
+   "width": "390",
+   "budget": 10,
+   "measured": 12,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 12,
+   "time_s": 3.58,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "All notes"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 4"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 3"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 2"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 1"
+    },
+    {
+     "do": "tap",
+     "on": "tick note 0"
+    },
+    {
+     "do": "tap",
+     "on": "Tags"
+    },
+    {
+     "do": "tap",
+     "on": "tag field"
+    },
+    {
+     "do": "fill (not counted)",
+     "text": "w13qtaps390",
+     "on": "tag"
+    },
+    {
+     "do": "tap",
+     "on": "Add tag"
+    },
+    {
+     "do": "tap",
+     "on": "Move to select (open)"
+    },
+    {
+     "do": "choose option (counted 1)",
+     "on": "Semis taps-390"
+    },
+    {
+     "do": "tap",
+     "on": "Move"
+    }
+   ],
+   "outcome": {
+    "notes": [
+     "b8fe81ae0e8849e8973720f0959168a8",
+     "f99fdbdab95d4f0f9275a41e850aa3e8",
+     "a0a33b2d625e4f9aa6fa8f62ffc53fc7",
+     "cf78196d2a204a49bd4f354c29aabe89",
+     "54013a167b314e9c811d9719c8ddfc3a"
+    ],
+    "tag": "w13qtaps390",
+    "folder": "Semis taps-390"
+   },
+   "notes": "",
+   "screenshot": "Q11-taps-390.png"
+  }
+ ],
  "integrity": {
   "path": "docs\\notebook\\evidence\\wave13-13q5\\run-2-final\\integrity.md",
   "required": [
@@ -190,21 +5029,28 @@
   "checkpoints": [
    {
     "label": "pre-boot (baseline)",
-    "at": "2026-10-03 10:47:46",
+    "at": "2026-10-03 20:56:35",
     "root": "C:\\data",
     "db_files": 62,
     "verdict": "CLEAN"
    },
    {
     "label": "post-boot (+15s)",
-    "at": "2026-10-03 10:49:21",
+    "at": "2026-10-03 20:58:09",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 21:00:04",
     "root": "C:\\data",
     "db_files": 62,
     "verdict": "CLEAN"
    },
    {
     "label": "shutdown",
-    "at": "2026-10-03 10:49:42",
+    "at": "2026-10-03 21:00:34",
     "root": "C:\\data",
     "db_files": 62,
     "verdict": "CLEAN"
@@ -214,10 +5060,10 @@
   "clean": true,
   "why": "",
   "copy": "docs\\notebook\\evidence\\wave13-13q5\\run-2-final\\integrity.md",
-  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13q5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T10-47-35.md"
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13q5\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T20-56-21.md"
  },
  "failure": null,
- "not_run": "seeding note 'Risk rules' failed: HTTP 500 Internal Server Error",
+ "not_run": null,
  "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13q5-run1\\screener.db 30 30",
  "page_errors": [],
  "auth_me_flags": {
@@ -250,7 +5096,48 @@
   "notebook_voice_notes_enabled": false,
   "notebook_writing_help_enabled": false
  },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "6bd5fa10049d4eeb96194630a396b196",
+   "Semis rotation notes": "57d33832e4f94011bc02a0abe21320bf",
+   "AMD earnings recap": "6752766e26a04f6d8fdf757fd0d755ee",
+   "Weekly review draft": "5fce2edc4c8449d8bae12a46a029da4e",
+   "CRWD base watch": "ce6fa240dc5b43e6bcd4422d83e0efdd",
+   "Market regime journal": "2a4bf447334342e89f97499f49c12704",
+   "PLTR pullback plan": "e25952c07dd24df69684b9dea1648aba",
+   "Risk rules": "f73f69c2d8bd40ad8c2987c93b54df30"
+  },
+  "position_http": 200,
+  "position_id": "0be6217a-f9df-4080-a3d7-387f7f502ac8",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1200": {
+    "id": "0b7b2d49648a462985ddb16a7b10902a",
+    "name": "Semis mouse-1200"
+   },
+   "keys-1200": {
+    "id": "adf3dde8462b4788915a6fe232a09933",
+    "name": "Semis keys-1200"
+   },
+   "keys-390": {
+    "id": "feba30163c5d4b46a4c63994e5bba10a",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "e259b3a0aea84ab1bb9521d7c3deba01",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "e8869153-9550-461a-ab15-e4197599eb64",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "91620aac-47d8-4f26-8c20-20931da5b7e1",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200
+ },
+ "first_visit_text": "Skip to main content\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$101,960.00\n▾\nFolder navigation\nAdd thesis starter views\nAll notes\n9\nUnfiled\n9\nArchived\n0\nTrash\n0\nSemis keys-1200\n+\nSemis keys-390\n+\nSemis mouse-1200\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nTue, Oct 6, after the close\nOpen position\nCreate prep note\nToday\n\nNothing needs your attention right now.\n\nFavorite a note or set a thesis to Active to see it here.\n\n?\n◉",
+ "raw": {},
  "driver_imported_api": [],
- "finished": "2026-10-03T15:50:12+00:00",
- "status": "NOT COMPLETE"
+ "finished": "2026-10-04T02:01:05+00:00",
+ "status": "COMPLETE"
 }
