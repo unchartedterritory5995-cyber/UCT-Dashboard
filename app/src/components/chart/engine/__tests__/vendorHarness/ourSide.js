@@ -692,6 +692,10 @@ export function runOurSide(capture) {
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
     notes.push(...lower.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    // ⭐ F8 — a column the door computed nothing for carries the door's own
+    // sentence (`columnErrors`, what `runtimeRunStopOf` shows the member), so the
+    // verdict names WHY instead of "no column".
+    const colErrors = (registry.columnErrors && registry.columnErrors(cols)) || {}
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     const paintCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
@@ -757,10 +761,18 @@ export function runOurSide(capture) {
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
+        const e = colErrors[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
+          + (e ? ` — ${e.guard || 'refused'}: ${String(e.message || '').slice(0, 400)}` : '')
       }
       plots.push({
         title: o ? o.title : null,
+        // ⭐ F8 — the output's KIND (`plot` / `plotshape` / `plotchar` / `plotarrow`),
+        // which a repeated-title pairing must agree on (`compare.mjs::pairRepeatedTitles`),
+        // and why OUR side hid the row (`pine.js` `hiddenReason`), which the verdict
+        // reads to tell "the author hid it" from "this engine did not draw it".
+        kind: o ? o.kind || null : null,
+        hiddenReason: o && o.hidden ? (o.hiddenReason || 'unstated') : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         hidden: !!(o && o.hidden),
