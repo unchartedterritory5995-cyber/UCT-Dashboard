@@ -76,6 +76,16 @@ describe('H7 1 - format.volume per pass of a loop over a constant array (CAP4 Q-
     expect(t.objectDiagnostics.loopValuesUnresolved).toBeGreaterThan(0)
     expect(cellTexts(t).map((x) => findVal(x.node)).find((x) => x && x.volume)).toBeFalsy()
   })
+  // ⭐ these three the vector model does NOT refuse (measured with the source guard
+  // off: each read as the unchanged elements) - the guard in `loopFromGetOf` is what
+  // keeps them out, and this is its rail.
+  for (const [what, ins] of [['array.reverse', 'array.reverse(vals)\n'], ['the sort method', 'vals.sort()\n'], ['an alias that changes it', 'w = vals\nw.set(0, 5.0)\n']]) {
+    it(`control: ${what} keeps the refusal (the source guard)`, () => {
+      const base = probe('vw-h5-format-volume.pine').replace('array.size(vals) - 1', '15')
+      const t = translatePine(base.replace('var table t', `${ins}var table t`), { strict: true })
+      expect(cellTexts(t).map((x) => findVal(x.node)).find((x) => x && x.volume)).toBeFalsy()
+    })
+  }
   it('control: a format other than format.volume through a name keeps the refusal', () => {
     const src = probe('vw-h5-format-volume.pine').replace('str.tostring(array.get(vals, i), format.volume)', 'str.tostring(array.get(vals, i), format.percent)')
     const t = translatePine(src, { strict: true })

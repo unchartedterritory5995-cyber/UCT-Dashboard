@@ -334,3 +334,38 @@ if close > top.bump()
     expect(t.objectDiagnostics.droppedOps).toBeGreaterThan(0)
   })
 })
+
+describe('⭐⭐ H7 (step 92) — zero real elements is the MEASURED `na` (CAP4 Q-RT7a); a real + `na` mix stays withheld', () => {
+  it('an all-`na` fixed window is drawn at `na` on every bar (it was withheld); a partly filled one is withheld until full', () => {
+    const t = tr(`var e = array.new_float(3)
+var p = array.new_float(3)
+if close > open
+    p.push(high)
+    p.shift()
+    e.push(float(na))
+    e.shift()
+if close < open
+    label.new(bar_index, e.sum(), "E")
+    label.new(bar_index, e.max(), "EMAX")
+    label.new(bar_index, p.sum(), "P")`)
+    expect(t.objectDiagnostics.droppedOps, JSON.stringify(t.objectDiagnostics.dropReasons)).toBe(0)
+    const ours = byText(run(t))
+    const downs = []
+    for (let i = 0; i < N; i += 1) if (down(i)) downs.push(i)
+    expect(ours.E).toEqual(downs.map((i) => [i, null]))
+    expect(ours.EMAX).toEqual(downs.map((i) => [i, null]))
+    // P: three ups fill it; before that it holds a real AND an `na` (or only `na`
+    // before the first up) - only the all-`na` bars are drawn, at `na`
+    let ups = 0
+    const want = []
+    const arr = [NaN, NaN, NaN]
+    for (let i = 0; i < N; i += 1) {
+      if (up(i)) { arr.push(BARS[i].h); arr.shift(); ups += 1 }
+      if (!down(i)) continue
+      if (ups === 0) want.push([i, null])
+      else if (ups >= 3) want.push([i, arr[0] + arr[1] + arr[2]])
+    }
+    expect(want.some(([, y]) => y === null) && want.some(([, y]) => y !== null)).toBe(true)
+    expect(ours.P).toEqual(want)
+  })
+})
