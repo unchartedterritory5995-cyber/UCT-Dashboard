@@ -78,8 +78,14 @@ describe('every step\'s anchor is in its named file (lane 8A cannot delete one s
     },
   )
 
-  it('every data-tour in those files is a literal AND belongs to a step (no orphan, no expression)', () => {
+  it('every data-tour in those files is a literal AND belongs to a step (no orphan, no expression)', async () => {
+    // A step of ANY registered tour reads an anchor too (wave 14): an anchor a W14-B tour
+    // names in one of these files is not an orphan. Still literal-only and still per file.
     const declared = new Set(TOUR_STEPS.map((s) => s.anchor))
+    for (const t of TOUR_REGISTRY) {
+      const { steps } = await t.load()
+      for (const s of steps) if (FILES.includes(s.file)) declared.add(s.anchor)
+    }
     const strays = FILES.flatMap((f) => FOUND[f].filter((a) => !declared.has(a)).map((a) => `${f}: ${a}`))
     expect(strays, 'an anchor no step names is an attribute nobody reads; an expression evades this rail').toEqual([])
   })

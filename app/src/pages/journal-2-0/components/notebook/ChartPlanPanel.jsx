@@ -294,6 +294,7 @@ export default function ChartPlanPanel({
         contentEditable={false}
         aria-label={`Trade plan for ${symbol}`}
         data-chart-plan-panel=""
+        data-tour="chart-plan-panel"
       >
         <h4 className={styles.head}>Trade plan</h4>
         {levels.length === 0 ? (
@@ -344,6 +345,7 @@ export default function ChartPlanPanel({
                       <button
                         type="button"
                         className={styles.armBtn}
+                        data-tour="chart-plan-alert"
                         disabled={arming === d.id}
                         onClick={() => armAlert(d)}
                         aria-label={`Arm alert at this level, ${fmtPrice(price)}`}
@@ -358,7 +360,7 @@ export default function ChartPlanPanel({
           </ul>
         )}
 
-        <div className={styles.numbers} aria-live="polite">
+        <div className={styles.numbers} aria-live="polite" data-tour="chart-plan-numbers">
           {reading.status === 'error' && <p className={styles.err} role="alert">{reading.error}</p>}
           {reading.status === 'loading' && !reading.data && <p className={styles.hint}>Reading the plan…</p>}
           {sized && (

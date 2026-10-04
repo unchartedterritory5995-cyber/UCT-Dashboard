@@ -21,7 +21,8 @@ describe('the registry itself', () => {
     expect(TOUR_REGISTRY.length).toBeGreaterThan(0)
     for (const t of TOUR_REGISTRY) {
       expect(Object.isFrozen(t), `${t.id} is not frozen`).toBe(true)
-      expect(Object.keys(t).sort()).toEqual(['flag', 'id', 'load', 'replayable', 'title'])
+      // `start` is the contract's one OPTIONAL field (tours/index.js); every other key is required.
+      expect(Object.keys(t).filter((k) => k !== 'start').sort()).toEqual(['flag', 'id', 'load', 'replayable', 'title'])
       expect(typeof t.id).toBe('string')
       expect(typeof t.flag).toBe('string')
       expect(typeof t.title).toBe('string')

@@ -93,7 +93,7 @@ export default function EntryContextCard({ kind, id }) {
   const missingReasons = meta?.missingReasons || {}
 
   return (
-    <section className={styles.card} aria-labelledby="entry-context-title" data-testid="entry-context-card">
+    <section className={styles.card} aria-labelledby="entry-context-title" data-testid="entry-context-card" data-tour="entry-context-card">
       <h2 id="entry-context-title" className={styles.title}>
         Market context at the fill
         {context.capturedLate && (
@@ -106,7 +106,7 @@ export default function EntryContextCard({ kind, id }) {
           </span>
         )}
       </h2>
-      <div className={styles.grid}>
+      <div className={styles.grid} data-tour="entry-context-fields">
         <FieldRow fieldKey="regime" label="Regime" field={f.regime} missingReasons={missingReasons}
           format={(field) => (
             <>
