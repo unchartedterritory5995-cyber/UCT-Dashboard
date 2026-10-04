@@ -186,6 +186,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
+| 89 | RT9 hybrid drawings and colour edge cases (section RT9): a host document whose host lane kept the plots but lost or withheld the drawings carries an objects RUN beside them (`objectsRun`, same gates as any runtime document: GT stage, allowlist by source hash, kill list, RT4's run-or-nothing); plots stay the host's byte for byte; the run honours a member's moved `input.int`/`input.float` (Q1), any other moved setting or a parameter edit falls back to the host program by name. `color.new(na, t)`, `color.new(c, na)` and `color.rgb(na, ...)` follow ONE shared rule on both lanes (`colorInt.js`). Server validator accepts the stated shape | `4de1721ee6`, `f43675646f`, `8c6d4dc8d1`, `e6ced6c6e2`, merge `0de5b2271c` | `runtimeObjects.js`, `nativeRegistry.js` (`objectsRunFor`), `binder.js`, `runtimeColumns.js`, `colorInt.js`, `runtime/colours.js`, `ast/pine.js`, `pineRuntimeFrontend.js`, `defSchema.js`, `api/services/runtime_definitions.py`, `user_definitions.py` | harness 368 files: objects pane capture 96 -> 96, plot 869 -> 875; + runtime capture 109 -> 110, objects 187 -> 188, plot 993 -> 999; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed), hybrid served 2/266 | atr-s&r RDDT runtime DIVERGE -> MATCH (20 lines, 20 boxes); vw-rt6 C03-C05 MATCH (12 rows) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7000,3 +7001,76 @@ F5 with that evidence; the patched file is kept off-branch in the lane's scratch
 
 **Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
 out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
+
+## RT9 - hybrid drawings (host plots, runtime drawings) and colour edge cases on one rule (2026-10-03, step 89)
+
+Lane RT9, branch `pine/rt9-hybrid-objects` (from `integrate/wave16-2026-10-02` `c91e9fe3c8`, merged up to `17330e6289`).
+Brief: (1) where the host lane attaches the plots but withholds or loses the drawings, serve the host's plots plus the
+runtime run's drawings as ONE document with two sources; (2) the `na` colour edges implemented once, shared by both lanes.
+
+**The document.** A host (`ast`) document gains `objectsRun = {kind: 'runtime', source, repaint, trees, inputs}`
+(`memberPaneDefinition.js`, decided by `runtimeObjectsDoor.hybridObjectsOf`). It is minted only when the host lost the
+drawings (`hostDrawingLoss`: `withheld`, `empty` or `lost-creates`) and the run passes every gate any runtime document
+passes: GT's per-member stage (`runtimePaneEnabled`), the starter allowlist by source hash, the kill list, the repaint
+class, and the probe with `objectsInRun`. Plots stay the host's **byte for byte** (rail: the document is the runtime-off
+one plus the run). The schema (`defSchema.validateObjectsRunField`) and the server (`runtime_definitions.validate_objects_run`,
+`user_definitions._check_objects_run`, formula half capped at 64 KiB, whole document at 128 KiB) accept exactly that shape and
+refuse each malformed field; a run on a runtime document is refused.
+
+**Who draws.** ONE source of drawings per paint (`nativeRegistry.objectsRunFor`, which the binder's `syncObjects` obeys):
+the run's own drawings (RT4: no run, no drawing) when it computed; otherwise the host object program, exactly the pre-RT9
+picture, with the reason named. Off the listing a run is `runtime:history-start` (SPY is off-listing), so the host draws.
+A kill-listed or server-stamped run installs WITHOUT its drawings (`meta.objectsRunWithheld`), plots intact.
+
+**Q1 ruling - member inputs.** The run honours a moved script input only where graded: a key the source binds as
+`key = input.int(` / `input.float(` (`honouredInputsOf`), read by bound name on the runtime lane. Each moved value is a new
+run (`runtime:objects:<hash>:<sig>`). A moved bool, string or colour (the run folds or does not read them) and any parameter
+edit (the trees moved) withhold by name (`runtime:objects-settings`), so plots at one setting never sit beside drawings at
+another. Graded against a HAND REPLAY of atr-support-and-resistance (`builder/memberPane/atrSrReplay.js`, no engine code):
+at the defaults the replay equals TradingView's RDDT capture box for box (20); at `mult = 1.8` the run's 10 boxes equal the
+replay's 10 by price, through `objectsRunFor` and through the chart binder (`hybridObjects.test.js`).
+
+**Q2 ruling.** `INSTRUCTIONS_PER_BAR` stays at 200,000 (R-B/D3). Poor-man's volume profile's run stops at
+`runtime:limit` (200,875 instructions on bar 631), so its host program draws, named.
+
+**Colour edges, one rule** (`engine/colorInt.js`: `NA_BASE_HEX`, `NA_TRANSPARENCY`, `NA_CHANNEL`,
+`colorNewTransparency`, `colorRgbChannel`), read by the runtime (`runtime/colours.js`), the host (`ast/pine.js`
+`staticColourOf` / `colourHelperAlpha` via `naConstantOf`) and the object program (`objectRuntime.js`). `color(na)` casts
+as a colour on the runtime lane (`colourCastArg`).
+
+| probe `vw-rt6-runtime-colour` | TradingView | ours, both lanes |
+|---|---|---|
+| C03 `color.new(na, 40)` | `#00000099` | **MATCH** |
+| C04 `color.new(c, na)` | alpha 0 | **MATCH** |
+| C05 `color.rgb(na, ...)` | `#000000ff` | **MATCH** |
+
+**Census** (member door, 266 corpus scripts, library store loaded): off / on / + runtime **55 / 82 / 99**, unchanged from base,
+0 rows changed. Hybrid run **served on 2**: atr-support-and-resistance and poor-man's volume profile (whose run then stops at
+`runtime:limit`, above). **16 declined by name**: `pine:builtin` 3 (ict-killzones-pivots-tfo, multicator-table,
+trend-lines-supports-and-resistances), `runtime:request` 2, `pine:input-kind` 2, `pine:request` 2,
+`runtime:history-dynamic-offset` 2 (pmax-explorer, volume-profile), `runtime:object-op`, `pine:block`, `runtime:loop`,
+`budget:lookback`, `runtime:call-undeclared-builtin-state` 1 each.
+
+**Harness sweep** (368 files, `--maxWorkers=1`, base `c91e9fe3c8` vs tip `f43675646f`):
+
+| | base | RT9 |
+|---|---|---|
+| objects pane: capture MATCH / plot MATCH | 96 / 869 | **96 / 875** |
+| + runtime: capture MATCH / objects MATCH / plot MATCH | 109 / 187 / 993 | **110 / 188 / 999** |
+| MATCH -> anything else | - | **0** |
+
+Only atr-support-and-resistance RDDT (runtime) moved, DIVERGE -> MATCH (20 lines, 20 boxes), plus the 12 C03-C05 rows.
+
+**Mutations** (each restored by captured bytes, sha checked, status clean): 21 in the first round, 19 red at once; the two
+survivors resolved (a redundant `na`-base branch removed; an unrailed runtime `color(na)` cast railed with a control), then red;
+2 more on the cast, red. Q1: honoured set emptied, run ignores `compute.inputs`, `objectsRunFor` drops the inputs, the
+regex widened to `input.bool`, the withhold ignoring honoured keys - 5 of 5 red.
+
+**Rails.** `builder/memberPane/hybridObjects.test.js` (19), `runtimeObjectsDoor.test.js`, `runtime/__tests__/rt6ColourCarriage.test.js`,
+`vendorHarness.rt9NaColour.test.js` (8), `tests/test_runtime_hybrid_objects.py` (14), fixture
+`tests/fixtures/runtime_documents/hybrid_documents.json`; measures `rt9Sweep.measure.test.js`,
+`memberDoorCensus.measure.test.js` (`objectsRun` field).
+
+**Open.** (1) volume-profile and trend-lines-supports-and-resistances (owner "RT9" in F6's table) are declined by name
+here, `runtime:history-dynamic-offset` and `pine:builtin`; not lifted. (2) A hybrid honours numeric inputs only; a moved
+bool/string/colour falls back to the host program by name until a capture or replay grades it.
