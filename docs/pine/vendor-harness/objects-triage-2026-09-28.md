@@ -178,8 +178,9 @@ without it; each row below is a full re-grade of the 47 captures.
 | 78 | F2 plot values and per-bar colours CAP2 graded (section F2): `x = if ...` colour arms carried (`openBoundArm`, implied-volatility-suite); v4/v5 `and` / `or` / `not` read an `na` operand as false in both lanes (RT3 Q-NL, `naOperandReadAsFalse` via `naConditionIsFalse`; runtime no longer counts them); a plot colour graded from its own rule's reach (`colourWarmupOf`). Causes recorded for the rest (daily vwap = F1; EMA/RMA seed off the listing = integrator question; ratchet off the listing; bar-0 reading) | `c2c0c007cd`, `362278f50b`, merge `0bdb2c685c` | all 285, off / on / on+rt: MATCH 56 / 74 / 74 -> **58 / 76 / 76**; 0 MATCH -> DIVERGE | 55 / 80 / 80 unchanged, 0 rows | implied-volatility-suite rddt/spy DIVERGE -> MATCH; rt3-na-logic / -v4 DIVERGE -> INCONCLUSIVE (every graded row MATCH); cpr SPY bar-1 colours MATCH; 7 mutations all red |
 | 79 | F3 drawing divergences on the host object lane (section F3): `str.tostring(x, format.mintick)` rounds to the witnessed tick and keeps its decimals; words around a pattern (`"Swing H  (#,###.####)"`) are read; a non-literal format is carried named (`na` prints `NaN`, a finite value withheld); a drawing the door withholds is graded as a named gap (`withheld`), not "no drawing program". trend-targets RDDT objects MATCH, swing-highlow-zigzag RDDT MATCH; multicator / atr-trailing / pmax labels withheld by name; zigzag SPY lines are a window (35 of 52 below the window) | F3 commits on `pine/f3-drawing-divergences` | `pineTextFormat.js`, `pine.js` text reader, `objectProgram.js` binding, `objectRuntime.js` formatter; harness `ourSide.js` + `compare.mjs` | object MATCH 117/133 -> 118/135 (on/runtime), capture MATCH 73/79 -> 74/80, census 55/80/86 unchanged, 0 MATCH -> DIVERGE | table in section F3 |
 | 80 | GT (lane brief, wave 16) the owner's switch-on rulings for the runtime pane (section GT, `docs/pine/runtime-pane-switch-on-plan.md` *GT operator steps*): D1 a per-member stage `PINE_RUNTIME_STAGE` (off / admins / all; per request; default off pinned) on the auth payload (`pine_runtime_pane_enabled`), latched per tab, required WITH the build flag, and asked of the saving member at the store; D2 runtime documents capped at 128 KiB (formulas 64 KiB; trend-targets saves); D6 the starter allowlist (`api/data/pine_runtime_allowlist.json` + `PINE_RUNTIME_ALLOWLIST`; adx-and-di-for-v4 only; others decline `runtime:not-yet-graded` with the host sentence; empty = none; stored rows served stamped); RT4 follow-up: a direction-B row is served with `repaint_notice` and the Builder shows it, the stored label never flipped. D3/D4/D5 unchanged. Nothing flipped | `40c82dc9ec`, `50e7b8b76c`, docs | not re-graded (no routing change for a permitted member with the list open) | unchanged | with the stage on, the runtime-only 6 attach 1 (adx-and-di-for-v4) until more are graded; 0 for every member while the stage is off |
-| 81 | CAP3 standing capture lane (section CAP3): Q-L2a rolling-vwap (RDDT plots 7/7 MATCH with the store, table cell DIVERGE), Q-RT5a (vendor rows pinned; still refused), Q-H4a (RDDT MATCH 4/4), Q-RT5b renko (RDDT MATCH); 36 of 71 SPY 1D gap captures: MATCH 11 / DIVERGE 24 / INCONCLUSIVE 1, pinned by signature | `b2794f9f34`, `0e083dd37a`, `296a085e9f`, `7eb130a8f5` | 36 + 7 new harness files | - | census (libraries loaded) 55 / 82 / 89 |
+| 81 | CAP3 standing capture lane (section CAP3): Q-L2a rolling-vwap (RDDT plots 7/7 MATCH with the store, table cell DIVERGE), Q-RT5a (vendor rows pinned; still refused), Q-H4a (RDDT MATCH 4/4), Q-RT5b renko (RDDT MATCH), Q-RT6a-f (kalman + deadband MATCH, probe colours DIVERGE, nadaraya/atr-stepped INCONCLUSIVE, parabolic-sar DIVERGE); 69 of 71 SPY 1D gap captures (all but supertrend-explorer, refused by TradingView, and rolling-vwap, whose SPY capture is Q-L2a's): MATCH 19 / DIVERGE 48 / INCONCLUSIVE 2, pinned by signature | `b2794f9f34`, `0e083dd37a`, `296a085e9f`, `7eb130a8f5`, `fec87573d9`, `4744b3e6c7`, batch 7 | 69 SPY + 14 queue harness files | - | census (libraries loaded) 55 / 82 / 89 |
 | 82 | RT6 per-bar colour on the RUNTIME lane (section RT6): a plot's `color =` is an output of the same run (opt-in `plotColours`, appended after every other output), carried as a hidden packed-colour column (`colorPacked`) and drawn by the host renderer (`pool.columnColorsForPlot` -> `packedPointColour`; an `na` colour draws nothing); `bgcolor` / `barcolor` ride the runtime document as paints coloured by the run, with `transp =` or the v4 `bgcolor` default 90 (CAP round 4) folded into a provably opaque colour only; within one script the later `barcolor` wins (CAP round 4 P1/P2); `color.new` / `color.rgb` over `na` are `na` | `98cab84278`, `b8983a327c`, `10cadf56d2` | harness dir 295 (runtime pane permitted): MATCH 86 -> 87, DIVERGE 94 -> 91; inside-bar-range RDDT DIVERGE -> MATCH, vw-deadband-ticks AAPL / SPY DIVERGE -> INCONCLUSIVE (DBHF MATCH, the barcolor agrees); 0 MATCH -> DIVERGE | census on + runtime 87 -> 93 (atr-stepped-pdf-ma, deadband-hysteresis-filter, fvg-trend, kalman-price-filter, nadaraya-watson, parabolic-sar); off / on 0 rows changed |
+| 83 | RT7 the runtime lane's next walls (section RT7): reductions skip `na`, an empty `array.max/min` is `na`, `na` is found nowhere, v6 counts a negative index from the end (all from `vw-array-na-spy-1d`; wyckoff RDDT now draws TradingView's 12 boxes); `ta.valuewhen` / crosses inside a function per call site (`carried2Base`); a fixed pivot `rightbars` folded; `fixnan`; the VM dispatches through a jump table (5,000 bars: renko 797 -> 214 ms, dolphin 1,079 -> 221 ms, digests identical) | `pine/rt7-runtime-walls` | census 55 / 82 / 99 -> 55 / 82 / 99 (0 lost, 0 gained; 7 runtime rows to later walls) | harness identical except wyckoff RDDT objects INCONCLUSIVE -> MATCH |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -6460,7 +6461,7 @@ whole for this lane (373 entries; jsdom suites ran).
 - How many production definitions carry a direction-B label (and so the new notice): not measured.
 - A runtime document saved by an admin at stage `admins` stays in the store when the stage returns
   to `off`; it is not drawn (the client gate) and not deleted, by design.
-## CAP3 - standing capture lane: the queue captured, and 36 SPY 1D gap captures graded (2026-10-03, step 81)
+## CAP3 - standing capture lane: the queue captured, and 69 SPY 1D gap captures graded (2026-10-03, step 81)
 
 Lane CAP3, branch `pine/cap3-captures`, base `integrate/wave16-2026-10-02` (`0dffcab3f0`), merged with the wave-16
 tip `b65e247685` (H4 + RT5) at `cc50d7d809`.
@@ -6508,9 +6509,38 @@ high-low-open-mid labels 504/502, auto-trendline 2 drawings with no drawing prog
 SPY). Coverage audit with the library store: 125 / 125 green; the signature control was mutation-checked (a changed
 count reds it).
 
-**Left.** Gap-list indices 37-70 (33 scripts: liquidity-pools ... zero-lag-ma-trend-levels; `supertrend-explorer` is
-refused by TradingView itself, CAP2) - stopped when the rig tab of the new session read `hidden`. F1 / F2 / F3 / GT
-pushed no capture queue.
+**Gap list 37-70** (33 scripts, `supertrend-explorer` skipped - TradingView refuses it, CAP2), captured after the
+owner reconnected the rig's "Session disconnected" dialog; gate = visible + nonzero size + chart present, `hasFocus`
+recorded as observed (false on most evaluations, true at the end). Same route and receipts; every file 1800 bars,
+`verify_capture` PASS. All attach in the objects-pane state. **MATCH 8** - multi-timeframe-supply-demand-zones,
+pivot-point-supertrend, position-size-calculator, qqe-signals, rvol, tradingview-alerts-to-mt4-mt5 (both),
+ultimate-pivot-points. **DIVERGE 24**: converging prefixes (macd-shortlong 6/6, madrid-moving-average-ribbon 18/18,
+momentum-volatility-scanner histo, reverse-stochastic-momentum-index 7/7, zero-lag-ma-trend-levels 4/4); `na`-vs-value
+(mcclellan Osc persistent, momentum-volatility-scanner Bullish Shift, pa-zigzag-fibonacci-fan 8/9 fan levels,
+trendlines both trendline plots); objects not drawn (options-max-pain lines 24/0 labels 15/0 boxes 13/0,
+poor-man's-volume-profile lines 2/0 labels 40/0, sector-rotation lines 55/0 boxes 504/0, smt-divergence lines 504/0
+labels 504/0, volume-profile lines 203/0, vold-market-breadth table cells 2/0); objects short (market-structure-by-leviathan
+lines 117/21 labels 368/63, pro-trading-art lines 102/13 labels 204/26, vdubus lines 504/272 labels 129/23,
+rsi-swing lines 50/43 labels 50/42, liquidity-pools labels 504/254, trendlines lines 52/25, zero-lag labels 51/30,
+trend-duration-forecast labels 55/52, price-action-as-in-book lines 502/500, position-size-calc cells 10/9);
+objects over (makuchaku FVGs boxes 51/55); object texts/colours only (trend-lines-supports-and-resistances).
+**INCONCLUSIVE 1** - opening-range-initial-balance (vendor title "Shapes" not unique, unmapped).
+
+**RT6 queue (Q-RT6a-f)**, RDDT 1D from the listing (636 bars), graded in the runtime state, signatures in
+`cap3-rt6-verdicts.json`: kalman-price-filter and deadband-hysteresis-filter MATCH; nadaraya-watson INCONCLUSIVE (Alert
+Stream `pine:block`); atr-stepped-pdf-ma INCONCLUSIVE (Long/Short not carried); parabolic-sar DIVERGE (54 labels, no
+drawing program); probe `vw-rt6-runtime-colour` colours C01-C05 DIVERGE from bar 0 (ours `#c9a84c`; vendor
+`color.new(na,40)` = `#00000099`, `color.new(c,na)` = `#ff525200`, `color.rgb(na,...)` = `#000000ff`), B01 barcolor withheld.
+
+**Instrument finding - a runtime-state grade is wall-clock bound.** `RUNTIME_PANE_TIME_BUDGET_MS = 1000`
+(`runtime/runtimeColumns.js`) is applied on the harness's synchronous path too (`runtimeColumns.js:391`), and the
+grade of atr-stepped / nadaraya-watson takes ~0.8-1.2 s on this box. Measured: one measure run rewrote atr-stepped's
+first plot MATCH -> INCONCLUSIVE ("computeFor returned no column"); a probe flipped it MATCH / INCONCLUSIVE depending on
+which capture ran first; one coverage-audit run failed nadaraya's control (INCONCLUSIVE at 1,202 ms) while the browser
+lane was capturing. The committed RT6 signatures were kept (never re-blessed from a loaded run). A runtime-state
+signature is therefore load-sensitive until the harness runs without the pane budget (or with a fixed `now`).
+
+**Left.** Nothing in the CAP3 queue. F1 / F2 / F3 / GT pushed no capture queue.
 
 ## RT6 - per-bar colour on the runtime lane: plot colours, bar colours and backgrounds from the same run (2026-10-03, step 82)
 
@@ -6670,3 +6700,95 @@ without. Mutations, each red, each restored by captured bytes (sha checked): the
 lane drawing a host-attached script's objects; both are runtime-lane routing decisions. (2) heat-map's gauge: a `ta.*`
 window over the bars one arm of `?:` ran (RT6). (3) `src/__tests__/sourcesAreText.test.js` failed twice in seven runs,
 both times only when the run took 28-38 s on a loaded box; it passes alone in about 2 s on the same tree.
+## RT7 - the runtime lane's next walls: measured reductions, per-call-site two-input state, fixnan, and a 5x faster VM (2026-10-03, step 83)
+
+Branch `pine/rt7-runtime-walls`, base `integrate/wave16-2026-10-02` (`b65e247685`), merged with the wave-16
+tip `e3b87af31b` (F2/F3/GT/RT6/CAP3) before the final census. Runtime pane still dark.
+
+### 1. `array.max of an empty array` (RT5's wyckoff stop) - settled from a capture (`edc1049ba2`)
+
+`vw-array-na-spy-1d-2026-10-02` (probe `vw-array-na.pine`, Q-C47-3, captured by CAP2) already answered
+the neighbouring questions: over `(3, na, 1, 2)` `array.min/max/sum/avg` read `1 / 3 / 6 / 2` (na
+SKIPPED; avg of the three real elements), `array.min(na, na)` is `na`, `indexof(a, na)` is `-1`,
+`includes(a, na)` is false, v6 `array.get(a, -1)` is the last element, and the artemis-style KNN vote
+over na distances runs. The runtime lane now answers exactly those (`collections.js::realsOf`,
+`indexOfValue`, v6 negative index via `budget.pineVersion`), and `rt7ArrayNa.test.js` runs the probe
+text on the capture's bars: all 12 rows equal TradingView on every bar. An EMPTY array under
+`array.max/min` has the same zero real elements as N05, and TradingView demonstrably does not stop on
+it (wyckoff's `myhigh/mylow` reduce an empty array while `boxlen` is na; TradingView draws through
+those bars): served as `na`. `array.sum/avg` over zero real elements stay a named stop (unmeasured;
+Q-RT7a). **wyckoff RDDT: the run now draws its 12 boxes, top/bottom/text equal to the capture and
+x-ranks equal** (`vendorHarness.rt7Walls`); coverageAudit's objects verdict for it is MATCH (overall
+still DIVERGE on the offset `barcolor`, withheld by name). artemis' KNN vote as written now reads
+TradingView's `80%`. On 5,000 AAPL bars wyckoff stops on `LOOP_ITERATIONS` (run-wide 100,000) by name.
+
+### 2. `ta.valuewhen` / the cross family inside a function (`10d4e9545a`)
+
+`OP.CARRIED2` had no frame-relative base. The two-input store is now materialised per call site
+(`carried2Base`, as `carriedBase`). Graded against a hand replay and against the same calls at top
+level (`rt7Carried2InFunction.test.js`); williams-fractal and boom-hunter move to their next walls
+(`pine:text-value`, `security`). Also: a `ta.pivothigh/low` `rightbars` a call site, input or
+constant fixes is folded (`constValueOf`) instead of refused "write it as a plain whole number", and
+the canonical `x[k]` reaches this lane in its own parse shape (a literal `R > 0` in a function body
+was refused "a bar offset counts backwards"); such pivots over runtime state stop on their true wall
+(`runtime:history-expression`), by name (`rt7PivotRightbars.test.js`). A pivot over runtime state
+needs its own committed series: not built.
+
+### 3. `fixnan` (`0dc53226fd`)
+
+Pine's `fixnan(x)` on the runtime lane as a carried cell (`CARRIED.fixnanPine`, runtime-only, per
+call site), owned at arity 1 (`RUNTIME_PINE_TWINS`). Graded against a hand replay of the reference
+sentence (`rt7Fixnan.test.js`); capture queued (Q-RT7b). The two hg trendline scripts move to
+`pine:undefined` (`l1`, a `var line` inside HoanGhetti/SimpleTrendlines' `new()`).
+
+### 4. Performance (`d289bcc940`) - the budget stays; the runtime is faster
+
+Profiled (`rt7Perf.measure.test.js`, inspector profile): `execute` was 40-55% and `etClockParts`
+(Intl.formatToParts per bar) up to 18%. The VM's `switch` labels were `case OP.X:` - each a property
+load and a compare in a linear scan of 56 labels per instruction; they are now named Smi literals
+(`case 13 /* OP.DIV */:`), so V8 uses a jump table, held to `OP` by `rt7VmDispatch.test.js`. The ET
+clock parts are kept per UTC hour. Median of 7 on the last 5,000 AAPL daily bars from the listing:
+
+| script | before | after |
+|---|---|---|
+| renko-candles-overlay | 797 ms | 214 ms |
+| fibonacci-dolphintradebot | 1,079 ms | 221 ms |
+| trend-targets-algoalpha | 576 ms | 84 ms |
+| adx-and-di-for-v4 | 162 ms | 34 ms |
+| inside-bar-range | 171 ms | 33 ms |
+
+Every column and object digest identical before/after; harness sweep identical entry for entry.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| member door off / on / on + runtime (libraries loaded, wave-16 tip) | 55 / 82 / 99 | 55 / 82 / 99, **0 lost, 0 gained** |
+| runtime rows moved to a later wall | - | 7 (boom-hunter, market-structure-inducements, neural-network, two hg trendlines, strength-of-divergence, williams-fractal) |
+| harness dir, objects off / on (merged tree, 328 entries) | 61/71/191 ; 84/89/150 MATCH/DIV/INC | identical, entry for entry |
+| harness dir, runtime pane permitted (scratch sweep, merged tree) | MATCH 94 / INC 133 / DIV 96 | MATCH 94 / INC 133 / DIV 96; one entry changed: wyckoff RDDT objects INCONCLUSIVE -> **MATCH** (overall stays DIVERGE, the offset barcolor) |
+| renko-candles-overlay RDDT (CAP3 capture) through the runtime door | MATCH | MATCH (2/2 items, objects MATCH) |
+| 5,000-bar run, renko / dolphin | 797 / 1,079 ms | 214 / 221 ms |
+
+### Rails and mutations
+
+`rt7ArrayNa` (5), `rt7Carried2InFunction` (3), `rt7PivotRightbars` (3), `rt7Fixnan` (3),
+`rt7VmDispatch` (4), `vendorHarness.rt7Walls` (2); re-pinned: `arrays`, `methodsAndArrayMembers`,
+`c47SimpleSwitch` (the KNN vote now runs and reads 80%), `coverageAudit` (wyckoff), `runtimePaneSafety`
+(named-stop fixture is `array.sum` of an empty array), `carriedState` (two runtime-only members).
+Mutations, each restored from captured bytes and sha-verified: carried2Base ignored in the VM (3 red);
+carried2 locals pushed to main (3 red); rightbars fold off (2 red); canonical offset shape reverted (2
+red); one dispatch literal changed (1 red); fixnan step returns its input (2 red).
+
+### Open
+
+- Q-RT7a/b (`capture-queue-2026-10-03-rt7-empty-reduce-fixnan.md`): empty / all-na `sum`/`avg`; fixnan.
+- `vendorHarness.corpus.test.js` runs `runHarness` at collection time, before GT's `beforeEach` permits
+  the runtime pane, so since GT its runtime state grades nothing through the runtime door (measured:
+  on == runtime entry for entry); RT7 measured with a scratch harness that permits first.
+- Not attacked, each measured to stop again behind it (substitution probe): `runtime:switch`
+  (lower_tf), method overloads, `export enum` with values, `timeframe.in_seconds/from_seconds`,
+  `input.time/timeframe/enum` (next: `timestamp`, `chart.right_visible_bar_time`, `map.new`, ...),
+  the `ta.cci` source role (next: `pine:block`, `array.sort`), `ticker.heikinashi` (next: `haopen`
+  in the library), `chart.left_visible_bar_time` (refused by name, `pine:builtin`).
+- Five corpus measure tests time out at 15 s under load (pre-existing: also at `b65e247685`).

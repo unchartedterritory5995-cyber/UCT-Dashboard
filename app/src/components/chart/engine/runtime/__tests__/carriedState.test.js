@@ -108,8 +108,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // in the property name) would empty or fill the loop below and every case in
     // this describe would pass by never running / never excluding.
     expect(MIRRORED.length, 'nothing left to differentiate').toBeGreaterThan(0)
+    // ⭐ RT7 — two runtime-only members now: `barssincePine` and `fixnanPine`
+    // (`rt7Fixnan.test.js` holds the second to a hand replay).
     expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
-      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(1)
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(2)
   })
 
   for (const fn of MIRRORED) {
