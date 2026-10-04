@@ -156,8 +156,9 @@ export const RUNTIME_FAILED_GUARD = 'runtime:failed'
  *  capture has measured (`array.sum` / `array.avg` over zero real elements). */
 export const RUNTIME_UNMEASURED_GUARD = 'runtime:unmeasured'
 
-/** ⭐ F8 — the unmeasured values the runtime PANE probes (`probeAllows`). */
-const PANE_PROBED = Object.freeze(['array.sum', 'array.avg'])
+/** ⚠️ INTERIM (F8; lane H7 replaces the probe with TradingView's measured `na` and removes
+ *  this list) — the unmeasured values the runtime PANE probes (`probeAllows`). */
+const INTERIM_PANE_PROBED = Object.freeze(['array.sum', 'array.avg'])
 
 const sameValue = (a, b) => Object.is(a, b) || (Number.isNaN(a) && Number.isNaN(b)) || a === b
 
@@ -301,7 +302,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   let finished = -1
   let res
   // ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS
-  // (`collections.js::probedZeroReals`): TradingView does not stop there
+  // (`collections.js::interimProbedZeroReals`, INTERIM until lane H7): TradingView does not stop there
   // (witnessed), and what it answers is unmeasured. The run answers the first
   // probe; a run that met one is run AGAIN at the second, and every column this
   // document draws must be the same number on every bar in both — a column that
@@ -310,7 +311,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // unmeasured value keeps its stop.
   const runAt = (probe) => {
     const budget = new Budget()
-    budget.unmeasured = { ...probe, hits: [], only: PANE_PROBED }
+    budget.unmeasured = { ...probe, hits: [], only: INTERIM_PANE_PROBED }
     let firstHitBar = -1
     finished = -1
     const r = execute(program, {

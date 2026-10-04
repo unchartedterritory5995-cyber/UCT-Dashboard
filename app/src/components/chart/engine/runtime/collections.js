@@ -238,7 +238,13 @@ const probedEmpty = (arr, what, budget) => {
  *  No list = every unmeasured value (the object lane, C18, unchanged). */
 export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.includes(what)
 
-/** ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS, under a
+/** ⚠️⚠️ INTERIM — SUPERSEDED BY LANE H7. CAP4 `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`
+ *  measures TradingView's answer for sum / avg / max / min of an empty or all-`na` array:
+ *  `na`, with no runtime error. H7 implements that direct answer and REMOVES this probe
+ *  (and `INTERIM_PANE_PROBED` in runtimeColumns.js); the F8 rail "a column that depends on
+ *  the sum stops" (vendorHarness.f8Ungraded) is the one that changes then.
+ *
+ *  ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS, under a
  *  caller's probe. RT7 measured that a reduction SKIPS its `na` elements, so an
  *  all-`na` array and an empty one leave the same thing to reduce: nothing. What
  *  Pine then answers (0 or `na`) is still unmeasured — but that it does NOT STOP
@@ -251,7 +257,7 @@ export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.
  *  is recorded; the caller serves only what does not move between two probes.
  *  ⛔ Without a probe, `realNumbers`' stop stands word for word. A non-numeric
  *  element is not reduced: no probe, the stop by name. */
-const probedZeroReals = (arr, what, budget) => {
+const interimProbedZeroReals = (arr, what, budget) => {
   const u = budget && budget.unmeasured
   if (!u || !probeAllows(u, what)) return null
   for (const v of arr) {
@@ -389,7 +395,7 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedZeroReals(a[0], 'array.sum', budget)
+      const p = interimProbedZeroReals(a[0], 'array.sum', budget)
       if (p) return p.value
       return realNumbers(a[0], 'array.sum').reduce((s, v) => s + v, 0)
     },
@@ -398,7 +404,7 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedZeroReals(a[0], 'array.avg', budget)
+      const p = interimProbedZeroReals(a[0], 'array.avg', budget)
       if (p) return p.value
       const xs = realNumbers(a[0], 'array.avg')
       return xs.reduce((s, v) => s + v, 0) / xs.length

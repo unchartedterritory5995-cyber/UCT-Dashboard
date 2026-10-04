@@ -808,7 +808,18 @@ export function compareCapture(capture, ours, opts = {}) {
           const first = { bar: seen.bar, time: times[seen.bar], kind: 'not-drawn', vendor: seen.value, ours: null, vendorColor: seen.colour, ourColor: null }
           base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'DIVERGE',
             reason: `NOT DRAWN — TradingView draws this plot in a visible colour on ${seen.count} bars (first at bar ${seen.bar}: ${fmt(seen.value)} in ${seen.colour}); our chart draws nothing for it: this engine hid the row as a column that reads no bar (hiddenReason "constant")${o.missingReason ? ` — ${o.missingReason}` : ''}`,
-            stats: { notDrawn: seen.count, steady: { divergent: seen.count, compared: seen.count, first } } })
+            // The same stats SHAPE comparePlot returns (renderSummary and the corpus rails
+            // read warmup / matching / maxRel off every item): nothing was compared on a
+            // value — our side has no column — so the value counts are zero.
+            stats: {
+              bars: times.length, compared: 0, oursUnread: 0, matching: 0, vendorRowsMissing: 0,
+              naMismatches: 0, valueMismatches: 0, colorMismatches: 0, colorCompared: 0,
+              colorComparable: seen.count, valued: seen.count, maxAbs: 0, maxRel: 0,
+              firstDivergence: first, notDrawn: seen.count,
+              warmup: { bars: 0, compared: 0, divergent: 0, first: null },
+              steady: { bars: times.length, compared: seen.count, divergent: seen.count, first, last: null, pattern: null },
+              vendorRowGapsAfterStart: 0,
+            } })
           continue
         }
       }

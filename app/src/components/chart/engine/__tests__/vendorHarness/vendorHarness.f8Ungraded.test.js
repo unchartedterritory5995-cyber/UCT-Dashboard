@@ -20,7 +20,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import path from 'node:path'
 import { gradeCapture, loadCapture, HARNESS_DIR, withDoorState } from './harness'
-import { compareCapture, pairRepeatedTitles, firstVisibleVendorBar } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { compareCapture, pairRepeatedTitles, firstVisibleVendorBar, renderSummary } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { __gradeWithoutPaneClockForTests } from '../../runtime/runtimeColumns'
@@ -140,6 +140,11 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
     expect(p.verdict).toBe('DIVERGE')
     expect(p.reason).toMatch(/NOT DRAWN.*hidden on this runtime document \(constant\)/)
     expect(p.stats.steady.first).toMatchObject({ bar: 0, kind: 'not-drawn', vendor: 0.01, ours: null })
+    // ⛔ the item carries the SAME stats shape as a compared one: the corpus CLI's summary
+    // reads warmup / matching / maxRel off every item (a partial shape crashed the sweep).
+    const compared = v.plots.find((x) => x.verdict === 'MATCH')
+    expect(Object.keys(p.stats).sort()).toEqual(expect.arrayContaining(Object.keys(compared.stats).sort()))
+    expect(() => renderSummary([v])).not.toThrow()
   }, T)
 
   it("⛔ CONTROL — the same row with TradingView's own display set to none (an in-memory copy; the file is untouched) is not NOT DRAWN", () => {
@@ -239,7 +244,10 @@ plot(${plotExpr}, "D")
     expect(cols.value.length).toBeGreaterThan(600)
   }, T)
 
-  it('⛔ CONTROL — a drawn column that MOVES with the unmeasured sum stops by name (runtime:unmeasured), never a guess', () => {
+  // ⚠️ INTERIM (lane H7): CAP4 measures TradingView's answer for an all-na / empty sum as `na`.
+  // When H7 lands that direct answer, THIS is the rail that changes: the column below is
+  // then served (na(s) is true, so it reads `close`), and the probe mechanism is removed.
+  it('⛔ CONTROL (INTERIM, H7 replaces) — a drawn column that MOVES with the unmeasured sum stops by name (runtime:unmeasured), never a guess', () => {
     const { cols, errs } = runtimeColumnsOf(SRC('na(s) ? close + acc * 0 : close + 1 + acc * 0'))
     expect(cols.value).toBeUndefined()
     expect(errs.value.guard).toBe('runtime:unmeasured')
