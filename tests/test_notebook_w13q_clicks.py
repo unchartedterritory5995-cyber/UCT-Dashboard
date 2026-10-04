@@ -305,96 +305,51 @@ def test_tab_to_cap_is_exact_one_short_of_found_still_caps():
     assert m.tabs == 5
 
 
-# ── focus_editor_body: 13Q-3's Q1 instrument-foreground compensation ───────────────────
+# ── focus_editor_body: the 13Q-3 instrument-foreground compensation is REMOVED ──────────
 #
-# A SECOND, deeper layer of 13Q-2's Q1 diagnosis: bring_to_front() (run_one) makes the page
-# genuinely foreground (measured: document.hasFocus()===true, visibilityState==='visible'),
-# but a freshly-mounted editor's FIRST script-triggered .focus() call still silently fails in
-# this harness; a SECOND attempt on the SAME editor instance succeeds. Measured both ways
-# against the real sandbox (never these fakes): without bring_to_front() two attempts still
-# fail; with it, one extra attempt succeeds -- neither alone is sufficient. Evidence:
-# docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
-
-class FakeBodyLocator:
-    """The `.ProseMirror` locator `focus_editor_body` holds as `pm` -- tracks whether ITS OWN
-    `.focus()` (Playwright's dedicated API, never a product-internals reach-in) was called."""
-
-    def __init__(self, page):
-        self.first = self
-        self._page = page
-
-    def wait_for(self, state=None, timeout=None):
-        pass
-
-    def focus(self):
-        self._page.pm_focus_calls += 1
-
-    def click(self, timeout=None):
-        pass
-
-    def tap(self, timeout=None):
-        pass
-
-    def scroll_into_view_if_needed(self, timeout=None):
-        pass
+# ✅ CLOSED, 13Q-Q1check controller follow-up #2. The compensation this block used to test
+# (a Playwright-native `pm.focus()` tried before the real Tab walk, to paper over a harness
+# artifact) is GONE from `tools/notebook_w13q_clicks.py::focus_editor_body` -- the product
+# defects it was masking are fixed and independently re-measured 10/10 at both widths
+# (docs/notebook/evidence/wave13-q1check/{remount-trace-diagnosis,focus-hook-probe,
+# attach-fix-reverify}/). These three tests replace the three that proved the compensation's
+# own behaviour, reusing the SAME generic fakes the rest of this file uses (never a
+# compensation-specific fake) -- because there is no special-cased behaviour left to prove.
 
 
-class FakeBodyCompensationPage:
-    """Models exactly the one fact this branch depends on: `focus_in_editor`'s check lands
-    only AFTER `pm.focus()` has been called -- the "known harness artifact resolves on a
-    second attempt" shape, proved against the real sandbox above."""
-
-    def __init__(self):
-        self.pm_focus_calls = 0
-        self.check_calls = 0
-        self.keyboard = FakeKeyboard()
-
-    def locator(self, selector):
-        assert selector == ".ProseMirror"
-        return FakeBodyLocator(self)
-
-    def evaluate(self, expr, arg=None):
-        self.check_calls += 1
-        return self.pm_focus_calls > 0
-
-    def wait_for_timeout(self, ms):
-        pass
-
-
-def test_focus_editor_body_keys_compensation_skips_the_real_tab_walk_when_it_resolves():
-    """When the product's own first attempt doesn't land, Playwright's OWN .focus() is tried
-    ONCE, never counted as a step, and the expensive real Tab walk is SKIPPED entirely once it
-    confirms the body is reachable -- proved against the REAL function."""
-    page = FakeBodyCompensationPage()
+def test_focus_editor_body_already_in_the_body_short_circuits_for_free():
+    """If the product already landed the caret (the fixed behaviour this whole lane measured
+    for), the function returns immediately -- no Tab walk, no click, nothing counted beyond
+    the free step."""
+    page = FakePage(found_after=0)  # focus_in_editor's very first check reads True
     m = w13q.Meter(page, "keys")
     w13q.focus_editor_body(m)
-    assert page.pm_focus_calls == 1
-    assert m.tabs == 0                    # the real Tab walk never ran
-    assert m.count() == 0                 # the trailing "End" (caret placement) is setup, not counted
-    assert any("instrument foreground compensation" in s["do"] for s in m.steps)
+    assert m.tabs == 0
+    assert m.count() == 0
+    assert any("already in body (free)" in s.get("do", "") for s in m.steps)
 
 
-def test_focus_editor_body_keys_falls_back_to_the_real_tab_walk_when_compensation_does_not_help():
-    """THE CONTROL: if Playwright's own .focus() does NOT resolve it either, this is a genuine
-    reachability defect, not the known harness artifact -- the real Tab walk still runs and is
-    measured, never silently skipped. Proved with the EXISTING FakePage/FakeLocator (whose
-    `.focus()` is an inert no-op, so nothing here can "accidentally" resolve it) and a target
-    that is only found after real presses."""
+def test_focus_editor_body_keys_tabs_to_the_body_directly_no_compensation_in_between():
+    """With the compensation removed, a 'keys' member who is NOT already in the body goes
+    straight to the real Tab walk -- proved against the REAL function with the existing
+    FakePage/FakeLocator fakes (no `pm.focus()` call exists anywhere on this path to fake)."""
     page = FakePage(found_after=4)
     m = w13q.Meter(page, "keys")
     w13q.focus_editor_body(m)
     assert m.tabs == 4                    # the real walk ran and found it after 4 presses
-    assert not any("instrument foreground compensation" in s.get("do", "") for s in m.steps)
+    assert m.count() == 4                 # the trailing "End" (caret placement) is setup, not counted
 
 
-def test_focus_editor_body_mouse_and_taps_never_use_the_compensation():
-    """Pointer modes already land in the body via a real click/tap (focus-stealing prevention
-    does not apply to synthetic pointer input) -- this branch is keys-only."""
-    for mode in ("mouse", "taps"):
-        page = FakeBodyCompensationPage()
+def test_focus_editor_body_mouse_and_taps_click_or_tap_the_body_directly():
+    """Pointer modes never touch the keys-only Tab-walk branch at all -- a real click/tap on
+    the `.ProseMirror` locator is the whole story, same as every other pointer-mode press in
+    this file."""
+    for mode, counter in (("mouse", "clicks"), ("taps", "taps")):
+        page = FakePage(found_after=None)  # not already focused -- forces the pointer branch
         m = w13q.Meter(page, mode)
         w13q.focus_editor_body(m)
-        assert page.pm_focus_calls == 0
+        assert getattr(m, counter) == 1
+        assert m.count() == 1
 
 
 # ── use_skip_link: 13Q-3's "take the door a real keyboard member would" ─────────────────

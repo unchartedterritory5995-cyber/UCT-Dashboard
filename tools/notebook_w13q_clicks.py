@@ -520,30 +520,34 @@ def focus_editor_body(m: Meter):
         m.steps.append({"do": "already in body (free)", "on": "note body"})
         return
     if m.mode == "keys":
-        # 13Q-3: a SECOND, deeper layer of 13Q-2's Q1 foreground diagnosis. bring_to_front()
-        # (run_one) makes the page genuinely foreground -- document.hasFocus()===true,
-        # visibilityState==='visible', both measured -- but a FRESH editor's first
-        # script-triggered .focus() call still silently fails in this harness even so; a
-        # SECOND attempt on the SAME editor instance succeeds. Measured BOTH ways, with the
-        # real product code, never a reimplementation: without bring_to_front() two attempts
-        # still fail; with it, one extra attempt succeeds. Neither alone is sufficient.
-        # Evidence: docs/notebook/evidence/wave13-13q3/q1-second-attempt-diagnosis/.
+        # ✅ CLOSED, 13Q-Q1check controller follow-up #2. The 13Q-3 instrument-foreground
+        # compensation that used to live here (a Playwright-native `pm.focus()` call, tried
+        # before the real Tab walk) is REMOVED, not just narrowed -- the product defect it was
+        # masking is fixed and independently re-measured.
         #
-        # A real member's tab has no "first attempt" to retry -- theirs is the only one, and
-        # 13Q-2 already proved it succeeds (jsdom unit tests + a direct real-browser check,
-        # section 2 of that report). Playwright's OWN `.focus()` -- never a product-internals
-        # reach-in, never counted as a step -- is the SAME CATEGORY of instrument-only
-        # environment compensation as bring_to_front() itself (CLAUDE.md/13Q-2: "there is no
-        # DOM API ... only the host automating it can do that"). It is used here ONLY to tell
-        # the two cases apart: if it resolves the focus, this was the known harness artifact
-        # and the member pays nothing for it; if it does NOT, this is a genuine reachability
-        # defect and the real Tab walk below is what measures it honestly -- the fallback is
-        # never skipped, so a true regression is still caught.
-        pm.focus()
-        if focus_in_editor(pg):
-            m.steps.append({"do": "already in body (free -- instrument foreground compensation "
-                                   "confirmed it, 13Q-3)", "on": "note body"})
-            return
+        # Full chain, each step with its own commit: 13Q-Q1check's remount-trace recorder found
+        # NotebookTab.jsx::createNote() never primed useJ2Note's SWR cache, so NoteEditorPage's
+        # first render saw `note: null`, built an EMPTY editor, fired the 'body' openFocus
+        # effect's one-shot call on THAT instance, then tore it down the instant the real GET
+        # resolved -- losing the caret with the rebuild. FIXED (globalMutate prime) and
+        # re-measured clean (docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/).
+        # That still left a SEPARATE defect, also 10/10 reproducible
+        # (docs/notebook/evidence/wave13-q1check/focus-hook-probe/, commit a90976c005): the
+        # body-focus effect fired while `editor.view.dom.isConnected` was FALSE --
+        # @tiptap/react's `EditorContent` attaches that DOM in its own, later commit, and
+        # `focus()` on a disconnected node is a silent no-op. FIXED in NoteEditorPage.jsx (poll
+        # `editor.view.dom.isConnected` across animation frames, fire the one-shot only once
+        # true) and re-measured clean
+        # (docs/notebook/evidence/wave13-q1check/attach-fix-reverify/, commit b6206896e4):
+        # 10/10 reps, both widths, activeElement in `.ProseMirror` AND the real
+        # `page.keyboard.type`-typed text landing in the note's body via the product's own
+        # GET /api/j2/notes/{id}.
+        #
+        # No CDP-vs-natural-context theory was ever needed -- both defects were ordinary React
+        # timing bugs with ordinary fixes. With the product now landing focus on its own,
+        # 10/10, this branch no longer needs (or does) anything beyond the real Tab walk any
+        # other mode would take. ⛔ Do not re-add a `pm.focus()` compensation without NEW
+        # evidence that supersedes the measurement cited above.
         m.tab_to("el.closest && el.closest('.ProseMirror')", "note body")
     else:
         m.pointer(pm, "note body")

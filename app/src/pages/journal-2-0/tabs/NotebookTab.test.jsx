@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
+// 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
+// hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
+// and the "primes the cache" test below needs the real cache to assert against.
+const swrMutateSpy = vi.fn()
+vi.mock('swr', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, mutate: (...args) => { swrMutateSpy(...args); return actual.mutate(...args) } }
+})
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
@@ -88,6 +96,7 @@ beforeEach(() => {
   lastPostBody = null
   mockRefresh.mockClear()
   mockLoadMore.mockClear()
+  swrMutateSpy.mockClear()
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({
     notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(),
@@ -274,6 +283,23 @@ describe('NotebookTab — template picker', () => {
     renderTab('/journal/notebook?new=blank&ticker=nvda')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.ticker).toBe('NVDA')
+  })
+
+  // 13Q-Q1check: createNote primes useJ2Note's SWR cache with the exact
+  // object the create POST already returned, BEFORE opening the note --
+  // see createNote's own comment for why (NoteEditorPage's useEditor is
+  // keyed on [note?.id]; a note useSWR has nothing cached for rebuilds the
+  // editor the instant the real GET resolves, silently losing the 'body'
+  // openFocus effect's one-shot focus call to the instance it tore down).
+  // This mock's NoteEditorPage stub never reads the cache -- what this
+  // pins is that the WIRING fires, at the right key, with the right
+  // shape, and WITHOUT asking SWR to revalidate a response that is already
+  // the freshest possible copy.
+  it('13Q-Q1check: "+ New note" primes the note\'s SWR cache before opening it', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    await screen.findByTestId('note-editor')
+    expect(swrMutateSpy).toHaveBeenCalledWith('/api/j2/notes/new1', { note: { id: 'new1' } }, false)
   })
 })
 

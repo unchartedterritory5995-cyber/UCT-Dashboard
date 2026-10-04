@@ -2415,12 +2415,106 @@ export default function NoteEditorPage({
   // (`docs/notebook/evidence/wave13-13q2/after-q1-run{1,2}`). `useLayoutEffect`
   // runs synchronously after the DOM mutation, before paint, which is the only
   // place that can still beat a check keyed on the paint itself.
+  //
+  // ⛔⛔ 13Q-Q1check (re-verification lane, product fix attempted and REVERTED --
+  // read before changing this effect again). Re-measured with NO focus()/click
+  // from any test after the note was created -- a real foreground page, 5 reps
+  // at 1200px and 390px -- `document.activeElement` stayed `BODY` for the full
+  // 2s window in 10 of 10 reps, and a real member's next keystrokes (typed
+  // with no focus() call) landed in neither the title nor the body, also
+  // 10 of 10 (`docs/notebook/evidence/wave13-q1check/results.json`). The PASS
+  // 13Q-3's own instrument measured was its OWN compensation's work, not the
+  // product's (confirmed).
+  //
+  // Two different PRODUCT-side fixes were then tried and BOTH measured to
+  // fail in this exact real-browser flow, with no exception across 20 more
+  // real repetitions: (1) retrying `editor.commands.focus('end')` a second
+  // time -- still 0/10, 0/10 typed-landed
+  // (`docs/notebook/evidence/wave13-q1check/results-after-retry-fix.json`);
+  // (2) a SYNCHRONOUS, un-deferred `editor.view.dom.focus()` call (bypassing
+  // TipTap's own command, which defers the real `view.focus()` via its own
+  // `requestAnimationFrame`) -- also still 0/10, 0/10 typed-landed
+  // (`docs/notebook/evidence/wave13-q1check/results-final.json`), DESPITE the
+  // identical direct-DOM call succeeding 3/3 when tried in isolation
+  // (`docs/notebook/evidence/wave13-q1check/direct-dom-focus-diagnosis/`).
+  //
+  // The isolating measurement that settled it
+  // (`docs/notebook/evidence/wave13-q1check/natural-vs-injected-diagnosis/`):
+  // on the SAME note, SAME page, SAME element, back-to-back -- the product's
+  // own effect (this code, running in the page's own natural execution
+  // context) left `document.activeElement` on `BODY`; the IDENTICAL
+  // `pm.focus()` call, injected a moment later via Playwright's
+  // `page.evaluate()` (a DevTools-protocol-level execution, not page script),
+  // landed it immediately. The variable is NOT timing, retry count, deferred
+  // vs. synchronous, headed vs. headless, or context freshness (all measured
+  // and ruled out) -- it is specifically whether the call originates from the
+  // page's own natural script or from a CDP-injected one. A page's own code,
+  // including this effect, can only ever run in the natural context: there is
+  // no way to reach the CDP-privileged one from here. This is the same
+  // conclusion 13Q-2/13Q-3 reached, now with a controlled, same-element A/B
+  // measurement behind it rather than an assumption.
+  //
+  // ⛔⛔ SUPERSEDED, 13Q-Q1check controller follow-up #2 -- the CDP-vs-natural
+  // theory two paragraphs above was the wrong explanation and no longer
+  // governs this effect; read this note instead before touching it again.
+  //
+  // Measured directly (R-RAW,
+  // `docs/notebook/evidence/wave13-q1check/focus-hook-probe/results.json`,
+  // commit a90976c005, 10/10 reps across both widths, no harness help):
+  // at the exact moment this effect used to call `editor.commands.focus('end')`,
+  // `editor.view.dom.isConnected` was FALSE. `@tiptap/react`'s `EditorContent`
+  // is a class component that attaches `editor.view.dom`'s contents into its
+  // own rendered container inside ITS OWN `componentDidMount`/
+  // `componentDidUpdate` (`node_modules/@tiptap/react/dist/index.js`), which
+  // is a CHILD effect relative to this `useLayoutEffect` -- and on the first
+  // commit `editor.view.dom.parentNode` is not yet truthy, so that attach is
+  // deferred past this effect's first (and, before this fix, only) run. The
+  // SAME `.ProseMirror` node (tracked by stable WeakMap identity) was then
+  // observed becoming connected to the document 135-807ms later in every one
+  // of the 10 reps. `focus()` on a disconnected node is a silent no-op -- no
+  // `focusin`, no `document.activeElement` change -- which is exactly what
+  // every earlier measurement in this lane saw (`BODY` stays active, 0/10),
+  // including the two PRODUCT fixes recorded above as having failed: a
+  // second `focus('end')` call and a synchronous `editor.view.dom.focus()`
+  // call. Both were measured to fail because both still fired before the
+  // node was attached; neither retried. No CDP/automation-context theory is
+  // needed to explain any of it.
+  //
+  // THE FIX: poll `editor.view.dom.isConnected` across animation frames and
+  // fire the one-shot focus only once it is true (and the editor is still
+  // editable), giving up quietly after a bounded number of frames rather
+  // than retrying forever. `openFocusDoneRef.current` is still set exactly
+  // once, and only at the moment focus is actually applied -- so if the note
+  // is destroyed/unmounted before the DOM ever attaches, nothing claims the
+  // one-shot and nothing throws. The title/landmark effect above is
+  // untouched.
   useLayoutEffect(() => {
     if (openFocus !== 'body' || openFocusDoneRef.current) return
     if (!editor || editor.isDestroyed) return
-    openFocusDoneRef.current = true
-    editor.commands.focus('end')
-    onOpenFocused?.()
+    let cancelled = false
+    let rafId = null
+    let frames = 0
+    // ~3s at 60fps -- generous against the measured 135-807ms attach gap.
+    const FRAME_CAP = 180
+    const tryFocus = () => {
+      if (cancelled) return
+      if (!editor || editor.isDestroyed) return
+      const dom = editor.view && editor.view.dom
+      if (dom && dom.isConnected && editor.isEditable) {
+        openFocusDoneRef.current = true
+        editor.commands.focus('end')
+        onOpenFocused?.()
+        return
+      }
+      frames += 1
+      if (frames >= FRAME_CAP) return
+      rafId = requestAnimationFrame(tryFocus)
+    }
+    tryFocus()
+    return () => {
+      cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
   }, [openFocus, editor, onOpenFocused])
   const unreadable = useUnreadableNote(editor)
   // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.
