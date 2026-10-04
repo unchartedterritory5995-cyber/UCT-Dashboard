@@ -43,7 +43,7 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
 from fastapi import FastAPI, Request, Depends
 from api.middleware.auth_middleware import get_current_user, require_admin
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
@@ -11480,6 +11480,27 @@ def spa_index_response(full_path: str):
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
 
 
+# ── Public landing page: /live-trading-room ─────────────────────────────────
+# A REAL static HTML page (app/public/live-trading-room/index.html, copied into
+# dist/ by `vite build`), not a client route: the SPA shell gives a crawler only
+# the shell's own title/meta, so this page is served before the catch-all with
+# its own <title>, description, canonical, Open Graph tags and JSON-LD. No JS,
+# no member data. Its images live beside it and are served by the
+# /live-trading-room/ static mount below. The canonical URL has NO trailing
+# slash; the slash form 301s to it. Defined OUTSIDE the DIST guard so the rail
+# (tests/test_live_trading_room_page.py) can serve it from a temp DIST.
+LIVE_TRADING_ROOM_PATH = "/live-trading-room"
+LIVE_TRADING_ROOM_DIR = "live-trading-room"
+
+
+def live_trading_room_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "index.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11612,6 +11633,21 @@ if os.path.exists(DIST):
     @app.get("/sitemap.xml", include_in_schema=False)
     def _serve_sitemap():
         return FileResponse(os.path.join(DIST, "sitemap.xml"), media_type="application/xml")
+
+    # Public landing page (see live_trading_room_response above). Registered
+    # BEFORE the SPA catch-all, GET and HEAD like it, so crawlers and link
+    # checkers get the real page rather than the app shell.
+    @app.api_route(LIVE_TRADING_ROOM_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room():
+        return live_trading_room_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_PATH, status_code=301)
+
+    _LTR_DIR = os.path.join(DIST, LIVE_TRADING_ROOM_DIR)
+    if os.path.isdir(_LTR_DIR):
+        app.mount(LIVE_TRADING_ROOM_PATH, StaticFiles(directory=_LTR_DIR), name="live-trading-room")
 
     @app.get("/pip-embed", include_in_schema=False)
     def _serve_pip_embed(v: str = "", t: int = 0):
