@@ -66,7 +66,7 @@ function settingsSections() {
 }
 
 /** Every <Link to> in a topic:'notebook' article, and in the helpers those articles use. */
-const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence']
+const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection']
 function notebookLinks() {
   const links = []
   const collect = (node) => visit(node, (n) => {
@@ -230,6 +230,28 @@ describe('the gated articles', () => {
     expect(screen.queryByRole('button', { name: SHARE_Q })).toBeNull()
     expect(screen.queryByRole('button', { name: SAMPLE_Q })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Take the tour' })).toBeNull()
+  })
+})
+
+// Wave 14 (lane W14-0): Help > Walkthroughs, reading the tour registry.
+describe('Walkthroughs (the tour registry\'s Help list)', () => {
+  it('hidden while the onboarding gate is off', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: false })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    expect(screen.queryByText('Walkthroughs')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
+  })
+
+  it('lists the base tour by name, with a Replay link into the Notebook, independent of seen-state', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    const heading = screen.getByText('Walkthroughs')
+    const list = heading.parentElement
+    expect(within(list).getByText('Notebook basics')).toBeInTheDocument()
+    const replay = within(list).getByRole('link', { name: 'Replay' })
+    expect(replay).toHaveAttribute('href', '/journal/notebook')
   })
 })
 

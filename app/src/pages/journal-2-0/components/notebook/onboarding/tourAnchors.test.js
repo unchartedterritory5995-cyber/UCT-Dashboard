@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import { TOUR_STEPS } from './tourSteps'
+import { TOUR_REGISTRY } from './tourRegistry'
 
 const JsxParser = Parser.extend(jsx())
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -81,6 +82,49 @@ describe('every step\'s anchor is in its named file (lane 8A cannot delete one s
     const declared = new Set(TOUR_STEPS.map((s) => s.anchor))
     const strays = FILES.flatMap((f) => FOUND[f].filter((a) => !declared.has(a)).map((a) => `${f}: ${a}`))
     expect(strays, 'an anchor no step names is an attribute nobody reads; an expression evades this rail').toEqual([])
+  })
+})
+
+// ─── Wave 14 (lane W14-0), risk R1 ───────────────────────────────────────────────
+//
+// "~20 tours is a lot of anchors; one renamed or removed anchor rots a tour
+// silently" (plan section 8, R1). The check above is pinned to the base tour's own
+// `TOUR_STEPS` -- it protects THAT tour whether or not a registry exists. This
+// extends the SAME derive-and-fail-by-name pattern to every entry the registry
+// holds, generically, so a tour W14-B adds tomorrow is covered the day it lands,
+// with no new test to write for it.
+describe('the registry extends this check to EVERY registered tour (risk R1)', () => {
+  it('NON-VACUITY — the registry is not empty, and the base tour is in it', () => {
+    expect(TOUR_REGISTRY.length).toBeGreaterThan(0)
+    expect(TOUR_REGISTRY.some((t) => t.id === 'notebook-basics')).toBe(true)
+  })
+
+  it.each(TOUR_REGISTRY.map((t) => [t.id]))(
+    'tour %s: every step\'s anchor appears EXACTLY once in its named file',
+    async (id) => {
+      const entry = TOUR_REGISTRY.find((t) => t.id === id)
+      const { steps } = await entry.load()
+      expect(Array.isArray(steps) && steps.length, `${id}: load() returned no steps`).toBeGreaterThan(0)
+      const files = [...new Set(steps.map((s) => s.file))]
+      const found = Object.fromEntries(files.map((f) => [f, tourAnchorsIn(read(f))]))
+      for (const s of steps) {
+        const n = found[s.file].filter((a) => a === s.anchor).length
+        expect(n, `${id} step ${s.id}: data-tour="${s.anchor}" appears ${n} times in ${s.file} — `
+          + 'a renamed or removed anchor rots this tour silently without this check').toBe(1)
+      }
+    },
+  )
+
+  it('CONTROL: a registry entry whose step names an anchor that is not there fails by name', async () => {
+    const brokenEntry = {
+      id: 'w14-0-control-broken',
+      load: async () => ({
+        steps: [{ id: 'x', anchor: 'this-anchor-does-not-exist', file: 'components/notebook/ResearchHome.jsx' }],
+      }),
+    }
+    const { steps } = await brokenEntry.load()
+    const found = tourAnchorsIn(read(steps[0].file))
+    expect(found.filter((a) => a === steps[0].anchor).length).toBe(0)
   })
 })
 

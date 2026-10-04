@@ -4,6 +4,7 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
+import { replayableTours, startState } from './journal-2-0/components/notebook/onboarding/tourRegistry'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import styles from './Support.module.css'
 
@@ -314,6 +315,38 @@ function PublishSentence() {
   if (!publishingOn()) return null
   return (
     <> <strong>Publish to the web</strong> turns the note into a public page.</>
+  )
+}
+
+/** Help > Walkthroughs (wave 14, lane W14-0; plan section 4.3): every registered
+ *  tour whose own capability is armed, by name, with a Replay button -- regardless
+ *  of whether the member has seen it, dismissed it, or was never offered it. A
+ *  tour whose flag is off is not listed, the same rule every gated article on this
+ *  page already follows: a door that is not there gets no sentence about it.
+ *
+ *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
+ *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
+ *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
+function WalkthroughsSection() {
+  const live = replayableTours().filter((t) => notebookOn(t.flag))
+  if (!live.length) return null
+  return (
+    <div className={styles.faqWrap}>
+      <div className={styles.faqTitle}>
+        <UIcon name="sparkle" size={13} />
+        Walkthroughs
+      </div>
+      <ul className={styles.walkthroughList}>
+        {live.map((t) => (
+          <li key={t.id} className={styles.walkthroughRow}>
+            <span>{t.title}</span>
+            <Link to="/journal/notebook" state={startState(t)} className={styles.walkthroughReplay}>
+              Replay
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -1311,6 +1344,7 @@ export default function Support() {
           </>
         )}
 
+        {!loading && <WalkthroughsSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}
         {!loading && <FeatureStatusStrip />}

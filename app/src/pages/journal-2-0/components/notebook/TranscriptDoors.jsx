@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import lazyChunk from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 
@@ -8,7 +9,7 @@ import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCa
  * first open nor the research workspace carries it (`docs/notebook/perf-budgets.json`).
  * Both render nothing while `notebook_transcript_capture_enabled` is off.
  */
-const SaveTranscriptPassage = lazy(() => import('./SaveTranscriptPassage'))
+const SaveTranscriptPassage = lazyChunk(() => import('./SaveTranscriptPassage'))
 
 /** The ticker research workspace's door: a button, then the sheet with a destination picker. */
 export function SaveTranscriptButton({ symbol, notes = null, quarter = null, onSaved, onOpenNote, disabled }) {

@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import lazyChunk from '../../lib/lazyChunk'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -30,7 +31,7 @@ import styles from './ResearchHome.module.css'
 
 // Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
 // first-open bytes do not carry it).
-const PassedSetups = lazy(() => import('./PassedSetups'))
+const PassedSetups = lazyChunk(() => import('./PassedSetups'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
