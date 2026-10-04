@@ -13,7 +13,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { COLOUR_FNS, hexToPacked, packedToObjectHex } from '../colours.js'
-import { probeRuntimeProgram } from '../runtimeColumns.js'
+import { probeRuntimeProgram, computeRuntimeColumns } from '../runtimeColumns.js'
 import { packedPointColour, columnColorsForPlot } from '../../pool.js'
 import { validateDefinition, SCHEMA_VERSION } from '../../defSchema.js'
 
@@ -162,5 +162,27 @@ describe('RT6 — the schema admits `colorPacked`, and only well formed', () => 
     expect(errs(doc({ colorPacked: {} })).join(' ')).toMatch(/colorPacked: a computed colour/)
     expect(errs(doc({ colorMode: 'column:out2', colorPacked: {}, colorUp: '#fff', colorDown: '#000' })).join(' ')).toMatch(/colorPacked alone/)
     expect(errs(doc({}, [{ kind: 'bgcolor', colorMode: 'column:out2', colorPacked: { transparency: 1.5 } }])).join(' ')).toMatch(/colorPacked\.transparency/)
+  })
+})
+
+describe('RT9 — the runtime lane reads a colour CAST of `na`', () => {
+  const H = ['//@version=5', 'indicator("t")']
+  const NL = String.fromCharCode(10)
+  const colourOf = (expr) => {
+    const p = probeRuntimeProgram([...H, `plot(close, "p", color = ${expr})`].join(NL))
+    expect(p.ok).toBe(true)
+    return p.outputs[0].colour
+  }
+  it('`color.new(color(na), 40)` computes (C03, #00000099 on TradingView)', () => {
+    const c = colourOf('color.new(color(na), 40)')
+    expect(c && Number.isInteger(c.output), JSON.stringify(c)).toBe(true)
+    const src = [...H, 'plot(close, "p", color = color.new(color(na), 40))'].join(NL)
+    const bars = [1, 2].map((i) => ({ t: 1700000000 + i * 86400, o: i, h: i + 1, l: i - 0.5, c: i, v: 10 }))
+    const cols = computeRuntimeColumns({ id: 'x', compute: { kind: 'runtime', fn: 'x', source: src, outputs: { k: c.output } } },
+      bars, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+    expect(packedToObjectHex(cols.k[1])).toBe('#00000099')
+  })
+  it('CONTROL: `color(close)` is a price in a colour slot and stays refused', () => {
+    expect(colourOf('color.new(color(close), 40)').refused).toBeTruthy()
   })
 })

@@ -36,7 +36,7 @@
 // recorded rather than presented as measured.
 import {
   packColor, unpackColor, wholeTransparency, TRANSPARENCY_MAX, BYTE_MAX,
-  NA_BASE_RGB, colorNewTransparency, colorRgbChannel,
+  colorNewTransparency, colorRgbChannel,
 } from '../colorInt.js'
 
 /** Thrown for a colour a member could have written differently. */
@@ -308,9 +308,10 @@ export const COLOUR_FNS = Object.freeze({
   // ⛔ `color.rgb`'s fourth argument `na` has no witness: it still answers `na`.
   'color.new': {
     args: ['number', 'number'], returns: 'colour', minArgs: 2, maxArgs: 2,
-    fn: (a) => withTransparency(
-      Number.isNaN(Number(a[0])) ? packColor({ ...NA_BASE_RGB, transparencyByte: 0 }) : a[0],
-      colorNewTransparency(a[1])),
+    // ⭐ An `na` base needs no branch: `withTransparency` keeps the base's three
+    // colour bytes, and NaN reads as 0 there — black, the witnessed answer. A
+    // separate branch for it was mutation-tested and changed nothing (RT9).
+    fn: (a) => withTransparency(a[0], colorNewTransparency(a[1])),
   },
   // `color.rgb(r, g, b, transp = 0)` — three channels, Pine's own order.
   'color.rgb': {
