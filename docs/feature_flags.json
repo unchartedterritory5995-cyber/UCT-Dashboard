@@ -61,12 +61,6 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
-    "PINE_RUNTIME_SAVE_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "owner": "pine parity programme",
-      "note": "RT1 (2026-10-02): the store's save door for a RUNTIME-lane document (compute.kind 'runtime'), api/services/runtime_definitions.py::save_enabled, read per call as == '1'. DARK on purpose: unset refuses every runtime document with a sentence the member door renders, and the runtime pane itself is not built into production (VITE_PINE_RUNTIME_PANE_ENABLED off). It goes on only in the owner-approved admins-first switch-on (docs/pine/runtime-pane-switch-on-plan.md, arriving with wave 16, which adds PINE_RUNTIME_STAGE). Rollback: unset (verify a NEW boot; delete does not restart). Rails: tests/test_runtime_definitions.py."
-    },
     "ARTIFACT_VERSIONS_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
