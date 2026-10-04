@@ -557,9 +557,11 @@ describe('the age authority has named consumers, and only those', () => {
     // authority — it is the renderer, not a panel, and still decides nothing.
     // TERM-059 follow-ups 2-4 (2026-10-03): the Monitor's AAII, CBOE P/C and CNN F/G
     // columns ask too, through `pages/breadth/sentimentAge.js`.
+    // TERMINAL-NEXT V8 (lane T4, 2026-10-03): every /terminal panel header asks, through
+    // `pages/terminal/panelFreshness.js` (dark behind terminalChromeEnabled).
     expect(importers.sort(), 'a panel adopted (or dropped) the age ruling; name it here by path')
       .toEqual(['app/src/components/provenance/FreshnessBadge.jsx', 'app/src/pages/breadth/naaimAge.js',
-                'app/src/pages/breadth/sentimentAge.js'])
+                'app/src/pages/breadth/sentimentAge.js', 'app/src/pages/terminal/panelFreshness.js'])
   })
 
   it('and the adopter is itself rendered by a page, not a helper nobody calls', () => {

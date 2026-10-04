@@ -20,6 +20,11 @@
 // Phone (≤640): a single panel — the focused one — under a pinned command line, with the
 // function list in a Sheet. Touch tier (≤1024): every control is at least `--tap-min`.
 //
+// Lane T4 (chrome + phone), DARK behind `terminalChromeEnabled` (TerminalChrome.jsx): the L0
+// status strip (V7), each panel's as-of in its header from TERM-006's authority (V8), and on
+// the touch tier (≤1024, owner ruling D-007: full phone parity) a panel switcher with the
+// board's layout controls in a Sheet (P14a). Absent the key, the shell renders as before.
+//
 // Lane T3 (the grammar): ONE parser (parseCommand.js) behind this command line AND the
 // Ctrl/Cmd-K palette; channel targeting (`@B …`), row <GO>, ASK → AI Search, member aliases,
 // comparison modes, the interpreted-parse echo, a published ranking fed by server-side
@@ -31,7 +36,7 @@ import { useAuth } from '../../context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
-import { useIsPhone } from '../../hooks/useBreakpoint'
+import { useIsPhone, useIsTouch } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -51,6 +56,8 @@ import {
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH } from './terminalGate'
+import { PanelAsOf, PanelFreshness, PanelSwitcher, StatusStrip } from './TerminalChrome'
+import { createFreshnessStore } from './panelFreshness'
 import styles from './TerminalShell.module.css'
 
 /** Pure: what a stored panel renders — the variant, the panel it names (a component, or a
@@ -130,13 +137,20 @@ function rowsOwner(panel) {
   return `${panel.id}|${panel.code}|${(panel.args || []).join(' ')}`
 }
 
+/** V8: the freshness-store id of a panel — the panel AND what it shows (code, resolved
+ *  security, args), so new content never inherits the previous content's as-of. ONE function
+ *  for the header that writes and the strip that reads. */
+function freshIdOf(panel, r) {
+  return `${panel.id}|${panel.code}|${r?.sym || ''}|${(panel.args || []).join(' ')}`
+}
+
 function channelOf(layout, id) {
   return layout.channels.find((c) => c.id === id) || null
 }
 
 function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
-  onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone,
+  onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, freshness = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -147,6 +161,7 @@ function Panel({
   // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list),
   // tagged with what it is showing so a list it no longer shows cannot be run.
   const owner = rowsOwner(panel)
+  const freshId = freshIdOf(panel, r)
   const rowsProp = useMemo(() => (focused && onRows ? (rows) => onRows(rows, owner) : undefined),
     [focused, onRows, owner])
   return (
@@ -181,6 +196,7 @@ function Panel({
           <span className={styles.code}>{title}</span>
           <span className={styles.panelLabel}>{r.fn?.label || ''}</span>
         </span>
+        {freshness && Comp && <PanelAsOf store={freshness} panelId={freshId} name={r.name} />}
         {full && <Link className={styles.panelLink} to={full}>Full page</Link>}
         {!standalone && (
           <span className={styles.panelActions}>
@@ -212,11 +228,13 @@ function Panel({
             fallback={<PanelCrashed code={panel.code} />}
           >
             <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
-              {r.name === 'Help'
-                ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
-                : r.name === 'Move'
-                  ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
-                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
+              <MaybeFreshness store={freshness} panelId={freshId}>
+                {r.name === 'Help'
+                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                  : r.name === 'Move'
+                    ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                    : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
+              </MaybeFreshness>
             </Suspense>
           </ErrorBoundary>
         )}
@@ -234,17 +252,28 @@ function Panel({
   )
 }
 
+/** V8: the SWR scope only while the chrome is on (absent the flag, nothing wraps a panel). */
+function MaybeFreshness({ store, panelId, children }) {
+  return store ? <PanelFreshness store={store} panelId={panelId}>{children}</PanelFreshness> : children
+}
+
 export default function TerminalShell() {
   const auth = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const isPhone = useIsPhone()
+  const isTouch = useIsTouch()
+  // Lane T4: the chrome is dark unless the auth payload carries the key (=== true).
+  const chromeOn = auth?.terminalChromeEnabled === true
+  const freshnessRef = useRef(null)
+  if (chromeOn && !freshnessRef.current) freshnessRef.current = createFreshnessStore()
+  const freshness = chromeOn ? freshnessRef.current : null
   const {
     layout, layoutStatus, syms, save, replaceStoredLayout, library, libraryStatus, saveLibrary,
     setGroupSym, loading,
   } = useTerminalLayout()
   const [notice, setNotice] = useState(null)
-  const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | null
+  const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | 'layout' | null
   const [channelMenu, setChannelMenu] = useState(null) // { index, anchor }
   const [functionRecents, setFunctionRecents] = useState(() => readFunctionRecents())
   const inputRef = useRef(null)
@@ -701,6 +730,17 @@ export default function TerminalShell() {
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
       data-testid="terminal-shell">
+      {chromeOn && (
+        <StatusStrip
+          panels={visible.map((p) => {
+            const r = resolvePanel(p, syms, auth)
+            return { id: freshIdOf(p, r), name: r.state === 'ready' && !p.popout ? r.name : 'Help' }
+          })}
+          store={freshness}
+          channel={channelOf(layout, activeId)}
+          sym={syms[activeId] || null}
+        />
+      )}
       <div className={styles.bar}>
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} />
         {isPhone && (
@@ -779,6 +819,18 @@ export default function TerminalShell() {
           <button type="button" className={styles.noticeClose} onClick={() => setNotice(null)} aria-label="Dismiss">×</button>
         </div>
       )}
+      {chromeOn && isTouch && (
+        <PanelSwitcher
+          panels={visible}
+          focus={focus}
+          count={count}
+          maxVisible={MAX_VISIBLE}
+          labelOf={(p) => panelCommandText(p, syms)}
+          onFocus={setFocus}
+          onAdd={() => save({ ...countTo(layout, count + 1), focus: count })}
+          onLayout={() => setSheet('layout')}
+        />
+      )}
       <div className={styles.body}>
         {!isPhone && (
           <nav className={styles.rail} aria-label="Terminal functions">
@@ -827,6 +879,7 @@ export default function TerminalShell() {
                 onBringBack={() => save(setPopout(layout, i, false))}
                 canClose={count > 1}
                 isPhone={isPhone}
+                freshness={freshness}
               />
             )
           ))}
@@ -851,6 +904,40 @@ export default function TerminalShell() {
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
         <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} />
       </Sheet>
+      {chromeOn && (
+        <Sheet open={sheet === 'layout'} onClose={() => setSheet(null)} title="Layout">
+          <div className={styles.layoutSheet} data-testid="terminal-layout-sheet">
+            <div className={styles.layoutRow} role="group" aria-label="Panels">
+              <span className={styles.layoutLabel}>Panels on this board</span>
+              {PANEL_COUNTS.map((n) => (
+                <button key={n} type="button" className={`${styles.barBtn} ${count === n ? styles.barBtnOn : ''}`}
+                  aria-pressed={count === n} onClick={() => setCount(n)} data-testid={`terminal-layout-count-${n}`}>{n}</button>
+              ))}
+            </div>
+            <div className={styles.layoutRow} role="group" aria-label="Density">
+              <span className={styles.layoutLabel}>Density</span>
+              {DENSITIES.map((d) => (
+                <button key={d} type="button" className={`${styles.barBtn} ${layout.density === d ? styles.barBtnOn : ''}`}
+                  aria-pressed={layout.density === d} onClick={() => save(setDensity(layout, d))}
+                  data-testid={`terminal-layout-density-${d}`}>{d[0].toUpperCase()}{d.slice(1)}</button>
+              ))}
+            </div>
+            <div className={styles.layoutRow} role="group" aria-label={`Panel ${focus + 1}`}>
+              <span className={styles.layoutLabel}>Panel {focus + 1}: {panelCommandText(layout.panels[focus], syms) || 'empty'}</span>
+              <button type="button" className={styles.barBtn} onClick={() => { setSheet(null); onDuplicate(focus) }}
+                data-testid="terminal-layout-dup">Duplicate</button>
+              {count > 1 && (
+                <button type="button" className={styles.barBtn} onClick={() => { setSheet(null); onClose(focus) }}
+                  data-testid="terminal-layout-close">Close</button>
+              )}
+              {layout.closed.length > 0 && (
+                <button type="button" className={styles.barBtn} onClick={() => { setSheet(null); onUndoClose() }}
+                  data-testid="terminal-layout-undo">Undo close ({layout.closed[0].panel.code})</button>
+              )}
+            </div>
+          </div>
+        </Sheet>
+      )}
       <Sheet open={sheet === 'boards'} onClose={() => setSheet(null)} title="Boards">
         <BoardsMenu
           library={library}

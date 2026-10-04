@@ -275,20 +275,31 @@ _RESEARCH_DEPTH_SURFACES = (
     ("ftd_dataset_enabled", "ftd_dataset"),
     ("mention_series_enabled", "mention_series"),
     ("broker_estimates_enabled", "broker_estimates"),
-)
-
-# Lane R Depth panels that the /terminal shell does NOT yet reach by a function code.
-# They are real Depth panels (same payload form, same tab), kept in their OWN tuple only
-# because adding a function code is Lane T1's file (app/src/pages/terminal/functions.js,
-# audit V1b) and the terminal rail requires a code for every key of the tuple above.
-# ⛔ HANDOFF, not a resting place: when T1 adds NEWS / REPLAY codes, move these rows up
-# and delete this tuple. The client mirror is RESEARCH_DEPTH_AWAITING_CODE_KEYS.
-_RESEARCH_DEPTH_AWAITING_CODE_SURFACES = (
+    # Lane R D-6/D-7/D-8/D-5, folded in by lane T4 (2026-10-03): each now gates its OWN
+    # terminal code (NVER / NIMP / NREAD -> the News desk panel, CRPL -> Call replay), so the
+    # interim "awaiting a code" tuple is gone. The client mirror is RESEARCH_DEPTH_KEYS.
     ("news_story_versions_enabled", "news_versions"),
     ("news_importance_enabled", "news_importance"),
     ("news_read_state_enabled", "news_read_state"),
     ("call_replay_enabled", "call_replay"),
 )
+
+
+def _terminal_chrome_flags() -> dict:
+    """TERMINAL-NEXT lane T4: the shell chrome (V7 strip, V8 panel as-of, P14a phone
+    switcher) and the /charts phone doors (P14b) -- the SAME readers
+    `api/services/terminal_chrome.py` owns. ⛔ EACH KEY IS PRESENT ONLY WHEN ON (the TERM-077
+    form): both unset => this payload is byte-identical to before the lane. Never raises."""
+    try:
+        from api.services import terminal_chrome
+        out = {}
+        if terminal_chrome.chrome_enabled():
+            out["terminal_chrome_enabled"] = True
+        if terminal_chrome.charts_phone_doors_enabled():
+            out["charts_phone_doors_enabled"] = True
+        return out
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
 
 
 def _research_depth_flags() -> dict:
@@ -297,7 +308,7 @@ def _research_depth_flags() -> dict:
     Never raises; a surface whose module cannot be read is simply absent."""
     import importlib
     out = {}
-    for key, mod in _RESEARCH_DEPTH_SURFACES + _RESEARCH_DEPTH_AWAITING_CODE_SURFACES:
+    for key, mod in _RESEARCH_DEPTH_SURFACES:
         try:
             if importlib.import_module(f"api.services.{mod}").is_enabled():
                 out[key] = True
@@ -701,6 +712,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
         **_lane_r_client_flags(),
+        **_terminal_chrome_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are

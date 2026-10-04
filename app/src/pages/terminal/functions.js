@@ -120,6 +120,18 @@ export const FUNCTIONS = [
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
   { code: 'BRKE', label: 'Broker estimates', group: 'Research depth',
     ticker: { panel: 'BrokerEstimates', section: 'depth', flag: `${DEPTH}.broker_estimates_enabled` } },
+  // Lane R D-6/D-7/D-8 (lane T4 gave them codes, 2026-10-03): the News desk is ONE panel whose
+  // three annotations each ride their own flag, so each flag gates its own code and all three
+  // open the same desk (the panel itself shows only the annotations that are on).
+  { code: 'NVER', label: 'News desk: story versions', group: 'Research depth',
+    ticker: { panel: 'NewsDesk', section: 'depth', flag: `${DEPTH}.news_story_versions_enabled` } },
+  { code: 'NIMP', label: 'News desk: importance', group: 'Research depth',
+    ticker: { panel: 'NewsDesk', section: 'depth', flag: `${DEPTH}.news_importance_enabled` } },
+  { code: 'NREAD', label: 'News desk: read / unread', group: 'Research depth',
+    ticker: { panel: 'NewsDesk', section: 'depth', flag: `${DEPTH}.news_read_state_enabled` } },
+  // Lane R D-5: tape + transcript replay of the latest earnings call.
+  { code: 'CRPL', label: 'Call replay (tape + transcript)', group: 'Research depth',
+    ticker: { panel: 'CallReplay', section: 'depth', flag: `${DEPTH}.call_replay_enabled` } },
 
   // ── options ──
   { code: 'OMON', label: 'Option chain', group: 'Options',

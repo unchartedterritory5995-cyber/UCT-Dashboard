@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DepthTab from './DepthTab'
-import { readResearchDepth, anyResearchDepth, RESEARCH_DEPTH_KEYS, RESEARCH_DEPTH_AWAITING_CODE_KEYS } from './researchDepthFlags'
+import { readResearchDepth, anyResearchDepth, RESEARCH_DEPTH_KEYS } from './researchDepthFlags'
 
 const HIT = {
   sym: 'AAPL', form: '10-K', accession: '0000320193-25-000079', filed: '2025-10-31',
@@ -90,7 +90,7 @@ describe('researchDepthFlags', () => {
     expect(readResearchDepth({ filing_search_enabled: 'yes' }).filing_search_enabled).toBe(false)
     expect(readResearchDepth({ filing_search_enabled: true }).filing_search_enabled).toBe(true)
     expect(readResearchDepth(null)).toEqual(Object.fromEntries(
-      [...RESEARCH_DEPTH_KEYS, ...RESEARCH_DEPTH_AWAITING_CODE_KEYS].map(k => [k, false])))
+      RESEARCH_DEPTH_KEYS.map(k => [k, false])))
   })
   it('the tab exists only while some panel is on', () => {
     expect(anyResearchDepth(readResearchDepth({}))).toBe(false)

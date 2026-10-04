@@ -799,3 +799,139 @@
     display: none;
   }
 }
+
+/* ── lane T4 (dark behind terminalChromeEnabled): the L0 strip, panel as-of, panel switcher ── */
+.strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  padding: 2px var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  min-width: 0;
+}
+
+.stripItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.stripItem[data-tone='warn'] {
+  color: var(--color-warning, var(--accent));
+}
+
+.stripItem[data-tone='ok'] {
+  color: var(--text);
+}
+
+.stripSub {
+  color: var(--text-muted);
+}
+
+.stripDot,
+.stripChannelDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--text-muted);
+}
+
+.stripDot[data-tone='ok'] {
+  background: var(--color-success, var(--accent));
+}
+
+.stripChannelDot {
+  background: var(--dot, var(--border));
+}
+
+.asOf {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.asOfStale {
+  color: var(--color-warning, var(--accent));
+}
+
+.switcher {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.switchTab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 0 0 auto;
+  min-height: 30px;
+  min-width: 30px;
+  max-width: 40vw;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switchTabOn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.switchNum {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.layoutSheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.layoutRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.layoutLabel {
+  flex: 0 0 100%;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 1024px) {
+  .switchTab {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+
+  .asOf {
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
