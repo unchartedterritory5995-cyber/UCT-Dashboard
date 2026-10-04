@@ -28,6 +28,20 @@ The seeded ids are recorded in the member's preference `notebook_sample`
 failure in pass 2 still leaves a sample `remove` can find), which is what `remove` and the
 Research Home strip read. `remove` trashes exactly those ids that are not in Trash already, through the
 Notebook's own soft delete, so every one of them can be restored from Trash.
+
+⛔⛔ WAVE 14, LANE W14-E -- ONE EXAMPLE PER CAPABILITY, SAME CLICK, SAME DOOR. Right after pass
+2, `seed` also calls `sample_examples.seed`, which writes one seeded example per Notebook
+capability (a closed trade graded against a plan, an active setup, a thesis with a
+resurfacing notice, a passed setup, an earnings-prep draft, a cited transcript passage) --
+each through that capability's own real door, documented in `sample_examples.py`'s module
+docstring. Those six example notes' ids are folded into the SAME `ids` list this module has
+always recorded, so `remove` trashes them exactly like the five base notes, for free. The
+non-note rows a capability example also wrote (a trade, a frozen entry context, a passed
+setup, a resurfacing insight) are recorded under the preference's new `examples` key and
+cleaned up by `sample_examples.remove` -- see that module for which capability's own "remove"
+verb each one uses and why none of it is raw SQL. The preference's `v` moved to 2 for this
+(a `v: 1` reader -- `recorded_ids`/`active_ids` -- reads the unchanged `ids` key and does not
+notice; `examples` is ignored by anything that does not look for it).
 """
 from __future__ import annotations
 
@@ -41,7 +55,7 @@ from typing import Any
 
 from api.services import auth_service
 from api.services.auth_db import get_connection
-from api.services.journal_two import notes
+from api.services.journal_two import notes, sample_examples
 
 SAMPLE_PATH = Path(__file__).with_name("sample_notebook.json")
 PREF_KEY = "notebook_sample"
@@ -136,7 +150,8 @@ def count_all_notes(user_id: str, conn: sqlite3.Connection) -> int:
 
 
 def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """Write the sample notebook for a member who has no notes at all.
+    """Write the sample notebook for a member who has no notes at all: the five base
+    practice notes, then (W14-E) one example per capability, folded into the same `ids`.
 
     Returns `{"folderId", "welcomeNoteId", "ids"}`. Raises `SampleRefused` when the member
     has any note, `SampleBusy` when the write lock could not be had in time."""
@@ -172,7 +187,7 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         # ⚰️ The ids were recorded after pass 2, so a failure between the two passes left
         # notes no `remove` could see -- and a member who now "has notes" can never re-seed.
         auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
-            "v": 1, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "v": 2, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }))
 
         # Pass 2: the notes that link to another, now that every id exists -- the same
@@ -188,9 +203,21 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         if welcome_id:
             note = notes.get_note(user_id, welcome_id, conn=conn)
             folder_id = (note or {}).get("folderId")
+
+        # Wave 14, W14-E: one example per capability, same click, same lock. Each piece is
+        # independent and defensive (see sample_examples.py) -- a capability's own failure
+        # never loses the base five, and whatever it DID create is still recorded below so
+        # `remove` can find it.
+        examples = sample_examples.seed(user_id, conn)
+        seeded = seeded + list(examples["noteIds"])
     finally:
         if owned:
             conn.close()
+
+    auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
+        "v": 2, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "examples": {k: v for k, v in examples.items() if k != "noteIds"},
+    }))
 
     return {"folderId": folder_id, "welcomeNoteId": welcome_id, "ids": seeded}
 
@@ -204,15 +231,28 @@ def _link_targets(node: Any) -> list[str]:
     return found
 
 
-def recorded_ids(user_id: str) -> list[str]:
-    """The ids `seed` recorded for this member, or [] when there is no sample."""
+def _recorded_pref(user_id: str) -> dict[str, Any]:
     raw = auth_service.get_user_preferences(user_id).get(PREF_KEY)
     try:
         value = json.loads(raw) if isinstance(raw, str) else None
     except ValueError:
         value = None
-    ids = value.get("ids") if isinstance(value, dict) else None
+    return value if isinstance(value, dict) else {}
+
+
+def recorded_ids(user_id: str) -> list[str]:
+    """The ids `seed` recorded for this member, or [] when there is no sample."""
+    ids = _recorded_pref(user_id).get("ids")
     return [i for i in ids if isinstance(i, str) and i] if isinstance(ids, list) else []
+
+
+def recorded_examples(user_id: str) -> dict[str, Any]:
+    """W14-E: the non-note rows `sample_examples.seed` recorded (a trade id, a frozen entry
+    context key, a passed-setup id, a resurfacing insight id), or `{}` for a pre-W14-E sample
+    (a `v: 1` preference, or none at all) -- `sample_examples.remove` then has nothing to do,
+    which is correct: there is nothing of that shape to clean up."""
+    examples = _recorded_pref(user_id).get("examples")
+    return examples if isinstance(examples, dict) else {}
 
 
 def active_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[str]:
@@ -230,7 +270,11 @@ def active_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[
 
 
 def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """Trash exactly the recorded sample notes that are not in Trash already.
+    """Trash exactly the recorded sample notes that are not in Trash already, and (W14-E)
+    undo every non-note row a capability example wrote -- a trade, a frozen entry context, a
+    passed setup, a resurfacing insight -- through that capability's own "remove" verb
+    (`sample_examples.remove`; see its docstring for which verb each one is and why none of
+    it is a Trash-shaped soft delete).
 
     The Notebook's own soft delete, one note at a time: nothing but the recorded ids is
     touched, and each one can be restored from Trash."""
@@ -238,7 +282,8 @@ def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str,
     conn = conn or get_connection()
     try:
         trashed = [i for i in recorded_ids(user_id) if notes.delete_note(user_id, i, conn=conn)]
+        examples_removed = sample_examples.remove(user_id, recorded_examples(user_id), conn=conn)
     finally:
         if owned:
             conn.close()
-    return {"trashed": trashed}
+    return {"trashed": trashed, "examplesRemoved": examples_removed}

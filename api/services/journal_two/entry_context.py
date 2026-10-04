@@ -601,6 +601,60 @@ def capture_at_entry(user_id: str, symbol: str, entry_date: Any, *, trigger: str
             "context": out["context"]}
 
 
+def freeze_static(user_id: str, symbol: str, entry_day: str, fields: dict[str, dict],
+                  *, capture_kind: str = "at_entry", trigger: str = "manual_add",
+                  capture_day: str | None = None, conn: sqlite3.Connection | None = None) -> dict:
+    """Freeze a context from CALLER-SUPPLIED field values -- never computed, never a live read.
+
+    Wave 14, lane W14-E (the sample notebook's capability examples): writes through the exact
+    same INSERT OR IGNORE `freeze()` uses, so the row and its invariants -- one per (member,
+    symbol, entry day), never a second writer overwriting the first -- are identical. The one
+    difference is that `build_context()` is never called, so this door can never make the one
+    live vendor read this module's docstring names (`_next_report_date`, FMP then Finnhub): a
+    sample must never spend that budget or depend on it being reachable. `fields` must carry
+    exactly `FIELDS`, each already shaped like `_field(...)`/`_missing(...)` -- the same shape
+    `build_context()` produces, so a reader cannot tell a static example from a live freeze."""
+    missing = set(FIELDS) - set(fields)
+    if missing:
+        raise ValueError(f"freeze_static needs every field: missing {sorted(missing)}")
+    if capture_kind not in CAPTURE_KINDS:
+        raise ValueError(capture_kind)
+    if trigger not in TRIGGERS:
+        raise ValueError(trigger)
+    sym, day = clean_symbol(symbol), clean_day(entry_day)
+    if not day:
+        raise EntryContextRequestError("An entry needs its day.")
+    with _Conn(conn) as c:
+        existing = _row(c, user_id, sym, day)
+        if existing is not None:
+            return {"frozen": False, "context": _serialize(existing)}
+        cap_day = capture_day or today_et()
+        cur = c.execute(
+            "INSERT OR IGNORE INTO j2_entry_context (user_id, symbol, entry_day_et, capture_kind,"
+            " capture_day_et, captured_at, trigger_source, version, context)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(user_id), sym, day, capture_kind, cap_day, _now_iso(), trigger, CONTEXT_VERSION,
+             json.dumps({f: fields[f] for f in FIELDS}, separators=(",", ":"), default=str)))
+        c.commit()
+        return {"frozen": cur.rowcount == 1, "context": _serialize(_row(c, user_id, sym, day))}
+
+
+def forget(user_id: str, symbol: str, entry_day: str, *, conn: sqlite3.Connection | None = None) -> bool:
+    """Hard-delete one frozen context row, by its own primary key.
+
+    Wave 14, lane W14-E: the sample notebook's removal door for a `freeze_static` row. Real
+    entries are never deleted outside a full account purge -- this exists only so a sample's
+    static example can be removed as completely as the note it rides beside, scoped to exactly
+    the one (member, symbol, entry day) key the caller names."""
+    sym, day = clean_symbol(symbol), clean_day(entry_day)
+    with _Conn(conn) as c:
+        cur = c.execute(
+            "DELETE FROM j2_entry_context WHERE user_id = ? AND symbol = ? AND entry_day_et = ?",
+            (str(user_id), sym, day))
+        c.commit()
+        return cur.rowcount > 0
+
+
 def set_why(user_id: str, symbol: str, entry_day: str, text: Any,
             conn: sqlite3.Connection | None = None) -> dict | None:
     """Set (or, with an empty text, clear) the member's "why did you take it" note.
