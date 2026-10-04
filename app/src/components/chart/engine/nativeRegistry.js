@@ -90,7 +90,7 @@ import {
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
-import { interpret } from './ast/interpret'
+import { interpret, CHART_CLOCK_WITHHELD, HELD_SEED_CODE } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
 // `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
@@ -2594,6 +2594,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       }
     }
     seedColourOntoValue(def, out, seed)
+    unknownPaletteOntoValue(def, out, seed, clock, ctx && ctx.tf)
     return withSeedWarmup(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), seed)
   }
   if (keys.length !== 1) {
@@ -2775,6 +2776,45 @@ function seedColourOntoValue(def, out, seed) {
     if (!moved) continue
     out[p.key] = next
     seed[p.key] = { mask, bound, raw }
+  }
+}
+
+/** ⭐⭐ F9 — …AND SO IS A VALUED BAR WHOSE PALETTE INDEX IS NOT COMPUTABLE. A
+ *  palette rule's index (`colorMode: 'column:K'` + `colorPalette`) that is `NaN`
+ *  on a bar whose value is drawn has no colour the script chose there either; the
+ *  renderer would fall back to the series colour (the pane's gold). The index trees
+ *  `colourIndexChain` writes never answer `NaN` themselves (an `na` selector takes
+ *  its else branch), so this is a state the window cannot hold — a `var` colour
+ *  (`pine.js::colourStateRule`) before its running index is computable off the
+ *  listing. ⚰️ MEASURED: `vw-rt6-runtime-colour-spy-1d-2026-10-03` C01 drew 501
+ *  bars in `#c9a84c` beside a value TradingView colours white / green / red. The
+ *  value is withheld there, named `seed:held` (a level set on events and held,
+ *  which the loaded bars do not reach), with an unbounded bound like F5's. */
+function unknownPaletteOntoValue(def, out, seed, clock, tf) {
+  for (const p of (def && Array.isArray(def.plots) ? def.plots : [])) {
+    const mode = p && typeof p.colorMode === 'string' ? p.colorMode : ''
+    if (!mode.startsWith('column:') || !p.key || !Array.isArray(p.colorPalette)) continue
+    const idx = out[mode.slice('column:'.length)]
+    const col = out[p.key]
+    if (!idx || !col || typeof idx.length !== 'number' || typeof col.length !== 'number') continue
+    const own = seed[p.key] && seed[p.key].mask ? seed[p.key] : null
+    const mask = own ? Float64Array.from(own.mask) : new Float64Array(col.length)
+    const bound = own ? Float64Array.from(own.bound) : new Float64Array(col.length)
+    const raw = own ? own.raw : Float64Array.from(col)
+    const next = Float64Array.from(col)
+    let moved = false
+    for (let i = 0; i < next.length; i++) {
+      if (next[i] !== next[i] || Number.isFinite(idx[i])) continue
+      next[i] = NaN
+      mask[i] = 1
+      bound[i] = Infinity
+      moved = true
+    }
+    if (!moved) continue
+    out[p.key] = next
+    seed[p.key] = { mask, bound, raw }
+    if (!(clock[p.key] instanceof Map)) clock[p.key] = new Map()
+    clock[p.key].set(HELD_SEED_CODE, CHART_CLOCK_WITHHELD[HELD_SEED_CODE](tf))
   }
 }
 
