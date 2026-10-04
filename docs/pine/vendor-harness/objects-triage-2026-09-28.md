@@ -7186,6 +7186,14 @@ flipCGeometry / memberPaneGate / objectLane*.measure / guardProbe time out at 15
 objectFnInline sector-rotation, b1Paints pinned list (B1P's), c41LowerTfServe x4, c47BoolNaLatch control, capRound4 Q-O1 x6,
 c26OtherSymbol, c29BareSymbol, freshness, pineProbeReplay, syminfoMintick, udfTypedParams, varReadOrderLanes; Python
 test_c45_withheld_doors x2.
+**Wave 17 merge (2026-10-04).** F5 x H6: `cumulativeLevelMask` (`cum:window`) withholds a tree reading `ta.obv`'s
+level whole, so the seed mask is not asked beside it (one code; `ta.ema(ta.obv, 10)` railed in both lanes, parity
+fixture case `ema of obv`). F5's per-node `cum` bound covers only seed error inside the window; the pre-window constant is
+H6's. Harness on the merged tree vs wave 17's own engine (`53ef7a20ef`), 373 graded, MATCH / DIVERGE / INCONCLUSIVE:
+off 80/79/214 -> **98/57/218**, objects on 101/109/163 -> **119/87/167**, + runtime + libraries 118/115/140 -> **136/93/144**;
+18 DIVERGE -> MATCH and 4 DIVERGE -> INCONCLUSIVE in every state, **0 MATCH lost**, 0 `seed-bound` violations. CAP4:
+vw-rt8-runtime-followups RDDT R01 / S01 / S04 DIVERGE -> MATCH (bar 0).
+
 ## RT8 - the runtime lane's follow-ups: the measurement made true, `ta.wma`'s warm-up, runtime fills, and the off-listing seed (2026-10-03, step 87)
 
 Branch `pine/rt8-runtime-followups`, base `integrate/wave16-2026-10-02` (`476412b297`), merged forward to `c91e9fe3c8`
@@ -7387,14 +7395,6 @@ regex widened to `input.bool`, the withhold ignoring honoured keys - 5 of 5 red.
 **Open.** (1) volume-profile and trend-lines-supports-and-resistances (owner "RT9" in F6's table) are declined by name
 here, `runtime:history-dynamic-offset` and `pine:builtin`; not lifted. (2) A hybrid honours numeric inputs only; a moved
 bool/string/colour falls back to the host program by name until a capture or replay grades it.
-
-**Wave 17 merge (2026-10-04).** F5 x H6: `cumulativeLevelMask` (`cum:window`) withholds a tree reading `ta.obv`'s
-level whole, so the seed mask is not asked beside it (one code; `ta.ema(ta.obv, 10)` railed in both lanes, parity
-fixture case `ema of obv`). F5's per-node `cum` bound covers only seed error inside the window; the pre-window constant is
-H6's. Harness on the merged tree vs wave 17's own engine (`53ef7a20ef`), 373 graded, MATCH / DIVERGE / INCONCLUSIVE:
-off 80/79/214 -> **98/57/218**, objects on 101/109/163 -> **119/87/167**, + runtime + libraries 118/115/140 -> **136/93/144**;
-18 DIVERGE -> MATCH and 4 DIVERGE -> INCONCLUSIVE in every state, **0 MATCH lost**, 0 `seed-bound` violations. CAP4:
-vw-rt8-runtime-followups RDDT R01 / S01 / S04 DIVERGE -> MATCH (bar 0).
 
 ## H6 - host-lane state and UDT walls: `ta.obv`'s level, a constant UDT instance's fields, and H2's state walls routed (2026-10-03, step 90)
 
