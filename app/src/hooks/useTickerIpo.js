@@ -40,7 +40,12 @@ export async function fetcher(url) {
   const r = await fetch(url, { credentials: 'include' })
   if (!r.ok) throw new Error(`ticker-ipo ${r.status}`)
   const j = await r.json()
-  return { list_date: j?.list_date ?? null }
+  // `first_trade_date` is the corroborated first session the listing statement
+  // compares against (`listingSeed.listingReferenceDate`); absent until the server
+  // sends it, and then the statement reads `list_date` exactly as before.
+  const out = { list_date: j?.list_date ?? null }
+  if (typeof j?.first_trade_date === 'string') out.first_trade_date = j.first_trade_date
+  return out
 }
 
 // Warm before a chart mounts (hover/selection), mirroring prefetchTickerMeta.

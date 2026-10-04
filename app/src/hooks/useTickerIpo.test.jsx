@@ -25,6 +25,13 @@ describe('useTickerIpo', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/ticker-ipo/ABNB', expect.objectContaining({ credentials: 'include' }))
   })
 
+  it('carries first_trade_date through when the server sends it (the listing reference)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ list_date: '1993-01-22', first_trade_date: '1993-01-29' }) })
+    const { result } = renderHook(() => useTickerIpo('SPY'), { wrapper })
+    await waitFor(() => expect(result.current.first_trade_date).toBe('1993-01-29'))
+    expect(result.current.list_date).toBe('1993-01-22')
+  })
+
   it('null-safe when fetch fails', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false })
     const { result } = renderHook(() => useTickerIpo('ABNB'), { wrapper })

@@ -35,7 +35,7 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
-import { historyFromListingOf } from './chart/engine/listingSeed'
+import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -8429,9 +8429,11 @@ export default function StockChart({
   // warm-up curtain. The rule lives in `listingSeed.historyFromListingOf` — daily,
   // exact date equality, read off the SAME `filteredBars` the binder receives —
   // never the IPO badge's five-day tolerance above, which only labels a candle.
+  // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
+  // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
   const historyFromListing = useMemo(() => historyFromListingOf({
-    bars: filteredBars, tf: resolvedTf, listDate: ipoInfo?.list_date,
-  }), [filteredBars, resolvedTf, ipoInfo?.list_date])
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
