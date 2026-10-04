@@ -220,6 +220,21 @@ def run_bare_charts(br, state, base, w: dict, width: int, served: list):
     ctx = br.new_context(viewport={"width": width, "height": 900 if not touch else 844}, is_mobile=touch,
                          has_touch=touch, reduced_motion="reduce", storage_state=state)
     install_bars_route(ctx, served)
+    # 13H-4: arm the tool ONCE, same as the original diagnostic always did, but
+    # the 3 taps `tap_sequence` places afterward assume the tool STAYS armed
+    # across all three -- true only with Repeat ON. StockChart defaults
+    # Repeat OFF (`localStorage.getItem('uct-draw-repeat') === 'true'`), so a
+    # fresh sandbox browser (empty storage) reverts to cursor after the FIRST
+    # placed line, and taps 2-3 land on an unarmed canvas (measured: 3 taps,
+    # 1 line, no amount of settle-wait changes it -- it is not a timing race).
+    # Setting this via `add_init_script` is what turning the REAL Repeat
+    # toggle on does, not a bypass of it.
+    # ⛔ `add_init_script` EVALUATES THE STRING AS A RAW SCRIPT, it does not
+    # call a function the way `page.evaluate()` does -- an arrow-function
+    # STRING here would define-and-discard an unused function and never run
+    # the body (measured: `bare_V390_repeat_flag` read back `None` with that
+    # form). A plain top-level statement is what actually executes.
+    ctx.add_init_script("try { localStorage.setItem('uct-draw-repeat', 'true') } catch (e) {}")
     pg = ctx.new_page()
     errors = []
     pg.on("pageerror", lambda e: errors.append(scrub(str(e))[:300]))
@@ -247,8 +262,22 @@ def run_bare_charts(br, state, base, w: dict, width: int, served: list):
     try:
         tool.first.wait_for(state="visible", timeout=8000)
     except Exception:
-        # phone shell -- open the drawbar first
+        # 13H-4: the mobile /charts shell's drawbar is collapsed behind a
+        # TWO-step door, not one -- "More tools" (MobileChartToolbar.jsx)
+        # opens a sheet (MobileMoreSheet.jsx) whose "Draw on chart" row calls
+        # StockChart's expandDrawToolbar(). A bare `name=~"draw"` button does
+        # not exist on the page until that sheet is open, so the direct
+        # lookup below found nothing (`menu.count()==0`) and the original
+        # fallback skipped straight to waiting for "^Horizontal", timing out
+        # with the drawbar never opened (measured:
+        # docs/notebook/evidence/wave13-13h4/charts-control/ before this fix).
         menu = pg.get_by_role("button", name=re.compile(r"draw", re.I))
+        if not menu.count():
+            more = pg.get_by_role("button", name=re.compile(r"^More tools"))
+            if more.count():
+                (more.first.tap() if touch else more.first.click())
+                pg.wait_for_timeout(300)
+                menu = pg.get_by_role("button", name=re.compile(r"draw", re.I))
         if menu.count():
             (menu.first.tap() if touch else menu.first.click())
         tool = pg.get_by_role("button", name=re.compile(r"^Horizontal"))
@@ -263,7 +292,74 @@ def run_bare_charts(br, state, base, w: dict, width: int, served: list):
     w[f"{tag}_armed_after_press"] = armed_info
     w[f"{tag}_mobile_draw_bar_present"] = pg.locator('[data-testid="mobile-draw-bar"]').count() > 0
 
-    tap_sequence(pg, w, canvas_box, tag, touch, None)
+    # 13H-4: NOT `tap_sequence` here -- it reads `canvas_box` ONCE, before any
+    # tap, and reuses it for all three. Measured: on the bare /charts page the
+    # FIRST placed line widens the right price-scale (to fit the new price
+    # label), shrinking the drawing overlay canvas (z-index 4 -- the one
+    # `onPointerDown` actually lives on, ChartDrawingOverlay.jsx) out from
+    # under the stale box, so taps 2-3 land on the plain candle-pane canvas
+    # underneath instead (z-index 2, `elementFromPoint` confirmed this: 390x736
+    # -> 314x622 after tap 1). Re-measure the z-4 canvas fresh before EVERY
+    # tap, the same principle tools/notebook_w13h2_walk.py's own
+    # `biggest_canvas_box` comment already states for the Notebook embed
+    # ("arming the tool can itself scroll the page ... moves every VIEWPORT-
+    # relative coordinate") -- here the resize is a SECOND cause of the same
+    # "a box read once can go stale" class, not a new principle.
+    def overlay_box():
+        return pg.evaluate(
+            "() => { const cs = [...document.querySelectorAll('canvas')]"
+            ".filter(c => getComputedStyle(c).zIndex === '4'); "
+            "if (!cs.length) return null; const r = cs[0].getBoundingClientRect(); "
+            "return [r.x, r.y, r.width, r.height] }")
+    count_js_inline = ("() => { try { const all = JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}'); "
+                        "return Object.values(all).flat().filter(d => d && d.type === 'horizontal').length } "
+                        "catch { return -1 } }")
+    w[f"{tag}_repeat_flag"] = pg.evaluate("() => localStorage.getItem('uct-draw-repeat')")
+    placed = 0
+    for frac in (0.28, 0.5, 0.72):
+        box = overlay_box() or canvas_box
+        x0, y0, cw, ch = box
+        x, y = x0 + cw * 0.45, y0 + ch * frac
+        armed_before_tap = tool.first.evaluate(
+            "el => ({ariaPressed: el.getAttribute('aria-pressed'), boxShadow: getComputedStyle(el).boxShadow})")
+        if touch:
+            pg.touchscreen.tap(x, y)
+        else:
+            pg.mouse.click(x, y)
+        placed += 1
+        pg.wait_for_timeout(400)
+        armed_after_tap = tool.first.evaluate(
+            "el => ({ariaPressed: el.getAttribute('aria-pressed'), boxShadow: getComputedStyle(el).boxShadow})")
+        w.setdefault(f"{tag}_taps", []).append({
+            "frac": frac, "box": list(box), "x": round(x, 1), "y": round(y, 1),
+            "armed_before_tap": armed_before_tap, "armed_after_tap": armed_after_tap,
+            "count_after_tap": pg.evaluate(count_js_inline),
+        })
+    # 13H-4: the bare /charts page has no note to store a server-side
+    # annotation against -- its drawings persist to localStorage
+    # ('uct-chart-drawings', keyed by symbol -- drawingsStore.js) instead of a
+    # j2_notes row, so `tap_sequence`'s own req/nid-based `stored_count_after_
+    # 500ms` (wired for the Notebook embed) is never populated here. Read the
+    # same fact from its own storage: count every `type: 'horizontal'`
+    # drawing across all symbols (a fresh sandbox browser has none but the
+    # ones these taps just placed).
+    #
+    # SETTLE, don't sample once: tools/notebook_w13h2_walk.py's own
+    # draw_three_lines learned this the hard way on this exact widget ("the
+    # final count ... was 1, not 3" on a flat wait) -- poll for up to 10s for
+    # the count to reach `placed` before reading a final (possibly still
+    # mid-flight) number.
+    count_js = ("() => { try { const all = JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}'); "
+                "return Object.values(all).flat().filter(d => d && d.type === 'horizontal').length } "
+                "catch { return -1 } }")
+    stored = pg.evaluate(count_js)
+    settle_tries = 0
+    while stored < placed and settle_tries < 20:
+        pg.wait_for_timeout(500)
+        stored = pg.evaluate(count_js)
+        settle_tries += 1
+    w[f"{tag}_drawings_stored"] = stored
+    w[f"{tag}_drawings_settle_tries"] = settle_tries
     w[f"{tag}_errors"] = errors
     ctx.close()
 
