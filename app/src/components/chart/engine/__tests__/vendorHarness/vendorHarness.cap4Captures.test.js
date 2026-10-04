@@ -129,6 +129,79 @@ describe('CAP4 - Q-RT7a/b vw-rt7-empty-reduce-fixnan, AMEX:SPY 1D FULL history (
   })
 })
 
+describe('CAP4 - Q-RT8a-c vw-rt8-runtime-followups, NYSE:RDDT 1D from the listing (vendor witness)', () => {
+  const ID = 'vw-rt8-runtime-followups-rddt-1d-2026-10-04'
+  // TradingView's colorer columns pack a colour as 0xAABBGGRR; this reads it as #rrggbbaa.
+  const hex = (n) => (n === null ? null : `#${[0, 8, 16].map((sh) => ((n >>> sh) & 255).toString(16).padStart(2, '0')).join('')}${((n >>> 24) & 255).toString(16).padStart(2, '0')}`)
+  const colorer = (c, target) => {
+    const p = c.study.plots.find((x) => x.type === 'colorer' && x.target === target)
+    expect(p, `colorer of ${target}`).toBeTruthy()
+    const at = c.plotValues.fields.indexOf(p.id)
+    return c.plotValues.rows.map((r) => hex(r[at]))
+  }
+  const pid = (c, title) => c.study.plots.find((p) => p.title === title).id
+  it('the source is the committed probe; 636 bars from the listing (2024-03-21)', () => {
+    const c = cap(ID)
+    expect(c.source.sha256).toBe('8cc01f9655e9f574d518dcdbdc9248b825193d566086eb4de5bd282cfd686411')
+    expect(c.history.startsAtBar0).toBe(true)
+    expect(c.bars.count).toBe(636)
+  })
+  it('Q-RT8a: ta.wma across a gap that FOLLOWS finite values answers on its n-th FINITE input (rule A): W01 first on bar 26, W03 on bar 58; the ema of it (W02) on bar 30', () => {
+    const c = cap(ID)
+    const firstReal = (t) => col(c, t).findIndex((x) => x !== null)
+    expect(firstReal('W01 wma gap warmup')).toBe(26)
+    expect(firstReal('W02 ema of wma')).toBe(30)
+    expect(firstReal('W03 wma bar0 then gap')).toBe(58)
+  })
+  it('R01: the supertrend ratchet mid is 0 on bar 0 (nz of the first bar\'s [1]), na on bars 1-8, real from bar 9', () => {
+    const mid = col(cap(ID), 'R01 mid')
+    expect(mid[0]).toBe(0)
+    expect(mid.slice(1, 9).every((x) => x === null)).toBe(true)
+    expect(mid.slice(9).every((x) => x !== null)).toBe(true)
+  })
+  it('Q-RT8b: a per-bar shape colour is recorded per bar; an `na` colour leaves the shape VALUE in place (S02 / S04 still 1 on their bars) with an na colour', () => {
+    const c = cap(ID)
+    const mid = col(c, 'R01 mid')
+    const B = c.bars.rows
+    const above = B.map((b, i) => mid[i] !== null && b[4] > mid[i]) // an na comparison is false
+    const want = (yes, no) => above.map((a) => (a ? yes : no))
+    expect(colorer(c, pid(c, 'S01 shape per-bar'))).toEqual(want('#4caf50ff', '#f23645ff'))
+    expect(colorer(c, pid(c, 'S02 char per-bar with na'))).toEqual(want('#00e676ff', null))
+    expect(colorer(c, pid(c, 'S03 shape color.new per-bar'))).toEqual(want('#2962ff99', '#ff980099'))
+    expect(colorer(c, pid(c, 'S04 shape per-bar with text'))).toEqual(want('#4caf50ff', null))
+    expect(col(c, 'S02 char per-bar with na')).toEqual(B.map((b) => (b[4] < b[1] ? 1 : 0)))
+    expect(col(c, 'S04 shape per-bar with text')).toEqual(B.map((b) => (b[4] > b[1] ? 1 : 0)))
+  })
+  it('Q-RT8c: per-bar fill colours on a display.none edge are recorded per bar (F01 alpha 0x33 = transp 80; F02 alpha 0x19 = transp 90, na where the condition is false)', () => {
+    const c = cap(ID)
+    const mid = col(c, 'R01 mid')
+    const B = c.bars.rows
+    expect(colorer(c, 'fill_0')).toEqual(B.map((b, i) => (mid[i] !== null && b[4] > mid[i] ? '#4caf5033' : '#f2364533')))
+    expect(colorer(c, 'fill_1')).toEqual(B.map((b) => (b[4] > b[1] ? '#2962ff19' : null)))
+  })
+})
+
+describe('CAP4 - Q-RT8d vw-rt8-v4-fill-transp, NYSE:RDDT 1D (vendor witness)', () => {
+  const ID = 'vw-rt8-v4-fill-transp-rddt-1d-2026-10-04'
+  const SIDE = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../../../../docs/pine/vendor-harness/cap4-rt8d-fill-state-2026-10-04.json'), 'utf8')).read
+  it('the source is the committed probe; the fill colour V01 is a palette index: 0 on up bars (#4CAF50), 1 on the rest (#FF5252)', () => {
+    const c = cap(ID)
+    expect(c.source.sha256).toBe('301c23d6c01327f6bf5beee4187b72ccc634ae37ee04cfadc30179a3a57f4744')
+    const p = c.study.plots.find((x) => x.type === 'colorer')
+    expect(p).toMatchObject({ target: 'fill_0', palette: 'palette_0' })
+    const at = c.plotValues.fields.indexOf(p.id)
+    expect(c.plotValues.rows.map((r) => r[at])).toEqual(c.bars.rows.map((b) => (b[4] > b[1] ? 0 : 1)))
+    expect(SIDE.statePal.palette_0.colors['0'].color).toBe('#4CAF50')
+    expect(SIDE.statePal.palette_0.colors['1'].color).toBe('#FF5252')
+  })
+  it('a v4 fill with no `transp` holds transparency 90; `transp = 60` holds 60 (the fill-state read beside the capture)', () => {
+    expect(SIDE.stateFA.fill_0.transparency).toBe(90)
+    expect(SIDE.stateFA.fill_1.transparency).toBe(60)
+    expect(SIDE.defaultsFA.fill_0.transparency).toBe(90)
+    expect(SIDE.filledAreas.map((f) => f.title)).toEqual(['V01 no transp', 'V02 transp 60'])
+  })
+})
+
 describe('CAP4 - why our door does not answer Q-H5b / Q-RT7 (the named walls these captures are the evidence for)', () => {
   it('Q-H5b: both door states refuse the 240 request by name (pine:request, lower-tf:store-unmeasured)', () => {
     for (const state of ['on', 'runtime']) {

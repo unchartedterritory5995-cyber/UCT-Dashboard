@@ -155,6 +155,220 @@
         ],
         "paints": null
       }
+    },
+    {
+      "id": "vw-rt8-runtime-followups-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-runtime-followups.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "W01 wma gap warmup",
+            "DIVERGE",
+            20,
+            "na",
+            6,
+            "scattered"
+          ],
+          [
+            "W02 ema of wma",
+            "DIVERGE",
+            24,
+            "na",
+            46,
+            "scattered"
+          ],
+          [
+            "W03 wma bar0 then gap",
+            "DIVERGE",
+            50,
+            "na",
+            8,
+            "scattered"
+          ],
+          [
+            "R01 mid",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "R02 close",
+            "MATCH",
+            636
+          ],
+          [
+            "S01 shape per-bar",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ],
+          [
+            "S02 char per-bar with na",
+            "MATCH",
+            636
+          ],
+          [
+            "S03 shape color.new per-bar",
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
+          ],
+          [
+            "S04 shape per-bar with text",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-runtime-followups-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-runtime-followups.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "W01 wma gap warmup",
+            "DIVERGE",
+            20,
+            "na",
+            6,
+            "scattered"
+          ],
+          [
+            "W02 ema of wma",
+            "DIVERGE",
+            24,
+            "na",
+            46,
+            "scattered"
+          ],
+          [
+            "W03 wma bar0 then gap",
+            "DIVERGE",
+            50,
+            "na",
+            8,
+            "scattered"
+          ],
+          [
+            "R01 mid",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "R02 close",
+            "MATCH",
+            636
+          ],
+          [
+            "S01 shape per-bar",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ],
+          [
+            "S02 char per-bar with na",
+            "MATCH",
+            636
+          ],
+          [
+            "S03 shape color.new per-bar",
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
+          ],
+          [
+            "S04 shape per-bar with text",
+            "DIVERGE",
+            0,
+            "color",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-v4-fill-transp-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-v4-fill-transp.pine",
+      "state": "on",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "A",
+            "MATCH",
+            636
+          ],
+          [
+            "B",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
+    },
+    {
+      "id": "vw-rt8-v4-fill-transp-rddt-1d-2026-10-04",
+      "script": "tools/visual_conformance/probes/vw-rt8-v4-fill-transp.pine",
+      "state": "runtime",
+      "library": false,
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "A",
+            "MATCH",
+            636
+          ],
+          [
+            "B",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     }
   ]
 }
