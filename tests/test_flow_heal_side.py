@@ -86,3 +86,38 @@ def test_heal_tick_test_ml_is_size_weighted():
         patches, stats)
     sides = {k.rsplit("|", 1)[-1]: v["side"] for k, v in patches.items()}
     assert sides.get("10:56:53 AM") == "A"    # was skipped as ML/ (no patch)
+
+
+# ── Spot fill for healed rows (2026-10-03) ──────────────────────────────────
+
+import sqlite3
+from datetime import date
+
+
+def test_spot_at_interpolates_within_minute_and_falls_back():
+    bars = {10 * 60 + 18: (157.01, 157.24)}                 # SPCX 10:18 bar
+    assert abs(fhe._spot_at(bars, (10 * 60 + 18) * 60 + 37) - 157.153) < 0.01
+    assert fhe._spot_at(bars, (10 * 60 + 21) * 60) == 157.24   # 3 min later → last close
+    assert fhe._spot_at(bars, (10 * 60 + 30) * 60) is None      # >5 min → unknown
+    assert fhe._sec_of_day_str("1:15:29 PM") == 13 * 3600 + 15 * 60 + 29
+    assert fhe._sec_of_day_str("12:00:05 AM") == 5
+
+
+def test_fill_spot_day_only_fills_missing(tmp_path, monkeypatch):
+    db = tmp_path / "flow.db"
+    c = sqlite3.connect(db)
+    c.execute("CREATE TABLE flow (id INTEGER PRIMARY KEY, CreatedDate TEXT, Symbol TEXT, "
+              "CreatedTime TEXT, Spot TEXT)")
+    c.executemany("INSERT INTO flow (CreatedDate, Symbol, CreatedTime, Spot) VALUES (?,?,?,?)", [
+        ("10/2/2026", "SPCX", "10:18:37 AM", "0"),        # healed → fill
+        ("10/2/2026", "SPCX", "10:18:40 AM", "156.90"),   # live spot → untouched
+        ("10/2/2026", "SPXW", "10:18:37 AM", ""),         # index, no bar → left
+    ])
+    c.commit(); c.close()
+    monkeypatch.setattr(fhe, "DB_PATH", str(db))
+    monkeypatch.setattr(fhe, "_load_minute_bars",
+                        lambda target, syms: {"SPCX": {10 * 60 + 18: (157.01, 157.24)}})
+    out = fhe.fill_spot_day(date(2026, 10, 2))
+    assert out["rows_missing"] == 2 and out["filled"] == 1 and out["no_bar"] == 1
+    spots = [r[0] for r in sqlite3.connect(db).execute("SELECT Spot FROM flow ORDER BY id")]
+    assert spots == ["157.15", "156.90", ""]

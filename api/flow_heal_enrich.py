@@ -279,6 +279,123 @@ def build_patches_for_tape(gz_path: str) -> tuple:
 
 # ── Step 1: dated OI backfill from contract_oi_snapshots ─────────────────
 
+MINUTE_AGGS_KEY = "us_stocks_sip/minute_aggs_v1/{y:04d}/{m:02d}/{y:04d}-{m:02d}-{d:02d}.csv.gz"
+_SPOT_MISSING = ("", "0", "0.0", "0.00")
+
+
+def _load_minute_bars(target: date, symbols: set) -> dict:
+    """Stream the day's US-stocks minute aggs (~30 MB gz) and keep the RTH-ish
+    bars for `symbols`: {symbol: {minute_of_day_ET: (open, close)}}. None when
+    the file isn't published."""
+    import gzip
+    import io
+    import boto3
+    from botocore.config import Config
+    from api import massive_flatfiles_worker as ff
+    if not ff.S3_ACCESS_KEY or not ff.S3_SECRET:
+        return None                    # no flat-file credentials (tests / local)
+    s3 = boto3.client("s3", endpoint_url=ff.S3_ENDPOINT, aws_access_key_id=ff.S3_ACCESS_KEY,
+                      aws_secret_access_key=ff.S3_SECRET,
+                      config=Config(retries={"max_attempts": 3, "mode": "standard"}))
+    key = MINUTE_AGGS_KEY.format(y=target.year, m=target.month, d=target.day)
+    try:
+        body = s3.get_object(Bucket=ff.S3_BUCKET, Key=key)["Body"]
+    except Exception as e:
+        code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
+        if code in ("NoSuchKey", "404", "403", "AccessDenied"):
+            return None
+        raise
+    bars: dict = {}
+    idx = None
+    with gzip.GzipFile(fileobj=body) as gz:
+        for raw in io.TextIOWrapper(gz, encoding="utf-8"):
+            f = raw.rstrip("\n").split(",")
+            if idx is None:
+                idx = {h: i for i, h in enumerate(f)}
+                continue
+            sym = f[idx["ticker"]]
+            if sym not in symbols:
+                continue
+            ts = datetime.fromtimestamp(int(f[idx["window_start"]]) / 1e9, ET)
+            minute = ts.hour * 60 + ts.minute
+            if 9 * 60 <= minute <= 16 * 60 + 15:
+                bars.setdefault(sym, {})[minute] = (float(f[idx["open"]]), float(f[idx["close"]]))
+    return bars
+
+
+def _spot_at(sym_bars: dict, sec_of_day: int):
+    """Underlying price at a print: inside its minute, interpolate open→close by
+    the second; if that minute has no bar, the last close within 5 minutes."""
+    minute, sec = divmod(sec_of_day, 60)
+    bar = sym_bars.get(minute)
+    if bar:
+        o, c = bar
+        return o + (c - o) * (sec / 59.0)
+    for back in range(1, 6):
+        prev = sym_bars.get(minute - back)
+        if prev:
+            return prev[1]
+    return None
+
+
+def fill_spot_day(target: date, *, dry_run: bool = False) -> dict:
+    """Fill Spot on `target`'s flow rows where it is missing (healed rows land
+    Spot=0: the trades file carries no underlying price). Without spot, moneyness
+    is unknown, so %ITM/OTM is blank, the deep-ITM/OTM guards skip, and Alpha
+    LEAPS / Ask Accumulation can never fire — 10/2 SPCX 172.5C 10/30 (~$4M ask
+    build) was blocked on exactly this. Only missing values are written; live
+    NBBO-era spots are never overwritten. Index roots (SPX, NDX, ...) aren't in
+    the stocks file and stay unfilled."""
+    mdy = _mdy(target)
+    with sqlite3.connect(DB_PATH, timeout=30) as c:
+        rows = c.execute(
+            "SELECT id, Symbol, CreatedTime FROM flow WHERE CreatedDate=? AND "
+            "(Spot IS NULL OR TRIM(Spot) IN (%s))" % ",".join("?" * len(_SPOT_MISSING)),
+            (mdy, *_SPOT_MISSING)).fetchall()
+    out = {"target_date": mdy, "rows_missing": len(rows), "filled": 0,
+           "no_bar": 0, "dry_run": dry_run}
+    if not rows:
+        return out
+    symbols = {r[1] for r in rows if r[1]}
+    bars = _load_minute_bars(target, symbols)
+    if bars is None:
+        out["skipped"] = "minute aggs unavailable (not published, or no credentials)"
+        return out
+    updates, no_bar_syms = [], {}
+    for fid, sym, ctime in rows:
+        px = None
+        sod = _sec_of_day_str(ctime)
+        if sym in bars and sod is not None:
+            px = _spot_at(bars[sym], sod)
+        if px and px > 0:
+            updates.append((f"{px:.2f}", fid))
+        else:
+            no_bar_syms[sym] = no_bar_syms.get(sym, 0) + 1
+    out["filled"] = len(updates)
+    out["no_bar"] = sum(no_bar_syms.values())
+    out["no_bar_top"] = dict(sorted(no_bar_syms.items(), key=lambda kv: -kv[1])[:8])
+    if updates and not dry_run:
+        with sqlite3.connect(DB_PATH, timeout=30) as c:
+            c.executemany("UPDATE flow SET Spot=? WHERE id=?", updates)
+            c.commit()
+    logger.info("[heal-enrich] spot %s: %s", mdy, out)
+    return out
+
+
+def _sec_of_day_str(t: str):
+    """'1:15:29 PM' → seconds past midnight; None if unparseable."""
+    try:
+        hms, ap = t.strip().split()
+        h, m, s = (int(x) for x in hms.split(":"))
+        if ap.upper() == "PM" and h != 12:
+            h += 12
+        elif ap.upper() == "AM" and h == 12:
+            h = 0
+        return h * 3600 + m * 60 + s
+    except Exception:
+        return None
+
+
 def run_oi_backfill(target_mdy: str, max_stale_days: int = None) -> dict:
     """Fill empty-OI flow rows for target_mdy from contract_oi_snapshots.
 
@@ -538,6 +655,13 @@ def _enrich_day_locked(target: date, gz_path: str, mdy: str, out: dict,
     except Exception as e:
         logger.exception("[heal-enrich] OI backfill failed for %s", mdy)
         out["steps"]["oi_backfill"] = {"error": str(e)[:300]}
+
+    # 1b. Spot from the stock minute-aggs flat file (rows with Spot missing only).
+    try:
+        out["steps"]["spot"] = fill_spot_day(target)
+    except Exception as e:
+        logger.exception("[heal-enrich] spot fill failed for %s", mdy)
+        out["steps"]["spot"] = {"error": str(e)[:300]}
 
     # 2. Color, now that OI can be exceeded. WHITE-only upgrades, idempotent.
     try:
