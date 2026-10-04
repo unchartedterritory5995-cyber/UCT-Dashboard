@@ -7820,6 +7820,10 @@ Moved rows: W01 / W02 / W03 DIVERGE -> MATCH (F7 + H7 rule A); R01 / S01 / S04 D
 S03 INCONCLUSIVE -> DIVERGE `not-drawn` 636 - F8's NOT DRAWN rule (row 94), not an engine change, owner H8.
 0 MATCH lost.
 
+### Rails that asserted the old refusal, re-pinned to the measured answer
+
+`pine.test.js` (fixnan `pine:na` row retired, served rail added), `pine.variables.test.js` (the non-constant-branch control refuses on `ta.nvi` instead of fixnan), `pineValuewhenOccurrenceAccept` (support-and-resistance__1505 translates whole), `objectForInLoops` C11c (the withheld bound now reads a real + na MIX; a new rail pins the empty window's `na`), `objectWindowPositions` C22 (early labels drawn with "avg NaN"). Reds on the merged tree NOT from H7 (identical with the plain-form mark switched off; listed as pre-existing in section H6): pineMathCeilAccept, pineTimenowAccept, syminfoMintick, freshness, udfTypedParams, varReadOrderLanes. flipCGeometry, objectFnInline.vendor, productScorecard, vendorTruth time out at 15 s under the box's load and pass with a longer timeout.
+
 ### Mutation checks
 
 The plain-form mark off in `pine.js` -> 5 red; the listing pass not reading it -> 2 red; the JS budget counting
