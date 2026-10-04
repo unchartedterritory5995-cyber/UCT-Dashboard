@@ -254,6 +254,10 @@ describe('C41 — AMEX:SPY 1W: the week\'s last intrabar', () => {
   it('⭐ L02 / L03 on a weekly chart are the WEEK\'s last 60m close and its open time', () => {
     const run = on(SPY_1W, SERVED_ROWS.slice(0, 2))
     expect(run.notes).toContain('lower timeframe 60: served')
+    // ⛔ G16: no lookahead past the chart's capture. CAP3's SPY 60m capture runs to
+    // 2026-10-02; this 1W chart was captured 2026-10-01T03:10Z. `ourSide.js::lowerTfSupply`
+    // (F7's cut, 912187ddc8) supplies only intrabars that had opened by then - without it
+    // L02 read the 10-02 close (769.65) where TradingView answered 762.46 (i=1757 below).
     for (const row of ['L02', 'L03']) {
       const g = grade(columnOf(run, row), vendorRow(SPY_1W, row))
       expect(g.wrong, row).toEqual([])

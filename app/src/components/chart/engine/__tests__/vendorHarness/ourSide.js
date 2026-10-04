@@ -191,7 +191,17 @@ function lowerTfSupply(def, capture) {
         + '(regular session) — the vendor bars this read would need')
       continue
     }
-    lowerTf.set(`code:${code}`, { bars: held.get(tf).bars, status: 'available', sourceCode: tf })
+    // ⭐⭐ F7 (step 93) — NO INTRABAR FROM AFTER THE CAPTURE'S OWN CLOCK. The supply is
+    // every committed capture of the listing, and a LATER capture holds bars this one
+    // could not have seen: CAP round 4's `vw-request-htf-alignment-spy-60-2026-10-02`
+    // (bars to 2026-10-02 19:30Z) fed 2026-10-01 / 10-02 60m closes into the 1W capture
+    // taken 2026-10-01T03:10Z, so its forming week read 769.65 where TradingView, at
+    // that moment, read 762.46. What the chart saw then is the bars that had OPENED.
+    const clock = Date.parse((capture && capture.capturedAtUTC) || '')
+    const cut = Number.isFinite(clock) ? clock / 1000 : Infinity
+    const all = held.get(tf).bars
+    const seen = cut === Infinity ? all : all.filter((x) => Number(x.t) < cut)
+    lowerTf.set(`code:${code}`, { bars: seen, status: 'available', sourceCode: tf })
     notes.push(`lower timeframe ${code}: built from the committed ${tf}-minute capture(s) ${held.get(tf).files.join(', ')}`)
   }
   return { lowerTf, notes }
