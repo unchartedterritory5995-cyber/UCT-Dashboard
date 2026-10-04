@@ -58,8 +58,9 @@ describe('RT8 — the door state is entered, never inherited', () => {
     expect(doorStateMismatch('on', { objectsOnly: true, runtime: true })).toMatch(/not entered/)
     expect(doorStateMismatch('off', { objectsOnly: true, runtime: false })).toMatch(/not entered/)
     // control: agreeing gates pass
-    expect(doorStateMismatch('runtime', { objectsOnly: true, runtime: true })).toBe(null)
-    expect(doorStateMismatch('off', { objectsOnly: false, runtime: false })).toBe(null)
+    // control: agreeing gates pass
+    expect(doorStateMismatch('runtime', { objectsOnly: true, runtime: true, paneBudgetMs: null })).toBe(null)
+    expect(doorStateMismatch('off', { objectsOnly: false, runtime: false, paneBudgetMs: null })).toBe(null)
   })
 
   it('refuses an unknown state by name', () => {
@@ -81,6 +82,20 @@ describe('RT8 — the door state is entered, never inherited', () => {
       expect(harnessSrc).toContain(`vi.stubEnv('${name}'`)
     }
   })
+
+  it('⭐ a grade is of the computation, not the clock: a slow wall clock leaves the runtime verdict unchanged', () => {
+    const fast = withDoorState('runtime', () => signature(gradeCapture(cap()).verdict))
+    let t = 0
+    const spy = vi.spyOn(performance, 'now').mockImplementation(() => (t += 50))
+    try {
+      // 50 ms per clock read: on the pane's 1,000 ms budget the run would stop by bar ~20
+      const slow = withDoorState('runtime', () => gradeCapture(cap()).verdict)
+      expect(signature(slow)).toBe(fast)
+      expect(slow.plots.some((p) => p.title === 'fvgCounter' && p.verdict === 'MATCH')).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
+  }, 120000)
 
   it('⛔ NON-VACUITY — on a runtime-only capture the runtime state grades differently from the on state', () => {
     const on = withDoorState('on', () => gradeCapture(cap()).verdict)

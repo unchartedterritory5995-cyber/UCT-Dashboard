@@ -20,6 +20,7 @@ import { vi } from 'vitest'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { runtimePaneEnabled, runtimePanePermitted, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { runtimeAllowList, __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
+import { __gradeWithoutPaneClockForTests, paneBudgetMs } from '../../runtime/runtimeColumns'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -91,7 +92,19 @@ export function gradeCapture(capture, opts = {}) {
   const integrity = validateCapture(capture)
   // ⛔ AN INVALID CAPTURE IS NEVER RUN. Running our side on bars whose receipt
   // failed would grade our engine against numbers nobody can vouch for.
-  const ours = integrity.ok ? runOurSide(capture) : null
+  // ⭐ RT8 — every grade runs without the runtime pane's wall clock, whichever
+  // rail asks (a rail that stubs the flags itself included): a verdict must not
+  // depend on how busy the machine is; the VM's instruction-counted limits still
+  // bound the run. ONE switch, here — a second in `enterDoorState` was measured
+  // redundant (its mutation left every rail green). The clock is put back.
+  const clockWas = paneBudgetMs() === null
+  __gradeWithoutPaneClockForTests(true)
+  let ours
+  try {
+    ours = integrity.ok ? runOurSide(capture) : null
+  } finally {
+    __gradeWithoutPaneClockForTests(clockWas)
+  }
   // The colour slots of every object PAIRED with the capture's own record — only
   // where the capture recorded objects and our object lane ran.
   const objectColours = objectColourGraded(opts) && capture.objects
@@ -160,6 +173,7 @@ export function doorGates() {
     runtime: runtimePaneEnabled(),
     runtimePermitted: runtimePanePermitted(),
     runtimeAllow: runtimeAllowList().join(','),
+    paneBudgetMs: paneBudgetMs(),
   }
 }
 
