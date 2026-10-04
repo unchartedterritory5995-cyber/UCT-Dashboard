@@ -28,6 +28,7 @@ import * as registry from '../../nativeRegistry'
 import { maxLookback } from '../../ast/interpret'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
+import { enterDoorState } from './harness'
 
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 
@@ -71,8 +72,12 @@ function largestWindow(built) {
 }
 
 function row(file, flagOn, runtimeOn = false) {
-  vi.stubEnv(OBJECTS_ONLY_FLAG, flagOn ? '1' : '')
-  if (runtimeOn) vi.stubEnv(RUNTIME_FLAG, '1')
+  // ⭐ RT8 — the state is ENTERED, never inherited: both build flags stubbed
+  // explicitly, and for `runtime` the member permitted and every script graded
+  // here (GT's gate), so an ambient `VITE_PINE_RUNTIME_PANE_ENABLED` cannot leak
+  // into the off / on rows and the runtime rows cannot depend on a hook.
+  const gates = enterDoorState(runtimeOn ? 'runtime' : (flagOn ? 'on' : 'off'))
+  if (gates.runtime !== runtimeOn) throw new Error(`census row: runtime gate reads ${gates.runtime}, wanted ${runtimeOn}`)
   const bytes = fs.readFileSync(path.join(CORPUS, file))
   const source = bytes.toString('utf8')
   const base = {
@@ -108,6 +113,9 @@ function row(file, flagOn, runtimeOn = false) {
         lane: door.built && door.built.lane ? door.built.lane : (door.def ? 'host' : null),
         runtimeDeclined: (door.built && door.built.runtimeDeclined) || null,
         withheld: (door.built && door.built.withheld) || [],
+        // ⭐ RT9 — a host document whose drawings may come from its own run:
+        // 'served', the declining code, or null when not asked.
+        objectsRun: (door.built && door.built.objectsRun) || null,
       } : {}),
     }
   } finally {

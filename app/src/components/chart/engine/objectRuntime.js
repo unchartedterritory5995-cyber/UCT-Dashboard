@@ -34,7 +34,7 @@ import {
   withObjectTransparency, opReadsState, BAR_COORD_PROPS,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
-import { unpackColor, wholeTransparency } from './colorInt.js'
+import { unpackColor, wholeTransparency, colorNewTransparency } from './colorInt.js'
 // ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
 
@@ -920,7 +920,10 @@ export function beginObjects(program, ctx) {
         // ⭐⭐ C29 — a FRACTIONAL transparency is Pine's truncated whole number
         // (`color.t(color.new(c, 70.5))` = 70, and 70.4 → 70, measured on
         // `vw-gradient-spy-1d-2026-09-30`); `na` or out of range is still held.
-        const raw = value(c.t)
+        // ⭐⭐ RT9 — an `na` transparency is 100 (`colorInt.js::colorNewTransparency`,
+        // measured on `vw-rt6-runtime-colour` C04); an infinite one is still held.
+        const read = value(c.t)
+        const raw = typeof read === 'number' ? colorNewTransparency(read) : read
         const t = typeof raw === 'number' && Number.isFinite(raw) ? wholeTransparency(raw) : NaN
         if (!Number.isInteger(t) || t < 0 || t > 100) return null
         const base = colorOf(c.of)

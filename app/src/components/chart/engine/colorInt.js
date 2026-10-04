@@ -44,6 +44,39 @@ export function wholeTransparency(t) {
   return Math.trunc(Math.round(n * 1e9) / 1e9)
 }
 
+/** ⭐⭐ RT9 — WHAT `color.new` AND `color.rgb` MAKE OF AN `na` ARGUMENT, MEASURED.
+ *
+ *  Capture `vw-rt6-runtime-colour` (NYSE:RDDT 1D from the listing, 636 bars, and
+ *  AMEX:SPY 1D, 1,800 bars, CAP3 2026-10-03), the same answer on every bar of both:
+ *
+ *    C03  `color.new(color(na), 40)`       → `#00000099`  an `na` BASE is black
+ *    C04  `color.new(color.red, <na>)`     → `#ff525200`  an `na` TRANSPARENCY is 100
+ *    C05  `color.rgb(<na>, 0, 0)`          → `#000000ff`  an `na` CHANNEL is 0
+ *
+ *  None of the three is Pine's `na` colour (a plot point TradingView hides, C06):
+ *  each is a real colour the vendor's colorer records. ⛔ ONE AUTHORITY for every
+ *  lane that folds or computes these two calls — the host plot fold
+ *  (`pine.js::staticColourOf` / `colourHelperAlpha`), the host object runtime's
+ *  `{c:'new'}` (`objectRuntime.js`) and the per-bar runtime lane
+ *  (`runtime/colours.js`) — so the three cannot disagree about one colour.
+ *  ⚠️ `color.rgb`'s FOURTH argument `na` has no witness and is not answered here. */
+export const NA_BASE_RGB = Object.freeze({ r: 0, g: 0, b: 0 })
+export const NA_BASE_HEX = '#000000'
+export const NA_TRANSPARENCY = TRANSPARENCY_MAX
+export const NA_CHANNEL = 0
+
+/** `color.new`'s transparency argument as Pine holds it: `na` → 100 (C04). */
+export function colorNewTransparency(t) {
+  const n = Number(t)
+  return Number.isNaN(n) ? NA_TRANSPARENCY : n
+}
+
+/** One `color.rgb` channel as Pine holds it: `na` → 0 (C05). */
+export function colorRgbChannel(v) {
+  const n = Number(v)
+  return Number.isNaN(n) ? NA_CHANNEL : n
+}
+
 function requireInt(v) {
   const n = Number(v)
   if (!Number.isFinite(n)) throw new Error(`colorer value is not a number: ${v}`)
