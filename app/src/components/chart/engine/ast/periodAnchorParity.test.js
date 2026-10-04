@@ -290,8 +290,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     // railed on a hand-built tree in both lanes' own tests.
     // ⭐ C45 — the two `bar-index:` codes are not a `time(<timeframe>)` reading
     // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
+    // ⭐ H6 — `cum:window` (`ta.obv`'s level off the listing) is railed by its own
+    // test (`vendorHarness.h6Obv`), both lanes, for the same reason.
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
-      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:')).sort())
+      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('cum:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

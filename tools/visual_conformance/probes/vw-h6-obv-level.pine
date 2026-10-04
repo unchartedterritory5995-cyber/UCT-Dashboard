@@ -1,0 +1,12 @@
+//@version=6
+indicator("UCTPROBE H6 obv level", overlay = false)
+// H6 (step 90) - `ta.obv` on the host lane is Pine's reference definition,
+// cum(sign(change(close)) * volume). Rows that settle what the multicator witnesses
+// (RDDT "-29.984M", SPY "10.801B", last bar only) cannot: bar 0, an unchanged close,
+// and the level itself on every bar of a chart that starts at the listing.
+plot(ta.obv, "O01 ta.obv")
+plot(ta.cum(math.sign(ta.change(close)) * volume), "O02 cum(sign(change(close)) * volume)")
+plot(ta.obv - ta.cum(math.sign(ta.change(close)) * volume), "O03 difference (0 or na)")
+plot(close == close[1] ? 1 : 0, "O04 an unchanged close")
+plot(ta.change(ta.obv), "O05 the bar's term")
+plot(bar_index, "O00 bar_index control")

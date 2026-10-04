@@ -530,8 +530,12 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a table',
       '//@version=5\nindicator("t")\nt = table.new(position.top_right, 1, 1)\nplot(table.cell_get_text(t, 0, 0) == "x" ? 1 : 0)\n',
       'pine:drawing', 4, 6, 'table.cell_get_text'],
+    // ⭐ H6 (step 90): `p = Point.new(1.0)` / `plot(p.x)` is now SERVED — a field of an
+    // instance that is the same on every bar is its constructor argument
+    // (`udtConstFields.js`, railed in `vendorHarness.h6UdtFields`). A field built from
+    // a SERIES keeps the refusal.
     ['a user-defined type',
-      '//@version=5\nindicator("t")\ntype Point\n    float x\np = Point.new(1.0)\nplot(p.x)\n',
+      '//@version=5\nindicator("t")\ntype Point\n    float x\np = Point.new(close)\nplot(p.x)\n',
       'pine:type', 6, 6, 'p.x'],
     // ⚠️ FOUR CASES USED TO SIT HERE AND THEY MOVED TO `pine.variables.test.js`,
     // WHERE THEY ARE NOW ASSERTED TO TRANSLATE: a `:=` inside a block, a compound

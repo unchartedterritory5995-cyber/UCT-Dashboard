@@ -1299,14 +1299,16 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:type",
+        "pine:reassign",
         "pine:builtin",
+        "pine:type",
         "pine:block"
       ],
       "screenerGuards": [
         "pine:module",
-        "pine:type",
+        "pine:reassign",
         "pine:builtin",
+        "pine:type",
         "pine:block"
       ]
     },
@@ -1316,7 +1318,7 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:type",
+        "pine:reassign",
         "pine:builtin",
         "pine:tuple",
         "pine:strategy-call"
@@ -1324,7 +1326,7 @@
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:module",
-        "pine:type",
+        "pine:reassign",
         "pine:builtin",
         "pine:tuple",
         "pine:strategy-call"
