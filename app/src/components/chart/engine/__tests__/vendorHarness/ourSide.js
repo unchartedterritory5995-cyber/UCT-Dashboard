@@ -700,6 +700,10 @@ export function runOurSide(capture) {
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
     notes.push(...lower.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    // ⭐ F8 — a column the door computed nothing for carries the door's own
+    // sentence (`columnErrors`, what `runtimeRunStopOf` shows the member), so the
+    // verdict names WHY instead of "no column".
+    const colErrors = (registry.columnErrors && registry.columnErrors(cols)) || {}
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     const paintCols = new Map(Object.keys(cols || {}).map((k) => [bindingKey('harness', k), cols[k]]))
@@ -752,8 +756,18 @@ export function runOurSide(capture) {
     const rowByOutput = new Map((built.rows || [])
       .filter((r) => Number.isInteger(r.output)).map((r) => [r.output, r]))
     const plots = []
+    // ⭐ F8 — a runtime document says by name why it does not draw a row (its
+    // `meta.disclosures`, one entry per withheld row, named as the door names it:
+    // the title, else `<kind> <n>`). The verdict carries that sentence instead of
+    // "did not carry this output".
+    const disclosedWhy = new Map(((def.meta && def.meta.disclosures) || [])
+      .map((d) => [d && d.name, d && d.note]))
+    const ordOfKind = new Map()
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
+      const ord = (ordOfKind.get(o && o.kind) || 0) + 1
+      ordOfKind.set(o && o.kind, ord)
+      const doorLabel = (o && o.title) || `${o && o.kind} ${ord}`
       const row = built.lane === 'runtime'
         ? (rowByOutput.get(index) || null)
         : (o && o.ast ? rowByAst.get(o.ast) : null)
@@ -763,14 +777,26 @@ export function runOurSide(capture) {
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
       } else if (!row) {
-        missingReason = o && o.refusal
-          ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
-          : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
+        missingReason = built.lane === 'runtime' && disclosedWhy.has(doorLabel)
+          ? `withheld by name on this runtime document — ${String(disclosedWhy.get(doorLabel)).slice(0, 400)}`
+          : o && o.refusal
+            ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
+            : built.lane === 'runtime' && o && (o.hidden || o._authorHidden === true)
+              ? `hidden on this runtime document (${(o && o.hiddenReason) || 'display.none'}): a hidden row computes no column here`
+              : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
+        const e = colErrors[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
+          + (e ? ` — ${e.guard || 'refused'}: ${String(e.message || '').slice(0, 400)}` : '')
       }
       plots.push({
         title: o ? o.title : null,
+        // ⭐ F8 — the output's KIND (`plot` / `plotshape` / `plotchar` / `plotarrow`),
+        // which a repeated-title pairing must agree on (`compare.mjs::pairRepeatedTitles`),
+        // and why OUR side hid the row (`pine.js` `hiddenReason`), which the verdict
+        // reads to tell "the author hid it" from "this engine did not draw it".
+        kind: o ? o.kind || null : null,
+        hiddenReason: o && o.hidden ? (o.hiddenReason || 'unstated') : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         hidden: !!(o && o.hidden),

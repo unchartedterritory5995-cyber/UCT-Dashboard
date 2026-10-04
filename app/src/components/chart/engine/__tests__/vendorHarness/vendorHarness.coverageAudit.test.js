@@ -196,8 +196,12 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const r = grade('pmax-explorer-rddt-1d-2026-10-02').v
     expect(item(r, 'PMax').verdict).toBe('MATCH')
     expect(item(r, 'Moving Avg Line').verdict).toBe('MATCH')
-    // Buy / Sell are not unique titles on TradingView's side: UNMAPPED, never graded.
-    expect(items(r, 'Buy').every((p) => p.verdict === 'INCONCLUSIVE')).toBe(true)
+    // ⭐ F8 — Buy / Sell are not unique titles on TradingView's side; they are paired by
+    // declaration order (compare.mjs M3: counts and kinds agree) and agree on RDDT.
+    expect(items(r, 'Buy').map((p) => [p.rule, p.verdict])).toEqual([['M3-title-order', 'MATCH'], ['M3-title-order', 'MATCH']])
+    // …and the pairing is a real comparison: SPY's first Buy is na on ours where PMax is
+    // (bar 564 onward, scattered), the second (never drawn) agrees.
+    expect(items(s, 'Buy').map((p) => p.verdict)).toEqual(['DIVERGE', 'MATCH'])
   }, T)
 
   // supertrend-strategy (KivancOzbilgic) -----------------------------------------
@@ -342,9 +346,13 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const v = grade('wyckoff-accumulation-distribution-spy-1d-2026-10-02', 'runtime').v
     expect(v.objects.verdict).toBe('INCONCLUSIVE')
     expect(v.objects.reason).toMatch(/runtime:calc-bars-count|the run drew nothing/)
-    // SPY: the run computes nothing (off the listing / calc_bars_count), so its barcolor
-    // is not drawn, by name — withheld, never painted wrong (F1's own pin).
-    expect(v.paints.reason).toMatch(/notDrawn/)
+    // ⭐ RT10 (2026-10-04): SPY's barcolor used to be not drawn because the run met the
+    // RUN-WIDE `LOOP_ITERATIONS` (100,000) part-way through 1,800 bars. The ceiling is
+    // per bar now (`limits.js`; wyckoff's worst bar is 324 passes), the run finishes,
+    // and the paint agrees with TradingView bar for bar. The OBJECTS stay withheld by
+    // name (calc_bars_count, above) — that gate is about the drawings, not the paint.
+    expect(v.paints.verdict).toBe('MATCH')
+    expect(v.paints.reason).toMatch(/agree bar for bar/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v
@@ -369,9 +377,14 @@ describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 
   it.each([
     ['rt3-na-logic-rddt-1d-2026-10-02'],
     ['rt3-na-logic-v4-rddt-1d-2026-10-02'],
-  ])('%s: every graded row agrees; nothing diverges', (id) => {
+  ])('%s: every graded row agrees; only the four rows our pane hides as constants diverge (NOT DRAWN)', (id) => {
     const { v } = grade(id)
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
+    // ⭐ F8 — the four rows this engine folds to a hidden constant (B01 / B06 / B07 / B09)
+    // are drawn by TradingView and not by our chart: NOT DRAWN, a DIVERGE (it was
+    // INCONCLUSIVE, "our side's colour could not be resolved"). Their VALUES agree.
+    const nd = ['B01_naBool_or_true', 'B06_naLiteral_or_true', 'B07_not_naLiteral', 'B09_naFloat_or_true']
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title).sort()).toEqual(nd)
+    for (const t of nd) expect(item(v, t).reason, `${id} ${t}`).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
     for (const t of ['B02_not_naBool', 'B03_naBool_and_true_CONTROL', 'B04_na_of_naBool_or_false',
       'B05_na_of_not_naBool', 'B08_naFloat_or_false', 'B10_not_naFloat']) {
       expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
@@ -379,9 +392,9 @@ describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 
     // B07 `not <na literal>` now folds to a constant 1 on every bar (TradingView's 1): its
     // VALUES agree on all 636 bars; only its colour is unresolvable (a hidden constant row)
     const b07 = item(v, 'B07_not_naLiteral')
-    expect(b07.verdict).toBe('INCONCLUSIVE')
-    expect(b07.stats.steady.divergent).toBe(0)
-    expect(b07.reason).toMatch(/values agree/)
+    expect(b07.verdict).toBe('DIVERGE')
+    expect(b07.stats.valueMismatches + b07.stats.naMismatches).toBe(0)
+    expect(b07.stats.steady.first.kind).toBe('not-drawn')
     // non-vacuity: the rows are graded from bar 0 (a capture from the listing), so the
     // `na` warm-up bars 0..18 are compared, not excused
     expect(item(v, 'B04_na_of_naBool_or_false').stats.steady.compared).toBe(636)
@@ -390,17 +403,21 @@ describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 
 
 // ─── INCONCLUSIVE — measured, but nothing comparable on our side ───────────────
 describe('CAP2 coverage audit — INCONCLUSIVE', () => {
-  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short', () => {
+  // ⭐ F8 — the reason is now the door's own (columnErrors): RDDT runs past its array.sum
+  // over zero real elements and stops at the run-wide LOOP_ITERATIONS ceiling (RT10's);
+  // SPY is refused runtime:history-start. Never an unexplained column.
+  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short, and says why', () => {
     for (const id of ['delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02']) {
       const v = grade(id, 'runtime').v
       expect(v.verdict, id).toBe('INCONCLUSIVE')
-      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column/)
+      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column for \w+ — runtime:(limit|history-start)/)
     }
   }, T)
-  it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low), so 11 of 15 items are UNMAPPED', () => {
+  it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low); F8 pairs the 11 by declaration order and the capture grades MATCH', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v
-    expect(v.verdict).toBe('INCONCLUSIVE')
-    expect(v.plots.filter((p) => /UNMAPPED/.test(p.reason || '')).length).toBe(11)
+    expect(v.plots.filter((p) => /UNMAPPED/.test(p.reason || '')).length).toBe(0)
+    expect(v.plots.filter((p) => p.rule === 'M3-title-order').length).toBe(11)
+    expect(v.verdict).toBe('MATCH')
   }, T)
   it('the object-pane door still refuses the runtime-only four by name (the census `on` state)', () => {
     expect(grade('trend-targets-algoalpha-rddt-1d-2026-10-02').v.reason).toMatch(/pine:state/)

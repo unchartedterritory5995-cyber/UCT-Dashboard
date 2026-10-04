@@ -113,7 +113,8 @@ describe('RT6 — fvg-trend against its TradingView capture (RDDT 1D)', () => {
     flagsOn()
     const c = cap()
     const v = gradeCapture(c).verdict
-    expect(v.verdict).not.toBe('DIVERGE')
+    // ⭐ F8 — the only DIVERGE is the zero line below (NOT DRAWN), never a colour.
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.stats.steady.first.kind)).toEqual(['not-drawn'])
     const counter = v.plots.find((p) => p.title === 'fvgCounter')
     expect(counter.verdict).toBe('MATCH')
     expect(counter.color).toBe('compared')
@@ -122,8 +123,10 @@ describe('RT6 — fvg-trend against its TradingView capture (RDDT 1D)', () => {
     // ⚠️ what keeps it from MATCH is NOT a colour: `plot(0, color=color.black)` is a
     // column that reads no bar, which the host translator hides (`hiddenReason:
     // 'constant'`) on both lanes. Named so a later change to that rule reads here.
-    const zero = v.plots.find((p) => p.verdict === 'INCONCLUSIVE')
-    expect(zero && zero.reason).toMatch(/did not carry this output/)
+    // ⭐ F8 — TradingView draws that zero line and our chart does not: NOT DRAWN.
+    const zero = v.plots.find((p) => p.title === 'Plot' || p.title == null)
+    expect(zero.verdict).toBe('DIVERGE')
+    expect(zero.reason).toMatch(/NOT DRAWN.*hidden on this runtime document \(constant\)/)
   })
 
   it('the transparency rides the paint as written: `transp=90` over an opaque ternary', () => {

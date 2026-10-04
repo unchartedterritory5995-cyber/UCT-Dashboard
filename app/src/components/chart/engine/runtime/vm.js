@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, windowSpecOf, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -381,21 +381,24 @@ export function execute(program, ctx, limits, opts) {
   // The columnar lane reaches the same field for the same member, so the two
   // cannot disagree about what an `na` means — which is the whole reason the
   // policy lives in the table rather than beside each driver.
-  const winNa = winPlan.map((w) => FINITE_WINDOW[w.fn].na)
+  // ⭐ RT10 — `windowSpecOf`: a `FINITE_WINDOW` member, or a runtime-only one
+  // (`RUNTIME_WINDOW`, Pine's pivot at its confirmation bar).
+  const winSpec = winPlan.map((w) => windowSpecOf(w.fn))
+  const winNa = winPlan.map((w, i) => (winSpec[i] ? winSpec[i].na : undefined))
   // ⛔ `skip` NEEDS THE LAST n FINITE OBSERVATIONS, AND THEY MAY LIE FURTHER
   // BACK THAN n BARS. The history ring is `span - 1` deep and cannot answer
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' || FINITE_WINDOW[w.fn].na === 'ffill'
+  const winObs = winPlan.map((w, i) => (winNa[i] === 'skip' || winNa[i] === 'ffill'
     ? new Float64Array(w.span).fill(NaN) : null))
   const winObsN = new Int32Array(winPlan.length)
   // ⭐ RT8 — `ffill` (`ta.wma`) carries the LAST FINITE input across a hole.
   const winCarry = new Float64Array(winPlan.length).fill(NaN)
-  const winReduce = winPlan.map((w) => {
-    const spec = FINITE_WINDOW[w.fn]
+  const winReduce = winPlan.map((w, i) => {
+    const spec = winSpec[i]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    return spec.reduceFor ? spec.reduceFor(w) : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
@@ -457,6 +460,7 @@ export function execute(program, ctx, limits, opts) {
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and
   // this check runs on every instruction.
   const instrCap = budget.limits.INSTRUCTIONS_PER_BAR
+  const loopCap = budget.limits.LOOP_ITERATIONS
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -465,6 +469,7 @@ export function execute(program, ctx, limits, opts) {
     let sp = 0
     let pc = entryPc
     let perBar = 0
+    let loopPasses = 0
     let depth = 0
     let localsBase = 0
     let localsTop = program.locals
@@ -1080,11 +1085,24 @@ export function execute(program, ctx, limits, opts) {
           break
         }
         case 78 /* OP.LOOP_TICK */:
-          // ⛔ CHARGED PER ITERATION, ACROSS THE WHOLE RUN. A loop whose step
-          // never reaches its bound — `by 0`, or a bound a body keeps moving —
-          // is stopped here, by a limit that names itself, rather than hanging
-          // the browser tab a member is looking at.
-          budget.charge('LOOP_ITERATIONS', 1)
+          // ⛔ COUNTED PER ITERATION, PER BAR (RT10, 2026-10-04). A loop whose
+          // step never reaches its bound — `by 0`, or a bound a body keeps
+          // moving — is stopped here, ON THE BAR IT RUNS AWAY IN, by a limit
+          // that names itself, rather than hanging the tab a member is looking
+          // at. ⛔⛔ NOT RUN-WIDE: a run-wide total charged an honest fixed-window
+          // loop once per bar, so the same script stopped on a long chart and
+          // drew on a short one (delta-rsi on RDDT's 636 bars: stopped at bar
+          // 85). The whole run's time stays bounded by `TOTAL_INSTRUCTIONS` and
+          // the pane's wall clock — the limits whose job that is (`limits.js`).
+          loopPasses += 1
+          if (loopPasses > loopCap) {
+            try {
+              budget.peak('LOOP_ITERATIONS', loopPasses)
+            } catch (err) {
+              err.bar = bar
+              throw err
+            }
+          }
           budget.peak('LOOP_NESTING', a)
           break
         case 95 /* OP.WHILE_BOUND */: {
@@ -1151,6 +1169,7 @@ export function execute(program, ctx, limits, opts) {
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
+    budget.peak('LOOP_ITERATIONS', loopPasses)
 
     // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE
     // for the whole run, so a value pushed and never popped is not a leak that

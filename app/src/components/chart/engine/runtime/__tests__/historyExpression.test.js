@@ -215,12 +215,18 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
   })
 
   it('⛔ history over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+    // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
+    // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
+    // subexpression WITH state, which a hoist would step on calls that never reach it.
+    expect(refusalOf(`${head}f(v) =>\n    (ta.ema(v, 3) + 1)[1]\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 
   it('⛔ a window over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    ta.sma(v + 1, 5)\nplot(f(close))\n`).guard)
+    // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
+    // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
+    // subexpression WITH state, which a hoist would step on calls that never reach it.
+    expect(refusalOf(`${head}f(v) =>\n    ta.sma(ta.ema(v, 3) + 1, 5)\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 

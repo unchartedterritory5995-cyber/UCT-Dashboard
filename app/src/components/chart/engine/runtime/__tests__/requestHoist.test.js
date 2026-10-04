@@ -72,7 +72,10 @@ describe('⭐⭐ a window over an expression, inside a request', () => {
     // declared into the caller's root list would be shared by every site. That
     // is real work with its own measurement, and until it is done the wall keeps
     // its name rather than becoming a plausible number.
-    const r = build('f(v) =>\n    ta.sma(v + 1, 3)\nplot(f(close))\n')
+    // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
+    // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
+    // subexpression WITH state, which a hoist would step on calls that never reach it.
+    const r = build('f(v) =>\n    ta.sma(ta.ema(v, 3) + 1, 3)\nplot(f(close))\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:history-expression')
   })

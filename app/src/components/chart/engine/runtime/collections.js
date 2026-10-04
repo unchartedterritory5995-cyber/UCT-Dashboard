@@ -222,10 +222,16 @@ const realsOf = (arr, what) => {
  *  replaces the unknown one. `array.median` / `array.stdev` (not computed) keep it. */
 const probedEmpty = (arr, what, budget) => {
   const u = budget && budget.unmeasured
-  if (arr.length || !u) return null
+  if (arr.length || !u || !probeAllows(u, what)) return null
   u.hits.push(what)
   return { value: u.probe }
 }
+
+/** ⭐ F8 — a caller may PROBE ONLY SOME unmeasured values (`budget.unmeasured.only`,
+ *  a list of names); no list = every unmeasured value (the object lane, C18).
+ *  ⚰️ H7 (step 92) — F8's interim pane probe of `array.sum` / `array.avg` over zero
+ *  real elements is gone (CAP4 measured `na`); no product caller passes a list now. */
+export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.includes(what)
 
 /** ⭐⭐ C18 — `array.slice` IS A VIEW IN PINE: the slice and its source share
  *  storage, so a write through either reaches both. This runtime answers it

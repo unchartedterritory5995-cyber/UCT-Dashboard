@@ -67,7 +67,10 @@ describe('⭐ C18 — k-clustering', () => {
     const runAt = (probe) => {
       // ⚠️ A TEST-ONLY CEILING, so the exactness of the arithmetic can be shown;
       // the product runs at DEFAULT_LIMITS (the next case).
-      const budget = new Budget({ INSTRUCTIONS_PER_BAR: 2000000, TOTAL_INSTRUCTIONS: 20000000 })
+      // ⭐ RT10 (2026-10-04): `LOOP_ITERATIONS` is now a PER-BAR ceiling held just under
+      // what `INSTRUCTIONS_PER_BAR` allows (`limits.js`), so a test that raises the bar's
+      // instructions raises the bar's loop passes with it.
+      const budget = new Budget({ INSTRUCTIONS_PER_BAR: 2000000, TOTAL_INSTRUCTIONS: 20000000, LOOP_ITERATIONS: 2000000 })
       budget.unmeasured = { ...probe, hits: [] }
       const res = execute(program, {
         bars: bars.length, series, columns: program.columns, confirmed: true, barTimes: bars.map((b) => b.t),
@@ -77,6 +80,10 @@ describe('⭐ C18 — k-clustering', () => {
     const a = runAt(RUNTIME_PROBES[0])
     const b = runAt(RUNTIME_PROBES[1])
     expect(a.budget.counts.WHILE_ITERATIONS).toBe(15)
+    // the last bar's passes, all loops together: past the product's per-bar ceiling,
+    // and past `INSTRUCTIONS_PER_BAR` first, which is the stop the product path meets
+    expect(a.budget.counts.LOOP_ITERATIONS).toBe(22820)
+    expect(a.budget.counts.LOOP_ITERATIONS).toBeGreaterThan(DEFAULT_LIMITS.LOOP_ITERATIONS)
     expect(a.budget.counts.INSTRUCTIONS_PER_BAR).toBeGreaterThan(DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR)
     // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ H7 (step 92) —
     // that answer is MEASURED now (`array.avg` of an empty array is `na`, CAP4

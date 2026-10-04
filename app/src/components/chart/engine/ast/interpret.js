@@ -1413,29 +1413,37 @@ function pivotCol(series, left, right, beats) {
   // that look like twins, doing different work.
   const out = nan(series.length)
   for (let i = left; i < series.length - right; i++) {
-    const v = series[i]
-    if (Number.isNaN(v)) continue
-    let ok = true
-    for (let j = i - left; j <= i + right; j++) {
-      if (j === i) continue
-      const w = series[j]
-      // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
-      // `windowExtreme` states out loud.
-      //
-      // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
-      // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
-      // bars on every fixture including a holed one). `v` is finite by the check
-      // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
-      // bar. ⛔ KEPT to state the rule at the site, and because it stops being
-      // redundant the moment `beats` is anything but a strict comparison — not
-      // because it guards anything today (`lesson_gate_that_cannot_fail`).
-      // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
-      // does not
-      if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
-    }
-    if (ok) out[i] = v
+    if (pivotAt(series, i, left, right, beats)) out[i] = series[i]
   }
   return out
+}
+
+/** ⭐⭐ RT10 — THE ONE PIVOT RULE, asked by `pivotCol` (the columnar lane, at the
+ *  pivot bar) and by the runtime lane's window (`RUNTIME_WINDOW`, at the
+ *  confirmation bar, where `i` is `left` into a window of `left + right + 1`).
+ *  Is `series[i]` the extreme of `series[i-left] … series[i+right]`? */
+export function pivotAt(series, i, left, right, beats) {
+  const v = series[i]
+  if (Number.isNaN(v)) return false
+  let ok = true
+  for (let j = i - left; j <= i + right; j++) {
+    if (j === i) continue
+    const w = series[j]
+    // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
+    // `windowExtreme` states out loud.
+    //
+    // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
+    // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
+    // bars on every fixture including a holed one). `v` is finite by the check
+    // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
+    // bar. ⛔ KEPT to state the rule at the site, and because it stops being
+    // redundant the moment `beats` is anything but a strict comparison — not
+    // because it guards anything today (`lesson_gate_that_cannot_fail`).
+    // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
+    // does not
+    if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
+  }
+  return ok
 }
 
 function windowSum(series, lo, hi) {
@@ -1882,6 +1890,17 @@ function fixnanPineStep(st, o, v) {
   return st[o]
 }
 
+// ⭐⭐ RT10 — `ta.cum` over a value the runtime lane computes: `cumCol`'s three
+// vendor facts (SPY 1D 2026-09-08) as one carried cell — `na` before the first
+// finite input, `na` ON an `na` bar, the total HELD across it.
+const CUM_PINE_CELLS = 1
+function cumPineInit(st, o) { st[o] = 0 }
+function cumPineStep(st, o, v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return NaN
+  st[o] += v
+  return st[o]
+}
+
 function barsSincePineInit(st, o) { st[o] = NaN }
 
 /** One bar of Pine's `ta.barssince`.
@@ -2294,6 +2313,34 @@ export const FINITE_WINDOW = Object.freeze({
   // window over `n + 1` samples right up until an `na` lands in it.
 })
 
+/** ⭐⭐ RT10 — WINDOWS ONLY THE RUNTIME LANE RUNS: Pine's pivot at its
+ *  CONFIRMATION bar. The window is `left + right + 1` bars of the source's
+ *  committed ring (oldest first, the live bar last), and the candidate sits
+ *  `left` from its start — `x[right]`. The rule is `pivotAt`, the one
+ *  `pivotCol` asks, so the two lanes cannot disagree about a plateau or a hole.
+ *
+ *  ⛔ `runtimeOnly`, and NOT in `FINITE_WINDOW`, for the reason `CARRIED`'s
+ *  `fixnanPine` gives: the columnar lane's `pivothigh` reports at the PIVOT bar
+ *  and is a different function under the same name; a key here can never be
+ *  reached by a Pine spelling. `reduceFor` builds the reducer for ONE plan entry,
+ *  because the candidate's place (`left`) belongs to the call site, not the table.
+ *  `PROPAGATE`: the VM reads the full committed window; a hole anywhere in it
+ *  answers `na` through `pivotAt`, as the columnar pass does. */
+const pivotWindow = (beats) => (w) => (s, lo, hi) => {
+  const i = lo + w.left
+  return pivotAt(s, i, w.left, hi - i, beats) ? s[i] : NaN
+}
+export const RUNTIME_WINDOW = Object.freeze({
+  pivothighPine: { reduceFor: pivotWindow((v, w) => v > w), na: NA.PROPAGATE, runtimeOnly: true },
+  pivotlowPine: { reduceFor: pivotWindow((v, w) => v < w), na: NA.PROPAGATE, runtimeOnly: true },
+})
+
+/** The window spec a runtime plan entry names: a `FINITE_WINDOW` member, or a
+ *  runtime-only one. */
+export const windowSpecOf = (fn) => (Object.prototype.hasOwnProperty.call(FINITE_WINDOW, fn)
+  ? FINITE_WINDOW[fn]
+  : (Object.prototype.hasOwnProperty.call(RUNTIME_WINDOW, fn) ? RUNTIME_WINDOW[fn] : undefined))
+
 /** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
  *  ABOVE. This is what makes "one semantic authority" structural: the whole-series
  *  pass and the runtime bridge cannot drift, because neither owns the reducer or
@@ -2403,6 +2450,15 @@ export const CARRIED = Object.freeze({
     cells: FIXNAN_PINE_CELLS,
     init: fixnanPineInit,
     step: fixnanPineStep,
+    runtimeOnly: true,
+  },
+  // ⭐⭐ RT10 — Pine's `ta.cum` over runtime state (`cumPineStep`). `runtimeOnly`:
+  // the columnar `cum` answers a source the host holds and is untouched; this key
+  // is reached only by the runtime lane's own `ta.cum` branch.
+  cumPine: {
+    cells: CUM_PINE_CELLS,
+    init: cumPineInit,
+    step: cumPineStep,
     runtimeOnly: true,
   },
 })

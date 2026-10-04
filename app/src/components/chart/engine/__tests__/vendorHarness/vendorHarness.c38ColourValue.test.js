@@ -54,13 +54,15 @@ describe('C38 — vw-gradient: a colour component is a column', () => {
       expect(plotOf(verdict, t).stats.matching, t).toBe(300)
       expect(plotOf(verdict, t).warmupBars, t).toBe(0)
     }
-    // the rest are not WRONG: a constant row is hidden by the pane's rule (its values still agree)
+    // the rest are not WRONG on a value: a constant row is hidden by the pane's rule (its
+    // values still agree). ⭐ F8 — TradingView draws it and our chart does not: NOT DRAWN.
     for (const p of verdict.plots.filter((x) => x.verdict !== 'MATCH')) {
-      expect(p.verdict, p.title).toBe('INCONCLUSIVE')
       if (CONSTANT_ROWS.includes(p.title)) {
-        expect(p.reason, p.title).toMatch(/hidden \(constant\)/)
+        expect(p.verdict, p.title).toBe('DIVERGE')
+        expect(p.reason, p.title).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
         expect(p.stats.matching, p.title).toBe(300)
       } else {
+        expect(p.verdict, p.title).toBe('INCONCLUSIVE')
         expect(p.reason, p.title).toMatch(/did not carry this output/)
       }
     }

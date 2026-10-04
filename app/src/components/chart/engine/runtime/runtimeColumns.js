@@ -152,6 +152,7 @@ export const RUNTIME_LIMIT_GUARD = 'runtime:limit'
 /** ⭐ RF — the guard a run that threw something unexpected carries. */
 export const RUNTIME_FAILED_GUARD = 'runtime:failed'
 
+
 /** The memo key for one run: the definition, its compute handle, and everything
  *  in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
 function runKey(def, ctx) {
@@ -286,6 +287,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // (`nativeRegistry.runtimeColumnsOrReasons`).
   let finished = -1
   let res
+  // ⭐⭐ H7 (step 92) — ONE RUN. F8's INTERIM two-probe run for `array.sum` /
+  // `array.avg` over zero real elements is gone: CAP4 Q-RT7a
+  // (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`) MEASURED the answer — `na`, no
+  // runtime error — and `collections.js` answers it directly. The pane sets no
+  // `budget.unmeasured`, so every value no capture pins (`array.median` / `stdev`, a
+  // gradient outside reversed bounds) still stops the run by name.
   try {
     res = execute(program, {
       bars: rows.length,
