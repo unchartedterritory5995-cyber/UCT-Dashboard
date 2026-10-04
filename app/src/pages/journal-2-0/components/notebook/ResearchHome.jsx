@@ -22,6 +22,7 @@ import {
   reviewDraftsEnabled, draftDailyReview, draftWeeklyReview, draftMonthlyReview,
   todayDayIso, mondayOfIso, thisMonthIso,
 } from '../../lib/reviewDrafts'
+import GettingStartedChecklist from './GettingStartedChecklist'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -307,7 +308,9 @@ export default function ResearchHome({
   // Home returns it is the FIFTH child of the same fragment, after the four boxes, so a home
   // that flips between quiet and full never remounts it mid-task. ResearchHome.welcome.test
   // .jsx holds this to exactly one assignment and four uses.
-  const gettingStartedSlot = null // W14-D: replace null with <GettingStartedChecklist ... />
+  // Integration (wave 14): W14-D's checklist fills it. It decides its own visibility
+  // (checklistEnabled + its closed key), so the slot itself is unconditional.
+  const gettingStartedSlot = <GettingStartedChecklist hasAnyNotes={hasAnyNotes} onCreateNote={onCreateNote} onAddSample={isPaid ? addSample : null} /> // W14-D
 
   if (isLoading) {
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's

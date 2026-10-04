@@ -98,6 +98,11 @@ export const SURFACES = Object.freeze({
   // Wave 13 lane 13C: Reporting soon on Research Home (dark behind
   // notebook_earnings_prep_enabled); rail a11y/earningsPrep.a11y.test.jsx.
   'components/notebook/ReportingSoon.jsx': { recipe: 'reporting-soon' },
+  // Wave 14 lane W14-D: the "get started" checklist on Research Home (behind
+  // notebook_onboarding_enabled); rail a11y/gettingStarted.a11y.test.jsx.
+  'components/notebook/GettingStartedList.jsx': { recipe: 'getting-started-checklist' },
+  // its eager gate renders nothing of its own but the list, inside the same recipe
+  'components/notebook/GettingStartedChecklist.jsx': { coveredBy: 'getting-started-checklist' },
   // Wave 13 lane 13G-1: research capture (dark behind notebook_transcript_capture_enabled and
   // notebook_passed_setups_enabled); rail a11y/researchCapture.a11y.test.jsx.
   'components/notebook/SaveTranscriptPassage.jsx': { recipe: 'save-transcript-passage' },

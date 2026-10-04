@@ -233,6 +233,11 @@ NOTEBOOK_FLAGS = {
     # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
     # the payload key is `notebook_review_drafts_enabled`.
     "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
+    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
+    # of its own: it reads the member's preferences and Research Home's own read); the payload
+    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
+    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
+    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
@@ -2644,6 +2649,11 @@ _PREFERENCE_KEYS = {
     # master the whole time; the landing ran only the Python rails its own diff
     # touched, and this one reads a JS writer. Run it before any `setPref(` lands.
     "notebook_daily_template": _PREF_OPAQUE,
+    # Wave 14 lane W14-D: the "get started" checklist's ONE key
+    # (`GettingStartedChecklist.jsx`, {v:1, state: dismissed|done, at}). Added in the
+    # same commit as its writer, because an unlisted key answers 400 and the list would
+    # reopen on every visit (the wave-8 `notebook_tour` defect recorded just below).
+    "notebook_getting_started": _PREF_OPAQUE,
     # Wave 8: the sample-notebook strip and the first-run tour each write one
     # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
     # the server answered 400 "Unknown preference key" and neither ever
