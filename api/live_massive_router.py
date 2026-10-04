@@ -315,6 +315,11 @@ DEFAULT_THRESHOLDS = {
     "ask_accum_max_otm_pct": 50.0,
     "ask_accum_require_unusual": True,     # apply the contract-conviction guard
     "ask_accum_min_contract_voi": 1.0,     # session ask vol / contract OI floor (NEW-build test)
+    # At/above ask_accum_max_mktcap a build needs this session ask aggregate
+    # instead of being excluded outright (index options, mktcap 0, stay out).
+    # 0 = hard exclusion (pre-2026-10-03).
+    "ask_accum_mega_min_aggregate_premium": 3_000_000,
+    "ask_accum_mega_min_dte": 7,             # mega path: no weeklies (0-6 DTE churn)
     "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
                                              # options (0/unknown mktcap); 0 disables. Replaced
                                              # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
@@ -1255,9 +1260,15 @@ def _ask_accum_conviction(oi, agg_ask_volume: float, thresholds: dict) -> bool:
     return agg_ask_volume >= fresh_min
 
 
+def _is_single_stock(row: dict) -> bool:
+    """A single-name equity option (not an ETF / index product)."""
+    return ((row.get("StockEtf") or "").strip().upper() == "STOCK"
+            and (row.get("source") or "stocks") == "stocks")
+
+
 def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
                          agg_ask_volume: float, oi, mktcap, thresholds: dict,
-                         apply_mktcap: bool = True) -> bool:
+                         apply_mktcap: bool = True, dte=None, is_stock=None) -> bool:
     """The SINGLE definition of "this row is a UCT Ask Accumulation build": an
     ask-side row on a NON-megacap contract whose SESSION ask aggregate clears the
     floor, is near-the-money, and shows contract-level NEW-build conviction. Used by
@@ -1290,8 +1301,23 @@ def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
             _mc = float(mktcap or 0)
         except (TypeError, ValueError):
             _mc = 0.0
-        if not (0 < _mc < float(_cap_ceil)):   # 0/unknown (index) or >= ceiling → out
-            return False
+        if _mc <= 0:
+            return False                       # 0/unknown (index) → out
+        if _mc >= float(_cap_ceil):
+            # Mega-cap path (2026-10-03): a much higher aggregate bar instead of a
+            # hard exclusion. 10/2 SPCX ($2.0T) 172.5C 10/30 built ~$4M of ask
+            # sweeps in one session (BBS: Alpha Gold) and could never surface.
+            # 0 restores the hard exclusion.
+            # Single STOCKS with >= ask_accum_mega_min_dte only: replay 9/29-10/1
+            # at a bare $3M bar tagged 10-16k alerts/day — SPY/QQQ (StockEtf ETF)
+            # and 0-6 DTE NVDA/TSLA/MU churn with calls AND puts "accumulating".
+            # Unknown dte / instrument type → denied.
+            _mega_floor = float(thresholds.get("ask_accum_mega_min_aggregate_premium", 0) or 0)
+            _mega_dte = int(thresholds.get("ask_accum_mega_min_dte", 7) or 0)
+            if not _mega_floor or agg_ask_premium < _mega_floor:
+                return False
+            if is_stock is not True or dte is None or dte < _mega_dte:
+                return False
     if (thresholds.get("ask_accum_require_unusual", True)
             and not _ask_accum_conviction(oi, agg_ask_volume, thresholds)):
         return False
@@ -1443,7 +1469,8 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_pth = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, mktcap, _aa_pth):
+                                agg_ask_volume, oi, mktcap, _aa_pth,
+                                dte=dte, is_stock=_is_single_stock(row)):
             color = "MAGENTA"
 
     if color == "MAGENTA":
@@ -1558,7 +1585,8 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_th = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, mktcap, _aa_th):
+                                agg_ask_volume, oi, mktcap, _aa_th,
+                                dte=dte, is_stock=_is_single_stock(row)):
             return (f"UCT Ask Accumulation {direction}", "ask_accum",
                     TIER_PRIORITY["ask_accum"])
         # LEAPS
@@ -6540,6 +6568,8 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "ask_accum_require_unusual",         # apply the contract-conviction guard (_ask_accum_conviction)
         "ask_accum_min_contract_voi",        # session ask vol / contract OI floor (NEW-build test)
         "ask_accum_max_mktcap",              # mega-cap/index ceiling (primary noise guard)
+        "ask_accum_mega_min_aggregate_premium",  # mega-cap path: session ask floor (0 = exclude)
+        "ask_accum_mega_min_dte",            # mega-cap path: minimum DTE
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
