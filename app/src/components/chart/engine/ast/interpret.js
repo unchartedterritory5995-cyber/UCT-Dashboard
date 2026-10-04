@@ -1479,29 +1479,37 @@ function pivotCol(series, left, right, beats) {
   // that look like twins, doing different work.
   const out = nan(series.length)
   for (let i = left; i < series.length - right; i++) {
-    const v = series[i]
-    if (Number.isNaN(v)) continue
-    let ok = true
-    for (let j = i - left; j <= i + right; j++) {
-      if (j === i) continue
-      const w = series[j]
-      // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
-      // `windowExtreme` states out loud.
-      //
-      // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
-      // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
-      // bars on every fixture including a holed one). `v` is finite by the check
-      // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
-      // bar. ⛔ KEPT to state the rule at the site, and because it stops being
-      // redundant the moment `beats` is anything but a strict comparison — not
-      // because it guards anything today (`lesson_gate_that_cannot_fail`).
-      // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
-      // does not
-      if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
-    }
-    if (ok) out[i] = v
+    if (pivotAt(series, i, left, right, beats)) out[i] = series[i]
   }
   return out
+}
+
+/** ⭐⭐ RT10 — THE ONE PIVOT RULE, asked by `pivotCol` (the columnar lane, at the
+ *  pivot bar) and by the runtime lane's window (`RUNTIME_WINDOW`, at the
+ *  confirmation bar, where `i` is `left` into a window of `left + right + 1`).
+ *  Is `series[i]` the extreme of `series[i-left] … series[i+right]`? */
+export function pivotAt(series, i, left, right, beats) {
+  const v = series[i]
+  if (Number.isNaN(v)) return false
+  let ok = true
+  for (let j = i - left; j <= i + right; j++) {
+    if (j === i) continue
+    const w = series[j]
+    // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
+    // `windowExtreme` states out loud.
+    //
+    // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
+    // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
+    // bars on every fixture including a holed one). `v` is finite by the check
+    // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
+    // bar. ⛔ KEPT to state the rule at the site, and because it stops being
+    // redundant the moment `beats` is anything but a strict comparison — not
+    // because it guards anything today (`lesson_gate_that_cannot_fail`).
+    // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
+    // does not
+    if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
+  }
+  return ok
 }
 
 function windowSum(series, lo, hi) {
@@ -1948,6 +1956,17 @@ function fixnanPineStep(st, o, v) {
   return st[o]
 }
 
+// ⭐⭐ RT10 — `ta.cum` over a value the runtime lane computes: `cumCol`'s three
+// vendor facts (SPY 1D 2026-09-08) as one carried cell — `na` before the first
+// finite input, `na` ON an `na` bar, the total HELD across it.
+const CUM_PINE_CELLS = 1
+function cumPineInit(st, o) { st[o] = 0 }
+function cumPineStep(st, o, v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return NaN
+  st[o] += v
+  return st[o]
+}
+
 function barsSincePineInit(st, o) { st[o] = NaN }
 
 /** One bar of Pine's `ta.barssince`.
@@ -2360,6 +2379,34 @@ export const FINITE_WINDOW = Object.freeze({
   // window over `n + 1` samples right up until an `na` lands in it.
 })
 
+/** ⭐⭐ RT10 — WINDOWS ONLY THE RUNTIME LANE RUNS: Pine's pivot at its
+ *  CONFIRMATION bar. The window is `left + right + 1` bars of the source's
+ *  committed ring (oldest first, the live bar last), and the candidate sits
+ *  `left` from its start — `x[right]`. The rule is `pivotAt`, the one
+ *  `pivotCol` asks, so the two lanes cannot disagree about a plateau or a hole.
+ *
+ *  ⛔ `runtimeOnly`, and NOT in `FINITE_WINDOW`, for the reason `CARRIED`'s
+ *  `fixnanPine` gives: the columnar lane's `pivothigh` reports at the PIVOT bar
+ *  and is a different function under the same name; a key here can never be
+ *  reached by a Pine spelling. `reduceFor` builds the reducer for ONE plan entry,
+ *  because the candidate's place (`left`) belongs to the call site, not the table.
+ *  `PROPAGATE`: the VM reads the full committed window; a hole anywhere in it
+ *  answers `na` through `pivotAt`, as the columnar pass does. */
+const pivotWindow = (beats) => (w) => (s, lo, hi) => {
+  const i = lo + w.left
+  return pivotAt(s, i, w.left, hi - i, beats) ? s[i] : NaN
+}
+export const RUNTIME_WINDOW = Object.freeze({
+  pivothighPine: { reduceFor: pivotWindow((v, w) => v > w), na: NA.PROPAGATE, runtimeOnly: true },
+  pivotlowPine: { reduceFor: pivotWindow((v, w) => v < w), na: NA.PROPAGATE, runtimeOnly: true },
+})
+
+/** The window spec a runtime plan entry names: a `FINITE_WINDOW` member, or a
+ *  runtime-only one. */
+export const windowSpecOf = (fn) => (Object.prototype.hasOwnProperty.call(FINITE_WINDOW, fn)
+  ? FINITE_WINDOW[fn]
+  : (Object.prototype.hasOwnProperty.call(RUNTIME_WINDOW, fn) ? RUNTIME_WINDOW[fn] : undefined))
+
 /** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
  *  ABOVE. This is what makes "one semantic authority" structural: the whole-series
  *  pass and the runtime bridge cannot drift, because neither owns the reducer or
@@ -2469,6 +2516,15 @@ export const CARRIED = Object.freeze({
     cells: FIXNAN_PINE_CELLS,
     init: fixnanPineInit,
     step: fixnanPineStep,
+    runtimeOnly: true,
+  },
+  // ⭐⭐ RT10 — Pine's `ta.cum` over runtime state (`cumPineStep`). `runtimeOnly`:
+  // the columnar `cum` answers a source the host holds and is untouched; this key
+  // is reached only by the runtime lane's own `ta.cum` branch.
+  cumPine: {
+    cells: CUM_PINE_CELLS,
+    init: cumPineInit,
+    step: cumPineStep,
     runtimeOnly: true,
   },
 })
@@ -4855,10 +4911,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'what the indicator decides from them, are withheld rather than drawn from a starting value; the '
     + 'rest is drawn. On a daily chart whose bars start at the listing of the symbol it draws on every bar. '
     + 'What would settle it: nothing to capture — bars reaching further back.',
+  // ⭐⭐ H6 — `ta.obv`'s level (see `cumulativeLevelMask`).
+  'cum:window': () => '`ta.obv` is a running total from the first bar of the symbol\'s history on '
+    + 'TradingView: each bar adds its volume when the close rose and subtracts it when the close fell. This '
+    + 'chart\'s loaded bars start later, so its total is TradingView\'s minus the volume signed before its first '
+    + 'bar, a constant it cannot know, and the difference never shrinks. Everything this indicator draws from '
+    + 'that total is withheld on this chart rather than drawn off by that constant. A change in it over a '
+    + 'number of bars (`ta.obv - ta.obv[5]`, `ta.obv > ta.obv[1]`) is drawn. On a daily chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window'])
+  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
+  'cum:window'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -6169,16 +6234,71 @@ export function seedWarmupMask(tree, bars, inputs, budget, scalars, opts, raw) {
   return mask
 }
 
+/** ⭐⭐ H6 — IS THIS NODE `ta.obv`'S LEVEL? `cum(sign(change(close)) * volume)`, the
+ *  tree `pine.js::obvLevelTree` writes, in either operand order (the same running
+ *  total spelled out by hand is the same quantity with the same offset). */
+export function isObvLevelNode(node) {
+  if (!node || node.type !== 'call' || node.name !== 'cum' || !Array.isArray(node.args) || node.args.length !== 1) return false
+  const prod = node.args[0]
+  if (!prod || prod.type !== 'op' || prod.name !== '*' || !Array.isArray(prod.args) || prod.args.length !== 2) return false
+  const isVolume = (n) => !!n && n.type === 'series' && n.name === 'volume'
+  const isSignedChange = (n) => !!n && n.type === 'call' && n.name === 'sign' && Array.isArray(n.args) && n.args.length === 1
+    && !!n.args[0] && n.args[0].type === 'call' && n.args[0].name === 'change' && Array.isArray(n.args[0].args)
+    && n.args[0].args.length === 1 && !!n.args[0].args[0] && n.args[0].args[0].type === 'series'
+    && n.args[0].args[0].name === 'close'
+  const [a, b] = prod.args
+  return (isSignedChange(a) && isVolume(b)) || (isVolume(a) && isSignedChange(b))
+}
+
+/** ⭐⭐ H6 — THE BARS A TREE READING `ta.obv`'S LEVEL IS WITHHELD ON: every bar, off
+ *  the listing, in a document that means Pine's numbers; null otherwise.
+ *
+ *  ⛔ A RUNNING TOTAL NEVER CONVERGES. Off the listing the loaded series starts after
+ *  bars TradingView summed, so the total here is TradingView's minus a constant that
+ *  is not known and does not decay — F5's seed-decay ruling (a smoother's error
+ *  shrinking by `1 - alpha` per bar) has nothing to bound here, and this mask is the
+ *  declaration that says so. Anything above the level inherits the offset (an
+ *  average of it, a comparison with it, a text printed from it), so the WHOLE tree
+ *  is withheld, by name (`cum:window`).
+ *  ⭐ The bounded forms never reach here: `obv > obv[k]`, `obv - obv[k]` and `obv`
+ *  against its own average are rewritten by the translator onto `obvN`, whose
+ *  difference cancels the constant.
+ *  ⛔ Asked ONLY of a document that declares Pine's meaning off the listing
+ *  (`opts.barIndexAbsolute === true`, `opts.historyFromListing !== true`) — the same
+ *  question `barIndexMask` asks, for the same reason: where the series starts.
+ *  ⚠️ Only `ta.obv`'s shape. A `cum` the script writes itself keeps the host lane's
+ *  older rule (it sums the loaded bars; C29's note in `pine.js`), which this lane
+ *  does not change. */
+export function cumulativeLevelMask(tree, bars, inputs, budget, scalars, opts) {
+  if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
+  const stack = [tree]
+  const seen = new Set()
+  let found = false
+  while (stack.length && !found) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (isObvLevelNode(node)) found = true
+    else if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!found) return null
+  nameChartClock(opts, ['cum:window'], opts.tf)
+  return new Float64Array(Array.isArray(bars) ? bars.length : 0).fill(1)
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
  *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
- *  `seedWarmupMask` (F5), one channel. `raw`: the tree's own column, when held. */
+ *  `seedWarmupMask` (F5) or `cumulativeLevelMask` (H6), one channel. `raw`: the tree's own
+ *  column, when held. ⭐ A running total (H6) withholds the WHOLE tree, so the seed mask
+ *  is not asked beside it: one code, `cum:window`, never a `seed:window` with it.
+ *  (`ast_interpret.interpret` decides in the same order.) */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, raw) {
+  const summed = cumulativeLevelMask(tree, bars, inputs, budget, scalars, opts)
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
-    // ⭐ F5 — a recursive series seeded at this window (`seedWarmupMask`)
-    seedWarmupMask(tree, bars, inputs, budget, scalars, opts, raw),
+    ...(summed ? [summed] : [seedWarmupMask(tree, bars, inputs, budget, scalars, opts, raw)]),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))

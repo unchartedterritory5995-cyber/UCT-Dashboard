@@ -1221,6 +1221,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const declWords = declarationWordsOf(tokens)
   const constIntCtx = { version: pineVersion, declWords }
   const constIntWrites = constIntWritesOf(stmts, constIntCtx)
+  // RT10: the pane contract, read where `opts` is the build's (lowerExpr shadows it).
+  const paneBuild = opts.pane === true
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -1869,6 +1871,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
 
+  /** ⭐ RT9 — the argument of a colour CAST `color(x)` whose `x` is `na` or a
+   *  colour, or null. ⛔ Only those two: `color(close)` is a price in a colour
+   *  slot and keeps its refusal. */
+  const colourCastArg = (node, scope) => {
+    if (!node || node.type !== 'call' || node.name !== 'color' || definedNames.has('color')) return null
+    const args = node.args || []
+    if (args.length !== 1 || !args[0] || args[0].name) return null
+    const x = args[0].value !== undefined ? args[0].value : args[0]
+    return isBuiltinNa(x, scope) || holdsColour(x, scope) ? x : null
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
@@ -1887,6 +1899,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ RT9 — Pine's colour CAST of `na` or of a colour (`color(na)`) is a colour:
+    // `color.new(color(na), 40)` is #00000099 on TradingView (CAP3,
+    // `vw-rt6-runtime-colour` C03). Lowered as its argument (`colourCastArg`).
+    if (colourCastArg(node, scope)) return true
     // ⭐ C23 — an `input.color` is the colour its default is (`inputColourDefaultNode`).
     if (node.type === 'call' && node.name === 'input.color' && !definedNames.has(node.name)) {
       return holdsColour(inputColourDefaultNode(node), scope)
@@ -3143,6 +3159,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  would lift a refusal nobody asked to lift — the exact failure recorded for
    *  the wider deferred-function inlining a few lines below. */
   let stmtHoistSink = null
+  /** ⭐ RT10 — WHOSE list `stmtHoistSink` is: `null` for the root walk, a
+   *  function's index for its own body (`frameHoist`). A hoist lands only in a
+   *  sink owned by the frame being lowered, so a function body never declares
+   *  into the caller's root list (a slot shared by every call site). */
+  let stmtHoistOwner = null
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
@@ -4114,7 +4135,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
    */
   const hoistCommittedSeries = (srcNode, scope, label) => {
     if (!stmtHoistSink) return null
-    if (owner !== null) return null
+    // ⭐⭐ RT10 — INSIDE A FRAME, into the frame's OWN body list only, and only an
+    // expression with no state of its own (`hoistSafe`): the slot is then exactly
+    // the local a member would write on the line above, and its history is the
+    // call site's (`fnHistorySlotFor`), as every body local's is. A stateful
+    // subexpression stays where it was written, because hoisting would step it
+    // on calls whose branch never reached it.
+    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name' || !hoistSafe(srcNode, scope))) return null
     if (!srcNode || typeof srcNode !== 'object') return null
     // ⭐ A NAME NO PINE IDENTIFIER CAN COLLIDE WITH — it carries spaces, exactly
     // as the request region's own hoisted sources do.
@@ -4123,6 +4150,144 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const slot = scope.declare(tmp, newSlot(tmp, false))
     stmtHoistSink.push(declare(slot, value))
     return { slot, label: tmp }
+  }
+
+  /** ⭐ RT10 — an expression with no state of its own: names, literals,
+   *  operators, a fixed-offset read, and pointwise calls (`pointwiseTarget`, `na`,
+   *  `nz`), none of them the script's own function. Evaluating it on a line of
+   *  its own just before the statement that reads it computes the same values. */
+  //  ⛔ And every name it reads is this FRAME's (a parameter or a body local) or
+  //  no slot at all: a function reading a mutable GLOBAL is its own wall
+  //  (`runtime:function-global-state`), which a hoist must not lift.
+  const hoistSafe = (n, scope, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return false
+    switch (n.type) {
+      case 'name': {
+        const sl = scope.lookup(n.name)
+        return sl === null || slots[sl].owner === owner
+      }
+      case 'number': case 'string': case 'colour': return true
+      case 'binary': return hoistSafe(n.left, scope, depth + 1) && hoistSafe(n.right, scope, depth + 1)
+      case 'unary': return hoistSafe(n.arg, scope, depth + 1)
+      case 'ternary': return hoistSafe(n.test, scope, depth + 1) && hoistSafe(n.yes, scope, depth + 1) && hoistSafe(n.no, scope, depth + 1)
+      case 'offset': return hoistSafe(n.arg, scope, depth + 1)
+        && ((Number.isInteger(n.n) && n.n >= 0) || hoistSafe(n.n, scope, depth + 1))
+      case 'call': {
+        const nm = String(n.name || '')
+        if (definedNames.has(nm)) return false
+        if (!(nm === 'na' || nm === 'nz' || pointwiseTarget(nm))) return false
+        return (n.args || []).every((a) => !(a && a.name) && hoistSafe(a && a.value !== undefined ? a.value : a, scope, depth + 1))
+      }
+      default: return false
+    }
+  }
+  /** ⭐ RT10 — lower a function's RESULT with its own body as the hoist sink, so
+   *  `f(x) => ta.sma(x * 2, 5)` gives `x * 2` its committed series in the frame. */
+  const intoFrameSink = (body, fn) => {
+    const prevSink = stmtHoistSink
+    const prevOwner = stmtHoistOwner
+    stmtHoistSink = body
+    stmtHoistOwner = owner
+    try { return fn() } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner }
+  }
+
+  /** ⭐⭐ RT10 — is this call Pine's pivot (`ta.pivothigh/low`, or the bare
+   *  v1–v4 spelling, which `pine.js::namespacedName` reads as the same
+   *  function)? Returns `{ high, src, leftNode, rightNode }` with the source
+   *  defaulted the way `pivotAtConfirmation` defaults it, or `null`.
+   *  ⛔ The script's own definition of the name wins; a named argument keeps
+   *  the path it had (`refuseUnmeasuredNamedArgs` is the host's ruling on it). */
+  const runtimePivotOf = (node) => {
+    const name = typeof node.name === 'string' ? node.name : ''
+    const bare = name.replace(/^ta\./, '')
+    if (bare !== 'pivothigh' && bare !== 'pivotlow') return null
+    if (name === bare && !(pineVersion !== null && pineVersion <= 4)) return null
+    if (definedNames.has(name)) return null
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
+    if (given.length !== 2 && given.length !== 3) return null
+    const high = bare === 'pivothigh'
+    const three = given.length === 3
+    const src = three ? given[0] : { type: 'name', name: high ? 'high' : 'low', tok: node.tok }
+    return { high, src, leftNode: three ? given[1] : given[0], rightNode: three ? given[2] : given[1] }
+  }
+
+  /** ⭐⭐ RT10 — the pivot as a WINDOW over the source's committed ring.
+   *  `null` when the source is not runtime state (the caller keeps the host
+   *  path, unchanged). The two bar counts are fixed before bar 0 exactly as a
+   *  window length is (`constValueOf`; a frame name specialises the call site). */
+  const lowerPivotOverState = (node, pv, scope) => {
+    if (!needsRuntime(pv.src, scope)) return null
+    const at = locate(node.tok)
+    const bound = (n, which) => {
+      const c = constValueOf(n, scope)
+      if (c && typeof c.frameName === 'string') {
+        throw frameBoundRefusal(c.frameName, at, `sets \`${which}\` of \`${node.name}\``)
+      }
+      if (!c || !Number.isInteger(c.value) || c.value < 0) {
+        note('runtime:history-dynamic-offset')
+        throw new RuntimeRefusal('runtime:history-dynamic-offset',
+          `\`${which}\` of \`${node.name}\` is only known while the bar is running, `
+          + 'so the ring it needs cannot be sized before bar 0', at)
+      }
+      return c.value
+    }
+    // ⛔ A `rightbars` only known while the bar runs keeps the BUILDER'S own
+    // refusal (`pivotAtConfirmation`: "write it as a plain whole number"), the
+    // sentence RT7 pinned; only a fixed one reaches this window.
+    const rc = constValueOf(pv.rightNode, scope)
+    if (!rc || (typeof rc.frameName !== 'string' && !(Number.isInteger(rc.value) && rc.value >= 0))) return null
+    const left = bound(pv.leftNode, 'leftbars')
+    const right = bound(pv.rightNode, 'rightbars')
+    const span = left + right + 1
+    let varSlot = pv.src.type === 'name' ? scope.lookup(pv.src.name) : null
+    let srcLabel = pv.src.type === 'name' ? pv.src.name : null
+    if (varSlot === null && hoistSink) {
+      const tmp = `${node.name} src ${hoistSink.length}`
+      const slot = scope.declare(tmp, newSlot(tmp, false))
+      hoistSink.push(declare(slot, lowerExpr(pv.src, scope)))
+      varSlot = slot
+      srcLabel = tmp
+    }
+    if (varSlot === null) {
+      const hoisted = hoistCommittedSeries(pv.src, scope, node.name)
+      if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
+    }
+    if (varSlot === null) {
+      if (pv.src.type !== 'name') {
+        note('runtime:history-expression')
+        throw new RuntimeRefusal('runtime:history-expression',
+          `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+      }
+      note('runtime:function-global-state')
+      throw new RuntimeRefusal('runtime:function-global-state', `\`${pv.src.name}\``, at)
+    }
+    if (span > 1) {
+      if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 1, at)
+      else historySlotFor(varSlot, span - 1, at)
+    }
+    const histIndex = span > 1
+      ? (owner !== null ? functions[owner].historyByVarSlot.get(varSlot) : historyByVarSlot.get(varSlot))
+      : 0
+    const entry = {
+      fn: pv.high ? 'pivothighPine' : 'pivotlowPine',
+      name: `${node.name}(${srcLabel},${left},${right})`,
+      historySlot: histIndex,
+      span,
+      left,
+    }
+    let widx
+    if (owner !== null) {
+      const list = functions[owner].windowLocals || (functions[owner].windowLocals = [])
+      widx = list.length
+      list.push(entry)
+    } else {
+      widx = windowsMain.length
+      windowsMain.push(entry)
+    }
+    conditionalHistoryGuard('a stateful built-in', null)
+    return windowCall(widx, read(varSlot))
   }
   /**
    * The detail a family refusal carries — and for `runtime:object-op`, WHO WAS
@@ -4693,6 +4858,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
             slotHistoryGuard(hoisted.slot, at)
+            // RT10: a frame's hoisted slot is a body local; its ring is per call site.
+            if (owner !== null) return histSlot(hoisted.slot, fnHistorySlotFor(owner, hoisted.slot, hb, at), hb)
             return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
           const varSlot = scope.lookup(node.arg.name)
@@ -4809,6 +4976,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           return lowerExpr(dflt, scope, opts)
         }
+        // ⭐ RT9 — a colour cast of `na` or a colour is its argument (`colourCastArg`).
+        {
+          const castOf = colourCastArg(node, scope)
+          if (castOf) return lowerExpr(castOf, scope, opts)
+        }
         // ⭐ RT6 — a v4 generic `input(defval = <colour>)` is the same thing: its
         // default colour (parabolic-sar's `colup` / `coldn`). Only when the default
         // IS a colour; every other generic `input` keeps the path it had.
@@ -4901,6 +5073,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⛔ A BUILDER'S OWN REFUSAL IS HONOURED, so a shape it will not take
         // says why in its own words instead of arriving as "not a shape the
         // translator reads" pointing at the statement.
+        // ⭐⭐ RT10 — A PIVOT OVER RUNTIME STATE, AT ITS CONFIRMATION BAR.
+        // `ta.pivothigh(x, L, R)` (and v1–v4's bare spelling, which the host's
+        // `namespacedName` gives the same meaning) answers on bar t with x[R]
+        // when x[R] is the extreme of x[R+L] … x[0] — the host's `pivotCol` rule
+        // read at the confirmation bar, which is what its `[R]` shift computes.
+        // Over a source the columnar lane holds the host column still answers
+        // (no change); over runtime state the window is the source's own
+        // committed ring, L+R+1 bars, one plan entry per call site.
+        {
+          const pv = runtimePivotOf(node)
+          if (pv) {
+            const pivoted = lowerPivotOverState(node, pv, scope)
+            if (pivoted) return pivoted
+          }
+        }
         if (typeof node.name === 'string'
             && Object.prototype.hasOwnProperty.call(PINE_NAMESPACED_TREE, node.name)) {
           const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
@@ -5355,7 +5542,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
             return binary('-', read(hoisted.slot),
-              histSlot(hoisted.slot, historySlotFor(hoisted.slot, 1, at), 1))
+              histSlot(hoisted.slot, owner !== null
+                ? fnHistorySlotFor(owner, hoisted.slot, 1, at) : historySlotFor(hoisted.slot, 1, at), 1))
           }
           const varSlot = scope.lookup(srcNode.name)
           if (varSlot === null) {
@@ -5724,6 +5912,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(fidx, lowerExpr(given[0], scope))
         }
+        // ⭐⭐ RT10 — `ta.cum(x)` (and v1-v4's bare `cum`) over RUNTIME STATE: a
+        // carried running total (`CARRIED.cumPine`, `cumCol`'s vendor rule), per call
+        // site. A source the columnar lane holds keeps the host column, unchanged.
+        // ⛔ ON A PANE ONLY (`opts.pane`): the total is a fact about the fetch, and the
+        // host serves `cum` exactly there (`pine.js` WINDOW_DEPENDENT `cum`); a screen
+        // keeps the refusal.
+        if (paneBuild && (node.name === 'ta.cum' || (node.name === 'cum' && pineVersion !== null && pineVersion <= 4))
+          && !definedNames.has(node.name) && node.args.length === 1 && !(node.args[0] && node.args[0].name)) {
+          const src = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
+          if (needsRuntime(src, scope)) {
+            const entry = { fn: 'cumPine', n: 1, name: `${node.name}(…)` }
+            let cidx
+            if (owner !== null) {
+              const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+              cidx = list.length
+              list.push(entry)
+            } else {
+              cidx = carriedMain.length
+              carriedMain.push(entry)
+            }
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carriedCall(cidx, lowerExpr(src, scope))
+          }
+        }
         const car = carriedTarget(node.name)
         if (car) {
           const at = locate(node.tok)
@@ -6089,6 +6301,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: 'fill', upper, lower })
     out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
+    // ⭐⭐ RT8 (step 87) — WHAT THE CALL SAID AROUND ITS COLOUR, for the runtime
+    // pane's door (`memberPaneDefinition.js::runtimeFillsOf`), asked only by the
+    // pane's own builds (`plotColours`, as `describeColour`), so every other build
+    // keeps its exact output table. The colour IS this output (a packed integer per
+    // bar); what the door still needs is WHETHER and HOW TradingView draws the
+    // band: `display`, `show_last`, `fillgaps`, and the title it is listed under.
+    if (wantColours) {
+      const desc = outputs[outputs.length - 1]
+      if (at && Number.isInteger(at.line)) desc.line = at.line
+      const titleNode = named.has('title') ? named.get('title')
+        : (positional.length > 3 && !named.has('color') ? argOf(positional[3]) : null)
+      if (titleNode && titleNode.type === 'string') desc.title = titleNode.value
+      const displayNode = named.get('display')
+      if (displayNode) {
+        const dn = displayNode.type === 'name' ? displayNode.name : null
+        desc.display = dn === 'display.none' ? 'none' : (dn === 'display.all' ? 'all' : 'unread')
+      }
+      if (named.has('show_last')) desc.showLast = true
+      // `false` parses as the number 0 (`pine.js`); anything else may bridge a gap
+      const gaps = named.get('fillgaps')
+      if (gaps && !(gaps.type === 'number' && Number(gaps.value) === 0)) {
+        desc.fillGaps = true
+      }
+    }
   }
 
   // ⚰️ A REFUSAL WITH `line: null` IS NOT AN ACCEPTABLE FINAL STATE.
@@ -6338,6 +6574,131 @@ function buildRuntimeIrLinked(source, opts, holder) {
       `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
   }
 
+  /** ⭐⭐ RT10 — A `switch` STATEMENT. Returns the statements; the caller owns
+   *  where they go.
+   *
+   *  ⛔ THE SUBJECT IS EVALUATED ONCE. Pine evaluates `switch expr` once and
+   *  compares that value with each arm; re-lowering a subject that carries state
+   *  (`switch ta.change(x)`) per arm would step a call site once per arm tested.
+   *  Anything but a bare name or literal is therefore bound into a slot no Pine
+   *  name can reach, before the first test.
+   *
+   *  ⛔ TEST BEFORE BODY, ARM BY ARM — source order, as the `if` statement
+   *  lowers (a body lowered first can move a refusal to a line not yet reached).
+   *
+   *  ⛔ NESTED IFs, NEVER A FLATTENED CONDITION — a later arm's test is not
+   *  evaluated once an earlier arm matched. */
+  const lowerSwitchStatement = (st, toks, scope, first) => {
+    const pre = []
+    const subjToks = toks.slice(1)
+    let subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    if (subject && !(subject.type === 'name' || subject.type === 'number' || subject.type === 'string')) {
+      const tmp = `switch@${first.line}:${first.column} subject`
+      const value = lowerExpr(subject, scope)
+      const slot = scope.declare(tmp, newSlot(tmp, false))
+      if (holdsText(subject, scope)) slots[slot].text = true
+      pre.push(declare(slot, value))
+      subject = { type: 'name', name: tmp, tok: first }
+    }
+    const cases = []
+    let fallback = null
+    for (const arm of (st.sub || [])) {
+      const h = arm.header || []
+      if (!h.length) continue
+      const at = findTop(h, (t) => isPunct(t, '=>'))
+      if (at < 0) {
+        throw new RuntimeRefusal('runtime:switch', 'an arm of this `switch` has no `=>`', locate(h[0]))
+      }
+      if (fallback) {
+        throw new RuntimeRefusal('runtime:switch', 'an arm follows the default `=>` arm', locate(h[0]))
+      }
+      const rhs = h.slice(at + 1)
+      // an inline arm is ONE statement (its own block, if it opens one, hangs
+      // under it); a bare arm's statements are the lines beneath it
+      const lines = rhs.length ? [{ ...arm, header: rhs }] : (arm.sub || [])
+      let test = null
+      if (at > 0) {
+        const match = parseWholeExpression(h.slice(0, at))
+        test = subject
+          ? lowerExpr({ type: 'binary', op: '==', left: subject, right: match, tok: h[0] }, scope)
+          : lowerExpr(match, scope)
+      }
+      const armScope = new Scope(scope)
+      const body = lowerStmts(lines, armScope)
+      objectBlocks.push({ scope: armScope, body })
+      if (at === 0) fallback = body
+      else cases.push({ test, body })
+    }
+    if (!cases.length && !fallback) {
+      throw new RuntimeRefusal('runtime:switch', 'a `switch` with no arms', locate(first))
+    }
+    let chain = fallback || []
+    for (let k = cases.length - 1; k >= 0; k -= 1) chain = [ifStmt(cases[k].test, cases[k].body, chain)]
+    return chain.length ? [...pre, ...chain] : pre
+  }
+
+  /** ⭐⭐ RT10 — `for … in` over an ARRAY, as the counted loop it means (see
+   *  the call site). Built from TOKENS so the element binding takes the ordinary
+   *  binding path — its drawing / record / text kind is decided exactly as a
+   *  hand-written `x = array.get(a, i)` is. */
+  const FOR_IN_BOUND = 2147483647
+  const lowerForInStatement = (st, toks, scope, first) => {
+    const at = locate(first)
+    const inAt = findTop(toks, (x) => x.kind === 'ident' && x.value === 'in')
+    const target = toks.slice(1, inAt)
+    const collToks = toks.slice(inAt + 1)
+    let idxTok = null
+    let elemTok = null
+    if (target.length === 1 && target[0].kind === 'ident') {
+      elemTok = target[0]
+    } else if (target.length === 5 && isPunct(target[0], '[') && target[1].kind === 'ident'
+      && isPunct(target[2], ',') && target[3].kind === 'ident' && isPunct(target[4], ']')) {
+      idxTok = target[1]
+      elemTok = target[3]
+    } else {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` names its element as `x` or `[i, x]`', at)
+    }
+    if (String(elemTok.value).includes('.') || (idxTok && String(idxTok.value).includes('.'))) {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` binds a plain name', at)
+    }
+    if (!collToks.length || collToks.length !== 1 || collToks[0].kind !== 'ident') {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop',
+        '`for … in` over a list made while the loop runs (a call or an expression) — '
+        + 'read the list into a name first', at)
+    }
+    const collNode = parseWholeExpression(collToks)
+    if (!holdsArray(collNode, scope)) {
+      note('runtime:loop')
+      throw new RuntimeRefusal('runtime:loop', '`for … in` over a map or a matrix — only an array walks here', at)
+    }
+    const pos = { line: first.line, column: first.column, index: first.index }
+    const T = (kind, value) => ({ kind, value, ...pos })
+    const ctrName = `for-in@${first.line}:${first.column} index`
+    const ctrTok = T('ident', ctrName)
+    const guard = {
+      header: [T('ident', 'if'), ctrTok, T('punct', '>='), T('ident', 'array.size'), T('punct', '('),
+        ...collToks, T('punct', ')')],
+      sub: [{ header: [T('ident', 'break')], sub: [] }],
+    }
+    const binds = []
+    if (idxTok) binds.push({ header: [idxTok, T('punct', '='), ctrTok], sub: [] })
+    binds.push({
+      header: [elemTok, T('punct', '='), T('ident', 'array.get'), T('punct', '('), ...collToks,
+        T('punct', ','), ctrTok, T('punct', ')')],
+      sub: [],
+    })
+    const loopLine = {
+      ...st,
+      header: [T('ident', 'for'), ctrTok, T('punct', '='), T('number', 0), T('ident', 'to'),
+        T('number', FOR_IN_BOUND)],
+      sub: [guard, ...binds, ...(st.sub || [])],
+    }
+    return lowerStmts([loopLine], scope, false, false, true)
+  }
+
   const lowerSwitchInto = (armLines, subjToks, scope, slot, mkArm, label, atTok) => {
     // ── `name = switch …` ──
     //
@@ -6506,22 +6867,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
   }
 
-  const lowerStmts = (list0, scope, rootHoist = false) => {
+  // `inline` (RT10): a rewritten statement lowered IN PLACE of the one the member
+  // wrote — same depth, same hoist sink — never a nested list of its own.
+  const lowerStmts = (list0, scope, rootHoist = false, frameHoist = false, inline = false) => {
     // RT5: `label.delete(a[1]), line.delete(b[1])` is a line of STATEMENTS
     // (the host object lane's own split, `objectFnInline.splitCommaStatements`).
     const list = objectsInRun ? splitDrawingCommas(list0) : list0
     const out = []
     const outerStmtSink = stmtHoistSink
-    stmtHoistSink = null
+    const outerStmtOwner = stmtHoistOwner
+    if (!inline) stmtHoistSink = null
     // RT5: every list but the root runs only on some bars (or per call).
-    if (!rootHoist) condDepth += 1
+    if (!rootHoist && !inline) condDepth += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
       // mid-statement, and it always points at THIS list's `out` — which holds
       // every statement lowered so far, i.e. exactly the position immediately
       // before the statement being lowered now.
-      if (rootHoist) stmtHoistSink = out
+      if (rootHoist || frameHoist) { stmtHoistSink = out; stmtHoistOwner = owner }
       const st = list[i]
       let toks = st.header || []
       if (!toks.length) continue
@@ -6670,8 +7034,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // rather than falling to "a `for` needs `name = from to to`", which reads as
       // a typo in a script that is perfectly good Pine.
       if (word === 'for' && findTop(toks, (x) => x.kind === 'ident' && x.value === 'in') > 0) {
-        note('runtime:loop')
-        throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
+        // ⭐⭐ RT10 — `for x in <array>` / `for [i, x] in <array>`, rewritten into
+        // the counted `for` this lane already lowers, over the LIVE list
+        // (C48, `vw-forin-collections-rddt-1d-2026-10-01`: the length is re-read
+        // before every pass — a shift shortens the walk, a push lengthens it —
+        // and a slot is read when its pass reaches it):
+        //     for <i> = 0 to <a large bound>
+        //         if <i> >= array.size(<array>)
+        //             break
+        //         [i = <i>]
+        //         x = array.get(<array>, <i>)
+        //         …the body
+        // The bound only gives the loop a shape; every pass is still charged to
+        // the run's loop budget (`limits.js`), so a body that keeps pushing stops
+        // BY NAME, never silently. ⛔ Only an array, named or read as a field
+        // (`a`, `store.lines`): a map or matrix walk, or a list made by a call
+        // (re-evaluating it each pass would be a different program), refuses.
+        const lowered = lowerForInStatement(st, toks, scope, first)
+        for (const s of lowered) out.push(s)
+        continue
       }
       if (word === 'for') {
         const nameTok = toks[1]
@@ -6796,7 +7177,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (word === 'break') { out.push(breakStmt()); continue }
       if (word === 'continue') { out.push(continueStmt()); continue }
       if (BLOCK_WORDS.has(word)) { note('runtime:loop'); throw new RuntimeRefusal('runtime:loop', `\`${word}\``, locate(first)) }
-      if (word === 'switch') { note('runtime:switch'); throw new RuntimeRefusal('runtime:switch', null, locate(first)) }
+      // ⭐⭐ RT10 — `switch` AS A STATEMENT: the arms are run for their effect
+      // (`choice1 => leastPrecise := true`), and the value form's two rules hold
+      // (`lowerSwitchInto`): with a subject an arm matches by `==`, without one
+      // its expression is the condition; the first match runs and no later arm
+      // is tested; nothing matched runs the bare `=>` arm, or nothing.
+      if (word === 'switch') {
+        for (const s of lowerSwitchStatement(st, toks, scope, first)) out.push(s)
+        continue
+      }
 
       // ── a user function definition: `f(a, b) => …` ──
       {
@@ -7616,7 +8005,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     } finally {
       stmtHoistSink = outerStmtSink
-      if (!rootHoist) condDepth -= 1
+      stmtHoistOwner = outerStmtOwner
+      if (!rootHoist && !inline) condDepth -= 1
     }
     return out
   }
@@ -7855,13 +8245,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // compiled VALUELESS: every statement lowered, its result `na`, and a
           // call that READS the result refused by name at the call site. Called
           // on a line of its own, the result is discarded and nothing is lost.
-          body = lowerStmts(lines, fnScope)
+          body = lowerStmts(lines, fnScope, false, true)
           record.valueless = true
           record.valuelessEnd = endsInLoop(lines) ? null
             : (endsInOwnedDrawing(lines) ? 'drawing' : lastWord)
           result = naValue()
         } else if (chainAt >= 0) {
-          body = lowerStmts(lines.slice(0, chainAt), fnScope)
+          body = lowerStmts(lines.slice(0, chainAt), fnScope, false, true)
           // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
           // that does not match has NO value; seeding with 0, or with the
           // matched arm, hands a member a confident number for a branch their
@@ -7875,7 +8265,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           body.push(chain.stmt)
           result = read(vSlot)
         } else {
-          body = lowerStmts(lines.slice(0, -1), fnScope)
+          body = lowerStmts(lines.slice(0, -1), fnScope, false, true)
           // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
           // `return`. A final binding yields the value it bound; a final bare
           // expression yields itself.
@@ -7884,7 +8274,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const eq = findTop(lt, (t) => isPunct(t, '='))
           const walrus = findTop(lt, (t) => isPunct(t, ':='))
           if (walrus > 0 || (eq > 0 && !isPunct(lt[0], '['))) {
-            body = body.concat(lowerStmts([last], fnScope))
+            body = body.concat(lowerStmts([last], fnScope, false, true))
             const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
             const slot = bound ? fnScope.lookup(bound.value) : null
             if (slot === null) {
@@ -7894,7 +8284,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             result = read(slot)
           } else {
             try {
-              result = lowerResult(parseWholeExpression(lt), fnScope)
+              result = intoFrameSink(body, () => lowerResult(parseWholeExpression(lt), fnScope))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
               // slot there), so the refusal it always gave is HELD for the call
@@ -7909,7 +8299,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
       } else {
-        result = lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope)
+        result = intoFrameSink(body, () => lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope))
       }
       record.body = body
       record.result = result

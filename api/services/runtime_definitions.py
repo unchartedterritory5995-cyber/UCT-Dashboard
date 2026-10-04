@@ -120,6 +120,63 @@ def is_runtime(definition: Any) -> bool:
     return isinstance(compute, dict) and compute.get("kind") == RUNTIME_KIND
 
 
+# ─── RT9: a HOST document whose drawings come from a run (`objectsRun`) ───────
+#: The field an `ast` document carries its script in when its drawings may be made
+#: by one run of it (`app/.../runtime/runtimeObjects.js`). Its PLOTS stay formula
+#: trees — the whole `ast` machinery applies to them — and the run is under every
+#: gate a runtime document is under (stage, save switch, kill list, allowlist).
+OBJECTS_RUN_FIELD = "objectsRun"
+_REPAINT_MODES = ("non-repainting", "preview-repaints", "repaints")
+
+
+def is_hybrid(definition: Any) -> bool:
+    """Is this an `ast` document that carries a run for its drawings?"""
+    if not isinstance(definition, dict):
+        return False
+    compute = definition.get("compute")
+    return (isinstance(compute, dict) and compute.get("kind") == "ast"
+            and definition.get(OBJECTS_RUN_FIELD) is not None)
+
+
+def objects_run_source(definition: dict) -> Optional[str]:
+    run = definition.get(OBJECTS_RUN_FIELD) if isinstance(definition, dict) else None
+    src = run.get("source") if isinstance(run, dict) else None
+    return src if isinstance(src, str) else None
+
+
+def validate_objects_run(definition: dict) -> None:
+    """The store's shape check for `objectsRun` — `defSchema.js::
+    validateObjectsRunField`'s rules, plus the repaint class RE-DERIVED here from
+    the source (never trusted). Raises ``ValueError`` with the 400's sentence."""
+    run = definition.get(OBJECTS_RUN_FIELD)
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or compute.get("kind") != "ast":
+        raise ValueError(f"{OBJECTS_RUN_FIELD}: only an \"ast\" document carries a run for its drawings")
+    if not isinstance(run, dict):
+        raise ValueError(f"{OBJECTS_RUN_FIELD}: when present, an object")
+    if run.get("kind") != RUNTIME_KIND:
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.kind: required \"runtime\", got {run.get('kind')!r}")
+    source = run.get("source")
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.source: the script the run executes — required non-empty string")
+    trees = run.get("trees")
+    if not isinstance(trees, str) or not trees:
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.trees: the host compute the run was minted beside — required")
+    inputs = run.get("inputs")
+    if not isinstance(inputs, list) or any(not isinstance(k, str) or not k for k in inputs):
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.inputs: the script's own input keys — required list of strings")
+    declared = run.get("repaint")
+    if declared not in _REPAINT_MODES:
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.repaint: one of {', '.join(_REPAINT_MODES)}, got {declared!r}")
+    repaint = runtime_repaint.runtime_repaint_of(source)
+    if not repaint["ok"]:
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.source: {repaint['why']}, so its drawings cannot state "
+                         "their repaint behaviour and are not accepted")
+    if declared != repaint["mode"]:
+        raise ValueError(f"{OBJECTS_RUN_FIELD}.repaint — declared {declared!r} but this script measures "
+                         f"{repaint['mode']!r}")
+
+
 def save_enabled() -> bool:
     """`PINE_RUNTIME_SAVE_ENABLED == "1"`, read per call. Default OFF."""
     return os.environ.get(SAVE_ENV, "").strip() == "1"
@@ -323,9 +380,14 @@ def stamp_served(row: dict) -> dict:
 
     Returns a copy; the stored row is not touched."""
     definition = row.get("definition")
-    if not is_runtime(definition):
+    # ⭐ RT9 — a hybrid's RUN is stamped the same way; the install door then installs
+    # it without the run's drawings (its plots and host drawings are untouched).
+    if is_hybrid(definition):
+        source = objects_run_source(definition)
+    elif is_runtime(definition):
+        source = (definition.get("compute") or {}).get("source")
+    else:
         return row
-    source = (definition.get("compute") or {}).get("source")
     why = killed(row.get("def_id"), source)
     # ⭐ GT (D6) — a stored runtime row whose script is not on the starter
     # allowlist is SERVED stamped, never deleted and never rewritten, exactly as

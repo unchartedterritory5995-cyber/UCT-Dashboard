@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, windowSpecOf, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -381,18 +381,24 @@ export function execute(program, ctx, limits, opts) {
   // The columnar lane reaches the same field for the same member, so the two
   // cannot disagree about what an `na` means — which is the whole reason the
   // policy lives in the table rather than beside each driver.
-  const winNa = winPlan.map((w) => FINITE_WINDOW[w.fn].na)
+  // ⭐ RT10 — `windowSpecOf`: a `FINITE_WINDOW` member, or a runtime-only one
+  // (`RUNTIME_WINDOW`, Pine's pivot at its confirmation bar).
+  const winSpec = winPlan.map((w) => windowSpecOf(w.fn))
+  const winNa = winPlan.map((w, i) => (winSpec[i] ? winSpec[i].na : undefined))
   // ⛔ `skip` NEEDS THE LAST n FINITE OBSERVATIONS, AND THEY MAY LIE FURTHER
   // BACK THAN n BARS. The history ring is `span - 1` deep and cannot answer
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  const winObs = winPlan.map((w, i) => (winNa[i] === 'skip' || winNa[i] === 'ffill'
+    ? new Float64Array(w.span).fill(NaN) : null))
   const winObsN = new Int32Array(winPlan.length)
-  const winReduce = winPlan.map((w) => {
-    const spec = FINITE_WINDOW[w.fn]
+  // ⭐ RT8 — `ffill` (`ta.wma`) carries the LAST FINITE input across a hole.
+  const winCarry = new Float64Array(winPlan.length).fill(NaN)
+  const winReduce = winPlan.map((w, i) => {
+    const spec = winSpec[i]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    return spec.reduceFor ? spec.reduceFor(w) : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
@@ -881,6 +887,34 @@ export function execute(program, ctx, limits, opts) {
             }
             budget.charge('WINDOW_CELLS', span)
             stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
+            break
+          }
+
+          if (policy === 'ffill') {
+            // ⭐⭐ RT8 (step 87) — `ta.wma`'s MEASURED RULE, which this VM did not
+            // implement at all (an `ffill` window fell through to `propagate`, so
+            // one `na` anywhere in the lookback blanked it):
+            //  · a hole in the lookback is the LAST FINITE value, at its own bar's
+            //    weight (closedTable `wma_na_resolution`, 375-380ok/0bad);
+            //  · the answer is `na` on a bar whose own input is `na`;
+            //  · and it first answers once `span` FINITE inputs have been seen —
+            //    TradingView's warm-up counts non-na values. Witness: trend-targets-
+            //    algoalpha on NYSE:RDDT from the listing (`ta.wma(math.avg(lwr, upr),
+            //    40)`, the average finite on bar 0 = 0 and from bar 89): the vendor's
+            //    Baseline (`ta.ema(…, 14)`) first answers on bar 140, which needs the
+            //    wma first on bar 127 — its 40th finite input — over a window whose
+            //    oldest slot is bar 0's value carried (solved: that slot = 0 within
+            //    1e-10). Propagating (first on 128) blanked bar 140 and seeded the
+            //    ema 1 bar late; carrying from bar 0 without the count would answer
+            //    from bar 89.
+            const obs = winObs[wi]
+            const fin = Number.isFinite(live)
+            if (fin) winCarry[wi] = live
+            for (let k = 0; k < span - 1; k += 1) obs[k] = obs[k + 1]
+            obs[span - 1] = fin ? live : winCarry[wi]
+            if (fin && winObsN[wi] < span) winObsN[wi] += 1
+            budget.charge('WINDOW_CELLS', span)
+            stack[sp++] = (!fin || winObsN[wi] < span) ? NaN : winReduce[wi](obs, 0, span - 1)
             break
           }
 

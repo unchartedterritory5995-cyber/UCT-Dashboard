@@ -89,21 +89,19 @@ describe('⭐ H5 — `format.volume` in multicator-table cells', () => {
     for (const row of VOLUME_CELLS) expect(texts, row[0]).toContain(row[col])
   })
 
-  // ⚠️ The OBV cell is not drawn on either symbol: `ta.obv` (a running total) is
-  // not served by this lane, so the cell is dropped, never printed wrong. The
-  // `"-29.984M"` witness is pinned by `volumeNumberText`'s unit rail instead
-  // (`strTostringFormat.vendor`), against OBV computed off RDDT's own bars.
-  it('⭐ door: RDDT (from the listing) — the volume prints TradingView text; the OBV cell is not drawn', () => {
-    expect(cellsThroughTheDoor(cap('rddt'), VOLUME_CELLS)).toEqual(['3.126M'])
+  // ⭐ H6 (step 90) re-pinned: `ta.obv` is now served on the host lane
+  // (`pine.js::obvLevelTree`), so RDDT — a series FROM THE LISTING — prints
+  // TradingView's own OBV text. Was `['3.126M']` (the cell dropped, `ta.obv`
+  // unserved). Graded in full by `vendorHarness.h6Obv`.
+  it('⭐ door: RDDT (from the listing) — the volume and the OBV print TradingView text', () => {
+    expect(cellsThroughTheDoor(cap('rddt'), VOLUME_CELLS)).toEqual(['3.126M', '-29.984M'])
   })
 
-  it('⭐ door: SPY — the volume prints TradingView text; the OBV is NOT drawn wrong', () => {
-    const got = cellsThroughTheDoor(cap('spy'), VOLUME_CELLS)
-    expect(got[0]).toBe('46.335M')
-    // a running total over a window that does not start at the listing is not
-    // TradingView's number; whatever the door does with it, it does not print a
-    // different OBV in the vendor's format
-    expect(got[1] === '10.801B' || got[1] === null || got[1] === undefined || got.length === 1).toBe(true)
+  // ⛔ SPY does not start at the listing: its OBV is TradingView's minus a constant,
+  // so the cell is withheld by name (`cum:window`, `interpret.js::cumulativeLevelMask`)
+  // — never printed as a different number in the vendor's format.
+  it('⭐ door: SPY — the volume prints TradingView text; the OBV is withheld, not drawn wrong', () => {
+    expect(cellsThroughTheDoor(cap('spy'), VOLUME_CELLS)).toEqual(['46.335M'])
   })
 })
 

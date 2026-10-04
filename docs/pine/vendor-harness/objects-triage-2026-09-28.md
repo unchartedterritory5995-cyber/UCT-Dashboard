@@ -186,7 +186,12 @@ without it; each row below is a full re-grade of the 47 captures.
 | 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 | 86 | F5 a recursive series seeded off the listing is withheld by its own decay (section F5): per-node seed-error bound (`seedBoundOf`, both lanes), withheld while bound >= half the harness tolerance, named `seed:window`; the harness excuses a withheld bar only within its bound (`seedWithheldAt`, 0 `seed-bound` violations); an `na` seed runs its update on bar 0 from the listing; a hold-or-set `var` off the listing is switched (`holdsUntilSet`, `seed:held`; F6's leviathan); options-max-pain recorded, not relaxed (runtime lane) | `296742e075`, `7cc3d92c02`, `e4efb09198`, `d65076ec77`, merges | `interpret.js`, `nativeRegistry.js`, `objectColumns.js`, `compare.mjs`, `ourSide.js`, `ast_interpret.py`, `ast_seed_warmup.py` | harness (merged, 368 graded) MATCH off/on/libs 96/117/132 -> 97/118/133 for the held rule, seed rule 64/87/97 -> 73/96/106 on its base; 0 MATCH lost; 0 seed-bound violations; census 56/82/99, 0 lost | table in section F5 |
+| 87 | RT8 the runtime lane's follow-ups (section RT8): the vendor harness and census enter each door state explicitly (GT's permission + grade-all IN the state; the corpus CLI graded at collection time and its "runtime" numbers were the objects-only ones) and every grade runs without the runtime pane's wall clock (the product path keeps D3's 1,000 ms budget, railed); `ta.wma` FFILL + warm-up on the n-th finite input in the VM (trend-targets RDDT DIVERGE -> MATCH); runtime fills carried from the run (graded on atr-trailing-stop's per-bar fill colour, 636/636); inside-bar SPY bars 0/2 proved off-listing; per-bar shape colour stays withheld by name | `b9b93ad0ef`, `25c43f4f7a`, `070ff45450` | harness dir (335), true runtime state, integrate `c91e9fe3c8` -> RT8: MATCH 99 -> **100**, DIVERGE 114 -> 113 (with libraries 101 -> **102**, 116 -> 115); off and on unchanged; 0 MATCH -> DIVERGE | unchanged | member door 55 / 80 / 96 (libraries 55 / 82 / 99), 0 moved |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
+| 89 | RT9 hybrid drawings and colour edge cases (section RT9): a host document whose host lane kept the plots but lost or withheld the drawings carries an objects RUN beside them (`objectsRun`, same gates as any runtime document: GT stage, allowlist by source hash, kill list, RT4's run-or-nothing); plots stay the host's byte for byte; the run honours a member's moved `input.int`/`input.float` (Q1), any other moved setting or a parameter edit falls back to the host program by name. `color.new(na, t)`, `color.new(c, na)` and `color.rgb(na, ...)` follow ONE shared rule on both lanes (`colorInt.js`). Server validator accepts the stated shape | `4de1721ee6`, `f43675646f`, `8c6d4dc8d1`, `e6ced6c6e2`, merge `0de5b2271c` | `runtimeObjects.js`, `nativeRegistry.js` (`objectsRunFor`), `binder.js`, `runtimeColumns.js`, `colorInt.js`, `runtime/colours.js`, `ast/pine.js`, `pineRuntimeFrontend.js`, `defSchema.js`, `api/services/runtime_definitions.py`, `user_definitions.py` | harness 368 files: objects pane capture 96 -> 96, plot 869 -> 875; + runtime capture 109 -> 110, objects 187 -> 188, plot 993 -> 999; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed), hybrid served 2/266 | atr-s&r RDDT runtime DIVERGE -> MATCH (20 lines, 20 boxes); vw-rt6 C03-C05 MATCH (12 rows) |
+| 90 | H6 host-lane state and UDT walls (section H6): `ta.obv` / v4 `obv` served on the host lane as Pine's reference definition `cum(sign(change(close)) * volume)`, its level withheld off the listing by name (`cum:window`, both lanes, plot and object); a user-defined type's field read off an instance that is the same on every bar becomes its constructor argument (`udtConstFields.js`). multicator RDDT OBV cell prints `-29.984M`, SPY withheld; its HUD colours 15 / 15 TradingView's on RDDT and SPY (control Light 15 / 15 differ); still withheld whole for the HUD's `visibleRange` tuple. H2's state walls routed per script: the runtime lane owns the attached ones (graded MATCH from the listing), the rest refused, Q-H6c queued | `7591471ccd`, `4fb83c72d5`, merge `09bef68824` | sweep 368 x 2: 0 entries changed, 0 MATCH -> DIVERGE | census 56 / 82 / 99 (libraries) and 56 / 80 / 96 unchanged, 0 lost; lorentzian `pine:type` -> `pine:reassign` | mutations M1-M6, U1-U7 red; Q-H6a-c |
+| 91 | CAP4 capture lane (section CAP4): the 2026-10-03 queues captured as unsaved drafts - Q-H5a format.volume (K below a million, trailing zeros trimmed, ties up, no roll-over `1000M`, `2.5T`), Q-H5b `timeframe.*` inside a request is the REQUESTED timeframe (W 10080, M 43830, 240, 3), Q-RT7a/b empty / all-na reductions are `na` and fixnan equals the replay (SPY full history, 8477 bars), Q-RT8a `ta.wma` rule A (W01 bar 26, W03 bar 58), Q-RT8b/c per-bar shape and fill colours, Q-RT8d v4 fill default transparency 90 | `cf5e6b7e8c`, `0738cc8edf`, `f4bf3beffa` | 6 harness files + `cap4-verdicts.json` (12 rows) | - | our grade: H5a DIVERGE (16 cells withheld), H5b INCONCLUSIVE (pine:request 240), RT7 INCONCLUSIVE (objects pine:na; runtime stops on `array.sum` of an empty array), RT8 followups DIVERGE (host lane wma rule B-like + bar-0 mid), RT8d MATCH (A/B; fills not graded) |
+| 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7181,3 +7186,439 @@ flipCGeometry / memberPaneGate / objectLane*.measure / guardProbe time out at 15
 objectFnInline sector-rotation, b1Paints pinned list (B1P's), c41LowerTfServe x4, c47BoolNaLatch control, capRound4 Q-O1 x6,
 c26OtherSymbol, c29BareSymbol, freshness, pineProbeReplay, syminfoMintick, udfTypedParams, varReadOrderLanes; Python
 test_c45_withheld_doors x2.
+## RT8 - the runtime lane's follow-ups: the measurement made true, `ta.wma`'s warm-up, runtime fills, and the off-listing seed (2026-10-03, step 87)
+
+Branch `pine/rt8-runtime-followups`, base `integrate/wave16-2026-10-02` (`476412b297`), merged forward to `c91e9fe3c8`
+(RT7, CAP3, F4). Commits `b9b93ad0ef` (door states), `25c43f4f7a` (wma, fills, off-listing), `070ff45450` (clock).
+
+### 1. The measurement, made true
+
+**The defect.** `vendorHarness.corpus.test.js` graded in its `describe` body - at collection time, before the
+`src/test-setup.js` `beforeEach` that latches GT's per-member permission and grades every script. With
+`VITE_PINE_RUNTIME_PANE_ENABLED=1` the runtime gate still answered no, so the CLI's "runtime" table was the objects-only
+table (measured at `476412b297`: MATCH 79 / DIVERGE 80 / INCONCLUSIVE 136 either way).
+
+**The fix.** `harness.js::enterDoorState / withDoorState / doorGates / doorStateMismatch / ambientDoorState`: both build
+flags stubbed explicitly, and for `runtime` the member permitted and every script graded IN the state; a state whose gates
+disagree is refused, never measured. The CLI grades inside a test in `VENDOR_HARNESS_STATE` (`off` / `on` / `runtime`,
+default the ambient flags), writes `state`, `gates` and `librariesLoaded` into `verdicts.json`, and loads
+`PINE_LIBRARY_STORE` opt-in as the census does. The census rows enter their state the same way.
+
+**The clock.** The synchronous runtime lane applied `RUNTIME_PANE_TIME_BUDGET_MS` (1,000 ms wall clock) inside every grade,
+so a runtime verdict depended on machine load (CAP3 saw atr-stepped flip MATCH <-> INCONCLUSIVE and nadaraya stop at
+1,202 ms). `harness.js::gradeCapture` now runs our side with the pane clock off
+(`runtimeColumns.js::__gradeWithoutPaneClockForTests`, rails only) and puts it back; the VM's instruction-counted limits
+(`limits.js`) still bound every run. The PRODUCT path keeps D3's budget: `runtimePaneClock.test.js` stops a run past
+1,000 ms by name on a slow clock, and completes it with the switch on or a real clock. ⚠️ Without the clock the whole-dir
+grade holds more memory (htf-liquidity-dashboard-tfo RDDT takes ~60 s and the 335-capture runtime run exited its worker
+once at the default heap); the measurements below ran with `NODE_OPTIONS=--max-old-space-size=8192`.
+
+**Rails:** `vendorHarness.rt8DoorState.test.js` (9): the cold-latch failure reproduced; runtime entered from a cold latch;
+off/on never reach the runtime lane; mismatched gates refused (with controls); flag names derived off both gates' sources;
+a 50 ms-per-read clock leaves fvg-trend's runtime verdict unchanged; NON-VACUITY on fvg-trend RDDT (runtime-only): cold
+latch == on, runtime != on, runtime draws `fvgCounter` MATCH.
+
+**The TRUE numbers** (frozen snapshots, `--maxWorkers=1`, harness dir; census `corpus/committed`, 266 scripts):
+
+| tree | state | harness MATCH / DIVERGE / INCONCLUSIVE | + libraries (50) | census attach |
+|---|---|---|---|---|
+| `b9b93ad0ef` (wave-16 `476412b297` + door states, 295 captures) | off | 56 / 62 / 177 | 56 / 62 / 177 | 55 (lib 55) |
+| | on | 79 / 80 / 136 | 79 / 82 / 134 | 80 (lib 82) |
+| | runtime | **89 / 87 / 119** (the CLI had said 79 / 80 / 136) | 90 / 90 / 115 | 96 (lib 99) |
+| integrate `c91e9fe3c8` + the RT8 instrument (no clock), 335 captures | off | 63 / 78 / 194 | 63 / 78 / 194 | 55 (lib 55) |
+| | on | 87 / 106 / 142 | 88 / 107 / 140 | 80 (lib 82) |
+| | runtime | 99 / 114 / 122 | 101 / 116 / 118 | 96 (lib 99) |
+| RT8 tip `070ff45450` | off | 63 / 78 / 194 | 63 / 78 / 194 | 55 (lib 55) |
+| | on | 87 / 106 / 142 | 88 / 107 / 140 | 80 (lib 82) |
+| | runtime | **100 / 113 / 122** | **102 / 115 / 118** | 96 (lib 99) |
+
+Verdict by verdict, integrate -> RT8: one change in each runtime column, trend-targets-algoalpha RDDT DIVERGE -> MATCH; off
+and on identical; census rows identical in all three states (attach and plot counts). **0 MATCH -> DIVERGE, 0 attaches lost.**
+The clock's own effect on `c91e9fe3c8` was not measured separately.
+
+### 2. Per-bar colour for `plotshape` / `plotchar` on a runtime document - WITHHELD BY NAME
+
+No capture of a runtime document records a per-bar shape colour: across the harness dir only sector-rotation RDDT has a
+shape colorer with more than one value, and it is a host-lane document (and requests other symbols, `runtime:request`). No
+corpus script that reaches the runtime lane today writes one either (census of the runtime-state documents). So the marker
+layer is not taught a per-point colour without evidence: the row stays withheld with its sentence (railed in
+`vendorHarness.rt8Followups`), and Q-RT8b queues the capture (probe rows S01-S04, including an `na` shape colour with text).
+
+### 3. Runtime FILL colour - CARRIED, graded
+
+The runtime lane already emitted each `fill(p1, p2, colour)` as an output whose value IS the colour; the document carried
+none, and SAID none: the `fill` entry of `RUNTIME_UNDRAWN_KINDS` reads `t.outputs`, which never lists a fill (the host keeps
+them under `presentation.fills`). Now:
+* `pineRuntimeFrontend.js::emitFill` records `display`, `show_last`, `fillgaps`, `title`, `line` (opt-in, `plotColours`).
+* `memberPaneDefinition.js::runtimeFillsOf` puts each band on an edge row (`plots[].fill = {with, colorMode, colorPacked}`,
+  set on the built plot), minting a HIDDEN anchor row for an edge the author hid (`display.none`), coloured by the run's
+  packed colour column - the RT6 reader, so a run `na` colour is a gap (R30), as TradingView leaves it unpainted.
+* Withheld by name: a script below v5 (a v4 `transp` default no capture pins - Q-RT8d); `show_last`; `fillgaps` other than
+  `false`; a `display` other than `display.all` / `display.none`; an edge this document does not draw; a third band on one
+  pair of rows. A `display.none` fill draws nothing on TradingView either and is not named.
+
+**Graded** (`vendorHarness.rt8Followups.test.js`): no runtime-lane corpus script writes a fill today, so each script is put
+through the door's FALLBACK by handing the door its own host translation marked refused (`forcedRuntime`): the door, the run
+and the renderer's colour reader are the member's; only the host verdict is forced.
+* **atr-trailing-stop-by-ceyhun RDDT 1D** (v5, from the listing; the script above `//InfoPanel`, whose label text is RT7's
+  wall): the band rides a hidden anchor (`TS1` is `display.none`) and its colour **agrees with TradingView's `fill_0`
+  colorer on 636 / 636 bars** (both colours, 297 / 339); `Slow Trail` agrees to 1e-9 on every valued bar; the document
+  validates (`defSchema.validateDefinition`).
+* **donchian-channels RDDT** (v6): seven constant bands, each its literal `color.new(#hex, t)` on every bar (hand replay: no
+  capture records a constant fill colour per bar).
+* Q-RT8c queues a direct capture with no forcing.
+
+### 4. Runtime seed defects
+
+**4a trend-targets-algoalpha RDDT - a real bug, fixed.** The run's `ta.wma` window was declared `ffill` in `FINITE_WINDOW`
+(closedTable `wma_na_resolution`) but the VM never implemented `ffill`: it fell through to the propagate ring, so one `na`
+in the lookback blanked it. `math.avg(lwr, upr)` is finite on bar 0 (= 0: the ratchet's `nz` and v6's false `na`
+comparisons) and from bar 89. TradingView's `Baseline` (`ta.ema(ta.wma(…, 40), 14)`) first answers on bar 140; seeding the
+ema from TradingView's own bar-140 value and recursing over our wma reproduces every later bar to 7e-16, and solving the
+SMA seed for the missing wma slot gives bar 0's 0 in the oldest position (to 1e-10): the wma first answers on bar 127, its
+40th FINITE input. `runtime/vm.js` OP.WINDOW `ffill` now carries the last finite input at its own weight, answers `na` on an
+`na` bar, and first answers on the n-th finite input. **Baseline MATCH, the script MATCH** (the coverageAudit `it.fails`
+flipped). ⚠️ The HOST lane's `rolling` FFILL warms up differently (first full filled window: it would answer this shape
+from bar 89) - not changed here (host lane); Q-RT8a separates rule A (n-th finite input) from rule B (n-1 finite in the
+window) and decides whether the host must move.
+
+**4b inside-bar-range SPY bars 0 / 2 - the off-listing rule, proved.** On the capture's bars the two barcolors differ on
+bar 0 and bar 2 only. Bar 0 is an inside bar of the bar BEFORE the window (`high[1] > high and low[1] < low`); the same bar
+sets `mhigh = high[1]`, which is bar 2's breakout. With ONE synthetic bar before the window (high 290, low 280: any range
+containing bar 0's with high in [287.97, 293.62)) the two agree on all 1,800 bars. Ruling R-W, not a run defect.
+
+### Mutations (bytes captured, restored, sha verified)
+
+`rt8_mutate.py`, each alone: ffill branch removed; warm-up count dropped; carry unused; answer on the `na` bar; door state not
+permitted; not graded-all; mismatch never reported (first GREEN - unrailed - then railed: RED); fill v5 gate removed; fill
+colour not set on the built plot; hidden edge not minted; `show_last` / `fillgaps` / unread `display` ignored;
+`display.none` drawn; withheld edge unchecked; second band not moved to the other edge; frontend `display.none` unread;
+`fillgaps = false` read as true; grade keeps the pane clock; product path ignores the budget; rails' switch inert -
+**21 of 21 red.** One guard REMOVED on its mutation: a second clock switch in `enterDoorState` (redundant with
+`gradeCapture`'s - its mutation left every rail green).
+
+### Tests (totals lines)
+
+vitest (`--maxWorkers=1`): RT8 + harness + runtime-door batch on the merged tree (rt8DoorState, rt8Followups,
+coverageAudit, rt6, rt1, h4, f4, rt7 rails, runtimePaneClock, finiteWindow, runtimeAsync, round trip, runtime objects door,
+memberPaneDefinition, runtimeSwitchOn) **20 files passed | 1 skipped; 389 passed | 10 skipped**; param ids (paramIds,
+paramIdPinned, paramIdSourceStability) 10 passed | 1 skipped; `memberPane/` + `runtime/__tests__/` before the merge 1,474
+passed, 5 failed - the five corpus `*.measure` tests that time out at 15 s under load (identical at the base snapshot).
+pytest: `test_runtime_document_round_trip.py` + `test_runtime_definitions.py` + `test_pine_runtime_switch_on.py` **70 passed**.
+Pre-existing reds, identical at the base: `vendorHarness.b1Paints` (the paint pin list predates CAP3's captures) and
+`vendorHarness.capRound4` Q-O1 (6, "O1 not merged").
+
+### Open
+
+- Q-RT8a-d (`docs/pine/capture-queue-2026-10-03-rt8-runtime-followups.md`, probes `vw-rt8-runtime-followups.pine`,
+  `vw-rt8-v4-fill-transp.pine`).
+- The host lane's `wma` warm-up across a leading gap (above) - host lane's call, after Q-RT8a.
+- Memory of an unclocked whole-dir runtime grade (above): the CLI needs a larger heap.
+
+## RT9 - hybrid drawings (host plots, runtime drawings) and colour edge cases on one rule (2026-10-03, step 89)
+
+Lane RT9, branch `pine/rt9-hybrid-objects` (from `integrate/wave16-2026-10-02` `c91e9fe3c8`, merged up to `17330e6289`).
+Brief: (1) where the host lane attaches the plots but withholds or loses the drawings, serve the host's plots plus the
+runtime run's drawings as ONE document with two sources; (2) the `na` colour edges implemented once, shared by both lanes.
+
+**The document.** A host (`ast`) document gains `objectsRun = {kind: 'runtime', source, repaint, trees, inputs}`
+(`memberPaneDefinition.js`, decided by `runtimeObjectsDoor.hybridObjectsOf`). It is minted only when the host lost the
+drawings (`hostDrawingLoss`: `withheld`, `empty` or `lost-creates`) and the run passes every gate any runtime document
+passes: GT's per-member stage (`runtimePaneEnabled`), the starter allowlist by source hash, the kill list, the repaint
+class, and the probe with `objectsInRun`. Plots stay the host's **byte for byte** (rail: the document is the runtime-off
+one plus the run). The schema (`defSchema.validateObjectsRunField`) and the server (`runtime_definitions.validate_objects_run`,
+`user_definitions._check_objects_run`, formula half capped at 64 KiB, whole document at 128 KiB) accept exactly that shape and
+refuse each malformed field; a run on a runtime document is refused.
+
+**Who draws.** ONE source of drawings per paint (`nativeRegistry.objectsRunFor`, which the binder's `syncObjects` obeys):
+the run's own drawings (RT4: no run, no drawing) when it computed; otherwise the host object program, exactly the pre-RT9
+picture, with the reason named. Off the listing a run is `runtime:history-start` (SPY is off-listing), so the host draws.
+A kill-listed or server-stamped run installs WITHOUT its drawings (`meta.objectsRunWithheld`), plots intact.
+
+**Q1 ruling - member inputs.** The run honours a moved script input only where graded: a key the source binds as
+`key = input.int(` / `input.float(` (`honouredInputsOf`), read by bound name on the runtime lane. Each moved value is a new
+run (`runtime:objects:<hash>:<sig>`). A moved bool, string or colour (the run folds or does not read them) and any parameter
+edit (the trees moved) withhold by name (`runtime:objects-settings`), so plots at one setting never sit beside drawings at
+another. Graded against a HAND REPLAY of atr-support-and-resistance (`builder/memberPane/atrSrReplay.js`, no engine code):
+at the defaults the replay equals TradingView's RDDT capture box for box (20); at `mult = 1.8` the run's 10 boxes equal the
+replay's 10 by price, through `objectsRunFor` and through the chart binder (`hybridObjects.test.js`).
+
+**Q2 ruling.** `INSTRUCTIONS_PER_BAR` stays at 200,000 (R-B/D3). Poor-man's volume profile's run stops at
+`runtime:limit` (200,875 instructions on bar 631), so its host program draws, named.
+
+**Colour edges, one rule** (`engine/colorInt.js`: `NA_BASE_HEX`, `NA_TRANSPARENCY`, `NA_CHANNEL`,
+`colorNewTransparency`, `colorRgbChannel`), read by the runtime (`runtime/colours.js`), the host (`ast/pine.js`
+`staticColourOf` / `colourHelperAlpha` via `naConstantOf`) and the object program (`objectRuntime.js`). `color(na)` casts
+as a colour on the runtime lane (`colourCastArg`).
+
+| probe `vw-rt6-runtime-colour` | TradingView | ours, both lanes |
+|---|---|---|
+| C03 `color.new(na, 40)` | `#00000099` | **MATCH** |
+| C04 `color.new(c, na)` | alpha 0 | **MATCH** |
+| C05 `color.rgb(na, ...)` | `#000000ff` | **MATCH** |
+
+**Census** (member door, 266 corpus scripts, library store loaded): off / on / + runtime **55 / 82 / 99**, unchanged from base,
+0 rows changed. Hybrid run **served on 2**: atr-support-and-resistance and poor-man's volume profile (whose run then stops at
+`runtime:limit`, above). **16 declined by name**: `pine:builtin` 3 (ict-killzones-pivots-tfo, multicator-table,
+trend-lines-supports-and-resistances), `runtime:request` 2, `pine:input-kind` 2, `pine:request` 2,
+`runtime:history-dynamic-offset` 2 (pmax-explorer, volume-profile), `runtime:object-op`, `pine:block`, `runtime:loop`,
+`budget:lookback`, `runtime:call-undeclared-builtin-state` 1 each.
+
+**Harness sweep** (368 files, `--maxWorkers=1`, base `c91e9fe3c8` vs tip `f43675646f`):
+
+| | base | RT9 |
+|---|---|---|
+| objects pane: capture MATCH / plot MATCH | 96 / 869 | **96 / 875** |
+| + runtime: capture MATCH / objects MATCH / plot MATCH | 109 / 187 / 993 | **110 / 188 / 999** |
+| MATCH -> anything else | - | **0** |
+
+Only atr-support-and-resistance RDDT (runtime) moved, DIVERGE -> MATCH (20 lines, 20 boxes), plus the 12 C03-C05 rows.
+
+**Mutations** (each restored by captured bytes, sha checked, status clean): 21 in the first round, 19 red at once; the two
+survivors resolved (a redundant `na`-base branch removed; an unrailed runtime `color(na)` cast railed with a control), then red;
+2 more on the cast, red. Q1: honoured set emptied, run ignores `compute.inputs`, `objectsRunFor` drops the inputs, the
+regex widened to `input.bool`, the withhold ignoring honoured keys - 5 of 5 red.
+
+**Rails.** `builder/memberPane/hybridObjects.test.js` (19), `runtimeObjectsDoor.test.js`, `runtime/__tests__/rt6ColourCarriage.test.js`,
+`vendorHarness.rt9NaColour.test.js` (8), `tests/test_runtime_hybrid_objects.py` (14), fixture
+`tests/fixtures/runtime_documents/hybrid_documents.json`; measures `rt9Sweep.measure.test.js`,
+`memberDoorCensus.measure.test.js` (`objectsRun` field).
+
+**Open.** (1) volume-profile and trend-lines-supports-and-resistances (owner "RT9" in F6's table) are declined by name
+here, `runtime:history-dynamic-offset` and `pine:builtin`; not lifted. (2) A hybrid honours numeric inputs only; a moved
+bool/string/colour falls back to the host program by name until a capture or replay grades it.
+
+## H6 - host-lane state and UDT walls: `ta.obv`'s level, a constant UDT instance's fields, and H2's state walls routed (2026-10-03, step 90)
+
+Lane H6, branch `pine/h6-host-state-udt`, base `integrate/wave16-2026-10-02` (`a83059a855`). Target: the
+host (columnar) translator. Census with the 50 production libraries loaded unless said.
+
+### What H6 served
+
+| commit | construct | outcome | evidence |
+|---|---|---|---|
+| `7591471ccd` | `ta.obv` / v4 `obv`, the LEVEL, host lane only | written as Pine's reference definition `cum(sign(change(close)) * volume)` (`pine.js::obvLevelTree`, gated like `cum` by `hostAdmissible`): up adds the volume, down subtracts it, an equal close adds 0, bar 0 is `na` (`cum`'s measured rule). A screen keeps the table's `obv` ruling; the bounded `obvN` rewrites run first and are unchanged. A running total never converges, so OFF the listing every bar of a tree reading the level is withheld, named `cum:window` (`interpret.js::cumulativeLevelMask`, `ast_interpret.cumulative_level_mask`; `CHART_CLOCK_WHOLE`) on the plot and object lanes. F5's seed-decay rule excludes `cum` by design; this mask is the "never converges" declaration it needs | `vendorHarness.h6Obv` (13): multicator RDDT 1D (636 bars from the listing) plot lane last bar -29,983,517 and bar 0 `na`, the cell prints TradingView's `-29.984M`; SPY 1D (off the listing) plot and cell withheld by name; CONTROL: SPY told it starts at the listing draws a number that is not TradingView's `10.801B`; hand-made bars pin up / down / equal / bar 0. `tests/test_h6_obv_level_mask.py` (4) holds the Python lane to the same column. Mutations M1-M6 each red |
+| `4fb83c72d5` | a user-defined type's field read off an instance that is the same on every bar | `ast/udtConstFields.js`, a token pre-pass after the library linker: `x.f` becomes its constructor argument in parentheses when the type is declared, `x` is bound once at the top level (`[var] [T] x = T.new(...)`, or through a helper whose whole body is `T.new(...)`), never written, never read bare (passed, `x[1]`, `x.m()`), every read a declared field on a later line, every read field bar-invariant by the walk's own rule (`barInvariantNames`), no invariant name in it shadowed by a function parameter, and no `input.*` CALL inside it (its copies would be inputs the script never wrote and move parameter ids). The script's own tokens stay its identity for the frozen parameter-id map (`tokens.unlinked`, the linker's precedent; without it lorentzian's legacy ids went absent in all three lanes). A UDT whose fields mutate per bar stays refused (runtime lane, H3) | `vendorHarness.h6UdtFields` (15): multicator's 95 `theme.<field>` reads resolve (10 fields); a probe with the script's OWN type, helper and theme input draws the HUD's 5 boxes and 5 labels at TradingView's recorded y through the member door: **15 / 15 colour slots agree on RDDT and on SPY** (`hudBorder`, `hudBg`, `hudText`); CONTROL Light theme 15 / 15 differ; 9 refusal cases. Mutations U1-U7 each red |
+
+### multicator-table after H6: what remains
+
+The object lane now carries every colour property it used to drop (`droppedProps` 156 -> 0; `droppedOps`
+62 -> 52 of 290; `update:props` 12 -> 2). Its cells' values were H5's (8 graded), its OBV cell is H6's
+(RDDT `-29.984M`), its colours are H6's (graded on the HUD's 15 slots). It is STILL withheld whole,
+`pine:object-removal-lost`, and nothing about types is in the way any more:
+
+- the HUD: `[visTop0, visBot0] = visibleRange(...)` is a tuple function the object lane cannot read
+  (`create box@607` / `create label@611`), so `hudBoxes` / `hudLabels` lose their pushes
+  (`coll:diverged`), and a later delete reads those lists (`assessObjectLoss` verdict `removes`);
+- `hvnPrice` (`create line@544`) is a running total in a counted `for` (R7, the runtime lane);
+- 7 `cell:text`, 9 `create:box`, 9 `create:label`, 18 `coll:push`, and `polyline.*` (out of scope).
+
+Drawing it needs the HUD served or a family-scoped withhold (F3's open item 1); RT9 (hybrid runtime
+objects) is the lane that can draw `visibleRange`'s boxes. The captures record no table-cell colours,
+so the 60 cells' colours are graded only through the HUD's fields (RT8: measurement).
+
+### H2's remaining state walls, per script
+
+Each first refusal read at the base; the runtime lane's state from the census (`runtimeDeclined`); the
+harness verdicts from the libraries-loaded sweep at the base.
+
+| shape | script | runtime lane | graded | H6 |
+|---|---|---|---|---|
+| S-a IIR (Wilder) | adx-and-di-for-v4 | attaches | RDDT runtime **MATCH**, SPY INCONCLUSIVE | runtime owns it: a host copy would duplicate a run already graded MATCH from the listing |
+| S-a IIR | deadband-hysteresis-filter-backquant | attaches | RDDT runtime **MATCH** | runtime owns it |
+| S-a IIR | smoothed-gaussian-trend-filter-algoalpha | declines `runtime:fill-gradient` | no capture | refused; Q-H6c |
+| S-c latches | inside-bar-range-mother-candle | attaches | RDDT runtime **MATCH**, SPY DIVERGE (F6) | runtime owns it |
+| S-c latches | wyckoff-accumulation-distribution | attaches | RDDT / SPY runtime DIVERGE (RT5 / RT9 objects) | runtime owns it |
+| S-c latches | smc-structures-and-multi-timeframe-fvg-ma-py | declines `pine:input-kind` (`input.timeframe`) | no capture | refused; Q-H6c |
+| S-e `varip` | ema-92150-vwap-macd-rsi-pro-v6 | declines `runtime:varip` | no capture | refused. Trial `varip` -> `var` (identical on every closed bar, and for a never-written `varip` on the forming bar too): next wall the install door's `compute.budget` (1210 > 960, a session `vwap` inside), so serving it attaches nothing; not built |
+| R-d `varip` + dynamic index | bolingger-bands-inside-bar-boxes, inside-bar-boxes | decline `runtime:varip` | no capture | refused; the `varip` -> `var` trial still stops at `pine:state` (the stateful `high[barIndex]`) |
+| S-f block-local stop | neural-network-buy-and-sell-signals | declines `runtime:history-expression` | no capture | refused; Q-H6c |
+| R-f tuple part through its own history | williams-fractal-trailing-stops | declines `pine:text-value` | no capture | refused; its next host wall is the `f_flip` latch (S-c); Q-H6c |
+
+No host admission was made in this wall: where the runtime lane attaches it is already graded from the
+listing, and where it does not there is no capture to grade a host answer against, so correctness over
+coverage keeps the refusal. Q-H6c (`docs/pine/capture-queue-2026-10-03-h6-state-udt.md`) queues a
+capture for each of the seven.
+
+### Measured
+
+| | base `a83059a855` | H6 tip |
+|---|---|---|
+| member door off / on / + runtime, libraries | 56 / 82 / 99 | 56 / 82 / 99, 0 attached lost |
+| same, empty registry | 56 / 80 / 96 | 56 / 80 / 96, 0 rows changed |
+| rows changed (libraries) | - | machine-learning-lorentzian-classification, 3 states: `pine:type` -> `pine:reassign` (its constant `Label` instances resolve; `filterSettings` keeps the refusal, inputs inside its constructor) |
+| `corpus_metric` host / screener | 77 / 67 (the committed artifact said 77 / 66, stale before H6) | 77 / 67; only the two lorentzian rows' guards move |
+| harness sweep (368 captures x 2 door states, libraries), capture MATCH on / runtime; objects MATCH on / runtime | 96 / 109; 156 / 187 | 96 / 109; 156 / 187 at `4fb83c72d5`: **0 entries changed**, 0 MATCH -> DIVERGE (at `7591471ccd` one entry read k-clustering RDDT runtime INCONCLUSIVE, load-sensitive, open item 4) |
+| merged with the wave-16 tip `20ba63f668` | - | census and sweep not measured on the merged tree (held while the wave-16 gate runs) |
+
+Rails re-pinned on purpose, each with its measured reason in a comment: `vendorHarness.h5MulticatorValues`
+(RDDT's OBV cell now prints `-29.984M`; SPY's is withheld), `vendorHarness.b1Paints` (atr-support RDDT
+plot_8 / plot_11, the OBV bar colour: `naBoth` -> `agree`, nothing drawn changed), `pine.test.js` (the
+UDT case is a field of a SERIES instance now; the constant one is served), `periodAnchorParity.test.js`
+and `test_ast_period_anchor_parity.py` (`cum:window` is set aside like `bar-index:`, railed by H6's own
+tests). `paramIdLegacy` / `paramIds` green, nothing appended. `pineProbeReplay` not moved by H6.
+
+Focused runs on the merged tree: the H6 rails and the rails it re-pinned (`h6Obv`, `h6UdtFields`, `h5MulticatorValues`, `periodAnchorParity`, `pine.test`, `paramIds`, `corpusMetric`, `pineProbeReplay`) Tests 279 passed | 1 skipped; `paramIdLegacy` + `paramIds` + `h6UdtFields` 26 passed | 1 skipped; pytest `test_h6_obv_level_mask`, `test_ast_period_anchor_parity`, `test_ast_bar_index_shift_parity` 189 passed. The whole `ast/` + `vendorHarness/` directories ran at `4fb83c72d5` on a loaded box (a worker died); every file that failed there was re-run on the merged tree with H6's source and with the wave-16 tip's source, same test files: 12 vs 13 failed, the SAME reds both ways (c41LowerTfServe 4, c47OhlmDivider, pineMathCeilAccept, pineTimenowAccept, syminfoMintick, freshness, udfTypedParams, varReadOrderLanes, b1Paints' census pin) except b1Paints' atr-support row, which is H6's re-pin. `tests/test_c45_withheld_doors.py`: 2 red identically on the base bytes.
+
+### Open
+
+1. **`cum` beyond `ta.obv`.** The host lane still draws a script's own `ta.cum(x)` level off the listing
+   (C29's rule: it sums the loaded bars), which is TradingView's minus a constant for any non-constant
+   `x`. `cumulativeLevelMask` covers `ta.obv`'s shape only, so nothing graded moved; widening it to every
+   `cum` level needs the shift-invariant uses (`cum(x) - cum(x)[n]`, a saturated threshold like
+   atr-trailing's `cum_1 < 16`) told apart first. F5 / integrator.
+2. **Bar 0 of `ta.obv`** (`na` here) and the per-bar level: Q-H6a / Q-H6b.
+3. **A never-written `varip`** is exactly `var` on every bar; a rule for it is cheap but attaches nothing
+   today (ema-92150 stops at the budget). Owner ruling if wanted.
+4. `k-clustering` RDDT runtime read INCONCLUSIVE once in a loaded sweep and DIVERGE in three direct
+   re-grades on the same tree (load-sensitive, not an H6 change).
+## CAP4 - capture lane: the 2026-10-03 queues (H5, RT7, RT8) captured and graded (2026-10-04, step 91)
+
+Lane CAP4, branch `pine/cap4-captures`, base `integrate/wave16-2026-10-02` (`17330e6289`), merged with
+`integrate/wave17-2026-10-03` (`4937b86c4f`, RT8 + RT9) so every grade runs without the pane clock (RT8).
+
+**Rig.** The first attempt (2026-10-03) stopped at the gate: the tab read `hidden` and showed TradingView's
+"Session disconnected" dialog; nothing was clicked. After the owner reconnected (tab 603437612), gate =
+`visible`, 1918x854, chart model present, `hasFocus` false (recorded as observed), no disconnect dialog.
+
+**Route.** Each probe went into the open `Untitled script` draft (never saved, never published) through the Monaco
+handle (re-derived by the webpack scan: module `568088` this build; 18,234 factories seen), the source passed in the
+JS call itself and written only when its sha256 equalled the committed probe's (read back equal every time), the
+binding gate (`Add to chart` exactly once, `Update on chart` never, visible, no disconnect) checked in the same
+evaluation as the click. ⚠️ The first try moved the source through the OS clipboard and the receipt REFUSED it: a
+concurrent session had replaced the clipboard with a shell command (156 chars); nothing was written. Out: one
+`chunk(0)` staged in an injected textarea, copied by a real Ctrl+A / Ctrl+C, re-hashed on the shell (chars +
+FNV-1a) before `verify_capture.mjs --assemble` (VERDICT: PASS for all six). Each study was removed by its title after
+its capture; the rig was left on AMEX:SPY 1D with 0 added studies, the editor buffer restored to its template, every
+`__uct*` global and the textarea removed.
+
+| item | capture | vendor fact (rail: `vendorHarness.cap4Captures.test.js`) | our door |
+|---|---|---|---|
+| Q-H5a | `vw-h5-format-volume-spy-1d-2026-10-04` (300 bars) | `0`, `7`, `999`, `1K`, `1.5K`, `12.345K`, `999.999K`, `1M`, `3.1M`, `3.126M` (3,125,500: a tie rounds up), `3.126M`, **`1000M`** (999,999,600: no unit roll-over), `1B`, `-1.5K`, `-3.1M`, `2.5T`; control `3.126M` | DIVERGE both states: tableCells 34 / 18 - the 16 renderings H5 withholds; `volumeNumberText` can now serve exactly these |
+| Q-H5b | `vw-h5-request-timeframe-text-spy-1d-2026-10-04` (300 bars, bar_index 8177-8476) | inside `request.security(<own>, tf, ...)`: T01 10080, T02 43830, T03 240, T04 3 on every bar; chart multiplier 1 | INCONCLUSIVE both states: the `240` request refused (`pine:request`, `lower-tf:store-unmeasured`); W/M identity confirmed as a constant per request |
+| Q-RT7a | `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04` (FULL history: 8477 bars from 1993-01-29, startsAtBar0) | E01-E06 `na` on every bar: max/min/sum/avg of an empty array and sum/avg of (na, na); no runtime error; sum is NOT 0 | objects pane `pine:na` (fixnan); runtime run stops on bar 0 by name, "array.sum of an empty array" - the named stop this settles (`na`) |
+| Q-RT7b | same | F01 / F02a / F02b equal the hand replay on all 8477 bars (last real value, `na` before the first); two call sites, two memories | same (not reached) |
+| Q-RT8a | `vw-rt8-runtime-followups-rddt-1d-2026-10-04` (636, listing) | **rule A**: W01 first on bar 26, W03 on bar 58, W02 (ema 5 of it) on bar 30 | host lane in both states (not runtime): W01 answers from bar 20, W03 from bar 50 - the host `rolling` FFILL is rule-B-like and must move; W02 46 bars |
+| Q-RT8a (R01) | same | the ratchet mid is 0 on bar 0, `na` on 1-8, real from 9 | ours `na` on bar 0 (DIVERGE 1 bar); S01 / S04 colour diverge on bar 0 only, from it |
+| Q-RT8b | same | per-bar shape colours exact per bar (colorer packs 0xAABBGGRR): S01 `#4caf50`/`#f23645`, S02 `#00e676`/na, S03 `color.new(..., 40)` = alpha 0x99, S04 `#4caf50`/na; an `na` colour leaves the shape VALUE (S02/S04 still 1) | S02 MATCH; S01/S04 bar 0 only; S03 INCONCLUSIVE (our pane hides the constant series) |
+| Q-RT8c | same | F01 `#4caf50`/`#f23645` alpha 0x33 (transp 80) on a `display.none` edge; F02 `#2962ff` alpha 0x19 (transp 90), `na` where false | fills not graded by harness v1 - not measured |
+| Q-RT8d | `vw-rt8-v4-fill-transp-rddt-1d-2026-10-04` (636) + `cap4-rt8d-fill-state-2026-10-04.json` (fill state read off the study) | v4 fill with no `transp` holds **transparency 90**; `transp = 60` holds 60; V01 colour is palette index 0 (`#4CAF50`) on up bars, 1 (`#FF5252`) otherwise | MATCH both states on A / B; fills not graded - not measured |
+
+**Pins.** `cap4-verdicts.json` (12 rows: each capture in the `on` and `runtime` door states), written by
+`cap4Captures.measure.test.js` (`CAP4_MEASURE=1`) from the harness's own verdict through `cap3Signature`; DIVERGE rows
+are `it.fails` (MATCH) beside the signature control. Mutation: a changed W01 first bar reds exactly its control; a
+MATCH row relabelled DIVERGE reds both its `it.fails` and its control. (One mutation run also redded the RT7 runtime
+control: the mutation script had re-read the JSON as cp1252 and mangled an em dash in a pinned reason - an
+instrument fault, not a flake; 10 clean runs green.)
+
+**Owed / left.** Nothing in the H5 / RT7 / RT8 queues. No item needed a forming bar. f5-warmup-and-gaps,
+h6-host-state-udt and rt9-hybrid-objects pushed no capture queue. Older queues (CAP3: "nothing left") not re-walked.
+
+## RT10 - the runtime lane's next walls: statement `switch`, pivots over runtime state, frame-local committed series, `ta.cum`, `for … in` (2026-10-03, step 92)
+
+Branch `pine/rt10-runtime-walls`, base `integrate/wave16-2026-10-02` (`17330e6289`), merged with
+`20ba63f668` before the later walls. Runtime pane still dark; limits (`runtime/limits.js`) not raised.
+
+### Step 1 - the walls, measured
+
+Census (`memberDoorCensus.measure.test.js`, libraries loaded, runtime state): off / on / runtime
+**56 / 82 / 99** of 266 (off is 56, not 55: H5 merged). The runtime state is real, not RT8's inert
+one: the census runs inside `it`, after test-setup permits the pane, and adx-and-di-for-v4 reads
+on=false / runtime=true. First `runtimeDeclined` code of every unattached script (167):
+
+| first `runtimeDeclined` code | scripts | examples |
+|---|---|---|
+| `pine:builtin` | 17 | atr-stop-loss-indicator, auto-harmonic-patterns-open-source, cvd-cumulative-volume-delta-chart … |
+| `runtime:call-undeclared-builtin-state` | 12 | boom-hunter-entry-point-screener-alerts, camarilla, chart-champions-part-1-npoc-levels-vwaps … |
+| `pine:statement` | 10 | 72s-strategy-adaptive-hull-moving-average-pt1, atr-trailing-stoploss-strategy, chart-vwap … |
+| `runtime:statement` | 10 | asianrange-and-killzones, bollinger-band-width-percentile, initial-balance-ib-and-previous-day-week-high-low-close … |
+| `pine:function` | 10 | highlow-channel-swing, ict-killzone-index-version, market-structure-trend-targets-chartprime … |
+| `pine:request` | 9 | ai-supertrend-x-pivot-percentile-strategy-presenttrading, cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels, cumulative-volume-delta … |
+| `runtime:history-expression` | 8 | ad-line-of-sp-sectors, advanced-custom-multi-ma-signals-emasmavwmavwap, atr-god-strategy-by-tradesmart … |
+| `runtime:history-dynamic-offset` | 8 | ict-institutional-order-flow-fadi, market-structure-break-order-block, optimized-trend-tracker … |
+| `pine:input-kind` | 7 | candlestick-patterns-on-backtest, machine-learning-knn-based-strategy, open-interest-profile-fixed-range-by-leviathan … |
+| `none:install` | 5 | mtf-key-levels-support-and-resistance, pivot-high-low-points, rsi-vwap-indicator … |
+| `runtime:array` | 5 | one-sided-gaussian-support-resistance-rate-loxx, range-filter-dw, smart-money-concept-tradingfinder-major-minor-ob-fvg-smc … |
+| `runtime:call-windowed-state` | 4 | anchored-vwap-pinch-handoff-intervals-and-signals, machine-learning-lorentzian-classification, volume-divergence-by-mm … |
+| `runtime:library` | 4 | auto-trendlines-tradingfinder-support-resistance-signal-alerts, fx-market-sessions, machine-learning-lorentzian-classification … |
+| `none:builder` | 4 | bigbeluga-smart-money-concepts, camarilla-screener, flawless-victory-strategy … |
+| `pine:strategy-call` | 4 | buy-monday-exit-tuesday, linear-regression-channel-breakout-strategy, stop-loss-and-take-profit-in-example … |
+| `runtime:presentation` | 4 | heikin-ashi-supertrend, heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor, kernel-channel-backquant … |
+| `runtime:request` | 3 | 4c-nyse-market-breadth-ratio, multi-timeframe-trend-indicator, tehthomas-aligned-timeframe-fair-value-gaps |
+| `runtime:varip` | 3 | bolingger-bands-inside-bar-boxes, ema-92150-vwap-macd-rsi-pro-v6, inside-bar-boxes |
+| `runtime:loop` | 3 | candelacharts-equal-highslows-eqheql, support-and-resistance-logistic-regression-flux-charts, trendline-pivots-quantvue |
+| `runtime:function` | 3 | kalman-psar-backquant, mgi-levels-suite, one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num |
+| `lower-tf:store-unmeasured` | 3 | liquidity-engulfing-displacement-msf, mtf-dashboard-pro-rsi-fib-sr-volume-strixedge, multi-timeframe-rsi-buy-sell-strategy-tradedots |
+| `lower-tf:lookahead` | 2 | 3-level-zigzag-semafor, multi-timeframe-fvg-tfo |
+| `pine:role-order` | 2 | adaptive-trend-following-suite-alpha-extract, machine-learning-moving-average-backquant |
+| `runtime:switch` | 2 | cvd-cumulative-volume-delta-candles, delta-volume-candles-lucf |
+| `runtime:block-value` | 2 | delta-imbalance-map-joat, fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated |
+| `runtime:directive` | 2 | double-topbottom-ultimate-os, linear-regression-channel-200 |
+| `pine:collection` | 2 | inside-bar-strategy-w-sl, nubia-auto-midas-anchored-vwap-xdecow |
+| `pine:text-value` | 2 | macd-with-filter-visual-backtest-module-sample, williams-fractal-trailing-stops |
+| `pine:block` | 2 | machine-learning-rsi-bullvision, trend-line-harrybot |
+| `pine:undefined` | 2 | pivot-trendlines-with-breaks-hg, rsi-trendlines-with-breakouts-hg |
+| `runtime:colour` | 1 | atr-trend-bands-misu |
+| `pine:arity` | 1 | blackflag-fts |
+| `runtime:expression-statement` | 1 | breaks-and-retests-hg |
+| `runtime:udt-method` | 1 | bull-vs-bear-market-intraday-sessions-kioseff-trading |
+| `runtime:call-conversion-state` | 1 | fibonacci-retracement-statistics-by-volprofex |
+| `pine:window` | 1 | ict-turtle-soup-flux-charts |
+| `runtime:request-with-state` | 1 | multiple-mtf-moving-average-xdecow |
+| `runtime:input-state` | 1 | relative-volume-at-time |
+| `runtime:fill-gradient` | 1 | smoothed-gaussian-trend-filter-algoalpha |
+| `runtime:no-output` | 1 | strong-start-rvol-dashboard |
+| `runtime:function-global-state` | 1 | support-and-resistance |
+| `runtime:conditional-history` | 1 | trendlinesample |
+| `runtime:nothing-drawn` | 1 | visualizing-displacement-tfo |
+
+Next walls were then measured by SUBSTITUTION (a scratch probe through `enterMemberDoor`, never
+committed): volume-divergence-by-mm attaches once its two pivots over `vol` are served; the
+lower_tf importers' `switch` hides `timeframe.from_seconds` / `str.tostring`; volume-suite's
+`ta.cum` hides a request; candlestick-patterns' `input.time` hides `pine:statement`, the KNN
+strategy's hides `pine:role-order` (`ta.cci` source). `syminfo.type` is unserved by design
+(`symbolScope.json`), `input.timeframe` rows are multi-timeframe programs behind requests, and the
+session rows need overnight / day-mask / input sessions: none was taken.
+
+### Step 2 - walls taken (one commit each)
+
+| wall | commit | rule, and how it is graded | scripts moved |
+|---|---|---|---|
+| `runtime:switch` (statement) | `230375bde2` | lowered to the value form's nested `if` chain; subject evaluated ONCE (hoisted); test before body; an arm after the default refuses. Hand replay (`rt10SwitchStatement`, 6) | 2 rows to later walls (lower_tf importers) |
+| `runtime:call-windowed-state` / `history-expression` - pivot over runtime state | `4f0444e652` | `ta.pivothigh/low(x,L,R)` (and v1-v4 bare) is a window of L+R+1 over x's committed ring answering x[R]; ONE rule `interpret.js::pivotAt` (H1's plateau rule) now asked by `pivotCol` too; `RUNTIME_WINDOW` holds the runtime-only key. Hand replay AND the columnar pivot over the same values (`rt10PivotOverState`, 4) | **volume-divergence-by-mm attaches** (99 -> 100) |
+| `runtime:history-expression` inside a frame | `51220005ee` | a function body is its own hoist sink: a STATELESS expression whose names are the frame's becomes a body local (per-call-site ring); offset and `change` hoists made frame-aware. Equal to the hand-bound form + replay (`rt10FrameHoist`, 6) | not measured (hold) |
+| `ta.cum` over runtime state | `e67056a1ed` | `CARRIED.cumPine` with `cumCol`'s three vendor facts; on a pane only (a screen keeps the window-dependent refusal). Replay + columnar cum (`rt10CumOverState`, 4) | not measured (hold) |
+| `runtime:loop` (`for … in`) | `98ac7d7637` | rewritten as tokens into the counted `for`: live length re-read each pass, slot read when reached (C48 capture `vw-forin-collections-rddt-1d-2026-10-01`); arrays only, named. F01-F05 vendor answers (`rt10ForIn`, 7) | not measured (hold) |
+
+Re-pinned with measured reasons: `rt7PivotRightbars` (its two function-body pivots now BUILD and
+equal the columnar pivot), `history` / `historyExpression` (2) / `requestHoist` /
+`sourceToRuntime` (each now pins the frame wall on a STATEFUL subexpression; the stateless form
+runs), `carriedState` CONTROL (runtime-only members 2 -> 3). `pineProbeReplay` did not move.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| census off / on / runtime (libraries loaded) | 56 / 82 / 99 | 56 / 82 / 100 after the pivot wall (0 lost); after the last three walls **not measured** (coordinator measure hold) |
+| harness, 335 capture files, runtime pane permitted (scratch chunked sweep) | MATCH 106 / DIVERGE 107 / INC 122 (objects MATCH 187) | identical entry for entry after the pivot wall; after the last three walls **not measured** |
+| server rails (`test_runtime_definitions`, `_document_round_trip`, `_pine_runtime_switch_on`) | - | 70 passed; `test_runtime_repaint` 17 passed |
+| focused vitest (runtime dir + runtime ast rails, measure tests excluded) | - | 117 files / 1405 tests passed after `for … in`; param-id rails 18 passed / 1 skipped |
+
+### Mutations (each restored from captured bytes, sha-verified)
+
+switch: subject hoist off (1 red), chain flattened (2 red). pivot: candidate index +1 (2 red), right
+count -1 (2 red), own-definition guard dropped (1 red). frame hoist: `hoistSafe` dropped (1 red),
+frame hoist off (3 red), frame sink null (3 red), frame-aware ring reverted (1 red). cum: total reset
+on na (2 red), pane gate dropped (1 red). for-in: guard `>=` -> `>` (4 red), index bound to 0 (2 red).
+
+### Open
+
+- Census and harness after the frame-hoist, `ta.cum` and `for … in` walls: re-measure when the
+  hold lifts (`memberDoorCensus` runtime state; a harness sweep that permits the pane first).
+- Q-RT10a-e (`capture-queue-2026-10-03-rt10-runtime-walls.md`, probe `vw-rt10-runtime-walls.pine`):
+  pivots over runtime state, statement switch, frame-local series, `ta.cum`, and
+  volume-divergence-by-mm as written. Until captured these are graded by replay + the lane's own
+  served equivalents only.
+- Not taken (measured to need more than one wall or a ruling): `syminfo.type`, `input.time` /
+  `input.timeframe`, session clocks over input / overnight sessions, `history-expression` inside an
+  `if` body (per-execution series, not vendor-pinned), dynamic window lengths.

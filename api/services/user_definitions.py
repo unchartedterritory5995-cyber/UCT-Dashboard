@@ -1339,6 +1339,15 @@ def save(user_id: Any, def_id: str, definition: dict,
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
+    # ⭐⭐ RT9 — A FORMULA DOCUMENT THAT CARRIES A RUN FOR ITS DRAWINGS
+    # (`objectsRun`) passes the RUNTIME door's own refusals first — the save switch,
+    # the saving member's stage, the kill list, the starter allowlist, the shape and
+    # the re-derived repaint class — and then everything below, unchanged, for its
+    # trees. Its formula half keeps the formula cap; the whole carries the runtime
+    # cap (it holds the script's source as a runtime document does).
+    hybrid = runtime_definitions.is_hybrid(definition)
+    if hybrid:
+        _check_objects_run(def_id, definition, role)
 
     # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
     # — INERT for every definition without a `compute.paramManifest` key (see
@@ -1405,9 +1414,19 @@ def save(user_id: Any, def_id: str, definition: dict,
     blob = json.dumps(stored, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
-    if size > MAX_DEFINITION_BYTES:
+    formula_size = size
+    if hybrid:
+        formula_size = len(json.dumps(
+            {k: v for k, v in stored.items() if k != runtime_definitions.OBJECTS_RUN_FIELD},
+            sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        if size > runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES:
+            raise ValueError(
+                f"definition exceeds {runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES} bytes "
+                f"({size}) — this store names its caps rather than inheriting "
+                "`user_preferences`', which has none")
+    if formula_size > MAX_DEFINITION_BYTES:
         raise ValueError(
-            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
+            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({formula_size}) — this "
             "store names its caps rather than inheriting `user_preferences`', "
             "which has none")
 
@@ -1622,6 +1641,31 @@ def save(user_id: Any, def_id: str, definition: dict,
         "ast_hash": new_hash, "repaint": json.loads(repaint),
         "requirements": json.loads(requirements), "appended": True,
     }
+
+
+def _check_objects_run(def_id: str, definition: dict, role: Any) -> None:
+    """RT9 — the runtime door's refusals, asked of a formula document's `objectsRun`.
+
+    The SAME five sentences a runtime document gets (`_save_runtime`), in the same
+    order, so a member reads one answer whichever lane drew the script."""
+    from api.services import runtime_definitions
+
+    if not runtime_definitions.save_enabled():
+        raise ValueError(
+            "this store does not accept scripts drawn bar by bar yet — the runtime "
+            f"lane's save door is switched off ({runtime_definitions.SAVE_ENV}). The "
+            "preview still draws it; nothing was saved.")
+    refused = runtime_definitions.save_permission(role)
+    if refused:
+        raise ValueError(f"{refused}. Nothing else of yours was touched.")
+    source = runtime_definitions.objects_run_source(definition)
+    why = runtime_definitions.killed(def_id, source)
+    if why:
+        raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
+    ungraded = runtime_definitions.not_graded(source)
+    if ungraded:
+        raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")
+    runtime_definitions.validate_objects_run(definition)
 
 
 def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,

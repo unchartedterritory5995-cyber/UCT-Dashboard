@@ -229,7 +229,9 @@ plot(a)
     // skipped-call semantics). What replaces it is the part of the family that is
     // still genuinely unbuilt: history over an ARBITRARY EXPRESSION inside a
     // frame, which needs its own committed series exactly as it does at top level.
-    ['history over an expression INSIDE a function', `${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`, 'runtime:history-expression'],
+    // RT10 re-pin: a stateless `(v + 1)[1]` in a frame now builds (frame-local hoist);
+    // the wall is kept for a subexpression with state.
+    ['history over an expression INSIDE a function', `${head}f(v) =>\n    (ta.ema(v, 3) + 1)[1]\nplot(f(close))\n`, 'runtime:history-expression'],
     // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
     // population under that one label was three capabilities — a POINTWISE
     // builtin applied to a value, a WINDOWED one that needs a growing series, and

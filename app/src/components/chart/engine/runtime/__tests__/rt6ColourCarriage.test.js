@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
-import { COLOUR_FNS, hexToPacked } from '../colours.js'
-import { probeRuntimeProgram } from '../runtimeColumns.js'
+import { COLOUR_FNS, hexToPacked, packedToObjectHex } from '../colours.js'
+import { probeRuntimeProgram, computeRuntimeColumns } from '../runtimeColumns.js'
 import { packedPointColour, columnColorsForPlot } from '../../pool.js'
 import { validateDefinition, SCHEMA_VERSION } from '../../defSchema.js'
 
@@ -98,12 +98,20 @@ bgcolor(close > open ? color.green : na, transp = 90)
   })
 })
 
-describe('RT6 — an `na` operand is `na`, never transparent black', () => {
-  it('`color.new(na, t)`, `color.new(c, na)` and `color.rgb(na, …)` are na; a real colour is unchanged', () => {
-    expect(Number.isNaN(COLOUR_FNS['color.new'].fn([NaN, 40]))).toBe(true)
-    expect(Number.isNaN(COLOUR_FNS['color.new'].fn([hexToPacked('#ff0000'), NaN]))).toBe(true)
-    expect(Number.isNaN(COLOUR_FNS['color.rgb'].fn([NaN, 0, 0]))).toBe(true)
+// ⚰️ RT6 railed "an `na` operand is `na`" — unwitnessed then. ⭐⭐ RT9: CAP3 captured
+// it (`vw-rt6-runtime-colour`, RDDT / SPY 1D, rows C03-C05, every bar) and each is a
+// real colour; the rule is `colorInt.js`'s, shared with the host lane's fold.
+describe('RT9 — what `color.new` / `color.rgb` make of an `na` argument (CAP3, C03-C05)', () => {
+  it('`color.new(na, 40)` = #00000099, `color.new(red, na)` = alpha 0, `color.rgb(na, 0, 0)` = #000000ff', () => {
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([NaN, 40]))).toBe('#00000099')
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([hexToPacked('#ff5252'), NaN]))).toBe('#FF525200')
+    expect(packedToObjectHex(COLOUR_FNS['color.rgb'].fn([NaN, 0, 0]))).toBe('#000000')
+    expect(packedToObjectHex(COLOUR_FNS['color.new'].fn([NaN, NaN]))).toBe('#00000000')
+    // ⛔ `color.rgb`'s fourth argument `na` has no witness: still `na`.
+    expect(Number.isNaN(COLOUR_FNS['color.rgb'].fn([0, 0, 0, NaN]))).toBe(true)
+    // control: a real colour is unchanged
     expect(COLOUR_FNS['color.new'].fn([hexToPacked('#ff0000'), 40])).toBe(hexToPacked('#ff0000', 40))
+    expect(COLOUR_FNS['color.rgb'].fn([255, 0, 0])).toBe(hexToPacked('#ff0000'))
   })
 })
 
@@ -154,5 +162,27 @@ describe('RT6 — the schema admits `colorPacked`, and only well formed', () => 
     expect(errs(doc({ colorPacked: {} })).join(' ')).toMatch(/colorPacked: a computed colour/)
     expect(errs(doc({ colorMode: 'column:out2', colorPacked: {}, colorUp: '#fff', colorDown: '#000' })).join(' ')).toMatch(/colorPacked alone/)
     expect(errs(doc({}, [{ kind: 'bgcolor', colorMode: 'column:out2', colorPacked: { transparency: 1.5 } }])).join(' ')).toMatch(/colorPacked\.transparency/)
+  })
+})
+
+describe('RT9 — the runtime lane reads a colour CAST of `na`', () => {
+  const H = ['//@version=5', 'indicator("t")']
+  const NL = String.fromCharCode(10)
+  const colourOf = (expr) => {
+    const p = probeRuntimeProgram([...H, `plot(close, "p", color = ${expr})`].join(NL))
+    expect(p.ok).toBe(true)
+    return p.outputs[0].colour
+  }
+  it('`color.new(color(na), 40)` computes (C03, #00000099 on TradingView)', () => {
+    const c = colourOf('color.new(color(na), 40)')
+    expect(c && Number.isInteger(c.output), JSON.stringify(c)).toBe(true)
+    const src = [...H, 'plot(close, "p", color = color.new(color(na), 40))'].join(NL)
+    const bars = [1, 2].map((i) => ({ t: 1700000000 + i * 86400, o: i, h: i + 1, l: i - 0.5, c: i, v: 10 }))
+    const cols = computeRuntimeColumns({ id: 'x', compute: { kind: 'runtime', fn: 'x', source: src, outputs: { k: c.output } } },
+      bars, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+    expect(packedToObjectHex(cols.k[1])).toBe('#00000099')
+  })
+  it('CONTROL: `color(close)` is a price in a colour slot and stays refused', () => {
+    expect(colourOf('color.new(color(close), 40)').refused).toBeTruthy()
   })
 })

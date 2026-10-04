@@ -76,6 +76,9 @@ const PINE = {
   'held level': ['var float lvl = 0.0', 'if ta.crossover(close, 100)', '    lvl := close', 'plot(lvl)'],
   'held level read': ['var float lvl = 0.0', 'if ta.crossover(close, 100)', '    lvl := close', 'plot(close > lvl ? 1 : 0)'],
   'held level contracting': ['var float lvl = 0.0', 'lvl := ta.crossover(close, 100) ? close : lvl * 0.9 + close * 0.1', 'plot(lvl)'],
+  // ⭐ H6 x F5 — a seeded average OF `ta.obv`'s level: the running total withholds the
+  // whole tree (`cum:window`), so the seed mask is not asked beside it.
+  'ema of obv': ['plot(ta.ema(ta.obv, 10))'],
   'sma alone': ['plot(ta.sma(close, 20))'],
   'close alone': ['plot(close)'],
 }
@@ -359,6 +362,18 @@ describe('F5 · a hold-or-set state off the listing is withheld where its window
     expect(heldSeedSwitchedOf({ barIndexAbsolute: true, heldSeedNested: true })).toBe(false)
     expect(heldSeedSwitchedOf({ tf: 'D' })).toBe(false)
     expect(heldSeedSwitchedOf(undefined)).toBe(false)
+  })
+})
+
+describe('F5 x H6 · a running total and a seed on one tree: one channel, one code', () => {
+  it('⭐ an ema of `ta.obv` off the listing is withheld whole, named `cum:window` and never `seed:window`', () => {
+    const c = byName.get('ema of obv · off the listing')
+    expect(c.expected.every((v) => v === null)).toBe(true)
+    expect(c.codes).toContain('cum:window')
+    expect(c.codes).not.toContain(SEED_WARMUP_CODE)
+    expect(c.withheld).toBe(0)
+    // non-vacuity: the same tree in a formula-language document draws, so the blanks are the rule's
+    expect(plain('ema of obv').some((v) => !Number.isNaN(v))).toBe(true)
   })
 })
 

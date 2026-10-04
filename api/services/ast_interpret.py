@@ -4180,7 +4180,13 @@ def interpret(ast: Any, bars: List[dict],
         # a recursive series' early bars are withheld by their own decay. Decided
         # on the column BEFORE the three withholdings below, as the JS lane decides
         # it beside them (``withheldReadMask`` computes every mask off one column).
-        seeded = seed_warmup_mask(ast, bars, inputs, budget, scalars, opts, raw=column)
+        # H6 -- ...and its running-total half (``interpret.js::cumulativeLevelMask``):
+        # off the listing, ``ta.obv``'s level is TradingView's minus a constant. It
+        # withholds the WHOLE tree, so the seed mask is not asked (one code, ``cum:window``,
+        # never a ``seed:window`` beside it): the JS lane's ``withheldReadMask`` order.
+        summed = cumulative_level_mask(ast, bars, inputs, budget, scalars, opts)
+        seeded = (None if summed is not None
+                  else seed_warmup_mask(ast, bars, inputs, budget, scalars, opts, raw=column))
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4193,6 +4199,8 @@ def interpret(ast: Any, bars: List[dict],
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
         if seeded is not None:
             column = [math.nan if seeded[i] else v for i, v in enumerate(column)]
+        if summed is not None:
+            column = [math.nan if summed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4368,6 +4376,72 @@ def bar_index_mask(tree: Any, bars: List[dict],
     return mask
 
 
+def is_obv_level_node(node: Any) -> bool:
+    """``interpret.js::isObvLevelNode`` -- ``cum(sign(change(close)) * volume)``,
+    the tree ``pine.js::obvLevelTree`` writes for ``ta.obv``, either operand order."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "cum":
+        return False
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 1:
+        return False
+    prod = args[0]
+    if not isinstance(prod, dict) or prod.get("type") != "op" or prod.get("name") != "*":
+        return False
+    pair = prod.get("args")
+    if not isinstance(pair, list) or len(pair) != 2:
+        return False
+
+    def volume(n: Any) -> bool:
+        return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == "volume"
+
+    def signed_change(n: Any) -> bool:
+        if not isinstance(n, dict) or n.get("type") != "call" or n.get("name") != "sign":
+            return False
+        inner = n.get("args")
+        if not isinstance(inner, list) or len(inner) != 1:
+            return False
+        ch = inner[0]
+        if not isinstance(ch, dict) or ch.get("type") != "call" or ch.get("name") != "change":
+            return False
+        src = ch.get("args")
+        return (isinstance(src, list) and len(src) == 1 and isinstance(src[0], dict)
+                and src[0].get("type") == "series" and src[0].get("name") == "close")
+    a, b = pair
+    return (signed_change(a) and volume(b)) or (volume(a) and signed_change(b))
+
+
+def cumulative_level_mask(tree: Any, bars: Sequence[dict],
+                          inputs: Optional[Mapping[str, Any]] = None,
+                          budget: Optional[Mapping[str, Any]] = None,
+                          scalars: Optional[Mapping[str, Any]] = None,
+                          opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::cumulativeLevelMask`` -- every bar (1 = withheld) of a tree
+    that reads ``ta.obv``'s level, off the listing, in a document that means Pine's
+    numbers; ``None`` otherwise. A running total off the listing is TradingView's
+    minus a constant that never decays, so nothing above it is TradingView's."""
+    o = opts or {}
+    if o.get("barIndexAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    stack = [tree]
+    seen = set()
+    found = False
+    while stack and not found:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if is_obv_level_node(node):
+            found = True
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not found:
+        return None
+    _name_chart_clock(opts, ["cum:window"])
+    return [1] * len(bars)
+
+
 #: What a document declares when its trees are Pine translations
 #: (``nativeRegistry.js::PINE_RECURRENCE_ORIGIN``; the member door stamps it).
 PINE_RECURRENCE_ORIGIN = "pine"
@@ -4418,6 +4492,7 @@ def whole_series_withheld(tree: Any, bars: Sequence[dict],
     rows = list(bars)
     _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
     bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    cumulative_level_mask(tree, rows, inputs, budget, scalars, asked)
     return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
@@ -4481,6 +4556,8 @@ CHART_CLOCK_WHOLE = (
     "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
     # C45 -- a value that depends on where the series starts (``bar_index_mask``)
     "bar-index:window",
+    # H6 -- ``ta.obv``'s running total off the listing (``cumulative_level_mask``)
+    "cum:window",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",

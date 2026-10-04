@@ -1,0 +1,45 @@
+// RT8 (2026-10-03) — probe for CAP3. Queue: docs/pine/capture-queue-2026-10-03-rt8-runtime-followups.md
+// Chart: NYSE:RDDT 1D from the listing (and AMEX:SPY 1D as a second witness).
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//@version=6
+indicator("vw-rt8-runtime-followups", overlay = true)
+
+// ── W: `ta.wma`'s warm-up across a gap that FOLLOWS finite values ─────────────
+// Finite on bars 0-2, na on 3-19, finite from 20. Rule A (first answer on the
+// n-th FINITE input, holes carried): W01 first answers on bar 26. Rule B (n-1
+// finite values inside the window): bar 28. The engine implements A
+// (`runtime/vm.js` OP.WINDOW `ffill`).
+w_src = bar_index < 3 ? close : bar_index < 20 ? na : close
+plot(ta.wma(w_src, 10), "W01 wma gap warmup")
+// W02: the same source through `ta.ema(…, 5)` of the wma — the shape trend-targets wrote
+plot(ta.ema(ta.wma(w_src, 10), 5), "W02 ema of wma")
+// W03: one finite bar (bar 0), na to bar 49, finite from 50 — trend-targets' shape
+w3_src = bar_index == 0 ? 0.0 : bar_index < 50 ? na : close
+plot(ta.wma(w3_src, 10), "W03 wma bar0 then gap")
+
+// ── a state the host translator refuses (`pine:state`), so every row below this
+// line is drawn by the runtime lane: trend-targets' supertrend ratchet.
+rt8_st(factor, atrPeriod) =>
+    src = hl2
+    atr = ta.atr(atrPeriod)
+    upperBand = src + factor * atr
+    lowerBand = src - factor * atr
+    prevLowerBand = nz(lowerBand[1])
+    prevUpperBand = nz(upperBand[1])
+    lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+    upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+    [lowerBand, upperBand]
+[lw, up] = rt8_st(3, 10)
+mid = math.avg(lw, up)
+pm = plot(mid, "R01 mid")
+pc = plot(close, "R02 close", display = display.none)
+
+// ── S: a per-bar SHAPE colour on a runtime document ──────────────────────────
+plotshape(close > open, "S01 shape per-bar", shape.circle, location.belowbar, color = close > mid ? color.green : color.red)
+plotchar(close < open, "S02 char per-bar with na", "x", location.abovebar, color = close > mid ? color.lime : na)
+plotshape(true, "S03 shape color.new per-bar", shape.square, location.top, color = color.new(close > mid ? color.blue : color.orange, 40))
+plotshape(close > open, "S04 shape per-bar with text", shape.labelup, location.belowbar, color = close > mid ? color.green : na, text = "T", textcolor = color.white)
+
+// ── F: FILLS on a runtime document ───────────────────────────────────────────
+fill(pm, pc, close > mid ? color.new(color.green, 80) : color.new(color.red, 80), title = "F01 per-bar fill on a display.none edge")
+fill(pm, pc, close > open ? color.new(color.blue, 90) : na, title = "F02 per-bar fill with na bars")

@@ -177,3 +177,14 @@ def test_the_dependency_mask_reaches_a_held_state_along_its_own_paths():
     unknown = [1 if v is None else 0 for v in case["expected"]]
     assert list(dep) == unknown
     assert sum(unknown) == 1 + 120
+
+
+def test_a_running_total_and_a_seed_on_one_tree_name_one_code():
+    """H6 x F5 -- ``ta.ema(ta.obv, 10)`` off the listing: the running total withholds the
+    whole tree (``cum:window``) and the seed mask is not asked beside it."""
+    doc = _doc()
+    case = next(c for c in doc["cases"] if c["name"] == "ema of obv · off the listing")
+    got, codes, withheld = _run(case, doc)
+    assert all(v is None for v in got)
+    assert "cum:window" in codes and "seed:window" not in codes
+    assert withheld == 0

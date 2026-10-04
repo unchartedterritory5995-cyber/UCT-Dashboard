@@ -55,8 +55,13 @@ describe('B1 — paints graded against the captures that record them', () => {
   // `notDrawn` / `refused` are described in `paintColours.js`.
   const PINNED = {
     'artemis-oscillator-pro-rddt-1d-2026-09-28.json': ['plot_32 naBoth 632/632 painted=0'],
+    // ⭐ H6 (step 90) re-pinned: plot_8 / plot_11 are the OBV bar colour
+    // (`obvOnOff and ta.obv > obvEMA ? … : na`). `ta.obv` is now served on the host lane
+    // and RDDT starts at the listing, so the paint's condition COMPUTES: both sides draw
+    // nothing at the default (obvOnOff false) and the grade reads `agree`, where it read
+    // `naBoth` (our condition column was absent). Nothing drawn changed.
     'atr-support-and-resistance-rddt-1d-2026-09-28.json': [
-      'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 naBoth 632/632 painted=0', 'plot_11 naBoth 632/632 painted=0'],
+      'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 agree 632/632 painted=0', 'plot_11 agree 632/632 painted=0'],
     'atr-trailing-stoploss-rddt-1d-2026-09-27.json': ['plot_0 agree 631/631 painted=631'],
     // ⚠️ plot_14 / 16 / 17: the door carries the paint, but its condition column does
     // not compute (`computeFor` answers no column), so nothing is drawn. At the
