@@ -223,3 +223,65 @@ def test_the_real_app_serves_the_page_and_its_assets():
         assert s.status_code == 301 and s.headers["location"] == "/live-trading-room"
         img = c.get("/live-trading-room/room-traders-800.webp")
         assert img.status_code == 200 and img.headers["content-type"] == "image/webp"
+
+
+# ── the page's .webp images are served AS images ───────────────────────────
+# Production runs Python 3.12 (nixpacks.toml / runtime.txt), whose built-in
+# `mimetypes` table has NO `.webp` entry (it arrived in 3.13), and the nix
+# container ships no /etc/mime.types to fill the gap. Starlette's StaticFiles
+# then falls back to `text/plain; charset=utf-8` for all 11 page images.
+# A dev box on 3.13+ cannot see that, so the rail REBUILDS a 3.12-shaped table
+# (the default one with `.webp` taken out) and serves the mount against it.
+
+@pytest.fixture
+def py312_mimetypes(monkeypatch):
+    import mimetypes
+    db = mimetypes.MimeTypes()
+    for strict in (True, False):
+        db.types_map[strict].pop(".webp", None)
+    db.types_map_inv[True].pop("image/webp", None)
+    db.types_map_inv[False].pop("image/webp", None)
+    monkeypatch.setattr(mimetypes, "_db", db)
+    assert mimetypes.guess_type("x.webp") == (None, None), "simulation failed"
+    return mimetypes
+
+
+def _ltr_mount_app(tmp_path):
+    from fastapi.staticfiles import StaticFiles
+    shutil.copytree(PAGE_DIR, tmp_path / "live-trading-room")
+    app = FastAPI()
+    app.mount("/live-trading-room", StaticFiles(directory=str(tmp_path / "live-trading-room")))
+    return app
+
+
+def test_control_a_py312_mime_table_reproduces_the_text_plain_bug(tmp_path, py312_mimetypes):
+    with TestClient(_ltr_mount_app(tmp_path)) as c:
+        r = c.get("/live-trading-room/mark-96.webp")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/plain"), r.headers["content-type"]
+
+
+def test_registered_mime_types_serve_every_page_webp_as_image_webp(tmp_path, py312_mimetypes):
+    main = _main()
+    main.register_static_mime_types()
+    webps = sorted(p.name for p in PAGE_DIR.glob("*.webp"))
+    assert len(webps) >= 11, webps
+    with TestClient(_ltr_mount_app(tmp_path)) as c:
+        for name in webps:
+            r = c.get(f"/live-trading-room/{name}")
+            assert r.status_code == 200, name
+            assert r.headers["content-type"] == "image/webp", (name, r.headers["content-type"])
+
+
+def test_main_registers_mime_types_at_module_level_before_the_dist_guard():
+    tree = ast.parse(MAIN.read_text(encoding="utf-8"))
+    call_at = guard_at = None
+    for i, node in enumerate(tree.body):
+        if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+                and ast.unparse(node.value) == "register_static_mime_types()"):
+            call_at = i
+        if (isinstance(node, ast.If) and ast.unparse(node.test) == "os.path.exists(DIST)"):
+            guard_at = i
+    assert guard_at is not None, "control: the DIST guard must be visible to this walk"
+    assert call_at is not None, "register_static_mime_types() is not called at module level"
+    assert call_at < guard_at, "mime types must be registered BEFORE the static mounts"

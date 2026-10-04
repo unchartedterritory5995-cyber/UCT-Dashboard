@@ -11445,6 +11445,21 @@ class _ImmutableStaticFiles(StaticFiles):
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 
+
+# StaticFiles types a file by `mimetypes.guess_type`, and an unknown extension
+# falls back to `text/plain`. Production runs Python 3.12, whose built-in table
+# has NO `.webp` (added in 3.13), and the nix container ships no
+# /etc/mime.types -- so every /live-trading-room/*.webp went out as
+# `text/plain; charset=utf-8`. Register it explicitly so the answer does not
+# depend on the interpreter version or the image's OS files.
+# (tests/test_live_trading_room_page.py serves the mount under a 3.12-shaped table.)
+def register_static_mime_types() -> None:
+    import mimetypes
+    mimetypes.add_type("image/webp", ".webp")
+
+
+register_static_mime_types()
+
 # ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
 # A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
 # the SPA catch-all below answers them with index.html like every other page. That
