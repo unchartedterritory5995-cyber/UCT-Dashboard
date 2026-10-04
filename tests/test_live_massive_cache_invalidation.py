@@ -149,3 +149,49 @@ def test_past_closed_scan_limits_each_source(monkeypatch, tmp_path):
     _, meta = lmr._compute_recent_core("10/2/2026", 500, "D", "recent", None, False)
     assert seen == {"stocks": 30, "indexes": 40}   # shared LIMIT 40 would give stocks 0
     assert meta["scan_capped"] is True and meta["scan_capped_rth"] is False
+
+
+# ── Market Read (day-stats) covers the full day (2026-10-03) ──────────────────
+# A newest-20k-rows cap made 10/1 read from 11:46 AM (60% bull vs 52% full day).
+
+def _daystats_db(tmp_path, n):
+    import sqlite3
+    db = tmp_path / "flow.db"
+    c = sqlite3.connect(db)
+    c.execute("""CREATE TABLE flow (id INTEGER PRIMARY KEY, source TEXT, CreatedDate TEXT,
+        CreatedTime TEXT, Symbol TEXT, Type TEXT, Volume TEXT, Price TEXT, Side TEXT,
+        CallPut TEXT, Strike TEXT, Spot TEXT, Premium TEXT, ExpirationDate TEXT, Color TEXT,
+        Dte TEXT, ER TEXT, StockEtf TEXT, Sector TEXT, Uoa TEXT, Weekly TEXT, MktCap TEXT, OI TEXT)""")
+    for i in range(n):                                   # oldest first: id 1 = 9:30
+        c.execute("INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Side, "
+                  "Premium, Color, CallPut, Strike, ExpirationDate) VALUES "
+                  "('stocks','10/1/2026',?, 'X','SWEEP','A','100000','YELLOW','CALL','10','10/30/2026')",
+                  (f"9:{30 + i:02d}:00 AM",))
+    c.commit(); c.close()
+    return str(db)
+
+
+def _wire_daystats(monkeypatch, db):
+    monkeypatch.setattr(lmr, "DB_PATH", db)
+    monkeypatch.setattr(lmr, "_today_mdyyyy", lambda: "10/5/2026")
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {"etf_enabled": False})
+    monkeypatch.setattr(lmr, "_row_to_alert", lambda r, **k: {
+        "id": r["id"], "ticker": "X", "cp": "C", "strike": 10, "exp": "10/30/2026",
+        "alertPremium": 100000, "_direction": "Bull", "_side": "A", "dte": 29,
+        "timestamp": 1790947800 + r["id"] * 60, "tradeSize": 100, "_type": "SWEEP"})
+
+
+def test_market_read_reads_the_whole_day_by_default(tmp_path, monkeypatch):
+    _wire_daystats(monkeypatch, _daystats_db(tmp_path, 25))
+    monkeypatch.delenv("MASSIVE_MARKETREAD_CAP", raising=False)
+    d = lmr._build_day_stats("10/1/2026", stock_etf="stocks")
+    assert d["directional_count"] == 25 and d["bull_premium"] == 2_500_000
+    assert d["covers_from"] is None
+
+
+def test_market_read_cap_valve_reports_partial_coverage(tmp_path, monkeypatch):
+    _wire_daystats(monkeypatch, _daystats_db(tmp_path, 25))
+    monkeypatch.setenv("MASSIVE_MARKETREAD_CAP", "10")
+    d = lmr._build_day_stats("10/1/2026", stock_etf="stocks")
+    assert d["directional_count"] == 10                   # newest 10 only
+    assert d["covers_from"] == 1790947800 + 16 * 60       # → card says "partial: since ..."

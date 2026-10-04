@@ -435,7 +435,10 @@ function MarketReadCard({ stats }) {
           ● {isLiveWindow ? "LIVE" : "HISTORICAL"} MARKET READ
         </span>
         <span style={{ color: P.mt, fontSize: 10 }}>
-          (premium-weighted · {stats.total_classified.toLocaleString()} alerts on {stats.query_date})
+          (premium-weighted · {(stats.directional_count ?? stats.total_classified).toLocaleString()} directional
+          {stats.directional_count != null && ` of ${stats.total_classified.toLocaleString()}`} alerts on {stats.query_date}
+          {stats.covers_from && ` · partial: since ${new Date(stats.covers_from * 1000)
+            .toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`})
         </span>
       </div>
 
