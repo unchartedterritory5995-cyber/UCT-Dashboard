@@ -187,6 +187,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 | 87 | RT8 the runtime lane's follow-ups (section RT8): the vendor harness and census enter each door state explicitly (GT's permission + grade-all IN the state; the corpus CLI graded at collection time and its "runtime" numbers were the objects-only ones) and every grade runs without the runtime pane's wall clock (the product path keeps D3's 1,000 ms budget, railed); `ta.wma` FFILL + warm-up on the n-th finite input in the VM (trend-targets RDDT DIVERGE -> MATCH); runtime fills carried from the run (graded on atr-trailing-stop's per-bar fill colour, 636/636); inside-bar SPY bars 0/2 proved off-listing; per-bar shape colour stays withheld by name | `b9b93ad0ef`, `25c43f4f7a`, `070ff45450` | harness dir (335), true runtime state, integrate `c91e9fe3c8` -> RT8: MATCH 99 -> **100**, DIVERGE 114 -> 113 (with libraries 101 -> **102**, 116 -> 115); off and on unchanged; 0 MATCH -> DIVERGE | unchanged | member door 55 / 80 / 96 (libraries 55 / 82 / 99), 0 moved |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
+| 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7130,3 +7131,99 @@ F5 with that evidence; the patched file is kept off-branch in the lane's scratch
 
 **Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
 out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
+
+## F8 - INCONCLUSIVE turned into verdicts: repeated titles paired, NOT DRAWN graded, missing columns say why (2026-10-04, step 94)
+
+Branch `pine/f8-ungraded`, base `integrate/wave16-2026-10-02` (`17330e6289`) with `origin/pine/rt8-runtime-followups`
+merged first (`ecb351d5ae`; RT8's door states are the sweep's input). Commits `e6c0d2309e` (rules, delta-rsi),
+`6495b581ad` / `6e01aa4849` (no-column NOT DRAWN, runtime reasons), `cb06be8c7f` / `b3a98b6188` / `d24f64c99a` (rails
+that pinned the old INCONCLUSIVE), `011fa569f2` (full stats shape; the probe named INTERIM), `60f47abf81` (CAP3).
+
+### 1. Harness rules (`tools/vendor_harness/compare.mjs`, `vendorHarness/ourSide.js`)
+
+* **M3 - a repeated title, paired by declaration order.** TradingView lets several plots share a title. The k-th
+  vendor plot titled T (ordered by its column in `study.plots`) pairs with our k-th output titled T (source order:
+  `pine.js` pushes each output as its statement is read) ONLY when the count of T is the same on both sides AND the
+  kind of every pair agrees (`plot` = line, `plotshape` = shapes, `plotchar` = chars, `plotarrow` = arrows). Our
+  untitled output groups under TradingView's per-call default. Tried only where M2 does not apply, so no M1 / M2
+  pairing moves. Controls: swapping pmax-explorer RDDT's two `Buy` plots DIVERGES (one draws on 4 bars, the other
+  never); a count that disagrees and a kind that disagrees each leave the title UNMAPPED.
+* **ND - NOT DRAWN is an answer.** A row OUR engine hid as reading no bar (`hiddenReason "constant"`) that TradingView
+  draws in a visible colour on some bar grades DIVERGE, named by the first drawn bar (`stats.steady.first.kind =
+  'not-drawn'`), with or without a column on our side. Controls (each stays INCONCLUSIVE): an author-hidden row, a
+  fill-anchor row, a vendor plot whose own `display` is none (an in-memory copy of the capture; the file is
+  untouched), a vendor colour fully transparent on every bar, and cc-yata's b1..b5 / s1..s5 (hidden constants
+  TradingView never draws). Owner ruling 2026-10-04: CONFIRMED - a row TradingView draws and we hide is a real
+  member-visible divergence.
+* **R - a missing column says why.** `ourSide` carries the door's own sentence: `columnErrors` (guard + message, what
+  `runtimeRunStopOf` shows the member), a runtime document's withheld-by-name disclosure (wyckoff's `offset` rows),
+  or "hidden on this runtime document (constant)". "computeFor returned no column" stays as the prefix.
+
+### 2. delta-rsi-oscillator-strategy
+
+It is a v4 study (not a strategy) whose `norm_rmse` calls `array.sum(_x)` on bar 0 with all 21 elements `na`. The run
+stopped `runtime:failed` ("array.sum of an array whose every element is na"); the member saw that sentence on the
+strip, the harness swallowed it. TradingView's capture draws through it. **INTERIM fix** (`runtime/collections.js
+interimProbedZeroReals`, `runtimeColumns.js INTERIM_PANE_PROBED`): in the pane, `array.sum` / `array.avg` over zero
+real elements answer two probes; columns that do not move are served, a drawn column that moves stops by name
+(`runtime:unmeasured`). Only these two are probed in the pane; `color.from_gradient` and median / stdev keep their
+stops. **Lane H7 owns the final semantics:** CAP4 `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04` measures `na` for
+sum / avg / max / min of an empty or all-`na` array, no error; H7 replaces the probe with that answer, and the F8 rail
+"a column that depends on the sum stops" is the one that changes then.
+
+Where delta-rsi stands: **RDDT** reaches its next wall, the run-wide `LOOP_ITERATIONS` ceiling (100,000,
+`limits.js`, provisional), on bar 85 of 636 - INCONCLUSIVE, named `runtime:limit`. With that ceiling raised in a
+scratch run (bytes restored) all four markers MATCH on 636 / 636 bars. Owner **RT10**. **SPY**: `runtime:history-start`
+(R-W), named.
+
+### 3. The sweep (`vendorHarness.corpus.test.js`, `VENDOR_HARNESS_STATE`, 50-library store, 368 captures, `--maxWorkers=1`)
+
+| state | base `ecb351d5ae` M / D / I | F8 `011fa569f2` M / D / I | INCONCLUSIVE -> MATCH | INCONCLUSIVE -> DIVERGE | MATCH lost |
+|---|---|---|---|---|---|
+| off | 79 / 78 / 211 | **81 / 94 / 193** | 2 | 16 | **0** |
+| on | 101 / 108 / 159 | **103 / 124 / 141** | 2 | 16 | **0** |
+| runtime | 116 / 114 / 138 | **118 / 134 / 116** | 2 | 20 | **0** |
+
+MATCH lost counts captures AND items (0 / 0 in every state). Captures: INCONCLUSIVE -> MATCH: opening-range-initial-
+balance RDDT, SPY. INCONCLUSIVE -> DIVERGE (all NOT DRAWN): rt1-na-test v4 / v5, rt3-na-logic v5 / v4, vw-bar-counters
+15 / 60 / 240 / 1D (`ta.cum(1)`), vw-gradient SPY, vw-input-tf-text v5 / v6, vw-int-div-assign, vw-tf-period 1D / 1M /
+1W, w4-cross-round; runtime state adds fvg-trend RDDT (its `plot(0)` zero line), vw-array-na SPY (N01-N04),
+vw-deadband AAPL / SPY (`plot(syminfo.mintick)`). Items (off / on / runtime): INCONCLUSIVE -> MATCH 30 / 30 / 40 (M3 28 /
+28 / 38, M2 on what M3 left 2), -> DIVERGE NOT DRAWN 99 / 99 / 107, -> DIVERGE by M3 pairing 2 (pmax SPY's first Buy /
+Sell, na where PMax is na - F5's family); INCONCLUSIVE items whose reason is now the door's own 40 / 40 / 163.
+
+What still holds the rest INCONCLUSIVE (engine side or by design, each now named): door refusals (`pine:builtin`,
+`function`, `input-kind`, `state`, `request`, `block`, ...), `bar-index:window` on off-listing probes, R-W
+`runtime:history-start`, runtime `offset` rows (wyckoff), hidden constants TradingView never draws, non-default vendor
+inputs (fib-retracement-extrafibs: re-capture at defaults), one all-warm-up row (vw-clock-vwap V07),
+`objectReaderFor returned null` on vw-tf-period 1M / 1W (not analysed).
+
+**Newly visible divergences, owners.** NOT DRAWN family: the host translator's constant rule (`pine.js` `hidden:
+flat`) hides `plot(0)`, `plot(syminfo.mintick)`, constant probe rows and `ta.cum(1)`, and the runtime document honours
+the hint - **H8** (owner ruling: H8 fixes the rule; F8 did not touch `pine.js`). delta-rsi `LOOP_ITERATIONS` - **RT10**.
+pmax SPY Buy / Sell - **F5** (same cause as PMax).
+
+**CAP3 signatures** (`cap3SpyGaps.measure.test.js`, store loaded): opening-range SPY (on) INCONCLUSIVE -> **MATCH**;
+atr-stepped RDDT (runtime) stays INCONCLUSIVE with Long / Short now naming "hidden on this runtime document
+(constant)". No other row moved.
+
+### Tests and mutations
+
+`vendorHarness.f8Ungraded` 19 passed; `coverageAudit` 193 passed (store); rt6 / c38 / f1 / c45 updated where they
+pinned the old INCONCLUSIVE (each now asserts NOT DRAWN by name, values still agreeing). The other 75 vendorHarness
+files: red only in b1Paints, c41LowerTfServe, c45BarIndex (before its update), c47OhlmDivider - after the c45 update the
+four read 6 failed | 65 passed on the branch AND on the base `ecb351d5ae` source (swapped in place, bytes restored):
+pre-existing. Param ids 28 passed | 1 skipped; pytest round trip + definitions + switch-on 70 passed.
+
+**Mutations, 14 of 14 red** (bytes captured, restored, `git status` clean): M3 vendor order reversed / kind guard /
+count guard; ND constant-only / transparency / no-column branch / vendor display none (green first, then railed) /
+the no-column item's partial stats shape (the shape that crashed the first off-state sweep: TypeError on
+`warmup.divergent`, fixed in `011fa569f2`); Z probe scope / moved-check / pane probing nothing; R `columnErrors` /
+disclosure lookup / hidden reason.
+
+### Open
+
+* H7 replaces the INTERIM zero-reals probe with the measured `na`; the object lane's probe also covers all-`na`
+  sum / avg now (`interimProbedZeroReals` without a scope list) - neutral over the sweep, removed with it.
+* H8: the constant rule. RT10: `LOOP_ITERATIONS` run-wide ceiling.
+* `objectReaderFor returned null` on vw-tf-period 1M / 1W (not measured why).
