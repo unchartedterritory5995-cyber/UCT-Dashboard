@@ -102,8 +102,6 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     requests: (built.ir.requests || []).length,
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
     objectOps: (program.objectOps || []).length,
-    // ⭐ RT15 — the candle calls the build skipped (`{call, line}`): the door names them.
-    undrawn: (built.undrawn || []).map((u) => ({ ...u })),
   }
 }
 

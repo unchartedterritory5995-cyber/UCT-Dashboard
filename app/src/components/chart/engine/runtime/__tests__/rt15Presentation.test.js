@@ -131,6 +131,12 @@ describe('⭐⭐ 2 — an `if` that only places orders is skipped whole', () => 
   it('⛔ `runtime.error` inside the chain keeps it (it can stop the script)', () => {
     refusesStrategyValue('if strategy.position_size > 0\n    runtime.error("x")\n    strategy.close("L")\n')
   })
+  it('⛔ a LOCAL whose value could have an effect keeps the chain', () => {
+    const b = build(`${S}var a = array.new_float()\ng() =>\n    array.push(a, 1)\n    1.0\n`
+      + 'if strategy.position_size > 0\n    y = g()\n    strategy.exit("x", "L", stop = y)\nplot(array.size(a))\n')
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('pine:strategy-call')
+  })
   it('⛔ a call that could have an effect in the TEST keeps the chain', () => {
     const b = build(`${S}var a = array.new_float()\ng() =>\n    array.push(a, 1)\n    true\n`
       + 'if g() and strategy.position_size > 0\n    strategy.close("L")\nplot(array.size(a))\n')
@@ -198,6 +204,14 @@ describe('⭐⭐ 5 — a user function / method whose one body expression is a c
     const b = build(`${HEAD}f(color x) =>\n    y = 50\n    color.new(x, y)\nbarcolor(f(color.red))\nplot(close)\n`)
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('runtime:colour')
+  })
+  it('⛔ CONTROL: a one-statement block that is a BINDING is not read as the result', () => {
+    const b = build(`${HEAD}f(color x) =>\n    y = color.new(x, 50)\nbarcolor(f(color.red))\nplot(close)\n`)
+    expect(b.ok).toBe(false)
+  })
+  it('⛔ CONTROL: a plain function defined twice (an overload) is not typed by either body', () => {
+    const b = build(`${HEAD}f(color x) => color.new(x, 50)\nf(float x) => x * 2\nbarcolor(f(color.red))\nplot(close)\n`)
+    expect(b.ok).toBe(false)
   })
   it('⛔ CONTROL: a method declared twice (an overload) is not typed by either body', () => {
     const b = build(`${HEAD}method transp(color x, int t) =>\n    color.new(x, t)\n`

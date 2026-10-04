@@ -1143,7 +1143,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const only = st.sub && st.sub.length === 1 ? st.sub[0] : null
       const h = only && only.header
       if (!h || !h.length || (only.sub && only.sub.length)) return
-      if (findTop(h, (x) => isPunct(x, '=') || isPunct(x, ':=')) >= 0) return
+      // (a binding is not an expression: `parseWholeExpression` refuses it just below)
       bodyToks = h
     }
     let body
@@ -3044,7 +3044,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (!block(st2.sub || [], depth + 1)) return false
           continue
         }
-        if (findTop(h, (t) => isPunct(t, ':=')) >= 0) return false
+        // (`x := …` has no top-level `=`, `:=` lexing as one token: refused just below)
         if (st2.sub && st2.sub.length) return false
         const eqAt = findTop(h, (t) => isPunct(t, '='))
         if (!(eqAt > 0) || !boundName(h, eqAt)) return false

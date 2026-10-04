@@ -1507,19 +1507,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   for (const { label, why } of fillsOut.withheld) {
     notes.push({ name: label, note: `${label} is not drawn: ${why}. Nothing is drawn for it rather than a guess.` })
   }
-  // ⭐ RT15 — AND THE CANDLES THE RUN ITSELF SKIPPED (`probe.undrawn`), for a kind
-  // the host translation does not list at all: the host may have refused before it
-  // read the call, and a skipped candle must never go unsaid. A kind the host DOES
-  // list keeps the host's reading of it (an author-hidden candle draws nothing on
-  // TradingView either, and is not named).
-  const hostListedKinds = new Set((t.outputs || []).filter(Boolean).map((o) => o.kind))
+  // ⭐ RT15 — the runtime lane now SKIPS a candle call instead of refusing the script
+  // (`pineRuntimeFrontend.js::RUNTIME_UNDRAWN_CANDLE_CALLS`); the host translation lists
+  // every candle output (refused rows included), so this list names them.
   const undrawn = [...new Set([
     ...(t.outputs || [])
       .filter((o) => o && !hiddenOnChart(o) && Object.hasOwn(RUNTIME_UNDRAWN_KINDS, o.kind))
       .map((o) => o.kind),
-    ...(probe.undrawn || [])
-      .map((u) => u && u.call)
-      .filter((k) => Object.hasOwn(RUNTIME_UNDRAWN_KINDS, k) && !hostListedKinds.has(k)),
   ])]
   if (undrawn.length) {
     notes.push({
