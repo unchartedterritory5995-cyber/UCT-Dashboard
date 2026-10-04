@@ -433,3 +433,37 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
     expect(p.refusal).toMatchObject({ guard: 'pine:builtin', token: 'alert.freq_once_per_bar' })
   }, T)
 })
+
+// ─── (a) WINDOW + (c) ENGINE, OPEN — leviathan ──────────────────────────────────
+describe('F6 — market-structure-by-leviathan SPY: lines 117/21, labels 368/63 are the WINDOW, plus ONE wrong caption (an engine defect, owner F5)', () => {
+  const ID = 'market-structure-by-leviathan-spy-1d-2026-10-03'
+
+  it('83 of our 84 objects are TradingView\'s at id + 401; its 401 others were made before our bar 0 (348 wholly outside the window\'s prices)', () => {
+    const c = cap(ID)
+    const V = vendorObjects(c)
+    const O = ourObjects(ours(ID))
+    const { misses, extra } = idOffsetPairing(V, O, 401)
+    expect(O.length).toBe(84)
+    expect(misses.map(key)).toEqual(['label|LH|454.05'])
+    const pre = extra.filter((v) => v.id <= 401)
+    expect(pre.length).toBe(401)
+    expect(pre.filter((v) => outsideWindow(v, windowRange(c))).length).toBe(348)
+    // the one vendor object beyond the window that we do not pair is the SAME label, captioned HH
+    expect(extra.filter((v) => v.id > 401).map((v) => [v.id, key(v)])).toEqual([[409, 'label|HH|454.05']])
+  }, T)
+
+  it('⛔ OPEN (owner F5): the swing high at our bar 524 is captioned LH where TradingView prints HH — `prevHigh` is a bounded accumulator re-seeded 250 bars back, and its last set (bar 272, confirmed at 292) is 252 bars before', () => {
+    const c = cap(ID)
+    // the previous 20-bar pivot high on the window's own bars is bar 272 (358.75) — nothing between
+    const highs = pivotCentres(c, 20).filter((p) => p.k === 'H').map((p) => p.bar)
+    expect(highs.filter((b) => b > 200 && b <= 524)).toEqual([211, 272, 524])
+    // 454.05 >= 358.75 is HH; reading the seed (na) makes `pivHi >= prevHigh` false -> LH
+    expect((524 + 20) - (272 + 20)).toBeGreaterThan(250)
+    const O = ourObjects(ours(ID))
+    expect(O.find((o) => o.id === 8)).toMatchObject({ t: 'LH', y: [454.05] })
+  }, T)
+
+  it('control: on RDDT (from the listing) the same script MATCHES', () => {
+    expect(graded('market-structure-by-leviathan-rddt-1d-2026-09-28').objects.verdict).toBe('MATCH')
+  }, T)
+})
