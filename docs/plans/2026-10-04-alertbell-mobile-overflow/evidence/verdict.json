@@ -1,0 +1,8 @@
+{
+  "all_fully_inside_viewport": true,
+  "per_viewport": {
+    "320": true,
+    "390": true,
+    "820": true
+  }
+}
