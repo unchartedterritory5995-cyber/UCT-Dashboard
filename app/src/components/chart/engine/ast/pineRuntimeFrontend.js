@@ -4735,7 +4735,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
         // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
         // tick is the symbol's, settled at bind like every `syminfo.mintick`.
-        if (objectsInRun && node.name === 'math.round_to_mintick' && (node.args || []).length === 1
+        // ⭐ F6 — and v4's bare `round_to_mintick(x)` is the same builtin (Pine v4
+        // reference; parabolic-sar's labels, `tostring(round_to_mintick(sar))`),
+        // unless the script defines a function of that name itself.
+        if (objectsInRun && (node.name === 'math.round_to_mintick'
+          || (node.name === 'round_to_mintick' && !definedNames.has('round_to_mintick')))
+          && (node.args || []).length === 1
           && !(node.args[0] && node.args[0].name)) {
           const x = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
           const tick = { type: 'name', name: 'syminfo.mintick', tok: node.tok }
