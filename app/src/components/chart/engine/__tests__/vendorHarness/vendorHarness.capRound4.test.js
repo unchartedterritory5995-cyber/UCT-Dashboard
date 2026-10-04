@@ -60,14 +60,14 @@ describe('Q-H1b — ratchet stops, RDDT from the listing', () => {
       expect(p.stats.compared).toBe(636)
     })
 
-  it.fails('⛔ door: R03_trend KNOWN DIVERGE on bar 0 only (ours na, TradingView 1) — the Q-NA rule', () => {
-    expect(item(grade(RATCHET_RDDT), 'R03_trend').verdict).toBe('MATCH')
-  })
-
-  it('control: R03_trend diverges on exactly one bar, bar 0', () => {
+  // ⭐ F5 — was a KNOWN DIVERGE on bar 0 only (ours na, TradingView 1): the listing
+  // pass did not know whether bar 0 of an `na` seed IS the seed or runs the update.
+  // It runs the update (`interpret.js`, `listingReading`), so bar 0 draws 1.
+  it('⭐ door: R03_trend MATCH on all 636 bars, bar 0 included (F5)', () => {
     const p = item(grade(RATCHET_RDDT), 'R03_trend')
-    expect(p.stats.steady.divergent).toBe(1)
-    expect(p.stats.steady.first.bar).toBe(0)
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.stats.compared).toBe(636)
+    expect(p.stats.steady.divergent).toBe(0)
   })
 })
 

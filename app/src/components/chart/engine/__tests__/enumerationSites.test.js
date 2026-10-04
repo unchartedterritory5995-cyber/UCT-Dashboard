@@ -525,6 +525,18 @@ const LEDGER = [
   { file: 'api/services/ast_interpret.py',
     region: 'FN — the manifest`s functions bound to indicator_compute`s own maths',
     anchor: 'FN: Dict[str, Callable[..., List[float]]] = {', fate: 'keep' },
+  // ⭐ 16 -> 17 AT F5 (2026-10-03): `ast_seed_warmup.py::SEEDED_CALLS`, the Python
+  // half of `interpret.js::SEEDED_CALLS` and of its per-call seed-error bounds
+  // (`ema`, `rma`, `rsi`, `macd`, `atr`, `adx`, the DI legs). Same species as the
+  // `FN` rows above: a walker binds a closed-table NAME to its own decay maths, and
+  // nothing can derive "which calls carry a seed, at what alpha" from the table.
+  // ⛔ WHAT MAKES IT SAFE: neither list is the authority. `seedWarmup.test.js`
+  // writes `seed_warmup_parity.json` from the JS lane and
+  // `tests/test_ast_seed_warmup_parity.py` asserts the Python mask equals it bar for
+  // bar, so a name in one list and not the other is red on arrival.
+  { file: 'api/services/ast_seed_warmup.py',
+    region: 'SEEDED_CALLS — the closed-table calls whose recursion carries a seed, and their decay bounds',
+    anchor: 'SEEDED_CALLS = (', fate: 'keep' },
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
   // ⛔⭐⭐ ADDED BY PHASE D TASK 8, AND THE DISCOVERY SCAN FOUND IT BEFORE THE
@@ -1182,7 +1194,8 @@ const RETIRED_BY_B4_ALERTS = [
 // decided the same way — which is why the count moving is a decision and not a
 // diff: the two are now the only curation sites in the product, they answer the
 // same question on two surfaces, and if one is ever derived the other must be.
-const SITE_COUNT = 16
+// ⭐ 16 -> 17 AT F5: `ast_seed_warmup.py::SEEDED_CALLS`. See its row.
+const SITE_COUNT = 17
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1362,7 +1375,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // two-way key-set equality against the manifest, not a hope; see their rows.
     // ⭐ `{keep: 14}` -> `{keep: 15}` AT MOBILE WAVE 4: the phone ƒx sheet's
     // `QUICK_STUDY_IDS` roster joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 16 })
+    // ⭐ `{keep: 16}` -> `{keep: 17}` AT F5: `ast_seed_warmup.py::SEEDED_CALLS`.
+    expect(counts).toEqual({ keep: 17 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1453,6 +1467,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
       ["api/services/ast_interpret.py::FN — the manifest`s functions bound to indicator_compute`s own maths","keep"],
+      ["api/services/ast_seed_warmup.py::SEEDED_CALLS — the closed-table calls whose recursion carries a seed, and their decay bounds","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
@@ -2345,6 +2360,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
+      'api/services/ast_seed_warmup.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
       'api/services/voice_client_action_tools.py',
@@ -2384,6 +2400,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
+      'api/services/ast_seed_warmup.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
       'api/services/voice_client_action_tools.py',

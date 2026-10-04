@@ -2538,6 +2538,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
+    seedColourOntoValue(def, out, seed)
     return withSeedWarmup(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), seed)
   }
   if (keys.length !== 1) {
@@ -2686,6 +2687,40 @@ function withChartClock(out, byKey) {
  *  `otherSymbolReport`: the decision rides on the columns it was made for. */
 export function chartClockReport(columns) {
   return (columns && columns[CHART_CLOCK]) || null
+}
+
+/** ⭐⭐ F5 — A PLOT WHOSE PER-BAR COLOUR IS WITHHELD FOR A SEED IS WITHHELD WHOLE ON
+ *  THAT BAR. The colour column (`colorMode: 'column:K'`) is its own tree and is
+ *  withheld by its own bound; a value drawn beside a withheld colour would fall
+ *  back to the series colour — a colour the script never chose on that bar
+ *  (measured: pivot-point-supertrend AMEX:SPY bar 1043 drew the pane's gold where
+ *  TradingView drew red). So the value is withheld there too, reported with an
+ *  unbounded bound (its colour, not its number, is what could not be vouched for). */
+function seedColourOntoValue(def, out, seed) {
+  for (const p of (def && Array.isArray(def.plots) ? def.plots : [])) {
+    const mode = p && typeof p.colorMode === 'string' ? p.colorMode : ''
+    if (!mode.startsWith('column:') || !p.key) continue
+    const k = mode.slice('column:'.length)
+    const cs = seed[k]
+    const col = out[p.key]
+    if (!cs || !cs.mask || !col || typeof col.length !== 'number') continue
+    const own = seed[p.key] && seed[p.key].mask ? seed[p.key] : null
+    const mask = own ? Float64Array.from(own.mask) : new Float64Array(col.length)
+    const bound = own ? Float64Array.from(own.bound) : new Float64Array(col.length)
+    const raw = own ? own.raw : Float64Array.from(col)
+    const next = Float64Array.from(col)
+    let moved = false
+    for (let i = 0; i < next.length; i++) {
+      if (!cs.mask[i] || next[i] !== next[i]) continue
+      next[i] = NaN
+      mask[i] = 1
+      bound[i] = Infinity
+      moved = true
+    }
+    if (!moved) continue
+    out[p.key] = next
+    seed[p.key] = { mask, bound, raw }
+  }
 }
 
 /** The key a column map carries its seed withholdings under — non-enumerable,

@@ -157,11 +157,11 @@ describe('4 · composes', () => {
   it('⭐ from the listing (C12w) the stop is Pine\'s on every bar', () => {
     const col = run(treeOf(UP), BARS, { historyFromListing: true })
     const ref = pineStop(CLOSE, NaN)
-    // ⚠️ bar 0 is the one C12w leaves open: the tree does not record whether bar 0
-    // IS the seed or runs the update from it, the two readings disagree there, and
-    // the bar falls back to the curtain column — which does not decide it either.
-    expect(Number.isNaN(col[0])).toBe(true)
-    for (let i = 1; i < N; i++) expect(col[i], `bar ${i}`).toBeCloseTo(ref[i], 9)
+    // ⭐ F5 — bar 0 was the one C12w left open (the tree did not record whether bar
+    // 0 IS the seed or runs the update from it). The plain form now says so
+    // (`interpret.js`, `listingReading`): bar 0 runs the update from `na`, Pine's.
+    expect(Number.isFinite(ref[0])).toBe(true)
+    for (let i = 0; i < N; i++) expect(col[i], `bar ${i}`).toBeCloseTo(ref[i], 9)
   })
 
   it('⭐ a tree that reads the stop is withheld where the stop is, and Pine\'s elsewhere', () => {

@@ -178,16 +178,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // optimized-keltner-channels-sltp-strategy-for-btc -----------------------------
-  it.fails('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
+  it('optimized-keltner-channels-sltp-strategy RDDT: MATCH (F5 — bar 0 of the plain form runs the update from `na`)', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY Upper/Basis/Lower agree past their seed warm-up (F5 — were converging prefixes)', () => {
+  it('control: RDDT the two untitled plots agree on bar 0 too (were `na`, TradingView 0 — F5); SPY Upper/Basis/Lower agree past their seed warm-up (F5 — were converging prefixes)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
     for (const p of plots) {
-      expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
-      expect(p.stats.steady.divergent).toBe(1)
+      expect(p.verdict).toBe('MATCH')
+      expect(p.stats.steady.compared).toBe(636)
     }
     const s = grade('optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02').v
     for (const t of ['Upper', 'Basis', 'Lower']) {
@@ -207,7 +207,11 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it('control: SPY PMax is na on ours from bar 512 to the last (1139 bars, TradingView a value); the screener label is not drawn; RDDT PMax / MA agree', () => {
     const s = grade('pmax-explorer-spy-1d-2026-10-02').v
     expect(first(item(s, 'PMax'))).toMatchObject({ bar: 512, kind: 'na' })
-    expect(item(s, 'PMax').stats.steady.divergent).toBe(1139)
+    // ⭐ F5 — 1139 -> 1038: bars 889..1037 now draw, every one TradingView's value
+    // (the diff over all 1800 bars has NO bar where both draw and differ). The rest
+    // stays missing, never wrong: the `dir` latch is switched (C12s) and the window
+    // cannot prove it independent of its seed there.
+    expect(item(s, 'PMax').stats.steady.divergent).toBe(1038)
     // ⭐ F5 — the MA was a converging prefix (bars 10..84): its seed warm-up is withheld
     expect(item(s, 'Moving Avg Line').verdict).toBe('MATCH')
     expect(item(s, 'Moving Avg Line').stats.seedWithheld).toBeGreaterThan(50)
@@ -289,15 +293,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // twin-range-filter (RDDT only — SPY is a MATCH above) --------------------------
-  it.fails('twin-range-filter RDDT: MATCH', () => {
-    expect(grade('twin-range-filter-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
-  }, T)
-  it('control: RDDT (from the listing) Long na on 5 bars from 177, Short on 6 from 171 (TradingView 1); the filter line agrees', () => {
+  // ⭐ F5 — MATCH. Long / Short were `na` on 5 / 6 bars from 177 / 171 (TradingView 1):
+  // their switched states (`upward`, `downward`, `CondIni`, plain `x = 0.0` + `x := …`)
+  // were unknown on bar 0 because the tree did not record that bar 0 of the plain form
+  // runs the UPDATE from `na`; `switchedDependencyMask` then withheld every bar within
+  // the 250-bar window's reach. An `na` seed is now read as `'update'` on bar 0
+  // (`interpret.js`, `listingReading`).
+  it('twin-range-filter RDDT: MATCH (F5 — the bar-0 reading of an na seed is recorded)', () => {
     const v = grade('twin-range-filter-rddt-1d-2026-10-02').v
-    expect(first(item(v, 'Long'))).toMatchObject({ bar: 177, kind: 'na' })
-    expect(item(v, 'Long').stats.steady.divergent).toBe(5)
-    expect(first(item(v, 'Short'))).toMatchObject({ bar: 171, kind: 'na' })
-    expect(item(v, 'Short').stats.steady.divergent).toBe(6)
+    expect(v.verdict).toBe('MATCH')
+    for (const t of ['Long', 'Short']) expect(item(v, t).stats.steady.compared, t).toBe(636)
   }, T)
 
   // runtime-only attaches ----------------------------------------------------------

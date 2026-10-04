@@ -752,20 +752,24 @@ def _seed_bound_of(tree: Any, env: _Env) -> Optional[List[float]]:
         inputs: List[Any] = []
         extra = [0]
 
-        def collect(x: Any) -> None:
+        def collect(x: Any, depth: int) -> None:
+            # the DEEPEST nesting chain, never once per inlined copy (JS twin)
             if not isinstance(x, dict):
                 return
             if not _reads_any_binding(x, binds):
                 inputs.append(x)
+                extra[0] = max(extra[0], depth)
                 return
+            d = depth
             if x is not n and x.get("type") == "call" and x.get("name") in ai.RECURRENCES:
-                extra[0] += ai._window_literal(x, accum_spec["warmup"])
+                d = depth + ai._window_literal(x, accum_spec["warmup"])
+            extra[0] = max(extra[0], d)
             args = x.get("args")
             if isinstance(args, list):
                 for a in args:
-                    collect(a)
-        collect(n["args"][accum_spec["body"]])
-        collect(n["args"][accum_spec["seed"]])
+                    collect(a, d)
+        collect(n["args"][accum_spec["body"]], 0)
+        collect(n["args"][accum_spec["seed"]], 0)
         flags = [0] * length
         anyf = False
         for x in inputs:

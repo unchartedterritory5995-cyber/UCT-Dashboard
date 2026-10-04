@@ -5841,19 +5841,23 @@ function seedBoundOf(tree, env) {
    *  reads there is exact, unknown otherwise. */
   const accumBound = (n) => {
     const spec = TABLE.functions.accum.recurrence
-    let W = windowLiteral(n, spec.warmup)
+    const W = windowLiteral(n, spec.warmup)
+    let extra = 0
     const inputs = []
     // ⛔ CONSERVATIVE ABOUT NESTING: a subtree that reads ANY running value (this
     // one's, or one nested in it) is opened rather than evaluated on its own, and a
-    // nested `accum` opened this way adds its own window to this one's reach.
-    const collect = (x) => {
+    // nested `accum` opened this way adds its own window to this one's reach —
+    // along the DEEPEST chain of nesting, never once per inlined copy (a copy is
+    // the same window; summing copies withheld pivot-point-supertrend SPY whole).
+    const collect = (x, depth) => {
       if (!x || typeof x !== 'object') return
-      if (!readsAnyBinding(x)) { inputs.push(x); return }
-      if (x !== n && x.type === 'call' && own(RECURRENCES, x.name)) W += windowLiteral(x, spec.warmup)
-      if (Array.isArray(x.args)) x.args.forEach(collect)
+      if (!readsAnyBinding(x)) { inputs.push(x); if (depth > extra) extra = depth; return }
+      const d = x !== n && x.type === 'call' && own(RECURRENCES, x.name) ? depth + windowLiteral(x, spec.warmup) : depth
+      if (d > extra) extra = d
+      if (Array.isArray(x.args)) x.args.forEach((y) => collect(y, d))
     }
-    collect(n.args[spec.body])
-    collect(n.args[spec.seed])
+    collect(n.args[spec.body], 0)
+    collect(n.args[spec.seed], 0)
     const flags = new Float64Array(length)
     let any = false
     for (const x of inputs) {
@@ -5863,7 +5867,7 @@ function seedBoundOf(tree, env) {
       for (let i = 0; i < length; i++) if (!seedNegligible(b[i], v[i])) { flags[i] = 1; any = true }
     }
     if (!any) return null
-    const w = windowAny(flags, W + 1, length)
+    const w = windowAny(flags, W + extra + 1, length)
     const out = new Float64Array(length)
     for (let i = 0; i < length; i++) out[i] = w[i] ? SEED_INF : 0
     return out
@@ -7535,13 +7539,26 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // states that bar 0 of these bars is the symbol's first-ever bar
     // (`opts.historyFromListing === true`, never inferred here). See `listingPass`.
     if (opts && opts.historyFromListing === true && length > 0) {
+      // ⭐⭐ F5 — AN `na` SEED RUNS THE UPDATE ON BAR 0. Every Pine spelling the door
+      // seeds `na` without a mark is one whose bar 0 RUNS its update: the plain form
+      // (`x = init` then `x := U(x[1])` — `init` is re-run and overwritten, `x[1]` is
+      // `na`), and a `var` read only through history (`varSeedOf`). The one spelling
+      // whose bar 0 IS its seed with no update — `x = na(x[1]) ? S : U` — states `S`
+      // itself, and an `S` of `na` is a script whose value is `na` on every bar.
+      // So the reading is `'update'`, and bar 0 is no longer withheld between two
+      // readings only one of which Pine can take (`optimized-keltner…` NYSE:RDDT's
+      // two plots, `twin-range-filter`'s Long / Short — F2's open items).
+      // ⛔ NO TREE CHANGE: a marker would be a new node shape, and
+      // `keltner-center-of-gravity-channel` sits exactly at the 128-node cap.
+      const listingReading = spelled ? spelled.reading
+        : (!isAmbiguousVarSeed(seedNode) && Number.isNaN(seed[0]) ? 'update' : null)
       const listed = listingPass({
         seed, ambiguousSeed: isAmbiguousVarSeed(seedNode),
         warmup, length, maxSelfLag, out, windowAt, sink: stepRecord,
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
-        ...(spelled ? { reading: spelled.reading } : {}),
+        ...(listingReading ? { reading: listingReading } : {}),
       })
       if (listed) return listed
     }
