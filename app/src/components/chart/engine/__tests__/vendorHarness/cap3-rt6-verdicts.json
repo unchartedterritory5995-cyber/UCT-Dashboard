@@ -33,27 +33,18 @@
           ],
           [
             "C03_new_na_base",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "C04_new_na_transp",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "C05_rgb_na",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "C06_cond_or_na",
@@ -100,27 +91,18 @@
           ],
           [
             "C03_new_na_base",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "MATCH",
+            1800
           ],
           [
             "C04_new_na_transp",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "MATCH",
+            1800
           ],
           [
             "C05_rgb_na",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "MATCH",
+            1800
           ],
           [
             "C06_cond_or_na",

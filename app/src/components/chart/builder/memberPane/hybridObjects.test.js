@@ -30,6 +30,10 @@ import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../..
 import { loadCapture, HARNESS_DIR } from '../../engine/__tests__/vendorHarness/harness'
 import { toProductBars } from '../../engine/__tests__/vendorHarness/ourSide'
 import { reduceIfOversized, hydrateGraphDocument } from '../../engine/ast/graphDocument'
+import { createBinder } from '../../engine/binder'
+import { addInstance } from '../../engine/instanceControls'
+import { mergeChartSettings } from '../../chartDefaults'
+import { createFakeChart } from '../../engine/__tests__/fakeChart'
 
 const REPO = path.resolve(process.cwd(), '..')
 const ATR_SR = fs.readFileSync(path.join(REPO, 'corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine'), 'utf8')
@@ -267,4 +271,56 @@ describe('RT9 — the hybrid documents the server rails read', () => {
     expect(fixture.documents.map((d) => d.slug)).toEqual(HYBRID_SCRIPTS.map(([s]) => s))
     for (let k = 0; k < docs.length; k += 1) expect(fixture.documents[k].definition, docs[k].slug).toEqual(docs[k].definition)
   }, 120000)
+})
+
+describe('RT9 — the CHART binding asks the same reader', () => {
+  /** What the binder hands the object layer for atr-s&r over RDDT's bars:
+   *  `{state, opts}` of the LAST set, so the lane that drew it is visible. */
+  const layer = ({ listing, inputs } = {}) => {
+    flags(true)
+    const def = install(build(ATR_SR).definition)
+    const c = rddt()
+    const fake = createFakeChart()
+    const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    const cs = addInstance(mergeChartSettings({}), def.id, registry)
+    const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
+      .map((i) => (inputs ? { ...i, inputs: { ...(i.inputs || {}), ...inputs } } : i))
+    let last = null
+    binder.sync({
+      enabled: true, cs, instances, registry, bars: toProductBars(c), tf: 'D',
+      symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false,
+      ...(listing ? { historyFromListing: true } : {}),
+      adjustTime: (t) => t,
+      applyData: (series, data) => series.setData(data),
+      plan: { fresh: true },
+      resolvePlacement: () => ({ paneIndex: 0, scaleId: 'right', scaleOptions: {} }),
+      createObjectLayer: () => ({ set: (state, sig, opts) => { last = { state, opts: opts || {} } }, clear: () => {} }),
+    })
+    binder.teardown()
+    return last
+  }
+
+  it("⭐⭐ from the listing: the layer is the run's own: 20 lines and 20 boxes", () => {
+    const got = layer({ listing: true })
+    expect(got && got.opts.lane).toBe('runtime')
+    expect(got.state.lines).toHaveLength(20)
+    expect(got.state.boxes).toHaveLength(20)
+  })
+
+  it('⭐ off the listing: the HOST program draws, as it did before RT9', () => {
+    const got = layer({ listing: false })
+    expect(got).toBeTruthy()
+    expect(got.opts.lane).not.toBe('runtime')
+  })
+
+  it('⭐ a script setting moved: the HOST program draws, never the run at its defaults', () => {
+    flags(true)
+    const d = build(ATR_SR).definition
+    const key = d.objectsRun.inputs[0]
+    const dflt = d.inputs.find((i) => i.key === key).default
+    registry.uninstallUserDefinition(ID)
+    const got = layer({ listing: true, inputs: { [key]: typeof dflt === 'number' ? dflt + 1 : !dflt } })
+    expect(got).toBeTruthy()
+    expect(got.opts.lane).not.toBe('runtime')
+  })
 })

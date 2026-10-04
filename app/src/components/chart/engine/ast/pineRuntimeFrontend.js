@@ -1866,6 +1866,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
 
+  /** ⭐ RT9 — the argument of a colour CAST `color(x)` whose `x` is `na` or a
+   *  colour, or null. ⛔ Only those two: `color(close)` is a price in a colour
+   *  slot and keeps its refusal. */
+  const colourCastArg = (node, scope) => {
+    if (!node || node.type !== 'call' || node.name !== 'color' || definedNames.has('color')) return null
+    const args = node.args || []
+    if (args.length !== 1 || !args[0] || args[0].name) return null
+    const x = args[0].value !== undefined ? args[0].value : args[0]
+    return isBuiltinNa(x, scope) || holdsColour(x, scope) ? x : null
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
@@ -1884,6 +1894,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ RT9 — Pine's colour CAST of `na` or of a colour (`color(na)`) is a colour:
+    // `color.new(color(na), 40)` is #00000099 on TradingView (CAP3,
+    // `vw-rt6-runtime-colour` C03). Lowered as its argument (`colourCastArg`).
+    if (colourCastArg(node, scope)) return true
     // ⭐ C23 — an `input.color` is the colour its default is (`inputColourDefaultNode`).
     if (node.type === 'call' && node.name === 'input.color' && !definedNames.has(node.name)) {
       return holdsColour(inputColourDefaultNode(node), scope)
@@ -4786,6 +4800,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
               '`input.color`\'s default is not a colour this lane can read', locate(node.tok))
           }
           return lowerExpr(dflt, scope, opts)
+        }
+        // ⭐ RT9 — a colour cast of `na` or a colour is its argument (`colourCastArg`).
+        {
+          const castOf = colourCastArg(node, scope)
+          if (castOf) return lowerExpr(castOf, scope, opts)
         }
         // ⭐ RT6 — a v4 generic `input(defval = <colour>)` is the same thing: its
         // default colour (parabolic-sar's `colup` / `coldn`). Only when the default
