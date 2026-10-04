@@ -987,7 +987,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
         "pine:no-output"
@@ -2080,7 +2080,8 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:function",
+        "pine:hidden-only"
       ],
       "screenerGuards": [
         "pine:function"
@@ -2163,12 +2164,12 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function",
         "pine:collection",
         "pine:reassign",
         "pine:builtin",
         "pine:drawing",
         "pine:block",
+        "pine:request",
         "pine:window",
         "pine:offset-literal"
       ],
