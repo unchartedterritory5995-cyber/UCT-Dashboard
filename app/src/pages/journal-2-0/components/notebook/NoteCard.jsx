@@ -80,6 +80,11 @@ export default function NoteCard({
           checked={selected}
           onChange={(e) => onToggleSelect?.(note, { shift: Boolean(e.nativeEvent?.shiftKey) })}
           aria-label={`Select ${title}`}
+          // 13Q-5: Shift+Arrow range-select (NotebookTab's grid-level handler)
+          // needs this note's own id from the checkbox that has focus -- `.closest`
+          // cannot reach it, because `data-note-card-id` lives on `card`, this
+          // checkbox's SIBLING under `.selectWrap`, never its ancestor.
+          data-note-select-id={note.id}
         />
       </label>
       {card}

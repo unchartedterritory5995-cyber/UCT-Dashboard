@@ -436,6 +436,190 @@ def test_use_skip_link_presses_it_for_real_in_keys_mode_when_one_is_offered():
     assert m.steps[-1] == {"do": "key", "key": "Enter", "on": "activate Skip to notes list"}
 
 
+# ── use_template_search: 13Q-5's Q2 fix -- the dialog's own search box, not a card Tab-hunt ──
+
+class FakeActiveCardLocator:
+    """The probe for `[data-template-key='<key>'][data-active='true']` -- whether the search
+    has converged on the wanted card."""
+
+    def __init__(self, available: bool):
+        self.first = self
+        self.available = available
+
+    def wait_for(self, state=None, timeout=None):
+        if not self.available:
+            raise TimeoutError("no card is highlighted yet")
+
+
+class FakeTemplateSearchBox:
+    """The Templates dialog's search input. `.element_handle()` returns itself as an identity
+    sentinel so the owning page's `evaluate()` can answer `is_focused` honestly -- never a
+    page-level boolean a locator cannot actually see."""
+
+    def __init__(self, page):
+        self.first = self
+        self._page = page
+
+    def wait_for(self, state=None, timeout=None):
+        pass
+
+    def filter(self, visible=None):
+        return self
+
+    def count(self):
+        return 1
+
+    def element_handle(self, timeout=None):
+        return self
+
+    def focus(self):
+        self._page.search_focus_calls += 1
+        if self._page.search_focus_succeeds:
+            self._page.search_focused = True
+
+
+class FakeTemplateDialog:
+    """What `use_template_search` is handed as `dlg`: `.get_by_label` finds the search box,
+    `.locator` finds the active-card probe."""
+
+    def __init__(self, page):
+        self._page = page
+
+    def get_by_label(self, name):
+        assert name == "Search templates"
+        return self._page.search_box if self._page.search_box_exists else FakeEmptyLocator()
+
+    def locator(self, selector):
+        assert "data-active='true'" in selector
+        return FakeActiveCardLocator(self._page.active_available)
+
+
+class FakeTemplateSearchPage:
+    def __init__(self, *, search_focused=False, focus_succeeds=True, active_available=True,
+                 search_box_exists=True):
+        self.keyboard = FakeKeyboard()
+        self.search_focused = search_focused
+        self.search_focus_succeeds = focus_succeeds
+        self.search_focus_calls = 0
+        self.active_available = active_available
+        self.search_box_exists = search_box_exists
+        self.search_box = FakeTemplateSearchBox(self)
+
+    def evaluate(self, expr, arg=None):
+        # is_focused's own predicate -- the only shape this page is ever asked to answer.
+        assert "document.activeElement" in expr
+        return bool(self.search_focused and arg is self.search_box)
+
+
+def test_use_template_search_mouse_and_taps_never_run():
+    """A pointer member already clicks/taps the card directly -- keys-mode only."""
+    for mode in ("mouse", "taps"):
+        page = FakeTemplateSearchPage()
+        dlg = FakeTemplateDialog(page)
+        m = w13q.Meter(page, mode)
+        used = w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis")
+        assert used is False
+        assert m.count() == 0
+        assert page.search_focus_calls == 0
+
+
+def test_use_template_search_returns_false_when_the_dialog_has_no_search_box():
+    page = FakeTemplateSearchPage(search_box_exists=False)
+    dlg = FakeTemplateDialog(page)
+    m = w13q.Meter(page, "keys")
+    assert w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis") is False
+    assert m.count() == 0
+
+
+def test_use_template_search_types_and_enters_when_the_box_is_already_focused():
+    """The common case: `autoFocusSearch` already landed real focus there (Sheet.jsx's own
+    convention), so there is nothing to compensate -- type the label, Enter picks it."""
+    page = FakeTemplateSearchPage(search_focused=True, active_available=True)
+    dlg = FakeTemplateDialog(page)
+    m = w13q.Meter(page, "keys")
+    used = w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis")
+    assert used is True
+    assert page.search_focus_calls == 0       # never compensated -- it was already focused
+    assert m.tabs == 0                        # no card Tab-hunt at all
+    assert m.keys == 1                        # the one Enter
+    assert m.steps[-1] == {"do": "key", "key": "Enter", "on": "pick the highlighted match (Long/Short Thesis)"}
+
+
+def test_use_template_search_compensates_with_playwrights_own_focus_when_not_yet_focused():
+    """THE SAME category of instrument-only compensation `focus_editor_body` already uses
+    (never a product-internals reach-in, never counted) -- tried ONCE before giving up."""
+    page = FakeTemplateSearchPage(search_focused=False, focus_succeeds=True, active_available=True)
+    dlg = FakeTemplateDialog(page)
+    m = w13q.Meter(page, "keys")
+    used = w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis")
+    assert used is True
+    assert page.search_focus_calls == 1
+    assert m.keys == 1
+
+
+def test_use_template_search_falls_through_when_compensation_does_not_help():
+    """⛔ THE CONTROL this lane's own brief asks for: a genuine failure to focus the search box
+    is NOT silently papered over -- it is reported as not-used, so the caller's real Tab-hunt
+    fallback still runs and measures honestly."""
+    page = FakeTemplateSearchPage(search_focused=False, focus_succeeds=False, active_available=True)
+    dlg = FakeTemplateDialog(page)
+    m = w13q.Meter(page, "keys")
+    used = w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis")
+    assert used is False
+    assert m.count() == 0
+
+
+def test_use_template_search_falls_through_when_the_search_never_converges_on_the_card():
+    """The box IS focused and the member DID type -- but if the product never highlights the
+    named card (a genuine defect, or a label collision), Enter is never pressed blind at
+    whatever else might be active. The caller's real Tab-hunt fallback still runs."""
+    page = FakeTemplateSearchPage(search_focused=True, active_available=False)
+    dlg = FakeTemplateDialog(page)
+    m = w13q.Meter(page, "keys")
+    used = w13q.use_template_search(m, dlg, "Long/Short Thesis", "thesis")
+    assert used is False
+    assert m.keys == 0            # Enter was never pressed
+
+
+# ── use_bulk_shortcut: 13Q-5's Q11 fix -- Ctrl+Alt+B jumps into the bar ─────────────────────
+
+class FakeBulkBarPage:
+    def __init__(self, *, bar_exists=True):
+        self.keyboard = FakeKeyboard()
+        self._bar_exists = bar_exists
+
+    def locator(self, selector):
+        assert selector == "[data-bulk-bar]"
+        return FakeLocator() if self._bar_exists else FakeEmptyLocator()
+
+
+def test_use_bulk_shortcut_mouse_and_taps_never_run():
+    for mode in ("mouse", "taps"):
+        page = FakeBulkBarPage()
+        m = w13q.Meter(page, mode)
+        assert w13q.use_bulk_shortcut(m) is False
+        assert m.count() == 0
+
+
+def test_use_bulk_shortcut_returns_false_when_no_bar_is_on_screen():
+    """⛔ CONTROL -- nothing to jump to is reported honestly, never a phantom press."""
+    page = FakeBulkBarPage(bar_exists=False)
+    m = w13q.Meter(page, "keys")
+    assert w13q.use_bulk_shortcut(m) is False
+    assert m.keys == 0
+
+
+def test_use_bulk_shortcut_presses_the_chord_once_when_a_bar_exists():
+    page = FakeBulkBarPage(bar_exists=True)
+    m = w13q.Meter(page, "keys")
+    used = w13q.use_bulk_shortcut(m)
+    assert used is True
+    assert m.keys == 1
+    assert page.keyboard.presses == ["Control+Alt+b"]
+    assert m.steps[-1] == {"do": "key", "key": "Control+Alt+b",
+                            "on": "jump to the bulk-action bar (Ctrl+Alt+B)"}
+
+
 # ── run_one: the verdict the plan actually reads ────────────────────────────────────────
 
 def _flow(fid: str, run=None, unbuilt: str | None = None) -> w13q.Flow:

@@ -45,6 +45,7 @@ import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
 import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
+import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import {
@@ -1156,6 +1157,65 @@ export default function NotebookTab() {
     return () => document.removeEventListener('keydown', onKey)
   }, [selection.count, clearSelection])
 
+  // 13Q-5: Ctrl+Alt+B jumps focus straight into the bulk-action bar once a
+  // selection exists -- the measured fix for Q11 (167-179 real Tab presses to
+  // reach "Tags"/"Move to select" from a just-ticked row, because the bar sits
+  // above however many notes remain in the view -- not shared chrome, the bar's
+  // own position). The visible hint lives on the bar itself (BulkActionBar's
+  // selectionInfo row), which is on screen, unfocused, the instant the first
+  // Space ticks a row -- a sighted member reads it without needing focus there
+  // first, which is the whole point of a shortcut that gets them there.
+  //
+  // ⛔ MEASURED, and it is why this does NOT land on the roving group's own
+  // active stop: the Move <select> sits BEFORE "Tags" in the bar's own DOM
+  // order, so a first landing on Tags reaches it fine, but after tagging a
+  // SECOND press that again lands on Tags cannot reach "Move to select" by
+  // forward Tab at all -- it wraps the ENTIRE page back around (measured:
+  // 145 real presses, docs/notebook/evidence/wave13-13q5/run-1/clicks.json,
+  // Q11 keys@1200 step 23). The jump target is instead the bar's own STABLE
+  // first control (the Move select where one exists), which every other
+  // control sits AFTER -- cheap to reach from there every time, in either
+  // direction this flow is used.
+  useEffect(() => {
+    if (!selection.count) return undefined
+    const onKey = (e) => {
+      if (!isBulkActionsShortcut(e)) return
+      const bar = document.querySelector('[data-bulk-bar]')
+      if (!bar) return
+      e.preventDefault()
+      const target = bar.querySelector('[data-bulk-move-select]')
+        || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
+      target?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selection.count])
+
+  // 13Q-5: Shift+Arrow extends the selection to the adjacent note and moves
+  // focus with it (file-manager convention) -- Space alone already ticks the
+  // focused row cheaply (confirmed in the click-budget trail: 2 Tabs between
+  // adjacent rows), this cuts it to one keystroke with no Tab at all. Reuses
+  // `toggle`'s EXISTING shift-range math (`noteSelection.js`'s `applyToggle`,
+  // the same code Shift+click and Shift+Space already ride) -- never a second
+  // range implementation. `notes` is already in DOM/visual order (it is what
+  // the grid below maps), so the adjacent note is simply `notes[at ± 1]`.
+  const handleSelectionGridKeyDown = (e) => {
+    if (!selectionOn) return
+    if (!e.shiftKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
+    const input = e.target
+    if (!input || input.tagName !== 'INPUT' || input.type !== 'checkbox') return
+    const id = input.getAttribute('data-note-select-id')
+    if (id == null) return
+    const at = notes.findIndex((n) => String(n.id) === id)
+    if (at < 0) return
+    const to = at + (e.key === 'ArrowDown' ? 1 : -1)
+    if (to < 0 || to >= notes.length) return
+    e.preventDefault()
+    const target = notes[to]
+    selection.toggle(target.id, { shift: true })
+    document.querySelector(`[data-note-select-id="${CSS.escape(String(target.id))}"]`)?.focus()
+  }
+
   // Keep a notice on screen long enough to read and act on, then let it go.
   // An error stays until dismissed: it describes something the member has to do.
   useEffect(() => {
@@ -2216,7 +2276,9 @@ export default function NotebookTab() {
               </span>
             </div>
           )}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
+          {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
+              mount below must never steal focus from a page load. */}
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
         </Sheet>
 
         {voiceNote && voiceOn && (
@@ -2457,7 +2519,7 @@ export default function NotebookTab() {
                 } : null}
               />
             ) : (
-              <div className={styles.grid}>
+              <div className={styles.grid} onKeyDown={handleSelectionGridKeyDown}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}

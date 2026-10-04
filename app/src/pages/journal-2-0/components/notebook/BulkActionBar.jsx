@@ -1,9 +1,14 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import TagSuggestInput from './TagSuggestInput'
 import { EXPORT_FORMATS } from './export/exportFormats'
+import { bulkActionsChordLabel } from '../../lib/bulkActionsShortcut'
 import styles from './BulkActionBar.module.css'
+
+/** Left/Right/Up/Down move the roving stop; the ends hold rather than wrap --
+ *  same convention as TemplatePicker's own card-grid arrows. */
+const MOVES = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
 
 /** "Parent / Child" for every folder, sorted by that path. */
 export function folderPathOptions(folders) {
@@ -100,9 +105,34 @@ export default function BulkActionBar({
   const exportPanelId = useId()
   const exportToggleRef = useRef(null)
   const tagsToggleRef = useRef(null)
+  const barRef = useRef(null)
   // A chosen folder that has since been deleted is no choice at all.
   const moveTarget = moveChoice === UNFILED_VALUE || folderOptions.some((f) => f.id === moveChoice)
     ? moveChoice : ''
+  // 13Q-5: the ONE action button in the Tab order right now — the rest carry
+  // `tabIndex=-1` and are reached by Left/Right/Up/Down instead (the "one
+  // roving group" the click-budget lane asked for). Deliberately still
+  // `role="group"`, not "toolbar" (N4, above): the rail pinning that stays
+  // true unchanged. A busy/disabled button is skipped — it was never reachable
+  // by Tab either. `moveTarget` is in the deps below ONLY to repaint the Move
+  // button's own tabIndex when it flips enabled/disabled -- known limitation,
+  // stated rather than hidden: if that flip inserts Move ahead of whichever
+  // button is CURRENTLY active, the active STOP is positional and can shift to
+  // Move rather than following the button the member was just on. Narrow (it
+  // needs a mouse pick on the folder select mid keyboard-navigation of this
+  // bar) and recoverable in one Left/Right, so not chased further here.
+  const [activeAction, setActiveAction] = useState(0)
+  const rovingActions = () => (barRef.current
+    ? [...barRef.current.querySelectorAll('[data-bulk-action]')].filter((el) => !el.disabled)
+    : [])
+  useEffect(() => {
+    const list = rovingActions()
+    if (!list.length) return
+    const idx = Math.min(activeAction, list.length - 1)
+    if (idx !== activeAction) { setActiveAction(idx); return }
+    list.forEach((el, i) => { el.tabIndex = i === idx ? 0 : -1 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trashView, archiveView, busy, activeAction, moveTarget])
 
   const submitMove = () => {
     if (!moveTarget || busy) return
@@ -134,14 +164,32 @@ export default function BulkActionBar({
   // reach the page's "Esc clears the selection" (NotebookTab skips an Esc already marked
   // handled, and this one stops here too).
   const onBarKeyDown = (e) => {
-    if (e.key !== 'Escape' || e.isDefaultPrevented()) return
-    const toggle = exportOpen ? exportToggleRef : tagsOpen ? tagsToggleRef : null
-    if (!toggle) return
-    e.preventDefault()
-    e.stopPropagation()
-    setExportOpen(false)
-    setTagsOpen(false)
-    toggle.current?.focus()
+    if (e.key === 'Escape' && !e.isDefaultPrevented()) {
+      const toggle = exportOpen ? exportToggleRef : tagsOpen ? tagsToggleRef : null
+      if (toggle) {
+        e.preventDefault()
+        e.stopPropagation()
+        setExportOpen(false)
+        setTagsOpen(false)
+        toggle.current?.focus()
+      }
+      return
+    }
+    // 13Q-5: Left/Right/Up/Down move the roving stop among the action buttons.
+    // Scoped to a keypress that actually came FROM one of them, same guard
+    // TemplatePicker's own onGalleryKeyDown uses for its card grid.
+    if (e.key in MOVES) {
+      const from = e.target.closest?.('[data-bulk-action]')
+      if (!from) return
+      const list = rovingActions()
+      const at = list.indexOf(from)
+      if (at < 0) return
+      const to = list[Math.min(list.length - 1, Math.max(0, at + MOVES[e.key]))]
+      if (!to || to === from) return
+      e.preventDefault()
+      setActiveAction(list.indexOf(to))
+      to.focus()
+    }
   }
 
   const exportButton = (
@@ -153,6 +201,7 @@ export default function BulkActionBar({
       aria-controls={exportPanelId}
       onClick={toggleExport}
       disabled={busy}
+      data-bulk-action=""
     >
       <UIcon name="download" size={14} gold={false} />
       {/* "selected", not bare "Export": the toolbar above already has an
@@ -163,10 +212,25 @@ export default function BulkActionBar({
   )
 
   return (
-    <div className={styles.bar} role="group" aria-label="Actions for the selected notes" onKeyDown={onBarKeyDown} data-bulk-bar="">
+    <div
+      ref={barRef}
+      className={styles.bar}
+      role="group"
+      aria-label="Actions for the selected notes"
+      onKeyDown={onBarKeyDown}
+      data-bulk-bar=""
+    >
       <div className={styles.selectionInfo}>
         <span className={styles.count} aria-live="polite">
           {count} selected
+        </span>
+        {/* 13Q-5: a visible hint, separate from the count's own aria-live text
+            so the pinned "says how many are selected" rail keeps matching an
+            exact "{count} selected" node — a member who just ticked a row (far
+            from this bar in a long list) never has to discover the shortcut by
+            tabbing the whole way here first. */}
+        <span className={styles.shortcutHint} aria-live="polite">
+          {bulkActionsChordLabel()} jumps here
         </span>
         {!allSelected && totalInView > count && (
           <button type="button" className={styles.linkBtn} onClick={onSelectAll} disabled={busy}>
@@ -187,7 +251,7 @@ export default function BulkActionBar({
 
       <div className={styles.actions}>
         {trashView ? (
-          <button type="button" className={styles.action} onClick={onRestore} disabled={busy}>
+          <button type="button" className={styles.action} onClick={onRestore} disabled={busy} data-bulk-action="">
             <UIcon name="refresh" size={14} gold={false} />
             Restore
           </button>
@@ -195,12 +259,12 @@ export default function BulkActionBar({
           <>
             {/* Archive is not trash: bringing a note back puts it exactly where
                 it was, in its own folder. */}
-            <button type="button" className={styles.action} onClick={onUnarchive} disabled={busy}>
+            <button type="button" className={styles.action} onClick={onUnarchive} disabled={busy} data-bulk-action="">
               <UIcon name="library" size={14} gold={false} />
               Unarchive
             </button>
             {exportButton}
-            <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy}>
+            <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy} data-bulk-action="">
               <UIcon name="trash" size={14} gold={false} />
               Move to Trash
             </button>
@@ -217,6 +281,13 @@ export default function BulkActionBar({
                   // Records the choice ONLY. Arrow keys and type-ahead change a
                   // closed <select> — they must never move a note.
                   onChange={(e) => setMoveChoice(e.target.value)}
+                  // 13Q-5: the jump shortcut's STABLE anchor -- the first control
+                  // in `.actions`, in every view that has one. Giving it this
+                  // role is NOT the B1 hazard: that bug was arrow keys changing
+                  // a FOCUSED select's value; a plain `.focus()` call changes
+                  // nothing. It stays OUTSIDE the roving arrow-key group below
+                  // (same B1 reasoning) -- this is a second, independent role.
+                  data-bulk-move-select=""
                 >
                   <option value="">Move to…</option>
                   <option value={UNFILED_VALUE}>Unfiled</option>
@@ -231,6 +302,7 @@ export default function BulkActionBar({
                 className={styles.action}
                 onClick={submitMove}
                 disabled={busy || !moveTarget}
+                data-bulk-action=""
               >
                 Move
               </button>
@@ -244,24 +316,25 @@ export default function BulkActionBar({
               aria-controls={tagPanelId}
               onClick={() => { setTagsOpen((o) => !o); setExportOpen(false) }}
               disabled={busy}
+              data-bulk-action=""
             >
               <UIcon name="tag" size={14} gold={false} />
               Tags
             </button>
-            <button type="button" className={styles.action} onClick={onFavorite} disabled={busy}>
+            <button type="button" className={styles.action} onClick={onFavorite} disabled={busy} data-bulk-action="">
               <UIcon name="star" size={14} gold={false} />
               Favorite
             </button>
-            <button type="button" className={styles.action} onClick={onUnfavorite} disabled={busy}>
+            <button type="button" className={styles.action} onClick={onUnfavorite} disabled={busy} data-bulk-action="">
               <UIcon name="star-fill" size={14} gold={false} />
               Unfavorite
             </button>
             {exportButton}
-            <button type="button" className={styles.action} onClick={onArchive} disabled={busy}>
+            <button type="button" className={styles.action} onClick={onArchive} disabled={busy} data-bulk-action="">
               <UIcon name="library" size={14} gold={false} />
               Archive
             </button>
-            <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy}>
+            <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy} data-bulk-action="">
               <UIcon name="trash" size={14} gold={false} />
               Move to Trash
             </button>
