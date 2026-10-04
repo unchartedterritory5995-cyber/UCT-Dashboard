@@ -821,8 +821,23 @@ def test_unmatched_size_same_side_or_far_apart_kept(monkeypatch):
     assert not any(l.get("_multileg") for l in legs)
 
 
-def test_same_contract_is_accumulation_not_a_leg(monkeypatch):
+def test_same_contract_same_side_is_accumulation(monkeypatch):
+    # SPCX 172.5C: repeated ask sweeps on one contract are a build, not legs.
     _structure(monkeypatch)
-    legs = [_sleg(172.5, 2000, "B", 1000.0, direction="Bear"), _sleg(172.5, 2000, "A", 1001.0)]
+    legs = [_sleg(172.5, 3012, "A", 1000.0), _sleg(172.5, 2037, "A", 1001.0),
+            _sleg(172.5, 2002, "A", 1005.0)]
     m._demote_multileg_structures(legs)
     assert not any(l.get("_multileg") for l in legs)
+
+
+def test_same_contract_offsetting_round_trip_demoted(monkeypatch):
+    # 7/24 SNDK 1370P 8/7: sold 100 @ 110, bought 100 @ 110 seven seconds later.
+    _structure(monkeypatch)
+    sell = _sleg(1370, 100, "B", 1000.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bull")
+    buy = _sleg(1370, 100, "A", 1007.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bear")
+    m._demote_multileg_structures([sell, buy])
+    assert buy["_direction"] is None and sell["_direction"] is None
+    far = _sleg(1370, 100, "A", 2000.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bear")
+    far_sell = _sleg(1370, 100, "B", 2015.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bull")
+    m._demote_multileg_structures([far, far_sell])          # 15s > 10s window → kept
+    assert far["_direction"] == "Bear"
