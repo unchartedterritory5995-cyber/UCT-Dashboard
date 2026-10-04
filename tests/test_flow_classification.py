@@ -841,3 +841,48 @@ def test_same_contract_offsetting_round_trip_demoted(monkeypatch):
     far_sell = _sleg(1370, 100, "B", 2015.0, cp="P", exp="8/7/2026", ticker="SNDK", direction="Bull")
     m._demote_multileg_structures([far, far_sell])          # 15s > 10s window → kept
     assert far["_direction"] == "Bear"
+
+
+# ── Ask Accumulation mega-cap path (2026-10-03) ─────────────────────────────
+# SPCX ($2.0T) 172.5C 10/30, 28 DTE: ~$4M of ask sweeps in one session. Mega-caps
+# were hard-excluded; now they qualify above a higher bar, single stocks, 7+ DTE.
+
+_AA = {"ask_accum_enabled": True, "ask_accum_min_aggregate_premium": 1_000_000,
+       "ask_accum_max_otm_pct": 50.0, "ask_accum_require_unusual": True,
+       "ask_accum_min_contract_voi": 1.0, "fresh_strike_min_volume": 100,
+       "ask_accum_max_mktcap": 50_000_000_000,
+       "ask_accum_mega_min_aggregate_premium": 3_000_000, "ask_accum_mega_min_dte": 7}
+
+
+def _aa(agg, mktcap=2_021_528_000_000, dte=28, is_stock=True, th=None):
+    # side A, 9% OTM, ask vol 11,620 vs OI 0 (fresh) — the SPCX 172.5C shape
+    return m._ask_accum_qualifies("A", 9.0, agg, 11_620, 0, mktcap, th or _AA,
+                                  dte=dte, is_stock=is_stock)
+
+
+def test_mega_cap_build_qualifies_above_mega_bar():
+    assert _aa(4_000_000) is True
+    assert _aa(2_500_000) is False                     # under the $3M mega bar
+
+
+def test_mega_cap_path_excludes_etfs_weeklies_and_unknowns():
+    assert _aa(9_000_000, is_stock=False) is False     # SPY/QQQ
+    assert _aa(9_000_000, dte=3) is False              # 0-6 DTE churn
+    assert _aa(9_000_000, dte=None) is False           # unknown → denied
+    assert _aa(9_000_000, is_stock=None) is False
+    assert _aa(9_000_000, mktcap=0) is False           # index (no mktcap)
+
+
+def test_mega_bar_zero_restores_hard_exclusion():
+    assert _aa(9_000_000, th={**_AA, "ask_accum_mega_min_aggregate_premium": 0}) is False
+
+
+def test_non_mega_unchanged_by_mega_path():
+    # $3B name at the normal $1M floor, no dte/is_stock needed (PPTA class)
+    assert m._ask_accum_qualifies("A", 9.0, 1_200_000, 11_620, 0, 3_000_000_000, _AA) is True
+
+
+def test_is_single_stock():
+    assert m._is_single_stock({"StockEtf": "STOCK", "source": "stocks"})
+    assert m._is_single_stock({"StockEtf": "stock"})
+    assert not m._is_single_stock({"StockEtf": "ETF", "source": "indexes"})
