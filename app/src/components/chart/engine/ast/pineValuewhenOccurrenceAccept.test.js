@@ -172,8 +172,15 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
       // earlier line is what the script reports first. The `pine:window` on
       // `ta.highest` (line 76) is still there behind it.
       ['smarter-snr__ac98ab25d5.pine', 'pine:builtin', /str\.length/],
-      ['support-and-resistance__1505.pine', 'pine:na', /fixnan/],
+      // ⚰️ support-and-resistance__1505 WAS HERE (`pine:na`, fixnan). H7 (step 92h) serves
+      // `fixnan` as `valuewhenOccurrence` (CAP4 Q-RT7b): the script translates whole (below).
     ]
+    {
+      const s = fs.readFileSync(path.join(CORPUS, 'support-and-resistance__1505.pine'), 'utf8')
+      const r = translatePine(s, { strict: true })
+      expect(r.ok, JSON.stringify(r.refusal)).toBe(true)
+      expect(r.outputs.some((o) => /valuewhenOccurrence\(/.test(o.formula || ''))).toBe(true)
+    }
     for (const [file, guard, messagePattern] of stillBlocked) {
       const s = fs.readFileSync(path.join(CORPUS, file), 'utf8')
       const r = translatePine(s, { strict: true })
