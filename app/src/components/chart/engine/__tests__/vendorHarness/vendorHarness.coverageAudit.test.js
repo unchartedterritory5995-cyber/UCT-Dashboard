@@ -268,7 +268,7 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('swing-highlow-zigzag-chartprime SPY: MATCH', () => {
     expect(grade('swing-highlow-zigzag-chartprime-spy-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 12 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
+  it('control: the two swing labels now draw with TradingView\'s text on both symbols; on SPY we hold 8 of TradingView\'s 52 zigzag lines — a WINDOW, not the engine', () => {
     const r = grade('swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02').v.objects
     expect(r.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 10, ours: 10 })
     expect(r.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
@@ -276,7 +276,12 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const s = v.objects
     expect(s.counts.find((c) => c.family === 'labels')).toMatchObject({ vendor: 2, ours: 2 })
     expect(s.texts.find((t) => t.family === 'labels text').agree).toBe(true)
-    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 12 })
+    // ⭐ F5 — 12 -> 8 under the held-state rule (`interpret.js::holdsUntilSet`): 3 of the 4 lines
+    // no longer held had x1 = the seed of `var int index_h / index_l = 0` (1970; the harness
+    // counted them as held with an na coordinate); the 4th (459.44 -> 409.21) is correct and is
+    // withdrawn because its y reads `line_l.get_y1()` of a line whose x is now unknown. Every
+    // object still held pairs with TradingView's at one id offset.
+    expect(s.counts.find((c) => c.family === 'lines')).toMatchObject({ vendor: 52, ours: 8 })
     // ⭐ F3 — the 40 lines we do not hold were drawn on bars BEFORE the loaded
     // window: TradingView ran the script over SPY's whole history (the capture is
     // 1800 bars from 2019-08, not from the listing), and the zigzag segments it
