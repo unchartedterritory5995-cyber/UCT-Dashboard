@@ -142,6 +142,15 @@ describe('F8 ND — a row this engine hid as "reads no bar" that TradingView dra
     expect(p.stats.steady.first).toMatchObject({ bar: 0, kind: 'not-drawn', vendor: 0.01, ours: null })
   }, T)
 
+  it("⛔ CONTROL — the same row with TradingView's own display set to none (an in-memory copy; the file is untouched) is not NOT DRAWN", () => {
+    const { cap, ours } = grade('vw-deadband-ticks-spy-1d-2026-09-28', 'runtime')
+    const copy = structuredClone(cap)
+    const id = copy.study.plots.find((p) => p.title === 'D01_mintick').id
+    copy.study.styleState = { ...(copy.study.styleState || {}), [id]: { ...((copy.study.styleState || {})[id] || {}), display: 0 } }
+    const v = compareCapture(copy, ours)
+    expect(itemsTitled(v, 'D01_mintick')[0].verdict).toBe('INCONCLUSIVE')
+  }, T)
+
   it('⛔ CONTROL — a hidden constant row TradingView never draws visibly stays unknown (cc-yata b1..b5 / s1..s5)', () => {
     const { verdict: v } = grade('cc-yata-rddt-1d-2026-09-27', 'runtime')
     for (const t of ['b1', 'b2', 'b3', 'b4', 'b5', 's1', 's2', 's3', 's4', 's5']) {
