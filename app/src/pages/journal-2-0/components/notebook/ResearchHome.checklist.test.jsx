@@ -27,7 +27,7 @@ beforeEach(() => {
     return json(404, { detail: 'Not Found' })
   })
   __resetNotebookFlags()
-  latchNotebookFlags({ notebook_onboarding_enabled: true })
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
 })
 afterEach(() => {
   __resetNotebookFlags()
@@ -79,9 +79,17 @@ describe('Research Home mounts the checklist', () => {
     expect(screen.getByText('My note')).toBeInTheDocument()
   })
 
+  it('absent while its own flag is off (onboarding on)', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
+    renderHome()
+    await screen.findByRole('heading', { name: 'Welcome to your Notebook' })
+    expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull()
+  })
+
   it('absent while the onboarding flag is off', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: false, notebook_getting_started_enabled: true })
     renderHome()
     await screen.findByRole('heading', { name: 'Welcome to your Notebook' })
     expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull()

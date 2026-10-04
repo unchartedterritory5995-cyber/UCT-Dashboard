@@ -233,6 +233,11 @@ NOTEBOOK_FLAGS = {
     # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
     # the payload key is `notebook_review_drafts_enabled`.
     "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
+    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
+    # of its own: it reads the member's preferences and Research Home's own read); the payload
+    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
+    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
+    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

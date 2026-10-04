@@ -86,7 +86,7 @@ beforeEach(() => {
   server = { prefs: {}, home: EMPTY_HOME, prefsGate: null }
   installFetch()
   __resetNotebookFlags()
-  latchNotebookFlags({ notebook_onboarding_enabled: true })
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
   __resetTourControl()
   __resetRegistryTourControl()
 })
@@ -110,7 +110,16 @@ describe('when it shows', () => {
 
   it('renders nothing while the onboarding flag is off, and writes nothing', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: false, notebook_getting_started_enabled: true })
+    const { container } = renderList()
+    await settle()
+    expect(container).toBeEmptyDOMElement()
+    expect(prefWrites()).toEqual([])
+  })
+
+  it('renders nothing while its OWN flag is off (onboarding on), and writes nothing', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
     const { container } = renderList()
     await settle()
     expect(container).toBeEmptyDOMElement()
@@ -138,7 +147,7 @@ describe('when it shows', () => {
 
   it('one item per armed registered tour: arming a capability adds its tour', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     renderList()
     const btn = await screen.findByRole('button', { name: 'Take the Formulas tour' })
     const opened = vi.fn()
@@ -198,6 +207,45 @@ describe('a click opens the door; only the real action ticks the step', () => {
   })
 })
 
+describe('a step never unticks', () => {
+  it('the first time a step ticks, its id is recorded in the one key (no close)', async () => {
+    server.home = { ...EMPTY_HOME, continueWorking: [{ id: 'n1', title: 'T', bodyPlain: WALKTHROUGH_TITLE }] }
+    renderList({ hasAnyNotes: true, onAddSample: null })
+    await waitFor(() => expect(prefWrites('notebook_getting_started').length).toBeGreaterThan(0))
+    const stored = JSON.parse(server.prefs.notebook_getting_started)
+    expect([...stored.done].sort()).toEqual(['note', 'template'])
+    expect(stored.state).toBeUndefined()
+    expect(screen.getByText('2 of 3 done')).toBeInTheDocument()
+  })
+
+  it('a recorded step stays ticked after its evidence leaves the home read', async () => {
+    // A sample exists and none of the member's own notes is in Research Home's capped
+    // read any more: on the evidence alone "note" and "template" would read undone.
+    server.prefs = {
+      notebook_sample: JSON.stringify({ v: 1, ids: ['s1'] }),
+      notebook_getting_started: JSON.stringify({ v: 1, done: ['note', 'template'] }),
+    }
+    server.home = { ...EMPTY_HOME, continueWorking: [{ id: 's1', title: 'Sample', bodyPlain: '' }] }
+    renderList({ hasAnyNotes: true, onAddSample: null })
+    expect(await screen.findByText('3 of 4 done')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Write your first note' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Start a note from a template' })).toBeNull()
+  })
+
+  it('a refused write is not retried on every render (bounded, per id)', async () => {
+    server.home = { ...EMPTY_HOME, continueWorking: [{ id: 'n1', title: 'T', bodyPlain: 'mine' }] }
+    const real = global.fetch
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (url === PREFS && (init.method || 'GET').toUpperCase() === 'POST') return json(400, { detail: 'nope' })
+      return real(url, init)
+    })
+    renderList({ hasAnyNotes: true, onAddSample: null })
+    await settle(150)
+    const posts = global.fetch.mock.calls.filter(([u, i = {}]) => u === PREFS && (i.method || '').toUpperCase() === 'POST')
+    expect(posts).toHaveLength(1)
+  })
+})
+
 describe('closing it -- ONE preference key, and D4', () => {
   it('Hide writes notebook_getting_started once, as dismissed, and the list goes', async () => {
     renderList()
@@ -211,7 +259,7 @@ describe('closing it -- ONE preference key, and D4', () => {
 
   it('D4: a dismissed list stays closed when a new capability arms later', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     server.prefs = { notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed', at: 'x' }) }
     const { container } = renderList()
     await settle(40)
@@ -219,13 +267,18 @@ describe('closing it -- ONE preference key, and D4', () => {
     expect(prefWrites()).toEqual([])
   })
 
-  it('every step done: the list records `done` exactly once and closes', async () => {
+  it('every step done: the list closes as `done`, keeping its done-set, with a bounded number of writes', async () => {
     server.prefs = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: 'export' }) }
     server.home = { ...EMPTY_HOME, continueWorking: [{ id: 'n1', title: 'T', bodyPlain: WALKTHROUGH_TITLE }] }
     const { container, rerender } = renderList({ hasAnyNotes: true, onAddSample: null })
-    await waitFor(() => expect(prefWrites('notebook_getting_started')).toHaveLength(1))
-    expect(JSON.parse(prefWrites('notebook_getting_started')[0].value)).toMatchObject({ v: 1, state: 'done' })
+    await waitFor(() => expect(JSON.parse(server.prefs.notebook_getting_started || '{}').state).toBe('done'))
+    const stored = JSON.parse(server.prefs.notebook_getting_started)
+    expect(stored).toMatchObject({ v: 1, state: 'done' })
+    expect([...stored.done].sort()).toEqual(['note', 'template', 'tour:notebook-basics'])
     expect(container).toBeEmptyDOMElement()
+    // At most one write per step as it ticks, plus the close: three steps here.
+    const n = prefWrites('notebook_getting_started').length
+    expect(n).toBeLessThanOrEqual(4)
     rerender(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
         <MemoryRouter>
@@ -234,12 +287,12 @@ describe('closing it -- ONE preference key, and D4', () => {
       </SWRConfig>,
     )
     await settle(40)
-    expect(prefWrites('notebook_getting_started')).toHaveLength(1)
+    expect(prefWrites('notebook_getting_started')).toHaveLength(n)
   })
 
   it('D4: a list closed as done stays closed when a new capability arms later', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_formulas_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     server.prefs = { notebook_getting_started: JSON.stringify({ v: 1, state: 'done', at: 'x' }) }
     const { container } = renderList()
     await settle(40)
@@ -316,9 +369,18 @@ describe('the eager gate: the list chunk is fetched only for a member it is for'
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('its own flag off: never downloads the list', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
+    const load = vi.fn(() => import('./GettingStartedList'))
+    renderGate(makeChecklistGate(load, 0))
+    await settle(40)
+    expect(load).not.toHaveBeenCalled()
+  })
+
   it('flag off: never downloads the list', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: false, notebook_getting_started_enabled: true })
     const load = vi.fn(() => import('./GettingStartedList'))
     renderGate(makeChecklistGate(load, 0))
     await settle(40)

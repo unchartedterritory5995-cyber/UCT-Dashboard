@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, readChecklistPref, checklistClosed,
   checklistRecord, ownHomeNotes, isTemplateNote, deriveChecklistItems,
+  checklistEnabled, recordedDone, withDone, closedAs,
 } from './gettingStarted'
 import { TOUR_REGISTRY, BASE_TOUR_ID, replayableTours } from './tourRegistry'
 import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
@@ -32,7 +33,8 @@ describe('the one preference key', () => {
     expect(CHECKLIST_PREF).toBe('notebook_getting_started')
     expect(readChecklistPref(undefined)).toBeNull()
     expect(readChecklistPref('not json')).toBeNull()
-    expect(readChecklistPref('{"v":1}')).toBeNull()
+    expect(readChecklistPref('[1,2]')).toBeNull()
+    expect(readChecklistPref('{"v":1}')).toEqual({ v: 1 })
     expect(readChecklistPref('{"v":1,"state":"dismissed","at":"x"}')).toEqual({ v: 1, state: 'dismissed', at: 'x' })
     expect(readChecklistPref({ v: 1, state: 'done' })).toEqual({ v: 1, state: 'done' })
   })
@@ -47,6 +49,43 @@ describe('the one preference key', () => {
   it('records {v:1, state, at}', () => {
     expect(checklistRecord('dismissed', new Date('2026-10-04T12:00:00Z')))
       .toEqual({ v: 1, state: 'dismissed', at: '2026-10-04T12:00:00.000Z' })
+  })
+})
+
+describe('both gates, and the recorded done-set', () => {
+  it('shows only when BOTH the onboarding flag and its own flag are exactly true', () => {
+    const f = (on) => (k) => on[k]
+    expect(checklistEnabled(f({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true }))).toBe(true)
+    expect(checklistEnabled(f({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false }))).toBe(false)
+    expect(checklistEnabled(f({ notebook_onboarding_enabled: false, notebook_getting_started_enabled: true }))).toBe(false)
+    expect(checklistEnabled(f({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: 'yes' }))).toBe(false)
+  })
+
+  it('withDone adds only new ids, keeps the rest of the value, and abandons a no-op', () => {
+    expect(withDone(undefined, ['note'])).toEqual({ v: 1, done: ['note'] })
+    expect(withDone({ v: 1, done: ['note'] }, ['note'])).toBeUndefined()
+    expect(withDone(JSON.stringify({ v: 1, done: ['note'], x: 1 }), ['template'])).toEqual({ v: 1, done: ['note', 'template'], x: 1 })
+    expect([...recordedDone('{"v":1,"done":["a",3,"",null,"b"]}')]).toEqual(['a', 'b'])
+  })
+
+  it('closing keeps the done-set', () => {
+    expect(closedAs({ v: 1, done: ['note'] }, 'dismissed', new Date('2026-10-04T12:00:00Z')))
+      .toEqual({ v: 1, done: ['note'], state: 'dismissed', at: '2026-10-04T12:00:00.000Z' })
+  })
+
+  it('a recorded step stays done whatever the evidence says (never unticks)', () => {
+    const prefs = {
+      notebook_sample: JSON.stringify({ v: 1, ids: ['s1'] }),
+      notebook_getting_started: JSON.stringify({ v: 1, done: ['note', 'template', 'sample'] }),
+    }
+    const items = byId(deriveChecklistItems({ prefs, hasAnyNotes: true, home: home([note('s1')]), flag: armNone }))
+    expect(items.note.done).toBe(true)
+    expect(items.template.done).toBe(true)
+    expect(items.sample.done).toBe(true)
+    // the same evidence with nothing recorded reads them undone (the old behaviour)
+    const bare = byId(deriveChecklistItems({ prefs: { notebook_sample: prefs.notebook_sample }, hasAnyNotes: true, home: home([note('s1')]), flag: armNone }))
+    expect(bare.note.done).toBe(false)
+    expect(bare.template.done).toBe(false)
   })
 })
 

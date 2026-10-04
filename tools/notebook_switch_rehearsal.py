@@ -256,6 +256,10 @@ NOT_REHEARSED = {
                                       "click drafts a daily/weekly/monthly review's data, the leak "
                                       "finder's findings; waits for the wave-13 PR and the owner's "
                                       "arming order",
+    # Wave 14 lane W14-D.
+    "NOTEBOOK_GETTING_STARTED_ENABLED": "dark (wave 14 W14-D): the get started checklist on Research "
+                                        "Home (shows only with NOTEBOOK_ONBOARDING_ENABLED also on); "
+                                        "client-only, no route; waits for the owner to arm it",
 }
 
 

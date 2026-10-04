@@ -38,8 +38,11 @@ import { TOUR_PREF, readTourPref } from './tourPref'
 import { TOURS_PREF, readTourState } from './tourSeenState'
 import { SAMPLE_PREF, readSamplePref } from './sampleNotebook'
 
+import { CHECKLIST_PREF as CHECKLIST_PREF_KEY, recordedDone } from './gettingStartedPref'
+
 export {
   CHECKLIST_PREF, CHECKLIST_STATES, readChecklistPref, checklistClosed, checklistRecord,
+  checklistEnabled, recordedDone, withDone, closedAs,
 } from './gettingStartedPref'
 
 /** Every word the checklist shows. Plain and short. */
@@ -97,7 +100,8 @@ function tourDone(entry, prefs) {
  *   registry     TOUR_REGISTRY by default
  *
  * Each item: { id, label, done, kind } with kind one of note | template | sample | tour,
- * plus `tourId` on a tour item.
+ * plus `tourId` on a tour item. A step recorded as ticked in `notebook_getting_started`
+ * stays ticked whatever the current evidence says (a step never unticks).
  */
 export function deriveChecklistItems({
   prefs = {}, home = null, hasAnyNotes = false, canAddSample = false,
@@ -113,7 +117,7 @@ export function deriveChecklistItems({
   ]
   // The sample is offered only where it can be had (the server refuses it to a member
   // with notes), and shown ticked once it was.
-  if (sample || canAddSample) {
+  if (sample || canAddSample || recordedDone(prefs?.[CHECKLIST_PREF_KEY]).has('sample')) {
     items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample) })
   }
   for (const entry of replayableTours(registry)) {
@@ -123,5 +127,6 @@ export function deriveChecklistItems({
       label: CHECKLIST_COPY.tour(entry.title), done: tourDone(entry, prefs),
     })
   }
-  return items
+  const recorded = recordedDone(prefs?.[CHECKLIST_PREF_KEY])
+  return items.map((i) => (recorded.has(i.id) && !i.done ? { ...i, done: true } : i))
 }

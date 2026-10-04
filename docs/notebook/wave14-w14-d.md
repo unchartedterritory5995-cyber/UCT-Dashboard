@@ -5,8 +5,9 @@ Branch `feat/notebook-w14-d`, base `ca1ede46fb` (the W14-0 checkpoint). Spec:
 first-run welcome and stays "until the member dismisses it or finishes it"), 5.3 to 5.6,
 section 7's W14-D row, and section 11's controller default **D4**: *"The checklist stays
 closed once dismissed; a newly armed capability appears under Help's 'What's new' instead
-of reopening it."* No new flag: the list rides `notebook_onboarding_enabled`, the flag
-the base tour and the sample-notebook door already ride (section 6 below, open question 1).
+of reopening it."* Flag `NOTEBOOK_GETTING_STARTED_ENABLED`, unset = OFF, and the list
+shows only while BOTH it and `NOTEBOOK_ONBOARDING_ENABLED` are on (controller ruling,
+round 2; section 8).
 
 | file | what it is |
 |---|---|
@@ -16,7 +17,8 @@ the base tour and the sample-notebook door already ride (section 6 below, open q
 | `.../notebook/GettingStartedList.jsx` + `GettingStartedList.module.css` | the lazy list itself |
 | `.../notebook/ResearchHome.jsx` | one import line and ONE mount line |
 | `app/src/pages/journal-2-0/a11y/notebookSurfaces.js` | two manifest rows (recipe + coveredBy) |
-| `api/routers/auth.py` | one `_PREFERENCE_KEYS` row: `notebook_getting_started` |
+| `api/routers/auth.py` | one `_PREFERENCE_KEYS` row (`notebook_getting_started`) and one `NOTEBOOK_FLAGS` row (`NOTEBOOK_GETTING_STARTED_ENABLED`) |
+| flag roster | `notebookFlags.js` `FLAG_FALLBACKS`, `tests/test_notebook_flags.py`, `tools/notebook_switch_rehearsal.py`, `docs/feature_flags.json` (dark), `docs/notebook/BETA-HANDOFF.md` section 1c |
 | rails | `gettingStarted.test.js`, `GettingStartedChecklist.test.jsx`, `GettingStartedList.lazy.test.js`, `ResearchHome.checklist.test.jsx`, `a11y/gettingStarted.a11y.test.jsx`, one new case in `tests/test_preference_key_validation.py` |
 
 ## 1. What shipped (member-facing)
@@ -58,10 +60,16 @@ progress line. A dismissed or skipped tour does not tick its step; only `done` d
 
 ## 3. The one preference key, and D4
 
-`notebook_getting_started` = `{v: 1, state: 'dismissed' | 'done', at}`
-(`gettingStartedPref.js`). **Hide** writes `dismissed`. When every step is ticked, the
-list writes `done` exactly once (a ref guard plus the closed read, so the write cannot
-repeat -- the render-loop class `usePreferences.js`'s settle note describes) and closes.
+`notebook_getting_started` = `{v: 1, done: [step ids], state?: 'dismissed' | 'done', at?}`
+(`gettingStartedPref.js`). Every write is a `setPrefMerged`, so the three writers merge:
+
+- **A step never unticks** (round 2). The first time a step's evidence shows it done, its
+  id joins `done`, and `deriveChecklistItems` honours a recorded id whatever the evidence
+  says later -- so Research Home's capped home read can no longer take a step back. Each
+  id is attempted at most once per mount, so a refused write is not retried on every
+  render (railed: a 400 endpoint sees exactly one POST).
+- **Hide** closes it as `dismissed`, keeping `done`.
+- **Every step ticked** closes it as `done`, once (a ref guard plus the closed read).
 
 **D4:** either state closes the list for good. A capability that arms later adds a tour
 step to the derivation, but a closed list never reopens for it; two rails arm a second
@@ -119,27 +127,16 @@ moves this line there, it must stay in a position that also renders once notes e
 
 ## 6. Decisions (the lane's own) and open questions
 
-1. **No new flag.** The list rides `notebook_onboarding_enabled`, which is **armed on web**.
-   So this ships live to members on the deploy that carries it. If the owner wants it dark
-   first, a `NOTEBOOK_GETTING_STARTED_ENABLED` gate is a small follow-up (flag roster rows
-   in `auth.py`, `notebookFlags.js`, `feature_flags.json`, the flag tests).
-2. **Help's "What's new" does not exist yet.** D4's other half -- a newly armed capability
-   listed under Help -- has no surface at this base; Help > Walkthroughs (W14-0) already
-   lists every registered tour, which is where a closed-list member finds one today.
-3. **A registered tour whose anchors are not on Home opens nothing from Home.**
-   `GenericTourEngine` closes at once when no step's anchor is on screen, so a W14-B tour
-   that starts in the editor needs a "go there, then open" door. Today only the base tour
-   is registered, so nothing is affected yet.
-4. **"Write your first note" with a sample present reads Research Home's recents.** The
-   home read caps each section at 5; a member who created one note and then opened six
-   sample notes could see the step untick until the list finishes. Exact counting needs a
-   non-sample note count from the server.
-5. **Pre-existing, not this lane's:** `notebook_tours` (W14-0's per-tour seen-state key) is
-   written by `tourSeenState.recordTourState` but has no `_PREFERENCE_KEYS` row, so
-   `test_every_key_the_client_writes_is_still_accepted` is red at the base and every
-   non-base tour's progress would 400 in production.
-6. **Not done here:** the plan's click-budget flow ("checking off a get-started item") and
-   a real-browser walk at 390 / 820 / 1200 belong to W14-Q (section 6.1/6.2).
+1. ~~No new flag~~ -- superseded by the round-2 ruling: its own dark flag (section 8).
+2. Help's "What's new" (D4's other half) belongs to W14-C (controller ruling).
+3. A registered tour whose anchors are not on Home closes at once when opened from the
+   list; W14-0 is fixing it (controller ruling).
+4. ~~A step could untick~~ -- fixed in round 2: the done-set is recorded (section 3).
+5. **Pre-existing, not this lane's:** `notebook_tours` has no `_PREFERENCE_KEYS` row, so
+   `test_every_key_the_client_writes_is_still_accepted` is red at the base.
+6. If W14-A moves the mount line, it must stay somewhere that renders once notes exist
+   (noted for W14-A).
+7. **Not done here:** the click-budget flow and the real-browser walk belong to W14-Q.
 
 ## 7. Verification -- cited exactly
 
@@ -191,3 +188,46 @@ question 5); with this lane's row it no longer lists `notebook_getting_started`.
    list" red.
 
 `python tools/check_repo_hygiene.py`: clean (no line-ending flip against the stored blobs).
+
+## 8. Round 2 (controller rulings): its own dark flag, and a step never unticks
+
+**The flag.** `NOTEBOOK_GETTING_STARTED_ENABLED` mirrors every client-only Notebook gate
+(the trade-canvas row is the precedent): a `NOTEBOOK_FLAGS` row in `api/routers/auth.py`
+(default `False`), so it rides `_access_payload` as `notebook_getting_started_enabled`,
+read per request; `FLAG_FALLBACKS` in `notebookFlags.js` (`false`, latched per tab); the
+payload-key list in `tests/test_notebook_flags.py`; a dark reason in
+`tools/notebook_switch_rehearsal.py`; a `dark` entry in `docs/feature_flags.json`; and a
+row in `BETA-HANDOFF.md` section 1c. No route, so no server gate function and no census
+row. `checklistEnabled(flag)` (`gettingStartedPref.js`) is the one predicate the gate
+and the list both ask: onboarding AND its own flag, each exactly `true`.
+
+Rails, both states: the list and the eager gate render nothing (and the gate downloads
+nothing) with the checklist flag off and onboarding on, and with onboarding off and the
+checklist flag on; Research Home shows it only with both on.
+
+**Never untick.** See section 3. The rail that fails on the old behaviour: "a recorded
+step stays ticked after its evidence leaves the home read" (a sample present, the
+member's own notes no longer on the home read, `done: ['note','template']` recorded:
+3 of 4 done, neither action offered), plus the pure version in `gettingStarted.test.js`.
+
+Mutations, each seen red and restored by sha: dropping the recorded-done override in
+`deriveChecklistItems` -> 2 red (both never-untick rails); `checklistEnabled` reading
+onboarding only -> 4 red (the pure predicate, the list, the gate, Research Home).
+
+Round-2 runs, totals copied:
+
+- `npx vitest run src/pages/journal-2-0 src/pages/Support`: `Test Files  7 failed | 606
+  passed (613)`, `Tests  10 failed | 7673 passed | 1 skipped (7684)`. All ten are the
+  pre-existing set (focusFlows, notebookContrast x2, seedParity x3, iteratorGlobalFloor,
+  notebookSchema.rail, platform, doorEnumeration -- the last also red in the base run).
+- Lane-scoped: `Test Files  30 passed (30)`, `Tests  296 passed (296)`.
+- `python -m pytest tests/test_preference_key_validation.py tests/test_notebook_flags.py
+  tests/test_notebook_flag_parse.py -q`: `2 failed, 246 passed`. Both pre-existing:
+  `notebook_tours` (above) and `test_NO_notebook_flag_is_read_outside_the_one_parse`,
+  which names `tools/notebook_w14_0_walk.py:195` (W14-0's walk tool).
+- `python -m pytest tests/test_feature_flag_ledger.py tests/test_flag_ledger_knobs.py
+  tests/test_notebook_flag_table_form.py tests/test_notebook_switch_rehearsal.py
+  tests/test_visibility_flag_ledger.py tests/test_vite_flag_ledger.py -q`: `2 failed, 419
+  passed`. Both pre-existing: `test_every_notebook_capability_is_visible_to_the_index`
+  for `NOTEBOOK_ASK_INSERT_ON` and `NOTEBOOK_ONBOARDING_ENABLED`, which name
+  `tools/notebook_w13q_clicks.py` and `tools/notebook_w14_0_walk.py` respectively.

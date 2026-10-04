@@ -21,7 +21,7 @@ const EMPTY_HOME = { continueWorking: [], favorites: [], activeTheses: [], openP
 describe('lane W14-D surface (the get started checklist)', () => {
   beforeEach(() => {
     __resetNotebookFlags()
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
   })
   afterEach(() => __resetNotebookFlags())
 

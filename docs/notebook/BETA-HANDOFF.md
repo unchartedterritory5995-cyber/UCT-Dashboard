@@ -98,6 +98,12 @@ other features goes last.
     context (step 3), and the resurfaced-notes list (step 12), so everything it draws from should
     already be live.
 
+## 1c. Wave 14 switches (built, still dark)
+
+| switch | what members get | what has to be true first |
+|---|---|---|
+| `NOTEBOOK_GETTING_STARTED_ENABLED=1` | A short "Get started" list on Research Home: write your first note, start one from a template, open the sample notebook, and take each tour whose feature is on. A step ticks itself when the member actually does the thing (never by clicking the list) and stays ticked. The member can hide it, and once hidden or finished it never comes back. `docs/notebook/wave14-w14-d.md` | `NOTEBOOK_ONBOARDING_ENABLED` must also be on (it is armed on web); the list shows only when both are. |
+
 ## 2. What only real people, devices or vendors can close
 
 | clause | what closes it | kit |

@@ -2,7 +2,8 @@
 // Home imports statically. It decides whether the list's chunk is fetched at all, and
 // what happens if that fetch fails -- the same split NotebookTourGate.jsx makes for the
 // tour (wave 8 ruling D-C7), for the same two reasons:
-//   * WHEN -- only for a member the list is for: `notebook_onboarding_enabled` on, the
+//   * WHEN -- only for a member the list is for: BOTH `notebook_onboarding_enabled` and
+//     the list's own dark gate `notebook_getting_started_enabled` on, the
 //     preferences loaded (a dismissed list must never flash, and must never be fetched),
 //     and the one key (`notebook_getting_started`, gettingStartedPref.js) not closed.
 //     The list itself (`GettingStartedList.jsx`) and its rules never join the
@@ -18,7 +19,7 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { reportError } from '../../../../lib/errorBeacon'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../lib/lazyChunk'
-import { CHECKLIST_PREF, checklistClosed } from './onboarding/gettingStartedPref'
+import { CHECKLIST_PREF, checklistClosed, checklistEnabled } from './onboarding/gettingStartedPref'
 
 class ChecklistCatch extends Component {
   constructor(props) {
@@ -46,7 +47,7 @@ export function makeChecklistGate(load, waitMs = RETRY_WAIT_MS) {
   const GettingStartedListLeaf = lazyLeaf(load, waitMs)
 
   function GettingStartedChecklist(props) {
-    const enabled = notebookFlag('notebook_onboarding_enabled') === true
+    const enabled = checklistEnabled(notebookFlag)
     const { prefs, loading } = usePreferences()
     if (!enabled || loading || checklistClosed(prefs?.[CHECKLIST_PREF])) return null
     return (

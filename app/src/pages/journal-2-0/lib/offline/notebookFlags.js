@@ -66,6 +66,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_find_similar_enabled: false, // wave 13 lane 13J: find more like this — absent ⇒ OFF
   notebook_playbook_enabled: false, // wave 13 lane 13B: My Playbook — absent ⇒ OFF
   notebook_review_drafts_enabled: false, // wave 13 lane 13F: reviews that write themselves — absent ⇒ OFF
+  notebook_getting_started_enabled: false, // wave 14 lane W14-D: the get started checklist — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

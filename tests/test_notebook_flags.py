@@ -67,6 +67,8 @@ NOTEBOOK_KEYS = [
     "notebook_playbook_enabled",
     # Wave 13 lane 13F: reviews that write themselves, with the leak finder — an enablement gate.
     "notebook_review_drafts_enabled",
+    # Wave 14 lane W14-D: the get started checklist on Research Home — an enablement gate.
+    "notebook_getting_started_enabled",
 ]
 
 
