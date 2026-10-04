@@ -2079,64 +2079,9 @@
       "script": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
       "state": "on",
       "signature": {
-        "verdict": "INCONCLUSIVE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "OR Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-          ],
-          [
-            "OR Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "IB Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-          ],
-          [
-            "IB Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
           [
             "Opening price",
             "MATCH",
@@ -2149,6 +2094,61 @@
           ],
           [
             "IB High",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1790
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1795
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1795
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1795
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1790
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1790
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1790
+          ],
+          [
+            "OR Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "OR Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "IB Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "IB Low",
             "MATCH",
             1800
           ]

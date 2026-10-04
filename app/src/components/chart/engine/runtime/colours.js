@@ -345,7 +345,9 @@ export const COLOUR_FNS = Object.freeze({
       const c = fromGradient(a[0], a[1], a[2], a[3], a[4])
       if (c !== null) return c
       const u = budget && budget.unmeasured
-      if (!u) {
+      // ⭐ F8 — a caller probing only some unmeasured values (the runtime pane:
+      // `array.sum` / `array.avg`) keeps this stop.
+      if (!u || (Array.isArray(u.only) && !u.only.includes('color.from_gradient'))) {
         throw new ColourError('`color.from_gradient` with an `na` value or an empty range — '
           + 'unmeasured, and a colour is never invented')
       }

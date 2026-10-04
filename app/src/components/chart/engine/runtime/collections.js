@@ -227,7 +227,42 @@ const realNumbers = (arr, what) => {
  *  question (skip it, or poison the result?) and is never probed here. */
 const probedEmpty = (arr, what, budget) => {
   const u = budget && budget.unmeasured
-  if (arr.length || !u) return null
+  if (arr.length || !u || !probeAllows(u, what)) return null
+  u.hits.push(what)
+  return { value: u.probe }
+}
+
+/** ⭐ F8 — a caller may PROBE ONLY SOME unmeasured values (`budget.unmeasured.only`,
+ *  a list of names): the runtime pane probes `array.sum` / `array.avg` over zero
+ *  real elements and nothing else — every other unmeasured value keeps its stop.
+ *  No list = every unmeasured value (the object lane, C18, unchanged). */
+export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.includes(what)
+
+/** ⚠️⚠️ INTERIM — SUPERSEDED BY LANE H7. CAP4 `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`
+ *  measures TradingView's answer for sum / avg / max / min of an empty or all-`na` array:
+ *  `na`, with no runtime error. H7 implements that direct answer and REMOVES this probe
+ *  (and `INTERIM_PANE_PROBED` in runtimeColumns.js); the F8 rail "a column that depends on
+ *  the sum stops" (vendorHarness.f8Ungraded) is the one that changes then.
+ *
+ *  ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS, under a
+ *  caller's probe. RT7 measured that a reduction SKIPS its `na` elements, so an
+ *  all-`na` array and an empty one leave the same thing to reduce: nothing. What
+ *  Pine then answers (0 or `na`) is still unmeasured — but that it does NOT STOP
+ *  the script is witnessed: `delta-rsi-oscillator-strategy` (v4) calls
+ *  `array.sum(_x)` on its bar 0 with all 21 elements `na` (`_Y_raw` filled from
+ *  `rsi(close, 21)[k]`), unconditionally, on every bar, and TradingView draws its
+ *  four markers (`delta-rsi-oscillator-strategy-{rddt,spy}-1d-2026-10-02`; a reached
+ *  stop leaves a study holding nothing, C43); k-clustering witnesses `array.avg`
+ *  of an EMPTY array (C18). So under a probe the value is the PROBE and the hit
+ *  is recorded; the caller serves only what does not move between two probes.
+ *  ⛔ Without a probe, `realNumbers`' stop stands word for word. A non-numeric
+ *  element is not reduced: no probe, the stop by name. */
+const interimProbedZeroReals = (arr, what, budget) => {
+  const u = budget && budget.unmeasured
+  if (!u || !probeAllows(u, what)) return null
+  for (const v of arr) {
+    if (typeof v !== 'number' || !Number.isNaN(v)) return null
+  }
   u.hits.push(what)
   return { value: u.probe }
 }
@@ -360,7 +395,7 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.sum', budget)
+      const p = interimProbedZeroReals(a[0], 'array.sum', budget)
       if (p) return p.value
       return realNumbers(a[0], 'array.sum').reduce((s, v) => s + v, 0)
     },
@@ -369,7 +404,7 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.avg', budget)
+      const p = interimProbedZeroReals(a[0], 'array.avg', budget)
       if (p) return p.value
       const xs = realNumbers(a[0], 'array.avg')
       return xs.reduce((s, v) => s + v, 0) / xs.length
