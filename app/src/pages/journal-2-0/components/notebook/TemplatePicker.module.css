@@ -45,6 +45,12 @@
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
+/* 13Q-5: the search box's virtual "Enter picks this" target. Same ring as
+   real keyboard focus -- a sighted member reads them as the same thing. */
+.card[data-active='true'] {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
 .cardWhen {
   font-size: 10px;
   letter-spacing: 0.08em;

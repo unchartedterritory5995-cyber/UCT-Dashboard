@@ -573,6 +573,60 @@ def use_skip_link(m: Meter, label_regex: str, log_label: str | None = None) -> b
     return True
 
 
+def use_template_search(m: Meter, dlg, card_label: str, card_key: str) -> bool:
+    """13Q-5: the Templates dialog's own search box autofocuses on open
+    (TemplatePicker.jsx's `autoFocusSearch`); typing the card's own label narrows to it
+    (or to it alone, if the label is unique in the catalog -- it is, by construction) and
+    Enter there picks whichever card the box's own active-index highlights, reusing the
+    card's EXISTING onClick (TemplatePicker.jsx's onSearchKeyDown -- never a second onPick
+    path). Measured cost: 23 real Tab presses to tab-hunt one named card down to roughly a
+    chord-free single Enter (docs/notebook/evidence/wave13-13q3/run-remeasure-final/, Q2).
+    Keys mode only. Returns whether the search-driven pick landed; a caller falls back to
+    the real Tab walk if not -- the SAME compensate-or-fall-through shape
+    `focus_editor_body` already uses, so a genuine regression here still measures honestly
+    rather than being silently skipped."""
+    if m.mode != "keys":
+        return False
+    search = dlg.get_by_label("Search templates").filter(visible=True)
+    if search.count() == 0:
+        return False
+    if not is_focused(m.pg, search):
+        # Instrument-only compensation, never counted -- the same category as
+        # `bring_to_front()`/`focus_editor_body`'s own `.focus()` retry: there is no DOM
+        # API a page can call to become the OS's foreground tab, and a real member's
+        # browser tab already IS the foreground tab, so `autoFocus` lands there for them
+        # exactly as it does here once this resolves it.
+        search.first.focus()
+        if not is_focused(m.pg, search):
+            return False
+    m.type(card_label, "search templates")
+    active = dlg.locator(f"[data-template-key='{card_key}'][data-active='true']")
+    try:
+        active.first.wait_for(state="visible", timeout=3000)
+    except Exception:  # noqa: BLE001 -- the search did not converge on this card; fall through
+        return False
+    m.key("Enter", f"pick the highlighted match ({card_label})")
+    return True
+
+
+def use_bulk_shortcut(m: Meter) -> bool:
+    """13Q-5: Ctrl+Alt+B (documented on the bar's own visible "N selected" hint,
+    BulkActionBar.jsx) jumps focus straight into the bulk-action bar once a selection
+    exists, instead of the real Tab-walk past however many notes remain in the view.
+    Measured cost this replaces: 167-179 real Tab presses to reach "Tags"/"Move to
+    select" from a just-ticked row (docs/notebook/evidence/wave13-13q3/
+    run-remeasure-final/, Q11). Keys mode only; a caller still finishes the reach with
+    its own `m.press`/`tab_to_locator` on the exact control it wants, so a target the
+    shortcut's default stop does not land on is still measured honestly, never assumed."""
+    if m.mode != "keys":
+        return False
+    bar = m.pg.locator("[data-bulk-bar]")
+    if bar.count() == 0:
+        return False
+    m.key("Control+Alt+b", "jump to the bulk-action bar (Ctrl+Alt+B)")
+    return True
+
+
 def go_all_notes(m: Meter):
     """From anywhere in the Notebook to the notes list (where + New note / Today / Templates live).
     "All notes" lives in the folder sidebar, which renders BEFORE the Notebook's own main-pane
@@ -676,7 +730,10 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     if card.count() == 0:
         card = dlg.locator("[data-template-key]").nth(1)
     key = card.first.get_attribute("data-template-key")
-    m.press(card, f"template card {key}")
+    label = card.first.get_attribute("aria-label") or key
+    # 13Q-5: the dialog's own search box, not a Tab-hunt through every card.
+    if not use_template_search(m, dlg, label, key):
+        m.press(card, f"template card {key}")
     nid = wait_note_open(pg)
     tick = pg.locator("input[aria-label='Ticker']").filter(visible=True)
     if tick.count() == 0:
@@ -999,6 +1056,10 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
             m.pointer(box, f"tick note {i}")
     bar = pg.locator("[data-bulk-bar]")
     bar.wait_for(state="visible", timeout=10000)
+    # 13Q-5: Ctrl+Alt+B jumps into the bar; `m.press` still finishes the reach onto the
+    # NAMED control (0 further Tabs if the shortcut's own default stop is already it,
+    # a measured few otherwise -- never assumed).
+    use_bulk_shortcut(m)
     m.press(bar.get_by_role("button", name="Tags", exact=True), "Tags")
     field = pg.get_by_label("Tag to add to the selected notes").filter(visible=True)
     focus_field(m, field, "tag field")
@@ -1012,6 +1073,9 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
     if sel.count() == 0:
         raise Inconclusive("tagging landed but the bar shows no 'Move to' folder select afterwards")
     if m.mode == "keys":
+        # the tag form's submit moved focus away from the bar -- the shortcut again,
+        # rather than a second full Tab-walk back to it.
+        use_bulk_shortcut(m)
         m.tab_to_locator(sel.first, "Move to select")
         sel.first.select_option(folder["id"])
         m.keys += 1

@@ -37,6 +37,38 @@
 // TemplateGallery.jsx (members' shared templates, reviewed by UCT); its Back button
 // returns here with focus on the door. "Make a note from it" there calls the same
 // `onPickMember` this picker hands MemberTemplates. Gate off: no door, nothing changes.
+//
+// Wave 13 lane 13Q-5 (click-budget: Q2, "new note from a template"). Measured
+// (docs/notebook/evidence/wave13-13q3/run-remeasure-final/): once a member has
+// reached this dialog, finding one named card by Tab alone costs 23+ presses --
+// the dialog's OWN card order, not shared chrome. Two additions, neither of
+// which touches the card's own click/Enter/Space contract (so every byte of
+// the header above this one stays true):
+//   * `autoFocusSearch` (opt-in -- the Sheet caller passes it; the inline
+//     empty-notebook mount does not, so landing there never steals focus on
+//     page load) lands real DOM focus on the search box the instant the
+//     dialog opens, via the SAME `autoFocus` convention `Sheet.jsx` already
+//     special-cases for a dozen other dialogs (Sheet.autoFocus.test.jsx) --
+//     no new focus-timing code, no re-fighting the Q1 background-page finding.
+//   * a virtual "active card" the search box itself drives: typing narrows
+//     `visibleFamilies`/`MemberTemplates` as before (unchanged), the active
+//     index snaps to the first REAL match (never the always-present Blank/
+//     Playbook anchors -- marked `data-template-anchor`, the one new attribute
+//     this lane adds) whenever the query or category changes, Arrow/Home/End
+//     from the search box move it the same distance `onGalleryKeyDown` already
+//     moves real DOM focus from a card, and Enter there clicks the active
+//     card -- reusing its EXISTING onClick, never a second onPick call site.
+//     Real DOM focus never leaves the input, so this is additive: a member who
+//     never types still has the full Tab-everywhere path below unchanged, and
+//     `data-template-card`'s `tabindex` is never touched (the pinned "no
+//     roving tabindex hides one" rail in TemplatePicker.gallery.test.jsx stays
+//     green because nothing here sets `tabIndex` on a card).
+//   * KNOWN LIMITATION, stated rather than hidden: the active-card highlight
+//     (`data-active`) is recomputed in a parent-level effect, so it can lag by
+//     one tick behind a member template arriving from MemberTemplates' own
+//     async fetch (a child component's state, invisible to this effect's deps).
+//     The keyboard FUNCTION never lags -- Enter reads the live DOM at the
+//     moment it fires -- only the visual ring can be briefly stale.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FAMILIES, templatesByFamily, templatePreview } from '../../lib/notebookTemplates'
@@ -78,13 +110,23 @@ function onGalleryKeyDown(e) {
 // Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
 // their notes) right after Blank — the templates a member made are the ones
 // they reach for first. Absent, the picker is exactly the built-in catalog.
-export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
+export default function TemplatePicker({ onPick, onPickMember, busy = false, autoFocusSearch = false }) {
   const navigate = useNavigate()
   // A picker can be on screen twice (the empty notebook and the New-note sheet),
   // so the label ids are per instance.
   const uid = useId()
+  const wrapRef = useRef(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState(ALL)
+  // The search-box-driven virtual focus (13Q-5): which `data-template-card`
+  // Enter would pick right now. Painted via `data-active`, never via real
+  // DOM focus -- the input keeps it.
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  const visibleCards = () => (wrapRef.current
+    ? [...wrapRef.current.querySelectorAll(CARD)].filter((c) => !c.disabled)
+    : [])
   // The previewed template: { label, subtitle, body, onUse } | null. A built-in
   // preview is synchronous (the catalog already holds the body); a member
   // preview fetches the full record first (see MemberTemplates.jsx) and is
@@ -114,6 +156,61 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
   const showMemberSection = Boolean(onPickMember) && (category === ALL || category === MEMBER)
   const noBuiltInMatches = visibleFamilies.length === 0 && category !== MEMBER
 
+  // 13Q-5: a query or a category change re-aims the search box's "Enter picks
+  // this" target. Never at Blank/Playbook (`data-template-anchor`, always
+  // visible, never filtered) -- a member who just typed "thesis" and pressed
+  // Enter must get the thesis card, not the blank page it would read as index 0.
+  // ⛔ A query that matches NO real template sets `activeIdx` to -1 (nothing),
+  // never falling back to Blank -- Enter on "zzzznosuchtemplate" must do
+  // nothing, not silently create a blank note (the same status message
+  // `noBuiltInMatches` already shows explains why there is nothing to pick).
+  useEffect(() => {
+    const list = visibleCards()
+    if (!q) { setActiveIdx(list.length ? 0 : -1); return }
+    setActiveIdx(list.findIndex((el) => !el.hasAttribute('data-template-anchor')))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, category])
+
+  // Paints the ring on whichever card Enter would pick, only while the search
+  // box itself holds real focus (a card that already has real focus paints its
+  // own :focus-visible ring -- this is for the one moment nothing does).
+  useEffect(() => {
+    const list = visibleCards()
+    list.forEach((el, i) => {
+      if (searchFocused && i === activeIdx) el.setAttribute('data-active', 'true')
+      else el.removeAttribute('data-active')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx, searchFocused, q, category])
+
+  function onSearchKeyDown(e) {
+    if (e.key in MOVES) {
+      const list = visibleCards()
+      if (!list.length) return
+      e.preventDefault()
+      setActiveIdx((i) => Math.min(list.length - 1, Math.max(0, i + MOVES[e.key])))
+    } else if (e.key === 'Home') {
+      if (!visibleCards().length) return
+      e.preventDefault()
+      setActiveIdx(0)
+    } else if (e.key === 'End') {
+      const list = visibleCards()
+      if (!list.length) return
+      e.preventDefault()
+      setActiveIdx(list.length - 1)
+    } else if (e.key === 'Enter') {
+      const list = visibleCards()
+      // activeIdx is -1 when the query matches no real template -- nothing to
+      // click, and the member's own query decided that, not an index clamp.
+      if (!list.length || activeIdx < 0 || activeIdx >= list.length) return
+      e.preventDefault()
+      // Reuses the card's OWN onClick -- never a second onPick call site, so
+      // "every card hands onPick the catalog's own template object" (the
+      // gallery rail) covers this path too, for free.
+      list[activeIdx]?.click()
+    }
+  }
+
   const openBuiltInPreview = (tpl) => setPreview({
     label: tpl.label,
     subtitle: tpl.when,
@@ -137,7 +234,7 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
 
   return (
     // The keys are handled for the card buttons inside (see onGalleryKeyDown).
-    <div className={styles.wrap} onKeyDown={onGalleryKeyDown} data-template-gallery="">
+    <div className={styles.wrap} ref={wrapRef} onKeyDown={onGalleryKeyDown} data-template-gallery="">
       <div className={styles.toolbar}>
         <div className={styles.searchField}>
           <UIcon name="search" size={14} gold={false} className={styles.searchIcon} />
@@ -146,8 +243,12 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
             className={styles.searchInput}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search templates…"
             aria-label="Search templates"
+            autoFocus={autoFocusSearch}
           />
           {query && (
             <button
@@ -211,6 +312,7 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
         onClick={() => onPick(null)}
         disabled={busy}
         data-template-card=""
+        data-template-anchor=""
       >
         <span className={styles.cardLabel}>Blank note</span>
         <span className={styles.cardDesc}>An empty page — structure it your way.</span>
@@ -294,6 +396,7 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
         onClick={() => navigate('/model-book?view=builder')}
         disabled={busy}
         data-template-card=""
+        data-template-anchor=""
       >
         <span className={styles.cardLabel}>Documenting a setup?</span>
         <span className={styles.cardDesc}>
