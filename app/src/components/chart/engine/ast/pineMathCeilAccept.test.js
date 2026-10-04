@@ -95,7 +95,14 @@ plot(math.ceil(close))
     // and the script meets its next wall, `time(<timeframe>)` at line 84 — a
     // pine:function refusal that is NOT about `math.ceil`, which is this case's claim.
     expect(t.refusal.message).not.toMatch(/syminfo\.mintick/)
-    expect(t.refusal.message).toMatch(/time\(<timeframe>\)/)
+    // ⚰️ …AND MOVED AGAIN 2026-10-04 (G16, the wave-16 gate). Line 84's anchor is
+    // `newday(res) => time(res)` called as `newday('D')`: H5 (0df971ee42) reads a
+    // request timeframe that is a FUNCTION PARAMETER on the plot lane too, so it is
+    // `time("D")`, which translates. The script walks on to line 140, the session
+    // clock `time(timeframe.period, '0000-0000:7')`, whose window wraps past midnight
+    // and is refused by name. Still pine:function, still not about `math.ceil`.
+    expect(t.refusal.message).toMatch(/time\(<timeframe>, <session>\)/)
+    expect(t.refusal.message).toMatch(/wraps past midnight/)
   })
 
   // ⛔⛔ THE OTHER SIX REAL SCRIPTS NAMING `math.ceil`, MEASURED HONESTLY:

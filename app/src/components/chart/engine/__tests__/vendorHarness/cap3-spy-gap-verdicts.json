@@ -59,7 +59,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       },
       "library": false
     },
@@ -278,7 +278,7 @@
             ]
           ]
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       },
       "library": false
     },
@@ -310,7 +310,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       },
       "library": false
     },
@@ -473,7 +473,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       },
       "library": false
     },
@@ -754,7 +754,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -841,7 +841,7 @@
             ]
           ]
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -916,7 +916,7 @@
       "script": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -959,7 +959,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {

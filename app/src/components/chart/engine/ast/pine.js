@@ -4105,13 +4105,28 @@ export function forgetsItsSeed(node, table, warmup) {
    *  (conjunctively) is not; one guarded by `not na(self)` is the only one that
    *  is. Anything this does not recognise answers yes — it narrows exactly the
    *  latch-once shape and leaves every other verdict to `ok`. */
-  const isNaSelf = (t) => !!t && t.type === 'call' && t.name === 'na'
-    && Array.isArray(t.args) && t.args.length === 1 && isSelf(t.args[0])
-  const impliesUnset = (t) => {
+  // ⭐ G16 (2026-10-04) — F2 (362278f50b) reads a v4/v5 `and`/`or`/`not` operand
+  // AS A CONDITION, so `na(first) and …` now arrives here as `na(self) != 0 && …`.
+  // `x != 0` IS `x` as a condition (`interpret.js::pineBool`), so it is unwrapped
+  // before the shape is asked; without this the latch-once guard stopped seeing
+  // `na(self)` and the window drew `bar_index - 250` (measured: 382 on the RDDT
+  // capture's last bar where the runtime lane draws 0).
+  const asCondition = (t) => (t && t.type === 'op' && t.name === '!='
+    && Array.isArray(t.args) && t.args.length === 2
+    && t.args[1] && t.args[1].type === 'num' && t.args[1].value === 0
+    ? asCondition(t.args[0]) : t)
+  const isNaSelf = (t0) => {
+    const t = asCondition(t0)
+    return !!t && t.type === 'call' && t.name === 'na'
+      && Array.isArray(t.args) && t.args.length === 1 && isSelf(t.args[0])
+  }
+  const impliesUnset = (t0) => {
+    const t = asCondition(t0)
     if (isNaSelf(t)) return true
     return !!t && t.type === 'op' && t.name === '&&' && (t.args || []).some(impliesUnset)
   }
-  const impliesSet = (t) => {
+  const impliesSet = (t0) => {
+    const t = asCondition(t0)
     if (t && t.type === 'op' && t.name === '!' && (t.args || []).length === 1 && isNaSelf(t.args[0])) {
       return true
     }

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
-import { latchRuntimePanePermission } from '../components/chart/engine/runtimePaneGate'
+import { latchRuntimePanePermission } from '../lib/runtimePanePermission'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 
