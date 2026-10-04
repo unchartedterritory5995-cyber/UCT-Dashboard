@@ -34,22 +34,60 @@
 // runtime does not go through here); the anchor rail calls every entry's `load()`,
 // so this entry's answers with the SAME `tourSteps.js` / `tourCopy.js` modules the
 // real tour reads -- not a copy, the same exports, so the two can never drift.
+//
+// Every entry beyond the base one arrives through the per-TRACK seam,
+// `tours/index.js` (`TRACK_TOURS`), one file per W14-B track, so parallel
+// authoring slices never edit the same lines. That file carries the authoring
+// contract for one tour. `assembleRegistry` below is the one place the pieces
+// are joined, and it refuses a malformed entry or a duplicate id BY NAME.
 import { TOUR_START_STATE } from './tourControl'
+import { TRACK_TOURS } from './tours'
 
 export const BASE_TOUR_ID = 'notebook-basics'
 
-const entry = (e) => Object.freeze(e)
+/** The exact field set every entry carries (tours/index.js, authoring contract). */
+export const ENTRY_FIELDS = Object.freeze(['flag', 'id', 'load', 'replayable', 'title'])
 
-export const TOUR_REGISTRY = Object.freeze([
-  entry({
-    id: BASE_TOUR_ID,
-    flag: 'notebook_onboarding_enabled',
-    title: 'Notebook basics',
-    replayable: true,
-    load: () => Promise.all([import('./tourSteps'), import('./tourCopy')])
-      .then(([stepsMod, copyMod]) => ({ steps: stepsMod.TOUR_STEPS, copy: copyMod.TOUR_STEP_COPY })),
-  }),
-])
+const BASE_ENTRY = Object.freeze({
+  id: BASE_TOUR_ID,
+  flag: 'notebook_onboarding_enabled',
+  title: 'Notebook basics',
+  replayable: true,
+  load: () => Promise.all([import('./tourSteps'), import('./tourCopy')])
+    .then(([stepsMod, copyMod]) => ({ steps: stepsMod.TOUR_STEPS, copy: copyMod.TOUR_STEP_COPY })),
+})
+
+/** Join the base entry and every track's entries into one frozen registry, in
+ *  order. Throws, naming the offender, on an entry missing or adding a field, a
+ *  field of the wrong type, or an id that appears twice -- two tracks claiming
+ *  one id would share one member's seen-state row and one Replay link, and the
+ *  second tour would be unreachable. Exported so a rail can hand in its own
+ *  track lists without adding an example tour to the product. */
+export function assembleRegistry(...lists) {
+  const out = []
+  const seen = new Map()
+  lists.forEach((list, li) => {
+    ;(list || []).forEach((e, ei) => {
+      const where = li === 0 ? `base entry ${ei}` : `track list ${li}, entry ${ei}`
+      const keys = e && typeof e === 'object' ? Object.keys(e).sort() : []
+      if (keys.join() !== ENTRY_FIELDS.join()) {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e?.id)}) must have exactly the fields ${ENTRY_FIELDS.join(', ')}; it has ${keys.join(', ') || 'none'}`)
+      }
+      if (typeof e.id !== 'string' || !e.id || typeof e.flag !== 'string' || !e.flag
+        || typeof e.title !== 'string' || typeof e.replayable !== 'boolean' || typeof e.load !== 'function') {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) has a field of the wrong type`)
+      }
+      if (seen.has(e.id)) {
+        throw new Error(`tour registry: duplicate tour id "${e.id}" (${seen.get(e.id)} and ${where})`)
+      }
+      seen.set(e.id, where)
+      out.push(Object.isFrozen(e) ? e : Object.freeze({ ...e }))
+    })
+  })
+  return Object.freeze(out)
+}
+
+export const TOUR_REGISTRY = assembleRegistry([BASE_ENTRY], TRACK_TOURS)
 
 /** One entry by id, from `registry` (defaults to the real `TOUR_REGISTRY`) -- a
  *  parameter so a test can hand in its own small registry without touching this
