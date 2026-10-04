@@ -186,7 +186,11 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // served on the chart pane for a witnessed exchange (symbolScope.json::
       // tick_size), so the host lane walks past line 73 to the next wall — the
       // `time(<timeframe>)` anchor at line 84. Still refuses, still not on `timenow`.
-      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /time\(<timeframe>\)/],
+      // ⚰️ …AND MOVED AGAIN 2026-10-04 (G16): H5 (0df971ee42) reads `time(res)` inside
+      // `newday(res)` as `time("D")`, which translates, so the next wall is line 140's
+      // session clock `time(timeframe.period, '0000-0000:7')` - a window that wraps past
+      // midnight, refused by name. Still refuses, still not on `timenow`.
+      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /time\(<timeframe>, <session>\)[\s\S]*wraps past midnight/],
       // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since
       // 2026-09-23: the merge reconciles `time` to Pine's milliseconds for any
       // script that declares a version, so this one no longer meets a units
