@@ -50,6 +50,15 @@ const PROBES = [
 ]
 const WITHHELD = /withheld on this chart on every bar, by name \(bar-index:window\)/
 const byVerdict = (v, want) => v.plots.filter((p) => p.verdict === want).map((p) => p.title)
+/** ⭐ F8 — a row this engine hides as a constant that TradingView draws grades NOT DRAWN
+ *  (a DIVERGE on the drawing, never on a value). "Nothing drawn WRONG" below means no
+ *  value or colour disagrees; every NOT DRAWN row must be a hidden constant. */
+const wrongDrawn = (v) => {
+  const nd = v.plots.filter((p) => p.verdict === 'DIVERGE' && p.stats && p.stats.steady
+    && p.stats.steady.first && p.stats.steady.first.kind === 'not-drawn')
+  for (const p of nd) expect(p.reason, p.title).toMatch(/NOT DRAWN.*hiddenReason "constant"/)
+  return byVerdict(v, 'DIVERGE').filter((t) => !nd.some((p) => p.title === t))
+}
 const plotOf = (v, title) => v.plots.find((p) => p.title === title)
 
 describe('C45 — the five probes AS CAPTURED (300 bars, 8,175 bars after the listing)', () => {
@@ -67,7 +76,7 @@ describe('C45 — the five probes AS CAPTURED (300 bars, 8,175 bars after the li
     for (const [id, control] of PROBES) {
       const { verdict, ours } = gradeCapture(parent(id))
       expect(ours.ok, `${id}: ${ours.refusal}`).toBe(true)
-      expect(byVerdict(verdict, 'DIVERGE'), id).toEqual([])
+      expect(wrongDrawn(verdict), id).toEqual([])
       expect(plotOf(verdict, control).verdict, id).toBe('INCONCLUSIVE')
       expect(plotOf(verdict, control).reason, id).toMatch(WITHHELD)
       expect(ours.notes.some((n) => /`bar_index` withheld \(bar-index:window\)/.test(n)), id).toBe(true)
@@ -128,7 +137,7 @@ describe('C45 — the same five on TradingView\'s whole history: the count is th
     const row = plotOf(verdict, control)
     expect(row.verdict, `${id}: ${row.reason}`).toBe('MATCH')
     expect(row.stats.matching, id).toBe(300)
-    expect(byVerdict(verdict, 'DIVERGE'), id).toEqual([])
+    expect(wrongDrawn(verdict), id).toEqual([])
     expect(verdict.plots.filter((p) => WITHHELD.test(p.reason || '')), id).toEqual([])
     expect(ours.notes.filter((n) => /bar-index:/.test(n)), id).toEqual([])
   }, 60000)
@@ -146,7 +155,7 @@ describe('C45 — the same five on TradingView\'s whole history: the count is th
       'G00_bar_index_CONTROL', 'G01_v', 'G02_g1_r', 'G03_g1_g', 'G04_g1_b', 'G05_g1_t', 'G06_w',
       'G07_g2_r_clamp', 'G08_g2_g_clamp', 'G09_g2_b_clamp', 'G10_g2_t_clamp', 'G11_g3_r_new30',
     ]))
-    expect(byVerdict(g, 'DIVERGE')).toEqual([])
+    expect(wrongDrawn(g)).toEqual([])
   }, 60000)
 
   it('CONTROL — the grade can fail: the vendor\'s count moved by one bar is a DIVERGE', () => {
