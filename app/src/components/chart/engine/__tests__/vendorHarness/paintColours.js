@@ -63,6 +63,35 @@ export function vendorPaints(capture) {
 
 const canon = (c) => (c === null || c === undefined ? NO_COLOUR : (normalizeColor(c) || c))
 
+// ─── ⭐ RC1 — THE WARM-UP A COLD REPLAY CANNOT GRADE ──────────────────────────
+//
+// A capture that does not start at the listing was computed by TradingView WARM
+// (history before its bar 0). `ourSide.warmBarsSupply` replays the window over the
+// same series' own proved history whenever a committed capture holds it; then
+// nothing is in warm-up and every bar is graded. Where no supplier is proved, the
+// replay is COLD, and its first bars are a warm-up region: reported SEPARATELY,
+// `warm-up, not graded`, never counted as agreeing.
+//
+// The region is the capture's declared `warmup.bars` when it states one, else
+// PAINT_WARMUP_FLOOR. ⭐ Why 200, measured (lane RC1, 2026-10-04, SPY 1D, six
+// scripts, cold vs N bars of real SPY prehistory): every paint graded clean from
+// N = 200 on; the slowest were ema-ribbon (EMA convergence + `var trendBars`:
+// still 1 bar off at N = 100 and 150, 0 from 200) and elliott-wave (`ema(close, 35)`
+// seed inside a 50-bar `ta.highest` equality: 0 from 100). A plot's `lookback`
+// would undercount here: EMA and `var` state have unbounded memory.
+// ⛔ The floor covers the measured scripts; a script with longer memory than these
+// can still differ after bar 200 on a cold replay. That is a reason to commit a
+// supplier capture, never a reason to raise this number until it is quiet.
+export const PAINT_WARMUP_FLOOR = 200
+
+/** Bars [0, W) of a capture's paint grade that are warm-up (not graded). */
+export function paintWarmupOf(capture, supply) {
+  const bar0 = !!(capture && capture.history && capture.history.startsAtBar0 === true)
+  if (bar0 || (supply && (supply.kind === 'warm' || supply.kind === 'bar0'))) return 0
+  const declared = capture && capture.warmup && capture.warmup.bars
+  return Number.isInteger(declared) && declared >= 0 ? declared : PAINT_WARMUP_FLOOR
+}
+
 /** One capture's paints, paired and graded. `ours` is `runOurSide(capture)`. */
 export function gradePaints(capture, ours) {
   const vendor = vendorPaints(capture)
@@ -72,6 +101,10 @@ export function gradePaints(capture, ours) {
     return { rows, unpaired, refused: (ours && ours.refusal) || 'our side did not run', vendorCount: vendor.length }
   }
   const tr = ours.translationPaints || []
+  // ⭐ RC1 — which bars the paints were replayed over, carried into the grade so a
+  // reader can tell a warm replay from a cold one, and the warm-up it implies.
+  const warmupBars = paintWarmupOf(capture, ours.paintSupply)
+  const supply = { ...(ours.paintSupply || { kind: 'cold', file: null, bars: 0, refused: [], reason: 'no supply recorded' }), warmupBars }
   for (const kind of ['bgcolor', 'barcolor']) {
     const vk = vendor.filter((v) => v.kind === kind)
     const ok = tr.filter((p) => p && p.kind === kind)
@@ -110,11 +143,18 @@ export function gradePaints(capture, ours) {
       let differ = 0
       let vendorPainted = 0
       let first = null
+      const warmup = { bars: Math.min(warmupBars, v.colors.length), compared: 0, differ: 0 }
       for (let j = 0; j < v.colors.length; j += 1) {
         const vc = v.colors[j]
         if (vc === undefined) continue
         const a = canon(vc)
         const b = canon(ourColours[j])
+        if (j < warmupBars) {
+          // warm-up, not graded: counted apart, never as agreeing
+          warmup.compared += 1
+          if (!coloursAgree(a, b)) warmup.differ += 1
+          continue
+        }
         compared += 1
         if (a !== NO_COLOUR) vendorPainted += 1
         if (!coloursAgree(a, b)) {
@@ -123,8 +163,8 @@ export function gradePaints(capture, ours) {
         }
       }
       const state = t.na ? (differ ? 'naDiffers' : 'naBoth') : (differ ? 'differ' : 'agree')
-      rows.push({ ...base, state, compared, differ, vendorPainted, first })
+      rows.push({ ...base, state, compared, differ, vendorPainted, first, ...(warmupBars ? { warmup } : {}) })
     })
   }
-  return { rows, unpaired, vendorCount: vendor.length }
+  return { rows, unpaired, vendorCount: vendor.length, supply }
 }
