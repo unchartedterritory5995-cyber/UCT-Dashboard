@@ -124,7 +124,12 @@ describe('⭐⭐ the tick table is DERIVED from vendor captures', () => {
 
   it('⭐⭐ the VENDOR\'s own M01 is minmov / pricescale on EVERY bar of every vw-mintick capture', () => {
     const minticks = CAPTURES.filter(({ capture }) => String(capture.id || '').startsWith('vw-mintick-'))
-    expect(minticks.length).toBe(10)
+    // ⚰️ RE-PINNED 2026-10-04 (G16, the wave-16 gate): WAS 10. CAP round 4
+    // (4ef702b60b, triage row 8) committed eight more vw-mintick captures on the
+    // unserved listing classes (ARKK, BAC-PL, DFLIW, GRRRW, IMO, QQQ, XLK, YHNAU,
+    // 2026-10-02). Every bar of all 18 still reads minmov / pricescale (below), so
+    // the count moved because the evidence grew, not because a reading changed.
+    expect(minticks.length).toBe(18)
     for (const { file, capture } of minticks) {
       const plot = capture.study.plots.find((p) => p.title === 'M01_mintick')
       expect(plot, file).toBeTruthy()
