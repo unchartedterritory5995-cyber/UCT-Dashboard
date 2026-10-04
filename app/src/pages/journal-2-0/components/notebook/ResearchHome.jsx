@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import lazyChunk from '../../lib/lazyChunk'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
@@ -32,6 +32,10 @@ import styles from './ResearchHome.module.css'
 // Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
 // first-open bytes do not carry it).
 const PassedSetups = lazyChunk(() => import('./PassedSetups'))
+// Wave 14 lane W14-A: the first-run welcome's capability preview. Only a member with no
+// notes ever sees it, so every other open does not pay for it (plan G7: onboarding must not
+// regrow the Notebook's first-open bytes).
+const CapabilityPreview = lazyChunk(() => import('./onboarding/CapabilityPreview'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -181,6 +185,9 @@ export default function ResearchHome({
   const [sampleMessage, setSampleMessage] = useState(null)
   const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
+  // Wave 14 lane W14-A: the capability preview's sample promotion describes the sample
+  // button (aria-describedby), so the button and the sentence about it stay one door.
+  const samplePromoId = useId()
   const wantStatus = onboarding && hasAnyNotes && !!sample && !sample.dismissedAt
   const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
     wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -294,6 +301,14 @@ export default function ResearchHome({
     </>
   )
 
+  // ── Wave 14 lane W14-D's mount point: the "get started" checklist (plan 4.4) ──────────
+  // ⛔ ONE line for W14-D to fill, rendered in the first-run screen AND in all three Home
+  // returns below (plan 4.1: visible on first run and from then on until dismissed). In the
+  // Home returns it is the FIFTH child of the same fragment, after the four boxes, so a home
+  // that flips between quiet and full never remounts it mid-task. ResearchHome.welcome.test
+  // .jsx holds this to exactly one assignment and four uses.
+  const gettingStartedSlot = null // W14-D: replace null with <GettingStartedChecklist ... />
+
   if (isLoading) {
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
     // own section-row layout (title, then a couple of rows) -- same idiom
@@ -309,6 +324,11 @@ export default function ResearchHome({
   }
 
   if (!hasAnyNotes) {
+    // Wave 14 lane W14-A (plan 4.1, default D1): today's buttons stay exactly as they are,
+    // first. Under them, a short text preview of what the Notebook can do (only the
+    // capabilities armed for this member) and the sample notebook's promotion. Both ride the
+    // onboarding flag, the same gate as the sample and tour doors they sit beside.
+    const canAddSample = onboarding && isPaid && !sample
     return (
       <div className={styles.firstRun}>
         <h2 className={styles.firstRunTitle}>Welcome to your Notebook</h2>
@@ -331,8 +351,9 @@ export default function ResearchHome({
               <UIcon name="sun" size={14} gold={false} /> Today
             </button>
           )}
-          {onboarding && isPaid && !sample && (
-            <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}>
+          {canAddSample && (
+            <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}
+              aria-describedby={samplePromoId}>
               <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
             </button>
           )}
@@ -343,6 +364,12 @@ export default function ResearchHome({
           )}
         </div>
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
+        {onboarding && (
+          <Suspense fallback={null}>
+            <CapabilityPreview canAddSample={canAddSample} promoId={samplePromoId} />
+          </Suspense>
+        )}
+        {gettingStartedSlot}
         {sampleNotice}
       </div>
     )
@@ -402,6 +429,7 @@ export default function ResearchHome({
         {prepBox}
         {passedBox}
         {reviewBox}
+        {gettingStartedSlot}
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
@@ -418,6 +446,7 @@ export default function ResearchHome({
         {prepBox}
         {passedBox}
         {reviewBox}
+        {gettingStartedSlot}
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
@@ -434,6 +463,7 @@ export default function ResearchHome({
     {prepBox}
     {passedBox}
     {reviewBox}
+    {gettingStartedSlot}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {todayBox}
