@@ -305,7 +305,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
           + `of ${rows.length}, so it is stopped and nothing is drawn rather than part of it.`)
       }
       // A collection / record / VM error words its own reason (`collections.js`:
-      // "array.max of an empty array — …"); it is kept, with the bar it stopped on.
+      // "array.sum of an empty array — …"); it is kept, with the bar it stopped on.
       const failed = refusal(RUNTIME_FAILED_GUARD, `this script stopped on bar ${finished + 1} of ${rows.length} `
         + `when drawn bar by bar (${String((err && err.message) || err).slice(0, 400)}), so nothing is drawn `
         + 'rather than part of it.')
