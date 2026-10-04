@@ -1953,12 +1953,85 @@ def switched_seed_of(n: Any) -> Any:
     return None
 
 
-def reads_switched_state(tree: Any) -> bool:
-    """Does this tree hold a switched recurrence anywhere? Iterative."""
-    stack = [tree]
+def held_seed_switched_of(opts: Optional[Mapping[str, Any]]) -> bool:
+    """``interpret.js::heldSeedSwitchedOf`` (F5) -- a Pine document off the listing,
+    on the chart's own bars: a hold-or-set state is read as switched."""
+    o = opts or {}
+    return (o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+            and o.get("heldSeedNested") is not True)
+
+
+def holds_until_set(node: Any) -> bool:
+    """``interpret.js::holdsUntilSet`` (F5) -- is this recurrence a HOLD-OR-SET
+    state: every arm of its body's ternaries a bare hold (``self``, ``nz(self[, k])``)
+    or free of the running value, at least one of each, and no ``self[k]`` anywhere?"""
+    if not (isinstance(node, dict) and node.get("type") == "call"
+            and node.get("name") in RECURRENCES and isinstance(node.get("args"), list)):
+        return False
+    rec = RECURRENCES[node["name"]]
+    args = node["args"]
+    seed_at, body_at = rec.get("seed"), rec.get("body")
+    if not (isinstance(seed_at, int) and isinstance(body_at, int) and body_at < len(args)):
+        return False
+    if seed_at < len(args) and switched_seed_of(args[seed_at]):
+        return False
+    bind = rec.get("binds")
+
+    def is_self(n: Any) -> bool:
+        return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == bind
+
+    def walk_any(n: Any, hit) -> bool:
+        stack = [n]
+        while stack:
+            x = stack.pop()
+            if not isinstance(x, dict):
+                continue
+            if hit(x):
+                return True
+            if x.get("type") == "call" and x.get("name") in RECURRENCES:
+                continue
+            a = x.get("args")
+            if isinstance(a, list):
+                stack.extend(a)
+        return False
+
+    def carries(n: Any) -> bool:
+        return walk_any(n, is_self)
+
+    def lagged(n: Any) -> bool:
+        return walk_any(n, lambda x: (x.get("type") == "offset" and isinstance(x.get("args"), list)
+                                      and len(x["args"]) > 0 and is_self(x["args"][0])))
+
+    held = [False]
+
+    def arm(n: Any) -> bool:
+        if not isinstance(n, dict) or not carries(n):
+            return True
+        if is_self(n):
+            held[0] = True
+            return True
+        a = n.get("args")
+        if (n.get("type") == "call" and n.get("name") == "nz" and isinstance(a, list) and a
+                and is_self(a[0]) and (len(a) == 1 or not carries(a[1]))):
+            held[0] = True
+            return True
+        # a test that reads the running value is not a hold-or-set (JS twin)
+        if n.get("type") == "op" and n.get("name") == _TERNARY_NAME and isinstance(a, list) and len(a) == 3:
+            return (not carries(a[0])) and arm(a[1]) and arm(a[2])
+        return False
+
+    body = args[body_at]
+    return (not lagged(body)) and arm(body) and held[0] and not is_self(body)
+
+
+def reads_switched_state(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> bool:
+    """Does this tree hold a switched recurrence anywhere -- or, off the listing
+    (``held_seed_switched_of``), a hold-or-set one on the chart's own bars? Iterative."""
+    held = held_seed_switched_of(opts)
+    stack = [(tree, False)]
     seen = set()
     while stack:
-        n = stack.pop()
+        n, under = stack.pop()
         if not isinstance(n, dict) or id(n) in seen:
             continue
         seen.add(id(n))
@@ -1969,8 +2042,11 @@ def reads_switched_state(tree: Any) -> bool:
             seed_at = rec.get("seed") if isinstance(rec, Mapping) else None
             if isinstance(seed_at, int) and seed_at < len(args) and switched_seed_of(args[seed_at]):
                 return True
+            if held and not under and holds_until_set(n):
+                return True
+        into = under or n.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
-            stack.extend(args)
+            stack.extend((a, into) for a in args)
     return False
 
 
@@ -4084,7 +4160,7 @@ def interpret(ast: Any, bars: List[dict],
             return [None] * len(bars)
     column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
-            and reads_switched_state(ast)):
+            and reads_switched_state(ast, opts)):
         real = list(column)
         # the proof: every bar within reach of an unknown switched bar is withheld
         dep = switched_dependency_mask(ast, bars, inputs, budget, scalars, opts)
@@ -4411,6 +4487,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "bar-index:early-bars",
     # F5 -- a recursive series seeded at the window (``ast_seed_warmup``)
     "seed:window",
+    # F5 -- a hold-or-set state whose window saw no set (``holds_until_set``)
+    "seed:held",
 )
 
 
@@ -4900,6 +4978,48 @@ def period_anchor_mask(tree: Any, bars: List[dict],
     return mask
 
 
+def path_reach(root: Any, a: Any) -> float:
+    """``interpret.js::pathReach`` (F5) -- the largest sum of lookbacks along a path
+    from the root DOWN TO ``a`` (a call's own window, an offset's bars), never the
+    whole tree's sum. A path through ``tf`` / ``sym`` / ``ltf`` answers infinity."""
+    r_of: Dict[int, float] = {}
+    neg = -math.inf
+    for node in _flatten(root):
+        if node is a:
+            r_of[id(node)] = 0
+            continue
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        kind = node.get("type")
+        best = neg
+        if kind in ("op", "textop"):
+            for x in args:
+                r = r_of.get(id(x), neg)
+                if r > best:
+                    best = r
+        elif kind == "offset":
+            r = r_of.get(id(args[0]), neg) if args else neg
+            if r > neg:
+                best = _offset_bars(node) + r
+        elif kind == "call":
+            spec = _fn_spec(node.get("name"))
+            b = neg
+            for i, x in enumerate(args):
+                if spec["args"][i] == "int":
+                    continue
+                r = r_of.get(id(x), neg)
+                if r > b:
+                    b = r
+            if b > neg:
+                best = _own_lookback(node, spec) + b
+        elif args:
+            for x in args:
+                if r_of.get(id(x), neg) > neg:
+                    best = math.inf
+        r_of[id(node)] = best
+    r = r_of.get(id(root), neg)
+    return 0 if r == neg else r
+
+
 def switched_dependency_mask(tree: Any, bars: List[dict],
                              inputs: Optional[Mapping[str, Any]] = None,
                              budget: Optional[Mapping[str, Any]] = None,
@@ -4917,6 +5037,8 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
     n = len(bars)
     nodes: List[dict] = []
     crosses = False
+    held = held_seed_switched_of(opts)
+    held_nodes = set()
     stack = [(tree, False)]
     seen = set()
     while stack:
@@ -4932,6 +5054,10 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
+            elif held and not under and holds_until_set(node):
+                # F5 -- a hold-or-set state off the listing (``holds_until_set``)
+                nodes.append(node)
+                held_nodes.add(id(node))
         into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
@@ -4945,7 +5071,8 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
     root_reach = max_lookback(tree)
     mask = [0] * n
     for a in nodes:
-        reach = max(0, root_reach - max_lookback(a))
+        # F5 -- a held node is reached along the paths that hold it (``path_reach``)
+        reach = path_reach(tree, a) if id(a) in held_nodes else max(0, root_reach - max_lookback(a))
         hi = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=PREFIX_PROBE))
         lo = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=-PREFIX_PROBE))
         last = -math.inf
@@ -5379,7 +5506,8 @@ def _interpret_column(ast: Any, bars: List[dict],
             child = _to_column(
                 interpret(n["args"][0], htf, inputs=inputs, budget=budget,
                           scalars=scalars, opts=dict(opts or {}, tf=code,
-                                                     seedValueSink=None, seedWarmupSink=None)),
+                                                     seedValueSink=None, seedWarmupSink=None,
+                                                     heldSeedNested=True)),
                 len(htf))
 
             # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
@@ -5439,7 +5567,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
                           scalars=scalars, opts=dict(opts or {}, seedValueSink=None,
-                                                     seedWarmupSink=None)),
+                                                     seedWarmupSink=None, heldSeedNested=True)),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -5771,13 +5899,26 @@ def _interpret_column(ast: Any, bars: List[dict],
         # ⭐ C12s -- a switched mark carries the real seed; the switched window
         # never reads it (it starts from an unknown state).
         switched_real = switched_seed_of(node["args"][rec["seed"]])
+        # F5 -- off the listing a hold-or-set state is switched (``held_seed_switched_of``)
+        held_switch = (switched_real is None and lag["max"] == 0
+                       and held_seed_switched_of(opts) and holds_until_set(node))
         seed = _to_column(eval_node(switched_real if switched_real is not None
                                     else node["args"][rec["seed"]]), length)
         probe = (opts or {}).get("prefixProbe")
         fill = (float(probe) if isinstance(probe, (int, float)) and not isinstance(probe, bool)
                 else math.nan)
 
-        if switched_real is not None:
+        # F5 -- a held state withheld where the bounded window would have drawn
+        # its seed is NAMED (``seed:held``), never blank silently
+        late_unknown = [False]
+
+        def held_named(col: List[float]) -> List[float]:
+            if held_switch and late_unknown[0] and not (
+                    isinstance(probe, (int, float)) and not isinstance(probe, bool)):
+                _name_chart_clock(opts, ("seed:held",))
+            return col
+
+        if switched_real is not None or held_switch:
             if lag["max"] > 0:
                 _refuse("interpret:recurrence",
                         f"— a switched {node['name']}(…) reads `{bind}[{lag['max']}]`; the "
@@ -5987,8 +6128,11 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if v is not None and latest_start[t] > latest_in_segment:
                         latest_in_segment = latest_start[t]
                     known = v
-                    col[t] = v if (v is not None and latest_in_segment >= t - warmup + 1) else fill
-                return col
+                    ok = v is not None and latest_in_segment >= t - warmup + 1
+                    col[t] = v if ok else fill
+                    if not ok and t >= warmup:
+                        late_unknown[0] = True
+                return held_named(col)
 
             col = _nan_col(length)
             state: Any = _UNKNOWN
@@ -6003,8 +6147,11 @@ def _interpret_column(ast: Any, bars: List[dict],
                 else:
                     v = step_unknown(body, j, state)
                 state = v
-                col[j] = v if (v is not _UNKNOWN and last_forget > j - warmup) else fill
-            return col
+                ok = v is not _UNKNOWN and last_forget > j - warmup
+                col[j] = v if ok else fill
+                if not ok and j >= warmup:
+                    late_unknown[0] = True
+            return held_named(col)
 
         out = _nan_col(length)
         # ⭐ C12s -- the probe the root agreement asks with fills the not-computable

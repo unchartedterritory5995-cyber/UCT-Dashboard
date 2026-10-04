@@ -273,7 +273,7 @@ class _Env:
                         else ai._resample_quarterly_iso if code == "3M"
                         else bars_fetch._resample_monthly_iso)
             htf = resample([dict(b, t=d) for b, d in zip(self.bars, iso) if d])
-            sub = _Env(child, htf, self.inputs, self.budget, self.scalars, dict(self.opts, tf=code))
+            sub = _Env(child, htf, self.inputs, self.budget, self.scalars, dict(self.opts, tf=code, heldSeedNested=True))
             live = kind == "tf_live"
 
             def align(i: int) -> Optional[int]:
@@ -288,7 +288,7 @@ class _Env:
             series = ((self.opts.get("symbols") or {}).get(ticker))
             if not series:
                 return None
-            sub = _Env(child, series, self.inputs, self.budget, self.scalars, dict(self.opts))
+            sub = _Env(child, series, self.inputs, self.budget, self.scalars, dict(self.opts, heldSeedNested=True))
             by_t: Dict[Any, int] = {}
             for j, b in enumerate(series):
                 key = b.get("t") if isinstance(b, dict) else None

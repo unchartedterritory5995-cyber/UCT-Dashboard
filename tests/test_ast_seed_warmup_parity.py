@@ -87,7 +87,15 @@ def test_the_fixture_is_not_vacuous():
     assert "seed:window" in weekly["codes"]
     assert next(i for i, v in enumerate(weekly["expected"]) if v is not None) > 300
     # the listing cases that read a `var` are the chart's alone, and nothing else is skipped
-    assert len(PARITY_CASES) == len(doc["cases"]) - 1
+    # (two: the ratchet and F5's held level, both `var`s from the listing)
+    assert len(PARITY_CASES) == len(doc["cases"]) - 2
+    # F5 -- a hold-or-set state off the listing is withheld where its window saw no
+    # set, and named; the bounded window (no Pine claim) draws its seed there
+    held = cases["held level · off the listing"]
+    assert "seed:held" in held["codes"]
+    assert all(v is None for v in held["expected"][580:])
+    bounded = cases["held level · the formula language's own document"]
+    assert all(v == 0 for v in bounded["expected"][580:])
     # ... never from the listing, and never in a document that claims no Pine number
     for k in ("ema 10", "rsi 14", "keltner upper", "a ratchet reading atr"):
         assert cases[f"{k} · from the listing"]["withheld"] == 0, k
@@ -107,3 +115,50 @@ def test_the_server_lanes_reach_it_through_the_declaration_they_already_carry():
     assert not sw.seed_from_window_of(dict(lane, historyFromListing=True))
     assert "seed:window" in ai.CHART_CLOCK_WITHHELD_CODES
     assert "seed:window" not in ai.CHART_CLOCK_WHOLE
+
+
+def _acc(body):
+    return {"type": "call", "name": "accum",
+            "args": [{"type": "num", "value": 0}, body, {"type": "num", "value": 250}]}
+
+
+_SELF = {"type": "series", "name": "self"}
+_CLOSE = {"type": "series", "name": "close"}
+_TEST = {"type": "op", "name": ">", "args": [_CLOSE, {"type": "num", "value": 1}]}
+
+
+def _tern(c, a, b):
+    return {"type": "op", "name": "?:", "args": [c, a, b]}
+
+
+def test_a_hold_or_set_state_is_the_js_lanes_shape_and_gate():
+    """F5 (F6's leviathan class) -- ``holds_until_set`` / ``held_seed_switched_of``
+    answer as ``interpret.js``'s twins do (``seedWarmup.test.js``, the same trees)."""
+    assert ai.holds_until_set(_acc(_tern(_TEST, _CLOSE, _SELF)))
+    assert ai.holds_until_set(_acc(_tern(_TEST, _SELF, _CLOSE)))
+    assert ai.holds_until_set(_acc(_tern(_TEST, _CLOSE, {"type": "call", "name": "nz",
+                                                           "args": [_SELF, {"type": "num", "value": 0}]})))
+    assert not ai.holds_until_set(_acc(_SELF))
+    assert not ai.holds_until_set(_acc(_CLOSE))
+    assert not ai.holds_until_set(_acc(_tern(_TEST, _CLOSE, {"type": "op", "name": "*",
+                                                               "args": [_SELF, {"type": "num", "value": 0.9}]})))
+    assert not ai.holds_until_set(_acc(_tern(_TEST, _CLOSE, {"type": "offset", "value": 1, "args": [_SELF]})))
+    assert not ai.holds_until_set(_acc(_tern({"type": "op", "name": "!=", "args": [_CLOSE, _SELF]}, _CLOSE, _SELF)))
+    lane = ai.lane_opts_for({"meta": {"recurrenceOrigin": "pine"}})
+    assert ai.held_seed_switched_of(lane)
+    assert not ai.held_seed_switched_of(dict(lane, historyFromListing=True))
+    assert not ai.held_seed_switched_of(dict(lane, heldSeedNested=True))
+    assert not ai.held_seed_switched_of({"tf": "D"})
+    assert "seed:held" in ai.CHART_CLOCK_WITHHELD_CODES
+    assert "seed:held" not in ai.CHART_CLOCK_WHOLE
+
+
+def test_a_reader_is_withheld_along_the_paths_that_hold_the_state():
+    a = _acc(_tern(_TEST, _CLOSE, _SELF))
+    read = {"type": "offset", "value": 3,
+            "args": [{"type": "call", "name": "sma", "args": [a, {"type": "num", "value": 20}]}]}
+    other = {"type": "call", "name": "sma", "args": [_CLOSE, {"type": "num", "value": 400}]}
+    root = {"type": "op", "name": "+", "args": [read, other]}
+    assert ai.path_reach(root, a) == 23
+    assert ai.max_lookback(root) - ai.max_lookback(a) == 150
+    assert ai.path_reach(a, a) == 0

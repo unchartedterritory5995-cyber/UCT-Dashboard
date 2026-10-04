@@ -154,12 +154,12 @@
             [
               "lines",
               171,
-              33
+              37
             ],
             [
               "labels",
               198,
-              38
+              42
             ],
             [
               "tableCells",
@@ -1718,7 +1718,7 @@
             [
               "lines",
               117,
-              21
+              19
             ],
             [
               "labels",
@@ -2027,7 +2027,7 @@
       "script": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -2037,67 +2037,43 @@
           ],
           [
             " 0.000",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.236",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.382",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.500",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-0.618",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-1.000",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-1.618",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ],
           [
             "-3.141",
-            "DIVERGE",
-            253,
-            "na",
-            3,
-            "scattered"
+            "MATCH",
+            1800
           ]
         ],
         "objects": [
@@ -2118,7 +2094,7 @@
           [
             "PP SuperTrend",
             "MATCH",
-            979
+            980
           ],
           [
             "Buy",
@@ -2310,12 +2286,12 @@
           [
             "QQE long",
             "MATCH",
-            1773
+            1778
           ],
           [
             "QQE short",
             "MATCH",
-            1774
+            1777
           ]
         ],
         "objects": [

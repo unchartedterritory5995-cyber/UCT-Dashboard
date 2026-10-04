@@ -26,6 +26,7 @@ import { translatePine } from './pine.js'
 import {
   interpret, seedWarmupMask, seedFromWindowOf, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE,
   SEED_WARMUP_REL, SEED_WARMUP_ABS, SEED_WARMUP_CODE, SEEDED_CALLS,
+  HELD_SEED_CODE, heldSeedSwitchedOf, holdsUntilSet, pathReach, maxLookback, switchedDependencyMask,
 } from './interpret.js'
 import { REL_TOL, ABS_FLOOR_UNKNOWN_SCALE } from '../../../../../../tools/vendor_harness/compare.mjs'
 
@@ -69,6 +70,12 @@ const PINE = {
     'plot(up)',
   ],
   'weekly ema': ['plot(request.security(syminfo.tickerid, "W", ta.ema(close, 5)))'],
+  // ⭐ F5 (F6's leviathan class) — a hold-or-set `var`: set on `close` crossing 100,
+  // which on these bars happens at 161 and 330 and never again, so from bar 580 no
+  // set lies inside the 250-bar window (bar 1 crosses too, from exactly 100).
+  'held level': ['var float lvl = 0.0', 'if ta.crossover(close, 100)', '    lvl := close', 'plot(lvl)'],
+  'held level read': ['var float lvl = 0.0', 'if ta.crossover(close, 100)', '    lvl := close', 'plot(close > lvl ? 1 : 0)'],
+  'held level contracting': ['var float lvl = 0.0', 'lvl := ta.crossover(close, 100) ? close : lvl * 0.9 + close * 0.1', 'plot(lvl)'],
   'sma alone': ['plot(ta.sma(close, 20))'],
   'close alone': ['plot(close)'],
 }
@@ -81,9 +88,9 @@ const treeOf = (key) => {
 const OFF = { tf: 'D', barIndexAbsolute: true }
 const CASES = [
   ...Object.keys(PINE).map((k) => [`${k} · off the listing`, k, OFF]),
-  ...['ema 10', 'rsi 14', 'keltner upper', 'a ratchet reading atr']
+  ...['ema 10', 'rsi 14', 'keltner upper', 'a ratchet reading atr', 'held level']
     .map((k) => [`${k} · from the listing`, k, { ...OFF, historyFromListing: true }]),
-  ...['ema 10', 'macd signal'].map((k) => [`${k} · the formula language's own document`, k, { tf: 'D' }]),
+  ...['ema 10', 'macd signal', 'held level'].map((k) => [`${k} · the formula language's own document`, k, { tf: 'D' }]),
 ]
 
 function evaluate(ast, opts) {
@@ -235,6 +242,123 @@ describe('F5 · nothing changes where our seed IS TradingView\'s, or nothing cla
     expect(seedFromWindowOf({ barIndexAbsolute: true, barIndexUse: 'position' })).toBe(false)
     expect(seedFromWindowOf({ tf: 'D' })).toBe(false)
     expect(seedFromWindowOf(undefined)).toBe(false)
+  })
+})
+
+describe('F5 · a hold-or-set state off the listing is withheld where its window saw no set (F6\'s leviathan class)', () => {
+  // Pine: `lvl` is 0 on bar 0, then the close of the last crossover.
+  const SETS = [1, 161, 330]
+  const pineLevel = () => {
+    let v = 0
+    return BARS.map((b, i) => { if (SETS.includes(i)) v = b.c; return v })
+  }
+  it('the fixture\'s bars cross 100 on exactly bars 1 (from exactly 100), 161 and 330', () => {
+    const ev = []
+    for (let i = 1; i < N; i++) if (BARS[i - 1].c <= 100 && BARS[i].c > 100) ev.push(i)
+    expect(ev).toEqual(SETS)
+  })
+
+  it('⭐ off the listing: drawn exactly where a set lies inside the window, and Pine\'s value there; withheld and NAMED elsewhere', () => {
+    const c = byName.get('held level · off the listing')
+    const ref = pineLevel()
+    for (let i = 0; i < N; i++) {
+      const known = SETS.some((s) => s <= i && s > i - 250)
+      if (known) expect(c.expected[i], `bar ${i}`).toBe(ref[i])
+      else expect(c.expected[i], `bar ${i}`).toBeNull()
+    }
+    expect(c.codes).toContain(HELD_SEED_CODE)
+    expect(CHART_CLOCK_WITHHELD[HELD_SEED_CODE]('D')).toMatch(/withheld rather than drawn from a starting value/)
+    expect(CHART_CLOCK_WHOLE).not.toContain(HELD_SEED_CODE)
+  })
+
+  it('⛔ NON-VACUITY — the bounded window (the formula language\'s own document) draws the SEED 0 from bar 580, where Pine holds bar 330\'s close', () => {
+    const c = byName.get('held level · the formula language\'s own document')
+    expect(c.expected[579]).toBe(BARS[330].c)
+    for (let i = 580; i < N; i++) expect(c.expected[i], `bar ${i}`).toBe(0)
+    expect(pineLevel()[600]).toBe(BARS[330].c)
+    expect(c.codes).not.toContain(HELD_SEED_CODE)
+  })
+
+  it('a decision read from it is withheld on the same bars, never answered from the seed', () => {
+    const c = byName.get('held level read · off the listing')
+    const ref = pineLevel()
+    for (let i = 580; i < N; i++) expect(c.expected[i], `bar ${i}`).toBeNull()
+    for (let i = 0; i < N; i++) {
+      if (c.expected[i] === null) continue
+      expect(c.expected[i], `bar ${i}`).toBe(BARS[i].c > ref[i] ? 1 : 0)
+    }
+    expect(c.expected.filter((v) => v !== null).length).toBeGreaterThan(300)
+  })
+
+  it('from the listing it is Pine\'s value on every bar (the listing pass, untouched)', () => {
+    const c = byName.get('held level · from the listing')
+    const ref = pineLevel()
+    for (let i = 0; i < N; i++) expect(c.expected[i], `bar ${i}`).toBe(ref[i])
+    expect(c.codes).not.toContain(HELD_SEED_CODE)
+  })
+
+  it('an arm that CONTRACTS is not a hold: it keeps its bounded window', () => {
+    const c = byName.get('held level contracting · off the listing')
+    expect(c.codes).not.toContain(HELD_SEED_CODE)
+    expect(c.expected.slice(580).every((v) => v !== null)).toBe(true)
+  })
+
+  it('the shape: a bare or nz hold beside a free arm; never a lag, never a contraction, never a bare self', () => {
+    const acc = (body) => ({ type: 'call', name: 'accum', args: [{ type: 'num', value: 0 }, body, { type: 'num', value: 250 }] })
+    const self = { type: 'series', name: 'self' }
+    const c = { type: 'op', name: '>', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 1 }] }
+    const tern = (a, b) => ({ type: 'op', name: '?:', args: [c, a, b] })
+    const close = { type: 'series', name: 'close' }
+    expect(holdsUntilSet(acc(tern(close, self)))).toBe(true)
+    expect(holdsUntilSet(acc(tern(self, close)))).toBe(true)
+    expect(holdsUntilSet(acc(tern(close, { type: 'call', name: 'nz', args: [self, { type: 'num', value: 0 }] })))).toBe(true)
+    expect(holdsUntilSet(acc(tern(close, tern(self, { type: 'num', value: 2 }))))).toBe(true)
+    expect(holdsUntilSet(acc(self))).toBe(false)
+    expect(holdsUntilSet(acc(close))).toBe(false)
+    expect(holdsUntilSet(acc(tern(close, { type: 'op', name: '*', args: [self, { type: 'num', value: 0.9 }] })))).toBe(false)
+    expect(holdsUntilSet(acc(tern(close, { type: 'offset', value: 1, args: [self] })))).toBe(false)
+    // a test that reads the running value is not a hold-or-set (pro-trading-art's
+    // `lastStart := topStart` when `topStart != lastStart`)
+    expect(holdsUntilSet(acc({ type: 'op', name: '?:', args: [{ type: 'op', name: '!=', args: [close, self] }, close, self] }))).toBe(false)
+    // a test that reads `self[1]` is a lag too
+    expect(holdsUntilSet(acc({ type: 'op', name: '?:', args: [{ type: 'op', name: '>', args: [{ type: 'offset', value: 1, args: [self] }, close] }, close, self] }))).toBe(false)
+  })
+
+  it('⭐ a reader is withheld along the paths that hold the state (`pathReach`), never by the whole tree\'s sum', () => {
+    const self = { type: 'series', name: 'self' }
+    const close = { type: 'series', name: 'close' }
+    const a = { type: 'call', name: 'accum', args: [{ type: 'num', value: 0 }, { type: 'op', name: '?:', args: [{ type: 'op', name: '>', args: [close, { type: 'num', value: 1 }] }, close, self] }, { type: 'num', value: 250 }] }
+    const read = { type: 'offset', value: 3, args: [{ type: 'call', name: 'sma', args: [a, { type: 'num', value: 20 }] }] }
+    const other = { type: 'call', name: 'sma', args: [close, { type: 'num', value: 400 }] }
+    const root = { type: 'op', name: '+', args: [read, other] }
+    expect(pathReach(root, a)).toBe(23)
+    // the whole tree's sum would have said 400 - 250 = 150
+    expect(maxLookback(root) - maxLookback(a)).toBe(150)
+    expect(pathReach(read, a)).toBe(23)
+    expect(pathReach(a, a)).toBe(0)
+  })
+
+  it('⭐ …and the dependency mask uses it: a reader beside a 400-bar window is withheld on the held state\'s own unknown bars, not 150 more', () => {
+    const lvl = treeOf('held level')
+    expect(holdsUntilSet(lvl)).toBe(true)
+    const close = { type: 'series', name: 'close' }
+    const root = { type: 'op', name: '+', args: [lvl, { type: 'call', name: 'sma', args: [close, { type: 'num', value: 400 }] }] }
+    const own = byName.get('held level · off the listing').expected
+    const unknown = own.map((v) => (v === null ? 1 : 0))
+    const dep = Array.from(switchedDependencyMask(root, BARS, {}, undefined, undefined, OFF))
+    expect(dep).toEqual(unknown)
+    expect(unknown.reduce((s, x) => s + x, 0)).toBe(1 + 120)
+  })
+
+  it('the gate: a Pine document off the listing, on the chart\'s own bars — never from the listing, never a builder formula, never inside a request', () => {
+    expect(heldSeedSwitchedOf({ barIndexAbsolute: true })).toBe(true)
+    // the object lane reads it too (its drawings read the same state)
+    expect(heldSeedSwitchedOf({ barIndexAbsolute: true, barIndexUse: 'position' })).toBe(true)
+    expect(heldSeedSwitchedOf({ barIndexAbsolute: true, prefixProbe: 1e12 })).toBe(true)
+    expect(heldSeedSwitchedOf({ barIndexAbsolute: true, historyFromListing: true })).toBe(false)
+    expect(heldSeedSwitchedOf({ barIndexAbsolute: true, heldSeedNested: true })).toBe(false)
+    expect(heldSeedSwitchedOf({ tf: 'D' })).toBe(false)
+    expect(heldSeedSwitchedOf(undefined)).toBe(false)
   })
 })
 

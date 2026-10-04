@@ -838,22 +838,102 @@ export const switchedSeedOf = (n) => (!!n && n.type === 'op' && n.name === '*'
  *  it. ⛔ No module-level memo: this file holds no state between calls
  *  (`interpret.test.js`'s purity rail), and one walk per call is cheap beside
  *  the evaluation it gates. */
-export function readsSwitchedState(tree) {
+export function readsSwitchedState(tree, opts) {
   if (!tree || typeof tree !== 'object') return false
+  // ⭐ F5 — off the listing a hold-or-set state on the chart's own bars is
+  // switched too (`heldSeedSwitchedOf`, `holdsUntilSet`)
+  const held = heldSeedSwitchedOf(opts)
   let found = false
-  const stack = [tree]
+  const stack = [[tree, false]]
   const seen = new Set()
   while (stack.length && !found) {
-    const n = stack.pop()
+    const [n, under] = stack.pop()
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
     if (n.type === 'call' && own(RECURRENCES, n.name) && Array.isArray(n.args)) {
       const rec = RECURRENCES[n.name]
       if (rec && switchedSeedOf(n.args[rec.seed])) { found = true; break }
+      if (held && !under && holdsUntilSet(n)) { found = true; break }
     }
-    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    const into = under || n.type === 'tf' || n.type === 'tf_live' || n.type === 'sym' || n.type === LTF
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push([a, into])
   }
   return found
+}
+
+/** ⭐⭐ F5 (2026-10-03) — A HOLD-OR-SET STATE, OFF THE LISTING, IS SWITCHED.
+ *
+ *  `var float prevHigh = na` / `if c` / `prevHigh := pivHi` translates to
+ *  `accum(na, c ? pivHi : self, 250)`. The bounded window re-seeds 250 bars back,
+ *  so on a bar whose last `c` lies more than 250 bars back the window never saw a
+ *  set and answers the SEED, where Pine holds the old value. That is not a
+ *  warm-up: it happens mid-chart, after any gap longer than the window. ⚰️
+ *  MEASURED (lane F6) on `market-structure-by-leviathan` AMEX:SPY 1D: the swing
+ *  high at our bar 524 printed `LH` where TradingView prints `HH` — the previous
+ *  high (bar 272, confirmed at 292) lay 252 bars back, so `pivHi >= prevHigh`
+ *  read the seed `na` and went false.
+ *
+ *  Off the listing, in a Pine document (`barIndexAbsolute`, the same declaration
+ *  C45 reads), such a body is evaluated as SWITCHED (C12s): its window starts from
+ *  an UNKNOWN state and a bar is published only where a set lies inside the
+ *  window — withheld, never guessed, where none does — and every reader of it is
+ *  withheld through C12s's own dependency mask and probes.
+ *
+ *  ⛔ NOT A TREE CHANGE, AND NEVER FROM THE LISTING. Lane F6 marked these bodies
+ *  switched in the translator and lost two MATCHes, both from the listing
+ *  (trend-targets-algoalpha NYSE:RDDT runtime objects, qqe-signals NYSE:RDDT): a
+ *  switched mark changes the listing pass too. Here the listing pass, the runtime
+ *  document and every builder formula (no `barIndexAbsolute`) are untouched.
+ *  ⛔ NOR INSIDE `request.security` (`heldSeedNested`): a switched node read on
+ *  other bars withholds its whole tree (C12s), which no capture has measured. */
+export const heldSeedSwitchedOf = (opts) => !!opts && opts.barIndexAbsolute === true
+  && opts.historyFromListing !== true && opts.heldSeedNested !== true
+/** The withholding code a held state's unknown bars are named by (`CHART_CLOCK_WITHHELD`). */
+export const HELD_SEED_CODE = 'seed:held'
+
+/** ⭐ F5 — is this recurrence a HOLD-OR-SET state: every arm of its body's
+ *  ternaries a bare hold (`self`, `nz(self[, k])`) or free of the running value,
+ *  at least one of each, and no `self[k]` anywhere? An arm that CONTRACTS
+ *  (`self * 0.9 + close * 0.1`) forgets within the window numerically and keeps
+ *  its bounded window (F5's seed bound answers for those). */
+export function holdsUntilSet(node) {
+  if (!node || typeof node !== 'object' || node.type !== 'call' || !own(RECURRENCES, node.name)
+      || !Array.isArray(node.args)) return false
+  const rec = RECURRENCES[node.name]
+  if (!rec || switchedSeedOf(node.args[rec.seed])) return false
+  const bind = rec.binds
+  const isSelf = (n) => !!n && typeof n === 'object' && n.type === 'series' && n.name === bind
+  const walkAny = (n, hit) => {
+    const stack = [n]
+    while (stack.length) {
+      const x = stack.pop()
+      if (!x || typeof x !== 'object') continue
+      if (hit(x)) return true
+      if (x.type === 'call' && own(RECURRENCES, x.name)) continue
+      if (Array.isArray(x.args)) for (const a of x.args) stack.push(a)
+    }
+    return false
+  }
+  const carries = (n) => walkAny(n, isSelf)
+  const lagged = (n) => walkAny(n, (x) => x.type === 'offset' && Array.isArray(x.args) && isSelf(x.args[0]))
+  let held = false
+  const arm = (n) => {
+    if (!n || typeof n !== 'object' || !carries(n)) return true
+    if (isSelf(n)) { held = true; return true }
+    if (n.type === 'call' && n.name === 'nz' && Array.isArray(n.args) && isSelf(n.args[0])
+        && (n.args.length === 1 || !carries(n.args[1]))) { held = true; return true }
+    // ⛔ a test that reads the running value (`x != self ? x : self`) is not a
+    // hold-or-set: whether it sets can depend on the value the window does not
+    // hold, and C12s's range window cannot always settle it (measured: it left
+    // `pro-trading-art`'s `lastStart` unknown on every bar and withheld all 39
+    // of its correct drawings). Such a body keeps its bounded window.
+    if (n.type === 'op' && n.name === '?:' && Array.isArray(n.args) && n.args.length === 3) {
+      return !carries(n.args[0]) && arm(n.args[1]) && arm(n.args[2])
+    }
+    return false
+  }
+  const body = node.args[rec.body]
+  return !lagged(body) && arm(body) && held && !isSelf(body)
 }
 
 /** ⭐⭐ C12 / C17 — THE PROBE VALUES A TREE NEEDS, NOT ONLY ±PREFIX_PROBE.
@@ -4767,6 +4847,14 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'data loaded — those early bars are withheld rather than drawn wrong; the rest is drawn. On a daily '
     + 'chart whose bars start at the symbol\'s listing it draws from the first bar. What would settle it: '
     + 'nothing to capture — bars reaching further back.',
+  // ⭐⭐ F5 — a hold-or-set state whose window saw no set (see `holdsUntilSet`).
+  'seed:held': () => 'A level this indicator sets on an event and then holds (a last swing high, a '
+    + 'level it keeps until the next signal) is held on TradingView from the first bar of the symbol. The '
+    + 'loaded bars of this chart start later and carry such a level back only so far: where no setting event '
+    + 'lies within that reach, the level TradingView holds is not in the loaded bars. Those bars, and '
+    + 'what the indicator decides from them, are withheld rather than drawn from a starting value; the '
+    + 'rest is drawn. On a daily chart whose bars start at the listing of the symbol it draws on every bar. '
+    + 'What would settle it: nothing to capture — bars reaching further back.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -5995,7 +6083,7 @@ function seedEnv(bars, inputs, budget, scalars, opts, memoMap) {
         const code = String(n.value)
         const isos = bars.map((b) => isoDay(b && b.t))
         const { htf, at } = resampleTo(bars, isos, code)
-        const sub = seedEnv(htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, scopedMemo(memo, `tf\u0001${code}`))
+        const sub = seedEnv(htf, inputs, budget, scalars, { ...(opts || {}), tf: code, heldSeedNested: true }, scopedMemo(memo, `tf\u0001${code}`))
         const live = n.type === 'tf_live'
         return {
           env: sub,
@@ -6011,7 +6099,7 @@ function seedEnv(bars, inputs, budget, scalars, opts, memoMap) {
         const ticker = String(n.value).trim().toUpperCase()
         const series = (opts && opts.symbols) ? opts.symbols[ticker] : null
         if (!Array.isArray(series) || !series.length) return null
-        const sub = seedEnv(series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined },
+        const sub = seedEnv(series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined, heldSeedNested: true },
           scopedMemo(memo, `sym\u0001${ticker}`))
         const byT = new Map()
         series.forEach((b, j) => { const k = b && typeof b === 'object' ? b.t : undefined; if (k !== undefined && k !== null && !byT.has(k)) byT.set(k, j) })
@@ -6021,7 +6109,7 @@ function seedEnv(bars, inputs, budget, scalars, opts, memoMap) {
         const code = String(n.value)
         const sup = lowerSupplyOf(opts, code)
         if (!sup) return null
-        const sub = seedEnv(sup.bars, inputs, budget, scalars, { ...(opts || {}), tf: code, historyFromListing: undefined,
+        const sub = seedEnv(sup.bars, inputs, budget, scalars, { ...(opts || {}), tf: code, historyFromListing: undefined, heldSeedNested: true,
           newestBarIsForming: null, symbols: undefined, lowerTf: undefined }, scopedMemo(memo, `ltf\u0001${code}`))
         const groups = sup.groups(bars, maxLookback(n.args[0]))
         return { env: sub, at: (i) => { const g = groups[i]; return g && g.length ? g[g.length - 1] : null } }
@@ -6211,7 +6299,7 @@ function withSymAlignment(ast, bars, out, opts) {
 
 function interpretAgreed(ast, bars, inputs, budget, scalars, opts) {
   const probing = !!opts && typeof opts.prefixProbe === 'number'
-  if (probing || (opts && opts.switchedAgreement === false) || !readsSwitchedState(ast)) {
+  if (probing || (opts && opts.switchedAgreement === false) || !readsSwitchedState(ast, opts)) {
     return interpretOnce(ast, bars, inputs, budget, scalars, opts)
   }
   const real = interpretOnce(ast, bars, inputs, budget, scalars, opts)
@@ -6263,10 +6351,50 @@ function probeMemo(opts, p) {
  *  when any of those is one of `a`'s unknown bars (where `a` answers two
  *  different probes differently). A switched node under `tf` / `sym` reads other
  *  bars, so its tree is withheld whole — sound, and named. */
+/** ⭐ F5 — how many bars back the root's bar `i` can read node `a`: the largest
+ *  sum of lookbacks along a path from the root DOWN TO `a` (the same terms
+ *  `maxLookback` adds: a call's own window, an offset's bars), never the whole
+ *  tree's sum. `maxLookback(root) - maxLookback(a)` counts every OTHER branch's
+ *  windows too — on `pro-trading-art` a label tree that also reads two pivot
+ *  arrays (each a 250-bar state) was withheld on every bar for a held `lastStart`
+ *  it reads directly. Sound: a read of `a` reaches the root only through such a
+ *  path. A path through a `tf` / `sym` / `ltf` is not measured here (a held node
+ *  there is not admitted — `heldSeedNested`); it answers the whole series. */
+export function pathReach(root, a) {
+  const R = new Map()
+  for (const node of flatten(root)) {
+    if (node === a) { R.set(node, 0); continue }
+    const args = Array.isArray(node.args) ? node.args : []
+    let best = -Infinity
+    if (node.type === 'op' || node.type === 'textop') {
+      for (const x of args) { const r = R.get(x); if (r !== undefined && r > best) best = r }
+    } else if (node.type === 'offset') {
+      const r = R.get(args[0])
+      if (r !== undefined && r > -Infinity) best = offsetBars(node) + r
+    } else if (node.type === 'call') {
+      const spec = fnSpec(node.name)
+      let b = -Infinity
+      for (let i = 0; i < args.length; i++) {
+        if (spec.args[i] === 'int') continue
+        const r = R.get(args[i])
+        if (r !== undefined && r > b) b = r
+      }
+      if (b > -Infinity) best = ownLookback(node, spec) + b
+    } else if (args.length) {
+      for (const x of args) { const r = R.get(x); if (r !== undefined && r > -Infinity) best = Infinity }
+    }
+    R.set(node, best)
+  }
+  const r = R.get(root)
+  return r === undefined || r === -Infinity ? 0 : r
+}
+
 export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
   const nodes = []
   let crossesBars = false
+  const held = heldSeedSwitchedOf(opts)
+  const heldNodes = new Set()
   const stack = [[tree, false]]
   const seen = new Set()
   while (stack.length) {
@@ -6277,6 +6405,10 @@ export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts
         && switchedSeedOf(node.args[RECURRENCES[node.name].seed])) {
       if (under) crossesBars = true
       nodes.push(node)
+    } else if (held && !under && holdsUntilSet(node)) {
+      // ⭐ F5 — a hold-or-set state off the listing (`holdsUntilSet`)
+      nodes.push(node)
+      heldNodes.add(node)
     }
     const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
@@ -6289,7 +6421,10 @@ export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts
   // refusal here must reach the caller as the refusal it is
   const rootReach = maxLookback(tree)
   for (const a of nodes) {
-    const reach = Math.max(0, rootReach - maxLookback(a))
+    // ⭐ F5 — a held node (`holdsUntilSet`) is reached along the paths that hold it
+    // (`pathReach`), not by the whole tree's sum: a tree that also reads other
+    // states elsewhere is not further from THIS one for it.
+    const reach = heldNodes.has(a) ? pathReach(tree, a) : Math.max(0, rootReach - maxLookback(a))
     const probe = (p) => toColumn(interpretOnce(a, bars, inputs, budget, scalars,
       { ...(opts || {}), prefixProbe: p, crossMemo: probeMemo(opts, p) }), n)
     const hi = probe(PREFIX_PROBE)
@@ -6580,7 +6715,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
             { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined,
-              historyFromListing: undefined, seedWarmupSink: undefined }),
+              historyFromListing: undefined, seedWarmupSink: undefined, heldSeedNested: true }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -6638,7 +6773,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
             { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined,
-              seedWarmupSink: undefined }),
+              seedWarmupSink: undefined, heldSeedNested: true }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -6687,7 +6822,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           interpret(n.args[0], sup.bars, inputs, budget, scalars,
             { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
               historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined,
-              seedWarmupSink: undefined }),
+              seedWarmupSink: undefined, heldSeedNested: true }),
           sup.bars.length)
         const groups = sup.groups(bars, maxLookback(n.args[0]))
         const out = nan(length)
@@ -7321,6 +7456,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
     heldLatch = !!spelled && spelled.reading === 'held'
     const seed = toColumn(evalNode(seedNode), length)
+    // ⭐⭐ F5 — off the listing a hold-or-set state is switched (`heldSeedSwitchedOf`)
+    const heldSwitch = !switchedReal && maxSelfLag === 0 && heldSeedSwitchedOf(opts) && holdsUntilSet(node)
+    // …and a bar it withholds where the bounded window would have drawn the seed
+    // is NAMED (`seed:held`), never blank silently
+    let heldLate = false
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
     // not-computable prefix with that value instead of `NaN`, so a caller can
@@ -7362,7 +7502,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         }
         state = v
         if (v !== LISTING_UNKNOWN && lastForget > j - warmup) col[j] = v
-        else { col[j] = fill; withheld += 1 }
+        else { col[j] = fill; withheld += 1; if (j >= warmup) heldLate = true }
       }
       if (stepRecord) stepRecord.switched = { withheld }
       return col
@@ -7567,14 +7707,17 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         if (v !== null && latestStart[t] > latestInSegment) latestInSegment = latestStart[t]
         known = v
         if (v !== null && latestInSegment >= t - warmup + 1) col[t] = v
-        else { col[t] = fill; withheld += 1 }
+        else { col[t] = fill; withheld += 1; if (t >= warmup) heldLate = true }
       }
       // `rangeSteps` — the descending pass's range steps, read by the rail that
       // keeps it near one per bar (`ratchetRecurrence.test.js`)
       if (stepRecord) stepRecord.switched = { withheld, ranged: true, rangeSteps }
       return col
     }
-    const switched = switchedReal ? (testReadsState ? rangeSwitchedColumn() : switchedColumn()) : null
+    const switched = switchedReal || heldSwitch ? (testReadsState ? rangeSwitchedColumn() : switchedColumn()) : null
+    if (heldSwitch && heldLate && !(opts && typeof opts.prefixProbe === 'number')) {
+      nameChartClock(opts, [HELD_SEED_CODE], opts.tf)
+    }
     /** The bounded window's value at bar `i >= warmup` — the definition above.
      *  A switched recurrence answers from its own column (C12s). */
     const windowAt = switched ? (i) => switched[i] : (i) => {

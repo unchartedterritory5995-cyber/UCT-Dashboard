@@ -237,7 +237,7 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   // ⭐ C12s — a SWITCHED recurrence is unknown wherever its reset lies outside
   // the window, which can be any bar, so its tree is probed over the whole
   // series (the prefix bound above holds only for the warm-up curtain).
-  const n = readsSwitchedState(tree)
+  const n = readsSwitchedState(tree, iopts)
     ? col.length
     : Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
   if (n <= 0) return null
@@ -249,7 +249,7 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   const bySign = memos.get(probeBars.length)
   // ⭐ C17 — one probe per value `probeValuesOf` names, each with its own memo
   // (a column computed at one probe value must never answer for another).
-  const switched = readsSwitchedState(tree)
+  const switched = readsSwitchedState(tree, iopts)
   // ⭐⭐ C12s — a switched tree's unknown bars are READ OFF THE TREE, not only
   // probed: one probe value cannot stand for two unknown recurrences that Pine
   // holds at different values, nor for a value inside a range test
