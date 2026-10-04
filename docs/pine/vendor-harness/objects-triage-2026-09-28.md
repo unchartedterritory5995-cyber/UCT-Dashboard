@@ -186,6 +186,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 84 | H5 host-lane values (section H5): a period anchor read from the listing is not withheld (both lanes); a function's DEFAULT parameters on the plot lane, one shared rule with the runtime lane (`paramDefaultShapeOk`), a script-rebound bar-series default refused by name; a request timeframe passed through a function parameter, on the plot lane; `math.round_to_mintick`; `str.tostring(x, format.volume)` where captures pin it. F4's request-held drawings (liquidity-heatmap, htf-liquidity, ema-ribbon) stay refused: data not held | `pine/h5-host-values` | census 55 / 80 / 87 -> 56 / 80 / 87 (libraries 55 / 82 / 90 -> 56 / 82 / 90), 0 lost | vw-default-param D01-D15 and Q-L1 MATCH on the host lane; ADR (off) INCONCLUSIVE -> MATCH; 0 MATCH -> DIVERGE (`8579b64f75`, `71ca1694c5`, `0df971ee42`, `7d12c5cbb8`, `7a8404c9f7`) |
 | 85 | F4 the CAP3 SPY 1D drawing/table divergences classified (section F4): two engine bugs FIXED - a library value named like one of its functions (`rlut = rlut()`) is spelled apart from it by the linker, and `text = na` is the empty string - all-chart-patterns SPY DIVERGE -> MATCH (156/156 objects id for id); window proved by TradingView's creation counter on contraction-box (all four counts from SPY bar 6677 + the collector), high-low-open-mid, artemis, institutional-smc; the rest withheld by name, owners recorded | F4 commits on `pine/f4-spy-drawings` | `pineLibraries.js` (`mangleValue`), `pine.js` (`textNodeOf`) | harness 328 files: capture MATCH 85/95 -> 86/96, objects 137/161 -> 138/162, 0 MATCH -> DIVERGE; census 55/82/90 unchanged | table in section F4 |
 | 88 | F6 the second CAP3 SPY 1D batch of drawing divergences classified (section F6): one engine bug FIXED - the runtime lane's own drawings refused v4's bare `round_to_mintick` as an undeclared builtin (parabolic-sar RDDT runtime DIVERGE -> MATCH, 54/54 labels); window/collector proved for makuchaku FVGs (all four counts from TradingView's counter), pro-trading-art, rsi-swing, price-action, trend-duration, liquidity-pools; vdubus = window + two C22-withheld zig-zag spans; the rest withheld by name with owners; one open wrong caption (leviathan, bounded accumulator gap > 250 bars, owner F5) | `4cf39e9ecb`, `d4933aa919`, docs | `pineRuntimeFrontend.js` (bare `round_to_mintick`) | harness 328 files: capture MATCH on 96 -> 96, + runtime 109 -> 110; objects 155 -> 155 / 187 -> 188; 0 MATCH -> anything else; census 55/82/99 unchanged (0 rows changed) | table in section F6 |
+| 92 | RT10 the runtime lane's next walls (section RT10): `switch` as a statement; a pivot over runtime state at its confirmation bar (one `pivotAt` rule shared with the columnar `pivotCol`); an expression's own committed series inside a function frame (stateless, frame-local names only); `ta.cum` over runtime state on a pane (`cumCol`'s vendor rule); `for … in` over an array as the LIVE walk C48 measured | `230375bde2`, `4f0444e652`, `51220005ee`, `e67056a1ed`, `98ac7d7637`, `63a644350f` | census (libraries) 56/82/99 -> 56/82/100 measured after W2 (volume-divergence-by-mm attaches; 0 lost); after W3-W5 not measured (measure hold) | harness 335 files, runtime pane permitted, base vs W2: identical entry for entry (MATCH 106 / DIVERGE 107 / INC 122); after W3-W5 not measured |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7000,3 +7001,112 @@ F5 with that evidence; the patched file is kept off-branch in the lane's scratch
 
 **Open.** (1) leviathan's bounded-accumulator gap (above, F5). (2) `runtime/__tests__/objectLane*.measure.test.js` time
 out at 15 s under load (3 of 3 with F6, 4 of 4 on base at the same moment: pre-existing).
+
+## RT10 - the runtime lane's next walls: statement `switch`, pivots over runtime state, frame-local committed series, `ta.cum`, `for … in` (2026-10-03, step 92)
+
+Branch `pine/rt10-runtime-walls`, base `integrate/wave16-2026-10-02` (`17330e6289`), merged with
+`20ba63f668` before the later walls. Runtime pane still dark; limits (`runtime/limits.js`) not raised.
+
+### Step 1 - the walls, measured
+
+Census (`memberDoorCensus.measure.test.js`, libraries loaded, runtime state): off / on / runtime
+**56 / 82 / 99** of 266 (off is 56, not 55: H5 merged). The runtime state is real, not RT8's inert
+one: the census runs inside `it`, after test-setup permits the pane, and adx-and-di-for-v4 reads
+on=false / runtime=true. First `runtimeDeclined` code of every unattached script (167):
+
+| first `runtimeDeclined` code | scripts | examples |
+|---|---|---|
+| `pine:builtin` | 17 | atr-stop-loss-indicator, auto-harmonic-patterns-open-source, cvd-cumulative-volume-delta-chart … |
+| `runtime:call-undeclared-builtin-state` | 12 | boom-hunter-entry-point-screener-alerts, camarilla, chart-champions-part-1-npoc-levels-vwaps … |
+| `pine:statement` | 10 | 72s-strategy-adaptive-hull-moving-average-pt1, atr-trailing-stoploss-strategy, chart-vwap … |
+| `runtime:statement` | 10 | asianrange-and-killzones, bollinger-band-width-percentile, initial-balance-ib-and-previous-day-week-high-low-close … |
+| `pine:function` | 10 | highlow-channel-swing, ict-killzone-index-version, market-structure-trend-targets-chartprime … |
+| `pine:request` | 9 | ai-supertrend-x-pivot-percentile-strategy-presenttrading, cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels, cumulative-volume-delta … |
+| `runtime:history-expression` | 8 | ad-line-of-sp-sectors, advanced-custom-multi-ma-signals-emasmavwmavwap, atr-god-strategy-by-tradesmart … |
+| `runtime:history-dynamic-offset` | 8 | ict-institutional-order-flow-fadi, market-structure-break-order-block, optimized-trend-tracker … |
+| `pine:input-kind` | 7 | candlestick-patterns-on-backtest, machine-learning-knn-based-strategy, open-interest-profile-fixed-range-by-leviathan … |
+| `none:install` | 5 | mtf-key-levels-support-and-resistance, pivot-high-low-points, rsi-vwap-indicator … |
+| `runtime:array` | 5 | one-sided-gaussian-support-resistance-rate-loxx, range-filter-dw, smart-money-concept-tradingfinder-major-minor-ob-fvg-smc … |
+| `runtime:call-windowed-state` | 4 | anchored-vwap-pinch-handoff-intervals-and-signals, machine-learning-lorentzian-classification, volume-divergence-by-mm … |
+| `runtime:library` | 4 | auto-trendlines-tradingfinder-support-resistance-signal-alerts, fx-market-sessions, machine-learning-lorentzian-classification … |
+| `none:builder` | 4 | bigbeluga-smart-money-concepts, camarilla-screener, flawless-victory-strategy … |
+| `pine:strategy-call` | 4 | buy-monday-exit-tuesday, linear-regression-channel-breakout-strategy, stop-loss-and-take-profit-in-example … |
+| `runtime:presentation` | 4 | heikin-ashi-supertrend, heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor, kernel-channel-backquant … |
+| `runtime:request` | 3 | 4c-nyse-market-breadth-ratio, multi-timeframe-trend-indicator, tehthomas-aligned-timeframe-fair-value-gaps |
+| `runtime:varip` | 3 | bolingger-bands-inside-bar-boxes, ema-92150-vwap-macd-rsi-pro-v6, inside-bar-boxes |
+| `runtime:loop` | 3 | candelacharts-equal-highslows-eqheql, support-and-resistance-logistic-regression-flux-charts, trendline-pivots-quantvue |
+| `runtime:function` | 3 | kalman-psar-backquant, mgi-levels-suite, one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num |
+| `lower-tf:store-unmeasured` | 3 | liquidity-engulfing-displacement-msf, mtf-dashboard-pro-rsi-fib-sr-volume-strixedge, multi-timeframe-rsi-buy-sell-strategy-tradedots |
+| `lower-tf:lookahead` | 2 | 3-level-zigzag-semafor, multi-timeframe-fvg-tfo |
+| `pine:role-order` | 2 | adaptive-trend-following-suite-alpha-extract, machine-learning-moving-average-backquant |
+| `runtime:switch` | 2 | cvd-cumulative-volume-delta-candles, delta-volume-candles-lucf |
+| `runtime:block-value` | 2 | delta-imbalance-map-joat, fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated |
+| `runtime:directive` | 2 | double-topbottom-ultimate-os, linear-regression-channel-200 |
+| `pine:collection` | 2 | inside-bar-strategy-w-sl, nubia-auto-midas-anchored-vwap-xdecow |
+| `pine:text-value` | 2 | macd-with-filter-visual-backtest-module-sample, williams-fractal-trailing-stops |
+| `pine:block` | 2 | machine-learning-rsi-bullvision, trend-line-harrybot |
+| `pine:undefined` | 2 | pivot-trendlines-with-breaks-hg, rsi-trendlines-with-breakouts-hg |
+| `runtime:colour` | 1 | atr-trend-bands-misu |
+| `pine:arity` | 1 | blackflag-fts |
+| `runtime:expression-statement` | 1 | breaks-and-retests-hg |
+| `runtime:udt-method` | 1 | bull-vs-bear-market-intraday-sessions-kioseff-trading |
+| `runtime:call-conversion-state` | 1 | fibonacci-retracement-statistics-by-volprofex |
+| `pine:window` | 1 | ict-turtle-soup-flux-charts |
+| `runtime:request-with-state` | 1 | multiple-mtf-moving-average-xdecow |
+| `runtime:input-state` | 1 | relative-volume-at-time |
+| `runtime:fill-gradient` | 1 | smoothed-gaussian-trend-filter-algoalpha |
+| `runtime:no-output` | 1 | strong-start-rvol-dashboard |
+| `runtime:function-global-state` | 1 | support-and-resistance |
+| `runtime:conditional-history` | 1 | trendlinesample |
+| `runtime:nothing-drawn` | 1 | visualizing-displacement-tfo |
+
+Next walls were then measured by SUBSTITUTION (a scratch probe through `enterMemberDoor`, never
+committed): volume-divergence-by-mm attaches once its two pivots over `vol` are served; the
+lower_tf importers' `switch` hides `timeframe.from_seconds` / `str.tostring`; volume-suite's
+`ta.cum` hides a request; candlestick-patterns' `input.time` hides `pine:statement`, the KNN
+strategy's hides `pine:role-order` (`ta.cci` source). `syminfo.type` is unserved by design
+(`symbolScope.json`), `input.timeframe` rows are multi-timeframe programs behind requests, and the
+session rows need overnight / day-mask / input sessions: none was taken.
+
+### Step 2 - walls taken (one commit each)
+
+| wall | commit | rule, and how it is graded | scripts moved |
+|---|---|---|---|
+| `runtime:switch` (statement) | `230375bde2` | lowered to the value form's nested `if` chain; subject evaluated ONCE (hoisted); test before body; an arm after the default refuses. Hand replay (`rt10SwitchStatement`, 6) | 2 rows to later walls (lower_tf importers) |
+| `runtime:call-windowed-state` / `history-expression` - pivot over runtime state | `4f0444e652` | `ta.pivothigh/low(x,L,R)` (and v1-v4 bare) is a window of L+R+1 over x's committed ring answering x[R]; ONE rule `interpret.js::pivotAt` (H1's plateau rule) now asked by `pivotCol` too; `RUNTIME_WINDOW` holds the runtime-only key. Hand replay AND the columnar pivot over the same values (`rt10PivotOverState`, 4) | **volume-divergence-by-mm attaches** (99 -> 100) |
+| `runtime:history-expression` inside a frame | `51220005ee` | a function body is its own hoist sink: a STATELESS expression whose names are the frame's becomes a body local (per-call-site ring); offset and `change` hoists made frame-aware. Equal to the hand-bound form + replay (`rt10FrameHoist`, 6) | not measured (hold) |
+| `ta.cum` over runtime state | `e67056a1ed` | `CARRIED.cumPine` with `cumCol`'s three vendor facts; on a pane only (a screen keeps the window-dependent refusal). Replay + columnar cum (`rt10CumOverState`, 4) | not measured (hold) |
+| `runtime:loop` (`for … in`) | `98ac7d7637` | rewritten as tokens into the counted `for`: live length re-read each pass, slot read when reached (C48 capture `vw-forin-collections-rddt-1d-2026-10-01`); arrays only, named. F01-F05 vendor answers (`rt10ForIn`, 7) | not measured (hold) |
+
+Re-pinned with measured reasons: `rt7PivotRightbars` (its two function-body pivots now BUILD and
+equal the columnar pivot), `history` / `historyExpression` (2) / `requestHoist` /
+`sourceToRuntime` (each now pins the frame wall on a STATEFUL subexpression; the stateless form
+runs), `carriedState` CONTROL (runtime-only members 2 -> 3). `pineProbeReplay` did not move.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| census off / on / runtime (libraries loaded) | 56 / 82 / 99 | 56 / 82 / 100 after the pivot wall (0 lost); after the last three walls **not measured** (coordinator measure hold) |
+| harness, 335 capture files, runtime pane permitted (scratch chunked sweep) | MATCH 106 / DIVERGE 107 / INC 122 (objects MATCH 187) | identical entry for entry after the pivot wall; after the last three walls **not measured** |
+| server rails (`test_runtime_definitions`, `_document_round_trip`, `_pine_runtime_switch_on`) | - | 70 passed; `test_runtime_repaint` 17 passed |
+| focused vitest (runtime dir + runtime ast rails, measure tests excluded) | - | 117 files / 1405 tests passed after `for … in`; param-id rails 18 passed / 1 skipped |
+
+### Mutations (each restored from captured bytes, sha-verified)
+
+switch: subject hoist off (1 red), chain flattened (2 red). pivot: candidate index +1 (2 red), right
+count -1 (2 red), own-definition guard dropped (1 red). frame hoist: `hoistSafe` dropped (1 red),
+frame hoist off (3 red), frame sink null (3 red), frame-aware ring reverted (1 red). cum: total reset
+on na (2 red), pane gate dropped (1 red). for-in: guard `>=` -> `>` (4 red), index bound to 0 (2 red).
+
+### Open
+
+- Census and harness after the frame-hoist, `ta.cum` and `for … in` walls: re-measure when the
+  hold lifts (`memberDoorCensus` runtime state; a harness sweep that permits the pane first).
+- Q-RT10a-e (`capture-queue-2026-10-03-rt10-runtime-walls.md`, probe `vw-rt10-runtime-walls.pine`):
+  pivots over runtime state, statement switch, frame-local series, `ta.cum`, and
+  volume-divergence-by-mm as written. Until captured these are graded by replay + the lane's own
+  served equivalents only.
+- Not taken (measured to need more than one wall or a ruling): `syminfo.type`, `input.time` /
+  `input.timeframe`, session clocks over input / overnight sessions, `history-expression` inside an
+  `if` body (per-execution series, not vendor-pinned), dynamic window lengths.
