@@ -541,3 +541,22 @@ files listed as off-limits in every other Notebook wave plan.
   be lifted out of this wave's registry rather than designed twice.
 - Deciding the actual arming order for the wave-11 through wave-13 capability flags. That is
   `BETA-HANDOFF.md` ruling P6, the owner's call, independent of this plan.
+
+---
+
+## 11. Controller defaults for section 9 (2026-10-04; the owner may override any of them)
+
+The owner asked for the build to proceed once every Notebook feature was built ("keep going ... until
+we are perfect and finished"). Waves 12 and 13 are built and gated, so the build starts with these
+defaults. Each is chosen to be cheap to change later.
+
+| id | default | why |
+|---|---|---|
+| D1 | Keep today's five first-run buttons; add a short text preview of what the Notebook can do (no screenshots), the checklist, and the sample-notebook promotion | text cannot go stale the way screenshots do; nothing is removed from a screen members already know |
+| D2 | Every capability with a member surface gets a full in-app tour; email-to-Notebook and the personal API stay Support-article only | those two have no page to tour; matches D8 |
+| D3 | One prompt at a time, at most one per session, in arming order; an unseen prompt never expires; every tour stays replayable from Help | never stacks, never nags, nothing is lost |
+| D4 | The checklist stays closed once dismissed; a newly armed capability appears under Help's "What's new" instead of reopening it | respects the member's choice |
+| D5 | Build every tour now, each one gated on its capability's own flag, so a tour reaches members exactly when its capability is armed | no separate rollout calendar to manage |
+| D6 | Confirmed: the chart plan gets two tours (basics; then replay and context) | keeps both inside the 3-6 step budget |
+| D7 | One sample notebook that grows one example per capability | one thing to add, one thing to remove |
+| D8 | Support-article only, as today | consistent with D2 |
