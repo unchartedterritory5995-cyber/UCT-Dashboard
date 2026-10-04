@@ -373,6 +373,23 @@ describe('F5 · disclosure and the harness tolerance', () => {
     expect(SEED_WARMUP_ABS).toBeLessThanOrEqual(ABS_FLOOR_UNKNOWN_SCALE)
   })
 
+  it('⛔ a blank ANOTHER rule made (the column is NaN where this evaluation is a number) is never relabelled a seed bar', () => {
+    const ast = treeOf('ema cross marker')
+    const plainCol = plain('ema cross marker')
+    const probe = {}
+    seedWarmupMask(ast, BARS, {}, undefined, undefined, { ...OFF, seedWarmupSink: probe })
+    // bars whose bound is unbounded and whose own value is a number
+    const at = []
+    for (let i = 0; i < N; i++) if (probe.bound[i] === Infinity && !Number.isNaN(plainCol[i])) at.push(i)
+    expect(at.length).toBeGreaterThan(0)
+    // another rule blanked them: the column handed in (`raw`) is NaN there
+    const raw = Float64Array.from(plainCol)
+    for (const i of at) raw[i] = NaN
+    const sink = {}
+    const mask = seedWarmupMask(ast, BARS, {}, undefined, undefined, { ...OFF, seedWarmupSink: sink }, raw)
+    for (const i of at) expect(mask ? mask[i] : 0, `bar ${i}`).toBe(0)
+  })
+
   it('the mask reports its bound and the value it withheld', () => {
     const sink = {}
     const ast = treeOf('ema 10')
