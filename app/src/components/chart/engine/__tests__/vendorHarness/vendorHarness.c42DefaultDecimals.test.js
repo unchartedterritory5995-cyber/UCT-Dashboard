@@ -67,8 +67,10 @@ describe('C42 — the default number text is ten decimals', () => {
       '    label.new(bar_index, low, "S05 hlc3|" + str.tostring(hlc3[200]))',
       '    label.new(bar_index, low, "S06 ohlc4|" + str.tostring(ohlc4[200]))',
       '    label.new(bar_index, low, "S01 volume|" + str.tostring(volume[5]))',
-      '    label.new(bar_index, low, "third|" + str.tostring(4 / 3))',
-      '    label.new(bar_index, low, "two thirds|" + str.tostring(5 / 3))',
+      // ⭐ F1 — FLOAT literals: before v6 `4 / 3` of two `const int` is 1
+      // (`vw-int-div-assign` D03), so the fraction is asked of `4.0 / 3`.
+      '    label.new(bar_index, low, "third|" + str.tostring(4.0 / 3))',
+      '    label.new(bar_index, low, "two thirds|" + str.tostring(5.0 / 3))',
     ].join('\n')
     const ours = labelsOf(c, src)
     const vendor = c.objects.texts.labels

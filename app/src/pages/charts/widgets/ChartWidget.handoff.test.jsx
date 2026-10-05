@@ -41,8 +41,6 @@ vi.mock('../../../components/StockChart', () => ({
 }))
 vi.mock('./ChartDetailDock', () => ({
   default: ({ sym, children }) => (<><span data-testid="dock-sym">{sym}</span>{children}</>),
-  ChartEarningsButton: () => null,
-  ChartPanelsButton: () => null,
 }))
 vi.mock('../../../components/chart/SymbolSearch', async () => {
   const { forwardRef, useImperativeHandle } = await import('react')

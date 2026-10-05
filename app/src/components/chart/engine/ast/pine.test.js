@@ -624,8 +624,11 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // 10.5, and no TradingView-hosted page states which whole number `ta.sma`
     // would then use. `pine.window.test.js` owns that ruling and its ten controls;
     // this case keeps ONE example of the guard alive in the by-token table.
+    // ⭐ F1 (2026-10-02): v6. Before v6 two integer LITERALS are `const int` and
+    // TradingView truncates `21 / 2` to 10 (`vw-int-div-assign` D03), a whole
+    // window; from v6 the quotient keeps its fraction.
     ['a length that does not reduce to a whole number of bars',
-      '//@version=5\nindicator("t")\nplot(ta.sma(close, 21 / 2))\n',
+      '//@version=6\nindicator("t")\nplot(ta.sma(close, 21 / 2))\n',
       'pine:window', 3, 20, '21'],
     // ⚰️ THIS WAS `ta.sma(source = close, length = 20)` UNTIL `PINE_ARG_NAMES`
     // landed. `ta.sma(source, length)` is now a MEASURED mapping — the corpus

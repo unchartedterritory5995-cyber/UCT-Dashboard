@@ -69,11 +69,12 @@ import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
   securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, FUNDAMENTALS_STATUS,
-  glyphNameOf, glyphFamilyOf, fundamentalResults, economicResults, libraryTabsFor,
+  glyphNameOf, glyphFamilyOf, fundamentalResults, economicResults, libraryTabsFor, featureResults,
 } from './discoveryCatalog'
 import useFundamentalsCatalog from './engine/useFundamentalsCatalog'
 import useEconomicCatalog from './engine/useEconomicCatalog'
 import UIcon from '../ui/UIcon'
+import Switch from '../ui/Switch'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
 // facade adapters — so "what does QQQ match" has one answer on both surfaces.
@@ -95,7 +96,6 @@ import {
 import { calcTimeframeCapability, CAPABILITY_WORDS } from './engine/calcTimeframeCapability'
 import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES } from './engine/presentation'
 import { tfLabel } from './timeframes'
-import Switch from '../ui/Switch'
 import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
@@ -257,6 +257,10 @@ function aliasRowId(rowId, settings) {
   return slot && typeof slot.adopted === 'string' ? slot.adopted : rowId
 }
 
+// A host feature's row id in the structure list. Namespaced so it can never
+// collide with an indicator row id (`ovl:0`, `inst:rsi:1`, `overlay-2`, …).
+const featureRowId = (id) => `feature:${id}`
+
 export default function ChartSettingsIndicators({
   rows,
   settings,
@@ -290,11 +294,21 @@ export default function ChartSettingsIndicators({
   // visibility seeded from where the member is) — never to decide what is stored.
   // Absent on the grid, which simply shows no such note.
   chartTf = null,
+  // ⭐ HOST FEATURES — the chart-attached research surfaces the HOST renders (a
+  // /charts ChartWidget: the Earnings Strip, Company Info). `{ items, add,
+  // remove, setOpen }` from `pages/charts/widgets/chartFeatures.js`.
+  // ⛔⛔ NOT CHART SETTINGS. Every write goes to the host's own callbacks — never
+  // `onChange` — and these rows never enter `paneMap`, pane order or the legend.
+  // Absent ⇒ no Research tab and no feature rows, which is every other host.
+  chartFeatures = null,
+  // Opened from the chart's own "Add to Chart" control: land IN the add surface
+  // with the caret in search, rather than on the structure list.
+  openAdd = false,
 }) {
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
-  const [mode, setMode] = useState('active')
+  const [mode, setMode] = useState(() => (openAdd ? 'browse' : 'active'))
   const [query, setQuery] = useState('')
   // ⚰️⚰️ IT WAS A FREE-TEXT `category`, filtered against whatever string each
   // result happened to carry — `Momentum`, `Volatility`, `Symbols`, `Your
@@ -877,7 +891,16 @@ export default function ChartSettingsIndicators({
   // member; otherwise no tab, no rows, and `libraryTabs` is `LIBRARY_TABS` itself.
   const econCat = useEconomicCatalog(discovering)
   const econAvailable = econCat.available
-  const libraryTabs = libraryTabsFor({ economic: econAvailable })
+  // ⭐ THE HOST'S FEATURES, as discovery rows. Absent host ⇒ `[]` ⇒ the same tab
+  // arrays as before, by identity (`libraryTabsFor`).
+  const featureItems = chartFeatures && Array.isArray(chartFeatures.items) ? chartFeatures.items : null
+  const featureRows = useMemo(() => featureResults(featureItems), [featureItems])
+  // What is ADDED, in descriptor order — the left list's last groups.
+  const addedFeatures = useMemo(
+    () => (featureItems || []).filter((f) => f && f.enabled),
+    [featureItems],
+  )
+  const libraryTabs = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
   useLayoutEffect(() => { if (tabsCheck.current) tabsCheck.current() }, [libraryTabs])
@@ -929,8 +952,11 @@ export default function ChartSettingsIndicators({
     // ⭐ ECONOMIC SERIES, same door (browse AND search: `liveDiscoveryRows` matches
     // browsed rows against the query, and `resultByKey` below finds them on click).
     const eco = econAvailable ? economicResults(econCat.list) : []
-    return [...secs, ...idx, ...brd, ...mkt, ...fnd, ...eco]
-  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list, econAvailable, econCat.list])
+    // ⭐ RESEARCH browses and searches through the same door — `liveDiscoveryRows`
+    // matches browsed rows against the query with the catalogue's own `matches`,
+    // so `earnings` / `company` find them by name and tags with no special case.
+    return [...secs, ...idx, ...brd, ...mkt, ...fnd, ...eco, ...featureRows]
+  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list, econAvailable, econCat.list, featureRows])
 
   // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
   // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
@@ -1116,6 +1142,17 @@ export default function ChartSettingsIndicators({
   // mode when it is visible, so there is no second entry to keep.
 
 
+  // ⭐ A HOST FEATURE IS ADDED BY ITS HOST, and an ACTIVE one is not a dead row:
+  // clicking it selects its management row, which is where Remove (and, for
+  // Company Info, Show / Collapse) lives. Either way the member lands on it.
+  const openFeature = useCallback((row) => {
+    if (!row.enabled) chartFeatures?.add?.(row.featureId)
+    setMode('active'); setQuery(''); setTab('technical'); setTabPinned(false)
+    setSelected(featureRowId(row.featureId))
+    setLanded(featureRowId(row.featureId))
+    if (narrow) setNarrowView('inspector')
+  }, [chartFeatures, narrow])
+
   const addRow = useCallback((row) => {
     // ⚰️⚰️ ONE CREATED OBJECT, ONE CANONICAL IDENTITY — AND THIS DOOR MINTED A
     // DIFFERENT ONE. `addAnother` below already routes a DEFINITION at
@@ -1156,6 +1193,10 @@ export default function ChartSettingsIndicators({
       leaveBrowse()
       return true
     }
+    // ⛔ BEFORE `armAdd` AND BEFORE `resultByKey`: a feature row IS in the map
+    // (it browses with the others) but has no `create` descriptor, and its add
+    // writes the host's dock, not chart settings.
+    if (row.kind === 'feature') { openFeature(row); return }
     armAdd()
     const res = resultByKey.get(row.key)
     if (res) {
@@ -1176,7 +1217,7 @@ export default function ChartSettingsIndicators({
     // persisting a no-op would mark the preset custom for a click that did nothing
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
-  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse])
+  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -1336,6 +1377,12 @@ export default function ChartSettingsIndicators({
     () => flatRows.find((r) => r.id === selected) || null,
     [flatRows, selected],
   )
+  // A selected HOST FEATURE. Only an added one can be selected — a feature
+  // removed while it was open simply stops being found, exactly like a row.
+  const selectedFeature = useMemo(
+    () => addedFeatures.find((f) => featureRowId(f.id) === selected) || null,
+    [addedFeatures, selected],
+  )
 
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
@@ -1388,6 +1435,9 @@ export default function ChartSettingsIndicators({
    */
   const selectRow = useCallback((rowId) => {
     setSelected(rowId)
+    // Choosing something already on the chart means MANAGING it: leave discovery so its
+    // inspector takes the right side (both doors — header Add to Chart and ＋ Add to Chart).
+    setMode((m) => (m === 'browse' ? 'active' : m))
     if (narrow) setNarrowView('inspector')
   }, [narrow])
 
@@ -1402,7 +1452,7 @@ export default function ChartSettingsIndicators({
    */
   const onStructureKeys = useCallback((e) => {
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-    const ids = flatRows.map((r) => r.id)
+    const ids = [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))]
     if (!ids.length) return
     let next = null
     if (step) {
@@ -1418,7 +1468,54 @@ export default function ChartSettingsIndicators({
     try {
       listRef.current?.querySelector(`[data-row-id="${CSS.escape(next)}"]`)?.focus()
     } catch { /* jsdom has no CSS.escape; the selection still moved */ }
-  }, [flatRows, selected])
+  }, [flatRows, addedFeatures, selected])
+
+  // ─── HOST FEATURES IN THE STRUCTURE LIST ──────────────────────────────────
+  //
+  // ⛔⛔ NOT PANES. These groups come from the host's descriptors, never from
+  // `paneMap`: they are not draggable, not in Arrange, carry no grip, no
+  // micro-rail colour and no legend identity. The heading names WHERE the
+  // surface renders (`Below chart`, `Side panel`) — the same rule as a pane
+  // heading — and only a destination holding an ADDED feature is listed.
+  const renderFeatureGroup = (f) => {
+    const rid = featureRowId(f.id)
+    const isSel = selected === rid
+    const collapsed = f.collapsible && !f.open
+    return (
+      <div
+        key={rid}
+        role="group"
+        aria-label={f.group}
+        className={styles.insGroup}
+        data-feature-group={f.destination}
+      >
+        <div className={styles.insGroupHead}>{f.group}</div>
+        <div
+          role="option"
+          aria-selected={isSel}
+          tabIndex={isSel ? 0 : -1}
+          data-row-id={rid}
+          data-feature-row={f.id}
+          data-structure-row="true"
+          data-landed={landed === rid ? 'true' : undefined}
+          className={[
+            styles.insRow,
+            isSel ? styles.insRowSel : '',
+            landed === rid ? styles.insRowLanded : '',
+          ].filter(Boolean).join(' ')}
+          onClick={() => selectRow(rid)}
+        >
+          {/* The grip slot and rail keep the name on the same column as every
+              series row; both stay EMPTY — a feature is not reorderable and has
+              no plot colour to show. */}
+          <span className={styles.insRowGripSlot} />
+          <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
+          <span className={styles.insRowName} title={f.name}>{f.name}</span>
+          {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
+        </div>
+      </div>
+    )
+  }
 
   const renderStructureRow = (row, group) => {
     const meta = paneRowMeta(row, group, settings, defOf)
@@ -2151,6 +2248,63 @@ export default function ChartSettingsIndicators({
     )
   }
 
+  // ─── ONE HOST FEATURE, IN THE INSPECTOR ────────────────────────────────────
+  //
+  // Name, where it renders, what it is — and the only verbs it has. ⛔ No Core,
+  // no Appearance, no Display in, no Duplicate: it is not a plot. The Earnings
+  // Strip has no visibility switch because hidden and removed would be the same
+  // thing; Company Info's switch is EXPANDED vs COLLAPSED, the same state its
+  // own chevron and edge rail drive.
+  const renderFeatureInspector = (f) => {
+    const rid = featureRowId(f.id)
+    return (
+      <div className={styles.insPanel} id={inspectorDomId(rid)} data-inspector-for={rid} data-feature-inspector={f.id}>
+        <div className={styles.insHead}>
+          {narrow && (
+            <button
+              type="button"
+              className={styles.insBack}
+              onClick={() => setNarrowView('list')}
+              aria-label="Back to the chart structure"
+            >←</button>
+          )}
+          <span className={styles.insHeadText}>
+            <span className={styles.insHeadName}>{f.name}</span>
+            <span className={styles.insHeadKind}>{f.place}</span>
+          </span>
+          {/* The shared Switch, wearing the header switch's own classes — so it
+              looks exactly like an indicator's Hide/Show and adds no hand-rolled
+              switch (TERM-067). */}
+          {f.collapsible && (
+            <Switch
+              checked={!!f.open}
+              aria-label={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
+              title={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
+              className={`${styles.toggle} ${styles.insVis}`}
+              checkedClassName={styles.toggleOn}
+              knobClassName={styles.toggleKnob}
+              onClick={() => chartFeatures?.setOpen?.(f.id, !f.open)}
+            />
+          )}
+        </div>
+        <section className={styles.insSection} data-section="about">
+          <p className={styles.insGroupWhy}>{f.description}</p>
+        </section>
+        <div className={styles.insActions}>
+          <button
+            type="button"
+            className={`${styles.insAction} ${styles.insActionDanger}`}
+            aria-label={`Remove ${f.name}`}
+            onClick={() => {
+              chartFeatures?.remove?.(f.id)
+              setSelected((cur) => (cur === rid ? null : cur))
+            }}
+          >Remove</button>
+        </div>
+      </div>
+    )
+  }
+
   const renderInspector = (row) => {
     const group = groupOfRow(row.id)
     const def = row.defId ? (registry?.getDefinition?.(row.defId) || null) : null
@@ -2845,8 +2999,11 @@ export default function ChartSettingsIndicators({
     // creates them must keep offering. A row carrying a `create` descriptor is
     // asked nothing; it simply adds.
     // ⭐ AND A RESTORE ROW IS AN ADD ROW TOO — see `discoveryCatalog.libraryRowFor`.
-    const creates = resultByKey.has(row.key) || row.restores === true
-    const on = creates ? false : isRowOn(row, settings)
+    // ⭐ A HOST FEATURE ANSWERS FROM THE HOST: `enabled` is its dock state, and
+    // it is never a creating row even though it browses through `resultByKey`.
+    const isFeature = row.kind === 'feature'
+    const creates = !isFeature && (resultByKey.has(row.key) || row.restores === true)
+    const on = isFeature ? !!row.enabled : (creates ? false : isRowOn(row, settings))
     // ⛔ DISCOVERY IS NOT CHARTABILITY. The facade reports what the SERVER already
     // said — a delisted ticker, an index the bars route will not serve — and
     // `createFromResult` refuses those by identity. A row that looked live and did
@@ -2875,9 +3032,9 @@ export default function ChartSettingsIndicators({
         title={row.description || undefined}
         tabIndex={0}
         className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
-        onClick={() => { if (canAdd) addRow(row) }}
+        onClick={() => { if (canAdd || (isFeature && on)) addRow(row) }}
         onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && canAdd) { e.preventDefault(); addRow(row) }
+          if ((e.key === 'Enter' || e.key === ' ') && (canAdd || (isFeature && on))) { e.preventDefault(); addRow(row) }
         }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
@@ -3037,7 +3194,7 @@ export default function ChartSettingsIndicators({
           >←</button>
         )}
         <span className={styles.insHeadText}>
-          <span className={styles.insHeadName}>Add Indicator</span>
+          <span className={styles.insHeadName}>Add to Chart</span>
         </span>
         {/* ⚰️ IT WORE `.insHeadAct` — the same faint grey as `Arrange`, which is a
             MODE SWITCH, and at the far end of a header a member reads for a
@@ -3358,7 +3515,7 @@ export default function ChartSettingsIndicators({
               <div className={styles.insStructure} data-testid="arrange-list">
                 {arrangeable.map((g, i) => renderArrangeGroup(g, i))}
               </div>
-            ) : activeRows.length === 0 ? (
+            ) : (activeRows.length === 0 && addedFeatures.length === 0) ? (
               <div className={styles.indEmpty}>
                 Nothing on this chart yet.{' '}
                 <button type="button" className={styles.indEmptyLink} onClick={enterBrowse}>Add something</button>.
@@ -3384,6 +3541,7 @@ export default function ChartSettingsIndicators({
                     would scroll members to the top of the structure and call it a
                     deep link. */}
                 {paneGroups.map((g) => renderStructureGroup(g, g.id === 'volume' ? volumeRef : null))}
+                {addedFeatures.map(renderFeatureGroup)}
               </div>
             )}
 
@@ -3402,7 +3560,7 @@ export default function ChartSettingsIndicators({
                 onClick={enterBrowse}
               >
                 <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>
-                Add Indicator
+                Add to Chart
               </button>
             )}
           </div>
@@ -3429,7 +3587,9 @@ export default function ChartSettingsIndicators({
               ? renderArrangeAside()
               // ⛔ A SELECTION THAT NAMES NO ROW (a deep link to something no longer
               // on the chart) shows the add surface rather than an editor of nothing.
-              : ((discovering || !selectedRow) ? renderAddSurface() : renderInspector(selectedRow))}
+              : discovering ? renderAddSurface()
+                : selectedFeature ? renderFeatureInspector(selectedFeature)
+                  : selectedRow ? renderInspector(selectedRow) : renderAddSurface()}
           </div>
         )}
       </div>

@@ -19,11 +19,16 @@
 import { useMemo } from 'react'
 
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { CELL_PX, stripCells } from './chartEarningsStripModel'
 import styles from './ChartEarningsStrip.module.css'
 
-const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
-
+// ⛔ A FAILURE MUST NOT READ AS "STILL LOADING". The old fetcher turned a non-OK
+// response into `null`, which this component rendered as `Loading earnings…`
+// for ever. `sectionFetcher` THROWS, so SWR reports `error` and the strip can say
+// the data is unavailable. (`null` is still honoured below: the Company panel's
+// Earnings tab shares this SWR key and its own fetcher may be the one that
+// populated it.)
 const TONE = { gold: styles.gold, up: styles.up, down: styles.down, none: styles.flat }
 
 function Metric({ k, value, cell, est }) {
@@ -43,9 +48,9 @@ function Metric({ k, value, cell, est }) {
 }
 
 export default function ChartEarningsStrip({ sym, width }) {
-  const { data: intel } = useMobileSWR(
+  const { data: intel, error } = useMobileSWR(
     sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
-    jsonFetcher,
+    sectionFetcher,
     { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false },
   )
 
@@ -56,11 +61,20 @@ export default function ChartEarningsStrip({ sym, width }) {
 
   if (!sym) return null
   if (!cells.length) {
+    // ⛔ The strip stays ADDED whatever the symbol is — a fund, an index, a
+    // breadth or synthetic symbol, or a company with no reports. It says so
+    // here instead of removing itself; the next company symbol fills it again.
+    // SWR resets `intel` to undefined on a key change, so nothing from the
+    // previous symbol is ever shown while the new one loads.
+    const unavailable = !!error || intel === null || !!intel?.paywalled
+    const text = unavailable
+      ? `Earnings data is unavailable for ${sym}.`
+      : intel === undefined
+        ? 'Loading earnings…'
+        : `No quarterly earnings for ${sym}.`
     return (
-      <div className={styles.strip}>
-        <div className={styles.empty}>
-          {intel ? `No quarterly earnings for ${sym}.` : 'Loading earnings…'}
-        </div>
+      <div className={styles.strip} data-testid="chart-earnings-strip-empty">
+        <div className={styles.empty}>{text}</div>
       </div>
     )
   }

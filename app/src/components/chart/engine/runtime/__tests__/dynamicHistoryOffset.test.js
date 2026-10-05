@@ -113,14 +113,23 @@ describe('⭐⭐ a history offset that is only known while the bar is running', 
     expect(run(`${head}plot(close[0] + close[1] + close[2])\n`)).toEqual(run(LOOP))
   })
 
-  it('⛔⛔ CONTROL — over a MUTABLE VARIABLE it still refuses', () => {
-    // ⚰️ THE HALF THE RESERVED OPCODE ASKED FOR. A slot's past lives in a RING
-    // of bounded depth, so an offset that may reach past it would answer `na`
-    // where Pine answers a number — a silent wrong value. Columns and series
-    // are materialised and have no such bound; a ring does, and until that
-    // bound is static this must keep refusing.
+  it('⭐⭐ RT3 — over a MUTABLE VARIABLE it runs once the bound is STATIC, and equals the constant spelling', () => {
+    // ⚰️ THIS WAS THE CONTROL THAT KEPT REFUSING "until that bound is static".
+    // RT3 proves it static (`offsetRange`: `i` is a counter over `0 to 2`) and
+    // sizes the ring to 2, so the read is exact — the constant-offset spelling
+    // of the same program is the differential.
+    const src = `${head}var float x = 0.0\nx := close\ns = 0.0\n`
+      + 'for i = 0 to 2\n    s := s + x[i]\nplot(s)\n'
+    expect(run(src)).toEqual(run(`${head}var float x = 0.0\nx := close\nplot(x[0] + x[1] + x[2])\n`))
+  })
+
+  it('⛔⛔ CONTROL — over a MUTABLE VARIABLE an UNBOUNDED offset still refuses', () => {
+    // A slot's past lives in a RING of bounded depth, so an offset that may
+    // reach past it would answer `na` where Pine answers a number — a silent
+    // wrong value. A loop whose `to` is only known while the bar runs has no
+    // bound, so this keeps refusing.
     const r = refusalOf(`${head}var float x = 0.0\nx := close\ns = 0.0\n`
-      + 'for i = 0 to 2\n    s := s + x[i]\nplot(s)\n')
+      + 'for i = 0 to bar_index\n    s := s + x[i]\nplot(s)\n')
     expect(r.guard).toBe('runtime:history-dynamic-offset')
     // ⭐ AND IT SAYS WHY, naming the ring rather than blaming the member.
     expect(r.message).not.toContain('never given a value')

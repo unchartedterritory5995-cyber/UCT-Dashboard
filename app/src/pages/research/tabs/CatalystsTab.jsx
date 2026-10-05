@@ -4,6 +4,7 @@ import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
 import styles from '../ResearchPage.module.css'
+import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
 
 // Packet G CP1 -- the "what has UCT's own catalyst engine ever flagged about
@@ -47,10 +48,27 @@ function EntryProvenance({ entry }) {
 }
 
 export default function CatalystsTab({ sym }) {
-  const { data, isLoading } = useCatalystHistory(sym)
+  const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading catalyst history…</div></div></div>
+  }
+
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="catalysts-paywalled">Catalyst history requires a paid plan.</div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty catalyst history.
+  // Render the error distinctly so a backend hiccup never reads as "no
+  // catalysts recorded for this ticker yet".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="catalysts-error">
+        Couldn't load catalyst history for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const entries = (data && data.entries) || []
@@ -68,7 +86,9 @@ export default function CatalystsTab({ sym }) {
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
                     <span className={styles.muted}>{whenLabel(e.market_date)}</span>
                   </div>
-                  {e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}>{e.thesis_text}</p> : null}
+                  {hasNoWriteup(e)
+                    ? <p className={styles.muted} style={{ padding: '4px 0 0' }} data-testid="catalyst-no-writeup">{FAILED_SYNTHESIS_NOTE}</p>
+                    : e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}><HighlightThesis text={e.thesis_text} /></p> : null}
                   <EntryProvenance entry={e} />
                 </div>
               </li>

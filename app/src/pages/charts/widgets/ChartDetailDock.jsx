@@ -1,13 +1,18 @@
 /**
  * ChartDetailDock — the Company Intelligence panel that docks onto the right of a
  * chart. One panel, one tab bar (Overview · Financials · Earnings · Ownership ·
- * News) plus an in-header Search. Visibility is owned by the toolbar toggle
- * (ChartPanelsButton, which replaces Share-to-Floor) — the panel has no close X.
+ * News) plus an in-header Search.
+ *
+ * TWO STATES, TWO OWNERS. Whether Company Info is ADDED (`dock.company`) is chart
+ * configuration, owned by Indicators → Add to Chart (chartFeatures.js). Whether
+ * it is EXPANDED (`dock.open`) is the member's temporary choice, owned right here:
+ * the header chevron collapses it to a slim edge rail, the rail expands it. The
+ * panel still has no close X — removing it is an Add to Chart action.
  *
  * The chart (StockChart, autoSize) sits in .dockChartCol; opening the panel steals
  * width so the chart reflows automatically. State persists via opts.dock.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import DockProfile from './DockProfile'
 import DockNews from './DockNews'
@@ -16,60 +21,16 @@ import DockFinancials from './DockFinancials'
 import DockEarnings from './DockEarnings'
 import DockOwnership from './DockOwnership'
 import CompanySearch from './CompanySearch'
-import { COMPANY_TABS, MAX_STRIP_FRAC, MIN_RIGHT_W, MIN_STRIP_H, DEFAULT_RIGHT_W } from './chartDock'
+import { COMPANY_TABS, MAX_RIGHT_FRAC, MAX_STRIP_FRAC, MIN_RIGHT_W, MIN_STRIP_H, companyPanelFit } from './chartDock'
+import { COMPANY_INFO, setFeatureOpen } from './chartFeatures'
 import { dockColorVars } from './dockThemeColors'
 import { clearNewsPrefetch, prefetchPanel } from './dockPrefetch'
 import ChartEarningsStrip from './ChartEarningsStrip'
 import styles from './ChartDetailDock.module.css'
 
-/* ── Toolbar toggle (replaces Share to Floor) ────────────────────────────────
-   A single, direct action: open/close the Company Intelligence panel. No menu,
-   no panel picker — the button IS the panel's on/off, with a clear active state. */
-export function ChartPanelsButton({ dock, setDock, btnClassName }) {
-  const open = !!dock.open
-  // Opening always resets to the designed default width, so the panel looks
-  // identical every time (the owner's "consistent default size" requirement);
-  // in-session resizing still works, it just doesn't carry across a close/reopen.
-  return (
-    <button
-      type="button"
-      className={btnClassName}
-      onClick={() => setDock(d => (d.open ? { ...d, open: false } : { ...d, open: true, rightW: DEFAULT_RIGHT_W }))}
-      title={open ? 'Hide company info' : 'Company info'}
-      aria-label="Company info panel"
-      aria-pressed={open}
-      style={open ? { color: 'var(--accent, #c9a84c)' } : undefined}
-    >
-      <UIcon name="columns" size={15} gold={open} />
-    </button>
-  )
-}
-
-/* ── Earnings-strip toggle ───────────────────────────────────────────────────
-   Sits beside ChartPanelsButton in the timeframe bar's end slot, because that
-   slot is already where this widget's other LAYOUT-visibility control lives.
-   Deliberately not near the drawing tools, the timeframe pills or the chart
-   type: this changes what the widget shows, not how price is drawn. */
-export function ChartEarningsButton({ dock, setDock, btnClassName }) {
-  const on = !!dock.strip
-  return (
-    <button
-      type="button"
-      className={btnClassName}
-      onClick={() => setDock(d => ({ ...d, strip: !d.strip }))}
-      title={on ? 'Hide earnings strip' : 'Show earnings strip'}
-      aria-label="Earnings strip"
-      aria-pressed={on}
-      style={on ? { color: 'var(--accent, #c9a84c)' } : undefined}
-    >
-      <UIcon name="scale" size={15} gold={on} />
-    </button>
-  )
-}
-
 // Drag the divider to resize the panel width. Kept in local state during the drag
 // (smooth chart reflow), committed to opts on release.
-function useDockResize(current, commit, rootRef, min, axis = 'x', maxFrac = 0.62) {
+function useDockResize(current, commit, rootRef, min, axis = 'x', maxFrac = MAX_RIGHT_FRAC) {
   const [live, setLive] = useState(null)
   const startRef = useRef(null)
   const onDown = useCallback((e) => {
@@ -107,6 +68,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
   const rootRef = useRef(null)
   const chartColRef = useRef(null)
   const [colW, setColW] = useState(0)
+  const [rootW, setRootW] = useState(null)
   // The panel's directional numbers follow THIS chart widget's theme, not a
   // global one — two charts side by side on different themes each colour their
   // own panel. Null when the settings carry nothing parseable, which leaves the
@@ -124,8 +86,27 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
   const setTab = useCallback((key) => setDock(d => ({ ...d, tab: key })), [setDock])
   const setNewsFilter = useCallback((f) => setDock(d => ({ ...d, newsFilter: f })), [setDock])
 
-  const rightOpen = !!dock.open
+  const companyAdded = !!dock.company
+  const fit = companyPanelFit(rightResize.size, rootW)
+  // Expanded only when added, chosen open AND there is room; otherwise an added
+  // panel is the rail. A removed panel is neither.
+  const rightOpen = companyAdded && !!dock.open && fit.fits
+  const railShown = companyAdded && !rightOpen
+  const tooNarrow = companyAdded && !!dock.open && !fit.fits
+  const setCompanyOpen = useCallback(
+    (open) => setDock(d => setFeatureOpen(d, COMPANY_INFO, open)), [setDock])
   const stripOpen = !!dock.strip
+
+  // The widget's own width drives the fit rule above. Measured only while the
+  // panel is added — a chart without Company Info pays for no observer.
+  useLayoutEffect(() => {
+    const el = rootRef.current
+    if (!el || !companyAdded) return undefined
+    const ro = new ResizeObserver(([e]) => setRootW(Math.round(e.contentRect.width)))
+    ro.observe(el)
+    setRootW(Math.round(el.getBoundingClientRect().width))
+    return () => ro.disconnect()
+  }, [companyAdded])
 
   // The strip sizes off the CHART COLUMN's measured width, never the browser's:
   // opening or dragging the Company Panel changes one and not the other.
@@ -150,16 +131,16 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
   }, [rightOpen, sym])
   const tab = dock.tab
 
-  // ── Search (Ctrl/⌘+K) — an inline exploration mode, not navigation ──────────
+  // ── Search — an inline exploration mode, not navigation ─────────────────────
+  // ⛔ NO KEYBOARD SHORTCUT. This used to listen for Ctrl/⌘+K on window, but the
+  // global command palette owns that chord in the capture phase and stops it
+  // (pages/command/shortcutRegistry.js 'palette.toggle'), so the panel's
+  // listener never fired and its "(Ctrl+K)" tooltip promised a key that opens
+  // the palette instead. The search button is the door.
   const [searchOpen, setSearchOpen] = useState(false)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient search when the panel is closed
-    if (!rightOpen) { setSearchOpen(false); return undefined }
-    const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); setSearchOpen(true) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    if (!rightOpen) setSearchOpen(false)
   }, [rightOpen])
 
   return (
@@ -182,7 +163,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
         </div>
 
         {rightOpen && (
-          <div className={styles.dockRight} style={{ width: rightResize.size }}>
+          <div className={styles.dockRight} style={{ width: fit.width }} data-testid="company-panel">
             <div className={styles.resizerV} onPointerDown={rightResize.onDown} />
             <div className={styles.rdHeader}>
               <div className={styles.rdTabs}>
@@ -199,10 +180,19 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
                 type="button"
                 className={`${styles.rdSearch}${searchOpen ? ' ' + styles.rdSearchOn : ''}`}
                 onClick={() => setSearchOpen(true)}
-                title="Search company information (Ctrl+K)"
+                title="Search company information"
                 aria-label="Search company information"
               >
                 <UIcon name="search" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
+                className={styles.rdCollapse}
+                onClick={() => setCompanyOpen(false)}
+                title="Collapse company info"
+                aria-label="Collapse company info"
+              >
+                <UIcon name="chevronRight" size={13} gold={false} />
               </button>
             </div>
             <div className={styles.dockBody}>
@@ -227,6 +217,25 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
               </ErrorBoundary>
               {searchOpen && <CompanySearch sym={sym} onClose={() => setSearchOpen(false)} />}
             </div>
+          </div>
+        )}
+
+        {/* The collapsed rail exists ONLY because Company Info is added — it is
+            the panel folded to its edge, not a toolbar. When the widget is too
+            narrow to show the panel it stands in for it, and says why. */}
+        {railShown && (
+          <div className={styles.dockRail}>
+            <button
+              type="button"
+              className={styles.railBtn}
+              onClick={tooNarrow ? undefined : () => setCompanyOpen(true)}
+              disabled={tooNarrow}
+              title={tooNarrow ? 'Widen this chart to show company info' : 'Show company info'}
+              aria-label={tooNarrow ? 'Company info needs a wider chart' : 'Show company info'}
+              data-testid="company-rail"
+            >
+              <UIcon name="columns" size={13} gold={false} />
+            </button>
           </div>
         )}
       </div>

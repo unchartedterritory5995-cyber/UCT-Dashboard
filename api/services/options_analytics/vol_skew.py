@@ -86,8 +86,10 @@ def rr_bf(sym: str) -> dict:
            "spot": next((e["spot"] for e in exps if e["spot"]), None),
            "tenors": [tenor_row(e) for e in exps], "expirations_listed": len(got["listed"]),
            "missing": got["missing"],
-           "strikes_note": (f"Each tenor reads the {vs.STRIKES_AROUND_SPOT * 2} strikes nearest spot per side, "
-                            "so a far delta (10) may not be reached on a wide-strike name."),
+           "strikes_note": (f"Each tenor reads the {vs.STRIKES_AROUND_SPOT * 2} strikes nearest spot per side "
+                            f"plus every strike within {int(vs.WING_BAND * 100)}% of spot whose vendor "
+                            f"|delta| is at least {vs.WING_DELTA:.2f}; a target delta is blank only "
+                            "where that expiry has no two-sided quote bracketing it."),
            "served_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     _CACHE.set(f"rrbf::{sym}", dict(out), 60)
     return out

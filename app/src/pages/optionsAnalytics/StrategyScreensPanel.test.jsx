@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import StrategyScreensPanel from './StrategyScreensPanel'
+import StrategyScreensPanel, { MoreStrategyScreens } from './StrategyScreensPanel'
 
 // Shapes from api/services/options_analytics/strategy_screens.py (tests/test_options_strategy_screens.py).
 const CATALOG = { strategies: [{ id: 'covered_calls', label: 'Covered calls' }, { id: 'bull_put_spreads', label: 'Bull put spreads' }] }
@@ -20,7 +20,12 @@ function stub(map) {
     return Promise.resolve({ status, ok: status === 200, json: () => Promise.resolve(body) })
   }))
 }
+// a catalog fetch that never settles -- used to observe the loading state before it resolves.
+function stubPending() {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+}
 const mount = () => render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><StrategyScreensPanel /></SWRConfig>)
+const mountMore = () => render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><MoreStrategyScreens /></SWRConfig>)
 
 describe('StrategyScreensPanel (FT-072/073)', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -46,5 +51,51 @@ describe('StrategyScreensPanel (FT-072/073)', () => {
     stub({ '/strategies': [200, CATALOG], '/strategy/': [503, { detail: 'x' }] })
     mount()
     expect((await screen.findByTestId('strategy-unavailable')).textContent).toContain('not "nothing matched"')
+  })
+
+  it('a failed CATALOG (outage) is distinct from an empty one: shows an unavailable state, not nothing', async () => {
+    stub({ '/strategies': [503, { detail: 'x' }] })
+    mount()
+    expect((await screen.findByTestId('strategy-catalog-unavailable')).textContent).toContain('not "nothing matched"')
+  })
+
+  it('a genuinely empty catalog (200, strategies absent) renders nothing, same as before', async () => {
+    stub({ '/strategies': [200, {}] })
+    const { container } = mount()
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(container.querySelector('[data-testid="strategy-screens"]')).toBeNull()
+    expect(container.querySelector('[data-testid="strategy-catalog-unavailable"]')).toBeNull()
+  })
+
+  it('a still-loading catalog renders nothing yet (not the outage state)', async () => {
+    stubPending()
+    const { container } = mount()
+    expect(container.querySelector('[data-testid="strategy-screens"]')).toBeNull()
+    expect(container.querySelector('[data-testid="strategy-catalog-unavailable"]')).toBeNull()
+  })
+})
+
+describe('MoreStrategyScreens (FT-073) — catalog outage vs empty vs loading', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('a failed catalog (outage) shows an unavailable state, not nothing', async () => {
+    stub({ '/more-strategies': [503, { detail: 'x' }] })
+    mountMore()
+    expect((await screen.findByTestId('more-catalog-unavailable')).textContent).toContain('not "nothing matched"')
+  })
+
+  it('a genuinely empty catalog (200, strategies absent) renders nothing', async () => {
+    stub({ '/more-strategies': [200, {}] })
+    const { container } = mountMore()
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(container.querySelector('[data-testid="more-strategy-screens"]')).toBeNull()
+    expect(container.querySelector('[data-testid="more-catalog-unavailable"]')).toBeNull()
+  })
+
+  it('a still-loading catalog renders nothing yet (not the outage state)', async () => {
+    stubPending()
+    const { container } = mountMore()
+    expect(container.querySelector('[data-testid="more-strategy-screens"]')).toBeNull()
+    expect(container.querySelector('[data-testid="more-catalog-unavailable"]')).toBeNull()
   })
 })

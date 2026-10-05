@@ -214,7 +214,7 @@ describe('C40 (H14) / C48 — a drawing list created WITH SLOTS: three `na` slot
       const t = tr(SRC(ctor))
       expect(diag(t).collsDivergedWhy).toBeUndefined()
       expect(diag(t).droppedOps).toBe(0)
-      expect(t.objects.colls).toEqual([{ id: 'c0', family: 'box', cap: 500, slots: 3 }])
+      expect(t.objects.colls).toEqual([{ id: 'c0', family: 'box', cap: 500, slots: 3, persist: true }])
       const r = run(t)
       expect(r.status).toBe('ok')
       expect(bornAt(r, 'box')).toEqual([59, 59, 59])
@@ -597,7 +597,8 @@ describe('⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`', () =>
     const t = tr([
       'var line ln = line.new(0, 7.5, 1, 7.5)',
       'label.new(bar_index, high, "a")',
-      'label.new(bar_index, low, str.tostring(line.get_y1(ln), "#,###.##"))',
+      // (F3: `"#,###.##"` is read now; `%` still changes the number, so it is not)
+      'label.new(bar_index, low, str.tostring(line.get_y1(ln), "#.##%"))',
       'for [i, v] in label.all',
       '    label.set_text(v, str.tostring(i))',
     ])

@@ -1,25 +1,63 @@
+import { useMemo, useCallback } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useLivePrices from '../../../hooks/useLivePrices'
 
-// Shared fetcher — null on any non-OK / error so cards fall back to "—".
-const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-088 -- the Overview tab (DES) composes four independent reads. A
+// failed read on any of them is not an empty card; see useDecisionRecord.js
+// for why the fetcher keeps the HTTP outcome instead of collapsing a
+// non-2xx into null.
+export async function fetchResearchOverviewPart(url) {
+  try {
+    const r = await fetch(url, { credentials: 'include' })
+    if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
+    return { ok: true, httpStatus: r.status, body: await r.json() }
+  } catch {
+    return { ok: false, httpStatus: 0, body: null }
+  }
+}
 
 // Phase 1: compose the Overview tab from existing endpoints. No new backend.
-export default function useResearchOverview(rawSym) {
+//
+// `header` (default true) adds the two reads only the page HEADER draws:
+// ticker meta and the live price. The terminal's DES panel renders no header,
+// so it passes `{ header: false }` and skips both -- the live price alone
+// re-rendered the panel every 2s for nothing.
+//
+// ⛔ The meta key carries `?src=research` on purpose. This hook's fetcher
+// stores `{ok, httpStatus, body}`; useTickerMeta stores the raw JSON under
+// `/api/ticker-meta/SYM`. Sharing one SWR key let whichever ran first hand
+// the other the wrong shape.
+//
+// ⛔ The earnings analysis is read `cached_only`: without it an uncached
+// ticker generates the analysis with an LLM call inside the request, on the
+// single web process. An uncached ticker shows "will appear here once
+// available" until the earnings view generates it.
+export default function useResearchOverview(rawSym, { header = true } = {}) {
   const sym = (rawSym || '').toUpperCase().trim()
 
-  const { data: meta } = useMobileSWR(sym ? `/api/ticker-meta/${sym}` : null, fetcher)
-  const { data: stats } = useMobileSWR(sym ? `/api/fundamentals/${sym}` : null, fetcher)
-  const { data: analyst } = useMobileSWR(sym ? `/api/earnings/intel/${sym}` : null, fetcher)
-  const { data: ai } = useMobileSWR(sym ? `/api/earnings-analysis/${sym}` : null, fetcher)
-  const { prices } = useLivePrices(sym ? [sym] : [])
+  const { data: meta, mutate: mutateMeta } = useMobileSWR(sym && header ? `/api/ticker-meta/${sym}?src=research` : null, fetchResearchOverviewPart)
+  const { data: stats, mutate: mutateStats } = useMobileSWR(sym ? `/api/fundamentals/${sym}` : null, fetchResearchOverviewPart)
+  const { data: analyst, mutate: mutateAnalyst } = useMobileSWR(sym ? `/api/earnings/intel/${sym}` : null, fetchResearchOverviewPart)
+  const { data: ai, mutate: mutateAi } = useMobileSWR(sym ? `/api/earnings-analysis/${sym}?cached_only=1` : null, fetchResearchOverviewPart)
+  const { prices } = useLivePrices(sym && header ? [sym] : [])
 
-  return {
+  const mutate = useCallback(() => {
+    mutateMeta()
+    mutateStats()
+    mutateAnalyst()
+    mutateAi()
+  }, [mutateMeta, mutateStats, mutateAnalyst, mutateAi])
+
+  const live = header ? prices && prices[sym] : null
+
+  return useMemo(() => ({
     sym,
-    meta: meta || {},
-    stats: stats || {},
-    analyst: analyst || {},
-    ai: ai || {},
-    live: (prices && prices[sym]) || {},
-  }
+    meta: (meta && meta.ok ? meta.body : null) || {},
+    stats: (stats && stats.ok ? stats.body : null) || {},
+    analyst: (analyst && analyst.ok ? analyst.body : null) || {},
+    ai: (ai && ai.ok ? ai.body : null) || {},
+    live: live || {},
+    error: Boolean((meta && !meta.ok) || (stats && !stats.ok) || (analyst && !analyst.ok) || (ai && !ai.ok)),
+    mutate,
+  }), [sym, meta, stats, analyst, ai, live, mutate])
 }

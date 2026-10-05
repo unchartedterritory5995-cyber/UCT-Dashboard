@@ -62,7 +62,11 @@ const SIGNAL_LABELS = Object.freeze({
 // S8 provenance rail (presentationSingleFormatter.test.js): a `/.../` literal is
 // a shape the family's comment-stripper cannot model, so this is `new RegExp`
 // instead -- same pattern, no flags, `.test()` behaves identically.
-const TICKER_RE = new RegExp('^[A-Z]{1,6}$')
+// Dual-class suffix (BRK.B / BRK-B / BF.B): a single dot or hyphen followed by
+// 1-2 letters, mirroring the class-share spelling used elsewhere in this app
+// (lib/tickerResolver.js's cashtag suffix, massive.to_polygon_symbol's dot form).
+// No spaces, no repeated separators, max length kept tight so garbage still fails.
+export const TICKER_RE = new RegExp('^[A-Z]{1,6}(?:[.-][A-Z]{1,2})?$')
 
 function ordinalRank(r, n) {
   return Number.isFinite(r) && Number.isFinite(n) ? `${formatNumber(r)} of ${formatNumber(n)}` : null
@@ -255,7 +259,7 @@ export default function AbsenceReceipt({ ticker = null, collapsible = false, lis
     if (!TICKER_RE.test(sym)) {
       seq.current += 1                          // supersede any check in flight
       setLoading(false)
-      setResult({ words: { kind: 'invalid', headline: 'Enter a ticker of up to 6 letters.', detail: '', facts: [] } })
+      setResult({ words: { kind: 'invalid', headline: 'Enter a ticker, e.g. NVDA or BRK.B.', detail: '', facts: [] } })
       return
     }
     const mine = ++seq.current
@@ -306,7 +310,7 @@ export default function AbsenceReceipt({ ticker = null, collapsible = false, lis
                 placeholder="Ticker (e.g. NVDA)"
                 aria-label="Ticker to check"
                 className={styles.input}
-                maxLength={6}
+                maxLength={9}
               />
             )}
             <button type="button" className={styles.check} disabled={loading} onClick={check}>

@@ -2843,6 +2843,12 @@ export default function ChartsWorkspace() {
             onDeleteLayout={handleDeleteTemplate}
             /* COV-06 — the same restore handler the desktop Layout Dock uses. */
             onLayoutRestored={handleDockRestored}
+            /* P14b — the phone's door into Multi-Chart grid mode. The SAME action
+               the desktop "Open Layout ▾ → ▦ Multi Chart ▸" menu uses to enter the
+               grid (`mc.enterGrid(id)`, MultiChartMenu.jsx's pickPreset) — a phone
+               tap enters the default preset; the grid itself (and its own Exit
+               button) is the `gridMode` branch just above this one. */
+            onEnterMultiChart={() => mc.enterGrid()}
           />
         )}
         {noticeHost}

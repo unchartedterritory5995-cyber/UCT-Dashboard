@@ -894,6 +894,10 @@ def test_every_clock_leaf_is_bounded_by_ITS_OWN_declared_lookback():
     assert declared, "no clock section — this rail would be vacuous"
     for name, spec in sorted(declared.items()):
         reach = al.ast_reach({"type": "series", "name": name})
+        if "forward" in spec:  # RT4: a right-edge leaf -- its declared forward, named
+            assert reach["forward"] == spec["forward"], name
+            assert len(reach["reasons"]) == 1 and f"`{name}`" in reach["reasons"][0], name
+            continue
         assert reach["back"] == spec["lookback"], (
             f"{name}: linter says back={reach['back']}, the manifest declares "
             f"lookback={spec['lookback']}")

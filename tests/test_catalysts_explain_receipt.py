@@ -35,7 +35,12 @@ def _isolated(monkeypatch):
         monkeypatch.setattr(catalysts_router, "_today", lambda: MD)
         monkeypatch.setattr(curator, "get_curation", lambda md: {})
         monkeypatch.setattr(curator, "curator_ran", lambda md: False)
+        # L7: the explain answer is cached per (symbol, market date). Each test
+        # states its own pool, so each starts with an empty cache.
+        catalysts_router._explain_cache.clear()
+        catalysts_router._explain_inflight.clear()
         yield
+        catalysts_router._explain_cache.clear()
 
 
 @pytest.fixture
@@ -187,3 +192,112 @@ def test_quota_for_is_the_value_the_selector_fills():
     for tag, n in selection._DEFAULT_QUOTA.items():
         assert selection.quota_for(tag) == selection._quota(tag, n)
     assert selection.quota_for("NotATag") == 0
+
+
+# ── R6: dual-class tickers ───────────────────────────────────────────────────
+
+@pytest.mark.parametrize("sym", ["BRK.B", "BRK-B", "brk.b"])
+def test_a_dual_class_ticker_is_explained_not_refused(client, monkeypatch, sym):
+    _pool(monkeypatch, [("BRK.B", 10)])
+    body = _get(client, sym)
+    assert body["found"] is True and body["verdict"] == "qualifies_now"
+
+
+@pytest.mark.parametrize("sym", ["BRK..B", "TOOLONGX", "A-BCD", "12AB"])
+def test_a_malformed_ticker_is_still_a_400(client, monkeypatch, sym):
+    _pool(monkeypatch, [])
+    assert client.get(f"/api/catalysts/explain/{sym}").status_code == 400
+
+
+def test_a_dual_class_name_listed_under_the_other_spelling_is_on_list(client, monkeypatch):
+    _seed_listed("BRK-B", 3)
+    _pool(monkeypatch, [("AAA", 10)])
+    body = _get(client, "BRK.B")
+    assert body["verdict"] == "on_list" and body["list_rank"] == 3
+
+
+# ── L7: cached per (symbol, market date), single-flight ──────────────────────
+
+def test_a_second_request_inside_the_window_does_not_re_pull(client, monkeypatch):
+    _pool(monkeypatch, [("AAA", 10)])
+    calls = []
+    real = sources.collect_all
+    monkeypatch.setattr(sources, "collect_all", lambda *a, **k: calls.append(1) or real())
+    first = _get(client, "AAA")
+    second = _get(client, "AAA")
+    assert len(calls) == 1
+    assert first["verdict"] == second["verdict"] == "qualifies_now"
+    assert first["checked_at"] == second["checked_at"]
+
+
+def test_the_window_expires(client, monkeypatch):
+    _pool(monkeypatch, [("AAA", 10)])
+    calls = []
+    real = sources.collect_all
+    monkeypatch.setattr(sources, "collect_all", lambda *a, **k: calls.append(1) or real())
+    _get(client, "AAA")
+    key = ("AAA", MD)
+    ts, res = catalysts_router._explain_cache[key]
+    catalysts_router._explain_cache[key] = (ts - catalysts_router.EXPLAIN_TTL_SECONDS - 1, res)
+    _get(client, "AAA")
+    assert len(calls) == 2
+
+
+def test_a_new_market_date_is_a_new_key(client, monkeypatch):
+    _pool(monkeypatch, [("AAA", 10)])
+    calls = []
+    real = sources.collect_all
+    monkeypatch.setattr(sources, "collect_all", lambda *a, **k: calls.append(1) or real())
+    _get(client, "AAA")
+    monkeypatch.setattr(catalysts_router, "_today", lambda: "2026-09-30")
+    _get(client, "AAA")
+    assert len(calls) == 2
+
+
+def test_the_list_rank_is_read_LIVE_over_a_cached_answer(client, monkeypatch):
+    _pool(monkeypatch, [("AAA", 10)])
+    assert _get(client, "AAA")["verdict"] == "qualifies_now"
+    _seed_listed("AAA", 2)                       # the refresh put it on the list
+    body = _get(client, "AAA")
+    assert body["verdict"] == "on_list" and body["list_rank"] == 2
+
+
+def test_concurrent_misses_share_ONE_pull(monkeypatch):
+    import threading
+    _pool(monkeypatch, [("AAA", 10)])
+    gate, calls = threading.Event(), []
+    real = sources.collect_all
+
+    def slow(*a, **k):
+        calls.append(1)
+        gate.wait(5)
+        return real()
+    monkeypatch.setattr(sources, "collect_all", slow)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(
+        catalysts_router._explain_cached("AAA", MD))) for _ in range(4)]
+    for t in threads:
+        t.start()
+    import time as _t
+    _t.sleep(0.2)
+    gate.set()
+    for t in threads:
+        t.join(5)
+    assert len(calls) == 1 and len(results) == 4
+    assert len({r["checked_at"] for r in results}) == 1
+
+
+def test_a_failed_pull_is_not_cached(client, monkeypatch):
+    _pool(monkeypatch, [("AAA", 10)])
+    real = sources.collect_all
+    state = {"n": 0}
+
+    def flaky(*a, **k):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise RuntimeError("perplexity down")
+        return real()
+    monkeypatch.setattr(sources, "collect_all", flaky)
+    assert client.get("/api/catalysts/explain/AAA").status_code == 500
+    assert _get(client, "AAA")["verdict"] == "qualifies_now"
+    assert state["n"] == 2

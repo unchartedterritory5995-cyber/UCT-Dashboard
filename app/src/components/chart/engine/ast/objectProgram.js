@@ -1118,6 +1118,9 @@ export function assertObjectProgram(program) {
     }
     // ⭐ C48 — `slots`: the list is created holding that many `na` slots
     // (`var … = array.new_label(3)`, capture `vw-forin-collections` Z01–Z03).
+    if (c.persist !== undefined && c.persist !== true) {
+      throw new Error(`objects: collection ${c.id} persist must be true when present, got ${JSON.stringify(c.persist)}`)
+    }
     if (c.slots !== undefined && (!Number.isInteger(c.slots) || c.slots < 1 || c.slots > c.cap)) {
       throw new Error(`objects: collection ${c.id} is created with an integer slot count in 1..${c.cap}, got ${JSON.stringify(c.slots)}`)
     }
@@ -1554,6 +1557,19 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     if (t.t === 'sym') {
       const s = symbolText && Object.prototype.hasOwnProperty.call(symbolText, t.name) ? symbolText[t.name] : undefined
       return typeof s === 'string' ? { t: 'lit', s } : t
+    }
+    // ⭐⭐ F3 — `str.tostring(x, format.mintick)`: the tick SETTLES HERE, from the
+    // binding's own text constants (the witnessed `syminfo.mintick`), and is
+    // re-settled on every binding so one symbol's tick never travels to another.
+    // ⛔ No decimal text for it ⇒ no `tickText`, and the runtime withholds the
+    // text — never a guessed 0.01.
+    if (t.t === 'num' && typeof t.tick === 'string') {
+      const { tickText: _stale, ...rest } = t
+      const base = Number.isInteger(rest.tree)
+        ? (({ tree, ...r }) => ({ ...r, node: nodeOf(tree) }))(rest)
+        : rest
+      const s = symbolText && Object.prototype.hasOwnProperty.call(symbolText, t.tick) ? symbolText[t.tick] : undefined
+      return typeof s === 'string' && /^\d+(\.\d+)?$/.test(s) && Number(s) > 0 ? { ...base, tickText: s } : base
     }
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) {
       const { tree, ...rest } = t

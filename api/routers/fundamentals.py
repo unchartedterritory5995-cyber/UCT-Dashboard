@@ -476,7 +476,10 @@ def get_earnings_intel_endpoint(ticker: str):
     the first viewer of a ticker pays once and everyone after is served from
     storage, instead of every user polling a per-request paid endpoint every
     five minutes. `earnings-table` keeps its own gate; it is simply no longer on
-    this path."""
+    this path.
+
+    ⚠️ NOT a duplicate of `/api/earnings/intel/{ticker}` (earnings.py) -- see that
+    route's docstring (audit L12): different service, different payload."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}

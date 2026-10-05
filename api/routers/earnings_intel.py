@@ -62,6 +62,11 @@ router = APIRouter()
 # Cold-path budget for a recap that is not warmed. Both are optional extras
 # around the recap itself, so neither may spend the whole request.
 _COLD_BUDGET = float(os.environ.get("CALL_RECAP_COLD_BUDGET", "2.0"))
+# R19: on a WARMED recap the rating trend and webcast link are re-read live
+# (both are cached in their own services, so this is usually a cache hit) and
+# the copy stored at warm time is only the fallback. A short budget: the stored
+# copy is a real answer, so a slow provider never holds the panel.
+_LIVE_BUDGET = float(os.environ.get("CALL_RECAP_LIVE_BUDGET", "0.75"))
 
 # ONE shared pool, created once. A per-request `with ThreadPoolExecutor(...)`
 # is wrong twice: it builds and tears down threads on every open, and its
@@ -127,8 +132,26 @@ def call_recap_endpoint(
         # what kept the endpoint at ~4.5s despite the recap itself being a ~1ms
         # point-read — the store read was instant, the RESPONSE was not.
         if recap and "webcast_url" in recap:
-            webcast = recap.get("webcast_url")
-            ratings = recap.get("rating_changes") or []
+            # R19: these were FROZEN at warm time -- a rating change or a new
+            # webcast link after the warm never reached the panel. Read them
+            # live inside a short shared deadline; the stored copy is the
+            # fallback, never the answer when a live one is in hand.
+            stored_web = recap.get("webcast_url")
+            stored_rat = recap.get("rating_changes") or []
+            ex = _cold_pool()
+            f_rat = ex.submit(get_rating_changes, sym)
+            f_web = ex.submit(get_webcast_url, sym)
+            deadline = time.monotonic() + _LIVE_BUDGET
+            try:
+                live_rat = f_rat.result(timeout=max(0.0, deadline - time.monotonic()))
+            except Exception:
+                live_rat = None
+            ratings = live_rat if live_rat else stored_rat
+            try:
+                live_web = f_web.result(timeout=max(0.0, deadline - time.monotonic()))
+            except Exception:
+                live_web = None
+            webcast = live_web or stored_web
         else:
             # Cold path — the recap is not warmed, so these two have to be
             # fetched. They are INDEPENDENT (a Perplexity lookup and an FMP

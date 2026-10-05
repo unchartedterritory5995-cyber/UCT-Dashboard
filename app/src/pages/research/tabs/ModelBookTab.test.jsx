@@ -67,4 +67,31 @@ describe('ModelBookTab', () => {
     expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
     expect(screen.queryByText('Model Book appearances')).not.toBeInTheDocument()
   })
+
+  // TERM-088 -- a failed read must render as an error, never as "Not yet in
+  // the Model Book" (a false statement -- the read failed, it did not answer).
+  it('renders the error state on a failed read, not "Not yet in the Model Book"', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate: () => {} }) }))
+    await renderTab('ZZZZ')
+    expect(screen.getByTestId('modelbook-appearances-error')).toHaveTextContent("Couldn't load Model Book history")
+    expect(screen.queryByText('Not yet in the Model Book.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no appearances', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: { symbol: 'ZZZZ', appearances: [] }, isLoading: false, error: false, mutate: () => {} }) }))
+    await renderTab('ZZZZ')
+    expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
+    expect(screen.queryByTestId('modelbook-appearances-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    vi.resetModules()
+    const mutate = vi.fn()
+    vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate }) }))
+    await renderTab('ZZZZ')
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
 })

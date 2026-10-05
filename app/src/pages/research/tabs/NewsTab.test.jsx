@@ -105,6 +105,36 @@ describe('NewsTab', () => {
   })
 })
 
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "no recent news" empty state.
+describe('NewsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useCompanyNews', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./NewsTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "No recent news for this ticker."', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('news-error')).toHaveTextContent("Couldn't load news")
+    expect(screen.queryByText('No recent news for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no items', async () => {
+    await renderWith({ data: { items: [] }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('No recent news for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('news-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})
+
 describe('whenLabel', () => {
   it('reports unknown rather than blank for missing/malformed timestamps', async () => {
     const { whenLabel } = await import('./NewsTab')
@@ -115,7 +145,24 @@ describe('whenLabel', () => {
 
   it('renders a relative label for a real recent timestamp', async () => {
     const { whenLabel } = await import('./NewsTab')
-    const now = new Date('2026-08-09T18:30:00').getTime()
+    // 18:00 ET on 2026-08-09 (EDT, UTC-4) is 22:00Z; "now" is 22:30Z.
+    const now = Date.parse('2026-08-09T22:30:00Z')
     expect(whenLabel('2026-08-09 18:00:00', now)).toBe('30m ago')
+  })
+
+  it('reads the zone-less FMP string as America/New_York, not browser-local (fixed instants, EDT and EST)', async () => {
+    const { whenLabel } = await import('./NewsTab')
+    // EDT: 09:15 ET = 13:15Z. Two hours later is 15:15Z.
+    expect(whenLabel('2026-07-01 09:15:00', Date.parse('2026-07-01T15:15:00Z'))).toBe('2h ago')
+    // EST: 09:15 ET = 14:15Z. Three hours later is 17:15Z.
+    expect(whenLabel('2026-01-15 09:15:00', Date.parse('2026-01-15T17:15:00Z'))).toBe('3h ago')
+  })
+
+  it('a timestamp well in the future is not clamped to "just now"', async () => {
+    const { whenLabel } = await import('./NewsTab')
+    // 20:00 ET on 2026-08-09 = 2026-08-10T00:00Z; "now" is an hour earlier.
+    expect(whenLabel('2026-08-09 20:00:00', Date.parse('2026-08-09T23:00:00Z'))).toBe('Aug 9')
+    // A small skew still reads "just now".
+    expect(whenLabel('2026-08-09 20:02:00', Date.parse('2026-08-10T00:00:00Z'))).toBe('just now')
   })
 })

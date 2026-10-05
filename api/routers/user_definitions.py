@@ -41,6 +41,7 @@ from api.services import indicator_telemetry as telemetry
 from api.services import runtime_definitions
 from api.services import scan_definition
 from api.services import user_definitions as svc
+from api.services import user_definition_relint as relint
 from api.services.entitlements import Limits, limits_dependency
 
 router = APIRouter(prefix="/api/user-definitions", tags=["user-definitions"])
@@ -158,7 +159,8 @@ def _charge_propose(user_id: str, *, now: float | None = None) -> None:
 def _save_or_400(user_id, def_id: str, definition: dict,
                  limits: Limits | None = None, *,
                  import_id: Optional[str] = None,
-                 source_dialect: Optional[str] = None) -> dict:
+                 source_dialect: Optional[str] = None,
+                 role: Optional[str] = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -178,7 +180,7 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
-        row = svc.save(user_id, def_id, definition, limits=limits)
+        row = svc.save(user_id, def_id, definition, limits=limits, role=role)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     telemetry.log_event(
@@ -236,6 +238,11 @@ def _stamped(row: dict) -> dict:
     """
     row = runtime_definitions.stamp_served(row)
     out = dict(row)
+    # ⭐ GT (RT4 follow-up) — a row saved under an older repaint rule whose
+    # stored label is LOOSER than today's measurement carries the notice its
+    # owner reads on opening it (`user_definition_relint.member_notice`). The
+    # stored label is never touched; this is a derived field of the served row.
+    out["repaint_notice"] = relint.member_notice(row)
     # ⭐ THE CONSUMER CONTRACT RUNS BEFORE THE SCANNABILITY CHECK, and the order is
     # the attribution. A `window_dependent` script can be a perfectly well-formed
     # 0/1 column — `assert_scannable` would pass it — so asking second would offer
@@ -307,7 +314,8 @@ def create_definition(body: DefinitionIn,
     definition = dict(body.definition or {})
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
-                        import_id=body.import_id, source_dialect=body.source_dialect)
+                        import_id=body.import_id, source_dialect=body.source_dialect,
+                        role=user.get("role"))
 
 
 @router.post("/propose")
@@ -409,7 +417,11 @@ def runtime_kill(user: dict = Depends(require_paid)):
     id. Read per request from the env (`PINE_RUNTIME_KILL_LIST`,
     `PINE_RUNTIME_SAVE_ENABLED`), so changing either needs no deploy.
     """
+    # ⭐ GT (D6) — the starter allowlist rides the same read as the kill list:
+    # the member door's preview declines a script not on it by name
+    # (`runtime:not-yet-graded`). An empty list serves nothing.
     return {"kill": runtime_definitions.kill_list(),
+            "allow": runtime_definitions.allow_list(),
             "save_enabled": runtime_definitions.save_enabled()}
 
 
@@ -425,6 +437,7 @@ def get_definition(def_id: str,
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
     row = runtime_definitions.stamp_served(row)
+    row = dict(row, repaint_notice=relint.member_notice(row))
     return svc.compact_row(row) if graph else row
 
 
@@ -465,7 +478,8 @@ def save_definition(def_id: str, body: DefinitionIn,
     definition = dict(body.definition or {})
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition, limits,
-                        import_id=body.import_id, source_dialect=body.source_dialect)
+                        import_id=body.import_id, source_dialect=body.source_dialect,
+                        role=user.get("role"))
 
 
 @router.delete("/{def_id}")
@@ -663,7 +677,7 @@ def install_shared(token: str,
     cap exists for.
     """
     try:
-        return svc.install_share(user["id"], token, limits=limits)
+        return svc.install_share(user["id"], token, limits=limits, role=user.get("role"))
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
     except ValueError as exc:

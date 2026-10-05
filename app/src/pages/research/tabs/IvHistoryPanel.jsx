@@ -1,6 +1,7 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './OptionsChainTab.module.css'
+import OffNotice from '../../optionsAnalytics/OffNotice'
 
 // RM-L01 (IV-history half) + RM-L02 (BRK-10 first slice): IV history read ONLY from our own
 // options log (api/services/research/iv_history.py). Massive sells no IV history, so this is
@@ -66,11 +67,14 @@ function ImpliedVsRealized({ sym }) {
   )
 }
 
-export default function IvHistoryPanel({ sym }) {
+// `offNotice`: the terminal's IVH opens this panel on its own, where a 404 must say "not switched
+// on" rather than open blank (OffNotice). Under the chain it stays absent.
+export default function IvHistoryPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
   const key = s ? `/api/research/iv-history/${encodeURIComponent(s)}` : null
   const { data, error } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
 
+  if (key && error?.status === 404 && offNotice) return <OffNotice urls={[key]} feature="IV history" />
   if (!key || error?.status === 404 || data?.paywalled) return null
   if (error) {
     return <div className={styles.note} data-testid="iv-history-unavailable">
@@ -101,6 +105,7 @@ export default function IvHistoryPanel({ sym }) {
       <p className={styles.payoffFacts} data-testid="iv-rank">
         {data.rank
           ? `IV rank ${num(data.rank.iv_rank, 0)} · IV percentile ${num(data.rank.iv_percentile, 0)} over ${data.rank.window_sessions} sessions`
+            + (data.rank.low != null && data.rank.high != null ? ` (window low ${pct(data.rank.low)}, high ${pct(data.rank.high)})` : '')
           : `IV rank: ${data.rank_note}`}
       </p>
       <p className={styles.muted} data-testid="iv-coverage">

@@ -84,13 +84,20 @@ def quarter_rows(quarters: list[dict], bars: list[dict], limit: int = QUARTERS) 
     for q in rows:
         day = str(q["report_date"])[:10]
         idx = er._index_for(day, by_date, bars)
-        s = None if idx is None else _reacting_index(idx, bars)
+        # R22: the reacting session is chosen between the report day and the
+        # NEXT session. Until that next session has traded, the choice cannot
+        # be made: for an after-close print the report day is the PRE-print
+        # session, and showing it as the "Reaction" is wrong. Wait for it.
+        awaiting = idx is not None and idx + 1 >= len(bars)
+        s = None if idx is None or awaiting else _reacting_index(idx, bars)
         row: dict[str, Any] = {
             "quarter": q.get("label") or day, "report_date": day,
             "session": None, "run_in_pct": None, "gap_pct": None, "reaction_pct": None,
             "drift_pct": None, "drift_state": None,
             "eps_actual": q.get("eps_actual"), "eps_estimate": q.get("eps_estimate"),
             "eps_surprise_pct": q.get("eps_surprise_pct"),
+            "reaction_state": ("awaiting_next_session" if awaiting
+                               else "measured" if s is not None else "no_session"),
         }
         if s is not None:
             row["session"] = str(bars[s]["t"])[:10]

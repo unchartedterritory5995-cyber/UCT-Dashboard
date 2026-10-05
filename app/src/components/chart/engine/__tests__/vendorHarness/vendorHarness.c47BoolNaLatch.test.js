@@ -195,7 +195,10 @@ describe('⭐ C47 — trend-duration-forecast: the v6 `bool(na)` latch draws Tra
       && t.args[1] && t.args[1].type === 'offset')
     expect(flip.args[0].args[0]).toEqual(LEGACY_CAST)
     expect(labels.find((l) => l.createdBar === 58)).toBeUndefined()
-    expect(labels).toHaveLength(27)
+    // ⚰️ F1 — this pinned `toHaveLength(27)`. No capture shows this script as v5; the
+    // 27 rested on v5 `not` / `or` carrying an `na` operand through, which CAP2's
+    // `rt3-na-logic` (Q-NL-a/b) now witnesses as FALSE in v5 and v4. The shape above
+    // (the legacy fold, no first flip) is what this control is for.
   }, 60000)
 })
 

@@ -97,6 +97,7 @@ const CARRIED_SHAPE = {
   cum: 'cumCol — ONE running total, na-in/na-out, total HELD across the hole',
   cumFrom: 'barCumFrom — running sum from an anchor',
   vwap: 'computeVWAP — running Σpv / Σv',
+  vwapOf: 'computeVWAP — the same running Σpv / Σv, weighting a bar price (H3)',
   avwap: 'barAvwap — the same accumulator, re-anchored',
   obvN: 'barObvN — a running level, then a fixed offset difference',
   pvtN: 'barPvtN — a running level, then a fixed offset difference',

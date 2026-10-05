@@ -99,10 +99,10 @@ describe('typed arrays in the runtime lane', () => {
       + 'plot(array.get(a, 5))\n')).toThrow(/index 5 is outside/)
   })
 
-  it('⛔⛔ …and a negative index likewise', () => {
+  it('⛔⛔ …and a negative index past the front likewise (⭐ RT7: v6 counts -1..-size from the end, measured in rt7ArrayNa.test.js)', () => {
     expect(() => runPine(
       'a = array.from(1.0, 2.0)\n'
-      + 'plot(array.get(a, -1))\n')).toThrow(/index -1 is outside/)
+      + 'plot(array.get(a, -3))\n')).toThrow(/index -3 is outside/)
   })
 
   it('CONTROL: an in-range get does NOT throw', () => {

@@ -250,6 +250,15 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "institutional", "short", "insider"}
 
+    def test_route_failure_is_a_503_not_an_empty_record(self, monkeypatch):
+        # R10: a 200 with no holders read as "nobody owns this".
+        import api.routers.research as research_router
+
+        def _boom(sym):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(research_router, "get_ownership", _boom)
+        assert self._client().get("/api/research/ownership/AAPL").status_code == 503
+
 
 class TestShareClassMixing:
     """yfinance mixes SHARE CLASSES on dual-class tickers — it divides a
@@ -330,3 +339,29 @@ class TestShareClassMixing:
     def test_institutional_pct_at_or_under_100_survives(self):
         assert own._institutional(None, {"heldPercentInstitutions": 1.0})["pct_held"] == 100.0
         assert own._institutional(None, {"heldPercentInstitutions": 0.7185})["pct_held"] == 71.85
+
+
+class TestThirteenFFilingWindow:
+    """R12: a quarter whose 13F filing window (45 days) is still open is never
+    a candidate -- its summary counts only the managers who have filed so far."""
+
+    def test_early_october_skips_the_quarter_that_just_ended(self):
+        import datetime as dt
+        assert own._recent_quarters(dt.date(2026, 10, 5)) == [(2026, 2), (2026, 1), (2025, 4), (2025, 3)]
+
+    def test_the_quarter_becomes_a_candidate_once_its_window_closes(self):
+        import datetime as dt
+        # Q3 ends 2026-09-30; 46 days later is 2026-11-15.
+        assert own._recent_quarters(dt.date(2026, 11, 14))[0] == (2026, 2)
+        assert own._recent_quarters(dt.date(2026, 11, 15))[0] == (2026, 3)
+
+    def test_the_current_unfinished_quarter_is_never_a_candidate(self):
+        import datetime as dt
+        today = dt.date(2026, 12, 31)
+        assert (2026, 4) not in own._recent_quarters(today)
+        assert len(own._recent_quarters(today)) == 4
+
+    def test_quarter_ends(self):
+        import datetime as dt
+        assert own._quarter_end(2026, 1) == dt.date(2026, 3, 31)
+        assert own._quarter_end(2026, 4) == dt.date(2026, 12, 31)

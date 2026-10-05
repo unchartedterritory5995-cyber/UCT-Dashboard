@@ -196,16 +196,30 @@ _TF_QUARTER_HINT_KEY = "research_ownership_13f_quarter"
 _TF_QUARTER_HINT_TTL = 6 * 3600
 
 
+# R12: SEC Rule 13f-1 gives managers 45 days after a quarter ends to file.
+# Until that window closes the quarter is still being filed, and a summary of it
+# counts only the managers who have filed so far -- ownership reads far too low.
+# So a quarter is a candidate only once its filing window has closed. This is
+# the regulatory deadline, not a measurement of FMP's data.
+_TF_FILING_WINDOW_DAYS = 46
+
+
+def _quarter_end(year: int, q: int) -> datetime.date:
+    nxt = datetime.date(year + (q == 4), 1 if q == 4 else 3 * q + 1, 1)
+    return nxt - datetime.timedelta(days=1)
+
+
 def _recent_quarters(today=None):
-    """Candidate (year, quarter) pairs newest-first, covering the current quarter
-    plus the prior three. 13F filings lag ~45 days, so the newest one WITH data
-    is whatever's been filed — we try newest-first and take the first that hits."""
+    """Candidate (year, quarter) pairs newest-first: the four newest quarters
+    whose 13F filing window has CLOSED (ended at least _TF_FILING_WINDOW_DAYS
+    ago). We try newest-first and take the first that has data."""
     today = today or datetime.date.today()
     q = (today.month - 1) // 3 + 1
     out = []
     y = today.year
-    for _ in range(4):
-        out.append((y, q))
+    while len(out) < 4:
+        if (today - _quarter_end(y, q)).days >= _TF_FILING_WINDOW_DAYS:
+            out.append((y, q))
         q -= 1
         if q == 0:
             q = 4

@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- Privacy for the Uncharted Territory live trading room. Served as STATIC HTML by
+     api/main.py (`live_trading_room_privacy_response`) at /live-trading-room/privacy,
+     beside the room page and the terms page, in the same style. No JS.
+     Copy is owner-approved verbatim (2026-10-04): no prices, no em dashes, and
+     no facts beyond the six bullets. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy | Uncharted Territory Live Trading Room</title>
+  <meta name="description" content="Privacy for the Uncharted Territory Live Trading Room: what we collect when you ask us to contact you, how we use it, and how to have it deleted." />
+  <link rel="canonical" href="https://uctintelligence.com/live-trading-room/privacy" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0a0d0b" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preload" as="font" type="font/woff2" href="/fonts/instrument-sans-v4-latin.woff2" crossorigin />
+
+  <style>
+    @font-face {
+      font-family: 'Instrument Sans'; font-style: normal; font-weight: 400 700;
+      font-display: swap;
+      src: url(/fonts/instrument-sans-v4-latin.woff2) format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    :root {
+      --bg: #0a0d0b;
+      --bg-card: #141a16;
+      --border: #233026;
+      --text: #c9d1cb;
+      --text-bright: #eef3ef;
+      --green: #3fd46e;
+      --radius: 14px;
+      --max: 760px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      background-image:
+        radial-gradient(1100px 520px at 12% -6%, rgba(63, 212, 110, 0.13), transparent 62%),
+        radial-gradient(900px 480px at 100% 4%, rgba(224, 72, 74, 0.07), transparent 60%);
+      background-repeat: no-repeat;
+      color: var(--text);
+      font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    img { display: block; max-width: 100%; height: auto; }
+    a { color: var(--green); }
+    .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 16px; }
+    @media (min-width: 720px) { .wrap { padding: 0 28px; } }
+
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; padding-bottom: 18px; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--text-bright); text-decoration: none; min-width: 0; }
+    .brand img { width: 34px; height: 34px; flex: none; }
+    .brand span { font-weight: 700; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
+    .brand b { color: var(--green); font-weight: 700; }
+
+    main { padding-top: 28px; }
+    h1 {
+      margin: 0 0 22px;
+      font-size: clamp(30px, 5vw, 44px); line-height: 1.1; letter-spacing: -0.02em;
+      color: var(--text-bright); font-weight: 700;
+    }
+    .points { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+    .points li {
+      position: relative; padding: 16px 18px 16px 44px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text-bright);
+    }
+    .points li::before {
+      content: ""; position: absolute; left: 18px; top: 24px; width: 10px; height: 10px;
+      background: var(--green); transform: rotate(45deg); border-radius: 2px;
+      box-shadow: 0 0 10px rgba(63, 212, 110, 0.6);
+    }
+    .back { margin: 28px 0 0; padding-bottom: 48px; font-size: 16px; }
+
+    @media (max-width: 420px) {
+      .brand span { font-size: 11px; letter-spacing: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="wrap top">
+    <a class="brand" href="/live-trading-room" aria-label="Uncharted Territory live trading room">
+      <img src="/live-trading-room/mark-96.webp" width="34" height="34" alt="" />
+      <span>Uncharted <b>Territory</b></span>
+    </a>
+  </header>
+
+  <main class="wrap">
+    <h1>Privacy</h1>
+    <ul class="points">
+      <li>Uncharted Territory runs a live trading room on Discord, sold through Whop.</li>
+      <li>When you ask us to contact you (for example through a form on Facebook or Instagram), we collect what you send: your name, email, phone number and your answers to the form's questions.</li>
+      <li>We use it only to contact you about the live trading room, by phone, text, email or direct message, and to answer your questions.</li>
+      <li>We don't sell your information or share it with anyone else for their own marketing.</li>
+      <li>Purchases and memberships are handled by Whop, under Whop's <a href="https://whop.com/privacy" rel="noopener">Privacy Policy</a>. Our emails are sent with Kit, and every email has an unsubscribe link.</li>
+      <li>To have your information deleted or to stop hearing from us, reply to any message from us or reach us in the Discord, and we'll take care of it.</li>
+    </ul>
+    <p class="back"><a href="/live-trading-room">Back to the live trading room</a></p>
+  </main>
+</body>
+</html>

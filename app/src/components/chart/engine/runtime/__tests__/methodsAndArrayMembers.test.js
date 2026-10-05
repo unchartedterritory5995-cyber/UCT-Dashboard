@@ -232,14 +232,16 @@ describe('⛔ C — the unmeasured and the impossible stop BY NAME, never answer
     }
   })
 
-  it('a reduction over an na element, or an empty array, is unmeasured and stops', () => {
-    expect(() => runPine('a = array.new_float(2)\nplot(a.max())\n')).toThrow(/array\.max over an na element/)
+  // ⚰️ RT7 — an `na` ELEMENT and an `na` SEARCH value are MEASURED now
+  // (`vw-array-na-spy-1d-2026-10-02`, `rt7ArrayNa.test.js`): skipped, and found nowhere.
+  // What stays unmeasured is `sum` / `avg` over ZERO real elements.
+  it('a sum / avg over zero real elements is unmeasured and stops', () => {
+    expect(() => runPine('a = array.new_float(2)\nplot(a.sum())\n')).toThrow(/array\.sum of an array whose every element is na/)
     expect(() => runPine('a = array.new_float(0)\nplot(a.avg())\n')).toThrow(/array\.avg of an empty array/)
   })
 
-  it('an na SEARCH value is unmeasured and stops', () => {
-    expect(() => runPine('a = array.from(close)\nplot(a.indexof(close[1]))\n'))
-      .toThrow(/array\.indexof for an na value/)
+  it('an na SEARCH value finds nothing (measured), in the method form too', () => {
+    expect(runPine('a = array.from(close)\nplot(a.indexof(close[1]))\n')[0][0]).toBe(-1)
   })
 
   it('⛔ `array.slice` is a VIEW in Pine — served as a copy only while neither side is written', () => {

@@ -28,6 +28,21 @@ describe('CatalystsTab', () => {
     expect(screen.getByText('Catalyst')).toBeInTheDocument()
   })
 
+  it('live audit: an entry whose write-up failed says so, instead of showing the engine error as the catalyst; **bold** is rendered, not printed', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => ({ data: { ticker: 'AMD', entries: [
+      { market_date: '2026-10-05', ticker: 'AMD', tag: 'Catalyst', thesis_text: 'Synthesis temporarily unavailable. Sources will be checked again on next refresh.', thesis_model: 'none', thesis_at: 1791200000 },
+      { market_date: '2026-10-02', ticker: 'AMD', tag: 'Catalyst', thesis_text: 'Synthesis returned malformed output. Will retry next refresh.', thesis_model: 'claude', thesis_at: 1791000000 },
+      { market_date: '2026-09-28', ticker: 'AMD', tag: 'News', thesis_text: '**AMD** won a deal.', thesis_model: 'claude', thesis_at: 1790600000 },
+    ] }, isLoading: false }) }))
+    const { default: FreshTab } = await import('./CatalystsTab')
+    const { container } = render(<FreshTab sym="AMD" />)
+    expect(screen.getAllByTestId('catalyst-no-writeup')).toHaveLength(2)
+    expect(container.textContent).not.toMatch(/Synthesis (temporarily|returned)/)
+    expect(container.textContent).not.toContain('**')
+    expect(container.textContent).toContain('AMD won a deal.')
+  })
+
   it('shows a loading state distinct from the empty state', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => ({ data: null, isLoading: true }) }))
@@ -57,6 +72,43 @@ describe('CatalystsTab', () => {
     expect(screen.getAllByTestId('provenance-present')).toHaveLength(2)
     expect(screen.getAllByText('UCT Catalyst Engine')).toHaveLength(2)
     expect(screen.queryByTestId('provenance-degraded')).not.toBeInTheDocument()
+  })
+})
+
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "no catalysts recorded" empty state.
+describe('CatalystsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./CatalystsTab')
+    return render(<FreshTab sym="NVDA" />)
+  }
+
+  it('renders the error state on a failed read, not "No catalysts recorded for this ticker yet."', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('catalysts-error')).toHaveTextContent("Couldn't load catalyst history")
+    expect(screen.queryByText('No catalysts recorded for this ticker yet.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no entries', async () => {
+    await renderWith({ data: { entries: [] }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.queryByTestId('catalysts-error')).not.toBeInTheDocument()
+  })
+
+  it('a 402 shows the paid-plan copy, not the outage + Retry', async () => {
+    await renderWith({ data: null, isLoading: false, error: false, paywalled: true, mutate: () => {} })
+    expect(screen.getByTestId('catalysts-paywalled').textContent).toBe('Catalyst history requires a paid plan.')
+    expect(screen.queryByTestId('catalysts-error')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
   })
 })
 

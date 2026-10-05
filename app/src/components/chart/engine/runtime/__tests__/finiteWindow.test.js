@@ -459,9 +459,10 @@ plot(ta.dmiplusleg(x, 105))
     // ⚰️ THE SPECIMEN WAS `ta.cum` AND HAD TO CHANGE, which is the point rather
     // than housekeeping: `cum` became a DECLARED table entry, so a probe pointed at
     // it stopped testing "undeclared" and started asserting the opposite of the
-    // truth while still reading as a general claim. `ta.vwma` is genuinely absent
-    // from the table — verified by driving it, not by assuming.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
+    // truth while still reading as a general claim. `ta.cog` is genuinely absent
+    // from the table — verified by driving it, not by assuming
+    // (⚰️ RT3: it was `ta.vwma` until RT3 served `vwma` through the host lane's closed form).
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
   it('⭐ a window over an EXPRESSION is GIVEN its own series at a root statement', () => {

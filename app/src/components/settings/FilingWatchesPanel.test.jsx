@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 // S7 Stage 5 — minimal Settings management panel. Controlled mock of the
 // shared hook so list/suspend/reactivate/state-refresh are deterministic.
@@ -95,6 +95,83 @@ describe('FilingWatchesPanel — actions', () => {
     const rowSyms = Array.from(container.querySelectorAll('[class*="sessionRow"]'))
       .map(row => row.querySelector('[class*="sessionLabel"]').firstChild.textContent)
     expect(rowSyms).toEqual(['NVDA', 'AAPL'])
+  })
+})
+
+// FT-035 -- the per-alert expiry control (owner-scoped, PUT .../expiry).
+describe('FilingWatchesPanel -- FT-035 expiry control', () => {
+  const res = (status, json) => ({ ok: status < 300, status, json: async () => json })
+
+  it('rejects a date more than a year out via the date input max, and PUTs a valid one', async () => {
+    const fetchMock = vi.fn(async (url, init = {}) => {
+      expect(url).toBe('/api/alerts/predicates/p1/expiry')
+      expect(init.method).toBe('PUT')
+      const body = JSON.parse(init.body)
+      return res(200, { id: 'p1', expires_at: body.expires_at })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    filingWatchMock.predicates = [predicate('p1', 'NVDA')]
+    render(<FilingWatchesPanel />)
+
+    const input = screen.getByLabelText('Set expiry for p1')
+    const maxAttr = input.getAttribute('max')
+    const oneYearFromNow = new Date(Date.now() + 366 * 86400 * 1000).toISOString().slice(0, 10)
+    // The control caps the picker itself at ~1 year out -- a date beyond
+    // that is simply not selectable, which is the browser-level refusal.
+    expect(maxAttr <= oneYearFromNow).toBe(true)
+    expect(input.getAttribute('min')).toBeTruthy()
+
+    const within30Days = new Date(Date.now() + 30 * 86400 * 1000).toISOString().slice(0, 10)
+    fireEvent.change(input, { target: { value: within30Days } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set expiry' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(await screen.findByText(/Expires in \d+ days?/)).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it('shows the server refusal for a date the backend itself rejects (e.g. in the past)', async () => {
+    const fetchMock = vi.fn(async () => res(400, { detail: 'An expiry must be in the future.' }))
+    vi.stubGlobal('fetch', fetchMock)
+    filingWatchMock.predicates = [predicate('p1', 'NVDA')]
+    render(<FilingWatchesPanel />)
+
+    const input = screen.getByLabelText('Set expiry for p1')
+    const today = new Date().toISOString().slice(0, 10)
+    fireEvent.change(input, { target: { value: today } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set expiry' }))
+
+    expect(await screen.findByText('An expiry must be in the future.')).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it('Clear expiry PUTs a null expires_at and the row returns to "No expiry"', async () => {
+    const fetchMock = vi.fn(async (url, init = {}) => {
+      const body = JSON.parse(init.body)
+      expect(body).toEqual({ expires_at: null })
+      return res(200, { id: 'p1', expires_at: null })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    filingWatchMock.predicates = [predicate('p1', 'NVDA')]
+    render(<FilingWatchesPanel />)
+
+    // Arm an expiry first via the control's own local state.
+    const input = screen.getByLabelText('Set expiry for p1')
+    const within10Days = new Date(Date.now() + 10 * 86400 * 1000).toISOString().slice(0, 10)
+    fireEvent.change(input, { target: { value: within10Days } })
+    fetchMock.mockImplementationOnce(async (_url, init) => res(200, { id: 'p1', expires_at: JSON.parse(init.body).expires_at }))
+    fireEvent.click(screen.getByRole('button', { name: 'Set expiry' }))
+    await screen.findByText(/Expires in \d+ days?/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear expiry' }))
+    await waitFor(() => expect(screen.getByTestId('expiry-control-p1').textContent).toContain('No expiry'))
+    vi.unstubAllGlobals()
+  })
+
+  it('a suspended watch shows no expiry control', () => {
+    filingWatchMock.predicates = [predicate('p1', 'NVDA', { suspended: true })]
+    render(<FilingWatchesPanel />)
+    expect(screen.queryByTestId('expiry-control-p1')).not.toBeInTheDocument()
   })
 })
 

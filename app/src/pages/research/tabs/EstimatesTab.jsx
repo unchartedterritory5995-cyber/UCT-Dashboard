@@ -28,10 +28,22 @@ function trendDir(cur, ago) {
 }
 
 export default function EstimatesTab({ sym }) {
-  const { data, isLoading } = useEstimates(sym)
+  const { data, isLoading, error, mutate } = useEstimates(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading estimates…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not an empty estimate set. Render the error
+  // distinctly so a backend hiccup never reads as "no estimates available".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="estimates-error">
+        Couldn't load estimates for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const e = data || {}

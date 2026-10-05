@@ -73,6 +73,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -115,6 +116,8 @@ async function type(text) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(1400)
@@ -178,6 +181,27 @@ describe('lane T2 — the shell wires the board model', () => {
     expect(screen.getByTestId('terminal-grid').getAttribute('data-count')).toBe('1')
   })
 
+  it('FIX 4: "Back to my layout" clears a board-injected ticker on a previously-unlinked channel back to empty', async () => {
+    // Channel A starts UNLINKED (no charts_workspace_groups at all). The saved board carries a
+    // ticker on channel A, so opening it injects NVDA into A. `setGroupSym` used to silently
+    // drop an empty/falsy sym, and `revertLayout` only called it when `prev.syms[ch]` was
+    // truthy — so reverting could never write A back to empty, leaving the board's ticker
+    // stuck on a channel the member had never linked.
+    const saved = saveBoard(emptyLibrary(), 'Earnings morning',
+      { ...countOf(DEFAULT_LAYOUT, 3) }, { A: 'NVDA' })
+    store.prefs = {
+      terminal_layout: JSON.stringify(countOf(DEFAULT_LAYOUT, 1)),
+      terminal_boards: JSON.stringify(saved.library),
+    }
+    renderAt('/terminal')
+    expect(store.prefs.charts_workspace_groups).toBeUndefined()
+    await type('B:earnings-morning')
+    expect(JSON.parse(store.prefs.charts_workspace_groups)).toEqual({ A: 'NVDA' })
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-notice-revert')) })
+    const groupsAfter = store.prefs.charts_workspace_groups ? JSON.parse(store.prefs.charts_workspace_groups) : {}
+    expect(groupsAfter.A).toBeFalsy()
+  })
+
   it('an unknown B: address is said, not silently ignored', async () => {
     renderAt('/terminal')
     await type('B:nope')
@@ -224,7 +248,9 @@ describe('T3 on T2 — the grammar addresses CHANNELS', () => {
     expect(id).toBe('E')
     expect(channelTarget('B', board)).toEqual({ index: 3 })
     expect(channelTarget('E', board)).toEqual({ index: 2 })            // a terminal-own channel
-    expect(channelTarget('A', board)).toEqual({ index: 0 })
+    // A's first panel is CAL, which follows no security: @A goes to the first LINKABLE A panel
+    // (audit #5 — @A NVDA GP used to overwrite the calendar).
+    expect(channelTarget('A', board)).toEqual({ index: 1 })
     expect(channelTarget('2', board)).toEqual({ index: 1 })
     expect(channelTarget('Q', board).error).toContain('no group Q')
     expect(channelTarget('C', board).error).toContain('No panel on screen is linked to Group C')
@@ -264,6 +290,17 @@ describe('T3 on T2 — the grammar addresses CHANNELS', () => {
     const saved = JSON.parse(store.prefs.terminal_layout)
     expect(saved.channels.find((c) => c.id === 'E').sym).toBe('MSFT')
     expect(cmdOf()).toBe('MSFT FA')
+  })
+
+  it('FIX 3: @B CAL is redirected to the existing calendar panel elsewhere on the board, WITH a notice', async () => {
+    // DEFAULT_LAYOUT at count 4: panel 0 is CAL on channel A. Explicitly targeting @B with CAL
+    // hits the URL-owning re-use rule (a Calendar panel appears at most once) and gets silently
+    // redirected to panel 0 — with no word said that the explicit @B target was overridden.
+    store.prefs = { terminal_layout: JSON.stringify(countOf(DEFAULT_LAYOUT, 4)) }
+    renderAt('/terminal')
+    await type('@B CAL')
+    expect(screen.getByTestId('terminal-panel-0').getAttribute('data-focused')).toBe('true')
+    expect(screen.getByTestId('terminal-notice').textContent).toContain('@B was redirected')
   })
 
   it('@C with no panel on C is said, and nothing moves', async () => {

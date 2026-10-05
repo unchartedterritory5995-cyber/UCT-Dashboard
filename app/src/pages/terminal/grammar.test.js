@@ -45,6 +45,18 @@ describe('V5: codes that are also tickers', () => {
     expect(isTickerCollision('dash')).toBe(true)
     expect(isTickerCollision('HELP')).toBe(false)
   })
+  it('2026-10-05 audit: a real-ticker code now warns; a removed false-collision code no longer does', () => {
+    // CAL (Caleres) is a real tracked ticker that was missing from the list — it now warns.
+    expect(isTickerCollision('CAL')).toBe(true)
+    const cmd = parseCommand('CAL')
+    expect(cmd).toMatchObject({ ok: true, code: 'CAL', collision: 'CAL' })
+    // GP was never a real ticker (verified against api/data/cap_universe.json) — removed, so
+    // a bare GP no longer carries a false "also a ticker" warning.
+    expect(isTickerCollision('GP')).toBe(false)
+    const gp = parseCommand('GP')
+    expect(gp).toMatchObject({ ok: true, code: 'GP' })
+    expect(gp.collision).toBeUndefined()
+  })
 })
 
 describe('HELP: the address table is the server\'s own', () => {
@@ -102,11 +114,28 @@ describe('V6b / V16 / V18 rules', () => {
     expect(argShape('MOVE')).toBe('TICKER MOVE')
     expect(parseCommand('NVDA WIIM')).toMatchObject({ ok: true, code: 'WIIM', sym: 'NVDA' })
   })
+  it('2026-10-05 audit: every door variant that fully navigates away carries leavesTerminal, ' +
+     'and the interpreted-parse echo shows the cue for it', () => {
+    // MYST ( /calendar/mystocks ) was one of the ~17 doors missing the flag.
+    expect(BY_CODE.MYST.market).toMatchObject({ door: '/calendar/mystocks', leavesTerminal: true })
+    const echo = describeCommand(parseCommand('MYST'))
+    expect(echo.text).toContain('(leaves Terminal)')
+    // A sampled GROUP of the other newly-flagged doors — each is a `door` with no panel/surface
+    // alternative, so it is unconditionally "leaves Terminal" once a security is or isn't present.
+    for (const code of ['GEX', 'LIVE', 'DASH', 'CHRT', 'PMKT', 'SETL', 'FORM', 'DESK', 'JRNL', 'NB', 'COMM', 'EXP']) {
+      const variant = BY_CODE[code].market
+      expect(variant?.door, code).toBeTruthy()
+      expect(variant.leavesTerminal, code).toBe(true)
+    }
+    // A panel/surface code must NEVER carry the cue — it stays embedded in the Terminal.
+    expect(BY_CODE.GP.ticker.door).toBeUndefined()
+    expect(describeCommand(parseCommand('NVDA GP')).text).not.toContain('leaves Terminal')
+  })
 })
 
 describe('V6c: the published ranking', () => {
   it('RANKING_ORDER is the order the ranker applies', () => {
-    expect(RANKING_ORDER.map((r) => r.key)).toEqual(['alias', 'verb', 'symbol', 'prefix', 'fuzzy', 'frecency'])
+    expect(RANKING_ORDER.map((r) => r.key)).toEqual(['alias', 'verb', 'symbol', 'prefix', 'fuzzy', 'frecency', 'popular'])
     expect(CLASS).toEqual({ alias: 0, verb: 1, symbol: 2, prefix: 3, fuzzy: 4 })
   })
   it('an exact alias beats an exact code beats an exact ticker beats a prefix', () => {

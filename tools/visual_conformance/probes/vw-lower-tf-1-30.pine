@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_VW_LOWER_TF_1_30", overlay = false)
+
+// ─── 2026-10-02 CAP2 — the two codes C41 leaves `lower-tf:unwitnessed` ────────
+//
+// `vw-lower-tf.pine` witnessed "60" / "15" / "5" below a 1D chart (C41 serves
+// them). `"1"` and `"30"` still refuse by name (`lower-tf:unwitnessed`, triage
+// § C41 refusal table) because no capture reads them. Same rows, same readings,
+// at those two codes: which intrabar `request.security` answers (L02 rule), what
+// time it carries, and how many regular-session intrabars `security_lower_tf`
+// returns (30 -> 13 on a full day, 1 -> 390).
+//
+// ⛔ CAPTURE: AMEX:SPY 1D (as much history as loads; TradingView only serves the
+// recent days of "1" so most early rows are na) and AMEX:SPY 1M (vw-lower-tf.pine
+// itself is the monthly reading). Graded beside TradingView's own 30m / 1m bars.
+
+plot(bar_index, "M00_bar_index_CONTROL")
+plot(close,     "M01_close_CONTROL")
+
+plot(request.security(syminfo.tickerid, "30", close),         "M02_30_close_last_intrabar")
+plot(request.security(syminfo.tickerid, "30", time) / 1000.0, "M03_30_time_secs")
+plot(request.security(syminfo.tickerid, "1", close),          "M04_1_close_last_intrabar")
+plot(request.security(syminfo.tickerid, "1", time) / 1000.0,  "M05_1_time_secs")
+
+a30  = request.security_lower_tf(syminfo.tickerid, "30", close)
+a30t = request.security_lower_tf(syminfo.tickerid, "30", time)
+a1   = request.security_lower_tf(syminfo.tickerid, "1", close)
+a1t  = request.security_lower_tf(syminfo.tickerid, "1", time)
+plot(array.size(a30), "M06_ltf30_size_13_if_RTH")
+plot(array.size(a30t) > 0 ? array.get(a30t, 0) / 1000.0 : na, "M07_ltf30_first_time_secs")
+plot(array.size(a1), "M08_ltf1_size_390_if_RTH")
+plot(array.size(a1t) > 0 ? array.get(a1t, 0) / 1000.0 : na, "M09_ltf1_first_time_secs")
+plot(array.size(a1) > 0 ? array.get(a1, array.size(a1) - 1) : na, "M10_ltf1_last_close")

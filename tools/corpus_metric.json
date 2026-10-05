@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-02",
+  "measured_at": "2026-10-04",
   "scripts": 266,
-  "host_ok": 71,
-  "screener_ok": 64,
+  "host_ok": 77,
+  "screener_ok": 67,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -10,13 +10,11 @@
     {
       "file": "3-level-zigzag-semafor__3078.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:reassign",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:reassign",
         "pine:function"
       ]
     },
@@ -62,14 +60,12 @@
       "screener": false,
       "hostGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
       ],
       "screenerGuards": [
         "pine:module",
-        "pine:function-def",
         "pine:block",
         "pine:role-order",
         "pine:hidden-only"
@@ -78,8 +74,9 @@
     {
       "file": "advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
+        "pine:block",
         "pine:request"
       ],
       "screenerGuards": [
@@ -261,14 +258,10 @@
     },
     {
       "file": "auto-trendline-dojiemoji__c21f83602c.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
@@ -434,13 +427,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:request",
-        "pine:arity",
         "pine:window"
       ],
       "screenerGuards": [
-        "pine:request",
-        "pine:arity",
         "pine:window",
         "pine:function"
       ]
@@ -552,14 +541,10 @@
     },
     {
       "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:arity"
-      ],
-      "screenerGuards": [
-        "pine:arity"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "cumulative-volume-delta__K07lTKE3tP.pine",
@@ -780,11 +765,9 @@
     },
     {
       "file": "fib-retracement__8XcLscnekw.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -916,12 +899,10 @@
       "screener": true,
       "hostGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:cycle",
-        "pine:function-def",
         "pine:state"
       ]
     },
@@ -1637,10 +1618,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:statement"
+        "pine:block"
       ],
       "screenerGuards": [
-        "pine:statement"
+        "pine:block"
       ]
     },
     {
@@ -1756,14 +1737,10 @@
     },
     {
       "file": "pa-zigzag-fibonacci-fan__2001.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:reassign"
-      ],
-      "screenerGuards": [
-        "pine:reassign"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "parabolic-sar__xoeoPMOWGJ.pine",
@@ -1959,11 +1936,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:window",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:window",
         "pine:function"
       ]
     },
@@ -2053,14 +2028,12 @@
     },
     {
       "file": "rsi-vwap-indicator__pTI5ZVw9n4.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:arity"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
-        "pine:arity",
+        "pine:budget",
         "pine:strategy-call"
       ]
     },
@@ -2138,10 +2111,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:block"
+        "pine:function"
       ],
       "screenerGuards": [
-        "pine:block"
+        "pine:function"
       ]
     },
     {
@@ -2304,13 +2277,11 @@
     },
     {
       "file": "sonarlab-order-blocks__0df0d45ee6.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2629,10 +2600,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {

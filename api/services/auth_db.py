@@ -481,6 +481,22 @@ CREATE TABLE IF NOT EXISTS waitlist (
 );
 CREATE INDEX IF NOT EXISTS idx_waitlist_created ON waitlist(created_at DESC);
 
+-- /live-trading-room "Talk to the team first" call requests
+-- (api/routers/ltr_call_request.py). Kept even when the Discord post fails, so
+-- a lead is never lost to a webhook outage.
+CREATE TABLE IF NOT EXISTS ltr_call_requests (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    phone           TEXT NOT NULL,
+    email           TEXT,
+    best_time       TEXT,
+    trades          TEXT,
+    ip_prefix       TEXT,                -- /24 prefix only (privacy)
+    discord_posted  INTEGER NOT NULL DEFAULT 0,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ltr_call_requests_created ON ltr_call_requests(created_at DESC);
+
 -- S5 CP3 (GATE-S5-PERSISTENCE-USER-STATE, fingerprint 41ffcc91c): Tracings'
 -- dedicated store, per the S5-C ruling that it moves OFF user_preferences
 -- rather than growing that endpoint's other 70 call sites a compare-and-set

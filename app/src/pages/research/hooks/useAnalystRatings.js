@@ -1,9 +1,27 @@
+import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 
-const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-088 -- analyst ratings tab (ANR). A failed read is not an empty
+// analyst record; see useDecisionRecord.js for why the fetcher keeps the
+// HTTP outcome instead of collapsing a non-2xx into null.
+export async function fetchAnalystRatings(url) {
+  try {
+    const r = await fetch(url, { credentials: 'include' })
+    if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
+    return { ok: true, httpStatus: r.status, body: await r.json() }
+  } catch {
+    return { ok: false, httpStatus: 0, body: null }
+  }
+}
 
 export default function useAnalystRatings(rawSym) {
   const sym = (rawSym || '').toUpperCase().trim()
-  const { data, isLoading } = useMobileSWR(sym ? `/api/research/analyst-ratings/${sym}` : null, fetcher)
-  return { data: data || null, isLoading: isLoading && !data }
+  const key = sym ? `/api/research/analyst-ratings/${sym}` : null
+  const { data, isLoading, mutate } = useMobileSWR(key, fetchAnalystRatings)
+  return useMemo(() => ({
+    data: data ? data.body : null,
+    isLoading: Boolean(isLoading && !data),
+    error: Boolean(data && !data.ok),
+    mutate,
+  }), [data, isLoading, mutate])
 }

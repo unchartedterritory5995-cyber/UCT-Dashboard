@@ -7,7 +7,11 @@ import { notePath } from '../../../hooks/useNoteBacklinks'
 
 export default function MyResearchPanel({ sym }) {
   const navigate = useNavigate()
+  // The workspace is a full-page layout with no inset of its own; inside a panel it sat flush
+  // against the panel border. The inset is the same one the terminal's own panels use.
   return (
-    <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />
+    <div style={{ padding: 'var(--space-md)' }} data-testid="rsch-inset">
+      <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />
+    </div>
   )
 }

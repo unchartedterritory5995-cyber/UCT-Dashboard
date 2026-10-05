@@ -92,6 +92,32 @@ describe('FilingChangesTab', () => {
       .toBe('No comparison for AAPL: 1 original 10-K on file; two are needed to compare. That is a gap in what we could read, not a finding that nothing changed.')
   })
 
+  it('sections_unlocated (R9) shows the pair and says the sections could not be located', async () => {
+    body = { ...OK, state: 'sections_unlocated', sections: [OK.sections[1]] }
+    renderTab()
+    expect((await screen.findByTestId('blackline-sections-missing')).textContent)
+      .toBe('Both filings were found, but the comparable sections could not be located in them. That is a gap in what we could read, not a finding that nothing changed.')
+    expect(screen.queryByTestId('blackline-unread')).toBeNull()
+  })
+
+  it('not_found with both filings shows the pair and says the sections could not be located -- never "no SEC filer"', async () => {
+    body = { ...OK, state: 'not_found', sections: [OK.sections[1]] }
+    renderTab()
+    expect((await screen.findByTestId('blackline-sections-missing')).textContent)
+      .toBe('Both filings were found, but the comparable sections could not be located in them. That is a gap in what we could read, not a finding that nothing changed.')
+    expect(screen.getByTestId('cite-newer').textContent).toContain('0000320193-25-000079')
+    expect(screen.getByTestId('cite-older').textContent).toContain('0000320193-24-000123')
+    expect(screen.queryByTestId('blackline-unread')).toBeNull()
+    expect(screen.queryByText(/no SEC filer matched/)).toBeNull()
+  })
+
+  it('the footer keeps its sentence spacing', async () => {
+    renderTab()
+    await screen.findByTestId('blackline')
+    expect(screen.getByText(/Running page footers/).textContent)
+      .toContain('unchanged paragraphs are counted, not shown. Running page footers are not part of a section.')
+  })
+
   it('asks for the 10-K pair by default and the 10-Q pair when picked, citing each side', async () => {
     renderTab()
     await screen.findByTestId('blackline')

@@ -435,7 +435,10 @@ function MarketReadCard({ stats }) {
           ● {isLiveWindow ? "LIVE" : "HISTORICAL"} MARKET READ
         </span>
         <span style={{ color: P.mt, fontSize: 10 }}>
-          (premium-weighted · {stats.total_classified.toLocaleString()} alerts on {stats.query_date})
+          (premium-weighted · {(stats.directional_count ?? stats.total_classified).toLocaleString()} directional
+          {stats.directional_count != null && ` of ${stats.total_classified.toLocaleString()}`} alerts on {stats.query_date}
+          {stats.covers_from && ` · partial: since ${new Date(stats.covers_from * 1000)
+            .toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`})
         </span>
       </div>
 
@@ -4645,6 +4648,31 @@ export default function LiveFlowMassive() {
         )
       )}
 
+      {/* Multi-day By-Contract ranges keep each day's LARGEST prints within a row
+          budget (full sessions, but small prints may be missing → hit counts low). */}
+      {viewMode === "contract" && byContract?.budget_cut_days?.length > 0 && (
+        <div style={{ margin: "0 0 12px", fontSize: 12, color: P.mt }}>
+          Multi-day range: {byContract.budget_cut_days.length} busy day
+          {byContract.budget_cut_days.length > 1 ? "s show their" : " shows its"} largest prints only
+          (whole session covered; smaller prints may be left out, so hit counts can read low).
+          Pick a single day for every print.
+        </div>
+      )}
+
+      {/* Past day, market open: the server reads only the newest prints so it
+          can't starve live ingestion (full-day after the close). Say so rather
+          than silently showing an afternoon-only tape. */}
+      {targetDate && viewMode === "print" && status?.scan_capped && (
+        <div style={{ margin: "0 0 12px", fontSize: 12, color: P.mt }}>
+          {status.scan_capped_rth
+            ? <>Showing the most recent {(status.rows_scanned || 0).toLocaleString()} prints of this day
+                while the market is open — the full day loads after 4:00 PM ET.</>
+            : <>Showing the most recent {(status.rows_scanned || 0).toLocaleString()} prints of this
+                day (scan limit reached).</>}
+          {" "}Options Flow has the complete tape.
+        </div>
+      )}
+
       {error && (
         <div style={{
           padding: 10, background: P.be + "30", color: P.be, marginBottom: 12,
@@ -4668,13 +4696,18 @@ export default function LiveFlowMassive() {
           color: P.text, fontSize: 12.5, lineHeight: 1.5,
         }}>
           <strong style={{ color: "#d8ae4e", letterSpacing: 0.5 }}>
-            {gapInfo.windows.length} FEED GAP{gapInfo.windows.length > 1 ? "S" : ""} TODAY
+            {gapInfo.windows.length} FEED GAP{gapInfo.windows.length > 1 ? "S" : ""} {targetDate ? "ON THIS DAY" : "TODAY"}
           </strong>
           {" — "}
           {gapInfo.windows.map((w, i) => `${i > 0 ? ", " : ""}${w.start}–${w.end}`).join("")}
           {gapInfo.estDropped > 0 && ` · ~${gapInfo.estDropped.toLocaleString()} prints missed live`}
           {" · "}
-          <span style={{ opacity: 0.85 }}>backfilling overnight from the official OPRA tape</span>
+          {/* Past date: a gap still showing means the T+1 heal hasn't filled it
+              (healers drop this date's caches when they do) — don't promise "overnight". */}
+          <span style={{ opacity: 0.85 }}>
+            {targetDate ? "not yet backfilled from the official OPRA tape"
+                        : "backfilling overnight from the official OPRA tape"}
+          </span>
         </div>
       )}
 

@@ -5,7 +5,7 @@
 // ⛔ NOTHING HERE IS A SECOND LIST. Functions come from the registry, rules and prefixes from
 // grammar.js, keys from the shortcut registry's own declarations — each railed to its source.
 import { useEffect, useMemo } from 'react'
-import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE } from '../functions'
+import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
   ROW_RULE, TICKER_COLLISIONS,
@@ -15,7 +15,9 @@ import styles from '../TerminalShell.module.css'
 
 /** The bindings a terminal user has, read from the declarations (never retyped). */
 export const HELP_SHORTCUT_IDS = ['terminal.focus', 'terminal.panel1', 'terminal.panel2',
-  'terminal.panel3', 'terminal.panel4', 'palette.toggle']
+  'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext', 'palette.toggle']
+
+const CODE_LABEL = { BracketLeft: '[', BracketRight: ']' }
 
 /** Pure: a declaration's chord as the keys a member presses. */
 export function chordLabel(d) {
@@ -27,11 +29,23 @@ export function chordLabel(d) {
   if (c.meta) mods.push('Cmd')
   if (c.alt) mods.push('Alt')
   if (c.shift) mods.push('Shift')
-  const key = c.code ? c.code.replace(/^Key|^Digit/, '') : String(c.keys[0]).toUpperCase()
+  const key = c.code ? (CODE_LABEL[c.code] || c.code.replace(/^Key|^Digit/, '')) : String(c.keys[0]).toUpperCase()
   return [...mods, key].join('+')
 }
 
-export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false }) {
+/** The flag that gates a code, if any. HELP lists codes with no security in hand, so the
+ *  variant that would actually run from HELP is the MARKET one when the code has one (the
+ *  same selection `variantFor`/`resolvePanel` make for a ticker-less command) — the ticker
+ *  variant's flag is read only as a fallback, for a ticker-only code. A code with neither
+ *  carries no flag and HELP shows no marker for it at all.
+ *  FLOW is why this order matters: its market door (`/options-flow`, bare `FLOW`) carries no
+ *  flag and always runs, while its ticker panel is gated by `researchFlowTabEnabled` — reading
+ *  the ticker flag first made HELP say "not enabled" for a code that works when typed bare. */
+function flagFor(f) {
+  return f.market?.flag || f.ticker?.flag || null
+}
+
+export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? focusCode : null
   const rows = focus ? [BY_CODE[focus]] : FUNCTIONS
@@ -60,7 +74,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           <ol className={styles.helpRule} data-testid="terminal-help-ranking">
             {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
           </ol>
-          <button type="button" className={styles.helpRow} onClick={() => onResetRanking?.()}
+          <button type="button" className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
             disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
             <span>Reset my ranking</span>
             <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
@@ -92,14 +106,28 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
             <ul className={styles.helpList}>
               {inGroup.map((f) => {
                 n += 1
+                const flag = flagFor(f)
+                // A code with no `flag` carries no marker — it's always available. One that
+                // has one is gated by the EXACT same helper + auth source `resolvePanel` uses
+                // (functions.js::flagOn over AuthContext), so HELP never disagrees with the
+                // real gate a member hits when they run the code.
+                const enabled = flag ? flagOn(auth, flag) : null
                 return (
                   <li key={f.code}>
-                    <button type="button" className={styles.helpRow} onClick={() => onRun?.(f.code)}>
+                    <button type="button" className={`${styles.helpRow} ${styles.helpFnRow}`} onClick={() => onRun?.(f.code)}>
                       <span className={styles.rowNum} aria-hidden="true">{n}</span>
                       <span className={styles.code}>{f.code}</span>
                       <span>{f.label}</span>
                       <span className={styles.helpScope}>
                         {[f.ticker && 'security', f.market && 'market'].filter(Boolean).join(' · ')}
+                        {enabled != null && (
+                          <span
+                            className={enabled ? styles.helpFlagOn : styles.helpFlagOff}
+                            data-testid={`terminal-help-flag-${f.code}`}
+                          >
+                            {' · '}{enabled ? 'enabled' : 'not enabled'}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>

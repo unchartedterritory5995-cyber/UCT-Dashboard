@@ -168,3 +168,45 @@ def test_iv_crush_summary_rows_at_four_complete_prints(seed, monkeypatch):
     assert c["complete_prints"] == 4 and c["summary_note"] is None
     assert set(c["summary"]) == {"average", "max", "min"}
     assert c["summary"]["max"]["0"] >= c["summary"]["average"]["0"] >= c["summary"]["min"]["0"]
+
+
+# ── O4: report timing from the earnings calendar; no crush on an unknown timing ───────────────
+
+def test_report_times_are_filled_from_the_earnings_calendar(monkeypatch):
+    from api.services.options_backtest import timing_of
+    from api.services.research import iv_history as ivh
+    seen = {}
+
+    def cal(sym, start, end):
+        seen["range"] = (sym, start, end)
+        return {"2026-07-30": "amc", "2026-04-30": "bmo"}
+
+    monkeypatch.setattr(ivh, "_calendar_hours", cal)
+    qs = [{"reportedDate": "2026-07-30", "reportTime": ""},
+          {"reportedDate": "2026-04-30", "reportTime": ""},
+          {"reportedDate": "2026-01-29", "reportTime": ""},              # the calendar is silent
+          {"reportedDate": "2025-10-30", "reportTime": "pre-market"}]   # a vendor value is kept
+    out = ivh.with_report_times("TST", qs)
+    assert seen["range"] == ("TST", "2025-10-30", "2026-07-30")
+    assert [timing_of(q["reportTime"]) for q in out] == ["amc", "bmo", None, "bmo"]
+    assert qs[0]["reportTime"] == "", "the cached input is never edited in place"
+
+
+def test_a_calendar_failure_leaves_the_prints_alone(monkeypatch):
+    from api.services.research import iv_history as ivh
+
+    def boom(*a):
+        raise RuntimeError("429")
+    monkeypatch.setattr(ivh, "_calendar_hours", boom)
+    out = ivh.with_report_times("TST", [{"reportedDate": "2026-07-30", "reportTime": ""}])
+    assert out[0]["reportTime"] == ""
+
+
+def test_iv_crush_is_blank_when_the_report_time_is_unknown(seed, monkeypatch):
+    for d in sessions_from("2026-09-30", 13):
+        seed.day(d, [row("TST", 0.60 if d == "2026-10-08" else 0.35 if d > "2026-10-08" else 0.50)])
+    monkeypatch.setattr(lh, "_prints", lambda s: [{"reportedDate": "2026-10-08", "reportTime": ""}])
+    c = lh.iv_crush("TST", now=dt.datetime(2026, 10, 16, 18, 0, tzinfo=ET))
+    (p,) = c["prints"]
+    assert p["timing"] == "unknown" and p["crush_pct"] is None and p["complete"] is False
+    assert "not on file" in p["crush_note"]

@@ -168,6 +168,18 @@ describe('ComingSoon', () => {
     expect(proof.textContent).not.toMatch(/morning wire/i)
   })
 
+  it('points a live-trading-room visitor at the room page', () => {
+    renderPage()
+    const room = screen.getByRole('link', { name: /looking for the live trading room\? see the room/i })
+    // A full page load, not a client route: /live-trading-room is a static page
+    // the server answers, so the SPA router must not intercept it.
+    expect(room).toHaveAttribute('href', '/live-trading-room')
+    expect(room).not.toHaveAttribute('target')
+    // Above the waitlist and the countdown, so it is in the first screen on a phone.
+    const form = document.querySelector('form')
+    expect(room.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   describe('once the launch moment passes', () => {
     // The flags are a deliberate human action, so the page has to hold this
     // state gracefully for however long it takes someone to flip them.

@@ -44,7 +44,7 @@ function DirectionPill({ dir }) {
 }
 
 export default function FlowTab({ sym }) {
-  const { data, isLoading } = useResearchFlow(sym, '5')
+  const { data, error, isLoading, retry } = useResearchFlow(sym, '5')
 
   const ok = data?.ok !== false
   const net = data?.net || null
@@ -55,7 +55,16 @@ export default function FlowTab({ sym }) {
     <div className={styles.finWrap}>
       {isLoading && !data && <div className={styles.fnote}>Loading options-flow evidence…</div>}
 
-      {!isLoading && (!ok || !contracts.length) && (
+      {/* A failed read is said as a failure, with a retry -- never as "no qualifying flow". */}
+      {!isLoading && error && (
+        <div className={styles.fnote} data-testid="flow-unavailable">
+          Options flow for {sym} is unavailable right now{error.httpStatus ? ` (the request answered ${error.httpStatus})` : error.timedOut ? ' (the flow service gave no answer within 30 seconds)' : ' (the request did not complete)'}.
+          {' '}That is a failed read, not a quiet tape.{' '}
+          <button type="button" onClick={retry} data-testid="flow-retry">Retry</button>
+        </div>
+      )}
+
+      {!isLoading && !error && (!ok || !contracts.length) && (
         <div className={styles.fnote} data-testid="flow-empty-state">
           No qualifying options flow on {sym} in the last {win?.days_requested || '5'} trading
           day{(win?.days_requested || '5') === '1' ? '' : 's'}. Sweep/ISO-backed prints only —

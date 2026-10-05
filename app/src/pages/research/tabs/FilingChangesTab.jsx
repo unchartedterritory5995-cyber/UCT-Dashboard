@@ -146,7 +146,13 @@ function FilingChanges({ sym, form }) {
       Reading {s}'s two most recent {form}s from SEC EDGAR. This can take a minute; the page will update.
     </div>
   }
-  if (data.state === 'not_found' || data.state === 'unavailable') {
+  // not_found WITH both filings: the pair was read, but no comparable section
+  // could be located in it. That is a different fact from "no SEC filer" --
+  // show the two filings and say what could not be found.
+  // `sections_unlocated` is the server's name for it (R9); `not_found` with
+  // both filings is the older spelling a still-cached snapshot may carry.
+  const sectionsMissing = data.state === 'sections_unlocated' || (data.state === 'not_found' && !!data.newer)
+  if (!sectionsMissing && (data.state === 'not_found' || data.state === 'unavailable')) {
     const why = data.state === 'not_found' ? `No comparison for ${s}: ${data.detail || 'no SEC filer matched'}.`
       : `SEC EDGAR could not be read for ${s} right now.`
     return <div className={styles.note} data-testid="blackline-unread">
@@ -159,11 +165,17 @@ function FilingChanges({ sym, form }) {
       <p className={styles.lede} data-testid="blackline-sides">
         {s}: <Cite side="newer" f={data.newer} /> compared with <Cite side="older" f={data.older} />.
       </p>
+      {sectionsMissing && (
+        <p className={styles.note} data-testid="blackline-sections-missing">
+          Both filings were found, but the comparable sections could not be located in them.
+          {' '}That is a gap in what we could read, not a finding that nothing changed.
+        </p>
+      )}
       {(data.sections || []).map((sec) => <Section key={sec.key} s={sec} />)}
       <p className={styles.muted}>
         From SEC EDGAR. Compared paragraph by paragraph; unchanged paragraphs are counted, not shown.
         {form === '10-Q' ? ' Each quarterly report is compared with the one before it, not with the same quarter a year earlier.' : ''}
-        Running page footers are not part of a section.
+        {' '}Running page footers are not part of a section.
       </p>
     </div>
   )

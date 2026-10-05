@@ -1,4 +1,5 @@
 import { useContext, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ScannerShell from './screener/shell/ScannerShell'
 import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
@@ -77,7 +78,12 @@ function ScannerShellErrorFallback({ onRetry }) {
 export default function Screener({ embedded = false }) {
   const [shellKey, setShellKey] = useState(0)
   const optionsOn = useContext(AuthContext)?.optionsScreenerEnabled === true && !embedded
-  const [mode, setMode] = useState('stocks')
+  // UCT Terminal's OSCR "Full page" link deep-links here with `?tab=options` (functions.js)
+  // so the member lands on the tab they asked for rather than always Stocks. Read once, at
+  // mount, as the initial tab — the in-page strip still owns the tab after that (never
+  // re-synced from the URL on every render, which would fight the strip's own clicks).
+  const [searchParams] = useSearchParams()
+  const [mode, setMode] = useState(() => (searchParams.get('tab') === 'options' ? 'options' : 'stocks'))
   const showOptions = optionsOn && mode === 'options'
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()

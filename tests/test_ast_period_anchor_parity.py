@@ -94,6 +94,12 @@ def test_the_fixture_is_not_vacuous():
     # ruling 2026-10-01: a week whose last session has no bar reads the calendar's close (was withheld)
     assert cases["closeW · a Friday missing · D"]["codes"] == []
     assert all(v is not None for v in cases["closeW · a Friday missing · D"]["expected"])
+    # H5 -- a series from the listing (ruling R-W) has no bar before it to be
+    # unknown: the head the plain case withholds is served there
+    for key in ("change(W)", "change(M)"):
+        off = cases[f"{key} · weekdays · D"]["expected"]
+        on = cases[f"{key} · weekdays · D · from the listing"]["expected"]
+        assert any(v is None for v in off) and all(v is not None for v in on), key
     named = {code for c in cases.values() for code in c["codes"]}
     assert named <= set(ai.CHART_CLOCK_WITHHELD_CODES)
     # every code but the nested one (a tree the translator will not write) is exercised.

@@ -12,12 +12,15 @@
 // is the columns, or the refusal / the script's own `runtime.error` as plain
 // fields the main thread rebuilds (`runtimeAsync.js`).
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
+import { runtimeObjectsOf } from './runtimeObjects.js'
 
 self.onmessage = (event) => {
   const { id, def, rows, ctx } = event.data || {}
   try {
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
-    self.postMessage({ id, ok: true, columns })
+    // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
+    // structured clone would drop them; they cross beside it.
+    self.postMessage({ id, ok: true, columns, objects: runtimeObjectsOf(columns) })
   } catch (err) {
     self.postMessage({
       id,

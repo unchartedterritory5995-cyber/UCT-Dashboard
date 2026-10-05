@@ -6,7 +6,7 @@ import threading
 
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
@@ -238,12 +238,48 @@ def research_financials(sym: str):
 
 
 @router.get("/api/research/estimates/{sym}")
-def research_estimates(sym: str):
-    try:
-        return get_estimates(sym)
-    except Exception as exc:
-        _logger.warning("research estimates failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+def research_estimates(sym: str, consensus: int = 0):
+    """yfinance forward estimates + revisions. `?consensus=1` (the terminal's EE
+    panel, and the research tab when RESEARCH_FMP_DEPTH_ENABLED is on) adds the
+    FMP multi-year consensus beside them, read CONCURRENTLY with the yfinance leg
+    so a cold load costs the slower of the two, not their sum. Without the
+    parameter the response is exactly what it always was."""
+    if not consensus:
+        try:
+            return get_estimates(sym)
+        except Exception as exc:
+            _logger.warning("research estimates failed for %s: %s", sym, exc)
+            return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+
+    from api.services.research.estimates_consensus import get_consensus
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-route") as ex:
+        f_yf = ex.submit(get_estimates, sym)
+        f_fmp = ex.submit(get_consensus, sym)
+        try:
+            out = dict(f_yf.result() or {})
+        except Exception as exc:
+            _logger.warning("research estimates failed for %s: %s", sym, exc)
+            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+        try:
+            out["consensus"] = f_fmp.result()
+        except Exception as exc:
+            _logger.warning("research consensus failed for %s: %s", sym, exc)
+            out["consensus"] = {"sym": (sym or "").upper(), "state": "error",
+                                "annual": [], "quarterly": []}
+    # Which vendor stands behind each block, for the on-screen source line.
+    out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
+                      "consensus": "FMP"}
+    return out
+
+
+# R10: ANR / OWN / RTG used to turn an exception into a 200 carrying an EMPTY
+# record, which reads to a member as "no analysts / no holders / no rating".
+# A failed read is a 503; the research hooks (useAnalystRatings, useOwnership,
+# useRatings) already keep a non-2xx as `error`, never as an empty record.
+def _read_failed(what: str, sym: str, exc: Exception):
+    _logger.warning("research %s failed for %s: %s", what, sym, exc)
+    raise HTTPException(status_code=503,
+                        detail=f"{what} for {(sym or '').upper()} could not be read right now")
 
 
 @router.get("/api/research/analyst-ratings/{sym}")
@@ -251,9 +287,7 @@ def research_analyst_ratings(sym: str):
     try:
         return get_analyst_ratings(sym)
     except Exception as exc:
-        _logger.warning("research analyst ratings failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "entity": None, "consensus": None,
-                "price_target": None, "recent_actions": {"items": [], "_meta": None}}
+        _read_failed("analyst ratings", sym, exc)
 
 
 @router.get("/api/research/ownership/{sym}")
@@ -268,8 +302,7 @@ def research_ownership(sym: str):
             return edgar_ownership.overlay_insider(result, sym)
         return result
     except Exception as exc:
-        _logger.warning("research ownership failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "institutional": {"pct_held": None, "holders": []}, "short": {}, "insider": []}
+        _read_failed("ownership", sym, exc)
 
 
 @router.get("/api/research/ratings/{sym}")
@@ -277,8 +310,7 @@ def research_ratings(sym: str):
     try:
         return get_ratings(sym)
     except Exception as exc:
-        _logger.warning("research ratings failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}
+        _read_failed("ratings", sym, exc)
 
 
 @router.get("/api/research/compare/{sym}/{comparator}")

@@ -98,7 +98,10 @@ plot(f_pos('Top Left'))
     // ⭐ Two places were asking *"is this a user function"* and a refused
     // definition can leave the name in either one. There is one predicate now
     // (`isUserFn`), and this is the shape that can tell the difference.
-    const src = `${HEAD}f(x = 3) =>
+    // ⚰️ L2 (2026-10-02): this read `f(x = 3)`, and a LITERAL default now reads
+    // (`paramDefaultsOf`). A default that is an expression is still a header this
+    // lane refuses, so it carries the case — the mechanism is unchanged.
+    const src = `${HEAD}f(x = close * 3) =>
     x * 2
 plot(f(close))
 `

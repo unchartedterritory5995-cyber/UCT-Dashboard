@@ -97,14 +97,13 @@ class TestRoute:
         assert r.status_code == 200
         assert set(r.json().keys()) == {"sym", "entity", "consensus", "price_target", "recent_actions"}
 
-    def test_route_degrades_safely_on_an_exception(self, monkeypatch):
+    def test_route_failure_is_a_503_not_an_empty_record(self, monkeypatch):
+        # R10: a 200 with an empty record read as "no analyst coverage".
         import api.routers.research as research_router
 
         def _boom(sym):
             raise RuntimeError("boom")
         monkeypatch.setattr(research_router, "get_analyst_ratings", _boom)
         r = self._client().get("/api/research/analyst-ratings/AAPL")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["sym"] == "AAPL"
-        assert body["recent_actions"] == {"items": [], "_meta": None}
+        assert r.status_code == 503
+        assert "AAPL" in r.json()["detail"]

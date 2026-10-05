@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import useDarkSection from './useDarkSection'
+import OffNotice from './OffNotice'
 import CoverageLine from '../../components/provenance/CoverageLine'
 import styles from './optionsAnalytics.module.css'
 
@@ -17,6 +18,18 @@ import styles from './optionsAnalytics.module.css'
 
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const leg = (l) => `${l.type} ${num(l.strike)}`
+// Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
+// They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
+// backtester all print -- and every header says so.
+export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' : `$${Math.round(Number(v) * 100).toLocaleString()}`)
+
+// The server reads at most `candidate_cap` contracts, highest open interest first. Reading exactly
+// the cap means the list was cut, and what it cut is the LOW-OI tail.
+export function capNote(d) {
+  if (!d || d.candidate_cap == null || d.candidates_read == null) return null
+  if (Number(d.candidates_read) < Number(d.candidate_cap)) return null
+  return `Capped at ${Number(d.candidate_cap).toLocaleString()} contracts by open interest — higher-yield low-OI contracts may be missing.`
+}
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
@@ -28,15 +41,15 @@ function Row({ kind, r }) {
   const credit = r.credit != null
   return (
     <tr><th>{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
-      <td>{credit ? `+${num(r.credit)}` : `-${num(r.debit)}`}</td><td>{num(r.max_profit)}</td><td>{num(r.max_loss)}</td>
+      <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
       <td>{credit ? `${num(r.return_on_risk_pct, 1)}%` : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
 }
 
 const HEADS = {
-  covered_calls: ['Contract', 'Bid', 'Yield', 'Annualized', 'If called'],
-  cash_secured_puts: ['Contract', 'Bid', 'On cash', 'Annualized', 'Breakeven (cushion)'],
-  spread: ['Legs', 'Net', 'Max profit', 'Max loss', 'Return'],
+  covered_calls: ['Contract', 'Bid / share', 'Yield', 'Annualized', 'If called'],
+  cash_secured_puts: ['Contract', 'Bid / share', 'On cash', 'Annualized', 'Breakeven (cushion)'],
+  spread: ['Legs', 'Net / contract', 'Max profit / contract', 'Max loss / contract', 'Return'],
 }
 
 function FirstScreens() {
@@ -45,7 +58,16 @@ function FirstScreens() {
   const [syms, setSyms] = useState('')
   const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/strategy/${kind}${q}` : null)
-  if (cat.hidden || !Array.isArray(cat.data?.strategies)) return null
+  if (cat.hidden) return null
+  if (!Array.isArray(cat.data?.strategies)) {
+    if (cat.loading) return null
+    if (cat.failed) return (
+      <section className={styles.panel} data-testid="strategy-screens">
+        <p className={styles.note} data-testid="strategy-catalog-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>
+      </section>
+    )
+    return null
+  }
   const heads = HEADS[kind] || HEADS.spread
   return (
     <section className={styles.panel} data-testid="strategy-screens">
@@ -63,6 +85,7 @@ function FirstScreens() {
           <p className={styles.muted} data-testid="strategy-basis">
             {res.data.description} Session {res.data.session}, {res.data.data_basis}. {res.data.fill} {res.data.matches} match{res.data.matches === 1 ? '' : 'es'} from {res.data.candidates_read} candidates read.
           </p>
+          {capNote(res.data) && <p className={styles.note} data-testid="strategy-capped">{capNote(res.data)}</p>}
           {res.data.rows.length > 0 ? (
             <div className={styles.scroll}>
               <table className={styles.table}>
@@ -82,7 +105,7 @@ function FirstScreens() {
 function MoreRow({ kind, r }) {
   if (kind === 'call_butterflies') {
     return <tr><th>{r.underlying}</th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
-      <td>-{num(r.debit)}</td><td>{num(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
+      <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
     return <tr><th>{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{Number(r.volume).toLocaleString()}</td>
@@ -94,7 +117,7 @@ function MoreRow({ kind, r }) {
 }
 
 const MORE_HEADS = {
-  call_butterflies: ['Strikes', 'Debit', 'Max profit', 'Reward', 'Breakevens'],
+  call_butterflies: ['Strikes', 'Debit / contract', 'Max profit / contract', 'Reward', 'Breakevens'],
   by_expiration: ['Expiration', 'Volume', 'Open interest', 'Call share', 'ATM IV'],
   block_trades: ['Contract', 'Side', 'Premium', 'Contracts', 'Time'],
 }
@@ -105,7 +128,16 @@ export function MoreStrategyScreens() {
   const [syms, setSyms] = useState('')
   const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/more/${kind}${q}` : null)
-  if (cat.hidden || !Array.isArray(cat.data?.strategies)) return null
+  if (cat.hidden) return null
+  if (!Array.isArray(cat.data?.strategies)) {
+    if (cat.loading) return null
+    if (cat.failed) return (
+      <section className={styles.panel} data-testid="more-strategy-screens">
+        <p className={styles.note} data-testid="more-catalog-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>
+      </section>
+    )
+    return null
+  }
   const d = res.data
   return (
     <section className={styles.panel} data-testid="more-strategy-screens">
@@ -124,6 +156,8 @@ export function MoreStrategyScreens() {
             {d.description} Session {d.session || '—'}, {d.data_basis}.{d.fill ? ` ${d.fill}` : ''} {d.matches} match{d.matches === 1 ? '' : 'es'} from {d.candidates_read} read.
             {d.filters ? ` ${d.filters}` : ''}
           </p>
+          {/* block trades read the whole tape (its cap is the list length), so only the snapshot screens can be cut */}
+          {kind !== 'block_trades' && capNote(d) && <p className={styles.note} data-testid="more-capped">{capNote(d)}</p>}
           {d.rows.length > 0 ? (
             <div className={styles.scroll}>
               <table className={styles.table} data-testid="more-rows">
@@ -183,6 +217,14 @@ export function SizzlePanel() {
   )
 }
 
-export default function StrategyScreensPanel() {
-  return <><FirstScreens /><MoreStrategyScreens /><SizzlePanel /></>
+// `offNotice`: set by the terminal's STRS, which opens this panel on its own. When all three catalog
+// routes answer 404 it says the screens are not switched on, instead of opening blank.
+export default function StrategyScreensPanel({ offNotice = false }) {
+  return (
+    <>
+      {offNotice && <OffNotice feature="Options strategy screens"
+        urls={['/api/options-screener/strategies', '/api/options-screener/more-strategies', '/api/options-screener/sizzle']} />}
+      <FirstScreens /><MoreStrategyScreens /><SizzlePanel />
+    </>
+  )
 }

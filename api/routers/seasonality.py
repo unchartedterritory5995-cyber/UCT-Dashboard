@@ -40,9 +40,24 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+class HistoryPending(Exception):
+    """L8: the serve answered with a PARTIAL daily history (a cold read: the store's
+    shallow tail while the deep backfill runs in the background)."""
+
+
+def _history_is_partial(sym: str, n_bars: int) -> bool:
+    """The bar serve's OWN test for a partial deep read (bars_fetch: fewer than 90% of
+    the requested bars AND no "this is all there is" marker), so the two cannot
+    disagree about what "partial" means. A short-lived listing whose full history has
+    been read carries the marker and is not partial."""
+    from api.services import bars_fetch
+    return n_bars < DAILY_BARS * 0.9 and not bars_fetch._history_complete(sym.upper(), "D")
+
+
 def _daily_bars(sym: str) -> list:
     """The LOCAL serve core, every parameter explicit (an omitted Query(...) default is a
-    truthy FieldInfo when called directly). Only a 200 with a list counts."""
+    truthy FieldInfo when called directly). Only a 200 with a list counts. Raises
+    HistoryPending when the serve handed back a partial cold read (L8)."""
     from api.routers import bars as bars_router
     resp = bars_router.serve_bars(sym, "D", DAILY_BARS, "", "", 0)
     if getattr(resp, "status_code", 200) != 200:
@@ -53,7 +68,10 @@ def _daily_bars(sym: str) -> list:
     except ValueError:
         return []
     out = payload.get("bars") if isinstance(payload, dict) else None
-    return out if isinstance(out, list) else []
+    out = out if isinstance(out, list) else []
+    if out and _history_is_partial(sym, len(out)):
+        raise HistoryPending(sym)
+    return out
 
 
 @router.get("/api/research/seasonality/{sym}", dependencies=[Depends(_armed)])
@@ -62,7 +80,16 @@ def seasonality(sym: str, _user: dict = Depends(require_paid)):
     if not _SYM_RE.match(s):
         raise HTTPException(status_code=400, detail="Not a ticker")
     from api.services import seasonality as svc
-    bars = _daily_bars(s)
+    try:
+        bars = _daily_bars(s)
+    except HistoryPending:
+        # L8: a cold read measured 2024-09-16..today (n=2 per month) where the warm
+        # call covers 2021+. A table computed from that would state a short record as
+        # THE record. The full read is already running behind the serve; ask again.
+        raise HTTPException(
+            status_code=503,
+            detail=f"The full daily history for {s} is still being read; try again shortly",
+            headers={"Retry-After": "15"})
     if not bars:
         # unavailable, never an empty table presented as "no pattern"
         raise HTTPException(status_code=503, detail=f"Daily bars for {s} are unavailable right now")

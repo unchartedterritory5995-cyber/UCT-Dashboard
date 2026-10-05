@@ -397,9 +397,22 @@ def _negative_examples_block() -> str:
     )
 
 
+# L5: the write-up step's outcome, stored beside the thesis. A failure is NEVER
+# written as thesis prose: it used to store "Synthesis temporarily unavailable…" /
+# "Synthesis returned malformed output…" / "Synthesis paused…" AS the thesis, and
+# with that row's signals_hash the skip-if-stable path then reused the failure
+# sentence on every refresh until the inputs changed (AMD, Oct 5 / Oct 2 / Sep 28).
+#   ok         a thesis written this refresh (or reused unchanged)
+#   failed     both models failed       } thesis_text is the PRIOR thesis when one
+#   malformed  unparseable model output } exists for the day, else None
+#   paused     the daily cost cap       }
+THESIS_STATUSES = ("ok", "failed", "malformed", "paused")
+
+
 def synthesize_ticker(candidate: dict, market_date: str) -> dict:
-    """Returns dict with thesis_text, thesis_model, thesis_at, thesis_sources,
-    signals_hash, was_cached, input_tokens, output_tokens."""
+    """Returns dict with thesis_text (None when no write-up exists), thesis_status
+    (THESIS_STATUSES), thesis_model, thesis_at, thesis_sources, signals_hash,
+    was_cached, input_tokens, output_tokens."""
     h = compute_signals_hash(candidate)
     prior = store.get_ticker_for_date(candidate["ticker"], market_date)
 
@@ -410,6 +423,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                           0, 0, was_cached=True)
         return {
             "thesis_text": prior["thesis_text"],
+            "thesis_status": "ok",
             "thesis_model": prior["thesis_model"],
             "thesis_at": prior["thesis_at"],
             "thesis_sources": prior["thesis_sources"],
@@ -423,11 +437,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     # Hard cap check
     if not cost_guard.may_synthesize(market_date):
-        fallback_text = (prior["thesis_text"]
-                         if prior and prior.get("thesis_text") else
-                         "Synthesis paused — daily cost cap reached. Try again tomorrow.")
         return {
-            "thesis_text": fallback_text + " (cost cap reached)",
+            "thesis_text": prior.get("thesis_text") if prior else None,
+            "thesis_status": "paused",
             "thesis_model": prior.get("thesis_model") if prior else "none",
             "thesis_at": int(time.time()),
             "thesis_sources": prior.get("thesis_sources") if prior else "[]",
@@ -462,11 +474,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
         except Exception as e2:
             logger.error("[catalyst-synth] Haiku fallback also failed for %s: %s",
                          candidate["ticker"], e2)
-            fallback_text = (prior["thesis_text"]
-                             if prior and prior.get("thesis_text") else
-                             "Synthesis temporarily unavailable. Sources will be checked again on next refresh.")
             return {
-                "thesis_text": fallback_text,
+                "thesis_text": prior.get("thesis_text") if prior else None,
+                "thesis_status": "failed",
                 "thesis_model": prior.get("thesis_model") if prior else "none",
                 "thesis_at": int(time.time()),
                 "thesis_sources": prior.get("thesis_sources") if prior else "[]",
@@ -488,6 +498,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
         if prior and prior.get("thesis_text"):
             return {
                 "thesis_text": prior["thesis_text"],
+                "thesis_status": "malformed",
                 "thesis_model": prior["thesis_model"],
                 "thesis_at": prior["thesis_at"],
                 "thesis_sources": prior["thesis_sources"],
@@ -497,7 +508,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                 "output_tokens": out_tokens,
             }
         return {
-            "thesis_text": "Synthesis returned malformed output. Will retry next refresh.",
+            "thesis_text": None,
+            "thesis_status": "malformed",
             "thesis_model": used_model,
             "thesis_at": int(time.time()),
             "thesis_sources": "[]",
@@ -545,6 +557,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     return {
         "thesis_text": parsed["thesis"],
+        "thesis_status": "ok",
         "thesis_model": used_model,
         "thesis_at": int(time.time()),
         "thesis_sources": json.dumps(parsed.get("source_urls", [])),

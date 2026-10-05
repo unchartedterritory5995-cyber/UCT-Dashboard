@@ -27,3 +27,10 @@
 /* lane/o-options-remainders: the 3D surface's cells (FT-018) and a clickable tide (FT-057). */
 .mesh { stroke: var(--border); stroke-width: 0.5; }
 .clickable { cursor: pointer; }
+/* Small chart legend (Market Tide): a line swatch per series, so colour is never the only key. */
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; color: var(--text-muted); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.legendSwatch { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--text-muted); }
+.legendCall { border-top-color: var(--gain); }
+.legendPut { border-top-color: var(--loss); }
+.legendZero { border-top: 1px solid var(--border); }

@@ -207,7 +207,8 @@ def _init_db() -> None:
                           ("is_new", "INTEGER"),
                           ("refreshed_at", "INTEGER"),
                           ("pre_move", "INTEGER"),
-                          ("rating_change", "TEXT")):  # display-only analyst action JSON
+                          ("rating_change", "TEXT"),   # display-only analyst action JSON
+                          ("thesis_status", "TEXT")):  # L5: synthesize.THESIS_STATUSES
             try:
                 c.execute(f"ALTER TABLE catalysts ADD COLUMN {col} {decl}")
             except sqlite3.OperationalError as e:
@@ -344,18 +345,20 @@ def upsert_catalyst(row: dict) -> None:
         # looked" timestamp the tile shows, so a quiet morning where the 9:10 /
         # 9:20 runs reuse the 6 AM thesis no longer reads as "3h ago · stale".
         row = {"grade": None, "catalyst_type": None, "is_new": None,
-               "pre_move": None, "rating_change": None,
+               "pre_move": None, "rating_change": None, "thesis_status": None,
                "refreshed_at": int(time.time()), **row}
         c.execute(
             """INSERT INTO catalysts
                (market_date, ticker, rank, score, tag, price, gap_pct, vol_x,
                 market_cap, sector, thesis_text, thesis_model, thesis_at,
                 thesis_sources, signals_hash, catalyst_at, raw_signals,
-                grade, catalyst_type, is_new, refreshed_at, pre_move, rating_change)
+                grade, catalyst_type, is_new, refreshed_at, pre_move, rating_change,
+                thesis_status)
                VALUES (:market_date, :ticker, :rank, :score, :tag, :price, :gap_pct,
                        :vol_x, :market_cap, :sector, :thesis_text, :thesis_model,
                        :thesis_at, :thesis_sources, :signals_hash, :catalyst_at, :raw_signals,
-                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move, :rating_change)
+                       :grade, :catalyst_type, :is_new, :refreshed_at, :pre_move, :rating_change,
+                       :thesis_status)
                ON CONFLICT(market_date, ticker) DO UPDATE SET
                  rank           = excluded.rank,
                  score          = excluded.score,
@@ -377,7 +380,8 @@ def upsert_catalyst(row: dict) -> None:
                  is_new         = excluded.is_new,
                  refreshed_at   = excluded.refreshed_at,
                  pre_move       = excluded.pre_move,
-                 rating_change  = excluded.rating_change""",
+                 rating_change  = excluded.rating_change,
+                 thesis_status  = excluded.thesis_status""",
             row,
         )
         c.commit()

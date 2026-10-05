@@ -343,12 +343,43 @@ describe('the badge is a MEASUREMENT — the schema and the lane gate', () => {
     // no rail either. Same shape: with the section a clock leaf is bounded; with
     // the section gone the walker cannot resolve the name and fails closed to
     // `repaints`, which is what deleting the branch produces.
+    //
+    // ⚰️ RE-PINNED 2026-10-04 (G16, the wave-16 gate), with the reason. This loop
+    // asserted `non-repainting` for EVERY clock name. RT4 (3a77b89423, integrator
+    // ruling on RT2's finding) then declared the clock's RIGHT EDGE in the shared
+    // table: `islast` / `islastconfirmedhistory` carry `forward: 1` (final one bar
+    // later) and the seven `lastbar*` broadcasts `forward: "unbounded"` — the reaches
+    // `runtimeRepaintEdge.test.js` MEASURES through `indicators.js::computeClock`.
+    // Those leaves really do repaint, so `non-repainting` for them was the old lie
+    // RT4 fixed, not a regression. The rail keeps its claim for every leaf that
+    // reads the bar it draws on, and names the right edge BY NAME, so a new
+    // `forward` declaration cannot slip into either list unseen.
+    const RIGHT_EDGE = {
+      islast: 'preview-repaints',
+      islastconfirmedhistory: 'preview-repaints',
+      lastbarindex: 'repaints',
+      lastbartime: 'repaints',
+      lastbaryear: 'repaints',
+      lastbarmonth: 'repaints',
+      lastbardayofmonth: 'repaints',
+      lastbarhour: 'repaints',
+      lastbarminute: 'repaints',
+    }
+    const declaresForward = Object.keys(TABLE.clock)
+      .filter((n) => TABLE.clock[n] && TABLE.clock[n].forward !== undefined && TABLE.clock[n].forward !== 0)
+    expect(declaresForward.sort()).toEqual(Object.keys(RIGHT_EDGE).sort())
+    let stable = 0
     for (const name of Object.keys(TABLE.clock)) {
       const tree = { type: 'series', name }
-      expect(lintRepaint(tree).mode, `${name} repaints`).toBe('non-repainting')
+      const want = RIGHT_EDGE[name] || 'non-repainting'
+      expect(lintRepaint(tree).mode, `${name} is not ${want}`).toBe(want)
+      if (want === 'repaints') continue // the control below cannot tell these apart
+      if (want === 'non-repainting') stable += 1
       expect(lintRepaint(tree, { table: { ...TABLE, clock: {} } }).mode,
         `${name} was bounded by a table that does not declare it`).toBe('repaints')
     }
+    // non-vacuity: the bar-local half is most of the clock, not an empty loop
+    expect(stable).toBeGreaterThan(15)
   })
 
   it('⛔ refuses a `meta.freshness` outside the vocabulary at the SCHEMA door', () => {

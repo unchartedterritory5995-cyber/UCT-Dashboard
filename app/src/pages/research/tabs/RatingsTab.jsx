@@ -36,10 +36,22 @@ function checkColor(s) {
 }
 
 export default function RatingsTab({ sym }) {
-  const { data, isLoading } = useRatings(sym)
+  const { data, isLoading, error, mutate } = useRatings(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Computing UCT ratings…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty rating. Render the
+  // error distinctly so a backend hiccup never reads as "no ratings exist".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="ratings-error">
+        Couldn't load ratings for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const r = data || {}

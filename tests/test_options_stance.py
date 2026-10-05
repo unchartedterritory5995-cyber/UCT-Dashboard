@@ -72,3 +72,14 @@ def test_the_route_is_dark_paid_and_validates(monkeypatch):
     assert c.get(url + "&direction=sideways").status_code == 422
     assert c.get("/api/research/options/TST/stance?contract=O:SPY261101C00100000").status_code == 422
     assert c.get("/api/research/options/TST/stance?contract=O:TST261101C00500000").status_code == 422   # not in chain
+
+
+def test_a_class_share_contract_is_scored_not_refused(monkeypatch):
+    """O9: OCC writes BRK.B's root as BRKB; the stance used to 422 it as another underlying."""
+    occ = "O:BRKB261101C00100000"
+    monkeypatch.setattr(st, "_chain", lambda s, e: {"spot": 100.0, "expiration": e,
+                                                    "calls": [{**ROW, "contract": occ}], "puts": []})
+    r = st.stance("BRK.B", occ, "bullish", today=TODAY)
+    assert r["fit_score"] == 3.85
+    with pytest.raises(ValueError):
+        st.stance("BRK.B", "O:BRKA261101C00100000", "bullish", today=TODAY)

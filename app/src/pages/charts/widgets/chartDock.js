@@ -40,15 +40,25 @@ export const DOCK_PANELS = [
 // control ~12px off the right edge: the same optical margin as the tab strip's
 // left inset. 400 fit fine but left a visible dead gap after the search button
 // once the strip stopped growing.
-export const DEFAULT_RIGHT_W = 380
+// 400 AGAIN (2026-10-05, Unified Add to Chart): the header gained the collapse
+// chevron (.rdCollapse, 18px box + 2px right margin = 20px) after search, so the
+// header now needs 374 + 20 = 394px. Same rule as before -- the measured need
+// + 6px -- and the dead gap 400 used to leave after search is exactly where the
+// chevron now sits.
+export const DEFAULT_RIGHT_W = 400
 // The width the header chrome above needs before the tab strip starts scrolling.
 // Not a hard floor -- MIN_RIGHT_W stays at 300 so a user who deliberately drags
 // the panel narrow still can (the feed is designed down to 300); it exists so
 // the stale-default migration below knows what "too narrow" means.
-export const TABSTRIP_FIT_W = 374
+export const TABSTRIP_FIT_W = 394
 // Every width we have ever SHIPPED as the default. None was user-chosen, so
-// none should outlive the default moving -- see normalizeDock.
-const LEGACY_DEFAULT_RIGHT_W = new Set([360, 400])
+// none should outlive the default moving -- see normalizeDock. (400 is the
+// default again, so a stored 400 already means "the default".)
+const LEGACY_DEFAULT_RIGHT_W = new Set([360, 380])
+// The panel's ceiling as a share of the widget. The divider drag has always
+// stopped here; the render clamps to it too, so a narrow widget can never be
+// squeezed down to a sliver of chart (see ChartDetailDock's fit rule).
+export const MAX_RIGHT_FRAC = 0.62
 export const DEFAULT_BOTTOM_H = 116
 export const TALL_BOTTOM_H = 300
 export const MIN_RIGHT_W = 300
@@ -85,9 +95,18 @@ export function normalizeDock(raw) {
   // open/tab/width, so it survives a ticker change and a refresh without a
   // second preference system for one boolean.
   const strip = !!d.strip
+  // Company Info has TWO states: ADDED (`company`, durable chart configuration,
+  // owned by Add to Chart) and EXPANDED (`open`, the member's temporary choice,
+  // owned by the panel's own collapse chevron / edge rail). Before the split the
+  // one `open` boolean meant both, so a member whose panel is open today keeps
+  // it, and one whose panel is closed starts as "not added" — the honest reading
+  // of a single boolean. Computed AFTER the legacy `right:` mapping above, so
+  // that shape migrates through the same rule.
+  const company = typeof d.company === 'boolean' ? d.company : open
   const stripH = Number.isFinite(d.stripH) ? Math.max(MIN_STRIP_H, d.stripH) : DEFAULT_STRIP_H
   return {
-    open,                                    // right (company) panel open?
+    company,                                 // Company Info added to this widget?
+    open,                                    // ...and expanded (false = edge rail)
     tab,                                     // active company tab
     bottom: !!d.bottom,                      // fundamentals strip open?
     // A user who never dragged the panel is still carrying a SHIPPED default in
@@ -103,6 +122,33 @@ export function normalizeDock(raw) {
     strip,                                   // earnings strip under the chart
     stripH,                                  // ...and its dragged height
   }
+}
+
+// ⭐ THE FIT RULE. The panel renders at the member's width, capped two ways:
+//   · at MAX_RIGHT_FRAC of the widget — the ceiling the divider drag has always
+//     stopped at, so the chart keeps at least the remaining 38%; and
+//   · so the chart keeps at least MIN_CHART_KEEP_W. A 38% share alone left a
+//     520px widget a 197px chart (measured in the harness) — a price axis and a
+//     sliver. There is no chart-width constant anywhere in the app to borrow, so
+//     the floor is the panel's own designed floor: neither side of the divider
+//     ever drops below 300px.
+// When the capped width is below MIN_RIGHT_W the panel does not render squeezed:
+// it shows as the collapsed rail until the widget is wide enough again (~600px).
+// Nothing is written — `company`, `open` and `rightW` stay exactly what they
+// were, so widening the widget brings the panel back at the member's width.
+// `widgetW` is null until measured, which means "assume it fits" (no rail flash
+// on first paint).
+export const MIN_CHART_KEEP_W = MIN_RIGHT_W
+// .dockRight's 1px border-left sits OUTSIDE its inline width (content-box), so
+// the chart's floor has to pay for it too — measured: 700px widget, 299px chart.
+const PANEL_DIVIDER_W = 1
+export function companyPanelFit(rightW, widgetW) {
+  if (!Number.isFinite(widgetW) || widgetW <= 0) return { fits: true, width: rightW }
+  const cap = Math.min(
+    Math.floor(widgetW * MAX_RIGHT_FRAC),
+    Math.floor(widgetW - MIN_CHART_KEEP_W - PANEL_DIVIDER_W),
+  )
+  return cap < MIN_RIGHT_W ? { fits: false, width: 0 } : { fits: true, width: Math.min(rightW, cap) }
 }
 
 export function dockIsOpen(dock, key) {
