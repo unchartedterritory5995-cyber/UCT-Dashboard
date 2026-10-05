@@ -260,6 +260,15 @@ describe('V6a: arguments are honoured, and every one is echoed', () => {
     expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "EXTRA"')
   })
 
+  it('FIX 2: NVDA CMP SECTOR FOO surfaces a dropped-arg notice, same as the AMD case, and never navigates', async () => {
+    renderAt('/terminal')
+    await type('NVDA CMP SECTOR FOO')
+    // Previously the SECTOR branch read only `sym` and ignored `cmd.args` entirely, so "FOO"
+    // was silently dropped and the (still-pending) sector lookup would have navigated anyway.
+    expect(screen.getByTestId('where').textContent).toBe('/terminal')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "FOO"')
+  })
+
   it('HELP GP hands the help panel its focus code', async () => {
     renderAt('/terminal')
     await type('HELP GP')
@@ -308,6 +317,20 @@ describe('the command line: doors, deep links, addresses, history', () => {
     renderAt('/terminal')
     await type('NVDA ERN')
     expect(screen.getByTestId('where').textContent).toBe('/terminal/calendar?earnings=NVDA')
+  })
+
+  it('FIX 1: NVDA ERN from /terminal keeps its ERN identity after the calendar-entry effect runs — not clobbered to CAL', async () => {
+    // Navigating from /terminal to /terminal/calendar re-matches a DIFFERENT <Route>, which
+    // remounts TerminalShell and re-arms the `enteredCalendar` effect. That effect used to key
+    // only on `p.code === 'CAL'`, so on this exact remount it never recognised the just-created
+    // ERN panel as "the calendar is already here" and silently overwrote it back to bare CAL.
+    renderAt('/terminal')
+    await type('NVDA ERN')
+    expect(screen.getByTestId('where').textContent).toBe('/terminal/calendar?earnings=NVDA')
+    const panel = await screen.findByTestId('terminal-panel-0')
+    expect(panel.getAttribute('data-code')).toBe('ERN')
+    expect(panel).toHaveTextContent('NVDA ERN')
+    expect(JSON.parse(store.prefs.terminal_layout).panels[0].code).toBe('ERN')
   })
 
   it('an address needs the address-space flag, and says so when it is off', async () => {
@@ -359,6 +382,52 @@ describe('linked panels', () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
     renderAt('/terminal/calendar')
     expect(await screen.findByTestId('stub-Calendar')).toBeTruthy()
+  })
+})
+
+describe('FIX 5: the pop-out window handle is kept and closed, not discarded', () => {
+  it('"Bring it back" closes the real window handle `window.open()` returned', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
+    const fakeWin = { closed: false, close: vi.fn(() => { fakeWin.closed = true }) }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeWin)
+    try {
+      renderAt('/terminal')
+      await act(async () => { fireEvent.click(screen.getByTestId('terminal-popout-0')) })
+      expect(openSpy).toHaveBeenCalledTimes(1)
+      expect(await screen.findByTestId('terminal-popped-0')).toBeTruthy()
+
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('terminal-popped-0')).getByRole('button', { name: 'Bring it back' }))
+      })
+      expect(fakeWin.close).toHaveBeenCalledTimes(1)
+      expect(screen.queryByTestId('terminal-popped-0')).toBeNull()
+    } finally {
+      openSpy.mockRestore()
+    }
+  })
+
+  it('does not throw when the member already closed the pop-out window by hand', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
+    const fakeWin = { closed: false, close: vi.fn(() => { fakeWin.closed = true }) }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeWin)
+    try {
+      renderAt('/terminal')
+      await act(async () => { fireEvent.click(screen.getByTestId('terminal-popout-0')) })
+      await screen.findByTestId('terminal-popped-0')
+
+      // The member closed the real browser window by hand — `.closed` is now true on the
+      // handle the shell is holding, but nobody told the shell via "Bring it back" yet.
+      fakeWin.closed = true
+
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('terminal-popped-0')).getByRole('button', { name: 'Bring it back' }))
+      })
+      // `.close()` is never called on an already-closed handle, and nothing throws.
+      expect(fakeWin.close).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('terminal-popped-0')).toBeNull()
+    } finally {
+      openSpy.mockRestore()
+    }
   })
 })
 
