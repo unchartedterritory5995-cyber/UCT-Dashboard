@@ -248,17 +248,22 @@ class Store:
 
     def logical_sha256(self) -> str:
         """Content hash of everything except timestamps (completed_at)."""
-        h = hashlib.sha256()
-        for t in ("lineage",) + CONTENT_TABLES:
-            n = len(self.c.execute(f"PRAGMA table_info({t})").fetchall())
-            for r in self.c.execute(f"SELECT * FROM {t} ORDER BY " + ", ".join(str(i + 1) for i in range(n))):
-                h.update(json.dumps([t, list(r)], default=str).encode())
-        for r in self.c.execute("SELECT date, seq, vintage, compute_vintage, vintage_exception, input_manifest_sha256, "
-                                "reference_sha256, us_v2_pub_id, "
-                                "venue_source, rows, rows_sha256, membership_sha256, derived_sha256, "
-                                "identity_state_sha256, provenance FROM live_session ORDER BY seq"):
-            h.update(json.dumps(["live_session", list(r)], default=str).encode())
-        return h.hexdigest()
+        return logical_sha256_conn(self.c)
+
+
+def logical_sha256_conn(c) -> str:
+    """`Store.logical_sha256` over ANY connection (the member reader opens its replica immutable)."""
+    h = hashlib.sha256()
+    for t in ("lineage",) + CONTENT_TABLES:
+        n = len(c.execute(f"PRAGMA table_info({t})").fetchall())
+        for r in c.execute(f"SELECT * FROM {t} ORDER BY " + ", ".join(str(i + 1) for i in range(n))):
+            h.update(json.dumps([t, list(r)], default=str).encode())
+    for r in c.execute("SELECT date, seq, vintage, compute_vintage, vintage_exception, input_manifest_sha256, "
+                       "reference_sha256, us_v2_pub_id, "
+                       "venue_source, rows, rows_sha256, membership_sha256, derived_sha256, "
+                       "identity_state_sha256, provenance FROM live_session ORDER BY seq"):
+        h.update(json.dumps(["live_session", list(r)], default=str).encode())
+    return h.hexdigest()
 
 
 def rows_sha(rows: list) -> str:

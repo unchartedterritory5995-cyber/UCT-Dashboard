@@ -4973,6 +4973,16 @@ async def lifespan(app: FastAPI):
                          daemon=True, name="breadth_v2_sync").start()
         print("[startup] breadth V2 authority replica sync started")
 
+    # ⭐ NYSE / NASDAQ (Exchange Breadth V1) member authority: follow the published pointer into a verified
+    # read-only replica (breadth_exchange_authority). Serving consults it only when
+    # BREADTH_AUTHORITY_EXCH=v1. Default OFF.
+    if os.environ.get("BREADTH_EXCH_SYNC_ENABLED") == "1":
+        from api.services import breadth_exchange_authority as _exch_authority
+        threading.Thread(target=_exch_authority.sync_loop,
+                         kwargs={"interval": int(os.environ.get("BREADTH_EXCH_SYNC_SECS", "600"))},
+                         daemon=True, name="breadth_exch_sync").start()
+        print("[startup] exchange breadth authority replica sync started")
+
     # Historical breadth-sentiment seed: load the versioned public-archive CSV
     # (AAII/put-call/CNN F&G/NAAIM back to 1987) into breadth_sentiment_history so
     # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,

@@ -34,27 +34,6 @@ sys.path.insert(0, os.path.join(HERE, "identity"))
 import identity_model as im         # noqa: E402
 import live_core as lc              # noqa: E402
 
-X = "/data/_audit/exch_v1"
-PARENTS = {
-    "historical": (X + "/final/breadth_exch_v1_FINAL_v20260924f_VALIDATED_FROZEN_2026-10-05.db",
-                   "e65b2af0779d5ff8cdce8668f866f0889e070207a260e88a64cd9d38c37462a0"),
-    "derived": (X + "/final/breadth_exch_v1_DERIVED_ad-mco-mcs_FROM_e65b2af0_VALIDATED_FROZEN_2026-10-05.db",
-                "f9ed6966dfd7d6d5459761f06f8224cfc1f1807e42a9f088279bc8b164634d86"),
-    "ledger": (X + "/venue_ledger_72eef1c2.json", "4ccf140fecd30ed4a4a54d9ca2ad3f6dfb92cb53f02bb8e4054df1bf19b40d63"),
-    "identity_state": (X + "/identity_v1_20261005/state/exch_identity_state_v1.json",
-                       "0acbe59fe1e86549a5e92e8445a2d5b1e63f189e68cbfaf0d301b775106cd8f3"),
-}
-ARCHIVE = X + "/live_v1/vintage_archive"
-PROD = "/data/breadth_v2_producer"
-PINS = os.path.join(HERE, "pinned", "breadth_exch_live_pins.json")
-# ⛔ The ONLY owner-vintage substitutions ever accepted: an owner-approved, hash-pinned file. Changing the file
-# without changing this pin (i.e. without a reviewed code change) refuses every run.
-EXCEPTIONS = os.path.join(HERE, "pinned", "breadth_exch_owner_vintage_exceptions.json")
-EXCEPTIONS_SHA256 = "3ddf3ac75675eccdae78b3c95ddaaa0a3a835f97aed2c3734c7eede8e5141f91"
-LAUNCH = X + "/code_grind_eff3eca45b2f/tools/breadth_v2cc/launch.py"
-FROZEN_END, NYSE_START, NASDAQ_START = "2026-09-24", "2009-06-11", "2008-01-02"
-EX = (("nyse", "NYSE", NYSE_START), ("nasdaq", "NASDAQ", NASDAQ_START))
-
 ap = argparse.ArgumentParser()
 ap.add_argument("--store", required=True)
 ap.add_argument("--mode", default="append", choices=("append", "proof"))
@@ -64,7 +43,35 @@ ap.add_argument("--through", default=None)
 ap.add_argument("--max-sessions", type=int, default=0)
 ap.add_argument("--code-commit", default="unrecorded")    # argv, not env: launch.py re-execs with PID 1's env
 ap.add_argument("--crash-at", default=None)               # crash-test hook (proof stores only)
+ap.add_argument("--root", default="/data/_audit/exch_v1")              # frozen parents + population (read-only)
+ap.add_argument("--prod-root", default="/data/breadth_v2_producer")    # the US V2 producer (read-only)
+ap.add_argument("--archive", default=None)                             # default <root>/live_v1/vintage_archive
+ap.add_argument("--launch", default=None)                              # default: the audit-era launch.py
+ap.add_argument("--worker-timeout", type=int, default=5400)
 A = ap.parse_args()
+X = A.root
+PARENTS = {
+    "historical": (X + "/final/breadth_exch_v1_FINAL_v20260924f_VALIDATED_FROZEN_2026-10-05.db",
+                   "e65b2af0779d5ff8cdce8668f866f0889e070207a260e88a64cd9d38c37462a0"),
+    "derived": (X + "/final/breadth_exch_v1_DERIVED_ad-mco-mcs_FROM_e65b2af0_VALIDATED_FROZEN_2026-10-05.db",
+                "f9ed6966dfd7d6d5459761f06f8224cfc1f1807e42a9f088279bc8b164634d86"),
+    "ledger": (X + "/venue_ledger_72eef1c2.json", "4ccf140fecd30ed4a4a54d9ca2ad3f6dfb92cb53f02bb8e4054df1bf19b40d63"),
+    "identity_state": (X + "/identity_v1_20261005/state/exch_identity_state_v1.json",
+                       "0acbe59fe1e86549a5e92e8445a2d5b1e63f189e68cbfaf0d301b775106cd8f3"),
+}
+ARCHIVE = A.archive or X + "/live_v1/vintage_archive"
+PROD = A.prod_root
+PINS = os.path.join(HERE, "pinned", "breadth_exch_live_pins.json")
+# ⛔ The ONLY owner-vintage substitutions ever accepted: an owner-approved, hash-pinned file. Changing the file
+# without changing this pin (i.e. without a reviewed code change) refuses every run.
+EXCEPTIONS = os.path.join(HERE, "pinned", "breadth_exch_owner_vintage_exceptions.json")
+EXCEPTIONS_SHA256 = "3ddf3ac75675eccdae78b3c95ddaaa0a3a835f97aed2c3734c7eede8e5141f91"
+#: scheduled runs pass tools/breadth_exch/run_overlay.py (the in-repo pinned engine); the default is the
+#: audit-era launcher every accepted session so far was computed with.
+LAUNCH = A.launch or X + "/code_grind_eff3eca45b2f/tools/breadth_v2cc/launch.py"
+FROZEN_END, NYSE_START, NASDAQ_START = "2026-09-24", "2009-06-11", "2008-01-02"
+EX = (("nyse", "NYSE", NYSE_START), ("nasdaq", "NASDAQ", NASDAQ_START))
+
 SUB = json.loads(A.substitute)
 if A.mode == "append" and (SUB or A.pin_vintage):
     raise SystemExit("substitution / pinned vintage are PROOF-only diagnostics — refusing in append mode")
@@ -94,13 +101,19 @@ if lc.sha_file(EXCEPTIONS) != EXCEPTIONS_SHA256:
 EXC = lc.validate_exceptions(json.load(open(EXCEPTIONS)))
 STORE = lc.Store(os.path.join(A.store, "exch_live_candidate_v1.db" if A.mode == "append" else "exch_live_PROOF.db"))
 code_commit = A.code_commit
-STORE.init_lineage({"mode": A.mode, "historical_sha256": PARENTS["historical"][1], "derived_sha256": PARENTS["derived"][1],
-                    "ledger_sha256": PARENTS["ledger"][1], "identity_parent_sha256": PARENTS["identity_state"][1],
-                    "pins_sha256": lc.sha_file(PINS), "owner_vintage_exceptions_sha256": EXCEPTIONS_SHA256,
-                    "code_commit": code_commit, "frozen_end": FROZEN_END,
-                    "nyse_start": NYSE_START, "nasdaq_start": NASDAQ_START,
-                    "substitution": json.dumps(SUB, sort_keys=True), "pinned_vintage": A.pin_vintage or "",
-                    "authority": "NOT member-authoritative" + ("" if A.mode == "append" else " — PROOF STORE, NOT A CANDIDATE")})
+# ⛔ The METHODOLOGY identity (parents, engine pins, declared exceptions, boundaries, mode) is fixed for the
+# store's life and any drift refuses (LINEAGE_MISMATCH). `code_commit` is the commit that CREATED the store;
+# a later run's orchestration commit is recorded per session (provenance.run_code_commit), not by
+# rewriting lineage — so a reviewed deploy can append without the store pretending it was born there.
+LIN = {"mode": A.mode, "historical_sha256": PARENTS["historical"][1], "derived_sha256": PARENTS["derived"][1],
+       "ledger_sha256": PARENTS["ledger"][1], "identity_parent_sha256": PARENTS["identity_state"][1],
+       "pins_sha256": lc.sha_file(PINS), "owner_vintage_exceptions_sha256": EXCEPTIONS_SHA256,
+       "frozen_end": FROZEN_END, "nyse_start": NYSE_START, "nasdaq_start": NASDAQ_START,
+       "substitution": json.dumps(SUB, sort_keys=True), "pinned_vintage": A.pin_vintage or "",
+       "authority": "NOT member-authoritative" + ("" if A.mode == "append" else " — PROOF STORE, NOT A CANDIDATE")}
+if not STORE.lineage():
+    LIN["code_commit"] = code_commit
+STORE.init_lineage(LIN)
 
 # ── producer records (immutable reads) ─────────────────────────────────────────────────────────
 ps = sqlite3.connect(f"file:{PROD}/state.db?immutable=1", uri=True)
@@ -253,9 +266,13 @@ for D in todo:
     json.dump(spec, open(sp, "w"), sort_keys=True)
     if os.path.exists(spec["out"]):
         os.remove(spec["out"])
-    subprocess.run([sys.executable, LAUNCH, os.path.join(HERE, "live_session_worker.py"), sp],
-                   cwd=os.path.dirname(LAUNCH), stdout=open(os.path.join(sd, D + ".log"), "w"), stderr=subprocess.STDOUT)
-    R = json.load(open(spec["out"])) if os.path.exists(spec["out"]) else {"refused": "NO_OUTPUT"}
+    try:
+        subprocess.run([sys.executable, LAUNCH, os.path.join(HERE, "live_session_worker.py"), sp],
+                       cwd=os.path.dirname(LAUNCH), stdout=open(os.path.join(sd, D + ".log"), "w"),
+                       stderr=subprocess.STDOUT, timeout=A.worker_timeout)
+        R = json.load(open(spec["out"])) if os.path.exists(spec["out"]) else {"refused": "NO_OUTPUT"}
+    except subprocess.TimeoutExpired:
+        R = {"refused": "TIMEOUT", "seconds": A.worker_timeout}
     if R.get("refused"):
         status["refused"] = {"session": D, "reason": "WORKER_" + R["refused"], "detail": R}
         break
@@ -348,7 +365,8 @@ for D in todo:
                "rows_sha256": lc.rows_sha(rows), "membership_sha256": lc.rows_sha(membership),
                "derived_sha256": lc.rows_sha(derived + trend),
                "identity_state_sha256": "pending" if D > HORIZON else lc.sha_file(cur_path),
-               "provenance": {"vintage": V, "remap_tables": teq, "preflight": R["preflight"], "evidence": cap.get("evidence"), "us_parity": us_par},
+               "provenance": {"vintage": V, "remap_tables": teq, "preflight": R["preflight"], "evidence": cap.get("evidence"), "us_parity": us_par,
+                              "run_code_commit": code_commit, "engine_launcher": os.path.basename(LAUNCH)},
                "completed_at": now()}
     try:
         STORE.commit_session(D, plan[len(STORE.completed())], payload, crash=crash if CRASH else None)
@@ -392,5 +410,6 @@ status.update({"finished_utc": now(), "completed": comp, "logical_sha256": STORE
                                "state": "CURRENT" if comp and comp[-1] == expected else
                                         "WAITING_FOR_US_V2" if refused == "NOT_YET_PUBLISHED" and comp and comp[-1] == latest_pub
                                         else "STALE" + (f" ({refused})" if refused else "")}})
-json.dump(status, open(os.path.join(A.store, "STATUS.json"), "w"), indent=1, sort_keys=True, default=str)
+json.dump(status, open(os.path.join(A.store, "STATUS.json.tmp"), "w"), indent=1, sort_keys=True, default=str)
+os.replace(os.path.join(A.store, "STATUS.json.tmp"), os.path.join(A.store, "STATUS.json"))
 print(json.dumps({k: status[k] for k in ("appended", "refused", "currentness", "logical_sha256")}, default=str)[:3000])

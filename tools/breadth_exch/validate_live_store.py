@@ -1,6 +1,6 @@
 """Exchange Breadth V1 — validate a live candidate / proof store (read-only).
 
-Usage: python3 validate_live_store.py STORE_DB OUT.json [--golden]
+Usage: python3 validate_live_store.py STORE_DB OUT.json [PARENTS_ROOT]
 
 Independent of the live leg's code path: re-derives membership invariants from the stored membership,
 re-computes AD / MCO / MCS over the FULL history (frozen historical inputs + the store's appended sessions)
@@ -14,8 +14,9 @@ import sqlite3
 import sys
 
 DB, OUT = sys.argv[1], sys.argv[2]
-HIST = "/data/_audit/exch_v1/final/breadth_exch_v1_FINAL_v20260924f_VALIDATED_FROZEN_2026-10-05.db"
-DER = "/data/_audit/exch_v1/final/breadth_exch_v1_DERIVED_ad-mco-mcs_FROM_e65b2af0_VALIDATED_FROZEN_2026-10-05.db"
+_P = sys.argv[3] if len(sys.argv) > 3 else "/data/_audit/exch_v1"          # optional: the parents root
+HIST = _P + "/final/breadth_exch_v1_FINAL_v20260924f_VALIDATED_FROZEN_2026-10-05.db"
+DER = _P + "/final/breadth_exch_v1_DERIVED_ad-mco-mcs_FROM_e65b2af0_VALIDATED_FROZEN_2026-10-05.db"
 GOLDEN = {"2026-09-25": ((1906, 1100, 740, 53), (3404, 1520, 1660, 150)),
           "2026-09-28": ((1909, 513, 1342, 37), (3386, 1069, 2127, 109)),
           "2026-09-29": ((1905, 741, 1110, 38), (3398, 1291, 1897, 121)),

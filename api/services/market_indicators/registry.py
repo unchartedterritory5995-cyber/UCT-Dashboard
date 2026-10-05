@@ -19,7 +19,7 @@ registry that will disagree with itself.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from api.services.breadth_metrics import (
@@ -273,7 +273,7 @@ _NOT_NYMO = (
 EXCHANGE_START = {"nyse": "2009-06-11", "nasdaq": "2008-01-02"}
 #: The summation's declared epoch: the first session with 120 real observations behind it.
 #: Pinned from the accepted artifact (it is the DEFINITION of the level, never re-derived).
-EXCHANGE_MCS_EPOCH = {"nyse": None, "nasdaq": None}
+EXCHANGE_MCS_EPOCH = {"nyse": "2009-12-01", "nasdaq": "2008-06-24"}
 _EXCH_ALIAS = {("nyse", "MCO"): ("NYMO", "$NYMO"), ("nyse", "MCS"): ("NYSI", "$NYSI"),
                ("nyse", "AD"): ("NYAD", "$NYAD"), ("nasdaq", "MCO"): ("NAMO", "$NAMO"),
                ("nasdaq", "MCS"): ("NASI", "$NASI"), ("nasdaq", "AD"): ("NAAD", "$NAAD")}
@@ -294,8 +294,8 @@ def _exchange_row(universe: str, kind: str) -> "Series":
                   observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
                   source_owner="UCT", licensing="Own data.", reproduces_reference=False,
                   history_start=EXCHANGE_START[universe],
-                  blocked_on="Exchange Breadth V1 cutover: awaiting owner authorization to publish "
-                             "the accepted exchange artifact.")
+                  blocked_on="Exchange Breadth V1: published only while `breadth_exchange_authority` serves "
+                             "a verified authority (BREADTH_AUTHORITY_EXCH=v1).")
     if kind == "MCO":
         return Series(**common, unit=UNIT_POINTS, domain=DOMAIN_SIGNED,
                       metric_name="McClellan Oscillator", metric_short="McClellan",
@@ -906,11 +906,34 @@ for _s in _ROWS:
 SERIES_IDS = [s.id for s in _ROWS]
 
 
+#: Exchange Breadth V1 rows: DORMANT in the table, PUBLISHED exactly while the exchange authority serves
+#: their universe (`breadth_exchange_authority.serves`). One predicate, read by every accessor below, so
+#: the catalogue, search, `/api/bars` and the metadata route can never disagree.
+EXCHANGE_SERIES_IDS = frozenset(f"{x}:{k}" for x in ("NYSE", "NASDAQ") for k in ("MCO", "MCS", "AD"))
+_LIVE_ROW: dict = {}
+
+
+def _effective(s: Optional[Series]) -> Optional[Series]:
+    if s is None or s.id not in EXCHANGE_SERIES_IDS:
+        return s
+    try:
+        from api.services import breadth_exchange_authority as _ea
+        serving = _ea.serves(s.universe)
+    except Exception:
+        serving = False
+    if not serving:
+        return s
+    hit = _LIVE_ROW.get(s.id)
+    if hit is None:
+        hit = _LIVE_ROW[s.id] = replace(s, status=ST_PUBLISHED, blocked_on=None)
+    return hit
+
+
 def get(series_id: str) -> Optional[Series]:
     """The row for a canonical id, whatever its status. Discovery must NOT use this."""
     if not series_id:
         return None
-    return SERIES.get(str(series_id).strip().upper())
+    return _effective(SERIES.get(str(series_id).strip().upper()))
 
 
 def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
@@ -931,7 +954,7 @@ def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
     sid = _ALIAS_INDEX.get(str(token).strip().upper())
     if not sid:
         return None
-    s = SERIES[sid]
+    s = _effective(SERIES[sid])
     if s.status != ST_PUBLISHED and not include_dormant:
         return None
     return s
@@ -1202,21 +1225,26 @@ def product_of(series_id: str) -> Optional[Product]:
     return None
 
 
+def all_rows() -> list[Series]:
+    """Every row with its EFFECTIVE status (the exchange rows follow their authority)."""
+    return [_effective(s) for s in _ROWS]
+
+
 def published_rows() -> list[Series]:
-    return [s for s in _ROWS if s.status == ST_PUBLISHED]
+    return [s for s in all_rows() if s.status == ST_PUBLISHED]
 
 
 def dormant_rows() -> list[Series]:
-    return [s for s in _ROWS if s.status == ST_DORMANT]
+    return [s for s in all_rows() if s.status == ST_DORMANT]
 
 
 def rows_for_family(family: str, published_only: bool = True) -> list[Series]:
-    src = published_rows() if published_only else _ROWS
+    src = published_rows() if published_only else all_rows()
     return [s for s in src if s.family == family]
 
 
 def families(published_only: bool = True) -> list[dict]:
-    src = published_rows() if published_only else _ROWS
+    src = published_rows() if published_only else all_rows()
     present = {s.family for s in src}
     return [{"id": f, "label": FAMILY_LABEL[f]}
             for f in FAMILY_ORDER if f in present]

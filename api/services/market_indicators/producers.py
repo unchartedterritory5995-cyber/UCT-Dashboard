@@ -101,8 +101,24 @@ def load_pair(metric_a: str, metric_b: str, universe: str,
             [(b.get(d) or {}).get("c") for d in dates])
 
 
-#: Exchange Breadth V1 universes: same engine, plus the locked burn-in suppression on MCO.
+#: Exchange Breadth V1 universes. ⛔ ONE AUTHORITY: their AD / MCO / MCS are NOT recomputed here — they are
+#: read verbatim from `breadth_exchange_authority` (frozen derived artifact + the accepted live append),
+#: so a chart can never show a value the authority does not hold. MCO/MCS are absent inside the burn-in.
 EXCHANGE_UNIVERSES = ("nyse", "nasdaq")
+
+
+def _exchange_series(sid: str, row) -> Optional["DerivedSeries"]:
+    from api.services import breadth_exchange_authority as ea
+    vals = ea.derived(sid)
+    if not vals:
+        return None
+    dates = sorted(vals)
+    kind = sid.split(":", 1)[1]
+    return DerivedSeries(series_id=sid, dates=dates, values=[vals[d] for d in dates], universe=row.universe,
+                         methodology_version=row.methodology_version,
+                         detail={"authority": "breadth_exchange_authority", "token": ea.token()},
+                         epoch=ea.MCO_FIRST[row.universe] if kind == "MCS" else None,
+                         base=0.0 if kind == "MCS" else None)
 
 # ── McClellan ────────────────────────────────────────────────────────────────
 
@@ -323,17 +339,14 @@ def _build_uncached(sid: str) -> Optional[DerivedSeries]:
     if row is None or row.universe is None:
         return None
     uni = row.universe
+    if uni in EXCHANGE_UNIVERSES:
+        return _exchange_series(sid, row)
 
     if sid.endswith(":MCO"):
         res = mcclellan_for_universe(uni)
         if res is None:
             return None
         osc = res.oscillator
-        if uni in EXCHANGE_UNIVERSES:
-            # Exchange Breadth V1 (locked): NOT published inside the 120-session burn-in — a value
-            # there is an artifact of the zero seed wearing the name of a market level.
-            idx = mc.first_trustworthy_index(osc, mc.RATIO_ADJUSTED)
-            osc = [None] * len(osc) if idx is None else [None] * idx + list(osc[idx:])
         return DerivedSeries(series_id=sid, dates=res.dates, values=osc,
                              universe=uni, methodology_version=row.methodology_version,
                              detail={"ema19": res.ema19, "ema39": res.ema39,

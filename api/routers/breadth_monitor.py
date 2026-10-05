@@ -1393,6 +1393,11 @@ def breadth_authority_status(check: bool = False, _auth: None = Depends(require_
     out = ba.status()
     if check:
         out["seed_check"] = ba.seed_check()
+    try:
+        from api.services import breadth_exchange_authority as ea
+        out["exchange"] = ea.status()
+    except Exception as e:  # noqa: BLE001 — never fail the UCT/US status on the exchange block
+        out["exchange"] = {"error": "%s: %s" % (type(e).__name__, e)}
     return out
 
 
