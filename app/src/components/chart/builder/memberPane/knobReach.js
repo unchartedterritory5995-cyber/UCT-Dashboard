@@ -252,9 +252,16 @@ export function unreachedKnobs({
       leafDiffs(r.displace, b.rows[i] && b.rows[i].displace, astDiff)
     })
     const condDiff = leafDiffs(a.conditions, b.conditions, { nums: [], shape: false })
-    if (objDiff.shape || astDiff.shape || condDiff.shape) return { shape: true, hits: new Map(), loose: true }
+    // ⭐ A SECTION THAT CHANGED SHAPE NAMES NO KNOB (its literals may not line up),
+    // but the others still do: only the knobs none of them names are asked alone.
     const hits = new Map()
-    let loose = false
+    let loose = objDiff.shape || astDiff.shape || condDiff.shape
+    const shapeWhere = astDiff.shape ? REACH.fold : condDiff.shape ? REACH.colour
+      : objDiff.shape ? REACH.drawings : null
+    if (astDiff.shape) astDiff.nums = []
+    if (condDiff.shape) condDiff.nums = []
+    if (objDiff.shape) objDiff.nums = []
+    for (const d of [astDiff, condDiff, objDiff]) if (d.shape) d.strs = []
     const name = (pair, where) => {
       const owners = moving.filter((p) => p.default === pair[0] && probes.get(p.id) === pair[1])
       if (owners.length !== 1) { loose = true; return }
@@ -271,7 +278,7 @@ export function unreachedKnobs({
       }
     }
     for (const pair of objDiff.nums) name(pair, REACH.drawings)
-    return { shape: false, hits, loose }
+    return { shape: false, hits, loose, shapeWhere }
   }
 
   const all = check(candidates)
@@ -285,7 +292,7 @@ export function unreachedKnobs({
     const one = check([p])
     if (!one) locked.set(p.id, REACH.unbuilt)
     else if (one.shape || one.loose || one.hits.size) {
-      locked.set(p.id, one.hits.get(p.id) || REACH.fold)
+      locked.set(p.id, one.hits.get(p.id) || one.shapeWhere || REACH.fold)
     }
   }
   return locked
