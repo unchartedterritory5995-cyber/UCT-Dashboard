@@ -1,9 +1,9 @@
 == Ms1-examples-ignore-switch  (api/services/journal_two/sample_notebook.py)
 verdict: KILLED (runner exit 1)
-restored: matches HEAD:api/services/journal_two/sample_notebook.py (blob e483ab35754b)
+restored: matches HEAD:api/services/journal_two/sample_notebook.py (blob aab91759c7af)
 FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[None-None]
 FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[1-None]
 FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[None-1]
 FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[1-0]
 FAILED tests/test_sample_notebook_switch.py::test_switch_on_adds_the_examples_over_the_same_base
-5 failed, 8 passed in 4.54s
+5 failed, 8 passed in 3.34s
