@@ -307,3 +307,33 @@ describe('⭐⭐ RT14 — a user-type field declared an array is an array', () =
     expect(r.refusal.guard).toBe('runtime:loop')
   })
 })
+
+describe('⭐⭐ RT14 — a record\'s type follows it through a call and out of a global array', () => {
+  // closes: 100, 102, 104, 101, 103, 100, 102, 104
+  const P = 'type P\n    float v\n    bool up\n'
+
+  it('`d = make(x)` where `make` returns a record: `d.v` is a field read (volume-delta-hapharmonic)', () => {
+    const src = P + 'make(x) =>\n    var P p = P.new(0.0, false)\n    p.v := x * 2\n    p\nd = make(close)\nplot(d.v)\n'
+    expect(run(src)[0]).toEqual([200, 204, 208, 202, 206, 200, 204, 208])
+  })
+
+  it('`for e in pts` over a global `array<P>` inside a function: `e.up` is a field read (sr-logistic)', () => {
+    const src = P + 'var pts = array.new<P>()\narray.push(pts, P.new(close, close > 101))\n'
+      + 'countUp() =>\n    int n = 0\n    for e in pts\n        if e.up\n            n += 1\n    n\nplot(countUp())\n'
+    expect(run(src)[0]).toEqual([0, 1, 2, 2, 3, 3, 4, 5])
+  })
+
+  it('`e = pts.get(i)` on a global array inside a function: `e.v` is a field read (volumized-ob)', () => {
+    const src = P + 'var pts = array.new<P>()\narray.push(pts, P.new(close, true))\n'
+      + 'lastV() =>\n    e = pts.get(pts.size() - 1)\n    e.v\nplot(lastV())\n'
+    expect(run(src)[0]).toEqual([100, 102, 104, 101, 103, 100, 102, 104])
+  })
+
+  it('a helper ending in a field write is valueless: its effect runs, a read of it refuses by name', () => {
+    const base = P + 'var P p = P.new(0.0, false)\nbump(P q) =>\n    q.v := q.v + 1\n'
+    expect(run(base + 'bump(p)\nplot(p.v)\n')[0]).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    const r = build(base + 'plot(bump(p))\n')
+    expect(r.ok).toBe(false)
+    expect(r.refusal.message).toMatch(/ends in a write to a field/)
+  })
+})

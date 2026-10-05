@@ -2383,6 +2383,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       const ctor = udtCtorOf(node)
       if (ctor) return ctor.name
+      // ⭐ RT14 — a call to this script's own function whose body returns a
+      // record answers that record's type (`volData = calcVolumes(ohlcv)`).
+      {
+        const nm = String(node.name || '')
+        if (fnByName.has(nm)) { const f = functions[fnByName.get(nm)]; return (f && f.resultUdt) || null }
+      }
       // ⭐⭐ READING AN ELEMENT OUT OF AN `array<Foo>` YIELDS A `Foo`. The
       // roster is `ARRAY_READS_ELEMENT`, the SAME one the text/colour element
       // kinds already ride, so a call added there carries the user type too
@@ -2391,7 +2397,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const first = (node.args || [])[0]
         const fv = first && first.value !== undefined ? first.value : first
         if (fv && fv.type === 'name') {
-          const s0 = scope.lookup(fv.name)
+          const s0 = lookupReadable(fv.name, scope)
           if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
         }
       }
@@ -2402,7 +2408,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       {
         const uf = splitMethodName(String(node.name || ''))
         if (uf && ARRAY_READS_ELEMENT.has(`array.${uf.method}`)) {
-          const s0 = scope.lookup(uf.recv)
+          const s0 = lookupReadable(uf.recv, scope)
           if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
         }
       }
@@ -5292,6 +5298,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:function', fn.valuelessEnd === 'drawing'
               ? `\`${node.name}\` ends in a drawing, which the object program draws — its value is `
                 + 'not computed in this lane, so call it on a line of its own'
+              : fn.valuelessEnd === 'field'
+              ? `\`${node.name}\` ends in a write to a field, which this lane does not carry as its `
+                + 'value — call it on a line of its own'
               : fn.valuelessEnd === 'if'
               ? `\`${node.name}\` ends in an \`if\` block whose branches run statements rather than `
                 + 'yield one value, which this lane does not carry — call it on a line of its own'
@@ -8544,13 +8553,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
             body = body.concat(lowerStmts([last], fnScope, false, true))
             const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
             const slot = bound ? fnScope.lookup(bound.value) : null
-            if (slot === null) {
+            if (slot === null && walrus > 0 && fieldPathOf({ type: 'name', name: String(lt[walrus - 1].value) }, fnScope)) {
+              // ⭐ RT14 — A BODY THAT ENDS IN A FIELD WRITE (`sr.label := na`) is a
+              // helper called for its effect: compiled VALUELESS (the effect-`if`
+              // rule), and a call that reads the result refuses by name.
+              record.valueless = true
+              record.valuelessEnd = 'field'
+              result = naValue()
+            } else if (slot === null) {
               throw new RuntimeRefusal('runtime:function',
                 'a body whose last statement binds nothing this front end can return', locate(nameTok))
+            } else {
+              result = read(slot)
             }
-            result = read(slot)
           } else {
             try {
+              // ⭐ RT14 — the user type a returned record has, for a caller's field reads.
+              try { record.resultUdt = udtTypeOf(parseWholeExpression(lt), fnScope) || null } catch { record.resultUdt = null }
               result = intoFrameSink(body, () => lowerResult(parseWholeExpression(lt), fnScope))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
