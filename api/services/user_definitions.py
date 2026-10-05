@@ -1324,6 +1324,16 @@ def save(user_id: Any, def_id: str, definition: dict,
             f"{def_id!r} — an address that disagrees with the document it names "
             "makes `defId.plotKey` resolve to two different things")
 
+    # ⭐ A1 (2026-10-04) — THE KNOBS GET THE LAST DOOR TOO, on EVERY lane (ast,
+    # hybrid, runtime) and before anything is hashed or written. `validate_v2`
+    # has always re-checked the COMPUTE half here; `inputs[]` reached the store
+    # unread, and its readers (`ast_interpret`'s shadow check, the alert lane's
+    # `_inputs_for`, the linter's scope) met whatever a client sent. The rules
+    # are `defSchema`'s, mirrored in `definition_inputs` with a drift rail, so a
+    # document the shipped client builds passes unchanged.
+    from api.services import definition_inputs
+    definition_inputs.validate_inputs(definition)
+
     compute = definition.get("compute")
     # ⭐⭐ RT1 — A RUNTIME-LANE DOCUMENT HAS ITS OWN DOOR (`runtime_definitions`),
     # switched OFF by default (`PINE_RUNTIME_SAVE_ENABLED`). It carries no tree, so
