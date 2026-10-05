@@ -95,58 +95,58 @@
         "plots": [
           [
             "E00_bar_index_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for va"
+            "MATCH",
+            8477
           ],
           [
             "E01_max_empty",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "E02_min_empty",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "E03_sum_empty",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "E04_avg_empty",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "E05_sum_all_na",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "E06_avg_all_na",
             "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "our side produced no column for this plot — hidden on this runtime document (con"
           ],
           [
             "F00_x_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F01_fixnan",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F02a_fixnan_in_fn",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F02b_fixnan_in_fn_second_site",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -162,32 +162,23 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "W01 wma gap warmup",
-            "DIVERGE",
-            20,
-            "na",
-            6,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W02 ema of wma",
-            "DIVERGE",
-            24,
-            "na",
-            46,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W03 wma bar0 then gap",
-            "DIVERGE",
-            50,
-            "na",
-            8,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R01 mid",
@@ -211,8 +202,8 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "MATCH",
+            636
           ],
           [
             "S04 shape per-bar with text",
@@ -233,32 +224,23 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "W01 wma gap warmup",
-            "DIVERGE",
-            20,
-            "na",
-            6,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W02 ema of wma",
-            "DIVERGE",
-            24,
-            "na",
-            46,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W03 wma bar0 then gap",
-            "DIVERGE",
-            50,
-            "na",
-            8,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R01 mid",
@@ -282,8 +264,8 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "MATCH",
+            636
           ],
           [
             "S04 shape per-bar with text",

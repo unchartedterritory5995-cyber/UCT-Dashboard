@@ -7,7 +7,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -17,19 +17,13 @@
           ],
           [
             "C01_var_colour",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "C02_new_var_40",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "MATCH",
+            636
           ],
           [
             "C03_new_na_base",
@@ -56,7 +50,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -65,7 +59,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
@@ -75,19 +69,13 @@
           ],
           [
             "C01_var_colour",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "MATCH",
+            1549
           ],
           [
             "C02_new_var_40",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "MATCH",
+            1549
           ],
           [
             "C03_new_na_base",
@@ -114,7 +102,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {

@@ -287,7 +287,7 @@
       "script": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -440,7 +440,7 @@
       "script": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -741,7 +741,7 @@
       "script": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
