@@ -152,6 +152,14 @@ def to_offer_setup(pg, setup: list) -> None:
     except Exception:  # noqa: BLE001
         pass
     pg.locator("[data-tour-offer]").first.wait_for(state="visible", timeout=15000)
+    # The uncounted pointer clicks above leave the browser's sequential-focus starting point INSIDE
+    # the first-run slot, so the next Tab lands on the offer for free -- a keyboard member who
+    # never clicked would not get that. Reload: the session's offer is unanswered, so the SAME
+    # offer comes back (W14-C2 1.3), and focus navigation starts at the top of the document.
+    pg.reload(wait_until="domcontentloaded")
+    h._dismiss_intro(pg)
+    pg.locator("[data-tour-offer]").first.wait_for(state="visible", timeout=20000)
+    setup.append("page reloaded so focus navigation starts at the top (offer re-shown, same session)")
     setup.append("offer on screen: " + pg.locator("[data-tour-offer] h2").first.inner_text())
     pg.evaluate("() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur();"
                 " window.scrollTo(0, 0) }")
