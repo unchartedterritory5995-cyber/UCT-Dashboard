@@ -56,14 +56,15 @@ const TOUR_B = {
   }),
 }
 
-function Page({ entry, anchors, onCloseSpy = () => {}, startWaitMs }) {
+function Page({ entry, anchors, onCloseSpy = () => {}, startWaitMs, stepWaitMs }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <MemoryRouter>
         <div>
           <button type="button">before the tour</button>
           {anchors.map((a) => <div key={a} data-tour={a}>anchor {a}</div>)}
-          <GenericTourEngine entry={entry} onClose={onCloseSpy} {...(startWaitMs != null ? { startWaitMs } : {})} />
+          <GenericTourEngine entry={entry} onClose={onCloseSpy} {...(startWaitMs != null ? { startWaitMs } : {})}
+            {...(stepWaitMs != null ? { stepWaitMs } : {})} />
         </div>
       </MemoryRouter>
     </SWRConfig>
@@ -148,11 +149,17 @@ describe('how it walks (same contract as the base engine)', () => {
     await waitFor(() => expect(toursWrites().at(-1)['w14-0-tour-a'].state).toBe('dismissed'))
   })
 
-  it('a missing anchor skips its step', async () => {
-    render(<Page entry={TOUR_A} anchors={['anchor-a1']} />)
+  // W14-C1 (c): the step list is no longer frozen at open. A step whose anchor is missing
+  // is WAITED for on Next (bounded), and skipped only after the wait; with nothing later on
+  // screen the tour finishes as done -- never a card pointing at nothing.
+  it('a missing anchor skips its step, after the bounded wait', async () => {
+    render(<Page entry={TOUR_A} anchors={['anchor-a1']} stepWaitMs={150} />)
     await dialog()
-    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Looking for the next step…')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(toursWrites().at(-1)['w14-0-tour-a']).toEqual({ v: 1, state: 'done', step: 's1' }))
   })
 
   it('opening moves focus into itself, and Tab stays inside the card', async () => {

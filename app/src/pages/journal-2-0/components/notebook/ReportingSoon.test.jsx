@@ -114,6 +114,18 @@ describe('ReportingSoon', () => {
     render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
     expect(await screen.findByText(/None of your watchlist, flagged or open-position names report in the next 7 days/)).toBeTruthy()
   })
+
+  it('an empty week still carries the earnings-prep walkthrough\'s first anchor (W14-Q2)', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...SOON, items: [] }]])
+    const { container } = render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    await screen.findByText(/None of your watchlist/)
+    const anchors = container.querySelectorAll('[data-tour="reporting-soon-list"]')
+    expect(anchors).toHaveLength(1)
+    expect(anchors[0].tagName).toBe('SECTION')
+    // the row steps stay absent on an empty week (the engine skips them)
+    expect(container.querySelector('[data-tour="reporting-soon-when"]')).toBeNull()
+  })
 })
 
 describe('the research workspace door', () => {

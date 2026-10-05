@@ -4,14 +4,12 @@
 // `*.steps.js`, so no step or sentence below reaches the Notebook's first-open
 // bytes. Authoring contract and anchor rule: the top of `./index.js`.
 //
-// Where a tour starts. The generic engine is mounted by NotebookTab only, so a
-// `start` must sit under /journal/notebook (tourRegistry.js). Rows 9, 10 and 12
-// live on journal pages outside the Notebook (the closed-trade page, a
-// position's page, /journal-2-0/playbook) and rows 13 and 14 inside a note that
-// holds a chart, which has no fixed path. Those five carry no `start`: their
-// nearest in-Notebook start is the Notebook root, which is what Help's Replay
-// already links to without one. Open item for W14-C, recorded in
-// docs/notebook/wave14-w14-b2.md. Row 11 starts on Notebook Home, where its door is.
+// Where a tour starts (W14-C1: the registry gate is mounted once in the app shell, so a
+// start may be any known page, a note or a trade). Rows 9 and 10 open the member's most
+// recent trade (`{ trade: 'recent' }`, the closed-trade page holds both cards); row 12 is
+// /journal-2-0/playbook; rows 13 and 14 open the W14-E example trade-plan note, or the
+// member's most recent note holding a chart. Row 11 starts on Notebook Home, where its
+// door is. Nothing is created to have something to point at (tourStart.js).
 const steps = (load) => () => load().then((m) => ({ steps: m.STEPS, copy: m.COPY }))
 
 export const TOURS = [
@@ -20,6 +18,7 @@ export const TOURS = [
     flag: 'notebook_plan_grading_enabled',
     title: 'Plan versus execution grading',
     replayable: true,
+    start: Object.freeze({ trade: 'recent' }),
     load: steps(() => import('./planGrading.steps')),
   },
   {
@@ -27,6 +26,7 @@ export const TOURS = [
     flag: 'notebook_entry_context_enabled',
     title: 'Entry context card',
     replayable: true,
+    start: Object.freeze({ trade: 'recent' }),
     load: steps(() => import('./entryContext.steps')),
   },
   {
@@ -42,6 +42,7 @@ export const TOURS = [
     flag: 'notebook_playbook_enabled',
     title: 'My Playbook',
     replayable: true,
+    start: '/journal-2-0/playbook',
     load: steps(() => import('./myPlaybook.steps')),
   },
   {
@@ -49,6 +50,7 @@ export const TOURS = [
     flag: 'notebook_chart_plan_enabled',
     title: 'Chart plan basics',
     replayable: true,
+    start: Object.freeze({ note: 'sample:plan', embed: 'chart' }),
     load: steps(() => import('./chartPlanBasics.steps')),
   },
   {
@@ -56,6 +58,7 @@ export const TOURS = [
     flag: 'notebook_chart_plan_enabled',
     title: 'Chart plan replay and context',
     replayable: true,
+    start: Object.freeze({ note: 'sample:plan', embed: 'chart' }),
     load: steps(() => import('./chartPlanReplay.steps')),
   },
 ]

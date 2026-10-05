@@ -1,0 +1,991 @@
+{
+ "tool": "tools/notebook_w14q2_tours_walk.py",
+ "tree": "9004bd8dac5ecf1aa33bbcf696ee31dcb9642eb6",
+ "started": "2026-10-05T08:41:34+00:00",
+ "widths": [
+  [
+   1200,
+   900
+  ],
+  [
+   390,
+   844
+  ]
+ ],
+ "status": "COMPLETE",
+ "registry": [
+  {
+   "id": "writing-help",
+   "title": "Writing help",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "writing-help",
+     "waitFor": null
+    },
+    {
+     "id": "scope",
+     "anchor": "note-body",
+     "waitFor": null
+    },
+    {
+     "id": "preview",
+     "anchor": "writing-help",
+     "waitFor": null
+    },
+    {
+     "id": "undo",
+     "anchor": "note-body",
+     "waitFor": null
+    }
+   ],
+   "module": "b1WritingHelp.steps"
+  },
+  {
+   "id": "image-docx-import",
+   "title": "Add an image or Word document",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "add",
+     "anchor": "note-toolbar",
+     "waitFor": null
+    },
+    {
+     "id": "scan",
+     "anchor": "note-scan",
+     "waitFor": null
+    },
+    {
+     "id": "find",
+     "anchor": "search",
+     "waitFor": null
+    }
+   ],
+   "module": "b1ImageDocx.steps"
+  },
+  {
+   "id": "publish-share",
+   "title": "Publish and share a note",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "door",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "note",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "folder",
+     "anchor": "note-share",
+     "waitFor": null
+    },
+    {
+     "id": "unpublish",
+     "anchor": "note-share",
+     "waitFor": null
+    }
+   ],
+   "module": "b1Publish.steps"
+  },
+  {
+   "id": "task-reminders",
+   "title": "Task reminders",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "tasks-list",
+     "waitFor": null
+    },
+    {
+     "id": "due",
+     "anchor": "tasks-group",
+     "waitFor": null
+    },
+    {
+     "id": "remind",
+     "anchor": "tasks-tick",
+     "waitFor": null
+    }
+   ],
+   "module": "b1TaskReminders.steps"
+  },
+  {
+   "id": "template-gallery",
+   "title": "Template gallery",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "templates",
+     "anchor": "templates",
+     "waitFor": "template-gallery-door"
+    },
+    {
+     "id": "door",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    },
+    {
+     "id": "use",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    },
+    {
+     "id": "share",
+     "anchor": "template-gallery-door",
+     "waitFor": null
+    }
+   ],
+   "module": "b1TemplateGallery.steps"
+  },
+  {
+   "id": "meaning-search",
+   "title": "Search by meaning",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "search",
+     "anchor": "search",
+     "waitFor": "search-count"
+    },
+    {
+     "id": "count",
+     "anchor": "search-count",
+     "waitFor": null
+    },
+    {
+     "id": "related",
+     "anchor": "search",
+     "waitFor": null
+    }
+   ],
+   "module": "b1MeaningSearch.steps"
+  },
+  {
+   "id": "formulas-rollups",
+   "title": "Formulas and rollups",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "add-first",
+     "anchor": "properties-add-empty",
+     "waitFor": null
+    },
+    {
+     "id": "add",
+     "anchor": "properties-add",
+     "waitFor": null
+    },
+    {
+     "id": "formula",
+     "anchor": "computed-value",
+     "waitFor": null
+    },
+    {
+     "id": "edit",
+     "anchor": "computed-edit",
+     "waitFor": null
+    },
+    {
+     "id": "rollup",
+     "anchor": "properties-add",
+     "waitFor": null
+    }
+   ],
+   "module": "b1Formulas.steps"
+  },
+  {
+   "id": "plan-grading",
+   "title": "Plan versus execution grading",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "plan-grade-card",
+     "waitFor": null
+    },
+    {
+     "id": "source",
+     "anchor": "plan-grade-source",
+     "waitFor": null
+    },
+    {
+     "id": "checks",
+     "anchor": "plan-grade-checks",
+     "waitFor": null
+    },
+    {
+     "id": "frozen",
+     "anchor": "plan-grade-frozen",
+     "waitFor": null
+    },
+    {
+     "id": "actions",
+     "anchor": "plan-grade-actions",
+     "waitFor": null
+    }
+   ],
+   "module": "planGrading.steps"
+  },
+  {
+   "id": "entry-context",
+   "title": "Entry context card",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "entry-context-card",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "entry-context-fields",
+     "waitFor": null
+    },
+    {
+     "id": "why",
+     "anchor": "entry-context-why",
+     "waitFor": null
+    },
+    {
+     "id": "save",
+     "anchor": "entry-context-why-save",
+     "waitFor": null
+    }
+   ],
+   "module": "entryContext.steps"
+  },
+  {
+   "id": "review-drafts",
+   "title": "Reviews that write themselves",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "home",
+     "anchor": "review-drafts-home",
+     "waitFor": null
+    },
+    {
+     "id": "daily",
+     "anchor": "review-drafts-daily",
+     "waitFor": null
+    },
+    {
+     "id": "weekly",
+     "anchor": "review-drafts-weekly",
+     "waitFor": null
+    },
+    {
+     "id": "monthly",
+     "anchor": "review-drafts-monthly",
+     "waitFor": null
+    }
+   ],
+   "module": "reviewDrafts.steps"
+  },
+  {
+   "id": "my-playbook",
+   "title": "My Playbook",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "intro",
+     "anchor": "my-playbook-intro",
+     "waitFor": null
+    },
+    {
+     "id": "setup-card",
+     "anchor": "my-playbook-setup-card",
+     "waitFor": null
+    },
+    {
+     "id": "notes",
+     "anchor": "my-playbook-notes",
+     "waitFor": null
+    },
+    {
+     "id": "patterns",
+     "anchor": "my-playbook-patterns",
+     "waitFor": null
+    },
+    {
+     "id": "snapshot",
+     "anchor": "my-playbook-snapshot",
+     "waitFor": null
+    }
+   ],
+   "module": "myPlaybook.steps"
+  },
+  {
+   "id": "chart-plan-basics",
+   "title": "Chart plan basics",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "chart",
+     "anchor": "chart-embed",
+     "waitFor": null
+    },
+    {
+     "id": "draw",
+     "anchor": "chart-plan-draw",
+     "waitFor": null
+    },
+    {
+     "id": "plan",
+     "anchor": "chart-plan-open",
+     "waitFor": "chart-plan-panel"
+    },
+    {
+     "id": "roles",
+     "anchor": "chart-plan-panel",
+     "waitFor": null
+    },
+    {
+     "id": "numbers",
+     "anchor": "chart-plan-numbers",
+     "waitFor": null
+    },
+    {
+     "id": "alert",
+     "anchor": "chart-plan-alert",
+     "waitFor": null
+    }
+   ],
+   "module": "chartPlanBasics.steps"
+  },
+  {
+   "id": "chart-plan-replay",
+   "title": "Chart plan replay and context",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "chart",
+     "anchor": "chart-embed",
+     "waitFor": null
+    },
+    {
+     "id": "replay",
+     "anchor": "chart-plan-replay",
+     "waitFor": "chart-replay-controls"
+    },
+    {
+     "id": "controls",
+     "anchor": "chart-replay-controls",
+     "waitFor": null
+    },
+    {
+     "id": "context",
+     "anchor": "chart-embed-timeframe",
+     "waitFor": null
+    }
+   ],
+   "module": "chartPlanReplay.steps"
+  },
+  {
+   "id": "ta-fingerprint",
+   "title": "The technical fingerprint",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "summary",
+     "anchor": "fp-summary",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "fp-all-fields",
+     "waitFor": null
+    },
+    {
+     "id": "tag",
+     "anchor": "fp-setup-tag",
+     "waitFor": null
+    },
+    {
+     "id": "plan",
+     "anchor": "fp-plan",
+     "waitFor": null
+    }
+   ],
+   "module": "taFingerprint.steps"
+  },
+  {
+   "id": "visual-playbook",
+   "title": "Visual playbook",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "fp-visual-playbook",
+     "waitFor": "vp-grid"
+    },
+    {
+     "id": "grid",
+     "anchor": "vp-grid",
+     "waitFor": null
+    },
+    {
+     "id": "fields",
+     "anchor": "vp-card-fields",
+     "waitFor": null
+    },
+    {
+     "id": "outcome",
+     "anchor": "vp-card-outcome",
+     "waitFor": null
+    },
+    {
+     "id": "stats",
+     "anchor": "vp-stats",
+     "waitFor": null
+    },
+    {
+     "id": "filters",
+     "anchor": "vp-filters",
+     "waitFor": null
+    }
+   ],
+   "module": "visualPlaybook.steps"
+  },
+  {
+   "id": "setups-board",
+   "title": "Active setups and find more like this",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "card",
+     "anchor": "setups-card",
+     "waitFor": null
+    },
+    {
+     "id": "distance",
+     "anchor": "setups-distance",
+     "waitFor": null
+    },
+    {
+     "id": "note",
+     "anchor": "setups-note",
+     "waitFor": null
+    },
+    {
+     "id": "similar",
+     "anchor": "setups-similar",
+     "waitFor": null
+    },
+    {
+     "id": "templates",
+     "anchor": "setups-templates",
+     "waitFor": null
+    }
+   ],
+   "module": "setupsBoard.steps"
+  },
+  {
+   "id": "earnings-prep",
+   "title": "Reporting soon and earnings prep",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "reporting-soon-list",
+     "waitFor": null
+    },
+    {
+     "id": "when",
+     "anchor": "reporting-soon-when",
+     "waitFor": null
+    },
+    {
+     "id": "sources",
+     "anchor": "reporting-soon-sources",
+     "waitFor": null
+    },
+    {
+     "id": "prep",
+     "anchor": "reporting-soon-prep",
+     "waitFor": null
+    }
+   ],
+   "module": "earningsPrep.steps"
+  },
+  {
+   "id": "transcript-capture",
+   "title": "Transcript passages",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "open",
+     "anchor": "note-body",
+     "waitFor": "transcript-turns"
+    },
+    {
+     "id": "turns",
+     "anchor": "transcript-turns",
+     "waitFor": null
+    },
+    {
+     "id": "quote",
+     "anchor": "transcript-quote",
+     "waitFor": null
+    },
+    {
+     "id": "call",
+     "anchor": "transcript-call",
+     "waitFor": null
+    },
+    {
+     "id": "find",
+     "anchor": "transcript-find",
+     "waitFor": null
+    }
+   ],
+   "module": "transcriptCapture.steps"
+  },
+  {
+   "id": "passed-setups",
+   "title": "Passed setups",
+   "replayable": true,
+   "steps": [
+    {
+     "id": "list",
+     "anchor": "passed-list",
+     "waitFor": null
+    },
+    {
+     "id": "outcomes",
+     "anchor": "passed-outcomes",
+     "waitFor": null
+    },
+    {
+     "id": "add",
+     "anchor": "passed-add",
+     "waitFor": null
+    }
+   ],
+   "module": "passedSetups.steps"
+  },
+  {
+   "id": "note-resurfaces",
+   "title": "A note resurfaces",
+   "replayable": false,
+   "steps": [
+    {
+     "id": "then",
+     "anchor": "resurface-then",
+     "waitFor": null
+    },
+    {
+     "id": "back",
+     "anchor": "resurface-back",
+     "waitFor": null
+    }
+   ],
+   "module": "noteResurfaces.steps"
+  }
+ ],
+ "phases": {
+  "on": {
+   "base": "http://127.0.0.1:8730",
+   "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+   "not_run": null,
+   "armed": [
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED"
+   ]
+  }
+ },
+ "finished": "2026-10-05T08:44:58+00:00",
+ "not_run": [],
+ "checks": [
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help: accepting opens the tour",
+   "verdict": "PASS",
+   "state": {
+    "kind": "step",
+    "mode": "modal",
+    "n": 1,
+    "of": 4,
+    "title": "Writing help",
+    "waiting": false,
+    "moving": false,
+    "active": "writing-help",
+    "activeOpacity": 1,
+    "activeRect": [
+     908,
+     145,
+     102,
+     26
+    ],
+    "cardInView": true,
+    "cardRect": [
+     816,
+     675,
+     360,
+     201
+    ],
+    "inSheet": false,
+    "hasDone": false,
+    "backDisabled": true,
+    "url": "/journal/notebook?note=3eac5fd6f3884d76b09550960046223b"
+   },
+   "shot": "S6-writing-help-1200.png",
+   "row": {
+    "v": 1,
+    "state": "started",
+    "step": "open"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help: the closed tour does not reopen on the next in-app page change",
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8730/support"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help: the session's offer is spent (no second offer this session)",
+   "verdict": "PASS",
+   "second_offer": null,
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"writing-help\",\"answered\":true}"
+   },
+   "row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "open"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "template-gallery: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Template gallery"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "template-gallery: accepting opens the tour",
+   "verdict": "PASS",
+   "state": {
+    "kind": "step",
+    "mode": "non-modal",
+    "n": 1,
+    "of": 4,
+    "title": "Start from a template",
+    "waiting": true,
+    "moving": false,
+    "active": "templates",
+    "activeOpacity": 1,
+    "activeRect": [
+     970,
+     199,
+     93,
+     44
+    ],
+    "cardInView": true,
+    "cardRect": [
+     816,
+     668,
+     360,
+     208
+    ],
+    "inSheet": false,
+    "hasDone": false,
+    "backDisabled": true,
+    "url": "/journal/notebook?view=all"
+   },
+   "shot": "S6-template-gallery-1200.png",
+   "row": {
+    "v": 1,
+    "state": "started",
+    "step": "templates"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "template-gallery: the closed tour does not reopen on the next in-app page change",
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8730/support"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "template-gallery: the session's offer is spent (no second offer this session)",
+   "verdict": "PASS",
+   "second_offer": null,
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"template-gallery\",\"answered\":true}"
+   },
+   "row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "templates"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help-no-notes: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help-no-notes: nothing to open -> the card says so, nothing recorded",
+   "verdict": "PASS",
+   "state": {
+    "kind": "unreachable",
+    "title": "This walkthrough runs inside a note",
+    "body": "You do not have a note it can open yet. Write a note, or add the sample notebook from the Notebook home, then start it again from Help.",
+    "url": "/journal/notebook"
+   },
+   "shot": "S6-writing-help-no-notes-1200.png",
+   "rows": {}
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6",
+   "check": "writing-help-no-notes: the offer was not spent on it",
+   "verdict": "INFO",
+   "next_offer": "New in your Notebook: Add an image or Word document",
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"image-docx-import\",\"answered\":false}"
+   },
+   "row": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help: accepting opens the tour",
+   "verdict": "PASS",
+   "state": {
+    "kind": "step",
+    "mode": "modal",
+    "n": 1,
+    "of": 4,
+    "title": "Writing help",
+    "waiting": false,
+    "moving": false,
+    "active": "writing-help",
+    "activeOpacity": 1,
+    "activeRect": [
+     56,
+     358,
+     102,
+     44
+    ],
+    "cardInView": true,
+    "cardRect": [
+     0,
+     632,
+     390,
+     212
+    ],
+    "inSheet": false,
+    "hasDone": false,
+    "backDisabled": true,
+    "url": "/journal/notebook?note=16c2e1092c814fbca0210aad1ecd2465"
+   },
+   "shot": "S6-writing-help-390.png",
+   "row": {
+    "v": 1,
+    "state": "started",
+    "step": "open"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help: the closed tour does not reopen on the next in-app page change",
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8730/support"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help: the session's offer is spent (no second offer this session)",
+   "verdict": "PASS",
+   "second_offer": null,
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"writing-help\",\"answered\":true}"
+   },
+   "row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "open"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "template-gallery: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Template gallery"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "template-gallery: accepting opens the tour",
+   "verdict": "PASS",
+   "state": {
+    "kind": "step",
+    "mode": "non-modal",
+    "n": 1,
+    "of": 4,
+    "title": "Start from a template",
+    "waiting": true,
+    "moving": false,
+    "active": "templates",
+    "activeOpacity": 1,
+    "activeRect": [
+     44,
+     400,
+     93,
+     44
+    ],
+    "cardInView": true,
+    "cardRect": [
+     0,
+     625,
+     390,
+     219
+    ],
+    "inSheet": false,
+    "hasDone": false,
+    "backDisabled": true,
+    "url": "/journal/notebook?view=all"
+   },
+   "shot": "S6-template-gallery-390.png",
+   "row": {
+    "v": 1,
+    "state": "started",
+    "step": "templates"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "template-gallery: the closed tour does not reopen on the next in-app page change",
+   "verdict": "PASS",
+   "url": "http://127.0.0.1:8730/support"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "template-gallery: the session's offer is spent (no second offer this session)",
+   "verdict": "PASS",
+   "second_offer": null,
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"template-gallery\",\"answered\":true}"
+   },
+   "row": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "templates"
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help-no-notes: the offer appears",
+   "verdict": "PASS",
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help-no-notes: nothing to open -> the card says so, nothing recorded",
+   "verdict": "PASS",
+   "state": {
+    "kind": "unreachable",
+    "title": "This walkthrough runs inside a note",
+    "body": "You do not have a note it can open yet. Write a note, or add the sample notebook from the Notebook home, then start it again from Help.",
+    "url": "/journal/notebook"
+   },
+   "shot": "S6-writing-help-no-notes-390.png",
+   "rows": {}
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6",
+   "check": "writing-help-no-notes: the offer was not spent on it",
+   "verdict": "INFO",
+   "next_offer": "New in your Notebook: Add an image or Word document",
+   "session": {
+    "uct:notebook-tour-offer": "{\"id\":\"image-docx-import\",\"answered\":false}"
+   },
+   "row": null
+  }
+ ]
+}

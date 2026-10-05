@@ -67,6 +67,11 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_playbook_enabled: false, // wave 13 lane 13B: My Playbook — absent ⇒ OFF
   notebook_review_drafts_enabled: false, // wave 13 lane 13F: reviews that write themselves — absent ⇒ OFF
   notebook_getting_started_enabled: false, // wave 14 lane W14-D: the get started checklist — absent ⇒ OFF
+  // Wave 14 lane W14-C1: three capabilities whose gate was server-only, now on the payload so
+  // their walkthroughs can open. Each fallback is the capability's OWN polarity.
+  notebook_image_docx_documents_enabled: false, // wave 7 lane G: image/docx become documents — absent ⇒ OFF
+  notebook_task_reminders_enabled: true, // wave 6 lane F: the daily task reminder, a KILL switch — absent ⇒ ON
+  notebook_semantic_search_enabled: false, // wave 7 lane H3: search by meaning — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

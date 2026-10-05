@@ -62,6 +62,20 @@ FLAG_KEY = "notebook_plan_grading_enabled"
 ET = ZoneInfo("America/New_York")
 PORTS = range(8600, 8605)
 
+# Wave 14 OPS: the sandbox's own environment. Two of 13A's three walks were stopped by force
+# ("FORCED after 120 s without a graceful exit") and never wrote the launcher's SHUTDOWN
+# checkpoint; the third reached it. The 13X walk -- same Sandbox, same stop -- reached it on all
+# six runs, and it differs in exactly this: provider keys blanked, so no thread in the sandbox is
+# mid-way through a vendor call when the stop arrives. The logo prewarm (a 12-worker CDN pass over
+# 3,640 symbols, still running in both forced launcher logs) is switched off by its own read flag
+# (`api/services/ticker_logos_prewarm.py::start_async`). Nothing 13A measures reads a vendor or a
+# logo. `tests/test_w13a_walk_shutdown.py` proves every name here has a real read site.
+SANDBOX_ENV = {
+    "TICKER_LOGOS_PREWARM_DISABLED": "1",
+    "FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": "",
+}
+STOP_GRACE_S = 300.0    # was the harness default 120 s; the stop still records FORCED past it
+
 res: dict = {"wave": 13, "lane": "13A", "checks": {}, "errors": [], "requests": []}
 LINES: list[str] = []
 
@@ -372,6 +386,8 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--tip", default=None)
     ap.add_argument("--artifacts", required=True)
+    ap.add_argument("--stop-grace-s", type=float, default=STOP_GRACE_S,
+                    help="how long the graceful stop may take before it is FORCED (recorded)")
     args = ap.parse_args(argv)
     if args.port not in PORTS:
         print(f"SANDBOX INTEGRITY: NOT RUN (refused: port {args.port} is outside 8600-8604)")
@@ -390,6 +406,9 @@ def main(argv=None) -> int:
     if refused:
         print(f"SANDBOX INTEGRITY: NOT RUN (refused: {refused})")
         return 3
+    os.environ.update(SANDBOX_ENV)          # the sandbox (Popen) inherits it
+    res["sandbox_env"] = sorted(SANDBOX_ENV)
+    res["stop_grace_s"] = args.stop_grace_s
     sb = H.Sandbox(args.data_dir, args.port, art / "launcher.log")
     not_run = None
     try:
@@ -410,7 +429,7 @@ def main(argv=None) -> int:
                     res["traceback"] = traceback.format_exc()[-2000:]
                 res["prewarm_checkpoint_reached"] = sb.wait_checkpoint(H.PREWARM, H.PREWARM_WAIT_S)
     finally:
-        res["stop"] = sb.stop()
+        res["stop"] = sb.stop(grace_s=args.stop_grace_s)
         ipath = sb.integrity_path()
         integ = H.read_integrity(ipath, REQUIRED)
         if ipath and Path(ipath).is_file():

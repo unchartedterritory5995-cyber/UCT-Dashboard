@@ -1,0 +1,8 @@
+== Ms2-switch-reads-one-flag  (api/services/notebook_flags.py)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:api/services/notebook_flags.py (blob 5a470a92a4ed)
+FAILED tests/test_sample_notebook_switch.py::test_the_switch_reads_like_the_payload[1-None-False]
+FAILED tests/test_sample_notebook_switch.py::test_the_switch_reads_like_the_payload[1-0-False]
+FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[1-None]
+FAILED tests/test_sample_notebook_switch.py::test_switch_off_writes_exactly_the_pre_wave14_rows[1-0]
+4 failed, 9 passed in 4.26s

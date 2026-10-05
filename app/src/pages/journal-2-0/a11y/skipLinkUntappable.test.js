@@ -194,3 +194,31 @@ describe("the folder panel's own skip link never takes a tap meant for something
     }
   })
 })
+
+// Wave 14 lane W14-keys: Help's "Skip to Walkthroughs" (Support.jsx) -- same H14 hazard class,
+// fourth module.
+const SUPPORT_CSS_PATH = resolve(here, '../../Support.module.css')
+
+describe("Help's own skip link never takes a tap meant for something else", () => {
+  const all = rules(readFileSync(SUPPORT_CSS_PATH, 'utf8'))
+  const link = all.filter((r) => /\.skipLink\b/.test(r.selector))
+  const base = link.find((r) => r.selector === '.skipLink' && decl(r.body, 'position') === 'absolute')
+  const focused = link.filter((r) => /\.skipLink:focus\b/.test(r.selector))
+
+  it('non-vacuity: the base rule and a focused rule are both present', () => {
+    expect(base, 'the positioned .skipLink rule').toBeTruthy()
+    expect(focused.length).toBeGreaterThan(0)
+  })
+
+  it('unfocused, it is invisible and pointer-transparent', () => {
+    expect(decl(base.body, 'opacity')).toBe('0')
+    expect(decl(base.body, 'pointer-events')).toBe('none')
+  })
+
+  it('focused, it shows and takes the pointer', () => {
+    for (const r of focused) {
+      expect(decl(r.body, 'opacity'), `${r.selector}: opacity`).toBe('1')
+      expect(decl(r.body, 'pointer-events'), `${r.selector}: pointer-events`).toBe('auto')
+    }
+  })
+})

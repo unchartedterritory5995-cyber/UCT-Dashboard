@@ -25,9 +25,11 @@ const WAVE = path.resolve(HERE, '..', '..', '..', '..') // .../pages/journal-2-0
 // id -> [flag, plan 4.2 step count, the capability file whose own code reads the flag]
 const EXPECTED = {
   'ta-fingerprint': ['notebook_ta_fingerprint_enabled', 4, 'components/notebook/FingerprintPanel.jsx'],
-  'visual-playbook': ['notebook_visual_playbook_enabled', 5, 'components/notebook/VisualPlaybook.jsx'],
+  // W14-C1: + a first "open the playbook" step that waits for the member's click
+  'visual-playbook': ['notebook_visual_playbook_enabled', 6, 'components/notebook/VisualPlaybook.jsx'],
   'setups-board': ['notebook_setups_board_enabled', 5, 'components/notebook/SetupsBoard.jsx'],
   'earnings-prep': ['notebook_earnings_prep_enabled', 4, 'lib/earningsPrepShared.js'],
+  // W14-C1: the always-skipped thesis-chip step removed, a first "open a call" step added
   'transcript-capture': ['notebook_transcript_capture_enabled', 5, 'lib/researchCapture.js'],
   'passed-setups': ['notebook_passed_setups_enabled', 3, 'lib/researchCapture.js'],
   'note-resurfaces': ['awareness_note_resurface_enabled', 2, 'components/notebook/NoteEditorPage.jsx'],
@@ -65,7 +67,8 @@ describe.each(IDS)('tour %s', (id) => {
     expect(new Set(steps.map((s) => s.id)).size).toBe(count)
     expect(Object.keys(copy).sort()).toEqual(steps.map((s) => s.id).sort())
     for (const s of steps) {
-      expect(Object.keys(s).sort()).toEqual(['anchor', 'file', 'id'])
+      // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c.title.trim().length, `${id}/${s.id} title`).toBeGreaterThan(0)
       expect(c.body.trim().length, `${id}/${s.id} body`).toBeGreaterThan(0)
@@ -111,7 +114,7 @@ describe.each(IDS)('the gate for %s', (id) => {
   const entry = TOURS.find((t) => t.id === id)
 
   it('flag off: asked for by id, nothing is fetched or shown', async () => {
-    latchNotebookFlags({ [entry.flag]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: false })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} tours={[entry]} />)
@@ -122,11 +125,26 @@ describe.each(IDS)('the gate for %s', (id) => {
   })
 
   it('flag on: the same request opens it', async () => {
-    latchNotebookFlags({ [entry.flag]: true })
+    // its own flag, every `requires` (W14-C1: visual-playbook needs the fingerprint panel), and the wave-14 switch
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: true, ...Object.fromEntries((entry.requires || []).map((f) => [f, true])) })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} tours={[entry]} />)
     act(() => { openRegistryTour(id) })
     expect(await screen.findByText(`${entry.title} is open`)).toBeInTheDocument()
+  })
+})
+
+describe('W14-C1: visual-playbook `requires` the fingerprint panel', () => {
+  it('its own flag on but notebook_ta_fingerprint_enabled off: the request opens nothing', async () => {
+    const entry = TOURS.find((t) => t.id === 'visual-playbook')
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [entry.flag]: true, notebook_ta_fingerprint_enabled: false })
+    const load = engineLoader()
+    const Gate = makeRegistryToursGate(load, 0)
+    render(<Page Gate={Gate} tours={[entry]} />)
+    act(() => { openRegistryTour('visual-playbook') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

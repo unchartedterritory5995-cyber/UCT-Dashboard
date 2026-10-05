@@ -70,7 +70,7 @@ export default function ThesisChip({ chip, currentPrice }) {
       <button
         type="button"
         ref={btnRef}
-        className={`${styles.chip} ${toneClass}`} data-tour="thesis-chip"
+        className={`${styles.chip} ${toneClass}`}
         aria-expanded={open}
         aria-describedby={open ? popId : undefined}
         aria-label={`Thesis note: ${meta ? meta.label : 'no status set'}${

@@ -58,13 +58,15 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
-// Wave 14 (lane W14-0): every OTHER registered tour, beyond the base one above, runs
-// through the generic engine. `OTHER_TOURS` is a module-level constant (never
-// recomputed per render) so RegistryToursGate's own effects see a stable array.
-import RegistryToursGate from '../components/notebook/onboarding/RegistryToursGate'
-import { BASE_TOUR_ID, TOUR_REGISTRY } from '../components/notebook/onboarding/tourRegistry'
-
-const OTHER_TOURS = TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID)
+// Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
+// engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
+// lane W14-C1) so a tour can start on any page and survive the navigation to its start.
+// Wave 14 (lane W14-C2): "newly switched on, offer once" -- an eager gate that fetches its
+// small card only when a registered tour is due to be offered. `OTHER_TOURS` is one frozen
+// module-level array (tourRegistry.js), so the gate's own effects see a stable list.
+import TourOfferGate from '../components/notebook/onboarding/TourOfferGate'
+import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
+import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -1808,6 +1810,11 @@ export default function NotebookTab() {
           right after "Skip to main content" -- not the 36th, behind the nav
           and the Journal's header. Rendered alone, it stays here. */}
       <SkipLinkPortal>
+        {/* W14-keys: "Skip to getting started", FIRST among the Notebook's skip links while
+            the get-started checklist is on screen (it renders nothing otherwise, so every
+            other member's Tab order is unchanged). Same hidden-until-focused class as the
+            link below, so it has the same H14 tap behaviour (a11y/skipLinkUntappable). */}
+        <GettingStartedSkipLink className={styles.skipLink} />
         <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
           {noteId ? 'Skip to note' : 'Skip to notes list'}
         </a>
@@ -1978,6 +1985,7 @@ export default function NotebookTab() {
             className={styles.phoneBack}
             onClick={phoneBackToNotes}
             data-nb-phone-back=""
+            data-tour="note-phone-back"
           >
             <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
             Back to notes
@@ -2627,11 +2635,9 @@ export default function NotebookTab() {
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
-      {/* Wave 14 (lane W14-0): the registry's mount point for every tour beyond the base
-          one. `OTHER_TOURS` is empty today (no tour has been authored yet -- that is
-          W14-B's charter), so this renders null and fetches nothing; it exists so a
-          future lane adds a registry entry and an anchor line, nothing here. */}
-      <RegistryToursGate tours={OTHER_TOURS} />
+      {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
+          which the member has never seen. Never while a note is open (R4). */}
+      <TourOfferGate tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
     </div>
     </SplitViewContext.Provider>
   )

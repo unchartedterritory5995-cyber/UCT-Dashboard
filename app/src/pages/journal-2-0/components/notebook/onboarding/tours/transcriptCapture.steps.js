@@ -1,19 +1,25 @@
-// Tour `transcript-capture` (plan 4.2 row 19). Steps 1 to 4 are in the Save from a call
-// transcript sheet, all on screen once a call has loaded; the speaker turns are first
-// because they arrive last. Step 5 is a thesis chip, which renders on position and
-// watchlist rows; it is skipped wherever no chip is on screen.
+// Tour `transcript-capture` (plan 4.2 row 19). It starts in a note (the W14-E example
+// call-excerpt note, else the member's most recent note) and step 1 asks the member to
+// open a call from the note (`waitFor`: the engine moves on when the sheet's speaker
+// turns appear). Steps 2 to 5 are in the Save from a call transcript sheet.
+// W14-C1 removed the thesis-chip step: chips render on position, holdings and watchlist
+// rows, never in a note, so here it was always skipped (wave14-w14-c1.md, item h).
+const EDITOR = 'components/notebook/NoteEditorPage.jsx'
 const SHEET = 'components/notebook/SaveTranscriptPassage.jsx'
-const CHIP = 'components/notebook/ThesisChip.jsx'
 
 export const STEPS = Object.freeze([
+  Object.freeze({ id: 'open', anchor: 'note-body', file: EDITOR, waitFor: 'transcript-turns' }),
   Object.freeze({ id: 'turns', anchor: 'transcript-turns', file: SHEET }),
   Object.freeze({ id: 'quote', anchor: 'transcript-quote', file: SHEET }),
   Object.freeze({ id: 'call', anchor: 'transcript-call', file: SHEET }),
   Object.freeze({ id: 'find', anchor: 'transcript-find', file: SHEET }),
-  Object.freeze({ id: 'chip', anchor: 'thesis-chip', file: CHIP }),
 ])
 
 export const COPY = Object.freeze({
+  open: {
+    title: 'Quote an earnings call',
+    body: 'In the note, type /transcript and choose Transcript passage to open a call UCT holds for this name.',
+  },
   turns: {
     title: 'The call, turn by turn',
     body: 'The earnings call UCT holds for this name, split into numbered speaker turns.',
@@ -29,9 +35,5 @@ export const COPY = Object.freeze({
   find: {
     title: 'Find in this call',
     body: 'Type a word such as margin or guidance to show only the turns that mention it.',
-  },
-  chip: {
-    title: 'Thesis chips',
-    body: "A position or watchlist row for a name you wrote a thesis on shows this chip: the note's status and how far price is from its stop. Tap it or tab to it to preview the note.",
   },
 })

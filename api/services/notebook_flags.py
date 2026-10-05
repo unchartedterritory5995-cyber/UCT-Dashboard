@@ -60,3 +60,19 @@ def flag_on(env_name: str, default: bool) -> bool:
     if v in TRUTHY:
         return True
     return bool(default)
+
+
+#: THE WAVE-14 SWITCH, server side (W14-C1 controller ruling, 2026-10-05). The client's ONE
+#: rule is `checklistEnabled()` in
+#: app/src/pages/journal-2-0/components/notebook/onboarding/gettingStartedPref.js
+#: (onboarding AND getting-started); this is its mirror, and it is never restated by hand:
+#: tests/test_sample_notebook_switch.py reads the flag keys out of that JS function and fails
+#: unless they are exactly these variables' payload keys. Defaults come from the one table,
+#: `auth.NOTEBOOK_FLAGS`, so the server reads the switch exactly as the payload reports it.
+WAVE14_SWITCH = ("NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED")
+
+
+def wave14_switch_on() -> bool:
+    """Is wave 14 armed for members, read NOW (per call, like every flag here)?"""
+    from api.routers.auth import NOTEBOOK_FLAGS  # the one table; imported late (auth imports us)
+    return all(flag_on(name, NOTEBOOK_FLAGS[name]) for name in WAVE14_SWITCH)

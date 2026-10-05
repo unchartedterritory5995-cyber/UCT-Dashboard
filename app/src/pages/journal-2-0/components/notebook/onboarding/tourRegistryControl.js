@@ -10,6 +10,17 @@
 // queueing design to build once more than one tour exists to queue.
 
 export const REGISTRY_TOUR_OPEN_EVENT = 'uct:notebook-registry-tour-open'
+/** Fired by the gate whenever a requested tour ends, `{tourId, opened}`: `opened` is false
+ *  when it never showed a step (nothing to point at, nothing to open, or its flags off). */
+export const REGISTRY_TOUR_CLOSED_EVENT = 'uct:notebook-registry-tour-closed'
+
+export function announceRegistryTourClosed(tourId, opened) {
+  try {
+    window.dispatchEvent(new CustomEvent(REGISTRY_TOUR_CLOSED_EVENT, { detail: { tourId, opened: opened === true } }))
+  } catch {
+    // no window (never in the app)
+  }
+}
 
 let pendingId = null
 
@@ -21,6 +32,14 @@ export function openRegistryTour(tourId) {
   } catch {
     // no window (never in the app): the pending id still carries the request
   }
+}
+
+/** Keep `tourId`'s request alive across a navigation, WITHOUT asking anyone to open it now.
+ *  The app's route boundary is keyed by pathname (components/RouteErrorBoundary.jsx), so a
+ *  tour whose start is on another page remounts the whole shell, this gate included, on the
+ *  way there; the new gate takes the request on mount and the tour goes on (W14-Q2). */
+export function carryRegistryTourOpen(tourId) {
+  pendingId = tourId
 }
 
 /** Whether a request is waiting, WITHOUT taking it. */

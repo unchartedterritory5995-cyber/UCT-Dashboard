@@ -26,7 +26,8 @@ import math
 import sqlite3
 from typing import Any, Iterable
 
-from api.services.journal_two import chart_blocks, playbook_stats, plan_grading
+from api.services.journal_two import chart_blocks, entry_context, playbook_stats, plan_grading
+from api.services.journal_two import regime as regime_service
 from api.services.journal_two import tech_fingerprint as tfp
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import resolve_trade_by_ref, trade_ref_for_row
@@ -60,10 +61,48 @@ MAX_SETUPS = 40
 #: The most range clauses one request may carry.
 MAX_RANGES = 8
 
-#: 13E's frozen entry context is not on this branch: the regime filter is a labelled
-#: placeholder until it is (the client renders the sentence, disabled).
+#: While 13E's gate (`NOTEBOOK_ENTRY_CONTEXT_ENABLED`) is OFF the regime filter stays the
+#: labelled placeholder it was before 13E landed -- this sentence and the payload shape are
+#: byte-identical to that build (wave 14 playbook fixes: "flag off, behaviour unchanged").
 REGIME_UNAVAILABLE = ("Filtering by market regime needs the entry context lane (13E), "
                       "which is not built yet.")
+
+#: The regime labels, DERIVED from the one classifier (`regime.classify_regime`) by sweeping
+#: the UCT Exposure Rating's whole 0-150 scale, best first. Never a typed list: a fifth tier
+#: added there appears here on the next import, and no threshold is restated.
+REGIMES = tuple(dict.fromkeys(
+    r for r in (regime_service.classify_regime(s) for s in range(150, -1, -1)) if r))
+
+#: Why a card has no regime to filter on (the filter EXCLUDES and COUNTS these, the same
+#: rule as a missing fingerprint number -- unknown is never counted as a match).
+REGIME_UNKNOWN = {
+    "no_trade": "no trade is linked to this chart, so there is no entry day",
+    "not_captured": "no market context was frozen on this trade's entry day",
+    "captured_late": "the context was frozen after the entry day, so it is not the market at the fill",
+    "regime_missing": "the frozen context has no regime value",
+}
+
+
+def _regime_of(trades: list[sqlite3.Row], contexts: dict[str, dict | None]) -> dict:
+    """The regime at the fill of the card's PRIMARY trade (the same trade its outcome reads),
+    straight off 13E's frozen `at_entry` context. Never re-derived, never guessed: anything
+    else is a labelled unknown."""
+    if not trades:
+        return {"value": None, "status": "no_trade", "entryDay": None}
+    t = trades[0]
+    ctx = contexts.get(str(t["id"]))
+    day = entry_context.entry_day_for(t["entry_date"])
+    if not ctx:
+        return {"value": None, "status": "not_captured", "entryDay": day}
+    if ctx.get("captureKind") != "at_entry":
+        return {"value": None, "status": "captured_late", "entryDay": ctx.get("entryDay")}
+    field = (ctx.get("fields") or {}).get("regime") or {}
+    value = field.get("value")
+    if value not in REGIMES:
+        return {"value": None, "status": "regime_missing", "entryDay": ctx.get("entryDay"),
+                "missing": field.get("missing")}
+    return {"value": value, "status": "captured", "entryDay": ctx.get("entryDay"),
+            "asOf": field.get("asOf")}
 
 
 class PlaybookRequestError(ValueError):
@@ -280,7 +319,7 @@ def _slice_stats(cards: list[dict], rows_by_ref: dict[str, sqlite3.Row]) -> dict
 def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
           setups: list[str] | None = None, outcome: str | None = None,
           timeframe: str | None = None, ranges: list[str] | None = None,
-          catch_up: bool = True) -> dict:
+          regime: str | None = None, catch_up: bool = True) -> dict:
     """The grid: the member's chart blocks that carry a setup tag, filtered, with the slice's
     stats. Facets (which tags and timeframes exist) are counted BEFORE filtering, so an empty
     slice still shows what there is to pick."""
@@ -292,6 +331,14 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
     parsed = [parse_range(r) for r in (ranges or [])]
     if len(parsed) > MAX_RANGES:
         raise PlaybookRequestError(f"at most {MAX_RANGES} ranges at once")
+    # 13E's gate, read per call. OFF: the regime parameter is ignored exactly as it was before
+    # this filter existed (an unknown query parameter), and the payload is unchanged.
+    regime_on = entry_context.enabled()
+    regime = (regime or "").strip().lower() or None
+    if not regime_on:
+        regime = None
+    elif regime is not None and regime not in REGIMES:
+        raise PlaybookRequestError(f"regime is one of {', '.join(REGIMES)}")
 
     owned = conn is None
     if owned:
@@ -302,17 +349,34 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
         note_ids = {b["noteId"] for b in blocks}
         links = linked_trades(conn, user_id, note_ids)
         images = _archived_images(conn, user_id, note_ids)
+        contexts: dict[str, dict | None] = {}
+        if regime_on:
+            primaries = [ts[0] for ts in links.values() if ts]
+            contexts = entry_context.contexts_for_trades(
+                user_id, [{"id": t["id"], "symbol": t["symbol"], "entryDate": t["entry_date"]}
+                          for t in primaries], conn=conn)
 
         facets_setups: dict[str, int] = {}
         facets_tf: dict[str, int] = {}
-        for b in blocks:
+        facets_regime: dict[str, int] = {r: 0 for r in REGIMES}
+        regime_unknown = 0
+        regime_by_block: dict[int, dict] = {}
+        for i, b in enumerate(blocks):
             facets_setups[b["setupTag"]] = facets_setups.get(b["setupTag"], 0) + 1
             facets_tf[b["timeframe"]] = facets_tf.get(b["timeframe"], 0) + 1
+            if regime_on:
+                rg = _regime_of(links.get((b["noteId"], (b["symbol"] or "").upper()), []), contexts)
+                regime_by_block[i] = rg
+                if rg["value"]:
+                    facets_regime[rg["value"]] += 1
+                else:
+                    regime_unknown += 1
 
         excluded_missing: dict[str, int] = {}
+        excluded_no_regime = 0
         kept: list[dict] = []
         rows_by_ref: dict[str, sqlite3.Row] = {}
-        for b in blocks:
+        for i, b in enumerate(blocks):
             if setups and b["setupTag"] not in setups:
                 continue
             if timeframe and b["timeframe"] != timeframe:
@@ -321,6 +385,12 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
             card = _card(b, trades, images.get((b["noteId"], b["position"])))
             if outcome is not None and card["outcome"] != outcome:
                 continue
+            if regime_on:
+                card["regime"] = regime_by_block[i]
+                if regime is not None and card["regime"]["value"] != regime:
+                    if card["regime"]["value"] is None:
+                        excluded_no_regime += 1
+                    continue
             missing_field = None
             passes = True
             for field, lo, hi in parsed:
@@ -340,6 +410,13 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
                 rows_by_ref[trade_ref_for_row(t)] = t
             kept.append(card)
 
+        regime_payload: dict[str, Any] = (
+            {"available": True, "values": list(REGIMES), "selected": regime,
+             "facets": facets_regime, "unknown": regime_unknown,
+             "excludedUnknown": excluded_no_regime,
+             "unknownReasons": REGIME_UNKNOWN,
+             "source": "entry_context (13E, at_entry rows only)"}
+            if regime_on else {"available": False, "reason": REGIME_UNAVAILABLE})
         return {
             "cards": kept,
             "count": len(kept),
@@ -347,7 +424,7 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
             "excludedMissing": excluded_missing,
             "facets": {"setups": facets_setups, "timeframes": facets_tf},
             "rangeFields": list(RANGE_FIELDS),
-            "regime": {"available": False, "reason": REGIME_UNAVAILABLE},
+            "regime": regime_payload,
             "pending": progress.get("pending", 0),
             "sampleSizeSource": "adapter:plan_grading (swap for 13B sample_size.py)",
         }

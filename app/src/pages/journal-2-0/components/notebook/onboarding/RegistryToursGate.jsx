@@ -1,28 +1,28 @@
-// The eager, tiny half of the generic tour engine (wave 14, lane W14-0) -- mirrors
-// NotebookTourGate.jsx's own split exactly. THIS file is statically imported by
-// NotebookTab (so it can decide eligibility without ever paying for a tour's
-// content), and it dynamically imports the walking UI, `GenericTourEngine.jsx`,
-// ONLY once some tour is WANTED (risk R3: a member who never asks for a second
-// tour never fetches its chunk, exactly like the base tour's own I-2 fix).
+// The eager, tiny half of the generic tour engine (wave 14, lanes W14-0 and W14-C1) --
+// mirrors NotebookTourGate.jsx's own split exactly. THIS file is statically imported by
+// the app shell, `components/Layout.jsx`, ONCE (W14-C1: tours start on Journal pages and
+// in notes as well as on the Notebook, and a tour must survive the navigation to its own
+// start, so the gate cannot live in any one page). It dynamically imports the walking
+// UI, `GenericTourEngine.jsx`, ONLY once some tour is WANTED (risk R3).
 //
-// The base tour (`notebook-basics`) is NEVER handled here -- NotebookTab filters it
-// out of `tours` before handing the list down (zero behaviour change: the base
-// tour's own proven gate/engine pair, NotebookTourGate.jsx / NotebookTour.jsx,
-// keeps running it unchanged). This file is for every OTHER registered tour.
+// The base tour (`notebook-basics`) is NEVER handled here -- the shell hands down
+// `OTHER_TOURS` (tourRegistry.js), which leaves it out; its own gate/engine pair,
+// NotebookTourGate.jsx / NotebookTour.jsx, keeps running it unchanged.
 //
-// ONE tour open at a time (plan section 4.3, decision D3): a second request while
-// one is already open is ignored until the first closes -- `wantedId` is a single
-// slot, not one per tour. Nothing here auto-starts a tour: every entry opens only
-// by explicit request (Help's Replay button, a `startRegistryTourId` navigation
-// state, or any future caller) until W14-C wires a "newly armed" trigger. That is
-// a scope boundary stated in docs/notebook/wave14-w14-0.md, not an oversight.
-import { Component, Suspense, useCallback, useEffect, useState } from 'react'
+// ONE tour open at a time (plan section 4.3, decision D3): `wantedId` is a single slot.
+// A tour opens only by explicit request: Help's Replay (a `startRegistryTourId`
+// navigation state), the offer (TourOfferGate.jsx), the checklist, or the resurfacing
+// notice's passive explainer, each through `openRegistryTour` or the navigation state.
+import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
-import { getTourEntry } from './tourRegistry'
-import { REGISTRY_TOUR_OPEN_EVENT, takePendingRegistryTourOpenAny } from './tourRegistryControl'
+import { getTourEntry, tourLive } from './tourRegistry'
+import {
+  REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
+  takePendingRegistryTourOpenAny,
+} from './tourRegistryControl'
 
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
  *  NOTHING, never the route's error screen. Mirrors NotebookTourGate.jsx's
@@ -82,11 +82,29 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
       if (fromState && tours.some((t) => t.id === fromState)) setWantedId((cur) => cur ?? fromState)
     }, [location.state, tours])
 
-    const close = useCallback(() => setWantedId(null), [])
+    const wantedRef = useRef(wantedId)
+    wantedRef.current = wantedId
+    // Every end is announced with whether the tour ever showed a step, so the offer is spent
+    // only on a tour that opened (TourOfferGate.jsx, W14-Q1 finding S6).
+    const close = useCallback((info) => {
+      const id = wantedRef.current
+      wantedRef.current = null
+      setWantedId(null)
+      // A request this tour answered must not outlive it: `openRegistryTour` leaves its id
+      // pending, and the next shell remount (any change of page) would open the tour again
+      // (W14-Q2).
+      if (id && hasPendingRegistryTourOpen() === id) takePendingRegistryTourOpenAny()
+      if (id) announceRegistryTourClosed(id, info?.opened === true)
+    }, [])
 
-    if (!wantedId) return null
-    const entry = getTourEntry(wantedId, tours)
-    if (!entry || notebookFlag(entry.flag) !== true) return null
+    const entry = wantedId ? getTourEntry(wantedId, tours) : null
+    // tourLive: own flag, `requires`, and the wave-14 onboarding switch (tourRegistry.js)
+    const allowed = tourLive(entry, notebookFlag)
+    // A request for a tour whose capability is off is dropped, not held: the slot is one
+    // tour wide, so a held request would block every later one (W14-C1).
+    useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])
+
+    if (!allowed) return null
     return (
       <RegistryTourCatch>
         <Suspense fallback={null}>

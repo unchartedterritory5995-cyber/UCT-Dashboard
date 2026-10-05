@@ -160,7 +160,7 @@ describe('deriveChecklistItems -- the fixed items', () => {
 
 describe('deriveChecklistItems -- the tour items are DERIVED from the registry', () => {
   it('one item per replayable registered tour whose flag is armed, in registry order', () => {
-    const armed = new Set(['notebook_onboarding_enabled', 'notebook_formulas_enabled', 'awareness_note_resurface_enabled'])
+    const armed = new Set(['notebook_onboarding_enabled', 'notebook_getting_started_enabled', 'notebook_formulas_enabled', 'awareness_note_resurface_enabled'])
     const items = deriveChecklistItems({ registry: FAKE_REGISTRY, flag: (k) => armed.has(k) })
     expect(items.filter((i) => i.kind === 'tour').map((i) => i.tourId)).toEqual([BASE_TOUR_ID, 'formulas'])
     expect(byId(items)['tour:formulas'].label).toBe('Take the Formulas tour')

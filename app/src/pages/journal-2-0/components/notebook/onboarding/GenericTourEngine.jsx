@@ -1,27 +1,38 @@
-// The ONE engine for every registered tour beyond the wave-8 base tour (wave 14,
-// lane W14-0). Loaded lazily by `RegistryToursGate.jsx`, exactly once a tour is
-// WANTED -- never imported anywhere else, so its own weight (and every future
-// tour's steps/copy, pulled in through `entry.load()`) never reaches the
-// Notebook's first-open bytes (risk R3).
+// The ONE engine for every registered tour beyond the wave-8 base tour (wave 14, lanes
+// W14-0 and W14-C1). Loaded lazily by `RegistryToursGate.jsx`, exactly once a tour is
+// WANTED -- never imported anywhere else, so its own weight (and every tour's steps/copy,
+// pulled in through `entry.load()`) never reaches the Notebook's first-open bytes (R3).
 //
-// Deliberately smaller than NotebookTour.jsx:
-//   * no auto-start, no `hasAnyNotes`/`isPaid` eligibility -- a future tour's own
-//     anchor IS its eligibility (no anchor on screen, no tour, exactly how the
-//     base tour already behaves); wiring "offer once when a capability newly
-//     arms" is W14-C's charter, stated in docs/notebook/wave14-w14-0.md.
-//   * Replay always starts at step one (plan section 4.2: "replay ... reopens it
-//     from step one regardless of saved state") -- there is no auto-start path to
-//     resume FROM in this lane, so resume is not exercised here. The seen-state
-//     module still records every step as the member walks, so W14-C's auto-start
-//     trigger has real data to resume from the day it ships.
+// What it does, in order (W14-C1 made each of these data-driven, never per tour):
 //
-// What IS shared, by direct reuse rather than a second copy: anchor visibility
-// (`anchorFor`, from `tourAnchorVisibility.js` -- the SAME function NotebookTour.jsx
-// itself imports, never a copy and never a static import of NotebookTour.jsx: that
-// file is held to exactly one importer, its own lazy gate, by tourLazy.test.js),
-// the keyboard/focus-trap contract (`trapTabKey`), the first-run stage coordinator
-// (`claimFirstRunStage`), and the card's own visual language
-// (NotebookTour.module.css -- one stylesheet, not a second one).
+//   1. START. An entry may name where it starts (`start`, tourRegistry.js): a known page,
+//      a note (`{note: 'sample:<key>' | 'recent', embed?}`) or a trade (`{trade: 'recent'}`).
+//      If the first step's anchor is not on screen, the engine resolves the start
+//      (tourStart.js, read-only) and navigates there. The gate is mounted once in the app
+//      shell, so the engine survives that navigation. With nothing to open it says so in
+//      the card, with a way out; it never creates a note or a trade to have something to
+//      point at.
+//   2. WAIT, bounded (START_WAIT_MS), for the first anchor; then open on whatever is on
+//      screen, or close quietly with nothing recorded.
+//   3. WALK, re-evaluating on every Next and Back. The visible step list is NOT fixed at
+//      open: a step whose anchor sits behind a click (a panel, the replay controls, a
+//      sheet) shows once its anchor appears. Next waits up to STEP_WAIT_MS for the next
+//      step's anchor before skipping it, so a step is skipped only after the wait and the
+//      card never points at nothing. A step may declare `waitFor: '<anchor>'` ("do this to
+//      continue"): the card asks the member to do it and moves on when that anchor
+//      appears.
+//   4. MODALITY. A step that targets inside a sheet or dialog, or waits for the member to
+//      act, renders NON-modal: no layer holding the page, no Tab trap, and the card is
+//      placed inside that sheet so the sheet's own Tab ring includes it. Escape closes
+//      only the TOPMOST layer: the tour when it is on top (and the sheet beneath stays
+//      open), the sheet when a sheet opened above the tour.
+//   5. PASSIVE. A `replayable: false` entry (a 1-2 step explainer) renders as a light,
+//      non-modal note that never takes focus, shown once per member (any row in
+//      `notebook_tours` means it was seen).
+//
+// Shared, by direct reuse rather than a copy: anchor visibility (`anchorFor`, the SAME
+// function NotebookTour.jsx imports), the focus-trap contract (`trapTabKey`), the
+// first-run stage coordinator, and the card's look (NotebookTour.module.css).
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -29,50 +40,61 @@ import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { anchorFor } from './tourAnchorVisibility'
-import { TOUR_STATES, recordTourState } from './tourSeenState'
+import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
+import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
+import { cardIsTopmost, dialogHost } from './tourLayers'
+import { carryRegistryTourOpen } from './tourRegistryControl'
 import styles from './NotebookTour.module.css'
+import own from './GenericTourEngine.module.css'
+
+export { atStart }
 
 const ACTIVE_ATTR = 'data-tour-active'
 
-/** How long an opened tour waits for its STARTING anchor before it settles for
- *  whatever is on screen (or, with nothing, closes). A tour opened from Help
- *  lands on a page that is still loading its notes, and a tour with a `start`
- *  location is navigated there first -- in both cases the anchor arrives a
- *  moment AFTER the tour's content does, and closing on the first look was the
- *  W14-D finding ("closes immediately when opened from Help"). Bounded, so a
- *  tour whose screen never shows its anchor still ends quietly. */
+/** How long an opened tour waits for its STARTING anchor before it settles for whatever is
+ *  on screen (or, with nothing, closes). A tour opened from Help lands on a page still
+ *  loading, and a tour with a start is navigated there first -- the anchor arrives a moment
+ *  after (the W14-D finding). Bounded, so a screen that never shows it still ends quietly. */
 export const START_WAIT_MS = 8000
-const START_POLL_MS = 100
+/** How long Next waits for the next step's anchor (a panel opening, a sheet loading)
+ *  before skipping that step. Bounded: a step that never appears costs this, once. */
+export const STEP_WAIT_MS = 1500
+const POLL_MS = 100
 
-/** Whether the router location already IS the entry's start location: same
- *  pathname, and every query parameter the start names present with the same
- *  value (extra parameters on the current URL are fine). */
-export function atStart(start, location) {
-  if (!start) return true
-  const u = new URL(start, 'http://notebook.invalid')
-  if (u.pathname !== location.pathname) return false
-  const here = new URLSearchParams(location.search || '')
-  for (const [k, v] of u.searchParams) if (here.get(k) !== v) return false
-  return true
+/** The first index from `from` in direction `dir` whose anchor is on screen, or -1. */
+function presentFrom(steps, from, dir) {
+  for (let i = from; i >= 0 && i < steps.length; i += dir) {
+    if (anchorFor(steps[i].anchor)) return i
+  }
+  return -1
 }
 
-/** The steps whose anchors are on screen now, in the tour's own order -- the same
- *  rule `NotebookTour.jsx`'s `availableSteps` applies to `TOUR_STEPS`, generalized
- *  to whichever tour is open. */
-function availableSteps(steps) {
-  return steps.filter((s) => anchorFor(s.anchor))
+function stripTourState(state) {
+  if (!state || typeof state !== 'object') return state ?? null
+  const { startRegistryTourId: _ignored, ...rest } = state
+  return Object.keys(rest).length ? rest : null
 }
 
-export default function GenericTourEngine({ entry, onClose, startWaitMs = START_WAIT_MS }) {
-  const { setPrefMerged } = usePreferences()
+export default function GenericTourEngine({
+  entry, onClose, startWaitMs = START_WAIT_MS, stepWaitMs = STEP_WAIT_MS,
+}) {
+  const { prefs, loading: prefsLoading, setPrefMerged } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
+  const passive = entry.replayable === false
   const [content, setContent] = useState(null)   // {steps, copy} once entry.load() resolves
-  const [steps, setSteps] = useState(null)        // the available steps once opened
+  const [phase, setPhase] = useState('loading')   // loading | routing | waiting | open | unreachable
   const [index, setIndex] = useState(0)
+  const [moving, setMoving] = useState(false)     // Next is waiting for the next anchor
+  const [unreachable, setUnreachable] = useState(null)
   const cardRef = useRef(null)
   const titleRef = useRef(null)
   const returnFocusRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  // Whether this tour ever showed a step. Handed to onClose, so a caller that spent
+  // something on opening it (the offer: one per session) can tell "taken" from "never opened".
+  const openedRef = useRef(false)
   const titleId = useId()
   const bodyId = useId()
 
@@ -86,162 +108,305 @@ export default function GenericTourEngine({ entry, onClose, startWaitMs = START_
     recordTourState(setPrefMerged, entry.id, state, stepId)
   }, [setPrefMerged, entry.id])
 
-  // Open at step one once the content is in AND the tour's starting anchor is on
-  // screen. Plan 4.2: a tour starts "at the screen where a member would naturally
-  // first meet it" -- so an entry may name a `start` location (tours/index.js);
-  // if the member is not there, the engine navigates there first. Then it waits
-  // (bounded, START_WAIT_MS) for the FIRST step's anchor. If the wait runs out it
-  // opens on whatever steps are on screen; with none at all there is no tour and
-  // nothing is recorded -- the same "no anchor, no tour" rule the base engine
-  // applies, just no longer decided on the very first look.
-  const navigatedRef = useRef(false)
+  const steps = content?.steps || null
+  const step = phase === 'open' && steps ? steps[index] : null
+
+  // ── 1. START ──────────────────────────────────────────────────────────────────────────
+  // Runs once, the moment the content lands (and, for the passive explainer, once the
+  // member's seen-state is known). Location is read at that moment only.
+  const startedRef = useRef(false)
+  const aliveRef = useRef(true)
+  useEffect(() => () => { aliveRef.current = false }, [])
   useEffect(() => {
-    if (!content || steps || navigatedRef.current) return
-    if (!content.steps.length || anchorFor(content.steps[0].anchor)) return
-    if (entry.start && !atStart(entry.start, location)) {
-      navigatedRef.current = true
-      navigate(entry.start, { state: location.state })
+    if (!content || startedRef.current) return
+    if (passive && prefsLoading) return
+    startedRef.current = true
+    if (!content.steps.length) { onCloseRef.current({ opened: false }); return }
+    if (passive) {
+      // Shown once per member: any row means it was seen (or dismissed) already.
+      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current({ opened: false }); return }
+      setPhase('waiting')
+      return
     }
-    // location is read once, at the moment the content lands; a later location
-    // change must not re-navigate (navigatedRef also guards that).
+    if (anchorFor(content.steps[0].anchor)) { setPhase('waiting'); return }
+    setPhase('routing')
+    resolveStart(entry, location).then((r) => {
+      if (!aliveRef.current) return
+      if (r.none) { setUnreachable(r.none); setPhase('unreachable'); return }
+      if (r.path) {
+        // A start on another PAGE remounts the app shell (RouteErrorBoundary is keyed by
+        // pathname), and this engine with it: carry the request so the new gate goes on
+        // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
+        if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
+        navigate(r.path, { state: stripTourState(location.state) })
+      }
+      setPhase('waiting')
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content])
+  }, [content, prefsLoading])
 
+  // ── 2. WAIT for the first anchor, bounded ───────────────────────────────────────────────
   useEffect(() => {
-    if (!content || steps) return undefined
-    let done = false
-    let timer = null
-    const stop = () => { done = true; if (timer) clearInterval(timer) }
-    const open = (available) => {
-      stop()
-      if (!returnFocusRef.current) returnFocusRef.current = document.activeElement
-      setSteps(available)
-      setIndex(0)
-      record(TOUR_STATES.started, available[0].id)
+    if (phase !== 'waiting' || !steps) return undefined
+    const began = Date.now()
+    const open = (at) => {
+      if (!returnFocusRef.current && !passive) returnFocusRef.current = document.activeElement
+      setIndex(at)
+      openedRef.current = true
+      setPhase('open')
+      record(TOUR_STATES.started, steps[at].id)
     }
-    const first = content.steps[0]
-    const tryOpen = (final) => {
-      if (done) return
-      if (first && anchorFor(first.anchor)) { open(availableSteps(content.steps)); return }
-      if (!final) return
-      const available = availableSteps(content.steps)
-      stop()
-      if (available.length) open(available)
-      else onClose()
+    const tick = () => {
+      if (anchorFor(steps[0].anchor)) { open(0); return true }
+      if (Date.now() - began < startWaitMs) return false
+      const at = presentFrom(steps, 0, 1)
+      if (at >= 0) open(at)
+      else onCloseRef.current({ opened: false })
+      return true
     }
-    tryOpen(false)
-    if (done) return undefined
-    const started = Date.now()
-    timer = setInterval(() => tryOpen(Date.now() - started >= startWaitMs), START_POLL_MS)
-    return stop
-    // content/record/onClose are intentionally not deps: this runs once per
-    // mount, the instant `content` first lands (`steps` guards re-entry).
+    if (tick()) return undefined
+    const timer = setInterval(() => { if (tick()) clearInterval(timer) }, POLL_MS)
+    return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content])
+  }, [phase, steps])
 
-  const close = useCallback((state) => {
-    const current = steps ? steps[index] : null
-    setSteps(null)
-    setIndex(0)
-    record(state, current?.id)
-    onClose()
-  }, [steps, index, record, onClose])
-
-  const tourOpen = Boolean(steps)
-  useEffect(() => (tourOpen ? claimFirstRunStage() : undefined), [tourOpen])
-
-  const step = steps ? steps[index] : null
-  useEffect(() => {
-    if (!step) return undefined
-    const el = anchorFor(step.anchor)
-    if (!el) return undefined
-    el.setAttribute(ACTIVE_ATTR, 'true')
-    el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
-    return () => el.removeAttribute(ACTIVE_ATTR)
-  }, [step])
-
-  useEffect(() => { if (step) titleRef.current?.focus() }, [step])
-  useEffect(() => {
-    if (steps) return
+  // Focus goes back where it was BEFORE onClose: the gate unmounts this engine on close,
+  // so an effect keyed on the closed phase would never get to run.
+  const finish = useCallback(() => {
+    setPhase('closed')
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
-  }, [steps])
+    onCloseRef.current({ opened: openedRef.current })
+  }, [])
+
+  const close = useCallback((state) => {
+    const current = steps && phase === 'open' ? steps[index] : null
+    record(state, current?.id)
+    finish()
+  }, [steps, phase, index, record, finish])
+
+  // ── 3. WALK ─────────────────────────────────────────────────────────────────────────────
+  const goTo = useCallback((i) => {
+    setMoving(false)
+    setIndex(i)
+    record(TOUR_STATES.started, steps[i].id)
+  }, [record, steps])
+
+  // Next: wait (bounded) for the very next step's anchor; at the deadline take the first
+  // later step that is on screen; with none, the tour is done.
+  const moveTimerRef = useRef(null)
+  const stopMove = () => { if (moveTimerRef.current) { clearInterval(moveTimerRef.current); moveTimerRef.current = null } }
+  useEffect(() => stopMove, [])
+  const goNext = useCallback(() => {
+    if (!steps || moving) return
+    const target = index + 1
+    if (target >= steps.length) { close(TOUR_STATES.done); return }
+    if (anchorFor(steps[target].anchor)) { goTo(target); return }
+    setMoving(true)
+    const began = Date.now()
+    stopMove()
+    moveTimerRef.current = setInterval(() => {
+      if (anchorFor(steps[target].anchor)) { stopMove(); goTo(target); return }
+      if (Date.now() - began < stepWaitMs) return
+      stopMove()
+      const later = presentFrom(steps, target + 1, 1)
+      if (later >= 0) goTo(later)
+      else { setMoving(false); close(TOUR_STATES.done) }
+    }, POLL_MS)
+  }, [steps, moving, index, goTo, close, stepWaitMs])
+
+  const goBack = useCallback(() => {
+    if (!steps || moving) return
+    const prev = presentFrom(steps, index - 1, -1)
+    if (prev >= 0) goTo(prev)
+  }, [steps, moving, index, goTo])
+
+  // "Do this to continue": the step waits for its `waitFor` anchor, then moves to the step
+  // that anchor belongs to (or simply the next one). It moves on when the member DOES the
+  // thing -- the anchor appearing after the step was shown -- never because it is already
+  // there: Back onto this step with the panel still open used to jump straight forward
+  // again, so Back read as broken (W14-Q2 round 2). Then only Next, or redoing it, moves on.
+  useEffect(() => {
+    if (!step?.waitFor || moving) return undefined
+    let seenAbsent = !anchorFor(step.waitFor)
+    const timer = setInterval(() => {
+      if (!anchorFor(step.waitFor)) { seenAbsent = true; return }
+      if (!seenAbsent) return
+      clearInterval(timer)
+      const owner = steps.findIndex((s, j) => j > index && s.anchor === step.waitFor)
+      goTo(owner >= 0 ? owner : Math.min(index + 1, steps.length - 1))
+    }, POLL_MS)
+    return () => clearInterval(timer)
+  }, [step, moving, steps, index, goTo])
+
+  // Never point at nothing: if the current step's anchor leaves the page and stays gone
+  // for the bounded wait, move to a step that is on screen, or end the tour.
+  useEffect(() => {
+    if (!step || moving) return undefined
+    let goneSince = null
+    const timer = setInterval(() => {
+      if (anchorFor(step.anchor) || (step.waitFor && anchorFor(step.waitFor))) { goneSince = null; return }
+      goneSince = goneSince ?? Date.now()
+      if (Date.now() - goneSince < stepWaitMs) return
+      clearInterval(timer)
+      const fwd = presentFrom(steps, index + 1, 1)
+      const back = fwd >= 0 ? -1 : presentFrom(steps, index - 1, -1)
+      if (fwd >= 0) goTo(fwd)
+      else if (back >= 0) goTo(back)
+      else close(TOUR_STATES.dismissed)
+    }, 250)
+    return () => clearInterval(timer)
+  }, [step, moving, steps, index, goTo, close, stepWaitMs])
+
+  // ── 4. MODALITY, focus, keys ─────────────────────────────────────────────────────────────
+  const anchorEl = step ? anchorFor(step.anchor) : null
+  const host = anchorEl ? dialogHost(anchorEl) : null
+  const modal = !passive && phase === 'open' && !host && !step?.waitFor
+
+  const tourOpen = phase === 'open' || phase === 'unreachable'
+  useEffect(() => (tourOpen && !passive ? claimFirstRunStage() : undefined), [tourOpen, passive])
 
   useEffect(() => {
-    if (!steps) return undefined
+    if (!step) return undefined
+    // The marker goes on the anchor even when it has no box at this instant: a control that
+    // shows only while a tour points at it or its container (the chart toolbar, revealed by
+    // `[data-tour-active]` in WidgetEmbedView.module.css) loses its box the moment the
+    // previous step's marker is cleared, so asking "is it on screen?" here would never mark
+    // it, and it would never show (W14-Q2, measured at 1200 px). The card was already
+    // opened on it on screen; the "never point at nothing" watch below still applies.
+    const el = anchorFor(step.anchor) || document.querySelector(`[data-tour="${step.anchor}"]`)
+    if (!el) return undefined
+    el.setAttribute(ACTIVE_ATTR, 'true')
+    // A "do this to continue" step asks the member to press its anchor, and its card is a
+    // non-modal panel pinned to the bottom of the screen: 'nearest' parked a control at the
+    // bottom edge, UNDER the card (W14-Q2, measured at 390 px: Templates sat behind the
+    // template-gallery card and could not be tapped). Centre it, clear of the card.
+    el.scrollIntoView?.({ block: step.waitFor ? 'center' : 'nearest', inline: 'nearest' })
+    return () => el.removeAttribute(ACTIVE_ATTR)
+  }, [step])
+
+  // A stepper takes focus on every step (so a screen reader reads it); the passive
+  // explainer never does.
+  useEffect(() => {
+    if (passive) return
+    if (step || phase === 'unreachable') titleRef.current?.focus()
+  }, [step, phase, passive])
+  useEffect(() => {
+    if (phase === 'unreachable' && !returnFocusRef.current) returnFocusRef.current = document.activeElement
+  }, [phase])
+
+  // Window, capture phase: runs BEFORE every document-level handler (Sheet's included), so
+  // the tour decides first whether it is the layer a key belongs to.
+  useEffect(() => {
+    if (!(phase === 'open' || phase === 'unreachable')) return undefined
     const onKey = (e) => {
+      const card = cardRef.current
       if (e.key === 'Escape') {
+        if (passive && !(card && card.contains(document.activeElement))) return
+        if (!cardIsTopmost(card)) return            // a sheet above the tour answers it
         e.preventDefault()
-        e.stopPropagation()
+        e.stopPropagation()                          // the sheet beneath stays open
+        if (phase === 'unreachable') { finish(); return }
         close(TOUR_STATES.dismissed)
-      } else if (e.key === 'Tab') {
-        trapTabKey(e, cardRef.current)
+      } else if (e.key === 'Tab' && (modal || phase === 'unreachable')) {
+        if (trapTabKey(e, card)) e.stopPropagation()
       }
     }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [steps, close])
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [phase, modal, passive, close, finish])
 
-  if (!step || !content) return null
+  // ── render ───────────────────────────────────────────────────────────────────────────────
+  if (!content) return null
 
-  // A step whose anchor left the page since the tour opened is skipped on the way past it.
-  const nextIndex = (from, dir) => {
-    for (let i = from + dir; i >= 0 && i < steps.length; i += dir) {
-      if (anchorFor(steps[i].anchor)) return i
-    }
-    return -1
-  }
-  const goNext = () => {
-    const i = nextIndex(index, 1)
-    if (i < 0) { close(TOUR_STATES.done); return }
-    setIndex(i)
-    record(TOUR_STATES.started, steps[i].id)
-  }
-  const goBack = () => {
-    const i = nextIndex(index, -1)
-    if (i < 0) return
-    setIndex(i)
-    record(TOUR_STATES.started, steps[i].id)
-  }
-  const isFirst = index === 0
-  const isLast = index === steps.length - 1
-  const copy = content.copy[step.id] || { title: '', body: '' }
-
-  return createPortal(
-    <div className={styles.layer}>
-      <div
-        ref={cardRef}
-        className={styles.card}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-      >
-        <p className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
-        <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
-        <p id={bodyId} className={styles.body}>{copy.body}</p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.skip} onClick={() => close(TOUR_STATES.dismissed)}>
-            Skip tour
-          </button>
-          <span className={styles.nav}>
-            <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst}>
-              Back
-            </button>
-            {isLast ? (
-              <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
-                Done
-              </button>
-            ) : (
-              <button type="button" className="btn btn-primary" onClick={goNext}>
-                Next
-              </button>
-            )}
-          </span>
+  if (phase === 'unreachable') {
+    const copy = UNREACHABLE_COPY[unreachable] || UNREACHABLE_COPY.error
+    const leave = finish
+    return createPortal(
+      <div className={styles.layer}>
+        <div ref={cardRef} className={styles.card} role="dialog" aria-modal="true"
+          aria-labelledby={titleId} aria-describedby={bodyId}>
+          <p className={styles.progress}>{entry.title}</p>
+          <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
+          <p id={bodyId} className={styles.body}>{copy.body}</p>
+          <div className={styles.actions}>
+            <span />
+            <span className={styles.nav}>
+              <button type="button" className="btn btn-secondary" onClick={leave}>Close</button>
+              {copy.exitPath && (
+                <button type="button" className="btn btn-primary"
+                  onClick={() => { leave(); navigate(copy.exitPath) }}>
+                  {copy.exitLabel}
+                </button>
+              )}
+            </span>
+          </div>
         </div>
+      </div>,
+      document.body,
+    )
+  }
+
+  if (!step) return null
+  const copyOf = (s) => content.copy[s.id] || { title: '', body: '' }
+  const copy = copyOf(step)
+
+  if (passive) {
+    // A light note: the title of its first step, every step's sentence, one button.
+    const shown = steps.filter((s, i) => i >= index && anchorFor(s.anchor))
+    const done = () => { setPhase('closed'); record(TOUR_STATES.done, steps[steps.length - 1].id); onCloseRef.current({ opened: true }) }
+    return createPortal(
+      <aside ref={cardRef} className={own.explainer} aria-labelledby={titleId} data-tour-explainer="">
+        <h2 id={titleId} className={own.explainerTitle}>{copy.title}</h2>
+        {(shown.length ? shown : [step]).map((s) => (
+          <p key={s.id} className={own.explainerBody}>{copyOf(s).body}</p>
+        ))}
+        <div className={own.explainerActions}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={done}>Got it</button>
+        </div>
+      </aside>,
+      host || document.body,
+    )
+  }
+
+  const isFirst = presentFrom(steps, index - 1, -1) < 0
+  const isLast = index === steps.length - 1
+  const card = (
+    <div
+      ref={cardRef}
+      className={modal ? styles.card : `${styles.card} ${own.floating}`}
+      role="dialog"
+      aria-modal={modal ? 'true' : undefined}
+      aria-labelledby={titleId}
+      aria-describedby={bodyId}
+      data-tour-card={modal ? 'modal' : 'non-modal'}
+    >
+      <p className={styles.progress}>{`Step ${index + 1} of ${steps.length}`}</p>
+      <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
+      <p id={bodyId} className={styles.body}>{copy.body}</p>
+      {step.waitFor && <p className={own.waiting} role="status">Do this to continue, or choose Next to skip it.</p>}
+      {moving && <p className={own.waiting} role="status">Looking for the next step…</p>}
+      <div className={styles.actions}>
+        <button type="button" className={styles.skip} onClick={() => close(TOUR_STATES.dismissed)}>
+          Skip tour
+        </button>
+        <span className={styles.nav}>
+          <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
+            Back
+          </button>
+          {isLast ? (
+            <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
+              Done
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={goNext} disabled={moving}>
+              Next
+            </button>
+          )}
+        </span>
       </div>
-    </div>,
-    document.body,
+    </div>
   )
+  return createPortal(modal ? <div className={styles.layer}>{card}</div> : card, host || document.body)
 }

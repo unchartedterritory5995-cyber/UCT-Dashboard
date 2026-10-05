@@ -59,6 +59,7 @@ from typing import Any
 from api.services import auth_service
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes, sample_examples
+from api.services.notebook_flags import wave14_switch_on
 
 SAMPLE_PATH = Path(__file__).with_name("sample_notebook.json")
 PREF_KEY = "notebook_sample"
@@ -176,6 +177,13 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
             conn.rollback()
             raise SampleRefused(REFUSED_SENTENCE)
 
+        # ⛔ THE WAVE-14 SWITCH (W14-C1 ruling): the per-capability examples, and the v2
+        # preference that records them, exist only while wave 14 is armed. Off, this click
+        # writes exactly what it wrote before wave 14: the five base notes and a v1 preference.
+        wave14 = wave14_switch_on()
+        version = 2 if wave14 else 1
+        examples = None
+
         entries = sample_notes()
         # Pass 1, inside the lock taken above: every note, its links left out.
         # `import_confirm` commits, which is what releases the lock -- a second seed waiting
@@ -190,7 +198,7 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         # ⚰️ The ids were recorded after pass 2, so a failure between the two passes left
         # notes no `remove` could see -- and a member who now "has notes" can never re-seed.
         auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
-            "v": 2, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "v": version, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }))
 
         # Pass 2: the notes that link to another, now that every id exists -- the same
@@ -211,16 +219,18 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         # independent and defensive (see sample_examples.py) -- a capability's own failure
         # never loses the base five, and whatever it DID create is still recorded below so
         # `remove` can find it.
-        examples = sample_examples.seed(user_id, conn)
-        seeded = seeded + list(examples["noteIds"])
+        if wave14:
+            examples = sample_examples.seed(user_id, conn)
+            seeded = seeded + list(examples["noteIds"])
     finally:
         if owned:
             conn.close()
 
-    auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
-        "v": 2, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "examples": {k: v for k, v in examples.items() if k != "noteIds"},
-    }))
+    if examples is not None:
+        auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
+            "v": 2, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "examples": {k: v for k, v in examples.items() if k != "noteIds"},
+        }))
 
     return {"folderId": folder_id, "welcomeNoteId": welcome_id, "ids": seeded}
 

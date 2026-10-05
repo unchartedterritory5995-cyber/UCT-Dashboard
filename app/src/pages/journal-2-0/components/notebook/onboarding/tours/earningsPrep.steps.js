@@ -1,5 +1,7 @@
-// Tour `earnings-prep` (plan 4.2 row 18), on Research Home's Reporting soon box. The
-// list is the first step, so the tour opens once the names have loaded.
+// Tour `earnings-prep` (plan 4.2 row 18), on Research Home's Reporting soon box. The first
+// step's anchor (`reporting-soon-list`) is on the BOX, which renders whether or not a name
+// reports this week (W14-Q2: on the list itself the tour never opened in an empty week); the
+// row steps after it show only when a name is listed.
 const F = 'components/notebook/ReportingSoon.jsx'
 
 export const STEPS = Object.freeze([

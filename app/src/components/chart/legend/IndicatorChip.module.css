@@ -285,6 +285,17 @@
 }
 .chipMore:hover { opacity: 1; border-color: var(--accent); }
 
+/* Notebook chart embeds on the touch tier (wave 14 playbook fixes, item 3): the "+N" fold
+   button is the one way back to folded chips, and at 20px it sat under `--tap-min` on
+   phone AND tablet. Scoped to `ChartEmbed.jsx`'s `data-notebook-chart-embed` figure so no
+   other legend moves. Rail: `pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js`. */
+@media (max-width: 1024px) {
+  :global([data-notebook-chart-embed]) .chipMore {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+
 /* ── PHONE: THE STRIP COLLAPSES TO DOTS ────────────────────────────────────
  *
  * ⚠️ CSS `@media`, NOT `useMediaQuery` — the hook seeds from `matchMedia` at

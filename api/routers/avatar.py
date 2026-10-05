@@ -5,10 +5,11 @@ Stores as /data/avatars/{user_id}.webp (200x200 max, Pillow conversion).
 
 import os
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from api.middleware.auth_middleware import get_current_user
+from api.services import request_body_cap as body_cap
 
 router = APIRouter(prefix="/api/auth", tags=["avatar"])
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/auth", tags=["avatar"])
 # been here, so production with nothing set resolves byte-identically.
 AVATAR_DIR = Path(os.environ.get("AVATARS_DIR", "/data/avatars"))
 MAX_SIZE = 2 * 1024 * 1024  # 2 MB
+TOO_BIG_SENTENCE = "Image must be under 2 MB"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 # 1x1 transparent PNG pixel
@@ -27,10 +29,19 @@ _TRANSPARENT_PIXEL = (
 )
 
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+_AVATAR_UPLOAD = body_cap.capped_upload("file", lambda: MAX_SIZE, lambda: TOO_BIG_SENTENCE)
+
+
 @router.post("/avatar")
 async def upload_avatar(
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_AVATAR_UPLOAD),
 ):
     """Upload or replace the authenticated user's avatar."""
     if file.content_type not in ALLOWED_TYPES:
@@ -38,7 +49,7 @@ async def upload_avatar(
 
     data = await file.read()
     if len(data) > MAX_SIZE:
-        raise HTTPException(400, "Image must be under 2 MB")
+        raise HTTPException(400, TOO_BIG_SENTENCE)
 
     # Convert + resize with Pillow
     from PIL import Image

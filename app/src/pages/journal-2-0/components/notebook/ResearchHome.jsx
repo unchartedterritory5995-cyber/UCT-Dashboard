@@ -21,6 +21,7 @@ import { passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
+import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -345,7 +346,13 @@ export default function ResearchHome({
     const canAddSample = onboarding && isPaid && !sample
     return (
       <div className={styles.firstRun}>
-        <h2 className={styles.firstRunTitle}>Welcome to your Notebook</h2>
+        {/* W14-keys: with the wave-14 switch on, the heading is where focus lands when the
+            auto-started base tour closes with nothing to hand focus back to (NotebookTour.jsx),
+            so the next Tab is "Start a note". Script-focusable only; off, it is the old heading. */}
+        <h2 className={styles.firstRunTitle}
+          {...(welcomeExtras ? { tabIndex: -1, [FIRST_RUN_HEADING_ATTR]: '' } : {})}>
+          Welcome to your Notebook
+        </h2>
         <p className={styles.firstRunHint}>
           This is where your research lives — theses, company notes, captured facts, and everything
           connected to your trades. It fills in as you use it.

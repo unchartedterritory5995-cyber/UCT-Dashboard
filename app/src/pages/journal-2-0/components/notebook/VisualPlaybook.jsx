@@ -12,8 +12,15 @@
  * R3 (ruling): under 10 trades the stats read "too few to judge" and sit behind a reveal;
  * 10-24 read "thin sample" with a range; 25 and up are shown plainly.
  *
- * The regime filter is a labelled, disabled placeholder until lane 13E's frozen entry context
- * exists — the server says so in `regime.reason`, and this renders that sentence.
+ * The regime filter reads 13E's frozen entry context (wave 14 playbook fixes): when the server
+ * answers `regime.available`, the select offers its `values` with their counts; otherwise it is
+ * the labelled, disabled placeholder that renders the server's `regime.reason` sentence.
+ *
+ * ⛔ IT OPENS ON THE WHOLE PLAYBOOK (wave 14 playbook fixes, item 2). Opened from a chart's
+ * fingerprint panel it used to PRE-SELECT that chart's own setup tag, so a member with five
+ * tagged charts saw three (13I-2's walk recorded `cards_unfiltered: 3` and blamed indexing
+ * timing; its own screenshot shows "VCP (3)" selected). The chart's tag is now a one-tap
+ * shortcut beside the filters, never an invisible starting filter.
  *
  * Mounted as a sheet from the fingerprint panel. `VisualPlaybookBody` is the page body for the
  * integrator's route (App.jsx and My Playbook's link arrive after lane 13B, plan section 5.5).
@@ -40,6 +47,8 @@ export const RANGE_INPUTS = Object.freeze([
 
 const CARD_FIELDS = ['rs_rank', 'base_depth_pct', 'adr_pct', 'pole_pct']
 const OUTCOME_WORDS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven', none: 'No trade linked' }
+const REGIME_WORDS = { green: 'Green', amber: 'Amber', orange: 'Orange', red: 'Red' }
+const regimeWord = (r) => REGIME_WORDS[r] || r
 
 async function getJson(url) {
   const res = await fetch(url, { credentials: 'include' })
@@ -52,12 +61,13 @@ async function getJson(url) {
 }
 
 /** The query string for a filter state. Pure, so the rail can read it. */
-export function buildPlaybookQuery({ setupChoice = '', outcome = '', timeframe = '', ranges = {} } = {}) {
+export function buildPlaybookQuery({ setupChoice = '', outcome = '', timeframe = '', ranges = {}, regime = '' } = {}) {
   const q = new URLSearchParams()
   if (setupChoice.startsWith('tag:')) q.append('setup', setupChoice.slice(4))
   else if (setupChoice.startsWith('family:')) for (const t of tagsInFamily(setupChoice.slice(7))) q.append('setup', t)
   if (outcome) q.set('outcome', outcome)
   if (timeframe) q.set('timeframe', timeframe)
+  if (regime) q.set('regime', regime)
   for (const { field, bound } of RANGE_INPUTS) {
     const raw = ranges[field]
     if (raw === '' || raw == null) continue
@@ -122,6 +132,11 @@ function Card({ card }) {
           <span className={styles.sym}>{card.symbol}</span> <span className={styles.tag}>{card.setupTag}</span>
         </p>
         <p className={styles.cardMeta}>{card.asOf} · {card.timeframe}{card.fingerprintAsOf ? ` · fingerprint ${card.fingerprintAsOf}` : ' · not fingerprinted yet'}</p>
+        {card.regime && (
+          <p className={styles.cardMeta} data-testid="playbook-card-regime">
+            {card.regime.value ? `Regime at entry: ${regimeWord(card.regime.value)}` : 'Regime at entry: not known'}
+          </p>
+        )}
         <ul className={styles.cardFields} aria-label="Fingerprint" data-tour="vp-card-fields">
           {CARD_FIELDS.map((f) => (
             <li key={f}>{FIELD_LABELS[f]} {formatFingerprintValue(f, card.values?.[f]) ?? 'n/a'}</li>
@@ -142,11 +157,13 @@ function Card({ card }) {
 
 export function VisualPlaybookBody({ initialSetup = null }) {
   const tag = canonicalSetupTag(initialSetup)
-  const [setupChoice, setSetupChoice] = useState(tag ? `tag:${tag}` : '')
+  // ⛔ '' — the WHOLE playbook. Never `tag:${tag}` (see the file header, item 2).
+  const [setupChoice, setSetupChoice] = useState('')
   const [outcome, setOutcome] = useState('')
   const [timeframe, setTimeframe] = useState('')
+  const [regime, setRegime] = useState('')
   const [ranges, setRanges] = useState({})
-  const query = buildPlaybookQuery({ setupChoice, outcome, timeframe, ranges })
+  const query = buildPlaybookQuery({ setupChoice, outcome, timeframe, ranges, regime })
   // Typing a number fetches once it settles, not per keystroke.
   const [settled, setSettled] = useState(query)
   useEffect(() => {
@@ -157,6 +174,8 @@ export function VisualPlaybookBody({ initialSetup = null }) {
   const { data, error, isLoading, mutate } = useSWR(`${BASE}/cards${settled}`, getJson, { revalidateOnFocus: false, keepPreviousData: true })
   const facets = data?.facets || { setups: {}, timeframes: {} }
   const tagOptions = useMemo(() => Object.keys(facets.setups || {}).sort(), [facets.setups])
+  const regimeInfo = data?.regime
+  const totalTagged = Object.values(facets.setups || {}).reduce((a, n) => a + n, 0)
 
   return (
     <div className={styles.body} data-testid="visual-playbook">
@@ -190,13 +209,26 @@ export function VisualPlaybookBody({ initialSetup = null }) {
             {Object.keys(facets.timeframes || {}).sort().map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
-        <label className={styles.field}>
-          <span>Market regime</span>
-          <select disabled value="" aria-describedby="vp-regime-why">
-            <option value="">Not available yet</option>
-          </select>
-          <span id="vp-regime-why" className={styles.hint}>{data?.regime?.reason || 'Regime filtering is not built yet.'}</span>
-        </label>
+        {regimeInfo?.available ? (
+          <label className={styles.field}>
+            <span>Market regime</span>
+            <select value={regime} onChange={(e) => setRegime(e.target.value)} aria-describedby="vp-regime-why">
+              <option value="">Any regime</option>
+              {(regimeInfo.values || []).map((r) => (
+                <option key={r} value={r}>{regimeWord(r)} ({regimeInfo.facets?.[r] ?? 0})</option>
+              ))}
+            </select>
+            <span id="vp-regime-why" className={styles.hint}>The regime frozen on the trade's entry day.</span>
+          </label>
+        ) : (
+          <label className={styles.field}>
+            <span>Market regime</span>
+            <select disabled value="" aria-describedby="vp-regime-why">
+              <option value="">Not available yet</option>
+            </select>
+            <span id="vp-regime-why" className={styles.hint}>{data?.regime?.reason || 'Regime filtering is not built yet.'}</span>
+          </label>
+        )}
         {RANGE_INPUTS.map(({ field, label }) => (
           <label key={field} className={styles.field}>
             <span>{label}</span>
@@ -205,6 +237,26 @@ export function VisualPlaybookBody({ initialSetup = null }) {
           </label>
         ))}
       </form>
+
+      {tag && data && (
+        <p className={styles.muted} data-testid="playbook-scope">
+          {setupChoice === `tag:${tag}` ? (
+            <>
+              Showing your {tag} charts.{' '}
+              <button type="button" className={styles.linkBtn} onClick={() => setSetupChoice('')}>
+                Show all {totalTagged} tagged charts
+              </button>
+            </>
+          ) : setupChoice === '' ? (
+            <>
+              All {totalTagged} tagged {totalTagged === 1 ? 'chart' : 'charts'}.{' '}
+              <button type="button" className={styles.linkBtn} onClick={() => setSetupChoice(`tag:${tag}`)}>
+                Only this chart's setup ({tag})
+              </button>
+            </>
+          ) : null}
+        </p>
+      )}
 
       {error && (
         <p className={styles.error} role="alert">
@@ -222,6 +274,11 @@ export function VisualPlaybookBody({ initialSetup = null }) {
               {n} {n === 1 ? 'chart was' : 'charts were'} left out: no {FIELD_LABELS[f] || f} in the fingerprint.
             </p>
           ))}
+          {regimeInfo?.available && regimeInfo.selected && regimeInfo.excludedUnknown > 0 && (
+            <p className={styles.muted}>
+              {regimeInfo.excludedUnknown} {regimeInfo.excludedUnknown === 1 ? 'chart was' : 'charts were'} left out: no market regime was frozen at {regimeInfo.excludedUnknown === 1 ? 'its' : 'their'} entry.
+            </p>
+          )}
           {data.pending > 0 && <p className={styles.muted}>{data.pending} more charts are still being fingerprinted.</p>}
           {data.cards.length ? (
             <ul className={styles.grid} aria-label="Tagged charts" data-tour="vp-grid">

@@ -67,7 +67,7 @@ function settingsSections() {
 }
 
 /** Every <Link to> in a topic:'notebook' article, and in the helpers those articles use. */
-const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection']
+const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection', 'WhatsNewSection']
 function notebookLinks() {
   const links = []
   const collect = (node) => visit(node, (n) => {
@@ -247,8 +247,18 @@ describe('the gated articles', () => {
 
 // Wave 14 (lane W14-0): Help > Walkthroughs, reading the tour registry.
 describe('Walkthroughs (the tour registry\'s Help list)', () => {
+  // W14-C1: task reminders is a kill switch that reads ON when a payload omits it, and its
+  // tour is listed whenever it is on; these two cases pin it OFF to isolate the base tour.
   it('hidden while the onboarding gate is off', async () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: false })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: false })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    expect(screen.queryByText('Walkthroughs')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
+  })
+
+  it('W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14)', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false, notebook_formulas_enabled: true })
     renderSupport()
     await quickAnswer('How do I get started with the Notebook?')
     expect(screen.queryByText('Walkthroughs')).toBeNull()
@@ -256,7 +266,7 @@ describe('Walkthroughs (the tour registry\'s Help list)', () => {
   })
 
   it('lists the base tour by name, with a Replay link into the Notebook, independent of seen-state', async () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true })
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
     renderSupport()
     await quickAnswer('How do I get started with the Notebook?')
     const heading = screen.getByText('Walkthroughs')

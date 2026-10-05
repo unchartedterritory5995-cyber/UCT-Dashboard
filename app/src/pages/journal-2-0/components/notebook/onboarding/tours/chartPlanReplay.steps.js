@@ -1,15 +1,15 @@
 // Tour `chart-plan-replay` (W14-B2, plan 4.2 row 14; D6: the second of two chart-plan tours).
 // Anchors live in WidgetEmbedView.jsx (the chart, its Replay button and timeframe switch) and
 // BarReplay.jsx (the replay's own controls), the capability's own components (wave 13 lane
-// 13H-2). The replay controls are on screen only while a replay is open; the engine skips
-// that step otherwise.
+// 13H-2). The replay controls are on screen only while a replay is open: the Replay step
+// waits for the member to open it (`waitFor`, W14-C1); the engine skips that step otherwise.
 const EMBED = 'components/notebook/WidgetEmbedView.jsx'
 const REPLAY = 'components/notebook/BarReplay.jsx'
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 
 export const STEPS = Object.freeze([
   step('chart', 'chart-embed', EMBED),
-  step('replay', 'chart-plan-replay', EMBED),
+  Object.freeze({ id: 'replay', anchor: 'chart-plan-replay', file: EMBED, waitFor: 'chart-replay-controls' }),
   step('controls', 'chart-replay-controls', REPLAY),
   step('context', 'chart-embed-timeframe', EMBED),
 ])
@@ -21,7 +21,7 @@ export const COPY = Object.freeze({
   }),
   replay: Object.freeze({
     title: 'Replay',
-    body: 'Replay opens the bars after the note with your entry, stop and target drawn as lines, so you can test the plan without hindsight.',
+    body: 'Replay opens the bars after the note with your entry, stop and target drawn as lines, so you can test the plan without hindsight. Choose Replay to continue.',
   }),
   controls: Object.freeze({
     title: 'Step through it',

@@ -9,7 +9,8 @@ import io
 import json
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
+from api.services import request_body_cap as body_cap
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
@@ -238,6 +239,18 @@ NOTEBOOK_FLAGS = {
     # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
     # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
     "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
+    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
+    # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
+    # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
+    # payload key only lets the client see the state; the capability's own server read is
+    # unchanged and remains the authority over what the capability does.
+    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
+    #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
@@ -2246,12 +2259,31 @@ def get_faq_votes(user: dict = Depends(get_current_user)):
 #   3. Thread rendering reads GET /tickets/{ticket_id}/attachments and inlines
 #      matching rows below their parent message
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+def _ticket_cap() -> int:
+    from api.services import support_attachments as att
+    return att.MAX_SOURCE_BYTES
+
+
+def _ticket_sentence() -> str:
+    from api.services import support_attachments as att
+    return att.TOO_BIG_SENTENCE
+
+
+_TICKET_UPLOAD = body_cap.capped_upload("file", _ticket_cap, _ticket_sentence)
+
+
 @router.post("/tickets/{ticket_id}/messages/{message_id}/attachments")
 async def upload_ticket_attachment(
     ticket_id: str,
     message_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_TICKET_UPLOAD),
 ):
     """Attach an image to a ticket message. Owner-only."""
     from api.services import support_attachments as att

@@ -1,9 +1,10 @@
-# Notebook: beta handoff (2026-10-03)
+# Notebook: beta handoff (2026-10-04)
 
 This is everything the Notebook still needs that a build cannot do. It is meant as the input to
 the owner's own beta-testing plan. Each row names what closes it and where the kit already is.
 
-**Where the build stands:** waves 5-13 are built. The parity scorecard reads 41 of 61 clauses
+**Where the build stands:** waves 5-14 are built (wave 14, onboarding, is integrated on
+`feat/notebook-w14-int` and still dark; see 1c). The parity scorecard reads 41 of 61 clauses
 MET and 3 of 16 standards at bar (`docs/notebook/parity-scorecard.md`, re-scored by wave 13 lane
 13SC). Wave 13 added no new clause or gap-ledger row: it targets a different competitive
 bar (trading journals and charting platforms, not Notion, Evernote or Obsidian), which is tracked
@@ -46,14 +47,14 @@ All are read per request; unset means off. Turn on one change at a time, then ch
 | `NOTEBOOK_AI_ACTIONS_ENABLED=1` | "Ask Notebook to do something" (plan, approve each change, undo) | ARMED on web, 2026-10-03 |
 | `NOTEBOOK_FORMULAS_ENABLED=1` | formula and rollup properties, the position-tracker template's formulas | ready: the quiet 50k reading passed, every operation finishes well under the 100 ms budget (`docs/notebook/formulas-and-rollups.md`, Scale section, run 3) |
 | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1` | community template gallery (admin approves before listing) | after this wave's PR merges |
-| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a), and the upload-size gap fixed first (census row :254 in `security-review-notebook-routes.md`: an upload with no Content-Length is spooled before the 90 MiB cap) |
+| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a, the owner's). The upload-size gap is closed (wave 14: the body is capped while it is read; `docs/notebook/wave14-upload-cap.md`) |
 
 ## 1b. Wave 13 switches (built, all still dark)
 
 Wave 13 built fourteen new member-facing pieces, each behind its own switch, each off by default.
 None of them are turned on yet. The table says what a member sees once a switch is flipped, and
-what has to be true first. The order below it is a proposal, not a decision: ruling P6 says the
-order the switches get flipped in after the wave-13 work merges is the owner's call.
+what has to be true first. The proposed order to flip them in is in section 1d, and it is a
+proposal, not a decision: ruling P6 says the order is the owner's call.
 
 | switch | what members get | what has to be true first |
 |---|---|---|
@@ -72,37 +73,157 @@ order the switches get flipped in after the wave-13 work merges is the owner's c
 | `NOTEBOOK_THESIS_CHIPS_ENABLED=1` | A small chip on a stock's row in Open Positions or Holdings when the member has written about it: whether their thesis is Watching, Active, Invalidated or Closed, and the levels from that note. Tap or hover to preview and jump in. | Reads the same level data the note-resurfacing switch above is built on; natural to turn on together or right after it. |
 | `NOTEBOOK_REVIEW_DRAFTS_ENABLED=1` | One click builds a filled-in daily, weekly or monthly review note: trades and profit and loss, the discipline record from plan grading, how each setup did against the member's own past average, and an automatic "leak finder" that calls out costly habits (like sizing up right after a loss), each finding naming the exact trades behind it. | Reads plan grading and entry context, so turn those two on first. See the open item below about the Compass quote: that one part could not be checked in this environment and should be re-checked before fully trusting it. |
 
-### Proposed arming order, with the reasoning
+### Proposed arming order
 
-This is a suggestion for the order to flip the fourteen switches above, in the owner's own time,
-one at a time with a check of the site after each one, the same way section 1 is run. The
-reasoning is: build the plumbing before the rooms that use it, and anything that composes several
-other features goes last.
-
-1. **Technical fingerprint.** Nothing changes for members yet, but three later rows read it.
-2. **Plan grading.** A self-contained feature, and the review drafts switch (row 14) needs it.
-3. **Entry context.** A self-contained feature, and review drafts needs it too.
-4. **Chart plan in notes.** The flagship: the chart becomes the plan. Stands on its own.
-5. **Visual playbook.** Needs the fingerprint (step 1) and plan grading (step 2) already on.
-6. **Active setups board.** Needs the chart-drawn plan (step 4) already on.
-7. **Find more like this.** Needs the fingerprint (step 1). Flip it, then wait for one overnight
-   run before expecting results.
-8. **My Playbook.** Stands on its own; grouped here with the other edge and stats features.
-9. **Earnings prep.** Stands on its own; starts the research track.
-10. **Save a call-transcript passage.** Stands on its own.
-11. **Passed setups.** Stands on its own.
-12. **Your notes come back when it matters.** Stands on its own, but thesis chips (step 13) read
-    the same level data, so put this one first.
-13. **Thesis status chip on rows.** Reads the level data step 12 builds.
-14. **Reviews that write themselves.** Last on purpose: it reads plan grading (step 2), entry
-    context (step 3), and the resurfaced-notes list (step 12), so everything it draws from should
-    already be live.
+Moved to section 1d, which merges these fourteen switches with the waves 11, 12 and 14
+switches into one proposed order (they are steps 3 to 16 there, unchanged).
 
 ## 1c. Wave 14 switches (built, still dark)
 
+Wave 14 is the Notebook's onboarding: a better first-run welcome, a "Get started" checklist, a
+short tour for each feature, and one worked example per feature in the sample notebook. It adds
+**one** new switch, `NOTEBOOK_GETTING_STARTED_ENABLED`, and it is the wave-14 switch: with it off,
+nothing wave 14 adds reaches a member (controller ruling, 2026-10-05; proven by a flags-off render
+parity, `docs/notebook/wave14-w14-c1.md` section 7). The feature tours have no switch of their
+own: each needs this switch (and `NOTEBOOK_ONBOARDING_ENABLED`) AND the switch of the feature it
+explains.
+
 | switch | what members get | what has to be true first |
 |---|---|---|
-| `NOTEBOOK_GETTING_STARTED_ENABLED=1` | A short "Get started" list on Research Home: write your first note, start one from a template, open the sample notebook, and take each tour whose feature is on. A step ticks itself when the member actually does the thing (never by clicking the list) and stays ticked. The member can hide it, and once hidden or finished it never comes back. `docs/notebook/wave14-w14-d.md` | `NOTEBOOK_ONBOARDING_ENABLED` must also be on (it is armed on web); the list shows only when both are. |
+| `NOTEBOOK_GETTING_STARTED_ENABLED=1` | Three things, together. **(1) A preview** on the empty-Notebook welcome screen, "What your Notebook can do": one plain line for each feature that is switched on for this member, and nothing about a feature that is off. **(2) A sample promotion**, one sentence beside **Add a sample notebook**: it puts example notes in their own folder and removes them in one click. **(3) A "Get started" list** on Research Home: write your first note, start one from a template, open the sample notebook, and "Take the ... tour" for each tour whose feature is on. A step ticks itself when the member really does the thing (never by clicking the list) and stays ticked. The member can hide it; once hidden or finished it never comes back. `docs/notebook/wave14-w14-a.md`, `docs/notebook/wave14-w14-d.md` | `NOTEBOOK_ONBOARDING_ENABLED` must also be on (it is armed on web); nothing in this row shows unless both are. With this switch off, the welcome screen is byte-for-byte the wave-8 one (proven in `wave14-integration.md` section 2). |
+
+### The feature tours (no switch of their own)
+
+Twenty short tours (3 to 6 steps each) plus the wave-8 "Notebook basics" tour. A tour appears
+only while `NOTEBOOK_GETTING_STARTED_ENABLED` (with `NOTEBOOK_ONBOARDING_ENABLED`) AND its
+feature's switch are on: in Help (`/support`) under **Walkthroughs** with a **Replay** button,
+under **What's new** until the member takes it, as a one-time offer in the Notebook, and as a
+"Take the ... tour" step in an open Get started list. The wave-8 "Notebook basics" tour is
+unchanged and rides `NOTEBOOK_ONBOARDING_ENABLED` alone, as before.
+
+The tours for features that are already on (Writing help, Add an image or Word document, Publish
+and share a note, Task reminders) appear only once `NOTEBOOK_GETTING_STARTED_ENABLED` is on. A
+wave-14 deploy with that switch off changes nothing members see. (An earlier version of this
+section said those four would appear as soon as wave 14 deployed; that was true before the
+2026-10-05 ruling and is no longer.)
+
+| tour | rides | that switch today (ledger) |
+|---|---|---|
+| Notebook basics (wave 8, unchanged) | `NOTEBOOK_ONBOARDING_ENABLED` | armed |
+| Writing help | `NOTEBOOK_WRITING_HELP_ENABLED` | armed |
+| Add an image or Word document | `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` | armed |
+| Publish and share a note | `NOTEBOOK_PUBLISH_ENABLED` | armed |
+| Task reminders | `NOTEBOOK_TASK_REMINDERS_ENABLED` | armed |
+| Template gallery | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` | dark |
+| Formulas and rollups | `NOTEBOOK_FORMULAS_ENABLED` | dark |
+| Search by meaning | `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` | dark (HOLD, vendor letter) |
+| The technical fingerprint | `NOTEBOOK_TA_FINGERPRINT_ENABLED` | dark |
+| Plan versus execution grading | `NOTEBOOK_PLAN_GRADING_ENABLED` | dark |
+| Entry context card | `NOTEBOOK_ENTRY_CONTEXT_ENABLED` | dark |
+| Chart plan basics; Chart plan replay and context | `NOTEBOOK_CHART_PLAN_ENABLED` | dark |
+| Visual playbook (also needs `NOTEBOOK_TA_FINGERPRINT_ENABLED`: it opens from the fingerprint panel) | `NOTEBOOK_VISUAL_PLAYBOOK_ENABLED` | dark |
+| Active setups and find more like this | `NOTEBOOK_SETUPS_BOARD_ENABLED` | dark |
+| My Playbook | `NOTEBOOK_PLAYBOOK_ENABLED` | dark |
+| Reporting soon and earnings prep | `NOTEBOOK_EARNINGS_PREP_ENABLED` | dark |
+| Transcript passages | `NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` | dark |
+| Passed setups | `NOTEBOOK_PASSED_SETUPS_ENABLED` | dark |
+| A note resurfaces (a two-step explainer over the "What you wrote then" sheet; no Replay) | `AWARENESS_NOTE_RESURFACE_ENABLED` | dark |
+| Reviews that write themselves | `NOTEBOOK_REVIEW_DRAFTS_ENABLED` | dark |
+
+"Ledger" is `docs/feature_flags.json`, which records intent and cannot see Railway. Check the
+Railway Variables before relying on a row.
+
+**Merged on the integration branch:** lane W14-C2 adds the "offer once" prompt (when a feature
+is on and its tour has never been taken, the Notebook offers it once, one offer per browser-tab
+session, never while a note is open; an accepted offer that cannot open is not spent) and Help's
+**What's new** list (the tours a member has not taken yet). Both obey the wave-14 switch above.
+See `docs/notebook/onboarding.md` and `docs/notebook/wave14-w14-c2.md`.
+
+**The sample notebook and dark features.** With `NOTEBOOK_GETTING_STARTED_ENABLED` off, adding the
+sample notebook writes exactly the wave-8 five notes, as before wave 14. With it on, adding the
+sample also writes one worked example per feature (an untraded chart plan, an active setup, a thesis, a passed setup, an earnings-prep
+draft, a quoted call passage). An example for a feature whose switch is off sits quietly in its
+note and shows nowhere else; arming the feature is what makes it appear on that feature's screen.
+No example is ever a trade, and none sends a notice: the resurfacing example is written inside
+its thesis note only, never into the Compass inbox (`docs/notebook/wave14-docs.md`).
+
+### Arming wave 14, one switch at a time
+
+1. W14-C2 is merged (above).
+2. Arm the features you want live first (section 1d). Their tours wait for step 3.
+3. Then `NOTEBOOK_GETTING_STARTED_ENABLED=1`: the preview, the Get started list, the sample
+   examples and every armed feature's tour arrive together. Arming it last means a new member's
+   preview and Get started list name every feature that is already on. A member who later hides or finishes the
+   list never sees it again; a feature armed after that reaches them through the offer prompt and
+   What's new instead.
+
+**How to check after flipping `NOTEBOOK_GETTING_STARTED_ENABLED`** (a test account with no notes):
+
+- Notebook, Research Home: under the usual welcome buttons, "What your Notebook can do" lists
+  only features that are on; the sample sentence sits under **Add a sample notebook**; the **Get
+  started** card reads "0 of N done".
+- Write a note and come back: "Write your first note" is ticked and stays ticked after a reload.
+- Press **Hide**: the card is gone, and stays gone after a reload.
+- If anything is wrong, unset the switch: the welcome screen returns to exactly what it was.
+
+**How to check after flipping any feature switch** (the tour half, once
+`NOTEBOOK_GETTING_STARTED_ENABLED` is on): open Help (`/support`). Its tour is listed under
+Walkthroughs; **Replay** opens it at step one on the screen it explains. A
+tour for a feature that is still off is never listed.
+
+## 1d. Proposed overall arming order (every dark Notebook switch from waves 11-14)
+
+This is a suggestion, not a decision: ruling P6 leaves the order, and the timing, to the owner.
+It replaces the wave-13-only 14-step list that used to sit under 1b; those fourteen steps are
+steps 3 to 16 below, unchanged in order and reasoning. Flip one switch at a time, in the owner's
+own time, with a check of the site after each one, the same way section 1 is run. The reasoning
+is the same throughout: build the plumbing before the rooms that use it, anything that composes
+several other features goes later, and the onboarding switch goes last so it can name everything
+already on. Each feature's tour (1c) arms with it once step 17 is on.
+
+**Waves 11 and 12 (self-contained, ready)**
+
+1. **Formulas and rollups** (`NOTEBOOK_FORMULAS_ENABLED`, wave 11). Ready: the scale reading
+   passed (section 1). Stands on its own.
+2. **Community template gallery** (`NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, wave 12). Stands on its
+   own; nothing is listed until an admin approves it.
+
+**Wave 13 (the trading and research features, 1b)**
+
+3. **Technical fingerprint.** Nothing changes for members yet, but three later rows read it.
+4. **Plan grading.** A self-contained feature, and the review drafts switch (step 16) needs it.
+5. **Entry context.** A self-contained feature, and review drafts needs it too.
+6. **Chart plan in notes.** The flagship: the chart becomes the plan. Stands on its own.
+7. **Visual playbook.** Needs the fingerprint (step 3) and plan grading (step 4) already on.
+8. **Active setups board.** Needs the chart-drawn plan (step 6) already on.
+9. **Find more like this.** Needs the fingerprint (step 3). Flip it, then wait for one overnight
+   run before expecting results.
+10. **My Playbook.** Stands on its own; grouped here with the other edge and stats features.
+11. **Earnings prep.** Stands on its own; starts the research track.
+12. **Save a call-transcript passage.** Stands on its own.
+13. **Passed setups.** Stands on its own.
+14. **Your notes come back when it matters** (`AWARENESS_NOTE_RESURFACE_ENABLED`). Stands on its
+    own, but thesis chips (step 15) read the same level data, so put this one first.
+15. **Thesis status chip on rows.** Reads the level data step 14 builds.
+16. **Reviews that write themselves.** Last of the features on purpose: it reads plan grading
+    (step 4), entry context (step 5), and the resurfaced-notes list (step 14), so everything it
+    draws from should already be live.
+
+**Wave 14 (onboarding, 1c)**
+
+17. **Getting started** (`NOTEBOOK_GETTING_STARTED_ENABLED`), the wave-14 switch: the preview,
+    the Get started list, the sample examples and every feature tour. W14-C2 is merged (1c).
+    Last, so a new member's preview and Get started list name every feature that is already on.
+    If the owner wants it sooner, it is safe at any point: it only ever names what is on.
+
+**Held, not in the order**
+
+- `NOTEBOOK_VOICE_NOTES_ENABLED` (wave 11): HOLD for the OpenAI zero-retention letter and the
+  upload-size fix (section 1).
+- `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` (wave 7, listed because its tour arrived in wave 14): HOLD
+  for the same vendor letter (section 2, row 8a).
+- `NOTEBOOK_ATTACHMENTS_ON`, `NOTEBOOK_CONFLICT_UX_ON`, `NOTEBOOK_OFFLINE_READ_ON` (wave K): never
+  arm; the features behind them are not built.
 
 ## 2. What only real people, devices or vendors can close
 
@@ -137,8 +258,8 @@ NOT-VERIFIED until a person uses them on the live site:
 - Position tracker: formula fields are set up only from the Notebook's own picker, not from the
   joystick hub's Templates action (owner: fine as is, 2026-10-02).
 - Voice notes stay dark until the vendor letter (above).
-- Wave 13's switch-arming order (1b above) is a proposal, not a decision: ruling P6 leaves the
-  order, and the timing, to the owner.
+- The switch-arming order for waves 11-14 (1d above) is a proposal, not a decision: ruling P6
+  leaves the order, and the timing, to the owner.
 
 ## 5. What the wave 13 lanes left open
 

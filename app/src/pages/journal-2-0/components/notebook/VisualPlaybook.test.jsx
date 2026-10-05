@@ -123,6 +123,59 @@ describe('VisualPlaybookBody', () => {
     expect(screen.queryByText(/No tagged charts match/)).toBeNull()
   })
 
+  // ── wave 14 playbook fixes, item 2 ────────────────────────────────────────
+  // Opened from a chart's panel the sheet pre-selected that chart's setup tag, so a member
+  // with 5 tagged charts saw 3 (the 13I-2 walk's `cards_unfiltered: 3`, screenshot "VCP (3)").
+  it('⭐ opens on the WHOLE playbook even when opened from a tagged chart (fails on the old pre-filter)', async () => {
+    global.fetch = vi.fn(() => respond(200, payload({ facets: { setups: { VCP: 3, 'Flat Base Breakout': 1, 'Bull Flag': 1 }, timeframes: { D: 5 } } })))
+    renderBody({ initialSetup: 'VCP' })
+    await screen.findByTestId('playbook-card')
+    expect(String(global.fetch.mock.calls[0][0])).toBe('/api/j2/notebook-visual-playbook/cards')
+    expect(screen.getByLabelText('Setup').value).toBe('')
+    expect(screen.getByTestId('playbook-scope').textContent).toContain('All 5 tagged charts')
+  })
+
+  it("the chart's own setup is a one-tap shortcut, and the way back names the whole count", async () => {
+    global.fetch = vi.fn(() => respond(200, payload({ facets: { setups: { VCP: 3, 'Bull Flag': 2 }, timeframes: { D: 5 } } })))
+    renderBody({ initialSetup: 'VCP' })
+    await screen.findByTestId('playbook-card')
+    fireEvent.click(screen.getByRole('button', { name: "Only this chart's setup (VCP)" }))
+    await waitFor(() => {
+      expect(String(global.fetch.mock.calls.at(-1)[0])).toBe('/api/j2/notebook-visual-playbook/cards?setup=VCP')
+    }, { timeout: 2000 })
+    fireEvent.click(await screen.findByRole('button', { name: 'Show all 5 tagged charts' }))
+    expect(screen.getByLabelText('Setup').value).toBe('')
+  })
+
+  // ── wave 14 playbook fixes, item 1: the regime filter reads 13E ──────────
+  const regimeOn = (over = {}) => ({ available: true, values: ['green', 'amber', 'orange', 'red'], selected: null,
+    facets: { green: 1, amber: 2, orange: 0, red: 0 }, unknown: 1, excludedUnknown: 0, ...over })
+
+  it('with 13E on, the regime select is live, counted, and its choice reaches the server', async () => {
+    global.fetch = vi.fn(() => respond(200, payload({ regime: regimeOn(),
+      cards: [card({ regime: { value: 'amber', status: 'captured', entryDay: '2026-09-30' } })] })))
+    renderBody()
+    const c = await screen.findByTestId('playbook-card')
+    expect(c.textContent).toContain('Regime at entry: Amber')
+    const sel = screen.getByLabelText(/Market regime/)
+    expect(sel.disabled).toBe(false)
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Any regime', 'Green (1)', 'Amber (2)', 'Orange (0)', 'Red (0)'])
+    fireEvent.change(sel, { target: { value: 'amber' } })
+    await waitFor(() => {
+      expect(String(global.fetch.mock.calls.at(-1)[0])).toBe('/api/j2/notebook-visual-playbook/cards?regime=amber')
+    }, { timeout: 2000 })
+  })
+
+  it('charts a regime filter left out for an unknown regime are counted out loud', async () => {
+    global.fetch = vi.fn(() => respond(200, payload({ regime: regimeOn({ selected: 'green', excludedUnknown: 2 }) })))
+    renderBody()
+    expect(await screen.findByText('2 charts were left out: no market regime was frozen at their entry.')).toBeTruthy()
+  })
+
+  it('buildPlaybookQuery carries the regime', () => {
+    expect(buildPlaybookQuery({ regime: 'red' })).toBe('?regime=red')
+  })
+
   it('the sheet renders nothing with the gate off', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_visual_playbook_enabled: false })

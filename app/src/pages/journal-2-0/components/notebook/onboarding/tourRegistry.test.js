@@ -11,7 +11,7 @@ import { TOUR_STEP_COPY } from './tourCopy'
 import { TOUR_START_STATE } from './tourControl'
 import {
   BASE_TOUR_ID, ENTRY_FIELDS, NOTEBOOK_ROOT, OPTIONAL_FIELDS, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours,
-  startPath, startState,
+  START_ROUTES, OTHER_TOURS, startKind, tourLive, startPath, startProblem, startState,
 } from './tourRegistry'
 import { TRACK_TOURS } from './tours'
 
@@ -28,8 +28,9 @@ describe('the registry itself', () => {
       expect(Object.keys(t).filter((k) => !OPTIONAL_FIELDS.includes(k)).sort(), `${t.id} fields`)
         .toEqual(['flag', 'id', 'load', 'replayable', 'title'])
       if ('start' in t) {
-        expect(typeof t.start === 'string' && (t.start === NOTEBOOK_ROOT || t.start.startsWith(`${NOTEBOOK_ROOT}/`)
-          || t.start.startsWith(`${NOTEBOOK_ROOT}?`)), `${t.id} start ${JSON.stringify(t.start)} is not under ${NOTEBOOK_ROOT}`).toBe(true)
+        // W14-C1: one validator, the module's own (`startProblem`), never a restated rule.
+        expect(startProblem(t.start), `${t.id} start ${JSON.stringify(t.start)}`).toBeNull()
+        if (typeof t.start === 'object') expect(Object.isFrozen(t.start), `${t.id} start is not frozen`).toBe(true)
       }
       expect(typeof t.id).toBe('string')
       expect(typeof t.flag).toBe('string')
@@ -39,8 +40,8 @@ describe('the registry itself', () => {
     }
   })
 
-  it('`start` is the ONLY optional field', () => {
-    expect([...OPTIONAL_FIELDS]).toEqual(['start'])
+  it('`requires` and `start` are the ONLY optional fields (W14-C1)', () => {
+    expect([...OPTIONAL_FIELDS]).toEqual(['requires', 'start'])
   })
 
   it('ids are unique', () => {
@@ -231,7 +232,8 @@ describe('assembleRegistry: the entry shape', () => {
 // tours/index.js is the only shared file: every track it imports must be SPREAD
 // into TRACK_TOURS (an import nobody spreads is a track silently missing from
 // the registry), and every spread must name an import. Read by AST, never grep.
-const INDEX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'tours', 'index.js')
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const INDEX = path.join(HERE, 'tours', 'index.js')
 
 function indexWiring(src) {
   const ast = Parser.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
@@ -295,13 +297,127 @@ describe('the optional `start` location (plan 4.2: a tour starts at its screen)'
     expect(startPath(getTourEntry(BASE_TOUR_ID))).toBe('/journal/notebook')
   })
 
-  it.each([['/support'], ['/journal'], ['/journal/notebookx'], ['journal/notebook'], [42]])(
-    'refuses a start outside the Notebook (%s), naming the tour', (start) => {
-      expect(() => assembleRegistry([tour('base')], [tour('far', { start })])).toThrow(/"far"\) start must be a path under/)
-    },
-  )
+  // W14-C1: a start may name any KNOWN in-app page (START_ROUTES), or a note or a trade.
+  it.each([
+    ['/support'], ['/journal'], ['/journal/notebookx'], ['journal/notebook'], [42], [null],
+    ['/journal-2-0/trade/7'], ['/journal-2-0/position/AAPL'], ['https://example.com/journal/notebook'],
+    [{ note: 'someone-else' }], [{ note: 'sample:' }], [{ note: 'sample:Plan' }], [{ note: 'recent', embed: '' }],
+    [{ note: 'recent', extra: 1 }], [{ trade: 'oldest' }], [{ trade: 'recent', note: 'recent' }], [{}], [[]],
+  ])('refuses an unknown start (%j), naming the tour', (start) => {
+    expect(() => assembleRegistry([tour('base')], [tour('far', { start })])).toThrow(/"far"\) start is not a known start/)
+  })
+
+  it.each([
+    ...START_ROUTES.map((r) => [r]),
+    ['/journal/notebook?view=tasks'], ['/journal-2-0/playbook?x=1'],
+    [{ note: 'recent' }], [{ note: 'sample:plan' }], [{ note: 'sample:active_setup', embed: 'chart' }], [{ trade: 'recent' }],
+  ])('accepts a known start (%j)', (start) => {
+    expect(startProblem(start)).toBeNull()
+    const reg = assembleRegistry([tour('base')], [tour('ok', { start })])
+    expect(getTourEntry('ok', reg).start).toEqual(start)
+  })
+
+  it('startPath: a path start links to itself; a note start to the Notebook; a trade start to the trades list', () => {
+    const reg = assembleRegistry([tour('base')], [
+      tour('p', { start: '/journal-2-0/playbook' }),
+      tour('n', { start: { note: 'sample:plan', embed: 'chart' } }),
+      tour('t', { start: { trade: 'recent' } }),
+    ])
+    expect(startPath('p', reg)).toBe('/journal-2-0/playbook')
+    expect(startPath('n', reg)).toBe(NOTEBOOK_ROOT)
+    expect(startPath('t', reg)).toBe('/journal/trades')
+    expect(['p', 'n', 't'].map((id) => startKind(getTourEntry(id, reg)))).toEqual(['path', 'note', 'trade'])
+    expect(startKind(getTourEntry(BASE_TOUR_ID))).toBeNull()
+  })
+
+  it('every START_ROUTES page is a route App.jsx registers inside the authenticated Layout', () => {
+    // Read from the router, never restated: a route renamed in App.jsx turns this red.
+    const app = fs.readFileSync(path.resolve(HERE, '../../../../../App.jsx'), 'utf8')
+    const layoutAt = app.indexOf('<Route element={<Layout />}>')
+    expect(layoutAt, 'App.jsx no longer mounts Layout as a route element').toBeGreaterThan(0)
+    const inside = app.slice(layoutAt)
+    const journalNested = (p) => p.startsWith('/journal/') && inside.includes(`<Route path="${p.slice('/journal/'.length)}"`)
+      && inside.includes('<Route path="/journal" element={<JournalShellSelector />}>')
+    for (const r of START_ROUTES) {
+      const direct = inside.includes(`<Route path="${r}"`)
+      expect(direct || journalNested(r), `${r} is not a route inside Layout`).toBe(true)
+    }
+  })
+
+  it('OTHER_TOURS is the registry without the base tour, frozen, one array', () => {
+    expect(OTHER_TOURS.map((t) => t.id)).toEqual(TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID).map((t) => t.id))
+    expect(Object.isFrozen(OTHER_TOURS)).toBe(true)
+  })
 
   it('any OTHER extra field is still refused', () => {
     expect(() => assembleRegistry([tour('base')], [tour('x', { route: '/journal/notebook' })])).toThrow(/exactly the fields/)
+  })
+})
+
+// ── W14-C1: steps that wait for the member, and sample-note starts ───────────────
+describe('`waitFor` and `sample:<key>` are declarative and railed', () => {
+  it('a step `waitFor` names the anchor of a LATER step in the same tour (so the anchor rail covers it)', async () => {
+    let seen = 0
+    for (const t of TOUR_REGISTRY) {
+      const { steps } = await t.load()
+      steps.forEach((s, i) => {
+        expect(Object.keys(s).filter((k) => !['id', 'anchor', 'file', 'waitFor'].includes(k)), `${t.id}.${s.id} fields`).toEqual([])
+        if (!('waitFor' in s)) return
+        seen += 1
+        const later = steps.slice(i + 1).map((x) => x.anchor)
+        expect(later, `${t.id}.${s.id} waitFor ${s.waitFor} is not a later step's anchor`).toContain(s.waitFor)
+      })
+    }
+    expect(seen, 'non-vacuity: some tour declares waitFor').toBeGreaterThan(0)
+  })
+
+  it('every `sample:<key>` start is a key W14-E actually seeds (sample_examples.py), under its own prefix', () => {
+    const py = fs.readFileSync(path.resolve(HERE, '../../../../../../../api/services/journal_two/sample_examples.py'), 'utf8')
+    expect(py).toMatch(/^KEY_PREFIX = "sample-example:"$/m)
+    const keys = TOUR_REGISTRY.filter((t) => startKind(t) === 'note' && t.start.note.startsWith('sample:'))
+      .map((t) => t.start.note.slice('sample:'.length))
+    expect(keys.length, 'non-vacuity: some tour starts on a sample note').toBeGreaterThan(0)
+    for (const k of keys) expect(py, `sample key ${k} is never seeded`).toMatch(new RegExp(String.raw`_own_import\(\s*user_id, conn, "${k}"`))
+  })
+})
+
+// ── W14-C1 ruling: `requires`, and the one "may this tour reach the member" rule ──────
+describe('`requires` and tourLive', () => {
+  it('requires: a non-empty list of flag keys, else refused by tour name', () => {
+    for (const bad of [[], 'notebook_x', [''], ['Bad-Key'], [1]]) {
+      expect(() => assembleRegistry([tour('base')], [tour('rq', { requires: bad })]), JSON.stringify(bad)).toThrow(/"rq"\) requires must be/)
+    }
+    const reg = assembleRegistry([tour('base')], [tour('rq', { requires: ['notebook_ta_fingerprint_enabled'] })])
+    expect(Object.isFrozen(getTourEntry('rq', reg).requires)).toBe(true)
+  })
+
+  it('every real `requires` flag is a notebookFlag() key; visual-playbook needs the fingerprint panel', async () => {
+    const { FLAG_FALLBACKS } = await import('../../../lib/offline/notebookFlags')
+    for (const t of TOUR_REGISTRY) for (const f of t.requires || []) expect(Object.keys(FLAG_FALLBACKS), `${t.id} requires ${f}`).toContain(f)
+    expect(getTourEntry('visual-playbook').requires).toEqual(['notebook_ta_fingerprint_enabled'])
+  })
+
+  it('tourLive: the base tour answers on its own flag alone (as on master)', () => {
+    const base = getTourEntry(BASE_TOUR_ID)
+    expect(tourLive(base, (f) => f === 'notebook_onboarding_enabled')).toBe(true)
+    expect(tourLive(base, () => false)).toBe(false)
+  })
+
+  it('tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started', () => {
+    const vp = getTourEntry('visual-playbook')
+    const on = new Set(['notebook_visual_playbook_enabled', 'notebook_ta_fingerprint_enabled', 'notebook_onboarding_enabled', 'notebook_getting_started_enabled'])
+    const without = (k) => (f) => f !== k && on.has(f)
+    expect(tourLive(vp, (f) => on.has(f))).toBe(true)
+    for (const k of on) expect(tourLive(vp, without(k)), `without ${k}`).toBe(false)
+    expect(tourLive(null, () => true)).toBe(false)
+  })
+})
+
+// W14-Q1 finding S6: an offer or What's new can only open a tour the engine can GET to.
+describe('every replayable registry tour declares where it starts', () => {
+  it('no replayable tour beyond the base one is without a start (the engine navigates there)', () => {
+    const missing = OTHER_TOURS.filter((t) => t.replayable && !startKind(t)).map((t) => t.id)
+    expect(missing).toEqual([])
+    expect(OTHER_TOURS.filter((t) => t.replayable).length, 'non-vacuity').toBeGreaterThan(10)
   })
 })

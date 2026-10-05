@@ -51,7 +51,7 @@ function Page({ Gate, tours, route = '/journal/notebook' }) {
 beforeEach(() => {
   __resetNotebookFlags()
   __resetRegistryTourControl()
-  latchNotebookFlags({ [BORROWED_FLAG]: true })
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [BORROWED_FLAG]: true })
   installFetch()
 })
 afterEach(() => {
@@ -110,7 +110,7 @@ describe('multi-tour: the SAME generic gate opens either of two different regist
 
   it('a flag that is off: the tour is never fetched, even when asked for by id', async () => {
     __resetNotebookFlags()
-    latchNotebookFlags({ [BORROWED_FLAG]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [BORROWED_FLAG]: false })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} tours={[TOUR_A]} />)
@@ -160,5 +160,20 @@ describe('a chunk that cannot load costs the tour, and nothing else (same contra
     expect(load).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('heading', { level: 1, name: 'Your Notebook' })).toBeInTheDocument()
     errorSpy.mockRestore()
+  })
+})
+
+describe('W14-C1: a request for a tour whose capability is off is dropped, never held', () => {
+  it('the one-tour slot is free again: a later request for an allowed tour opens', async () => {
+    const OFF = { id: 'w14-c1-off', flag: 'notebook_formulas_enabled', title: 'Off tour', replayable: true }
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [BORROWED_FLAG]: true, notebook_formulas_enabled: false })
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[OFF, TOUR_A]} />)
+    act(() => { openRegistryTour('w14-c1-off') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Tour A is open')
   })
 })

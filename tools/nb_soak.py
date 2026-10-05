@@ -283,6 +283,35 @@ def parse_incident(text: str, name: str) -> dict:
             "declared": bool(c) and cls in LOSS_CLASSES}
 
 
+def reference_problem(repo) -> str | None:
+    """None when NB_SOAK_REPO is a git checkout ROOT (a worktree or a standalone clone), else why.
+
+    Wave 14 OPS. The reference checkout was removed twice by disk-cleanup sweeps (2026-09-29 and
+    2026-10-02) and both times this roll-up said "drift 0": every copy read "not in repo", which
+    is not DRIFT, so nothing was paged and the copies were compared with nothing for days. A
+    missing reference, a plain directory, or a directory inside some other checkout is now an
+    ALERT. No repo given at all stays "not checked" -- that is a configuration, not a loss.
+    Unknown is never a pass: git that cannot be run is reported too."""
+    if repo is None:
+        return None
+    repo = pathlib.Path(repo)
+    if not repo.is_dir():
+        return f"reference checkout missing: {repo}"
+    try:
+        r = subprocess.run(["git", "-C", str(repo), "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=60)
+    except (OSError, subprocess.SubprocessError) as e:
+        return f"reference checkout could not be read by git: {repo} ({type(e).__name__})"
+    try:
+        root = r.returncode == 0 and pathlib.Path(r.stdout.strip()).resolve() == repo.resolve()
+    except OSError:
+        root = False
+    if not root:
+        return f"reference is not a git checkout: {repo}"
+    return None
+
+
 def drift_line(name: str, copy_bytes: bytes | None, repo_bytes: bytes | None) -> dict:
     """DRIFT when the running copy's CONTENT differs from the repo's. Line endings
     alone are not drift (the copies were taken from a CRLF checkout); both raw
@@ -519,7 +548,8 @@ def speed_report(samples, budgets: dict | None) -> dict:
 
 
 def build_facts(*, start, start_sha, now, q1_text, samples_text, verdict_texts, canary_text,
-                drill_texts, ruled_text, incident_texts, drift, budgets, heartbeat) -> dict:
+                drill_texts, ruled_text, incident_texts, drift, budgets, heartbeat,
+                reference=None) -> dict:
     # Evidence stamped after `now` cannot be evidence about this run's window
     # (a clock step, or a fixture): read only what had happened by now.
     rows = [r for r in parse_q1_rows(q1_text) if r["at"] <= now]
@@ -545,7 +575,7 @@ def build_facts(*, start, start_sha, now, q1_text, samples_text, verdict_texts, 
         "drift": drift, "speed": speed_report(samples, budgets),
         "config_served": ((latest or {}).get("figures") or {}).get("config_served")
         if latest and latest.get("_ok") else None,
-        "signin": canary["signin"], "heartbeat": heartbeat,
+        "signin": canary["signin"], "heartbeat": heartbeat, "reference": reference,
     }
 
 
@@ -631,6 +661,9 @@ def alerts(facts, word: str, previous: str | None) -> list:
     hb = facts.get("heartbeat")
     if hb and hb.get("problem"):
         out.append(("heartbeat:scheduled-task", hb["problem"]))
+    if facts.get("reference"):
+        out.append(("reference:checkout", f"REFERENCE CHECKOUT {facts['reference']} -- the running "
+                    "copies were NOT compared"))
     for d in facts["drift"]:
         if d["state"] == "DRIFT":
             out.append((f"drift:{d['name']}", f"DRIFT {d['name']}: copy {d['copy'][:12]} != repo {d['repo'][:12]}"))
@@ -747,6 +780,8 @@ def render_dashboard(facts, word, fail, inc, alerts_mode: str) -> str:
                                         (f"OK at {fmt(ls['_until'])}" if ls["_ok"]
                                          else f"FAILING — {ls.get('skipped')}")))
     L += ["", "## Running copies vs the repo", ""]
+    if facts.get("reference"):
+        L.append(f"- **{facts['reference']}** — the running copies were NOT compared")
     for d in facts["drift"]:
         if d["state"] in ("equal", "DRIFT"):
             L.append(f"- {'**DRIFT**' if d['state'] == 'DRIFT' else 'equal'} `{d['name']}` — copy "
@@ -759,7 +794,8 @@ def render_dashboard(facts, word, fail, inc, alerts_mode: str) -> str:
 
 def stdout_line(facts, word, fail, inc, n_alerts) -> str:
     win, ex = facts["window"], facts["exposure"]
-    drift = sum(1 for d in facts["drift"] if d["state"] == "DRIFT")
+    drift = ("?" if facts.get("reference")
+             else sum(1 for d in facts["drift"] if d["state"] == "DRIFT"))
     return (f"{fmt(facts['now'])} soak {word} · day {days(win['elapsed'])}/{WINDOW_DAYS} "
             f"(+{days(win['unobserved_total'])} unobserved) · organic {ex['organic_identities']}/"
             f"{FLOOR['organic_identities']} · edit-days {ex['note_edit_days']}/{FLOOR['note_edit_days']} · "
@@ -898,6 +934,7 @@ def main(argv=None, now: dt.datetime | None = None) -> int:
     state_path = pathlib.Path(a.state) if a.state else log.parent / "soak-alert-state.json"
 
     repo = pathlib.Path(a.repo) if a.repo else None
+    reference = reference_problem(repo)
     drift = []
     for name in COPIES:
         cp = pathlib.Path(a.copies) / name
@@ -924,7 +961,7 @@ def main(argv=None, now: dt.datetime | None = None) -> int:
         canary_text=_read(a.canary_doc), drill_texts=[_read(p) for p in _files(a.drills)],
         ruled_text=_read(a.ruled),
         incident_texts=[(p.name, _read(p)) for p in _files(a.incidents)],
-        drift=drift, budgets=budgets,
+        drift=drift, budgets=budgets, reference=reference,
         heartbeat=None if a.no_schtasks else scheduled_task(now=now))
     word, fail, inc = verdict(facts)
     try:

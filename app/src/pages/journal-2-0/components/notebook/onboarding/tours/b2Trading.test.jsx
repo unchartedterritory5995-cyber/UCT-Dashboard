@@ -17,14 +17,16 @@ import { FLAG_FALLBACKS, __resetNotebookFlags, latchNotebookFlags } from '../../
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
-// The slice's own record (plan 4.2 rows 9-14, D6): id -> [capability flag, start].
+// The slice's own record (plan 4.2 rows 9-14, D6): id -> [capability flag, start, Replay link].
+// W14-C1 gave the five tours that had no reachable start one each (wave14-w14-c1.md).
+const CHART = { note: 'sample:plan', embed: 'chart' }
 const EXPECTED = {
-  'plan-grading': ['notebook_plan_grading_enabled', undefined],
-  'entry-context': ['notebook_entry_context_enabled', undefined],
-  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook'],
-  'my-playbook': ['notebook_playbook_enabled', undefined],
-  'chart-plan-basics': ['notebook_chart_plan_enabled', undefined],
-  'chart-plan-replay': ['notebook_chart_plan_enabled', undefined],
+  'plan-grading': ['notebook_plan_grading_enabled', { trade: 'recent' }, '/journal/trades'],
+  'entry-context': ['notebook_entry_context_enabled', { trade: 'recent' }, '/journal/trades'],
+  'review-drafts': ['notebook_review_drafts_enabled', '/journal/notebook', '/journal/notebook'],
+  'my-playbook': ['notebook_playbook_enabled', '/journal-2-0/playbook', '/journal-2-0/playbook'],
+  'chart-plan-basics': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
+  'chart-plan-replay': ['notebook_chart_plan_enabled', CHART, NOTEBOOK_ROOT],
 }
 const IDS = Object.keys(EXPECTED)
 
@@ -58,8 +60,8 @@ describe.each(IDS)('tour %s', (id) => {
 
   it('starts where the slice record says (the Notebook root when it names none)', () => {
     const entry = getTourEntry(id)
-    expect(entry.start).toBe(start)
-    expect(startPath(entry)).toBe(start || NOTEBOOK_ROOT)
+    expect(entry.start).toEqual(start)
+    expect(startPath(entry)).toBe(EXPECTED[id][2])
   })
 
   it('loads 3 to 6 steps, each with a title and a body, and no copy without a step', async () => {
@@ -67,7 +69,8 @@ describe.each(IDS)('tour %s', (id) => {
     expect(steps.length).toBeGreaterThanOrEqual(3)
     expect(steps.length).toBeLessThanOrEqual(6)
     for (const s of steps) {
-      expect(Object.keys(s).sort()).toEqual(['anchor', 'file', 'id'])
+      // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c, `${id} step ${s.id} has no copy`).toBeTruthy()
       expect(c.title.trim().length, `${id} ${s.id} title`).toBeGreaterThan(0)
@@ -107,7 +110,7 @@ describe('each tour is gated by its capability flag', () => {
   })
 
   it.each(IDS)('%s: flag off, asking for it by id loads nothing', async (id) => {
-    latchNotebookFlags({ [EXPECTED[id][0]]: false })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [EXPECTED[id][0]]: false })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} />)
@@ -118,7 +121,7 @@ describe('each tour is gated by its capability flag', () => {
   })
 
   it.each(IDS)('%s: flag on, asking for it by id opens it', async (id) => {
-    latchNotebookFlags({ [EXPECTED[id][0]]: true })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [EXPECTED[id][0]]: true })
     const load = engineLoader()
     const Gate = makeRegistryToursGate(load, 0)
     render(<Page Gate={Gate} />)

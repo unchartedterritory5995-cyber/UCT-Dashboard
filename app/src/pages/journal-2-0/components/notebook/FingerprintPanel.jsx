@@ -339,7 +339,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
             </button>
           )}
           {vpOn && (
-            <button type="button" className={styles.btn} onClick={() => setPlaybookOpen(true)}>
+            <button type="button" className={styles.btn} onClick={() => setPlaybookOpen(true)} data-tour="fp-visual-playbook">
               Visual playbook
             </button>
           )}
