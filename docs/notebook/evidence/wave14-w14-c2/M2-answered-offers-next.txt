@@ -1,0 +1,1120 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w14-c2/app
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js (23 tests | 1 failed) 21ms
+     ✓ flag on, never seen, replayable, not the base tour -- in registry order 2ms
+     ✓ a flag that is not EXACTLY true keeps the tour out (unlatched reads as off) 0ms
+     ✓ ANY row -- started, done, dismissed -- means it was met and is never offered 0ms
+     ✓ no session yet: the first in order 0ms
+     ✓ this session offered a and it is unanswered: a again (still the one offer) 0ms
+     × ⛔ this session answered its offer: nothing else, even with b waiting 8ms
+     ✓ this session offered a, which was taken elsewhere: the session is spent, b is NOT offered 0ms
+     ✓ a NEW session after declining a: b, with no time limit anywhere 0ms
+     ✓ lists never-seen tours AND tours declined from the prompt; not walked, done or flag-off ones 0ms
+     ✓ a started tour is taken 0ms
+     ✓ never lists the base tour 1ms
+     ✓ clear: null 0ms
+     ✓ prefsLoading -> waits (true) 0ms
+     ✓ notesKnown -> waits (false) 0ms
+     ✓ noteOpen -> waits (true) 0ms
+     ✓ baseTourPending -> waits (true) 0ms
+     ✓ checklistOpen -> waits (true) 0ms
+     ✓ stageHeldByOthers -> waits (true) 0ms
+     ✓ slot -> waits (null) 0ms
+     ✓ slotBusy -> waits (true) 0ms
+     ✓ round-trips through sessionStorage under one key 1ms
+     ✓ a store that THROWS falls back to page memory -- the cap still holds for this load 2ms
+     ✓ garbage in the store reads as no session 0ms
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx (19 tests | 4 failed) 18364ms
+     ✓ offers the FIRST eligible tour in the slot, holds the stage, and never takes focus  671ms
+     × "Not now" records the tour dismissed (step null), releases the stage, and -- ⛔ ONE PER SESSION -- offers nothing else 4083ms
+     ✓ a NEW session offers the next tour in order -- an unseen prompt never expires 51ms
+     × "Take the tour" opens it through the registry door and spends the session 4092ms
+     ✓ an unanswered offer is shown again after a remount in the same session (a reload) 90ms
+     × Escape inside the card is "Not now" 4084ms
+     × keyboard: Tab reaches both controls in reading order, Enter activates 4197ms
+     ✓ D4: no flow here ever writes the checklist key 109ms
+     ✓ CONTROL for the waits below: with the same arrangement and nothing blocking, it shows 44ms
+     ✓ nothing to offer (flags off): nothing renders and the card chunk is never fetched 50ms
+     ✓ while the base first-run tour is due for this member, then shows once it is done 88ms
+     ✓ while a note is open (R4) 43ms
+     ✓ while the note count is unknown 48ms
+     ✓ while the get-started checklist is open (it already lists every armed tour) 102ms
+     ✓ while ANOTHER claim holds the stage, and appears when it is released  393ms
+     ✓ YIELDS when a tour opens while it shows -- nothing recorded -- and returns after 97ms
+     ✓ while the Compass card sits in the slot, and appears once it leaves 72ms
+     ✓ without a slot it does not float -- it does not show at all 41ms
+     ✓ no position: fixed | absolute | sticky (it must never float over a control) 5ms
+
+ Test Files  2 failed (2)
+      Tests  5 failed | 37 passed (42)
+   Start at  20:23:38
+   Duration  20.64s (transform 716ms, setup 610ms, import 829ms, tests 18.39s, environment 2.23s)
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > offers the FIRST eligible tour in the slot, holds the stage, and never takes focus
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > offers the FIRST eligible tour in the slot, holds the stage, and never takes focus
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Not now" records the tour dismissed (step null), releases the stage, and -- ⛔ ONE PER SESSION -- offers nothing else
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Not now" records the tour dismissed (step null), releases the stage, and -- ⛔ ONE PER SESSION -- offers nothing else
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > a NEW session offers the next tour in order -- an unseen prompt never expires
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > a NEW session offers the next tour in order -- an unseen prompt never expires
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Take the tour" opens it through the registry door and spends the session
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Take the tour" opens it through the registry door and spends the session
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > an unanswered offer is shown again after a remount in the same session (a reload)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > an unanswered offer is shown again after a remount in the same session (a reload)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > Escape inside the card is "Not now"
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > Escape inside the card is "Not now"
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > keyboard: Tab reaches both controls in reading order, Enter activates
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > keyboard: Tab reaches both controls in reading order, Enter activates
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > D4: no flow here ever writes the checklist key
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > D4: no flow here ever writes the checklist key
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > CONTROL for the waits below: with the same arrangement and nothing blocking, it shows
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > CONTROL for the waits below: with the same arrangement and nothing blocking, it shows
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > nothing to offer (flags off): nothing renders and the card chunk is never fetched
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > nothing to offer (flags off): nothing renders and the card chunk is never fetched
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the base first-run tour is due for this member, then shows once it is done
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the base first-run tour is due for this member, then shows once it is done
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while a note is open (R4)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while a note is open (R4)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the note count is unknown
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the note count is unknown
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the get-started checklist is open (it already lists every armed tour)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the get-started checklist is open (it already lists every armed tour)
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while ANOTHER claim holds the stage, and appears when it is released
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while ANOTHER claim holds the stage, and appears when it is released
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > YIELDS when a tour opens while it shows -- nothing recorded -- and returns after
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > YIELDS when a tour opens while it shows -- nothing recorded -- and returns after
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the Compass card sits in the slot, and appears once it leaves
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > it never stacks -- it waits > while the Compass card sits in the slot, and appears once it leaves
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TourOfferGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js > pickOffer -- one per session, in order, never expiring > ⛔ this session answered its offer: nothing else, even with b waiting
+AssertionError: expected { id: 'a', flag: 'f_a', …(3) } to be null
+
+- Expected: 
+null
+
++ Received: 
+{
+  "flag": "f_a",
+  "id": "a",
+  "load": [Function load],
+  "replayable": true,
+  "title": "Tour a",
+}
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js:40:76
+     38|   })
+     39|   it('⛔ this session answered its offer: nothing else, even with b wai…
+     40|     expect(pickOffer({ offerable, session: { id: 'a', answered: true }…
+       |                                                                            ^
+     41|   })
+     42|   it('this session offered a, which was taken elsewhere: the session i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Not now" records the tour dismissed (step null), releases the stage, and -- ⛔ ONE PER SESSION -- offers nothing else
+AssertionError: expected <section …(4)>…(2)</section> to be null
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main>
+        <div
+          data-testid="slot"
+        >
+          <section
+            aria-describedby="_r_3_"
+            aria-labelledby="_r_2_"
+            class="_card_1902a4"
+            data-tour-offer=""
+          >
+            <div
+              class="_text_1902a4"
+            >
+              <h2
+                class="_title_1902a4"
+                id="_r_2_"
+              >
+                New in your Notebook: Tour A
+              </h2>
+              <p
+                class="_body_1902a4"
+                id="_r_3_"
+              >
+                A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+              </p>
+            </div>
+            <div
+              class="_actions_1902a4"
+            >
+              <button
+                class="_accept_1902a4"
+                type="button"
+              >
+                Take the tour
+              </button>
+              <button
+                class="_later_1902a4"
+                type="button"
+              >
+                Not now
+              </button>
+            </div>
+          </section>
+        </div>
+        <button
+          type="button"
+        >
+          page control
+        </button>
+      </main>
+    </div>
+  </body>
+</html>
+
+- Expected: 
+null
+
++ Received: 
+<section
+  aria-describedby="_r_3_"
+  aria-labelledby="_r_2_"
+  class="_card_1902a4"
+  data-tour-offer=""
+>
+  <div
+    class="_text_1902a4"
+  >
+    <h2
+      class="_title_1902a4"
+      id="_r_2_"
+    >
+      New in your Notebook: Tour A
+    </h2>
+    <p
+      class="_body_1902a4"
+      id="_r_3_"
+    >
+      A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+    </p>
+  </div>
+  <div
+    class="_actions_1902a4"
+  >
+    <button
+      class="_accept_1902a4"
+      type="button"
+    >
+      Take the tour
+    </button>
+    <button
+      class="_later_1902a4"
+      type="button"
+    >
+      Not now
+    </button>
+  </div>
+</section>
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx:107:62
+    105|     await card()
+    106|     fireEvent.click(screen.getByRole('button', { name: OFFER_COPY.late…
+    107|     await waitFor(() => expect(screen.queryByRole('region')).toBeNull(…
+       |                                                              ^
+    108|     await waitFor(() => expect(JSON.parse(server.prefs[TOURS_PREF])[TO…
+    109|     expect(isFirstRunStageHeld()).toBe(false)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../_nb-shared-install/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > "Take the tour" opens it through the registry door and spends the session
+AssertionError: expected <section …(4)>…(2)</section> to be null
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main>
+        <div
+          data-testid="slot"
+        >
+          <section
+            aria-describedby="_r_7_"
+            aria-labelledby="_r_6_"
+            class="_card_1902a4"
+            data-tour-offer=""
+          >
+            <div
+              class="_text_1902a4"
+            >
+              <h2
+                class="_title_1902a4"
+                id="_r_6_"
+              >
+                New in your Notebook: Tour A
+              </h2>
+              <p
+                class="_body_1902a4"
+                id="_r_7_"
+              >
+                A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+              </p>
+            </div>
+            <div
+              class="_actions_1902a4"
+            >
+              <button
+                class="_accept_1902a4"
+                type="button"
+              >
+                Take the tour
+              </button>
+              <button
+                class="_later_1902a4"
+                type="button"
+              >
+                Not now
+              </button>
+            </div>
+          </section>
+        </div>
+        <button
+          type="button"
+        >
+          page control
+        </button>
+      </main>
+    </div>
+  </body>
+</html>
+
+- Expected: 
+null
+
++ Received: 
+<section
+  aria-describedby="_r_7_"
+  aria-labelledby="_r_6_"
+  class="_card_1902a4"
+  data-tour-offer=""
+>
+  <div
+    class="_text_1902a4"
+  >
+    <h2
+      class="_title_1902a4"
+      id="_r_6_"
+    >
+      New in your Notebook: Tour A
+    </h2>
+    <p
+      class="_body_1902a4"
+      id="_r_7_"
+    >
+      A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+    </p>
+  </div>
+  <div
+    class="_actions_1902a4"
+  >
+    <button
+      class="_accept_1902a4"
+      type="button"
+    >
+      Take the tour
+    </button>
+    <button
+      class="_later_1902a4"
+      type="button"
+    >
+      Not now
+    </button>
+  </div>
+</section>
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx:133:62
+    131|     window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, onOpen)
+    132|     expect(opened).toEqual([TOUR_A.id])
+    133|     await waitFor(() => expect(screen.queryByRole('region')).toBeNull(…
+       |                                                              ^
+    134|     expect(readOfferSession()).toEqual({ id: TOUR_A.id, answered: true…
+    135|     expect(writes().filter(([u]) => String(u).includes('/tours/'))).to…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../_nb-shared-install/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > Escape inside the card is "Not now"
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <section
+  aria-describedby="_r_d_"
+  aria-labelledby="_r_c_"
+  class="_card_1902a4"
+  data-tour-offer=""
+>
+  <div
+    class="_text_1902a4"
+  >
+    <h2
+      class="_title_1902a4"
+      id="_r_c_"
+    >
+      New in your Notebook: Tour A
+    </h2>
+    <p
+      class="_body_1902a4"
+      id="_r_d_"
+    >
+      A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+    </p>
+  </div>
+  <div
+    class="_actions_1902a4"
+  >
+    <button
+      class="_accept_1902a4"
+      type="button"
+    >
+      Take the tour
+    </button>
+    <button
+      class="_later_1902a4"
+      type="button"
+    >
+      Not now
+    </button>
+  </div>
+</section> instead
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main>
+        <div
+          data-testid="slot"
+        >
+          <section
+            aria-describedby="_r_d_"
+            aria-labelledby="_r_c_"
+            class="_card_1902a4"
+            data-tour-offer=""
+          >
+            <div
+              class="_text_1902a4"
+            >
+              <h2
+                class="_title_1902a4"
+                id="_r_c_"
+              >
+                New in your Notebook: Tour A
+              </h2>
+              <p
+                class="_body_1902a4"
+                id="_r_d_"
+              >
+                A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+              </p>
+            </div>
+            <div
+              class="_actions_1902a4"
+            >
+              <button
+                class="_accept_1902a4"
+                type="button"
+              >
+                Take the tour
+              </button>
+              <button
+                class="_later_1902a4"
+                type="button"
+              >
+                Not now
+              </button>
+            </div>
+          </section>
+        </div>
+        <button
+          type="button"
+        >
+          page control
+        </button>
+      </main>
+    </div>
+  </body>
+</html>
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx:153:39
+    151|     const c = await card()
+    152|     fireEvent.keyDown(screen.getByRole('button', { name: OFFER_COPY.ac…
+    153|     await waitFor(() => expect(c).not.toBeInTheDocument())
+       |                                       ^
+    154|     await waitFor(() => expect(JSON.parse(server.prefs[TOURS_PREF] || …
+    155|   })
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../_nb-shared-install/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx > the offer > keyboard: Tab reaches both controls in reading order, Enter activates
+AssertionError: expected <section …(4)>…(2)</section> to be null
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main>
+        <div
+          data-testid="slot"
+        >
+          <section
+            aria-describedby="_r_f_"
+            aria-labelledby="_r_e_"
+            class="_card_1902a4"
+            data-tour-offer=""
+          >
+            <div
+              class="_text_1902a4"
+            >
+              <h2
+                class="_title_1902a4"
+                id="_r_e_"
+              >
+                New in your Notebook: Tour A
+              </h2>
+              <p
+                class="_body_1902a4"
+                id="_r_f_"
+              >
+                A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+              </p>
+            </div>
+            <div
+              class="_actions_1902a4"
+            >
+              <button
+                class="_accept_1902a4"
+                type="button"
+              >
+                Take the tour
+              </button>
+              <button
+                class="_later_1902a4"
+                type="button"
+              >
+                Not now
+              </button>
+            </div>
+          </section>
+        </div>
+        <button
+          type="button"
+        >
+          page control
+        </button>
+      </main>
+    </div>
+  </body>
+</html>
+
+- Expected: 
+null
+
++ Received: 
+<section
+  aria-describedby="_r_f_"
+  aria-labelledby="_r_e_"
+  class="_card_1902a4"
+  data-tour-offer=""
+>
+  <div
+    class="_text_1902a4"
+  >
+    <h2
+      class="_title_1902a4"
+      id="_r_e_"
+    >
+      New in your Notebook: Tour A
+    </h2>
+    <p
+      class="_body_1902a4"
+      id="_r_f_"
+    >
+      A short walkthrough shows where it is and how to use it. You can always find it again under Help.
+    </p>
+  </div>
+  <div
+    class="_actions_1902a4"
+  >
+    <button
+      class="_accept_1902a4"
+      type="button"
+    >
+      Take the tour
+    </button>
+    <button
+      class="_later_1902a4"
+      type="button"
+    >
+      Not now
+    </button>
+  </div>
+</section>
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/TourOfferGate.test.jsx:167:62
+    165|     expect(document.activeElement).toHaveTextContent(OFFER_COPY.later)
+    166|     await user.keyboard('{Enter}')
+    167|     await waitFor(() => expect(screen.queryByRole('region')).toBeNull(…
+       |                                                              ^
+    168|   })
+    169| 
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../_nb-shared-install/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../_nb-shared-install/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
