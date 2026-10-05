@@ -222,6 +222,37 @@ describe('🟠 targeting and entry', () => {
     expect(code(0)).toBe('GP')
   })
 
+  it('live audit: after `NVDA ERN`, the next command in that panel leaves the calendar route and drops ?earnings=', async () => {
+    store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'AMD' }),
+      terminal_layout: JSON.stringify({ v: 2, count: 1, focus: 0, panels: [{ id: 'p1', code: 'DES', channel: 'A' }] }) }
+    renderAt(['/terminal'])
+    await type('NVDA ERN')
+    await settle()
+    expect(where()).toMatch(/^\/terminal\/calendar\?/)
+    expect(params().get('earnings')).toBe('NVDA')
+    await type('SOFI DES')
+    await settle()
+    expect(code(0)).toBe('DES')
+    expect(where()).toMatch(/^\/terminal(\?|$)/)       // out of the calendar's route…
+    expect(params().get('earnings')).toBeNull()        // …so the earnings window cannot reopen
+    expect(params().get('week')).toBeNull()
+    expect(params().get('cmd')).toBe('SOFI DES')
+    const url = where()
+    cleanup()
+    renderAt([url])                                    // "reload"
+    await settle()
+    expect(code(0)).toBe('DES')                        // no calendar re-mounted over the panel
+  })
+
+  it('live audit: the browser tab names the terminal, and gives the old title back on the way out', async () => {
+    document.title = 'UCT Intelligence — Coming soon'
+    renderAt(['/terminal'])
+    await settle()
+    expect(document.title).toBe('UCT Terminal — UCT Intelligence')
+    cleanup()
+    expect(document.title).toBe('UCT Intelligence — Coming soon')
+  })
+
   it('#5: @A skips a calendar in group A and lands on the first panel that follows a security', async () => {
     store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'AMD' }),
       terminal_layout: TWO({ code: 'CAL', channel: 'A' }, { code: 'DES', channel: 'A' }, 0) }

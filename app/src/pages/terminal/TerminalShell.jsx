@@ -54,6 +54,7 @@ import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import { brandedTitle } from '../../surfaces/brand'
 import styles from './TerminalShell.module.css'
 
 /** Pure: what a stored panel renders — the variant, the panel it names (a component, or a
@@ -815,6 +816,37 @@ export default function TerminalShell() {
     setNotice({ kind: 'info', text: `Opened the calendar in panel ${f + 1}, in place of ${panelCommandText(replaced, symsRef.current) || replaced.code}.`,
       actions: [{ label: 'Undo', id: 'undo-calendar', panelId: replaced.id, panel: kept }] })
   }, [loading, location.pathname, save])
+
+  // The way back out: once a board that showed the calendar no longer does (its panel now runs
+  // another command, or was closed), leave `/terminal/calendar` and drop the calendar's own
+  // params. Left there, `?earnings=` kept the earnings window open over every later command and
+  // re-opened it on reload, and a reload re-mounted the calendar over the member's panel.
+  // Only a transition from "had a calendar" counts, so the arrival above (which adds the
+  // calendar one commit later) never reads as a departure.
+  const hadCalendarRef = useRef(false)
+  useEffect(() => {
+    if (loading || popoutToken) return
+    const hasCal = layout.panels.slice(0, layout.count).some((p) => isCalendarCode(p.code))
+    if (hasCal) { hadCalendarRef.current = true; return }
+    const had = hadCalendarRef.current
+    hadCalendarRef.current = false
+    if (!had || location.pathname !== TERMINAL_CALENDAR_PATH || pendingNavRef.current) return
+    const p = new URLSearchParams(location.search)
+    const kept = new URLSearchParams()
+    for (const k of ['cmd', 'p']) { const v = p.get(k); if (v != null) kept.set(k, v) }
+    const q = kept.toString()
+    pendingNavRef.current = TERMINAL_PATH
+    navigate(`${TERMINAL_PATH}${q ? `?${q}` : ''}`, { replace: true })
+  }, [loading, popoutToken, layout, location.pathname, location.search, navigate])
+
+  // The tab names the terminal. The shell's per-page titles key off the sidebar, whose entry
+  // still points at /calendar, so /terminal was left with the coming-soon page's title. The
+  // title it found is put back on the way out, so the next page is not mislabelled either.
+  useEffect(() => {
+    const before = document.title
+    document.title = brandedTitle('UCT Terminal')
+    return () => { document.title = before }
+  }, [])
 
   useEffect(() => {
     if (!isPhone && !popoutToken) inputRef.current?.focus()

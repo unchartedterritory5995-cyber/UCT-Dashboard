@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import styles from '../ResearchPage.module.css'
+import HighlightThesis from '../../../utils/highlightThesis'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -115,7 +116,7 @@ export default function HistoryTab({ sym }) {
         <ul data-testid="history-rows">
           {rows.map((r, i) => (
             <li key={`${r.lane}-${r.date}-${i}`} data-testid="history-row">
-              <strong>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · {r.text}
+              <strong>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={r.text} />
               {r.symbol && r.symbol !== body.ticker && <span className={styles.muted}> (as {r.symbol})</span>}
               <span className={styles.muted}> — {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}</span>
               {r.lane === 'flow' && r.ref && <> · <a href={r.ref}>Open Options Flow</a></>}

@@ -10,6 +10,7 @@
 // through `onRows`, so typing `2` + Enter opens row 2.
 import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
+import HighlightThesis from '../../../utils/highlightThesis'
 import { usePanelFreshness } from '../panelFreshness'
 import styles from '../TerminalShell.module.css'
 
@@ -102,7 +103,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
         {cats.map((c) => (
           <li key={catalystKey(c)} data-new={fresh.has(catalystKey(c)) ? 'true' : 'false'}>
             {fresh.has(catalystKey(c)) && <strong>NEW </strong>}
-            {c.market_date} · {c.tag}{c.thesis_text ? ` — ${c.thesis_text}` : ''}
+            {c.market_date} · {c.tag}{c.thesis_text ? <> — <HighlightThesis text={c.thesis_text} /></> : ''}
           </li>
         ))}
       </ul>

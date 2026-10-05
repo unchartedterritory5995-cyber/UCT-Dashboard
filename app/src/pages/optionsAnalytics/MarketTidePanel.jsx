@@ -45,6 +45,11 @@ export function staleText(data) {
   return 'Not freshly computed; a refresh is running.'
 }
 
+/** Today in New York as YYYY-MM-DD (the tide's `session` is an ET market date). */
+export function todayEt(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+
 const W = 720
 const H = 200
 const PAD = 28
@@ -112,6 +117,13 @@ function TidePanel({ scope, setScope, onPickMinute }) {
           net <b className={t.net_premium >= 0 ? styles.gain : styles.loss}>{money(t.net_premium)}</b>
         </p>
       ) : <p className={styles.note}>No prints on the tape for the last session.</p>}
+      {data.session && data.session < todayEt() ? (
+        // A scope with no prints yet today serves the last session it has (ETFs did, on a weekday
+        // afternoon). The date alone was easy to miss, and Friday's tide read as today's.
+        <p className={styles.note} data-testid="market-tide-old-session">
+          This is the {data.session} session, not today: nothing for today is on the tape for this view yet.
+        </p>
+      ) : null}
       {p && (
         <ul className={styles.legend} data-testid="market-tide-legend" aria-label="Market Tide legend">
           <li><span className={`${styles.legendSwatch} ${styles.legendCall}`} aria-hidden="true" />Net call premium</li>
