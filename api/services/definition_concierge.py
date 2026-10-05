@@ -212,7 +212,36 @@ REFUSALS: Mapping[str, str] = {
     "model:unresolved": (
         "the assistant could not confidently express part of this request in "
         "the supported vocabulary"),
+    # ⭐ P0 (2026-10-05). The schema offers `sym`, `tf` and `textop`, but this
+    # door cannot finish a tree holding one: it evaluates on the chart's own bars
+    # only (no other instrument's series, no symbol binding) and its Python
+    # read-back has no English for them. Refused BY NAME and terminally — a
+    # repair turn would invite the model to answer a DIFFERENT question.
+    "unsupported:node": (
+        "this request needs something the formula assistant cannot draft yet"),
+    # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
+    # with its traceback; the member gets a controlled answer, never a 500.
+    "internal:error": (
+        "the formula assistant hit an internal problem and drafted nothing"),
 }
+
+#: ⭐ P0 (2026-10-05) — node types the schema offers that this door CANNOT FINISH,
+#: each with the honest reason a member reads. See `REFUSALS["unsupported:node"]`.
+#: ⚠️ OWNER REVIEW: either omit these from the tool schema (saving a paid call)
+#: or build what is missing; until then they refuse here, never a 500.
+_UNFINISHABLE: Mapping[str, str] = MappingProxyType({
+    "sym": ("it reads another instrument ({value}); this assistant checks a "
+            "formula only against the chart's own bars and cannot verify or "
+            "read back a read of another symbol yet"),
+    "tf": ("it reads a higher timeframe ({value}); this assistant cannot yet "
+           "put a higher-timeframe read into words for you to confirm"),
+    "textop": ("it asks a question about the symbol's text, which is settled "
+               "only when a symbol is bound; this assistant cannot check that yet"),
+})
+
+#: Gates that END the proposal with no repair turn: the refusal is about this
+#: door's limits, not a mistake the model could correct.
+_TERMINAL_GATES = frozenset({"unsupported:node"})
 
 #: ⭐ THE TWO THINGS ONE PIPELINE CAN DRAFT, DECLARED ONCE. An indicator is a
 #: column; a scan is ``<ast> != 0`` on the last confirmed bar (E-A1), so the only
@@ -800,14 +829,47 @@ def _assert_within_schema(tree: Any, table: Optional[Mapping[str, Any]] = None) 
     resolution -- those belong to the table and are refused by ``resolve:arity``
     and ``resolve:window`` at the doors that own them.
     """
+    schema = tool_schema(table)
     names = {node_type: set(spelled)
-             for node_type, spelled in tool_schema(table)["names"].items()}
+             for node_type, spelled in schema["names"].items()}
+    defs = schema["input_schema"]["$defs"]
+    # ⭐ P0 (2026-10-05) — THE NODE TYPES THE SCHEMA ACTUALLY OFFERS, read off its
+    # own `oneOf`. ⚰️ This gate used to admit any `NODE_TYPES` member and then
+    # index `names[kind]`, which only holds the three NAMED shapes — so the
+    # `sym`, `tf` and `textop` trees the schema OFFERS raised a KeyError here,
+    # AFTER the paid model call, as an HTTP 500 with no repair turn.
+    offered = {ref["$ref"].rsplit("/", 1)[-1] for ref in defs["node"]["oneOf"]}
     stack: List[Any] = [tree]
     while stack:
         node = stack.pop()
         if not isinstance(node, dict) or node.get("type") not in NODE_TYPES:
             raise _Refused("schema:node", f"got {node!r}")
         kind = node["type"]
+        if kind not in offered:
+            # A real node type the tool does not offer as an expression: a
+            # translated-only shape (`CONCIERGE_OMITS`) or a text operand outside
+            # its `textop` (`_OPERAND_ONLY`).
+            raise _Refused(
+                "schema:node",
+                f"a {kind!r} node is not something this assistant may emit here")
+        if kind in ("tf", "sym"):
+            # ⭐ THE TWO SCOPE WRAPPERS: a FIELD (the enum `$defs` declares) over
+            # exactly one child, the shape `offset` already has.
+            allowed = defs[kind]["properties"]["value"]["enum"]
+            if node.get("value") not in allowed:
+                raise _Refused(
+                    "schema:name",
+                    f"{node.get('value')!r} is not one of {', '.join(map(str, allowed))}")
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 1:
+                raise _Refused(
+                    "schema:node",
+                    f"a {kind} node carries exactly one child; got {args!r}")
+            stack.extend(args)
+            continue
+        if kind == "textop":
+            _assert_textop_within_schema(node, defs)
+            continue
         if kind == "num":
             _spell_number(node.get("value"))
             continue
@@ -836,16 +898,50 @@ def _assert_within_schema(tree: Any, table: Optional[Mapping[str, Any]] = None) 
                     f"an offset node carries exactly one child; got {args!r}")
             stack.extend(args)
             continue
+        legal = names.get(kind)
+        if legal is None:
+            # ⛔ NEVER A KeyError. A node type offered by the schema but with no
+            # arm above is a defect in THIS gate; it refuses by name, it does not
+            # crash after the spend.
+            raise _Refused("schema:node", f"a {kind!r} node has no check at this boundary")
         name = node.get("name")
-        if not isinstance(name, str) or name not in names[kind]:
+        if not isinstance(name, str) or name not in legal:
             raise _Refused(
                 "schema:name",
-                f"{name!r} is not one of {', '.join(sorted(names[kind]))}")
+                f"{name!r} is not one of {', '.join(sorted(legal))}")
         if kind in ("op", "call"):
             args = node.get("args")
             if not isinstance(args, list):
                 raise _Refused("schema:node", f"a {kind} node carries an args array; got {args!r}")
             stack.extend(args)
+
+
+def _assert_textop_within_schema(node: Mapping[str, Any], defs: Mapping[str, Any]) -> None:
+    """A ``textop`` exactly as ``$defs`` declares it: a predicate name from its
+    enum, and one or two operands, each a ``str`` or a ``symtext`` and nothing
+    else. The operand count is the predicate's own (``ast_bind._TEXT_PREDICATE``
+    is the one authority the enum is read from)."""
+    allowed = defs["textop"]["properties"]["name"]["enum"]
+    name = node.get("name")
+    if not isinstance(name, str) or name not in allowed:
+        raise _Refused("schema:name", f"{name!r} is not one of {', '.join(allowed)}")
+    args = node.get("args")
+    predicate = ast_bind._TEXT_PREDICATE.get(name)
+    want = getattr(getattr(predicate, "__code__", None), "co_argcount", None)
+    if not isinstance(args, list) or (want is not None and len(args) != want):
+        raise _Refused(
+            "schema:node",
+            f"the text question {name!r} takes {want} operand(s); got {args!r}")
+    symtext_names = defs["symtext"]["properties"]["name"]["enum"]
+    for arg in args:
+        kind = arg.get("type") if isinstance(arg, dict) else None
+        if kind == "str" and isinstance(arg.get("value"), str) and set(arg) == {"type", "value"}:
+            continue
+        if kind == "symtext" and arg.get("name") in symtext_names and set(arg) == {"type", "name"}:
+            continue
+        raise _Refused(
+            "schema:node",
+            f"a text question's operand is a quoted string or a symbol field; got {arg!r}")
 
 
 _SPELLABLE = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
@@ -919,6 +1015,23 @@ def formula_for(ast_obj: Any, table: Optional[Mapping[str, Any]] = None) -> str:
             # count is an int by the boundary gate above, spelled the way
             # `String(n)` spells it.
             return f"{render(node['args'][0])}[{int(node['value'])}]"
+        # ⭐ P0 (2026-10-05) — THE THREE SHAPES THE SCHEMA OFFERS THAT THIS
+        # RENDERER USED TO CRASH ON (`node['name']` KeyError). Spelled exactly as
+        # `pine.js::printFormula` spells them, which is what `parse.js` reads
+        # back: `tf(<expr>, 'W')`, `sym('SPY', <expr>)`, `text_<name>(…)` over
+        # `'<text>'` / `syminfo('<field>')`. Codes and tickers are enum-checked
+        # by the boundary, so the hand-rolled quotes cannot be broken out of.
+        if kind == "tf":
+            return f"tf({render(node['args'][0])}, '{node['value']}')"
+        if kind == "sym":
+            return f"sym('{node['value']}', {render(node['args'][0])})"
+        if kind == "str":
+            escaped = json.dumps(node["value"], ensure_ascii=False)[1:-1]
+            return "'" + escaped.replace("'", "\\'") + "'"
+        if kind == "symtext":
+            return f"syminfo('{node['name']}')"
+        if kind == "textop":
+            return f"text_{node['name']}({', '.join(render(a) for a in node['args'])})"
         args = [render(a) for a in node["args"]]
         if kind == "call":
             return f"{node['name']}({', '.join(args)})"
@@ -2620,6 +2733,7 @@ def _validate(tree: Any, bars: List[dict], kind: str) -> Tuple[Any, str]:
     machine-written lane.
     """
     _assert_within_schema(tree)
+    _assert_finishable(tree)
     try:
         user_definitions.assert_canonical(tree)
     except ValueError as exc:
@@ -2670,6 +2784,25 @@ def _validate(tree: Any, bars: List[dict], kind: str) -> Tuple[Any, str]:
     return tree, verdict["mode"]
 
 
+def _assert_finishable(tree: Any) -> None:
+    """Refuse, BY NAME, a schema-valid tree this door cannot carry to an honest
+    answer (`_UNFINISHABLE`). Runs right after the schema gate, so it is
+    attributed before any later stage could misreport it -- e.g. an unsupplied
+    `sym` evaluates to a column of confident 0s in a comparison, which
+    `compute:empty` cannot see."""
+    stack: List[Any] = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        why = _UNFINISHABLE.get(node.get("type"))
+        if why is not None:
+            raise _Refused("unsupported:node", why.format(value=node.get("value")))
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+
+
 def _cadence_ceiling(tree: Any) -> Optional[str]:
     """How often re-running this tree can honestly say something new.
 
@@ -2711,6 +2844,20 @@ def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
             f"That answer was refused by {refused.gate}: {refused.reason}. "
             "Emit a corrected tree.")})
     return out
+
+
+def _internal_error(stage: str, not_understood: Any,
+                    understanding: Mapping[str, Any]) -> Dict[str, Any]:
+    """⭐ P0 (2026-10-05) -- THE CONTROLLED ANSWER FOR A GENUINE BUG after the
+    model call. ⚰️ A KeyError in the schema gate used to escape ``propose`` as an
+    HTTP 500 after the spend. ⛔ NOT SWALLOWED: the traceback is LOGGED at error
+    level (call this only from inside an ``except``), and the gate names it as an
+    internal fault, never as a refusal of the member's request."""
+    logger.exception("[concierge] unexpected failure at the %s stage", stage)
+    return {"ok": False, "gate": "internal:error",
+            "reason": REFUSALS["internal:error"],
+            "not_understood": not_understood,
+            "unavailable": understanding.get("unavailable")}
 
 
 def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
@@ -2826,10 +2973,16 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             ast_obj, repaint = _validate(tree, bars, kind)
         except _Refused as refused:
             last = refused
+            # ⭐ P0 -- a refusal about THIS DOOR'S limits ends the proposal: a
+            # repair turn would only invite the model to answer something else.
+            if refused.gate in _TERMINAL_GATES:
+                break
             if attempts < MAX_MODEL_CALLS:
                 messages = _repair_turns(messages, msg, tool_input, refused)
                 continue
             break
+        except Exception:                          # noqa: BLE001 -- see `_internal_error`
+            return _internal_error("validation", not_understood, understanding)
 
         # ⛔ THE READ-BACK COMES FROM THE TREE AND FROM NOWHERE ELSE. This is the
         # one assignment to `sentence` in this function and the test walks this
@@ -2838,8 +2991,17 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             sentence = sentence_for(ast_obj)
         except _SentenceRefused as refused:
             return {"ok": False, "gate": refused.gate, "reason": refused.reason}
+        except Exception:                          # noqa: BLE001 -- see `_internal_error`
+            return _internal_error("read-back", not_understood, understanding)
 
-        source = formula_for(ast_obj)
+        try:
+            source = formula_for(ast_obj)
+            freshness = ast_freshness.freshness_for(ast_obj)["mode"]
+            cadence = _cadence_ceiling(ast_obj)
+        except _Refused as refused:
+            return {"ok": False, "gate": refused.gate, "reason": refused.reason}
+        except Exception:                          # noqa: BLE001 -- see `_internal_error`
+            return _internal_error("source", not_understood, understanding)
         return {
             "ok": True,
             "ast": ast_obj,
@@ -2851,8 +3013,8 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             # `rs_rank > 80` is honestly `non-repainting` and its staleness would
             # go unsaid without this. Both are derived from the tree by the
             # shipped modules.
-            "freshness": ast_freshness.freshness_for(ast_obj)["mode"],
-            "cadence": _cadence_ceiling(ast_obj),
+            "freshness": freshness,
+            "cadence": cadence,
             "kind": kind,
             # ⭐ PROVENANCE, NEVER A LATE BINDING. The word and the vocabulary
             # version that expanded it; the maths is the TREE above.
