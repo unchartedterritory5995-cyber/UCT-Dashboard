@@ -3,10 +3,16 @@
 // Pure presentation over boardModel.js: every change is computed there and handed back to
 // the shell through a callback, so the shell stays the ONE writer of the board documents.
 import { useState } from 'react'
+import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
 import { BY_CODE } from './functions'
 import { boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
+
+function validPresetTicker(raw) {
+  const s = raw.trim().toUpperCase()
+  return s === PRESET_ANY_TICKER || TICKER_RE.test(s)
+}
 
 function shareUrl(board) {
   const origin = typeof window !== 'undefined' && window.location ? window.location.origin : ''
@@ -19,12 +25,13 @@ function presetsFor(library, boardId) {
 
 export function BoardsMenu({
   library, libraryWritable, currentName, onSave, onOpen, onDelete, onPreset, onKeepCalendar,
-  onShareCurrent, onRestored,
+  onShareCurrent, onRestored, openToVersions = false,
 }) {
   const [name, setName] = useState(currentName || '')
   const [presetSym, setPresetSym] = useState({})
+  const [presetError, setPresetError] = useState(null)
   const [shared, setShared] = useState(null)
-  const [showVersions, setShowVersions] = useState(false)
+  const [showVersions, setShowVersions] = useState(openToVersions)
 
   const copy = async (url, label) => {
     setShared({ url, label })
@@ -77,16 +84,25 @@ export function BoardsMenu({
                 </span>
                 <input className={styles.menuInputSm} value={presetSym[b.id] || ''} maxLength={10}
                   placeholder="NVDA or *" aria-label={`Ticker that opens ${b.name}`}
-                  onChange={(e) => setPresetSym((s) => ({ ...s, [b.id]: e.target.value }))}
+                  onChange={(e) => { setPresetSym((s) => ({ ...s, [b.id]: e.target.value })); setPresetError(null) }}
                   data-testid={`terminal-board-preset-input-${b.slug}`} />
                 <button type="button" className={styles.menuBtn} disabled={!libraryWritable || !(presetSym[b.id] || '').trim()}
-                  onClick={() => { onPreset((presetSym[b.id] || '').trim(), b.id); setPresetSym((s) => ({ ...s, [b.id]: '' })) }}
+                  onClick={() => {
+                    const raw = (presetSym[b.id] || '').trim()
+                    if (!validPresetTicker(raw)) { setPresetError({ id: b.id, text: `"${raw}" isn't a ticker. Try NVDA or BRK.B, or * for any ticker.` }); return }
+                    onPreset(raw, b.id)
+                    setPresetSym((s) => ({ ...s, [b.id]: '' }))
+                    setPresetError(null)
+                  }}
                   data-testid={`terminal-board-preset-${b.slug}`}>Set</button>
                 {presets.map((p) => (
                   <button key={p} type="button" className={styles.chip} disabled={!libraryWritable}
                     onClick={() => onPreset(p, null)} aria-label={`Stop opening ${b.name} for ${p}`}>{p} ×</button>
                 ))}
               </div>
+              {presetError?.id === b.id && (
+                <p className={styles.menuWarn} role="alert" data-testid={`terminal-board-preset-error-${b.slug}`}>{presetError.text}</p>
+              )}
             </li>
           )
         })}

@@ -137,10 +137,45 @@ describe('a failed check is not an answer', () => {
   it('an invalid ticker is refused before any request', async () => {
     const fn = stubExplain(() => json({}))
     render(<AbsenceReceipt />)
+    fireEvent.change(screen.getByLabelText('Ticker to check'), { target: { value: '???' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check' })) })
+    expect(screen.getByTestId('absence-receipt-headline')).toHaveTextContent('Enter a ticker, e.g. NVDA or BRK.B.')
+    expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('a genuinely empty input is still refused and still prompts for a ticker (no regression)', async () => {
+    const fn = stubExplain(() => json({}))
+    render(<AbsenceReceipt />)
+    // input starts empty; click Check with nothing typed
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check' })) })
+    expect(screen.getByTestId('absence-receipt-headline')).toHaveTextContent('Enter a ticker, e.g. NVDA or BRK.B.')
+    expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('dual-class tickers (BRK.B, BF.B) pass validation and reach the explain route', async () => {
+    const fn = stubExplain(() => json({ ...NOT_EVALUATED, ticker: 'BRK.B' }))
+    render(<AbsenceReceipt />)
     fireEvent.change(screen.getByLabelText('Ticker to check'), { target: { value: 'BRK.B' } })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check' })) })
-    expect(screen.getByTestId('absence-receipt-headline')).toHaveTextContent('Enter a ticker of up to 6 letters.')
-    expect(fn).not.toHaveBeenCalled()
+    expect(fn).toHaveBeenCalledWith('/api/catalysts/explain/BRK.B')
+    expect(screen.queryByText('Enter a ticker, e.g. NVDA or BRK.B.')).toBeNull()
+
+    cleanup()
+    const fn2 = stubExplain(() => json({ ...NOT_EVALUATED, ticker: 'BF.B' }))
+    render(<AbsenceReceipt />)
+    fireEvent.change(screen.getByLabelText('Ticker to check'), { target: { value: 'BF.B' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check' })) })
+    expect(fn2).toHaveBeenCalledWith('/api/catalysts/explain/BF.B')
+    expect(screen.queryByText('Enter a ticker, e.g. NVDA or BRK.B.')).toBeNull()
+  })
+
+  it('hyphenated dual-class form (BRK-B) also passes validation', async () => {
+    const fn = stubExplain(() => json({ ...NOT_EVALUATED, ticker: 'BRK-B' }))
+    render(<AbsenceReceipt />)
+    fireEvent.change(screen.getByLabelText('Ticker to check'), { target: { value: 'BRK-B' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check' })) })
+    expect(fn).toHaveBeenCalledWith('/api/catalysts/explain/BRK-B')
+    expect(screen.queryByText('Enter a ticker, e.g. NVDA or BRK.B.')).toBeNull()
   })
 })
 

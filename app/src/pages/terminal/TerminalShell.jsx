@@ -232,7 +232,7 @@ export function Panel({
             <PanelFreshnessContext.Provider value={setFreshness} key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}>
               <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
                 {r.name === 'Help'
-                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} auth={auth} />
                   : r.name === 'Move'
                     ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
                     : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
@@ -265,7 +265,13 @@ export default function TerminalShell() {
   } = useTerminalLayout()
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | null
-  const [channelMenu, setChannelMenu] = useState(null) // { index, anchor }
+  const [boardsOpenToVersions, setBoardsOpenToVersions] = useState(false)
+  // Keyed by the panel's STABLE `id` (never a positional index): `onClose`/`onDuplicate`/
+  // `undoClose`/`setCount` all reshuffle `layout.panels`, and this popover is non-modal, so a
+  // click can land long after a close/duplicate shifted every index behind it. Resolving by id
+  // at click time means a closed panel's menu just stops matching anything (closes, no-ops)
+  // instead of silently relinking whatever panel now sits at the old index.
+  const [channelMenu, setChannelMenu] = useState(null) // { panelId, anchor }
   const [functionRecents, setFunctionRecents] = useState(() => readFunctionRecents())
   const inputRef = useRef(null)
   const layoutRef = useRef(layout)
@@ -359,7 +365,10 @@ export default function TerminalShell() {
     const prev = previousRef.current
     if (!prev) return
     previousRef.current = null
-    for (const ch of ['A', 'B', 'C', 'D']) if (prev.syms?.[ch]) setGroupSym(ch, prev.syms[ch])
+    // FIX 4: unconditional, not `if (prev.syms?.[ch])` — a previously-UNLINKED channel's
+    // `syms[ch]` is falsy (null), and skipping the call left a board-injected ticker stuck
+    // on it. Always tell the channel what it used to be, including empty.
+    for (const ch of ['A', 'B', 'C', 'D']) setGroupSym(ch, prev.syms?.[ch] || '')
     save(prev.layout)
     setCurrentBoard(null)
     setNotice({ kind: 'info', text: 'Back to your layout.' })
@@ -479,6 +488,16 @@ export default function TerminalShell() {
     }
     setFunctionRecents(pushFunctionRecent(cmd.code))
     if (cmd.code === 'CMP' && cmd.compareMode === 'sector' && variant.door) {
+      // FIX 2: `NVDA CMP SECTOR FOO` carries `cmd.args = ['SECTOR', 'FOO']` — this branch
+      // only ever reads `sym` (the comparator is resolved server-side), so `FOO` was silently
+      // dropped with no echo, unlike the AMD path below which refuses + reports via `argsEcho`.
+      // `SECTOR` is the mode marker (consumed by definition, like a door's `{argN}`); anything
+      // AFTER it is a genuine leftover and gets the same refuse-and-say-so treatment.
+      const leftover = cmd.args.slice(1)
+      if (leftover.length) {
+        setNotice({ kind: 'error', text: argsEcho(cmd.code, { applied: [], ignored: leftover, takes: [] }) })
+        return null
+      }
       // V18: vs sector — the server resolves the security's sector ETF, then the SAME door.
       setNotice({ kind: 'info', text: `Finding ${sym}'s sector ETF…` })
       jsonFetcher(`/api/terminal/compare-target?sym=${encodeURIComponent(sym)}&mode=sector`)
@@ -518,13 +537,19 @@ export default function TerminalShell() {
     // A panel that owns the URL (the calendar, the screener page) appears at most once:
     // re-use its slot.
     let target = at
+    let redirectedFrom = null
     if (URL_OWNING_PANELS.has(name)) {
       const existing = cur.panels.slice(0, cur.count).findIndex((p, i) => {
         if (i === at) return false
         const r = resolvePanel(p, symsRef.current, auth)
         return r.state === 'ready' && r.name === name
       })
-      if (existing >= 0) target = existing
+      // FIX 3: `cmd.channel` means the member EXPLICITLY aimed this at a panel (`@B`/`@2`).
+      // Silently honouring the URL-owning re-use rule instead jumps focus to the EXISTING
+      // panel elsewhere on the board with no word said — the explicit target intent is just
+      // discarded. Keep the re-use rule (a URL-owning panel still appears at most once), but
+      // say so when it overrode an explicit target.
+      if (existing >= 0) { if (cmd.channel && existing !== at) redirectedFrom = cmd.channel; target = existing }
     }
     const prev = cur.panels[target]
     const channel = prev.linkable === false ? null : panelChannel(prev)
@@ -539,7 +564,11 @@ export default function TerminalShell() {
     let next = { ...cur, focus: target, panels }
     if (scope === 'ticker' && channel) next = commitChannelSym(next, channel, sym)
     save(next)
-    const said = [ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`, echo].filter(Boolean)
+    const said = [
+      ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
+      redirectedFrom && `${name} is already open elsewhere on this board; @${redirectedFrom} was redirected there instead of opening a second copy.`,
+      echo,
+    ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
     if (name === 'Calendar') {
       const extra = { ...applied.params, ...(variant.params?.earnings && sym ? { earnings: sym } : {}) }
@@ -562,6 +591,7 @@ export default function TerminalShell() {
   const urlCmdRef = useRef(undefined)      // the last `?cmd=` value acted on or written
   const pendingRef = useRef(null)          // the panel text an arriving URL command will show
   const writesRef = useRef([])
+  const urlSyncTrippedRef = useRef(false) // H14: true once the write-budget notice has fired
   const urlCmd = new URLSearchParams(location.search).get('cmd')
   // A pop-out window is one frozen panel: it neither runs nor writes `?cmd=`.
   useEffect(() => {
@@ -582,6 +612,13 @@ export default function TerminalShell() {
     writesRef.current = writesRef.current.filter((t) => now - t < 2000)
     if (writesRef.current.length >= 6) {
       console.warn('[terminal] ?cmd= write budget spent; URL sync paused (H14)')
+      // H14: console.warn alone is invisible to the member — bookmarking/back/forward/copy-link
+      // go stale with zero signal. Surface it once via the same notice idiom used everywhere
+      // else in this file, so it is dismissable like any other notice.
+      if (!urlSyncTrippedRef.current) {
+        urlSyncTrippedRef.current = true
+        setNotice({ kind: 'error', text: 'The address bar stopped following your panels (too many changes too fast). Reload the page to restore it.' })
+      }
       return
     }
     writesRef.current.push(now)
@@ -604,6 +641,21 @@ export default function TerminalShell() {
   // `/terminal/calendar` IS the Calendar section: arriving there shows the calendar in the
   // focused panel unless a visible panel already does. Waits for the stored layout, so it
   // never saves the default over a member's real one.
+  //
+  // FIX 1: `BY_CODE[code]?.ticker?.panel`/`?.market?.panel === 'Calendar'` is true for BOTH
+  // `CAL` and `ERN` (ERN opens the calendar's own earnings modal — functions.js). Treating
+  // only `p.code === 'CAL'` as "already the calendar" meant this effect — firing on the SAME
+  // route remount that `TICKER ERN` just ran against (`/terminal` -> `/terminal/calendar`
+  // re-matches a different <Route>, remounting TerminalShell and resetting this ref) — never
+  // recognised the just-created ERN panel as satisfying "a visible panel already shows the
+  // calendar", so the `at < 0` fallback injected a bare CAL into the focused panel and
+  // clobbered the ERN panel's identity (`data-code`, the header, and the `?cmd=`/stored-layout
+  // text all reverted to CAL even though the earnings modal still opened via `?earnings=`,
+  // masking the loss). Recognising ERN here means `at >= 0` and the fallback never runs.
+  const isCalendarCode = (code) => {
+    const fn = BY_CODE[code]
+    return fn?.ticker?.panel === 'Calendar' || fn?.market?.panel === 'Calendar'
+  }
   const enteredCalendar = useRef(false)
   useEffect(() => {
     if (loading || enteredCalendar.current) return
@@ -611,7 +663,7 @@ export default function TerminalShell() {
     enteredCalendar.current = true
     const cur = layoutRef.current
     const visible = cur.panels.slice(0, cur.count)
-    const at = visible.findIndex((p) => p.code === 'CAL')
+    const at = visible.findIndex((p) => isCalendarCode(p.code))
     if (at >= 0) {
       if (at !== cur.focus) save({ ...cur, focus: at })
       return
@@ -626,10 +678,23 @@ export default function TerminalShell() {
     if (!isPhone && !popoutToken) inputRef.current?.focus()
   }, [isPhone, popoutToken])
 
+  // FIX 5: the real browser window a pop-out opens, keyed by the panel's STABLE id (the same
+  // id-keying idiom as `channelMenu` above — an index would go stale across a close/reorder).
+  // `window.open()`'s return value was previously discarded entirely, so "Bring it back" and
+  // panel-close could toggle the board's OWN `popout` flag but never touch the real orphaned
+  // window, which stayed open on screen regardless.
+  const popoutWindowsRef = useRef({})
+  const closePopoutWindow = (panelId) => {
+    const handle = popoutWindowsRef.current[panelId]
+    delete popoutWindowsRef.current[panelId]
+    if (handle && !handle.closed) handle.close()
+  }
+
   // ── the panel lifecycle ──
   const onClose = (i) => {
     const res = closePanel(layout, i)
     if (!res.ok) return
+    closePopoutWindow(layout.panels[i].id)
     save(res.layout)
     setNotice({ kind: 'info', text: `Closed ${layout.panels[i].code}.`, actions: [{ label: 'Undo', id: 'undo-close' }] })
   }
@@ -648,11 +713,26 @@ export default function TerminalShell() {
       ? window.open(popoutHref(p, panelSym(p, syms)), `uct-terminal-${p.id}`, 'popup,width=960,height=720')
       : null
     if (!win) { setNotice({ kind: 'error', text: 'Your browser blocked the pop-out window. Allow pop-ups for this site and try again.' }); return }
+    popoutWindowsRef.current[p.id] = win
     save(setPopout(layout, i, true))
   }
+  const onBringBack = (i) => {
+    closePopoutWindow(layout.panels[i].id)
+    save(setPopout(layout, i, false))
+  }
 
-  const pickChannel = (i, id) => save(setPanelChannel(layoutRef.current, i, id, symsRef.current))
-  const newChannel = (i) => {
+  // Resolve the menu's target panel by STABLE id, at the moment of the click — never by the
+  // index captured when the menu opened (FIX: see the channelMenu state comment above). If the
+  // panel was closed in the meantime, the lookup fails and this is a no-op: no silent relink.
+  const panelIndexById = (panelId) => layoutRef.current.panels.findIndex((p) => p.id === panelId)
+  const pickChannel = (panelId, id) => {
+    const i = panelIndexById(panelId)
+    if (i < 0) return
+    save(setPanelChannel(layoutRef.current, i, id, symsRef.current))
+  }
+  const newChannel = (panelId) => {
+    const i = panelIndexById(panelId)
+    if (i < 0) return
     const { layout: withNew, id } = addChannel(layoutRef.current)
     if (!id) { setNotice({ kind: 'error', text: 'This board has the most groups it can hold.' }); return }
     save(setPanelChannel(withNew, i, id, symsRef.current))
@@ -715,8 +795,8 @@ export default function TerminalShell() {
   }
 
   const visible = layout.panels.slice(0, count)
-  const menuIndex = channelMenu?.index
-  const menuPanel = menuIndex != null ? layout.panels[menuIndex] : null
+  const menuPanelId = channelMenu?.panelId
+  const menuPanel = menuPanelId != null ? layout.panels.find((p) => p.id === menuPanelId) || null : null
   const activeId = activeChannelOf(layout)
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
@@ -802,7 +882,7 @@ export default function TerminalShell() {
               : 'Your saved terminal layout could not be read.'}
             {' '}It has not been changed. This session is using a fresh board, and nothing you do here is saved yet.
           </span>
-          <button type="button" className={styles.chip} onClick={() => setSheet('boards')}>Version history</button>
+          <button type="button" className={styles.chip} onClick={() => { setBoardsOpenToVersions(true); setSheet('boards') }}>Version history</button>
           {layoutStatus === 'unreadable' && (
             <button type="button" className={styles.chip} onClick={replaceStoredLayout} data-testid="terminal-start-fresh">
               Start fresh (replace it)
@@ -866,7 +946,7 @@ export default function TerminalShell() {
                 onFocus={() => setFocus(i)}
                 onChannelMenu={(e) => {
                   const r = e.currentTarget.getBoundingClientRect?.() || { left: 0, bottom: 0 }
-                  setChannelMenu({ index: i, anchor: { x: r.left, y: r.bottom + 4 } })
+                  setChannelMenu({ panelId: p.id, anchor: { x: r.left, y: r.bottom + 4 } })
                 }}
                 onRun={runTyped}
                 onRows={onRows}
@@ -874,7 +954,7 @@ export default function TerminalShell() {
                 onClose={() => onClose(i)}
                 onDuplicate={() => onDuplicate(i)}
                 onPopout={() => onPopout(i)}
-                onBringBack={() => save(setPopout(layout, i, false))}
+                onBringBack={() => onBringBack(i)}
                 canClose={count > 1}
                 isPhone={isPhone}
               />
@@ -892,23 +972,27 @@ export default function TerminalShell() {
             key: c.id,
             label: `${c.name}${syms[c.id] ? ` · ${syms[c.id]}` : ''}${panelChannel(menuPanel) === c.id ? ' (this panel)' : ''}${c.id === activeId ? ' · active' : ''}`,
             icon: c.id,
-            onClick: () => pickChannel(menuIndex, c.id),
+            onClick: () => pickChannel(menuPanelId, c.id),
           })),
-          { key: 'new', label: 'New group', icon: '+', onClick: () => newChannel(menuIndex) },
-          { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuIndex, null) },
+          { key: 'new', label: 'New group', icon: '+', onClick: () => newChannel(menuPanelId) },
+          { key: 'none', label: 'Not linked (keep this security)', icon: '·', onClick: () => pickChannel(menuPanelId, null) },
         ] : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
-        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} />
+        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />
       </Sheet>
-      <Sheet open={sheet === 'boards'} onClose={() => setSheet(null)} title="Boards">
+      <Sheet open={sheet === 'boards'} onClose={() => { setSheet(null); setBoardsOpenToVersions(false) }} title="Boards">
         <BoardsMenu
           library={library}
           libraryWritable={libraryWritable}
           currentName={currentBoard}
+          openToVersions={boardsOpenToVersions}
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
-          onDelete={(b) => saveLibrary(deleteBoard(library, b.id))}
+          onDelete={(b) => {
+            saveLibrary(deleteBoard(library, b.id))
+            if (b.name === currentBoard) setCurrentBoard(null)
+          }}
           onPreset={(sym, id) => saveLibrary(setPreset(library, sym === '*' ? '*' : sym, id))}
           onKeepCalendar={(on) => saveLibrary(setKeepCalendar(library, on))}
           onShareCurrent={() => `${window.location.origin}${shareHref(encodeShare(currentBoard || 'My terminal board', layout, syms))}`}

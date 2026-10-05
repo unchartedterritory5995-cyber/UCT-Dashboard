@@ -105,6 +105,36 @@ describe('NewsTab', () => {
   })
 })
 
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "no recent news" empty state.
+describe('NewsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useCompanyNews', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./NewsTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "No recent news for this ticker."', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('news-error')).toHaveTextContent("Couldn't load news")
+    expect(screen.queryByText('No recent news for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no items', async () => {
+    await renderWith({ data: { items: [] }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('No recent news for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('news-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})
+
 describe('whenLabel', () => {
   it('reports unknown rather than blank for missing/malformed timestamps', async () => {
     const { whenLabel } = await import('./NewsTab')

@@ -42,16 +42,19 @@ async function getJson(url, init) {
 }
 
 export default function TerminalVersions({ onRestored }) {
-  const [state, setState] = useState({ phase: 'loading', versions: [], message: null })
+  const [state, setState] = useState({ phase: 'loading', versions: [], message: null, refreshNotice: null })
 
   const load = useCallback(async (message = null) => {
     const r = await getJson(`${BASE}/versions?board=${TERMINAL_DOC_BOARD}&limit=20`)
     if (r.status === 404) { setState({ phase: 'dark', versions: [], message: null }); return }
     if (!r.ok || !Array.isArray(r.body?.versions)) {
+      // A failed refresh must never overwrite a success message already in hand (e.g. a
+      // restore that worked) — it is reported as a separate, lesser notice instead.
+      if (message) { setState((s) => ({ ...s, phase: 'ready', message, refreshNotice: "Restored; couldn't refresh the list." })); return }
       setState({ phase: 'error', versions: [], message: 'Version history could not be loaded.' })
       return
     }
-    setState({ phase: 'ready', versions: r.body.versions, message })
+    setState({ phase: 'ready', versions: r.body.versions, message, refreshNotice: null })
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -79,6 +82,7 @@ export default function TerminalVersions({ onRestored }) {
   return (
     <div data-testid="terminal-versions">
       {state.message && <p className={styles.menuNote} role="status">{state.message}</p>}
+      {state.refreshNotice && <p className={styles.menuNote} role="status" data-testid="terminal-versions-refresh-notice">{state.refreshNotice}</p>}
       <ul className={styles.menuList}>
         {state.versions.map((v, i) => (
           <li key={v.version} className={styles.menuRow}>
@@ -88,6 +92,7 @@ export default function TerminalVersions({ onRestored }) {
             </span>
             {i === 0 ? <span className={styles.menuHint}>current</span> : (
               <button type="button" className={styles.menuBtn} disabled={state.phase === 'restoring' || v.tombstone}
+                title={v.tombstone ? "This version's content was cleared and can no longer be restored." : undefined}
                 onClick={() => restore(v.version)} data-testid={`terminal-restore-${v.version}`}>Restore</button>
             )}
           </li>

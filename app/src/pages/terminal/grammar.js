@@ -12,8 +12,12 @@ import { BY_CODE, ABSENT, isCode } from './functions'
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
  *  2026-10-02; e.g. CF = CF Industries, DASH = DoorDash). `grammar.test.js` pins every
- *  entry to a registered code, so this list cannot name a code the registry dropped. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'GP', 'FORM', 'COMM', 'RES', 'LIVE', 'MB', 'DP'])
+ *  entry to a registered code, so this list cannot name a code the registry dropped.
+ *  Cross-checked against `api/data/cap_universe.json` (2026-10-05 collision-list audit):
+ *  GP, MB, LIVE, DP and COMM were removed — none is a tracked symbol, so warning on them
+ *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
+ *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'EXP'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '
@@ -160,16 +164,22 @@ export function describeCommand(cmd) {
   const fn = BY_CODE[cmd.code]
   const label = fn ? fn.label : cmd.code
   const shape = argShape(cmd.code)
+  // A door-command that NAVIGATES AWAY (leaves the multi-panel Terminal entirely) must read
+  // differently from a normal panel-opening command — the member should see the jump coming
+  // rather than being silently ejected. The variant selected mirrors the shell's own choice
+  // (ticker variant when a security is present and the code has one, else market).
+  const variant = cmd.sym && fn?.ticker ? fn.ticker : fn?.market
+  const leaves = variant?.door && variant?.leavesTerminal ? ' (leaves Terminal)' : ''
   if (cmd.code === 'CMP' && cmd.sym) {
     const other = cmd.args?.[0]
     const mode = cmd.compareMode || compareMode(cmd.sym, other)
     const what = !other ? `${cmd.sym} vs …` : mode === 'sector' ? `${cmd.sym} vs its sector ETF`
       : `${cmd.sym} vs ${String(other).toUpperCase()}${mode === 'index' ? ' (index vs index)' : ''}`
-    return { text: `Compare ${what}${via}${ch}`, tone: other ? 'ok' : 'warn', shape }
+    return { text: `Compare ${what}${via}${ch}${leaves}`, tone: other ? 'ok' : 'warn', shape }
   }
   const on = cmd.sym ? ` on ${cmd.sym}` : (fn?.ticker && !fn?.market ? ' on the linked security' : '')
   const extra = cmd.args?.length && cmd.code !== 'HELP' ? ` · ${cmd.args.join(' ')}` : ''
-  const base = `${cmd.code}: ${label}${on}${extra}${via}${ch}`
+  const base = `${cmd.code}: ${label}${on}${extra}${via}${ch}${leaves}`
   if (cmd.collision) {
     return { text: `${base}. ${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`,
       tone: 'warn', shape }

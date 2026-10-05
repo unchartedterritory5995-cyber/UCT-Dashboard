@@ -11,7 +11,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import usePreferences from '../../hooks/usePreferences'
 import useTerminalNext, { calendarIntoShell, shellOutToCalendar } from './terminalGate'
-import { readLibrary } from './boardModel'
+import { isGuardedStatus, readLibrary } from './boardModel'
 import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
 
 /** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section.
@@ -20,14 +20,29 @@ import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
  *  (`terminal_boards.keepCalendar`, set from the shell's Boards menu); `/terminal` stays open
  *  to them. ⚠️ This is a preference, and that is safe ONLY because it can narrow what a member
  *  sees, never widen it: a closed cohort never reaches this branch (terminalGate.js). While the
- *  preference is loading nothing renders, so the redirect never fires ahead of the choice. */
+ *  preference is loading a neutral placeholder renders (never a blank screen) so the redirect
+ *  never fires ahead of the choice. */
 export function CalendarRoute({ children }) {
   const open = useTerminalNext()
   const { search, hash } = useLocation()
   const { prefs, loading } = usePreferences(open)
   if (!open) return children
-  if (loading) return null
-  if (readLibrary(prefs?.[TERMINAL_BOARDS_PREF]).library.keepCalendar) return children
+  if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
+  const { library, status } = readLibrary(prefs?.[TERMINAL_BOARDS_PREF])
+  // An unreadable/newer preference must not silently reverse "keep classic calendar" —
+  // warn and stay put, the same idiom BoardsMenu uses for the same guarded states.
+  if (isGuardedStatus(status)) {
+    return (
+      <>
+        <p role="alert" style={{ color: '#f5c451', padding: '8px 20px', margin: 0 }}>
+          Your terminal preferences could not be read, so your "keep classic calendar" choice
+          could not be confirmed. Showing the classic calendar for now.
+        </p>
+        {children}
+      </>
+    )
+  }
+  if (library.keepCalendar) return children
   return <Navigate to={calendarIntoShell(search, hash)} replace />
 }
 
