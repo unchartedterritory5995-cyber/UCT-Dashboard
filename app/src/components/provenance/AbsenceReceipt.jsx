@@ -66,7 +66,7 @@ const SIGNAL_LABELS = Object.freeze({
 // 1-2 letters, mirroring the class-share spelling used elsewhere in this app
 // (lib/tickerResolver.js's cashtag suffix, massive.to_polygon_symbol's dot form).
 // No spaces, no repeated separators, max length kept tight so garbage still fails.
-const TICKER_RE = new RegExp('^[A-Z]{1,6}(?:[.-][A-Z]{1,2})?$')
+export const TICKER_RE = new RegExp('^[A-Z]{1,6}(?:[.-][A-Z]{1,2})?$')
 
 function ordinalRank(r, n) {
   return Number.isFinite(r) && Number.isFinite(n) ? `${formatNumber(r)} of ${formatNumber(n)}` : null
