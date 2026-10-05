@@ -95,3 +95,19 @@ server. Times are wall-clock from the browser.
 | L11 | Live Flow | After a web restart the Live Flow "warming" state shows 0 alerts for a long time. | flow-worker warm-up / `flow_proxy` | Serve the last persisted alerts while warming, labelled as such |
 | L12 | DES | Two intel endpoints answer the same question (`/api/earnings-intel` and `/api/earnings/intel`). | routers | Keep one; redirect the other |
 | L13 | Startup | About 15 requests fire at once when the terminal loads, each 1.5-2.2 s (they queue on the single web process). | frontend boot + web pool | Batch the L0/boot reads or warm them server-side |
+
+## Speed lane status (branch `fix/terminal-backend-speed`, 2026-10-05)
+
+| # | State | What changed, or why nothing did |
+|---|---|---|
+| S1 | Fixed `3e6a2930b` | A bare `/api/earnings-analysis/{sym}` never generates inside the request; it kicks the background job and answers `generating`. |
+| S2 | Fixed `2cb101ee1` | Web-grounded sentiment runs on the warm pool (one in flight per symbol); the request answers null and `useSentiment` re-asks in 60 s while null. |
+| S5 | Fixed `4289bea23` | `get_fundamentals` builds a cold name once however many members open it; a follower that waits past 30 s gets "still loading", not a second build. |
+| S7 | No change | Checked every R2 call site. No R2 sync runs on a request path: the bars corruption recovery runs on its own thread and is OFF (`R2_RECOVERY_ENABLED`); the request-path R2 reads (`econ/serving`, `fundamentals_pit/serving`) sit behind in-process TTL caches; `intradaypack` shards are one GET by design (TERM-040). |
+| S9 | Fixed `717f1899b` | The (ticker, ts) and (ts) indexes already existed (`buzz_store.py:68-69`). The cost was walking every room mention in Python for the per-day totals; finished days are now cached 10 min, today is read live. |
+| L6 | Fixed `619cd083e` | Ticker search breaks ties inside a match rank by 20-session dollar volume from bars.db (`TICKER_SEARCH_RANK_BY_DOLLAR_VOLUME`, default on). |
+| L9 screener | Fixed `9daa8b4d2` | `/api/screener/meta`'s bands are computed by the boot warm and after each nightly build. |
+| L9 calendar | No change | `my-sets` is four local reads (watchlists, flagged, open positions, cached wire data); its 14 s was queueing behind the boot burst (L13), not compute. `next-report` is one FMP/Finnhub call per symbol, cached 6 h and fired on selection only. |
+| L9 research | Research lane | `research/history`, seasonality, RTG are on `fix/terminal-backend-research`. |
+| L13 | Not built | The shared reads are already warmed on boot; the per-member ones cannot be. A single boot endpoint would change every panel's data hook, so it is a design decision, not a speed fix. |
+| S6, S8, S10 | Other lanes | S6 research composers and S8 MOVE are on the research lane; S10 IVH is on the options lane. |
