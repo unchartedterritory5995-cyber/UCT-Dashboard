@@ -46,6 +46,9 @@ WHOP_PRIVACY = "https://whop.com/privacy"
 TERMS_PAGE = PAGE_DIR / "terms.html"
 TERMS_PATH = "/live-trading-room/terms"
 TERMS_CANONICAL = "https://uctintelligence.com/live-trading-room/terms"
+PRIVACY_PAGE = PAGE_DIR / "privacy.html"
+PRIVACY_PATH = "/live-trading-room/privacy"
+PRIVACY_CANONICAL = "https://uctintelligence.com/live-trading-room/privacy"
 # v4 (owner-locked 2026-10-04, uct-growth/salespage/SITE-v4.md): five new
 # questions go in AFTER "Who are the traders?", in this order.
 FAQ_QUESTIONS = [
@@ -140,9 +143,9 @@ def test_every_cta_goes_to_the_whop_link_and_there_are_no_prices():
     p = _parsed()
     external = [a["href"] for t, a in p.tags if t == "a" and a.get("href", "").startswith("http")]
     assert external, "no outbound CTA found -- the check is pointed at nothing"
-    # The only outbound links: the Whop CTA, and Whop's privacy policy in the
-    # footer (the room collects nothing of its own; Whop handles the purchase).
-    assert set(external) == {WHOP, WHOP_PRIVACY}, f"unexpected outbound links: {sorted(set(external))}"
+    # The only outbound link is the Whop CTA. The footer's Terms and Privacy
+    # are the room's own pages (Privacy moved off Whop's policy 2026-10-04).
+    assert set(external) == {WHOP}, f"unexpected outbound links: {sorted(set(external))}"
     ctas = [a["href"] for t, a in p.tags if t == "a" and "btn" in (a.get("class") or "").split()]
     assert ctas and set(ctas) == {WHOP}, f"a CTA button points somewhere else: {ctas}"
     text = re.sub(r"<script.*?</script>|<style.*?</style>", "", PAGE.read_text(encoding="utf-8"), flags=re.S)
@@ -173,6 +176,10 @@ def test_the_sitemap_lists_the_terms_page():
     assert f"<loc>{TERMS_CANONICAL}</loc>" in SITEMAP.read_text(encoding="utf-8")
 
 
+def test_the_sitemap_lists_the_privacy_page():
+    assert f"<loc>{PRIVACY_CANONICAL}</loc>" in SITEMAP.read_text(encoding="utf-8")
+
+
 # -- the room page stays on the room -----------------------------------------
 # The site root is the pre-launch app's "coming soon" page, so a room visitor
 # who clicked the logo or "Home" landed somewhere that says nothing about the
@@ -191,10 +198,10 @@ def test_the_logo_links_to_the_room_not_the_site_root():
     assert brand[0]["href"] == "/live-trading-room"
 
 
-def test_the_footer_points_terms_and_privacy_at_the_room_and_whop():
+def test_the_footer_points_terms_and_privacy_at_the_rooms_own_pages():
     links = {text.strip(): href for href, text in _footer_links()}
     assert links.get("Terms") == TERMS_PATH, links
-    assert links.get("Privacy") == WHOP_PRIVACY, links
+    assert links.get("Privacy") == PRIVACY_PATH, links
     assert "/" not in links.values(), f"a footer link still goes to the site root: {links}"
     assert "/terms" not in links.values() and "/privacy" not in links.values(), links
 
@@ -256,6 +263,56 @@ def test_the_terms_page_has_no_prices_and_no_em_dashes():
     assert "\ufffd" not in html
 
 
+# -- the privacy page source -------------------------------------------------
+
+PRIVACY_BULLETS = [
+    "Uncharted Territory runs a live trading room on Discord, sold through Whop.",
+    "When you ask us to contact you (for example through a form on Facebook or Instagram), we collect what you send: your name, email, phone number and your answers to the form's questions.",
+    "We use it only to contact you about the live trading room, by phone, text, email or direct message, and to answer your questions.",
+    "We don't sell your information or share it with anyone else for their own marketing.",
+    "Purchases and memberships are handled by Whop, under Whop's Privacy Policy. Our emails are sent with Kit, and every email has an unsubscribe link.",
+    "To have your information deleted or to stop hearing from us, reply to any message from us or reach us in the Discord, and we'll take care of it.",
+]
+
+
+def test_the_privacy_page_has_its_own_head():
+    p = _parsed(PRIVACY_PAGE)
+    assert p.title.strip() == "Privacy | Uncharted Territory Live Trading Room"
+    assert (_meta(p, name="description") or "").strip()
+    canon = [a.get("href") for t, a in p.tags if t == "link" and a.get("rel") == "canonical"]
+    assert canon == [PRIVACY_CANONICAL]
+    assert _meta(p, name="viewport")
+
+
+def test_the_privacy_page_says_exactly_the_approved_copy():
+    html = PRIVACY_PAGE.read_text(encoding="utf-8")
+    text = _visible_text(html)
+    assert re.search(r"<h1[^>]*>\s*Privacy\s*</h1>", html), "H1 missing or changed"
+    for line in PRIVACY_BULLETS:
+        assert line in text, f"missing: {line}"
+    items = [a for t, a in _parsed(PRIVACY_PAGE).tags if t == "li"]
+    assert len(items) == len(PRIVACY_BULLETS), f"expected {len(PRIVACY_BULLETS)} bullets, got {len(items)}"
+
+
+def test_the_privacy_page_links_whops_policy_and_back_to_the_room():
+    p = _parsed(PRIVACY_PAGE)
+    hrefs = [a.get("href") for t, a in p.tags if t == "a"]
+    assert "/live-trading-room" in hrefs, "no link back to the room"
+    assert "Back to the live trading room" in _visible_text(PRIVACY_PAGE.read_text(encoding="utf-8"))
+    external = {h for h in hrefs if h and h.startswith("http")}
+    assert external == {WHOP_PRIVACY}, external
+    for t, a in p.tags:
+        if t == "img":
+            assert (PAGE_DIR / a["src"].rsplit("/", 1)[1]).is_file(), a["src"]
+
+
+def test_the_privacy_page_has_no_prices_and_no_em_dashes():
+    html = PRIVACY_PAGE.read_text(encoding="utf-8")
+    assert "$" not in _visible_text(html), "a price (or a dollar sign) appeared on the privacy page"
+    assert "\u2014" not in html and "&mdash;" not in html, "an em dash appeared on the privacy page"
+    assert "\ufffd" not in html
+
+
 # ── the real response builder, over HTTP ────────────────────────────────────
 
 def _main():
@@ -295,6 +352,19 @@ def test_the_terms_builder_serves_the_terms_page_as_html(temp_dist):
         assert r.headers["content-type"].startswith("text/html")
         assert "Live Trading Room terms" in r.text
         assert c.head(TERMS_PATH).status_code == 200
+
+
+def test_the_privacy_builder_serves_the_privacy_page_as_html(temp_dist):
+    main = temp_dist
+    app = FastAPI()
+    app.add_api_route(main.LIVE_TRADING_ROOM_PRIVACY_PATH, main.live_trading_room_privacy_response,
+                      methods=["GET", "HEAD"])
+    with TestClient(app) as c:
+        r = c.get(PRIVACY_PATH)
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+        assert re.search(r"<h1[^>]*>\s*Privacy\s*</h1>", r.text)
+        assert c.head(PRIVACY_PATH).status_code == 200
 
 
 # ── what production registers ───────────────────────────────────────────────
@@ -353,6 +423,29 @@ def test_main_registers_the_terms_page_and_its_slash_redirect_before_the_static_
     assert page[0] < mount_line and slash[0] < mount_line, "terms route registered after the static mount"
 
 
+def test_main_registers_the_privacy_page_and_its_slash_redirect_before_the_static_mount():
+    body = _dist_guard_body(ast.parse(MAIN.read_text(encoding="utf-8")))
+    routes = {}
+    mount_line = None
+    for node in body:
+        if isinstance(node, ast.FunctionDef):
+            for dec in node.decorator_list:
+                if isinstance(dec, ast.Call) and dec.args:
+                    routes[node.name] = (node.lineno, ast.unparse(dec))
+        if isinstance(node, ast.If):
+            for sub in ast.walk(node):
+                if (isinstance(sub, ast.Call) and ast.unparse(sub.func) == "app.mount"
+                        and sub.args and ast.unparse(sub.args[0]) == "LIVE_TRADING_ROOM_PATH"):
+                    mount_line = sub.lineno
+    assert mount_line is not None, "control: the room's static mount must be visible to this walk"
+    page = routes.get("_serve_live_trading_room_privacy")
+    slash = routes.get("_redirect_live_trading_room_privacy_slash")
+    assert page and slash, sorted(routes)
+    assert "LIVE_TRADING_ROOM_PRIVACY_PATH" in page[1] and "'GET'" in page[1] and "'HEAD'" in page[1]
+    assert "LIVE_TRADING_ROOM_PRIVACY_PATH + '/'" in slash[1]
+    assert page[0] < mount_line and slash[0] < mount_line, "privacy route registered after the static mount"
+
+
 @pytest.mark.skipif(not (REPO / "app" / "dist" / "live-trading-room" / "index.html").is_file(),
                     reason="app/dist not built (the gate builds it)")
 def test_the_real_app_serves_the_page_and_its_assets():
@@ -369,6 +462,10 @@ def test_the_real_app_serves_the_page_and_its_assets():
         assert t.status_code == 200 and "Live Trading Room terms" in t.text
         ts = c.get(TERMS_PATH + "/", follow_redirects=False)
         assert ts.status_code == 301 and ts.headers["location"] == TERMS_PATH
+        pv = c.get(PRIVACY_PATH)
+        assert pv.status_code == 200 and re.search(r"<h1[^>]*>\s*Privacy\s*</h1>", pv.text)
+        ps = c.get(PRIVACY_PATH + "/", follow_redirects=False)
+        assert ps.status_code == 301 and ps.headers["location"] == PRIVACY_PATH
 
 
 # ── the page's .webp images are served AS images ───────────────────────────

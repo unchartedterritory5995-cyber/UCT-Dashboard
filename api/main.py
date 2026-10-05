@@ -11531,6 +11531,21 @@ def live_trading_room_terms_response():
     )
 
 
+# The room's own privacy page (app/public/live-trading-room/privacy.html), served
+# exactly like the terms page above and for the same reason registered BEFORE the
+# /live-trading-room static mount (which would otherwise look for a file called
+# `privacy` and 404). The slash form 301s to the no-slash URL.
+LIVE_TRADING_ROOM_PRIVACY_PATH = LIVE_TRADING_ROOM_PATH + "/privacy"
+
+
+def live_trading_room_privacy_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "privacy.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11682,6 +11697,14 @@ if os.path.exists(DIST):
     @app.api_route(LIVE_TRADING_ROOM_TERMS_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
     def _redirect_live_trading_room_terms_slash():
         return RedirectResponse(LIVE_TRADING_ROOM_TERMS_PATH, status_code=301)
+
+    @app.api_route(LIVE_TRADING_ROOM_PRIVACY_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room_privacy():
+        return live_trading_room_privacy_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_PRIVACY_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_privacy_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_PRIVACY_PATH, status_code=301)
 
     _LTR_DIR = os.path.join(DIST, LIVE_TRADING_ROOM_DIR)
     if os.path.isdir(_LTR_DIR):
