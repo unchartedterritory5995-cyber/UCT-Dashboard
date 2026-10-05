@@ -302,6 +302,10 @@ const SWR_CONFIG = {
   dedupingInterval: 8000,
   focusThrottleInterval: 10000,
   errorRetryCount: 3,
+  // A 4xx answers the same way on every retry (signed out, not paid, not
+  // allowed, not there), so retrying only repeats it. 408 and 429 still retry.
+  // Fetchers that throw without a `status` still retry as before.
+  shouldRetryOnError: (err) => !(err && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429),
 }
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).

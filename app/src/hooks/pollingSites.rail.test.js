@@ -468,8 +468,8 @@ describe('polling sites — the opt-in helper gets a rail', () => {
       'census did not hold. That is a decision, not a lint nit:',
       '  • `useMobileSWR` HALVES the tick on a touch client — take it if a phone renders this;',
       '  • bare `useSWR` keeps the app-global `revalidateOnFocus: false` from App.jsx —',
-      '    the wrapper overrides that to `true`, which is MORE requests on desktop focus,',
-      '    plus a visibilitychange listener and a 60s useMarketOpen timer per call site.',
+      '    the wrapper agrees (off, since 2026-10-05), and adds',
+      '    a visibilitychange listener and a 60s useMarketOpen timer per call site.',
       'Pick one, then add the row below with your reason. Do NOT add a row to silence this.',
     ].join('\n')).toEqual([])
 
@@ -481,14 +481,16 @@ describe('polling sites — the opt-in helper gets a rail', () => {
       + 'reads again. Lower the count or delete the row.').toEqual([])
   }, 30_000)
 
-  it('the ADOPTION TRADE is pinned, so nobody re-pitches migration as a pure win', () => {
-    // ⚠️ THIS PINS A TRADE, IT DOES NOT ASSERT A WIN. Two files disagree about
-    // `revalidateOnFocus` and neither says so: `App.jsx` turned it OFF app-wide
-    // on 2026-07-01 "to cut redundant requests", and `useMobileSWR` turns it
-    // back ON for all 54 of its call sites. That is the cost side of adopting
-    // the helper, and it is the reason this file's other rail enforces a
-    // DECISION rather than a migration. If either side moves, this fails and
-    // whoever moved it gets to restate the trade.
+  it('the focus default is pinned: the wrapper and App.jsx AGREE (both off)', () => {
+    // ⚰️ RESTATED 2026-10-05. This pinned a DISAGREEMENT: App.jsx turned
+    // `revalidateOnFocus` OFF app-wide on 2026-07-01 "to cut redundant
+    // requests", and `useMobileSWR` turned it back ON for every call site, so
+    // each tab switch refetched every visible wrapper read. The terminal speed
+    // audit (2026-10-05) moved the wrapper to agree. THE TRADE NOW: a wrapper
+    // read refreshes on its own interval (paused while the tab is hidden), not
+    // on focus; a call site that needs a focus refetch passes
+    // `revalidateOnFocus: true` itself, as the Journal hooks already do. If
+    // either side moves again, this fails and whoever moved it restates it.
     const wrapper = parse(read(path.join(SRC, 'hooks', 'useMobileSWR.js')))
     let wrapperDefault = null
     walk(wrapper, (n) => {
@@ -499,7 +501,7 @@ describe('polling sites — the opt-in helper gets a rail', () => {
     })
     expect(wrapperDefault,
       '`useMobileSWR` no longer defaults `revalidateOnFocus` with `??` — the '
-      + 'override this rail exists to keep visible has moved').toBe(true)
+      + 'default this rail pins has moved').toBe(false)
 
     const app = parse(read(path.join(SRC, 'App.jsx')))
     let globalFocus = null
@@ -518,7 +520,7 @@ describe('polling sites — the opt-in helper gets a rail', () => {
       "App.jsx's SWR_CONFIG no longer states `revalidateOnFocus` — the global "
       + 'half of this trade is gone and the wrapper is no longer overriding '
       + 'anything').toBe(false)
-    expect(wrapperDefault).not.toBe(globalFocus)
+    expect(wrapperDefault).toBe(globalFocus)
   })
 
   it('CONTROL — the scanner SEES a planted poll and IGNORES what is not one', () => {

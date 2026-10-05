@@ -235,7 +235,7 @@ export default function AskAiTab({ sym }) {
 
         <div className={styles.explainSuggestions}>
           {SUGGESTIONS.map(s => (
-            <button key={s} type="button" className={styles.explainChip}
+            <button key={s} type="button" className={styles.explainChip} disabled={busy}
                     onClick={() => { setQuestion(s); ask(s) }}>{s}</button>
           ))}
         </div>
