@@ -54,3 +54,21 @@ agents misread live options panels as dark because of it. **Ship that trueup fir
 | O10 | GEX vs POS | `datetime.now()` is UTC on Railway while positioning uses ET. | `gex_service.py:420` | Use ET |
 | O11 | One-day move | Levels uses √(1/252) while Probability uses √(days/365), about 20% apart. | `positioning.py:414`, `log_history.py:121`, `chain_tools.py:59` | Pick one convention and state it |
 | O12 | IVH/STRS | Panels are reachable while their switches are off (`IV_HISTORY_ENABLED` and `OPTIONS_STRATEGY_SCREENS_ENABLED` are unset on web). | auth payload | Expose the per-feature flags in `/api/auth/me` and gate the codes in `functions.js` on them |
+
+## Speed (audit slice 5, 2026-10-05)
+
+The web pod is one process with one shared thread pool, so each of these is a slow-page or outage risk under load, not just a slow call. Frontend halves already shipped in `5ecf9ef39` (DES reads the analysis `cached_only`, no 4xx retries, no refetch on focus, `lazyWithRetry` panels). Locations without a line number were not pinned by the audit; grep the named function.
+
+| # | Code | Defect | Where | Fix |
+|---|---|---|---|---|
+| S1 | DES | `/api/earnings-analysis/{sym}` without `cached_only` or `background` generates with an LLM inside the request. The terminal no longer calls it that way; other callers still can. | `api/routers/earnings.py` `earnings_analysis` (~499-542) | Make the synchronous branch refuse to generate, or route it through `_kick_generation` |
+| S2 | TRAN | `/api/earnings/sentiment/{sym}` is a plain `def` that can run a Perplexity call plus an Opus call on the request path, with no single-flight. Mounted on every Calls tab. | `api/routers/earnings_intel.py:213` → `call_recap.get_sentiment` (~402) | Single-flight per symbol; generate in the background and return a pending state |
+| S3 | OMON/OVS | Options chain cold-cache stampede: the cache key includes `n` although `n` only trims an identical vendor walk, and there is no single-flight on `get_chain` / `list_expirations` or the surface. | `polygon_options.py:182` | Key without `n` (trim after); single-flight both; cache errors 15-30 s |
+| S4 | OMON | `list_expirations` has no overall time budget, and a per-call `timeout=` override bypasses the client's connect/pool limits. | `polygon_options.py` | 20 s budget; drop the per-call override |
+| S5 | DES/FA | `get_fundamentals` caches results but has no in-flight single-flight, so N members opening one cold name each run the yfinance walk (2-3 of the 8 shared yfinance slots per open). | `api/services/fundamentals.py:111-127` | Lock + future map per symbol, like `_refresh_inflight` |
+| S6 | Research | Financials, estimates, ownership, ratings and news composers have no single-flight; `get_ratings` runs its 3 legs one after another. | research services | Single-flight per symbol; run the ratings legs in parallel |
+| S7 | Any | An R2 sync can run on the request path. | data sync call sites | Move it to a background job |
+| S8 | MOVE | The earnings window is recomputed on every request. | MOVE service | Memoize per day (as `awareness/engine.py::_EARNINGS_MEMO` does) |
+| S9 | FSRC | Mention lookups scan the 90-day window on each request without an index. | `mention_series.py:76` | Add an index on (ticker, ts) |
+| S10 | IVH | The IV row cache is unbounded. | `iv_history.py` | LRU cap |
+| S11 | DPTH | Fans out to 7 GETs per open (cheap local reads). | frontend DepthTab | Optional: one `/api/research/depth/{sym}` batch endpoint |
