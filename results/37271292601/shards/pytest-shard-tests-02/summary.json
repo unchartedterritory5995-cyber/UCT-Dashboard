@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2366,
+  "passed": 2341,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 22,
+  "wall_s": 352.78,
+  "failed_files": [
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_bars_server_include_today.py",
+    "tests/test_bars_server_timing.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 2341 passed, 22 skipped, 1 xfailed, 7511 warnings in 352.78s (0:05:52)",
+  "ok": true
+}
