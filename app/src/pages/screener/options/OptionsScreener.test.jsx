@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { AuthContext } from '../../../context/AuthContext'
 import OptionsScreener, { screenUrl } from './OptionsScreener'
@@ -50,10 +51,14 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
+// `Screener` reads `useSearchParams` (OSCR's "Full page" `?tab=options` deep link), so it
+// needs a Router in the tree even here, where no test actually drives the URL.
 const wrap = (ui, auth = {}) => render(
-  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-    <AuthContext.Provider value={auth}>{ui}</AuthContext.Provider>
-  </SWRConfig>,
+  <MemoryRouter>
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <AuthContext.Provider value={auth}>{ui}</AuthContext.Provider>
+    </SWRConfig>
+  </MemoryRouter>,
 )
 
 describe('Screener page — the Options mode exists only while the flag rides the payload', () => {
@@ -74,6 +79,34 @@ describe('Screener page — the Options mode exists only while the flag rides th
   it('embedded (Charts widget): never shows the strip', () => {
     wrap(<Screener embedded />, { optionsScreenerEnabled: true })
     expect(screen.queryByRole('tablist', { name: 'Screener mode' })).toBeNull()
+  })
+
+  it('UCT Terminal\'s OSCR "Full page" link (?tab=options) lands on the Options tab, not Stocks', async () => {
+    // Before the fix, functions.js's `full` pointed at bare `/screener`, which always opened
+    // Stocks — Screener.jsx's tab mode had no URL hook to read. Now `?tab=options` is honoured
+    // as the INITIAL tab.
+    render(
+      <MemoryRouter initialEntries={['/screener?tab=options']}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <AuthContext.Provider value={{ optionsScreenerEnabled: true }}><Screener /></AuthContext.Provider>
+        </SWRConfig>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('tab', { name: 'Options', selected: true })).toBeTruthy()
+    expect(await screen.findByTestId('options-screener')).toBeTruthy()
+    expect(screen.queryByTestId('scanner-shell')).toBeNull()
+  })
+
+  it('no ?tab= param still defaults to Stocks (unchanged behavior)', () => {
+    render(
+      <MemoryRouter initialEntries={['/screener']}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <AuthContext.Provider value={{ optionsScreenerEnabled: true }}><Screener /></AuthContext.Provider>
+        </SWRConfig>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('tab', { name: 'Stocks', selected: true })).toBeTruthy()
+    expect(screen.getByTestId('scanner-shell')).toBeTruthy()
   })
 })
 
