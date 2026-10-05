@@ -53,6 +53,7 @@ ALLOWED_EVENTS = {
     "founder_contact_click",    # props: {channel: x|email|phone}
     "substack_click",
     "coming_soon_login_click",
+    "coming_soon_room_click",   # "See the room" -> /live-trading-room
 }
 
 

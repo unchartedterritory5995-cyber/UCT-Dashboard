@@ -11516,6 +11516,21 @@ def live_trading_room_response():
     )
 
 
+# The room's own terms page (app/public/live-trading-room/terms.html), served the
+# same way as the room page: static, server-readable, no trailing slash (the slash
+# form 301s to it). It must be registered BEFORE the /live-trading-room static
+# mount below, which would otherwise look for a file called `terms` and 404.
+LIVE_TRADING_ROOM_TERMS_PATH = LIVE_TRADING_ROOM_PATH + "/terms"
+
+
+def live_trading_room_terms_response():
+    return FileResponse(
+        os.path.join(DIST, LIVE_TRADING_ROOM_DIR, "terms.html"),
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11659,6 +11674,14 @@ if os.path.exists(DIST):
     @app.api_route(LIVE_TRADING_ROOM_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
     def _redirect_live_trading_room_slash():
         return RedirectResponse(LIVE_TRADING_ROOM_PATH, status_code=301)
+
+    @app.api_route(LIVE_TRADING_ROOM_TERMS_PATH, methods=["GET", "HEAD"], include_in_schema=False)
+    def _serve_live_trading_room_terms():
+        return live_trading_room_terms_response()
+
+    @app.api_route(LIVE_TRADING_ROOM_TERMS_PATH + "/", methods=["GET", "HEAD"], include_in_schema=False)
+    def _redirect_live_trading_room_terms_slash():
+        return RedirectResponse(LIVE_TRADING_ROOM_TERMS_PATH, status_code=301)
 
     _LTR_DIR = os.path.join(DIST, LIVE_TRADING_ROOM_DIR)
     if os.path.isdir(_LTR_DIR):
