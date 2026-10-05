@@ -96,6 +96,15 @@ MUTS = {
         "  if (!checklistEnabled(notebookFlag)) return null\n",
         "",
         ["app/src/pages/Support.notebook.test.jsx"]),
+    # controller ruling: the sample's examples obey the wave-14 switch, server side
+    "Ms1-examples-ignore-switch": ("api/services/journal_two/sample_notebook.py",
+        "        wave14 = wave14_switch_on()\n",
+        "        wave14 = True\n",
+        ["tests/test_sample_notebook_switch.py"]),
+    "Ms2-switch-reads-one-flag": ("api/services/notebook_flags.py",
+        "    return all(flag_on(name, NOTEBOOK_FLAGS[name]) for name in WAVE14_SWITCH)\n",
+        "    return flag_on(WAVE14_SWITCH[0], NOTEBOOK_FLAGS[WAVE14_SWITCH[0]])\n",
+        ["tests/test_sample_notebook_switch.py"]),
     "Mf2-explainer-ignores-seen-state": (ENGINE,
         "      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current(); return }\n",
         "",
@@ -104,6 +113,10 @@ MUTS = {
 
 
 def run(files):
+    if all(f.startswith("tests/") for f in files):
+        r = subprocess.run([sys.executable, "-m", "pytest", *files, "-q", "-p", "no:warnings", "-p", "no:cacheprovider"],
+                           cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+        return r.returncode, r.stdout + r.stderr
     rel = [f[len("app/"):] for f in files]
     cmd = "npx vitest run " + " ".join(rel) + " --maxWorkers=2"
     r = subprocess.run(cmd, cwd=ROOT / "app", shell=True, capture_output=True, text=True,
@@ -114,7 +127,8 @@ def run(files):
 
 def summary(out):
     keep = [l.strip() for l in out.splitlines()
-            if l.strip().startswith(("Test Files", "Tests ", "×", "FAIL "))]
+            if l.strip().startswith(("Test Files", "Tests ", "×", "FAIL ", "FAILED "))
+            or re.search(r"^\d+ (passed|failed)", l.strip()) or re.search(r" (passed|failed)( |,|$).* in [0-9.]+s", l)]
     return "\n".join(dict.fromkeys(keep))
 
 

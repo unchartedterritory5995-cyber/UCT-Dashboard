@@ -42,6 +42,11 @@ CAPS_WORD = re.compile(r"\b[A-Z][A-Z0-9]*(?:[.-][A-Z]{1,2})?\b")
 def db(monkeypatch, tmp_path):
     path = str(tmp_path / "sample.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
+    # W14-C1 ruling: these rails describe the wave-14 sample (base five + examples), which
+    # exists only while the wave-14 switch is on; tests/test_sample_notebook_switch.py proves
+    # the switch-off sample is exactly the pre-wave-14 one.
+    monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
+    monkeypatch.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
     auth_db.init_db()
     # W14-E: a capability example (the passed setup; a legacy resurfacing insight in the
     # removal rails) can write a row that carries a real `REFERENCES users(id)` -- unlike the
