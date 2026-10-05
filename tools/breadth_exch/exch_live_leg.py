@@ -1,7 +1,7 @@
 """Exchange Breadth V1 — THE LIVE LEG (orchestrator). Run through launch.py (pinned overlay).
 
 argv: --store DIR [--mode append|proof] [--substitute JSON] [--pin-vintage TAG] [--through DATE]
-      [--max-sessions N]   (crash-test hook: env EXCH_LIVE_CRASH_AT=<boundary>)
+      [--max-sessions N] --code-commit SHA [--crash-at BOUNDARY (proof stores only)]
 
 For every completed trading session after the frozen history (in order, no holes):
   OWNER VINTAGE   live_core.owner_vintage — the vintage the US V2 producer published the session from,
@@ -58,11 +58,15 @@ ap.add_argument("--substitute", default="{}")
 ap.add_argument("--pin-vintage", default=None)
 ap.add_argument("--through", default=None)
 ap.add_argument("--max-sessions", type=int, default=0)
+ap.add_argument("--code-commit", default="unrecorded")    # argv, not env: launch.py re-execs with PID 1's env
+ap.add_argument("--crash-at", default=None)               # crash-test hook (proof stores only)
 A = ap.parse_args()
 SUB = json.loads(A.substitute)
 if A.mode == "append" and (SUB or A.pin_vintage):
     raise SystemExit("substitution / pinned vintage are PROOF-only diagnostics — refusing in append mode")
-CRASH = os.environ.get("EXCH_LIVE_CRASH_AT")
+CRASH = A.crash_at
+if CRASH and A.mode != "proof":
+    raise SystemExit("--crash-at is a proof-store test hook — refusing in append mode")
 
 
 def crash(point):
@@ -82,7 +86,7 @@ for name, (p, want) in PARENTS.items():
     if lc.sha_file(p) != want:
         raise SystemExit(f"PARENT HASH MISMATCH {name}")
 STORE = lc.Store(os.path.join(A.store, "exch_live_candidate_v1.db" if A.mode == "append" else "exch_live_PROOF.db"))
-code_commit = os.environ.get("EXCH_LIVE_CODE_COMMIT", "unrecorded")
+code_commit = A.code_commit
 STORE.init_lineage({"mode": A.mode, "historical_sha256": PARENTS["historical"][1], "derived_sha256": PARENTS["derived"][1],
                     "ledger_sha256": PARENTS["ledger"][1], "identity_parent_sha256": PARENTS["identity_state"][1],
                     "pins_sha256": lc.sha_file(PINS), "code_commit": code_commit, "frozen_end": FROZEN_END,

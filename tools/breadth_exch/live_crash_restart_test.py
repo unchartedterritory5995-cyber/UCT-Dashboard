@@ -22,12 +22,9 @@ TABLES = ("breadth_daily_ohlc", "exch_session", "membership", "venue_evidence", 
 
 
 def run(store, extra=(), crash=None):
-    env = dict(os.environ, EXCH_LIVE_CODE_COMMIT=os.path.basename(CODE).replace("code_live_", ""))
-    env.pop("EXCH_LIVE_CRASH_AT", None)
-    if crash:
-        env["EXCH_LIVE_CRASH_AT"] = crash
-    p = subprocess.run([sys.executable, LAUNCH, E, "--store", store, *ARGS, *extra], cwd=os.path.dirname(LAUNCH),
-                       env=env, capture_output=True, text=True)
+    args = ["--code-commit", os.path.basename(CODE).replace("code_live_", "")] + (["--crash-at", crash] if crash else [])
+    p = subprocess.run([sys.executable, LAUNCH, E, "--store", store, *ARGS, *args, *extra], cwd=os.path.dirname(LAUNCH),
+                       capture_output=True, text=True)
     st = json.load(open(os.path.join(store, "STATUS.json"))) if not crash else None
     return p.returncode, st
 
