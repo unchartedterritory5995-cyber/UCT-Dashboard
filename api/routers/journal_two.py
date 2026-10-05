@@ -1708,6 +1708,7 @@ def get_current_regime_route(
 
 # ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
 from api.services.journal_two import notes as notes_service
+from api.services import request_body_cap as body_cap  # noqa: E402
 from api.services.journal_two.notes import NoteValidationError, NoteLockedError
 from api.services.journal_two import note_properties
 
@@ -3694,11 +3695,25 @@ async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, conten
                        type(e).__name__)
 
 
+# ⛔ WAVE 14 (S-3, census row :264's sibling): the three note upload doors take
+# their file through `body_cap.capped_upload`, never `File(...)`. FastAPI parses a
+# `File(...)` parameter IN FULL before any dependency runs -- before the session
+# check, and with no size limit -- so a chunked upload, or one whose
+# Content-Length lied, was spooled whole before `save_note_*` measured it. The
+# dependency caps the body WHILE it is read and runs AFTER `user` (declaration
+# order), so an anonymous caller reads nothing. The caps and sentences are the
+# service's own, read per request.
+_NOTE_IMAGE_UPLOAD = body_cap.capped_upload(
+    "file", lambda: notes_service._MAX_IMAGE_BYTES, lambda: notes_service.IMAGE_TOO_BIG_SENTENCE)
+_NOTE_FILE_UPLOAD = body_cap.capped_upload(
+    "file", lambda: notes_service._MAX_FILE_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
+
+
 @router.post("/notes/{note_id}/images")
 async def upload_note_image_endpoint(
     note_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_NOTE_IMAGE_UPLOAD),
 ) -> dict[str, Any]:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
@@ -3720,8 +3735,8 @@ async def upload_note_image_endpoint(
 @router.post("/notes/{note_id}/hero")
 async def upload_note_hero_endpoint(
     note_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_NOTE_IMAGE_UPLOAD),
 ) -> dict[str, Any]:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
@@ -3757,8 +3772,8 @@ def delete_note_hero_endpoint(
 @router.post("/notes/{note_id}/attachments")
 async def upload_note_attachment_endpoint(
     note_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_NOTE_FILE_UPLOAD),
 ) -> dict[str, Any]:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
