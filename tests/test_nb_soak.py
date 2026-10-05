@@ -453,6 +453,14 @@ def test_the_parsers_read_what_the_real_instruments_write():
 
 # ── the edges: main() on real files, and delivery ───────────────────────────
 
+def _git_init(repo):
+    import subprocess
+    run = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True, capture_output=True)
+    run("init", "-q")
+    run("-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "fixture")
+
+
 def _tree(tmp_path):
     (tmp_path / "verdicts").mkdir()
     for i, v in enumerate(_sundays()):
@@ -472,6 +480,9 @@ def _tree(tmp_path):
         (repo / "tools" / name).write_bytes(b"same\n")
         (copies / name).write_bytes(b"same\r\n")
     (copies / "window_check.py").write_bytes(b"older\n")         # one real drift
+    # The reference must be a real git checkout root (wave 14 OPS): a plain directory is
+    # exactly what a removed-and-recreated or half-deleted checkout looks like.
+    _git_init(repo)
     return ["--log", str(tmp_path / "log.md"), "--verdicts", str(tmp_path / "verdicts"),
             "--drills", str(tmp_path / "drills"), "--canary-doc", str(tmp_path / "canary.md"),
             "--repo", str(repo), "--copies", str(copies), "--start", _z(START),
@@ -571,3 +582,71 @@ def test_main_archives_the_current_verdict_named_by_NB_GATE_VERDICT(tmp_path):
     assert soak.main(args + ["--no-alerts", "--verdict-current", str(cur)], now=NOW) == 0
     assert any(p.name.startswith("soak-gate-verdict-") for p in (tmp_path / "verdicts").iterdir())
 
+
+
+# ── the reference checkout itself (wave 14 OPS) ─────────────────────────────
+# 2026-10-01 and 2026-10-04: NB_SOAK_REPO's checkout was removed twice by disk-cleanup sweeps,
+# and the roll-up said "drift 0" both times -- every copy read "not in repo", which is not DRIFT.
+# A reference that is missing, or is not a git checkout root, is an ALERT through `send`.
+
+def _repo_arg(args):
+    return pathlib.Path(args[args.index("--repo") + 1])
+
+
+def _run_sending(tmp_path, monkeypatch, args):
+    sent = []
+    monkeypatch.setattr(soak, "send", lambda items, webhook, **_: sent.append(list(items)) or len(items))
+    monkeypatch.delenv(soak.WEBHOOK_ENV, raising=False)
+    assert soak.main(args, now=NOW) == 0
+    return sent
+
+
+def test_a_MISSING_reference_checkout_alerts_and_never_reads_drift_0(tmp_path, monkeypatch, capsys):
+    args = _tree(tmp_path)
+    args[args.index("--repo") + 1] = str(tmp_path / "notebook-soak-ref")   # never created
+    sent = _run_sending(tmp_path, monkeypatch, args)
+    keys = dict(sent[0])
+    assert "reference:checkout" in keys, sent
+    assert "missing" in keys["reference:checkout"]
+    out = capsys.readouterr().out
+    assert "drift ?" in out and "drift 0" not in out
+    board = (tmp_path / "soak-dashboard.md").read_text(encoding="utf-8")
+    assert "NOT compared" in board
+
+
+def test_a_reference_that_is_NOT_a_git_checkout_alerts(tmp_path, monkeypatch, capsys):
+    args = _tree(tmp_path)
+    plain = tmp_path / "plain"
+    (plain / "tools").mkdir(parents=True)
+    for name in soak.COPIES:
+        (plain / "tools" / name).write_bytes(b"same\n")
+    args[args.index("--repo") + 1] = str(plain)
+    sent = _run_sending(tmp_path, monkeypatch, args)
+    keys = dict(sent[0])
+    assert "reference:checkout" in keys and "not a git checkout" in keys["reference:checkout"]
+    assert "drift ?" in capsys.readouterr().out
+
+
+def test_a_directory_INSIDE_another_checkout_is_not_the_reference(tmp_path):
+    args = _tree(tmp_path)
+    why = soak.reference_problem(_repo_arg(args) / "tools")
+    assert why and "not a git checkout" in why
+
+
+def test_a_healthy_reference_checkout_raises_no_reference_alert_CONTROL(tmp_path, monkeypatch):
+    """Control: without it the two alerts above could be a check that fires on everything."""
+    args = _tree(tmp_path)
+    assert soak.reference_problem(_repo_arg(args)) is None
+    sent = _run_sending(tmp_path, monkeypatch, args)
+    assert [k for k, _ in sent[0]] == ["drift:window_check.py"]
+
+
+def test_no_repo_given_is_not_checked_and_not_paged():
+    assert soak.reference_problem(None) is None
+
+
+def test_the_reference_alert_is_built_from_the_facts():
+    f = facts(reference="reference checkout missing: X")
+    assert ("reference:checkout", "REFERENCE CHECKOUT reference checkout missing: X -- the running "
+            "copies were NOT compared") in soak.alerts(f, "PASS", "PASS")
+    assert not [k for k, _ in soak.alerts(facts(), "PASS", "PASS") if k.startswith("reference")]

@@ -97,7 +97,7 @@ repo (`git grep` for `worktree remove`, `prune` and `_throwaway` in `tools/` and
 no sweep that targets `uct-worktrees`). The three scheduled tasks that touch the soak
 (`UCT-AuthDB-Restore-Drill`, `UCT-NB-Soak`, `UCT-WaveQ1-Observe`) only read it.
 
-Secondary finding, not fixed here: `nb_soak.py` checks the copies against the repo through
+Secondary finding, fixed on this branch afterwards (see section 6): `nb_soak.py` checks the copies against the repo through
 `NB_SOAK_REPO=...\notebook-soak-ref`. When that checkout is missing it reports `not in repo` and
 `drift 0`, so the daily roll-up stayed quiet through both gaps (`nb_soak.run.log`, 10-01 to 10-04).
 
@@ -203,3 +203,16 @@ git -C C:\Users\Patrick\uct-ops\soak-ref checkout --detach origin/master
 ```
 
 The URL is `origin` as of 2026-10-04; re-check it with `git -C C:\Users\Patrick\uct-dashboard remote get-url origin`.
+
+## 6. `nb_soak` now pages on a missing reference checkout
+
+`tools/nb_soak.py::reference_problem` checks `NB_SOAK_REPO` before the copies are compared. A
+missing directory, a plain directory, a directory inside some other checkout, or git failing to
+run is reported, not passed. The alert key is `reference:checkout` and it goes through the same
+`alerts()` -> `due()` -> `send()` path as DRIFT, once per ET day. When this fires, the stdout
+line reads `drift ?` instead of `drift 0`, and the dashboard says the copies were NOT compared.
+As with DRIFT, this is an alert and not a verdict condition. A standalone clone passes the
+check, so the section 3 move needs no change here. An unset `NB_SOAK_REPO` still means "not
+checked" and does not page. Rails are in `tests/test_nb_soak.py`: missing, not-a-checkout, inside
+another checkout, a healthy-checkout control, and the alert built from the facts. The `_tree`
+fixture is now a real `git init` checkout. Takes effect after the copy in `uct-q1-observe` is refreshed.
