@@ -715,10 +715,90 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Bullish OB",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB High",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB Low",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB Average",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB Low",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB High",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB Average",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Latest Bull High",
+            "MATCH",
+            636
+          ],
+          [
+            "Latest Bull Avg",
+            "MATCH",
+            636
+          ],
+          [
+            "Latest Bull Low",
+            "MATCH",
+            636
+          ],
+          [
+            "Latest Bear High",
+            "MATCH",
+            636
+          ],
+          [
+            "Latest Bear Avg",
+            "MATCH",
+            636
+          ],
+          [
+            "Latest Bear Low",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              6,
+              0
+            ]
+          ]
+        ],
         "paints": null
       }
     },
@@ -745,10 +825,48 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D-VWAP",
+            "DIVERGE",
+            114,
+            "value",
+            6,
+            "persistent"
+          ],
+          [
+            "W-VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "M-VWAP",
+            "MATCH",
+            636
+          ],
+          [
+            "Y-VWAP",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              23,
+              22
+            ],
+            [
+              "labels",
+              27,
+              3
+            ]
+          ]
+        ],
         "paints": null
       }
     },
@@ -775,10 +893,54 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "VWAP",
+            "DIVERGE",
+            0,
+            "na",
+            2,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            2,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            2,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            2,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            2,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -835,11 +997,30 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Kernel Midline",
+            "MATCH",
+            636
+          ],
+          [
+            "Upper Band",
+            "MATCH",
+            636
+          ],
+          [
+            "Lower Band",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -866,9 +1047,12 @@
       "library": false,
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:no-output): the pasted script off",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
-        "objects": null,
+        "objects": [
+          "INCONCLUSIVE",
+          []
+        ],
         "paints": null
       }
     },
@@ -895,11 +1079,35 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:type): a user-defined type is out",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            null,
+            "INCONCLUSIVE",
+            "UNMAPPED — title \"\" could not be paired unambiguously"
+          ],
+          [
+            "ATR On Chart",
+            "MATCH",
+            636
+          ],
+          [
+            "Long Signal",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Short Signal",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
@@ -926,10 +1134,39 @@
       "library": false,
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "reason": null,
+        "plots": [
+          [
+            "Filter",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "High Band",
+            "MATCH",
+            636
+          ],
+          [
+            "Low Band",
+            "MATCH",
+            636
+          ],
+          [
+            "Buy Signal",
+            "MATCH",
+            636
+          ],
+          [
+            "Sell Signal",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -955,11 +1192,30 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Nonlinear Regression, Zero-lag Moving Average [Loxx]",
+            "MATCH",
+            636
+          ],
+          [
+            "Long",
+            "MATCH",
+            636
+          ],
+          [
+            "Short",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -970,11 +1226,23 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR Trailing Stoploss",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
@@ -985,11 +1253,23 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR Trailing Stoploss",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
@@ -1103,21 +1383,33 @@
     },
     {
       "idPrefix": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d",
-      "id": null,
+      "id": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d-2026-10-04",
       "script": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": true,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d",
-      "id": null,
+      "id": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d-2026-10-04",
       "script": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": true,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d",
@@ -1852,10 +2144,90 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Bullish OB",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB High",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB Low",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bullish OB Average",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB Low",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB High",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Bearish OB Average",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Latest Bull High",
+            "MATCH",
+            8477
+          ],
+          [
+            "Latest Bull Avg",
+            "MATCH",
+            8477
+          ],
+          [
+            "Latest Bull Low",
+            "MATCH",
+            8477
+          ],
+          [
+            "Latest Bear High",
+            "MATCH",
+            8477
+          ],
+          [
+            "Latest Bear Avg",
+            "MATCH",
+            8477
+          ],
+          [
+            "Latest Bear Low",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              6,
+              0
+            ]
+          ]
+        ],
         "paints": null
       }
     },
@@ -1882,10 +2254,48 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D-VWAP",
+            "DIVERGE",
+            2038,
+            "value",
+            34,
+            "persistent"
+          ],
+          [
+            "W-VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "M-VWAP",
+            "MATCH",
+            8477
+          ],
+          [
+            "Y-VWAP",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "lines",
+              23,
+              22
+            ],
+            [
+              "labels",
+              27,
+              3
+            ]
+          ]
+        ],
         "paints": null
       }
     },
@@ -1912,10 +2322,54 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
-        "plots": [],
-        "objects": null,
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "VWAP",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ],
+          [
+            "Plot",
+            "DIVERGE",
+            0,
+            "na",
+            1,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -1942,11 +2396,30 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "Kernel Midline",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            "Upper Band",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            "Lower Band",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
@@ -1973,10 +2446,39 @@
       "library": false,
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "reason": null,
+        "plots": [
+          [
+            "Filter",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "High Band",
+            "MATCH",
+            8477
+          ],
+          [
+            "Low Band",
+            "MATCH",
+            8477
+          ],
+          [
+            "Buy Signal",
+            "MATCH",
+            8477
+          ],
+          [
+            "Sell Signal",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -2002,11 +2504,30 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "Nonlinear Regression, Zero-lag Moving Average [Loxx]",
+            "MATCH",
+            8477
+          ],
+          [
+            "Long",
+            "MATCH",
+            8477
+          ],
+          [
+            "Short",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "MATCH"
       }
     },
     {
@@ -2017,11 +2538,23 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR Trailing Stoploss",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
@@ -2032,11 +2565,23 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
-        "plots": [],
-        "objects": null,
-        "paints": null
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "ATR Trailing Stoploss",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
       }
     },
     {
