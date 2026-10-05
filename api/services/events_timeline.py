@@ -36,8 +36,10 @@ import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from statistics import median
 from typing import Any, Callable, Optional
+from zoneinfo import ZoneInfo
 
 _logger = logging.getLogger(__name__)
+_ET = ZoneInfo("America/New_York")
 
 ENABLED_ENV = "EVENTS_TIMELINE_ENABLED"
 MAX_PRINTS = 9               # 8 reported quarters + the next scheduled
@@ -93,7 +95,14 @@ def _earnings_events(sym: str) -> tuple[list[dict], list[dict], Optional[str]]:
         d = _iso(q["report_date"])
         label = q.get("label") or d
         est, act = q.get("eps_estimate"), q.get("eps_actual")
-        detail = f"EPS {act} vs {est} estimate" if act is not None else None
+        # R21: an estimate FMP never published is omitted, never printed as
+        # "vs None estimate".
+        if act is None:
+            detail = None
+        elif est is None:
+            detail = f"EPS {act}"
+        else:
+            detail = f"EPS {act} vs {est} estimate"
         prints.append({"date": d, "label": label, "state": "reported"})
         events.append({"date": d, "kind": "earnings", "title": f"Reported {label}", "detail": detail,
                        "source": "earnings payload (earnings_intel)"})
@@ -146,10 +155,15 @@ def _room_spike_events(sym: str, now: Optional[datetime] = None) -> list[dict]:
         return []
     now = now or datetime.now(timezone.utc)
     start = int((now - timedelta(days=SPIKE_LOOKBACK_DAYS + SPIKE_BASELINE_DAYS * 2)).timestamp())
+    # R21: bucketed by the ET calendar day, as ATTN buckets the room. SQLite's
+    # `date(ts, 'unixepoch')` is the UTC day, which moved every evening-ET
+    # mention onto the next day.
     rows = buzz_store.connect().execute(
-        "SELECT date(ts, 'unixepoch') AS d, COUNT(*) AS n FROM mentions WHERE ticker=? AND ts >= ? "
-        "GROUP BY d ORDER BY d", (sym, start)).fetchall()
-    counts = {r["d"]: r["n"] for r in rows}
+        "SELECT ts FROM mentions WHERE ticker=? AND ts >= ?", (sym, start)).fetchall()
+    counts: dict[str, int] = {}
+    for r in rows:
+        d_et = datetime.fromtimestamp(int(r["ts"]), tz=_ET).date().isoformat()
+        counts[d_et] = counts.get(d_et, 0) + 1
     if not counts:
         return []
     out = []
