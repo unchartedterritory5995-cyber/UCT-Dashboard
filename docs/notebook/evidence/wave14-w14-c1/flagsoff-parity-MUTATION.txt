@@ -1,91 +1,43 @@
 == flags-off render parity (MUTATION: wave-14 switch removed from tourLive)
-base b06ec4fd85 vs HEAD 517e607f14
+base b06ec4fd85 vs HEAD c89c5a4c2d
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
-swapped 42 source files to the base blob; restored, git status unchanged
-12 identical | 28 differ (40 cases)
+swapped 177 source files to the base blob; restored, git status unchanged
+28 identical | 12 differ (40 cases)
   DIFFERS: help | prod-like: every capability on, getting-started off | fresh member
     HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
-    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig5)" stroke-width="1.85" stroke-linecap
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
   DIFFERS: notebook home | prod-like: every capability on, getting-started off | fresh member
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
   DIFFERS: notes list | prod-like: every capability on, getting-started off | fresh member
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
-  DIFFERS: open note | prod-like: every capability on, getting-started off | fresh member
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig105)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig104)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
   DIFFERS: help | prod-like: every capability on, getting-started off | base tour done, checklist closed
-    HEAD: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig131)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig130)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
   DIFFERS: notebook home | prod-like: every capability on, getting-started off | base tour done, checklist closed
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
   DIFFERS: notes list | prod-like: every capability on, getting-started off | base tour done, checklist closed
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
-  DIFFERS: open note | prod-like: every capability on, getting-started off | base tour done, checklist closed
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig235)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig233)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
   DIFFERS: help | every capability on, onboarding off | fresh member
-    HEAD: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig261)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig259)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
   DIFFERS: notebook home | every capability on, onboarding off | fresh member
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
   DIFFERS: notes list | every capability on, onboarding off | fresh member
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
-  DIFFERS: open note | every capability on, onboarding off | fresh member
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig364)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig361)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
   DIFFERS: help | every capability on, onboarding off | base tour done, checklist closed
-    HEAD: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig390)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig387)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
+    HEAD: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><section class="_faqWrap_" aria-labelledby="support-whats-new"><h2 id="support-whats-new" class="_faqTitle_ _whatsNewTitle_"><svg width="13" height="13" viewBox=
+    BASE: ...">Click "New Ticket" to get help — or check the quick answers below</div></div><div class="_faqWrap_"><div class="_faqTitle_"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap=
   DIFFERS: notebook home | every capability on, onboarding off | base tour done, checklist closed
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
   DIFFERS: notes list | every capability on, onboarding off | base tour done, checklist closed
     HEAD: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""><section class="_card_" aria-labelledby="_r_" aria-describedby="_r_" data-tour-offer=""><div class="_text_"><h2 id="_r_" class="_title_">New in your Notebook: Wr
     BASE: ...ain id="main-content" tabindex="-1" class="_main_"><div data-first-run-slot=""></div><div class="_wrap_  " style="--nb-sb-w: 260px; height: 724px;"><div class="_sidebarSlot_"><div class="_sidebarInner_"><aside class="_sidebar_"><h2 tabindex
-  DIFFERS: open note | every capability on, onboarding off | base tour done, checklist closed
-    HEAD: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig493)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig489)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-  DIFFERS: help | onboarding only | fresh member
-    HEAD: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig519)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig515)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: notebook home | onboarding only | fresh member
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig568)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig564)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: open note | onboarding only | fresh member
-    HEAD: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig610)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig606)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-  DIFFERS: help | onboarding only | base tour done, checklist closed
-    HEAD: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig633)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig629)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-  DIFFERS: notebook home | onboarding only | base tour done, checklist closed
-    HEAD: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig682)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig678)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-  DIFFERS: open note | onboarding only | base tour done, checklist closed
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig724)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig720)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: help | all off | fresh member
-    HEAD: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig747)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig743)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: notebook home | all off | fresh member
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig795)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig791)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: open note | all off | fresh member
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig837)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig833)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: help | all off | base tour done, checklist closed
-    HEAD: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig860)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ..._"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#uig856)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-  DIFFERS: notebook home | all off | base tour done, checklist closed
-    HEAD: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig908)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-    BASE: ..."><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig904)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shado
-  DIFFERS: open note | all off | base tour done, checklist closed
-    HEAD: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig950)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
-    BASE: ...e"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig946)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shad
 VERDICT: PASS -- the mutation is caught

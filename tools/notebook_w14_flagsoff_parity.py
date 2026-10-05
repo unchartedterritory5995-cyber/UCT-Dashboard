@@ -79,6 +79,7 @@ const norm = (html) => html
   .replace(/ data-tour(-active)?="[^"]*"/g, '')
   .replace(/:r[0-9a-z]+:/g, ':r:')
   .replace(/_r_[0-9a-z]+_/g, '_r_')   // React 19 useId (a counter: it counts hooks, not markup)
+  .replace(/\buig[0-9]+\b/g, 'uig')   // UIcon's gradient id: a module counter of MOUNT order (UIcon.jsx), so a lazily mounted box renumbers every later icon without changing markup
   .replace(/\b(_[A-Za-z][A-Za-z0-9-]*_)[a-z0-9]{5,8}\b/g, '$1')
 const wait = (ms) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
 const OUT = {}

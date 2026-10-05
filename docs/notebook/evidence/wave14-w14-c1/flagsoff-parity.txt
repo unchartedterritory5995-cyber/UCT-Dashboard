@@ -1,7 +1,7 @@
 == flags-off render parity
-base b06ec4fd85 vs HEAD 08ec281fd3
+base b06ec4fd85 vs HEAD c89c5a4c2d
 pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
 pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
-swapped 150 source files to the base blob; restored, git status unchanged
+swapped 177 source files to the base blob; restored, git status unchanged
 40 identical | 0 differ (40 cases)
 VERDICT: PASS -- identical
