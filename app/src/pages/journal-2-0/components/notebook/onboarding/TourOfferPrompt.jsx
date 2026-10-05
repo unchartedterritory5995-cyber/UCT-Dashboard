@@ -7,12 +7,16 @@
 // keyboard member reaches it in reading order (it is the first thing in <main>) and a
 // screen reader can find it by its heading. Escape inside it is "Not now".
 import { useId } from 'react'
+import useRovingTabIndex from '../../../../../hooks/useRovingTabIndex'
 import { OFFER_COPY } from './tourOfferCopy'
 import styles from './TourOfferPrompt.module.css'
 
 export default function TourOfferPrompt({ entry, onAccept, onLater }) {
   const titleId = useId()
   const bodyId = useId()
+  // W14-keys: the two answers are ONE Tab stop (a toolbar named by the card; Arrow keys move
+  // between them). Escape anywhere in the card is still "Not now", and the button says so.
+  const { containerProps, itemProps } = useRovingTabIndex({ orientation: 'horizontal' })
   if (!entry) return null
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -32,9 +36,10 @@ export default function TourOfferPrompt({ entry, onAccept, onLater }) {
         <h2 id={titleId} className={styles.title}>{OFFER_COPY.title(entry.title)}</h2>
         <p id={bodyId} className={styles.body}>{OFFER_COPY.body}</p>
       </div>
-      <div className={styles.actions}>
-        <button type="button" className={styles.accept} onClick={onAccept}>{OFFER_COPY.accept}</button>
-        <button type="button" className={styles.later} onClick={onLater}>{OFFER_COPY.later}</button>
+      <div className={styles.actions} role="toolbar" aria-labelledby={titleId} {...containerProps}>
+        <button type="button" className={styles.accept} onClick={onAccept} {...itemProps('accept')}>{OFFER_COPY.accept}</button>
+        <button type="button" className={styles.later} onClick={onLater} aria-keyshortcuts="Escape"
+          {...itemProps('later')}>{OFFER_COPY.later}</button>
       </div>
     </section>
   )

@@ -31,9 +31,10 @@
 //     screen for days would hold the "Meet Compass" card back for all of them. A card
 //     that takes its own page space cannot stack on another; the stylesheet rail in
 //     GettingStartedChecklist.test.jsx keeps it that way.
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
+import useRovingTabIndex from '../../../../hooks/useRovingTabIndex'
 import usePreferences from '../../../../hooks/usePreferences'
 import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -44,6 +45,7 @@ import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, checklistClosed, checklistEnabled,
   closedAs, deriveChecklistItems, recordedDone, withDone,
 } from './onboarding/gettingStarted'
+import { GETTING_STARTED_HEADING_ID, useMarkGettingStartedShowing } from './onboarding/keyboardDoors'
 import styles from './GettingStartedList.module.css'
 
 /** Where "Start a note from a template" goes: All notes, which offers the template
@@ -54,7 +56,12 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
   const enabled = checklistEnabled(notebookFlag)
   const { prefs, setPrefMerged, loading } = usePreferences()
   const { home } = useNotebookHome()
-  const titleId = useId()
+  // W14-keys: a FIXED id -- "Skip to getting started" (onboarding/keyboardDoors.jsx) lands
+  // here, and one checklist renders at a time.
+  const titleId = GETTING_STARTED_HEADING_ID
+  // W14-keys: the steps are ONE Tab stop (a vertical toolbar; Arrow keys move inside it), so
+  // a keyboard member walks past the list in one press instead of one per step.
+  const { containerProps, itemProps } = useRovingTabIndex({ orientation: 'vertical' })
   const [adding, setAdding] = useState(false)
   const mounted = useRef(true)
   useEffect(() => {
@@ -107,6 +114,9 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, loading, closed, allDone, setPrefMerged])
 
+  // W14-keys: tells the skip link the card is on screen (same four conditions as the line below).
+  useMarkGettingStartedShowing(enabled && !loading && !closed && !allDone)
+
   if (!enabled || loading || closed || allDone) return null
 
   const dismiss = () => {
@@ -125,7 +135,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
 
   const action = (item) => {
     if (item.kind === 'template') {
-      return <Link className={styles.action} to={TEMPLATES_HREF}>{item.label}</Link>
+      return <Link className={styles.action} to={TEMPLATES_HREF} {...itemProps(item.id)}>{item.label}</Link>
     }
     let onClick = null
     let label = item.label
@@ -139,7 +149,8 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
     if (typeof onClick !== 'function') return <span className={styles.label}>{label}</span>
     return (
       <button type="button" className={styles.action} onClick={onClick}
-        disabled={item.kind === 'sample' && adding}>
+        disabled={item.kind === 'sample' && adding}
+        {...itemProps(item.id, { disabled: item.kind === 'sample' && adding })}>
         {label}
       </button>
     )
@@ -148,12 +159,15 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
   return (
     <section className={styles.card} aria-labelledby={titleId}>
       <div className={styles.header}>
-        <h3 id={titleId} className={styles.title}>{CHECKLIST_COPY.title}</h3>
+        <h3 id={titleId} tabIndex={-1} className={styles.title}>{CHECKLIST_COPY.title}</h3>
         <span className={styles.progress}>{CHECKLIST_COPY.progress(doneCount, items.length)}</span>
         <button type="button" className={styles.hide} onClick={dismiss} aria-label={CHECKLIST_COPY.hideLabel}>
           {CHECKLIST_COPY.hide}
         </button>
       </div>
+      {/* W14-keys: a plain block wrapper carries the toolbar role (the list keeps its own semantics;
+          the card's flex gap lands on this div exactly as it landed on the list). */}
+      <div role="toolbar" aria-orientation="vertical" aria-label={CHECKLIST_COPY.stepsLabel} {...containerProps}>
       <ol className={styles.list}>
         {items.map((item) => (
           <li key={item.id} className={styles.item}>
@@ -169,6 +183,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
           </li>
         ))}
       </ol>
+      </div>
     </section>
   )
 }

@@ -266,7 +266,8 @@ def key_reach(pg, *, from_top: bool = True, cap: int = TAB_CAP) -> dict:
     reached: dict[int, int] = {}
     trail = []
     presses = 0
-    for presses in range(1, cap + 1):
+    while presses < cap:
+        presses += 1
         pg.keyboard.press("Tab")
         idx = pg.evaluate("() => { const el = document.activeElement; const c = el && el.closest && el.closest('[data-q1-ctl]');"
                           " return c ? Number(c.getAttribute('data-q1-ctl')) : -1 }")
@@ -276,7 +277,29 @@ def key_reach(pg, *, from_top: bool = True, cap: int = TAB_CAP) -> dict:
             reached[idx] = presses
         if len(reached) == n:
             break
+        # W14-keys: a roving group (role=toolbar; the checklist's steps, the offer's answers) is
+        # ONE Tab stop -- its other items are reached with the Arrow key the group declares, each
+        # press counted like a Tab. Walk a group once, the first time Tab lands in it.
+        group = pg.evaluate("""() => { const el = document.activeElement;
+            const g = el && el.closest && el.closest('[role=toolbar]');
+            if (!g || !el.hasAttribute('data-roving-item') || g.hasAttribute('data-q1-walked')) return null;
+            g.setAttribute('data-q1-walked', '');
+            return { n: g.querySelectorAll('[data-roving-item]').length,
+                     key: g.getAttribute('aria-orientation') === 'vertical' ? 'ArrowDown' : 'ArrowRight' } }""")
+        if group:
+            for _ in range(group["n"] - 1):
+                pg.keyboard.press(group["key"])
+                presses += 1
+                idx = pg.evaluate("() => { const el = document.activeElement; const c = el && el.closest && el.closest('[data-q1-ctl]');"
+                                  " return c ? Number(c.getAttribute('data-q1-ctl')) : -1 }")
+                if len(trail) < 80:
+                    trail.append(pg.evaluate(FOCUS_DESC_JS))
+                if idx >= 0 and idx not in reached:
+                    reached[idx] = presses
+            if len(reached) == n:
+                break
     pg.evaluate("() => document.querySelectorAll('[data-q1-ctl]').forEach(e => e.removeAttribute('data-q1-ctl'))")
+    pg.evaluate("() => document.querySelectorAll('[data-q1-walked]').forEach(e => e.removeAttribute('data-q1-walked'))")
     missing = [labels[i] for i in range(n) if i not in reached]
     return {"controls": labels, "reached_at": {labels[i]: p for i, p in sorted(reached.items())},
             "missing": missing, "presses": presses, "trail": trail}

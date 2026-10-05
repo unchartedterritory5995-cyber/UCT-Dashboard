@@ -71,6 +71,9 @@ BUDGETS = [
     ("O4", "replay a walkthrough from Help", 2, 4, 3, "Q3"),
     ("O5", "accept a tour offer (a tour opens)", 1, 2, 1, "Q5"),
     ("O6", "decline a tour offer", 1, 2, 1, "Q5"),
+    # W14-keys (docs/notebook/wave14-keys.md): O4 through the app's own nav instead of the
+    # command palette -- the path the held NavBar decision governs. Keys only; same budget.
+    ("O4N", "replay a walkthrough from Help, via the nav", 2, 4, 3, "Q3"),
 ]
 BUDGET = {b[0]: {"flow": b[1], "mouse": b[2], "keys": b[3], "taps": b[4], "derived_from": b[5]} for b in BUDGETS}
 
@@ -141,6 +144,20 @@ def clear_tour_setup(pg, setup: list) -> None:
         setup.append("base tour not on screen")
 
 
+def focus_from_top(pg, setup: list) -> None:
+    """W14-keys: closing the auto-started tour now puts focus on the first-run heading, and a
+    `blur()` leaves the browser's sequential-focus starting point THERE, so the next Tab would
+    continue from the middle of the page -- a start no keyboard member arriving fresh has.
+    Reload so focus navigation starts at the top of the document, as every Q1 row did (the tour
+    is recorded dismissed, so it does not come back)."""
+    pg.reload(wait_until="domcontentloaded")
+    h._dismiss_intro(pg)
+    pg.get_by_role("heading", name="Welcome to your Notebook", level=2).first.wait_for(timeout=30000)
+    if pg.locator(TOUR).count() and pg.locator(TOUR).first.is_visible():
+        raise Inconclusive("the base tour came back after a reload")
+    setup.append("page reloaded so focus navigation starts at the top")
+
+
 def to_offer_setup(pg, setup: list) -> None:
     """Base tour closed, checklist hidden, Compass card closed -- the offer's preconditions."""
     clear_tour_setup(pg, setup)
@@ -165,10 +182,24 @@ def to_offer_setup(pg, setup: list) -> None:
                 " window.scrollTo(0, 0) }")
 
 
-def in_main(m: Meter, *, main_first: bool = False) -> None:
+FOCUS_IN_MAIN_JS = """() => { const el = document.activeElement;
+  return !!(el && el !== document.body && el.closest && el.closest('#main-content')) }"""
+
+
+def in_main(m: Meter, *, main_first: bool = False, prefer: str | None = None) -> None:
     """Keys mode: a keyboard member takes a skip link rather than walking the app nav (13Q-3's
     convention, w13q.use_skip_link): the Notebook's own "Skip to notes list" (NotebookTab.jsx) where
-    the page has one, else "Skip to main content". Which one was taken is in the row's steps."""
+    the page has one, else "Skip to main content". Which one was taken is in the row's steps.
+
+    W14-keys: when focus is ALREADY in <main> (closing the auto-started tour now lands it on the
+    first-run heading), no skip link is taken -- a member whose focus is in the page does not go
+    back to the top to skip into it. `prefer` names a page skip link to try first ("Skip to
+    getting started")."""
+    if m.pg.evaluate(FOCUS_IN_MAIN_JS):
+        m.steps.append({"do": "already in <main> (free)", "on": m.pg.evaluate(w13q.FOCUS_DESC_JS)})
+        return
+    if prefer and w13q.use_skip_link(m, "^" + re.escape(prefer) + "$", prefer):
+        return
     if main_first:
         # the offer card is portaled into the first-run slot, FIRST in <main> (W14-C2 1.4), so
         # "Skip to notes list" would land past it; "Skip to main content" lands right before it
@@ -213,11 +244,10 @@ def o2_sample(cx, pg, m: Meter, base: str, setup: list) -> dict:
 def o3_dismiss_checklist(cx, pg, m: Meter, base: str, setup: list) -> dict:
     first_run(pg, base)
     clear_tour_setup(pg, setup)
+    focus_from_top(pg, setup)
     pg.get_by_role("heading", name="Get started").first.wait_for(timeout=15000)
-    pg.evaluate("() => { document.activeElement && document.activeElement.blur && document.activeElement.blur();"
-                " window.scrollTo(0, 0) }")
     if m.mode == "keys":
-        in_main(m)
+        in_main(m, prefer="Skip to getting started")
     m.press(pg.get_by_role("button", name="Hide the get started list"), "Hide (checklist)")
     gs = wait_until(lambda: (pref_json(cx, base, "notebook_getting_started") or {}).get("state") == "dismissed"
                     and pref_json(cx, base, "notebook_getting_started"))
@@ -226,10 +256,40 @@ def o3_dismiss_checklist(cx, pg, m: Meter, base: str, setup: list) -> dict:
     return {"notebook_getting_started": gs}
 
 
+def _replay_row(pg):
+    return pg.locator("li", has_text="Notebook basics").filter(has=pg.get_by_role("link", name="Replay"))
+
+
 def o4_replay(cx, pg, m: Meter, base: str, setup: list) -> dict:
+    """W14-keys: on keys, the member's door is the ONE command palette (Ctrl+K, the door every
+    wave-13 "find, open" budget was met through): "Help: Walkthroughs" lands on Help's
+    Walkthroughs heading, and the next Tab is Replay. Pointer and touch walk the nav as before.
+    The nav path on keys is measured separately as O4N."""
     first_run(pg, base)
     clear_tour_setup(pg, setup)
-    pg.evaluate("() => { document.activeElement && document.activeElement.blur && document.activeElement.blur() }")
+    focus_from_top(pg, setup)
+    if m.mode == "keys":
+        m.key("Control+k", "open the command palette")
+        m.type("walkthroughs", "palette query")
+        w13q.pick_option(m, r"Help: Walkthroughs", "Help: Walkthroughs")
+        pg.wait_for_url("**/support#walkthroughs", timeout=20000)
+        pg.get_by_role("heading", name="Walkthroughs", level=2).first.wait_for(timeout=20000)
+        m.press(_replay_row(pg).first.get_by_role("link", name="Replay"), "Replay (Notebook basics)")
+        return _replay_verify(pg)
+    return _o4_via_nav(pg, m)
+
+
+def o4n_replay_nav(cx, pg, m: Meter, base: str, setup: list) -> dict:
+    """O4 on keys through the app nav (no palette): Support is the LAST sidebar entry, so this
+    is the cost the held NavBar single-Tab-stop decision governs. On Help the member takes
+    "Skip to Walkthroughs"."""
+    first_run(pg, base)
+    clear_tour_setup(pg, setup)
+    focus_from_top(pg, setup)
+    return _o4_via_nav(pg, m, skip_on_help=True)
+
+
+def _o4_via_nav(pg, m: Meter, skip_on_help: bool = False) -> dict:
     support = pg.get_by_role("link", name="Support", exact=True).filter(visible=True)
     if support.count() == 0:
         # phone/tablet: the app directory lives behind the top bar's menu button; MoreSheet's rows
@@ -239,8 +299,15 @@ def o4_replay(cx, pg, m: Meter, base: str, setup: list) -> dict:
                    .or_(pg.get_by_role("button", name="Support", exact=True))).filter(visible=True)
     m.press(support, "Support (nav)")
     pg.wait_for_url("**/support", timeout=20000)
-    row = pg.locator("li", has_text="Notebook basics").filter(has=pg.get_by_role("link", name="Replay"))
+    row = _replay_row(pg)
+    row.first.wait_for(timeout=20000)
+    if skip_on_help and m.mode == "keys":
+        w13q.use_skip_link(m, r"^Skip to Walkthroughs$", "Skip to Walkthroughs")
     m.press(row.first.get_by_role("link", name="Replay"), "Replay (Notebook basics)")
+    return _replay_verify(pg)
+
+
+def _replay_verify(pg) -> dict:
     d = pg.locator(TOUR).first
     d.wait_for(state="visible", timeout=20000)
     title = d.locator("h2").first.inner_text()
@@ -255,6 +322,15 @@ def _offer_answer(cx, pg, m: Meter, base: str, setup: list, button: str) -> str:
     offered = pg.locator("[data-tour-offer] h2").first.inner_text()
     if m.mode == "keys":
         in_main(m, main_first=True)
+    if m.mode == "keys" and button == "Not now":
+        # W14-keys: the offer's answers are ONE Tab stop, and "Not now" declares the key the card
+        # has always honoured (aria-keyshortcuts="Escape"). Verified from the DOM, never assumed.
+        later = pg.locator("[data-tour-offer]").get_by_role("button", name="Not now").first
+        if later.get_attribute("aria-keyshortcuts") != "Escape":
+            raise Inconclusive("'Not now' does not declare its Escape (aria-keyshortcuts)")
+        m.tab_to("el.closest && el.closest('[data-tour-offer]')", "the offer card")
+        m.key("Escape", "Not now (Escape, declared by aria-keyshortcuts)")
+        return offered
     m.press(pg.locator("[data-tour-offer]").get_by_role("button", name=button), button)
     return offered
 
@@ -280,7 +356,10 @@ def o6_decline(cx, pg, m: Meter, base: str, setup: list) -> dict:
 
 
 FLOWS = [("O1", o1_first_note), ("O2", o2_sample), ("O3", o3_dismiss_checklist), ("O4", o4_replay),
-         ("O5", o5_accept), ("O6", o6_decline)]
+         ("O5", o5_accept), ("O6", o6_decline), ("O4N", o4n_replay_nav)]
+# W14-keys: a flow measured in fewer modes than the four (O4N is the keys-only nav path).
+ALL_MODES = (("mouse", "1200"), ("keys", "1200"), ("keys", "390"), ("taps", "390"))
+FLOW_MODES = {"O4N": (("keys", "1200"), ("keys", "390"))}
 
 
 # ── runner ──────────────────────────────────────────────────────────────────────────────
@@ -400,7 +479,7 @@ def main(argv=None) -> int:
                 for fid, fn in FLOWS:
                     if only and fid not in only:
                         continue
-                    for mode, width in (("mouse", "1200"), ("keys", "1200"), ("keys", "390"), ("taps", "390")):
+                    for mode, width in FLOW_MODES.get(fid, ALL_MODES):
                         n += 1
                         result["rows"].append(run_one(br, admin.request, base, fid, fn, mode, width, out, n))
                         (out / "clicks.json").write_text(json.dumps({**result, "status": "IN PROGRESS"}, indent=1,

@@ -11,6 +11,7 @@ import { TOURS_PREF } from './journal-2-0/components/notebook/onboarding/tourSee
 import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tourEligibility'
 import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
+import { SkipLinkPortal } from '../components/skipLinks'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -332,15 +333,37 @@ function PublishSentence() {
  *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
+export const WALKTHROUGHS_ID = 'walkthroughs'
+
 function WalkthroughsSection() {
   // W14-C1 ruling: this section is wave 14's (W14-0); with the wave-14 switch off Help renders
   // as before wave 14, base tour included (its own "Take the tour" link above is unchanged).
-  if (!checklistEnabled(notebookFlag)) return null
-  const live = replayableTours().filter((t) => tourLive(t, notebookFlag))
-  if (!live.length) return null
+  const on = checklistEnabled(notebookFlag)
+  const live = on ? replayableTours().filter((t) => tourLive(t, notebookFlag)) : []
+  // W14-keys: the Walkthroughs heading is a keyboard landing -- "Skip to Walkthroughs" moves
+  // focus here, and so does arriving at /support#walkthroughs (the command palette's
+  // "Help: Walkthroughs"). The next Tab stop is the first Replay. Focused by script only, so a
+  // mouse member sees nothing new (docs/notebook/wave14-keys.md).
+  const location = useLocation()
+  const headingRef = useRef(null)
+  const shown = live.length > 0
+  useEffect(() => {
+    if (shown && location.hash === `#${WALKTHROUGHS_ID}`) headingRef.current?.focus()
+  }, [shown, location.hash, location.key])
+  if (!shown) return null
+  const skipToWalkthroughs = (e) => {
+    e.preventDefault()
+    headingRef.current?.focus()
+  }
   return (
     <div className={styles.faqWrap}>
-      <div className={styles.faqTitle}>
+      <SkipLinkPortal>
+        <a href={`#${WALKTHROUGHS_ID}`} className={styles.skipLink} onClick={skipToWalkthroughs}>
+          Skip to Walkthroughs
+        </a>
+      </SkipLinkPortal>
+      <div ref={headingRef} id={WALKTHROUGHS_ID} tabIndex={-1} role="heading" aria-level={2}
+        className={styles.faqTitle}>
         <UIcon name="sparkle" size={13} />
         Walkthroughs
       </div>

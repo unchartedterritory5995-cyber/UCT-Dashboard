@@ -65,9 +65,14 @@ export default function useRovingTabIndex({ orientation = 'horizontal' } = {}) {
   // react-router already maintains. The functional setState below is a
   // no-op when the key is unchanged, so this cannot loop.
   useEffect(() => {
-    if (movedRef.current) return
     const nodes = getItems()
     if (!nodes.length) return
+    // W14-keys: a moved stop is kept only while its item is still in the group. An item can
+    // leave (a get-started step that is done renders as text, not a control), and a stop
+    // naming an item that is gone leaves EVERY item at tabIndex -1: the group would drop out
+    // of the Tab order entirely.
+    if (movedRef.current && nodes.some((n) => n.getAttribute('data-roving-item') === rovingKey)) return
+    movedRef.current = false
     const active = nodes.find((n) => n.getAttribute('aria-current') === 'page')
     const key = (active || nodes[0]).getAttribute('data-roving-item')
     setRovingKey((prev) => (prev === key ? prev : key))

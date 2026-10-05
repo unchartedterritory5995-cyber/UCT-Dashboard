@@ -328,25 +328,27 @@ describe('the first-run stage: no surface stacks on another', () => {
 })
 
 describe('keyboard reach', () => {
-  it('Tab reaches every step and Hide, in reading order; Enter runs the focused step', async () => {
+  // W14-keys: Hide is its own Tab stop and the steps are ONE more (a vertical toolbar), so the
+  // reading order is reached with Tab then the Arrow keys (docs/notebook/wave14-keys.md).
+  it('Tab reaches Hide then the steps; Arrow keys walk every step in reading order; Enter runs the focused step', async () => {
     const user = userEvent.setup()
     const { onCreateNote } = renderList()
     await screen.findByRole('heading', { name: 'Get started' })
-    const order = []
-    for (let i = 0; i < 5; i += 1) {
-      await user.tab()
+    await user.tab()
+    expect(document.activeElement).toHaveTextContent('Hide')
+    await user.tab()
+    const order = [document.activeElement.textContent]
+    for (let i = 0; i < 3; i += 1) {
+      await user.keyboard('{ArrowDown}')
       order.push(document.activeElement.textContent)
     }
     expect(order).toEqual([
-      'Hide',
       'Write your first note',
       'Start a note from a template',
       'Open the sample notebook',
       'Take the Notebook basics tour',
     ])
-    await user.tab({ shift: true })
-    await user.tab({ shift: true })
-    await user.tab({ shift: true })
+    await user.keyboard('{Home}')
     expect(document.activeElement).toHaveTextContent('Write your first note')
     await user.keyboard('{Enter}')
     expect(onCreateNote).toHaveBeenCalledTimes(1)
