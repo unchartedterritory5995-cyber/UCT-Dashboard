@@ -109,7 +109,33 @@ def _hq_str(info: dict) -> str | None:
 
 
 def get_fundamentals(ticker: str) -> dict[str, Any]:
-    """Compact fundamentals summary for a ticker."""
+    """Compact fundamentals summary for a ticker.
+
+    S5 (terminal backend fixes, 2026-10-05): a cold name is built ONCE however many
+    members open it at the same moment. The result was cached but nothing stopped N
+    concurrent cold opens each running the yfinance walk (2-3 of the 8 shared yfinance
+    slots per open) on the single web process. `single_flight` keys on the cache key,
+    so callers collapse exactly when they would have stored the same value. A follower
+    waits at most 30 s and then gets an honest "still loading" error, never a second
+    build.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"error": "ticker required"}
+    cache_key = f"fund::{sym}"
+    cached = _CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+    from api.services import single_flight
+    try:
+        out = single_flight.run(cache_key, lambda: _build_fundamentals(sym), wait=30)
+    except single_flight.SingleFlightTimeout:
+        return {"error": "fundamentals are still loading for this ticker", "ticker": sym}
+    return dict(out) if isinstance(out, dict) else out
+
+
+def _build_fundamentals(ticker: str) -> dict[str, Any]:
+    """The uncached build behind `get_fundamentals` (one caller per ticker at a time)."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {"error": "ticker required"}
