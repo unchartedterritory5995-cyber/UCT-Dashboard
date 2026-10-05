@@ -95,5 +95,5 @@ are pre-existing and outside this diff:
 
 ## Open items
 
-- The Journal `File(...)` routes and the three small JSON `_read_json` readers listed above.
+- ~~The Journal `File(...)` routes and the three small JSON `_read_json` readers listed above.~~ Closed in `docs/notebook/wave14-upload-cap-2.md`.
 - The voice-notes flag stays dark: the OpenAI zero-retention letter (row 8a) is the owner's.

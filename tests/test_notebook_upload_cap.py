@@ -52,14 +52,18 @@ BOUNDARY = "w14capBOUNDARY"
 # ── the lazy body and the counting ASGI driver ───────────────────────────────
 
 def _multipart(field: str, filename: str, ctype: str, size: int,
-               fields: dict[str, str] | None = None, chunk: int = CHUNK) -> Iterator[bytes]:
-    """A multipart body whose file part is `size` bytes, produced chunk by chunk."""
+               fields: dict[str, str] | None = None, chunk: int = CHUNK,
+               head: bytes = b"") -> Iterator[bytes]:
+    """A multipart body whose file part is `size` bytes, produced chunk by chunk.
+    `head` opens the file part (a real image header, say) and counts toward `size`."""
     for name, value in (fields or {}).items():
         yield (f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
                f"{value}\r\n").encode()
     yield (f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"{field}\"; "
            f"filename=\"{filename}\"\r\nContent-Type: {ctype}\r\n\r\n").encode()
-    left = size
+    if head:
+        yield head[:size]
+    left = size - min(len(head), size)
     block = b"\x89" * chunk
     while left > 0:
         n = min(chunk, left)
@@ -77,8 +81,10 @@ class Drive:
     """One request through the app's ASGI callable. `pulled` is every body byte
     the app asked `receive` for."""
 
-    def __init__(self, app, path: str, body: Iterator[bytes], *, headers: dict[str, str]):
+    def __init__(self, app, path: str, body: Iterator[bytes], *, headers: dict[str, str],
+                 method: str = "POST"):
         self.app, self.path, self.body, self.headers = app, path, body, headers
+        self.method = method
         self.pulled = 0
         self.status: int | None = None
         self.payload = b""
@@ -110,7 +116,7 @@ class Drive:
 
         scope = {
             "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
-            "method": "POST", "scheme": "http", "path": self.path,
+            "method": self.method, "scheme": "http", "path": self.path,
             "raw_path": self.path.encode(), "query_string": b"", "root_path": "",
             "headers": [(k.lower().encode(), v.encode()) for k, v in self.headers.items()],
             "client": ("127.0.0.1", 5000), "server": ("testserver", 80),

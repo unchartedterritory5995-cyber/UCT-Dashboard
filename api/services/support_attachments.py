@@ -21,6 +21,9 @@ from api.services.auth_db import get_connection
 ATTACH_DIR = Path(os.environ.get(
     "SUPPORT_ATTACHMENTS_DIR", "/data/support_attachments"))
 MAX_SOURCE_BYTES = 5 * 1024 * 1024  # 5 MB source cap
+# The one sentence for an upload over MAX_SOURCE_BYTES (the router's while-read
+# cap answers 413 with it; the check below keeps it for a direct caller).
+TOO_BIG_SENTENCE = "Image must be under 5 MB"
 MAX_DIM = 2000                       # long-side pixel cap
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_PER_MESSAGE = 5                  # match journal_screenshots
@@ -59,7 +62,7 @@ def save_attachment(
     if not raw_bytes:
         raise ValueError("Empty upload")
     if len(raw_bytes) > MAX_SOURCE_BYTES:
-        raise ValueError("Image must be under 5 MB")
+        raise ValueError(TOO_BIG_SENTENCE)
 
     # Enforce per-message cap BEFORE writing the file to disk.
     conn = get_connection()

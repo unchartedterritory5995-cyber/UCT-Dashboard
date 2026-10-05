@@ -9,7 +9,8 @@ import io
 import json
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
+from api.services import request_body_cap as body_cap
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
@@ -2230,12 +2231,31 @@ def get_faq_votes(user: dict = Depends(get_current_user)):
 #   3. Thread rendering reads GET /tickets/{ticket_id}/attachments and inlines
 #      matching rows below their parent message
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+def _ticket_cap() -> int:
+    from api.services import support_attachments as att
+    return att.MAX_SOURCE_BYTES
+
+
+def _ticket_sentence() -> str:
+    from api.services import support_attachments as att
+    return att.TOO_BIG_SENTENCE
+
+
+_TICKET_UPLOAD = body_cap.capped_upload("file", _ticket_cap, _ticket_sentence)
+
+
 @router.post("/tickets/{ticket_id}/messages/{message_id}/attachments")
 async def upload_ticket_attachment(
     ticket_id: str,
     message_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_TICKET_UPLOAD),
 ):
     """Attach an image to a ticket message. Owner-only."""
     from api.services import support_attachments as att

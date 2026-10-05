@@ -204,6 +204,12 @@ _WHISPER_MODEL = "whisper-1"
 MAX_AUDIO_BYTES = 25 * 1024 * 1024  # OpenAI Whisper limit
 
 
+def audio_too_big_sentence() -> str:
+    """The one sentence for audio over MAX_AUDIO_BYTES (the voice routes'
+    while-read cap answers 413 with it; `transcribe_audio` raises it)."""
+    return f"audio exceeds {MAX_AUDIO_BYTES} bytes"
+
+
 def transcribe_audio(audio_bytes: bytes, *, filename: str = "audio.webm") -> str:
     """
     Transcribe an audio blob via OpenAI Whisper.
@@ -212,7 +218,7 @@ def transcribe_audio(audio_bytes: bytes, *, filename: str = "audio.webm") -> str
     if not audio_bytes:
         raise ValueError("audio is empty")
     if len(audio_bytes) > MAX_AUDIO_BYTES:
-        raise ValueError(f"audio exceeds {MAX_AUDIO_BYTES} bytes")
+        raise ValueError(audio_too_big_sentence())
 
     client = _get_client()
     import io

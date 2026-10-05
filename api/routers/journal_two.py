@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from api.middleware.auth_middleware import (
@@ -64,8 +64,34 @@ from api.services.journal_two import (
 )
 from api.services.journal_two.filters import FilterSpec, parse_filter_query
 from api.services.journal_two.timeutil import ET, UTC
+from api.services.journal_two import trade_attachments as trade_attachments_service
+from api.services import request_body_cap as body_cap
 
 router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
+
+
+# ⛔ WAVE 14 (cap 2): every upload door in this router takes its file through
+# `body_cap.capped_upload`, never `File(...)`. FastAPI parses a `File(...)`
+# parameter IN FULL before any dependency runs -- before the session check, and
+# with no size limit -- so a chunked upload, or one whose Content-Length lied,
+# was spooled whole before the service measured it. Each dependency below caps
+# the body WHILE it is read and is declared AFTER `user` on its route, so an
+# anonymous caller reads nothing. The caps and sentences are the services' own,
+# read per request (a test that moves the constant moves the cap).
+_TRADE_IMAGE_UPLOAD = body_cap.capped_upload(
+    "file", lambda: trade_attachments_service._MAX_IMAGE_BYTES,
+    lambda: trade_attachments_service.IMAGE_TOO_BIG_SENTENCE)
+_DAY_IMAGE_UPLOAD = body_cap.capped_upload(
+    "file", lambda: calendar_service._MAX_IMAGE_BYTES,
+    lambda: calendar_service.IMAGE_TOO_BIG_SENTENCE)
+_CSV_UPLOAD = body_cap.capped_upload(
+    "file", lambda: csv_import_service.MAX_BYTES,
+    lambda: csv_import_service.too_big_sentence())
+# preview-mapped also takes the column mapping, as the FORM field ImportCsvModal
+# sends (`form.append('mapping', JSON.stringify(mapping))`).
+_CSV_MAPPED_UPLOAD = body_cap.capped_multipart(
+    "file", lambda: csv_import_service.MAX_BYTES,
+    lambda: csv_import_service.too_big_sentence(), fields=("mapping",))
 
 
 # Allow-list of FE telemetry events (landing_analytics.py:32-45 pattern). Only
@@ -865,17 +891,16 @@ def list_trade_attachments_route(
 @router.post("/trades/{trade_id}/attachments")
 async def upload_trade_attachment(
     trade_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_TRADE_IMAGE_UPLOAD),
 ) -> dict[str, Any]:
-    from api.services.journal_two import trade_attachments
     detail = trades_service.get_trade_detail(user["id"], trade_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Trade not found")
     try:
-        return await trade_attachments.save_trade_attachment(
+        return await trade_attachments_service.save_trade_attachment(
             user["id"], detail["tradeRef"], file)
-    except trade_attachments.TradeAttachmentError as e:
+    except trade_attachments_service.TradeAttachmentError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -1247,8 +1272,8 @@ def delete_all_trades(
 
 @router.post("/trades/import/preview")
 async def import_preview(
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_CSV_UPLOAD),
 ) -> dict[str, Any]:
     """Parse the uploaded CSV and return a preview. No DB writes.
     Client renders the preview table + error list, then either
@@ -1271,17 +1296,26 @@ async def import_preview(
 
 @router.post("/trades/import/preview-mapped")
 async def import_preview_mapped(
-    file: UploadFile = File(...),
     mapping: str = "",
     user: dict = Depends(get_current_user),
+    parts: body_cap.CappedMultipart = Depends(_CSV_MAPPED_UPLOAD),
 ) -> dict[str, Any]:
     """Parse an unknown-format CSV using a user-supplied column mapping.
     `mapping` is a JSON string mapping pre-matched field names to source
-    CSV header names. Returns the same shape as /import/preview."""
+    CSV header names. Returns the same shape as /import/preview.
+
+    ⚰️ `mapping` used to be read ONLY from the query string (a bare `str = ""`
+    parameter beside a file is a query parameter to FastAPI), while the client
+    sends it as a form field -- so every mapped import parsed with `{}` and
+    answered "mapping missing required fields". The form field wins; the query
+    parameter is still honoured for any other caller."""
     import csv as _csv
     import io as _io
     import json as _json
 
+    file = parts.file
+    if parts.fields["mapping"] is not None:
+        mapping = parts.fields["mapping"]
     try:
         mapping_dict = _json.loads(mapping) if mapping else {}
     except _json.JSONDecodeError as e:
@@ -1708,7 +1742,6 @@ def get_current_regime_route(
 
 # ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
 from api.services.journal_two import notes as notes_service
-from api.services import request_body_cap as body_cap  # noqa: E402
 from api.services.journal_two.notes import NoteValidationError, NoteLockedError
 from api.services.journal_two import note_properties
 
@@ -4590,8 +4623,8 @@ def put_calendar_day_notes(
 @router.post("/calendar/day/{date}/attachments")
 async def post_calendar_day_attachment(
     date: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_DAY_IMAGE_UPLOAD),
 ) -> dict[str, Any]:
     """Upload an image attachment for a day. Stored on local disk under
     data/j2_attachments/<user_id>/<date>/<uuid>.<ext>. Returns the

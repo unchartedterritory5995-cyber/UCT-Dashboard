@@ -31,12 +31,12 @@ work at import (the 10/02 boot lesson): module constants only.
 """
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Callable
+from typing import Any, AsyncIterator, Callable, NamedTuple, Optional
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.datastructures import FormData, UploadFile
-from starlette.formparsers import MultiPartException
+from starlette.formparsers import MultiPartException, MultiPartParser
 
 # Room for multipart framing around a file at its exact cap: the boundary
 # lines, each part's headers and the routes' few short text fields.
@@ -124,30 +124,65 @@ def _missing(field: str) -> RequestValidationError:
                                     "msg": "Field required", "input": None}])
 
 
-def capped_upload(field: str, max_bytes: Callable[[], int],
-                  sentence: Callable[[], str]) -> Callable[..., AsyncIterator[UploadFile]]:
-    """A dependency standing in for `UploadFile = File(...)`: the one file in
-    `field`, at most `max_bytes()` bytes, read with the body capped while it
-    streams. Its temp file is closed when the request ends.
+class CappedMultipart(NamedTuple):
+    """One file part plus the named text fields, each `None` when absent."""
+    file: UploadFile
+    fields: dict[str, Optional[str]]
+
+
+def capped_multipart(field: str, max_bytes: Callable[[], int], sentence: Callable[[], str], *,
+                     fields: tuple[str, ...] = (), text_parts: int = 0,
+                     exact: bool = True) -> Callable[..., AsyncIterator[CappedMultipart]]:
+    """A dependency standing in for `UploadFile = File(...)` plus `x: str = Form(...)`
+    parameters: the one file in `field` and the text fields named in `fields`, read
+    with the body capped while it streams. Its temp file is closed when the request
+    ends.
+
+    The body cap is `max_bytes()` + `FRAMING_SLACK` + `text_parts` text parts at
+    Starlette's own per-part ceiling (`MultiPartParser.max_part_size`, read, never
+    restated). A route whose text fields are short leaves `text_parts` at 0 -- the
+    slack already holds them; a route that takes a big text field (a chart's bars as
+    JSON) names how many such parts it accepts.
+
+    `exact=True` holds the file part to `max_bytes()` exactly (413, `sentence()`).
+    `exact=False` leaves that judgement to the route -- for a door whose own answer to
+    a file just over its cap is not a 413 -- while the body cap still bounds what is
+    read. Field values are passed through as strings; typing them is the route's.
 
     ⛔ DECLARE IT AFTER THE ROUTE'S AUTH DEPENDENCY. FastAPI parses a `File(...)`
     parameter BEFORE any dependency runs, so an anonymous caller could make the
     process spool a body; a dependency runs in declaration order, so the auth
     check in front of this one refuses first."""
 
-    async def dependency(request: Request) -> AsyncIterator[UploadFile]:
+    async def dependency(request: Request) -> AsyncIterator[CappedMultipart]:
         limit, words = max_bytes(), sentence()
-        form = await read_capped_form(request, limit + FRAMING_SLACK, words,
-                                      max_files=1, max_fields=4)
+        body_limit = limit + FRAMING_SLACK + text_parts * MultiPartParser.max_part_size
+        form = await read_capped_form(request, body_limit, words,
+                                      max_files=1, max_fields=max(4, len(fields) + 1))
         try:
             upload = form.get(field)
             if not isinstance(upload, UploadFile):
                 raise _missing(field)
-            if upload.size is None or upload.size > limit:
+            if exact and (upload.size is None or upload.size > limit):
                 raise HTTPException(status_code=413, detail=words)
-            yield upload
+            # A file part can never sit in a text field here: `max_files=1` and the
+            # file above is that one, so Starlette refuses a second file (400).
+            yield CappedMultipart(upload, {name: form.get(name) for name in fields})
         finally:
             await form.close()
 
     return dependency
 
+
+def capped_upload(field: str, max_bytes: Callable[[], int],
+                  sentence: Callable[[], str]) -> Callable[..., UploadFile]:
+    """`capped_multipart` for a door that takes only the file: the dependency
+    standing in for `UploadFile = File(...)`. Built ON `capped_multipart` (it resolves
+    that dependency and hands back its file), never a second implementation, and
+    under the same rule: declare it after the route's auth dependency."""
+    parts_dependency = capped_multipart(field, max_bytes, sentence)
+
+    async def dependency(parts: CappedMultipart = Depends(parts_dependency)) -> UploadFile:
+        return parts.file
+
+    return dependency
