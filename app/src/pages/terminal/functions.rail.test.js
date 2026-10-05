@@ -267,6 +267,7 @@ describe('every registry function resolves to a real surface', () => {
       '/live-flow', '/educational-videos',                      // <Navigate> redirects
       '/open-flow', '/traders', '/provenance-demo',             // unlisted / demo pages
       '/journal-2-0/report',                                    // a journal detail page
+      '/journal-2-0/playbook',                                  // a journal detail page (13B, reached from Insights > Playbook)
     ])
     const doors = new Set(variants.flatMap((x) => [x.v.door, x.v.surface, x.v.full])
       .filter(Boolean).map((d) => doorRoute(d, appRoutes())))

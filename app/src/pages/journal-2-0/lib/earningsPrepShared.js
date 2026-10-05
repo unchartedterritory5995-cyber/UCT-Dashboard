@@ -37,6 +37,7 @@
 import { h, p, labeled, bullets, hr, doc } from '../../../lib/tiptapDocBuilders'
 import { callout, table } from './templateBlocks'
 import { notebookFlag } from './offline/notebookFlags'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 export const EARNINGS_PREP_FLAG = 'notebook_earnings_prep_enabled'
 export const SOON_URL = '/api/j2/earnings-prep/soon'
@@ -119,12 +120,19 @@ const fmtPct = (v, { signed = true } = {}) => {
 
 const fmtEps = (v) => (isNum(v) ? `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(2)}` : null)
 
+// This grammar's own ladder (B at two decimals, M at one, nothing below a million),
+// passed to the one K/M/B primitive rather than hand-rolled; the sign stays OUTSIDE
+// the dollar ("−$1.50B"), so the magnitude is formatted and the sign prepended here.
+const MONEY_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+])
+
 const fmtMoney = (v) => {
   if (!isNum(v)) return null
   const a = Math.abs(v)
   const sign = v < 0 ? '−' : ''
-  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`
+  if (a >= 1e6) return `${sign}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
   return `${sign}$${a.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
 }
 
