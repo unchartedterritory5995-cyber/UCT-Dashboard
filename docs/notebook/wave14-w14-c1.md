@@ -362,3 +362,84 @@ W14-E's extra example notes are seeded server-side whenever a member adds the sa
 which rides `notebook_onboarding_enabled` alone (armed on web). That is a member-visible change
 the wave-14 switch does not gate. It is outside the render-parity surfaces (a server seed, not a
 render) and outside this ruling's list; flagged for the controller.
+
+## 8. Two more rulings (2026-10-05): the sample examples, and the spent offer
+
+### 8.1 The sample's W14-E examples obey the wave-14 switch, server side (`4850d64b2e`)
+
+`sample_notebook.seed` asks `notebook_flags.wave14_switch_on()`. Off: exactly the pre-wave-14
+sample (the five base notes, a `v: 1` preference, no `examples` key, `sample_examples.seed`
+never called). On: the W14-E examples (in this tree an untraded plan, an active setup, a thesis
+whose resurfacing example is an in-note callout, a passed setup, an earnings-prep draft, a cited
+transcript passage) and the `v: 2` preference that records them.
+
+`wave14_switch_on()` reads `WAVE14_SWITCH` = (`NOTEBOOK_ONBOARDING_ENABLED`,
+`NOTEBOOK_GETTING_STARTED_ENABLED`) through `flag_on`, with the one table's defaults
+(`auth.NOTEBOOK_FLAGS`). It is the mirror of the client's `checklistEnabled()`, never a second
+copy: `tests/test_sample_notebook_switch.py` reads the flag keys out of that JS function and
+fails unless they are exactly these variables' payload keys.
+
+Rails (`test_sample_notebook_switch.py`, 13): the mirror; the switch's reading on seven
+spellings, beside the payload's own answer; switch OFF in four ways (both unset, onboarding
+only, getting-started only, getting-started `0`) compared row for row, table by table, against
+the pre-wave-14 `sample_notebook.seed` itself (its blob at `b06ec4fd85`, loaded from git and run
+on the same schema; ids, clocks and the member dropped); switch ON adds the examples over the
+same base and `remove` still undoes both. The W14-E rails (`test_sample_notebook.py`,
+`..._examples.py`, `..._trade_exclusion.py`) arm the switch, because they describe the wave-14
+sample.
+
+| # | mutation | result |
+|---|---|---|
+| Ms1 | the examples ignore the switch (`wave14 = True`) | KILLED, 5 failed |
+| Ms2 | the switch reads onboarding only | KILLED, 4 failed |
+
+### 8.2 W14-Q1 finding S6: an accepted offer is spent only by a tour that opens (`526b8a43fc`)
+
+Q1 measured, on the pre-C1 tree, that accepting the offer (or What's new's Start) for
+writing-help and template-gallery opened nothing and spent the session's one offer.
+
+Verified on this tree: writing-help starts `{note: 'recent'}` (item b) and opens in the newest
+note. template-gallery and meaning-search still had no start (their doors are in the notes list
+header and the sidebar, which the first-run screen does not render); both now start at
+`/journal/notebook?view=all`. A new rail requires every replayable registry tour to declare a
+start the engine can navigate to (`tourRegistry.test.js`).
+
+What remains is closed generically:
+
+* the engine tells its `onClose` whether the tour ever showed a step (`{opened}`);
+* the gate announces every end, with that answer (`REGISTRY_TOUR_CLOSED_EVENT`, including a
+  request it drops because a flag is off);
+* `TourOfferGate` no longer spends the session on the click. It hides while the tour tries, and
+  then: opened, the session is spent; never opened, nothing is recorded, the session goes back to
+  the next tour, and this one stays queued for a later page load (skipped for this load only).
+
+What's new's Start records nothing either way, so a tour that cannot open stays listed.
+
+Rails: `TourOfferGate.test.jsx` (spent once it opened, not by the click; a tour that never
+opens is not spent and the next one is offered; end to end through the REAL gate and engine
+with a tour that has nothing to show). `b1Core.test.jsx` pins the two new starts.
+
+| # | mutation | result |
+|---|---|---|
+| Mo1 | the gate says every tour opened | KILLED, 1 failed |
+| Mo2 | the click spends the offer (the old behaviour) | KILLED, 3 failed |
+| Mo3 | template-gallery without a start | KILLED, 2 failed |
+
+### 8.3 The whole mutation proof now
+
+`tools/notebook_w14c1_mutation_proof.py --all` (it now runs pytest mutations too, and its
+control covers both runners): control `vitest Tests 317 passed (317)` and `pytest 13 passed`;
+**21 of 21 killed** (sections 4, 7.4, 8.1, 8.2). Mf2's anchor moved with the `{opened}` change
+and was re-run alone: KILLED, `Tests 2 failed | 21 passed (23)`.
+
+### 8.4 Flags-off render parity, re-run after the lane merges
+
+```
+== flags-off render parity
+base b06ec4fd85 vs HEAD 526b8a43fc
+pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+swapped 45 source files to the base blob; restored, git status unchanged
+40 identical | 0 differ (40 cases)
+VERDICT: PASS -- identical
+```

@@ -66,7 +66,7 @@ MUTS = {
         "",
         [LAYOUT_T]),
     "Ma2-flag-off-request-held": (OE + "RegistryToursGate.jsx",
-        "    useEffect(() => { if (wantedId && !allowed) setWantedId(null) }, [wantedId, allowed])\n",
+        "    useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])\n",
         "",
         [GATE_T]),
     # (b) in-note / trade starts
@@ -119,7 +119,7 @@ MUTS = {
         "    load: steps(() => import('./b1TemplateGallery.steps')),\n",
         [OE + "tourRegistry.test.js", OE + "tours/b1Core.test.jsx"]),
     "Mf2-explainer-ignores-seen-state": (ENGINE,
-        "      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current(); return }\n",
+        "      if (readToursPref(prefs?.[TOURS_PREF])[entry.id]) { onCloseRef.current({ opened: false }); return }\n",
         "",
         [C1, EXPL_T]),
 }
@@ -173,7 +173,7 @@ def mutate(name):
     assert restored == committed, f"{name}: RESTORE FAILED (capture)"
     assert norm(p.read_bytes()) == norm(head_bytes), f"{name}: RESTORE does not match HEAD:{rel}"
     verdict = "KILLED" if code != 0 else "SURVIVED"
-    body = f"== {name}  ({rel})\nverdict: {verdict} (vitest exit {code})\nrestored: matches HEAD:{rel} (blob {head[:12]})\n{summary(out)}\n"
+    body = f"== {name}  ({rel})\nverdict: {verdict} (runner exit {code})\nrestored: matches HEAD:{rel} (blob {head[:12]})\n{summary(out)}\n"
     ev = ROOT / "docs/notebook/evidence/wave14-w14-c1"
     ev.mkdir(parents=True, exist_ok=True)
     (ev / f"{name}.txt").write_text(body, encoding="utf-8")
@@ -183,8 +183,11 @@ def mutate(name):
 
 def control():
     files = sorted({f for (_, _, _, fs) in MUTS.values() for f in fs})
-    code, out = run(files)
-    body = f"== CONTROL (no mutation)\nvitest exit {code}\n{summary(out)}\n"
+    code_js, out_js = run([f for f in files if not f.startswith("tests/")])
+    code_py, out_py = run([f for f in files if f.startswith("tests/")])
+    code = code_js or code_py
+    body = (f"== CONTROL (no mutation)\nvitest exit {code_js}\n{summary(out_js)}\n"
+            f"pytest exit {code_py}\n{summary(out_py)}\n")
     ev = ROOT / "docs/notebook/evidence/wave14-w14-c1"
     ev.mkdir(parents=True, exist_ok=True)
     (ev / "CONTROL.txt").write_text(body, encoding="utf-8")

@@ -1,7 +1,7 @@
 == Mr3-walkthroughs-ungated  (app/src/pages/Support.jsx)
-verdict: KILLED (vitest exit 1)
+verdict: KILLED (runner exit 1)
 restored: matches HEAD:app/src/pages/Support.jsx (blob 24e9651655f3)
-× W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14) 953ms
+× W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14) 172ms
 Test Files  1 failed (1)
 Tests  1 failed | 16 passed (17)
 FAIL  src/pages/Support.notebook.test.jsx > Walkthroughs (the tour registry's Help list) > W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14)

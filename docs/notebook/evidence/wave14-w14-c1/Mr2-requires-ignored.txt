@@ -1,11 +1,11 @@
 == Mr2-requires-ignored  (app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js)
-verdict: KILLED (vitest exit 1)
+verdict: KILLED (runner exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js (blob a6fa4a3badb9)
-× tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started 13ms
-× `requires`: every listed flag must also be on 48ms
-× its own flag on but notebook_ta_fingerprint_enabled off: the request opens nothing 97ms
+× tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started 7ms
+× `requires`: every listed flag must also be on 6ms
+× its own flag on but notebook_ta_fingerprint_enabled off: the request opens nothing 51ms
 Test Files  3 failed (3)
-Tests  3 failed | 125 passed (128)
+Tests  3 failed | 126 passed (129)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.test.js > W14-C1 ruling: the wave-14 switch (onboarding AND getting-started) gates every registry tour > `requires`: every listed flag must also be on
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.test.js > `requires` and tourLive > tourLive: every other tour needs its flag, every `requires`, AND onboarding AND getting-started
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/tours/b3Research.test.jsx > W14-C1: visual-playbook `requires` the fingerprint panel > its own flag on but notebook_ta_fingerprint_enabled off: the request opens nothing

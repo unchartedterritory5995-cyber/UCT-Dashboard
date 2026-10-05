@@ -1,11 +1,11 @@
 == Mb2-trade-start-ignored  (app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js)
-verdict: KILLED (vitest exit 1)
+verdict: KILLED (runner exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js (blob 026d5e813d34)
-× found 13ms
-× none 2ms
-× every start kind is resolvable by resolveStart (no unknown kind slips through) 2ms
-× plan-grading opens at its first step 4040ms
-× entry-context opens at its first step 4014ms
+× found 6ms
+× none 1ms
+× every start kind is resolvable by resolveStart (no unknown kind slips through) 1ms
+× plan-grading opens at its first step 4022ms
+× entry-context opens at its first step 4008ms
 Test Files  2 failed (2)
 Tests  5 failed | 34 passed (39)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourReachability.test.jsx > every registered tour, opened from Help the way a member opens it > plan-grading opens at its first step

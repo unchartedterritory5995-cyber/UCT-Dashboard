@@ -1,7 +1,7 @@
 == Mc2-waitFor-ignored  (app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx)
-verdict: KILLED (vitest exit 1)
-restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx (blob 31c11f13a540)
-× is non-modal, asks the member to act, and moves on when they do 3281ms
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx (blob a97ab18da17e)
+× is non-modal, asks the member to act, and moves on when they do 3110ms
 Test Files  1 failed (1)
 Tests  1 failed | 15 passed (16)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (c) a `waitFor` step: "do this to continue" > is non-modal, asks the member to act, and moves on when they do

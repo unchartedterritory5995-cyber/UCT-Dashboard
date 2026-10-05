@@ -396,3 +396,56 @@ engine code (`tourStart.js`, `tourLayers.js`, the engine and its stylesheet) is 
   the client. Correct by C2's rules; a member-facing change to call out before shipping.
 - Real-browser walk (W14-Q) still owed; the reachability rail runs against a stand-in app.
 - See `wave14-w14-c1.md` section 6 for the lane's own list.
+
+### R3.6 Round 3, continued (2026-10-05): rulings, lane merges, gates
+
+**Rulings applied** (record: `wave14-w14-c1.md` sections 7 and 8):
+
+| commit | what |
+|---|---|
+| `517e607f14` | one switch on every registry tour (`tourLive`: own flag, `requires`, and `checklistEnabled()`), `requires` on an entry, Help > Walkthroughs hidden while the switch is off |
+| `01ed70350f` | its record: flags-off render parity 40/40 against `b06ec4fd85`, 16/16 mutations, counts |
+| `4850d64b2e` | the sample's W14-E examples obey the switch, server side (`wave14_switch_on()`, mirrored from the JS rule); switch off writes exactly the pre-wave-14 rows |
+| `526b8a43fc` | W14-Q1 S6: an accepted offer is spent only by a tour that opens; template-gallery and meaning-search get a start; every replayable tour must declare one |
+
+**Lane merges** (one merge commit each, in this order):
+
+| commit | lane | tip | conflicts and resolution |
+|---|---|---|---|
+| `a27892f427` | W14-pb: playbook regime filter, ChartEmbed taps | `9cd699af9c` | none |
+| `d402cce939` | W14-ops: restore-drill wrapper, nb_soak | `b124e080ac` | none |
+| `660b5c0022` | W14-voice: `request_body_cap` | `0380361586` | none |
+| `8f49eaa900` | W14-docs: sample resurfacing kept in the note, BETA-HANDOFF 1c/1d | `5bc372bc5e` | none textual. Resolved in the merge: BETA-HANDOFF 1c said four tours "appear as soon as wave 14 is deployed"; after the ruling they, the offer, What's new and the sample examples wait for `NOTEBOOK_GETTING_STARTED_ENABLED`. C2 recorded as merged; the transcript tour's title and visual-playbook's second flag corrected. |
+| `96063e6a83` | W14-Q1: walk and click tools, Help tap floor, What's new fixture | `78b6c9cabe` | `Support.whatsNew.test.jsx`: both sides fixed the same leak of real tours into its fake registry; kept both halves (only the real base entry, and fake tours on flags no real tour uses). |
+
+**Byte gate**, exactly as `wave14-perf.md`, at `526b8a43fc`:
+
+```
+bytes.notebook_first_open: 2,254,865 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+Exit 0, budget unchanged.
+
+**Counts (copied)**, at `526b8a43fc` with `app/dist` built:
+
+- `npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=3`:
+  `Test Files  637 passed (637)`, `Tests  8089 passed | 1 skipped (8090)`, exit 0.
+- `npx vitest run src/components/Layout --maxWorkers=3`: `Test Files  7 passed (7)`,
+  `Tests  24 passed (24)`, exit 0.
+- Pytest, one run: flags (`notebook_flags`, `notebook_flag_parse`, `notebook_flag_table_form`,
+  `notebook_switch_rehearsal`), ledgers (`feature_flag_ledger`, `flag_ledger_knobs`,
+  `visibility_flag_ledger`, `vite_flag_ledger`), sample (`sample_notebook`, `..._examples`,
+  `..._trade_exclusion`, `..._switch`), `notebook_tour_seen_state`, `notebook_upload_cap`,
+  `notebook_visual_playbook`, `..._regime`, `nb_soak`, `restore_drill_unknowns`,
+  `restore_drill_wrapper`, `w13a_walk_shutdown`: `993 passed in 592.75s`, exit 0. Then
+  `authdb_restore_drill` + `restore_drill_unknowns`: `21 passed in 3.41s`.
+- Flags-off render parity: `40 identical | 0 differ (40 cases)`, `VERDICT: PASS -- identical`.
+- Mutation proof: 21 of 21 killed.
+
+**Open items**
+
+- A real-browser re-walk (Q1's tool, now merged) of S6 and the switch-off screens on this tree is
+  owed; everything here is measured in jsdom.
+- The flags-off parity compares against the wave-13 landing, not master (master does not carry
+  wave 13 yet); the merge of wave 13 to master is its own gate.

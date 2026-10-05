@@ -1,9 +1,9 @@
 == Mb1-sample-note-ignored  (app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js)
-verdict: KILLED (vitest exit 1)
+verdict: KILLED (runner exit 1)
 restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tourStart.js (blob 026d5e813d34)
-× prefers the W14-E example note for that capability 13ms
+× prefers the W14-E example note for that capability 11ms
 × already on the resolved note: stay 1ms
-× opens the W14-E example note and the tour starts there 3043ms
+× opens the W14-E example note and the tour starts there 3021ms
 Test Files  2 failed | 1 passed (3)
 Tests  3 failed | 52 passed (55)
 FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (b) an in-note start opens a suitable note, never creates one > opens the W14-E example note and the tour starts there
