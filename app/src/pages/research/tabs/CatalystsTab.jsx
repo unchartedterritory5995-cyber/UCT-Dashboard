@@ -4,7 +4,7 @@ import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
 import styles from '../ResearchPage.module.css'
-import HighlightThesis from '../../../utils/highlightThesis'
+import HighlightThesis, { FAILED_SYNTHESIS_NOTE, isFailedSynthesis } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
 
 // Packet G CP1 -- the "what has UCT's own catalyst engine ever flagged about
@@ -86,7 +86,9 @@ export default function CatalystsTab({ sym }) {
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
                     <span className={styles.muted}>{whenLabel(e.market_date)}</span>
                   </div>
-                  {e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}><HighlightThesis text={e.thesis_text} /></p> : null}
+                  {e.thesis_text && isFailedSynthesis(e.thesis_text)
+                    ? <p className={styles.muted} style={{ padding: '4px 0 0' }} data-testid="catalyst-no-writeup">{FAILED_SYNTHESIS_NOTE}</p>
+                    : e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}><HighlightThesis text={e.thesis_text} /></p> : null}
                   <EntryProvenance entry={e} />
                 </div>
               </li>

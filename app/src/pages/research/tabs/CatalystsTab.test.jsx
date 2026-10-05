@@ -28,6 +28,21 @@ describe('CatalystsTab', () => {
     expect(screen.getByText('Catalyst')).toBeInTheDocument()
   })
 
+  it('live audit: an entry whose write-up failed says so, instead of showing the engine error as the catalyst; **bold** is rendered, not printed', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => ({ data: { ticker: 'AMD', entries: [
+      { market_date: '2026-10-05', ticker: 'AMD', tag: 'Catalyst', thesis_text: 'Synthesis temporarily unavailable. Sources will be checked again on next refresh.', thesis_model: 'none', thesis_at: 1791200000 },
+      { market_date: '2026-10-02', ticker: 'AMD', tag: 'Catalyst', thesis_text: 'Synthesis returned malformed output. Will retry next refresh.', thesis_model: 'claude', thesis_at: 1791000000 },
+      { market_date: '2026-09-28', ticker: 'AMD', tag: 'News', thesis_text: '**AMD** won a deal.', thesis_model: 'claude', thesis_at: 1790600000 },
+    ] }, isLoading: false }) }))
+    const { default: FreshTab } = await import('./CatalystsTab')
+    const { container } = render(<FreshTab sym="AMD" />)
+    expect(screen.getAllByTestId('catalyst-no-writeup')).toHaveLength(2)
+    expect(container.textContent).not.toMatch(/Synthesis (temporarily|returned)/)
+    expect(container.textContent).not.toContain('**')
+    expect(container.textContent).toContain('AMD won a deal.')
+  })
+
   it('shows a loading state distinct from the empty state', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => ({ data: null, isLoading: true }) }))

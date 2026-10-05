@@ -21,12 +21,15 @@
 import { useEffect, useState } from 'react'
 import useMarketOpen from '../../hooks/useMarketOpen'
 import useMobileSWR from '../../hooks/useMobileSWR'
+import jsonFetcher from '../../utils/jsonFetcher'
 import { sessionModel } from '../../components/dashboard/sessionModel'
 import AlertBell from '../../components/AlertBell'
 import { activeChannelOf } from './boardModel'
 import styles from './L0Strip.module.css'
 
-const breadthFetcher = (url) => fetch(url).then((r) => r.json())
+// jsonFetcher, not a bare r.json(): a 402/500 answers JSON too, and its {detail} body was read
+// as breadth, so the chip showed a silent dash. A failed read now stays a failed read.
+const breadthFetcher = (url) => jsonFetcher(url)
 
 function useEtNow() {
   const [now, setNow] = useState(() => new Date())
