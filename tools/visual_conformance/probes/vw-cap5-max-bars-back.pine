@@ -1,0 +1,17 @@
+//@version=6
+indicator("UCTPROBE CAP5 max_bars_back(x, n)", overlay = false)
+// CAP5 (2026-10-04) - objects triage "Captures still owed" row 12 / C38: "`max_bars_back(x, n)`
+// (the per-series call) - pine:offset-literal - a probe of that call (no capture measures a
+// per-series buffer)". Runbook: docs/pine/capture-round-5-runbook.md.
+// Never compiled on TradingView: a compile or runtime error IS the reading - record the
+// message and the bar verbatim.
+// CAPTURE: AMEX:SPY 1D FULL history (startsAtBar0), inputs at defaults (none).
+src = close * 1.0
+max_bars_back(src, 50)
+e = bar_index % 45
+plot(bar_index, "M00 bar_index CONTROL")
+plot(e, "M01 e (0..44, inside the declared 50)")
+plot(src[e], "M02 src[e], max_bars_back(src, 50)")
+plot(close[e], "M03 close[e] CONTROL (auto buffer)")
+plot(src[e] - close[e], "M04 difference (0, or na where the buffer is short)")
+plot(na(src[e]) ? 1 : 0, "M05 src[e] is na")

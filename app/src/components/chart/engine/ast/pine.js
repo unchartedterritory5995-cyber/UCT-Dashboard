@@ -129,7 +129,7 @@ import {
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK, MAX_GETTER_BACK,
   BAR_COORD_PROPS,
-  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
+  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, historyReachOf,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
@@ -138,7 +138,7 @@ import {
 } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
-import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
+import { versionStampedFor } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
 // `symbolScope.json` is a fact about the outside world (our symbol store's
@@ -5939,6 +5939,15 @@ function fractionalWindowAdvice(node) {
     + `of bars${choice}`
 }
 
+/** ⭐ H11 (CAP5) — `ta.lowest`'s length (its first `int` slot) folded to 0 or to
+ *  the literal `na`: TradingView's RE10001 on bar 0 (see the call site). Only
+ *  `lowest`, the function measured; the rest of the window family keeps its own
+ *  refusals until a capture says the same of them. */
+function lowestLengthStops(bare, slotIndex, resolved) {
+  if (bare !== 'lowest' || slotIndex !== 1 || !resolved) return false
+  return (resolved.type === 'num' && resolved.value === 0) || isNaNLiteral(resolved)
+}
+
 /** Is this tree the literal `na` this translator emits — `0 / 0`?
  *
  *  ⛔ A LITERAL SHAPE ONLY, never "might be NaN at runtime". Deciding that in
@@ -9754,9 +9763,10 @@ export class Resolver {
    *  it evaluates is the object lane's own, stated once in `interpret.js` (`historyReadable`)
    *  (measured, `vw-offset-na` / `vw-mbb-auto` 2026-09-30).
    *
-   *  The buffer is the script's declared `max_bars_back`, else
-   *  `AUTO_MAX_BARS_BACK` (the reach TradingView's automatic buffer was measured
-   *  to cover) — read by the SAME `declaredMaxBarsBackOf` the object lane reads —
+   *  The buffer is `historyReachOf(declared)` — the larger of the script's declared
+   *  `max_bars_back` and `AUTO_MAX_BARS_BACK` (the reach TradingView's automatic buffer
+   *  was measured to cover; H11: a declared buffer is not a ceiling, CAP5) — read by
+   *  the SAME `declaredMaxBarsBackOf` the object lane reads —
    *  and never more than the index can take (`maxHistoryBack`), so
    *  `close[cond ? na : 1]` asks for two bars rather than four hundred, and
    *  `bar_index[-ta.lowestbars(low, 100)]` for a hundred rather than the 5,000 a
@@ -9794,19 +9804,21 @@ export class Resolver {
         + 'the bar is still forming), and a per-bar index was measured on closed bars only', at)
     }
     const declared = declaredMaxBarsBackOf(this.source)
-    if (declared.call) {
-      throw new PineRefusal('pine:offset-literal',
-        `${REFUSALS['pine:offset-literal']} — this one changes from bar to bar, and the script `
-        + 'sizes a series\' history with `max_bars_back(x, n)`, a per-series buffer this read '
-        + 'does not model', at)
-    }
+    // ⭐⭐ H11 (CAP5) — `max_bars_back(x, n)` NO LONGER REFUSES. Measured:
+    // `vw-cap5-max-bars-back-spy-1d-2026-10-04` (`max_bars_back(src, 50)`, `src[e]`
+    // for e in 0..44) reads the real `close[e]` on all 8,477 bars, and
+    // `vw-cap5-buffer-overrun-spy-1d-2026-10-04` shows a declared buffer is not a
+    // ceiling — so the per-series call changes no read this door makes: the reach is
+    // `historyReachOf` of the declaration, past it withheld. (`declared.call` is
+    // still read off the source; nothing refuses on it.)
     const arg = node.arg
     if (arg && arg.type === 'name' && (this.mutated.has(arg.name) || this.buildingRecurrence === arg.name)) {
       throw new PineRefusal('pine:state',
         `${REFUSALS['pine:state']} — \`${arg.name}[…]\` reads what \`${arg.name}\` held a `
         + 'changing number of bars ago, and this script reassigns it', at)
     }
-    const limit = declared.limit || AUTO_MAX_BARS_BACK
+    // ⭐ H11 (CAP5) — a declared buffer is not a ceiling: `historyReachOf`.
+    const limit = historyReachOf(declared.limit)
     // `-(-x)` is `x`, exactly (an `na` stays `na`): Pine's `x[-ta.lowestbars(…)]`
     // negates a count this table already answers as bars back
     let count = back
@@ -12595,11 +12607,14 @@ export class Resolver {
     // table itself has no such name — so a future `roc` in `closedTable` wins.
     // ⭐ RT11 — `alma` is served only in a spelling the script's version HAS:
     // bare in v4 (Q-H3c), `ta.alma` from v5. Bare `alma` in v6 is a compile
-    // failure at the vendor (`r11-alma-spy-2026-09-11`), and bare in v1-v3 / v5
-    // and the version-less formula box are unmeasured: every other spelling keeps
-    // the ordinary `pine:function` refusal below.
+    // failure at the vendor (`r11-alma-spy-2026-09-11`).
+    // ⭐ H11 (CAP5 Q-RT11b) — bare in v3 COMPILES and runs
+    // (`vw-rt11-alma-v3-bare-spy-1d-2026-10-04`, 8,477 bars), and bare in v5 is
+    // REFUSED ("Could not find function or function reference 'alma'", CAP5 S2-3,
+    // no fixture). So bare is v3 and v4; v1 / v2 and the version-less formula box
+    // stay unmeasured, and every other spelling keeps the `pine:function` refusal.
     const almaSpelling = bare !== 'alma' || (pineName === 'alma'
-      ? this.pineVersion === 4
+      ? (this.pineVersion === 3 || this.pineVersion === 4)
       : (pineName === 'ta.alma' && this.pineVersion !== null && this.pineVersion >= 5))
     if (!key && own(BUILTIN_CALL_TREE, bare) && almaSpelling) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
@@ -13232,6 +13247,20 @@ export class Resolver {
         // move half the formula. The caller refuses the whole input by name.
         for (const n of declaredInputNames(resolved)) this.windowBoundInputs.add(n)
         resolved = foldWindow(resolved)
+        // ⭐⭐ H11 (CAP5) — A `ta.lowest` LENGTH OF 0 OR `na` STOPS TRADINGVIEW'S RUN,
+        // and is refused here in TradingView's own words: the script draws nothing
+        // there, so it draws nothing here. Measured twice (`vw-rt12-statements-
+        // history.pine` on NYSE:RDDT 1D and AMEX:SPY 1D, no fixture — the study
+        // errored): `ta.lowest(low, lenNa)`, `lenNa` `na` on bar 0, stopped with
+        // RE10001 on bar 0 — an `na` length is read as 0.
+        if (lowestLengthStops(bare, i, resolved)) {
+          throw new PineRefusal('pine:window',
+            `${REFUSALS['pine:window']} — argument ${i + 1} of \`${pineName}\` is `
+            + `${resolved.type === 'num' ? '0' : '`na`'}, and TradingView stops this script on its first `
+            + `bar: "Invalid value of the 'length' argument (0) in the 'lowest' function. It must be > 0." `
+            + '(RE10001) — nothing is drawn there, so nothing is drawn here',
+            locate(own(slot, 'series') ? tok : (args[slot.pine].tok || tok)))
+        }
         // ⛔ A WINDOW MUST BE A LITERAL, AND THAT IS THE REPAINT LINTER'S RULE
         // RATHER THAN THIS MODULE'S TASTE. `lint.js::resolveDeclaration` returns
         // UNKNOWN for an `argK` that is not a `num` node, so a computed length
@@ -15188,6 +15217,7 @@ function arrayWriteAt(toks, i) {
   if (!tok || tok.kind !== 'ident') return null
   if (String(tok.value).startsWith('array.')
       && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
+      && !inPlaceInValuePosition(toks, i, String(tok.value).slice('array.'.length))
       && toks[i + 1] && isPunct(toks[i + 1], '(')
       && toks[i + 2] && toks[i + 2].kind === 'ident') {
     return { name: toks[i + 2].value, member: String(tok.value).slice('array.'.length), tok }
@@ -15264,7 +15294,27 @@ const PINE_MEMBER_NAMESPACES = new Set([
 /** The `array.*` members that WRITE, for `mutatorTargets`. Derived from the one
  *  set in `arrayVectors.js` so a member added there is covered here the same day
  *  — a second hand-typed list is the drift this engine keeps paying for. */
-const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
+// ⛔⛔ H11 (2026-10-04) — AND EVERY MEMBER THAT REORDERS OR REFILLS IN PLACE.
+// `sort`, `reverse`, `fill` and `concat` (its first argument) write the array as
+// surely as `set` does, and `VEC.WRITE_MEMBERS` — the members the WALK models —
+// does not name them. Measured on this branch, both door states, before this line:
+//     a = array.from(3.0, 1.0, 2.0)
+//     array.sort(a)
+//     plot(array.get(a, 0) * 100 + array.get(a, 1) * 10 + array.get(a, 2))
+// drew 312 on every bar — the CREATION order — where Pine's sort reads 123. The
+// same silent wrong number H14 closed for `set` in an `if`. Named here, every one
+// is an unmodelled write: the read refuses by name (`pine:collection`) and the
+// runtime lane, which runs the member, answers.
+const IN_PLACE_ARRAY_MEMBERS = new Set(['sort', 'reverse', 'fill', 'concat'])
+const WRITE_LIKE_ARRAY_MEMBERS = new Set([...VEC.WRITE_MEMBERS, ...IN_PLACE_ARRAY_MEMBERS])
+/** An in-place member written where a VALUE stands (`plot(array.sort(a))`: after
+ *  `(`, `,`, `=`, an operator) is not the statement that reorders the array - that
+ *  read keeps the refusal the reduce census names (`reduceMembers.test.js`). */
+function inPlaceInValuePosition(toks, i, member) {
+  if (!IN_PLACE_ARRAY_MEMBERS.has(member)) return false
+  const prev = toks[i - 1]
+  return !!prev && prev.kind === 'punct' && prev.value !== ')' && prev.value !== ']'
+}
 
 // ─── ⛔⛔ H14, 2026-09-27 — EVERY ARRAY WRITE, BY NAME, BEFORE THE WALK ─────────
 //
@@ -19946,22 +19996,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const arg = node.arg
     if (!arg || arg.type !== 'name') return historyRefused('source')
     if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
-    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
+    // ⭐ H11 (CAP5) — `max_bars_back(x, n)` is not refused: see `historyReadOf`.
     // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30.json`): with
     // NO `max_bars_back` declared TradingView ran dynamic offsets up to 399 with no
     // error, `close[k]` equal to its own bar every time — its automatic sizing
     // covers at least `AUTO_MAX_BARS_BACK` (400). So an undeclared read is served
     // up to that measured bound, `auto` marking that past it is UNMEASURED: the
     // runtime withholds (never errors, never guesses) an offset at or beyond it.
-    const autoBuffer = !declaredMaxBarsBack.limit
+    // ⭐⭐ H11 (CAP5, `vw-cap5-buffer-overrun-spy-1d-2026-10-04`) — and a DECLARED
+    // buffer is not a ceiling either: TradingView read `close[59]` under a declared
+    // 50 with no error. Every read reaches `historyReachOf(declared)` and past it is
+    // the same unmeasured, withheld case (`auto`), never Pine's runtime error.
+    const reach = historyReachOf(declaredMaxBarsBack.limit)
     const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
     if (!src) return historyRefused('unreadable')
     const back = internTree(idx)
     if (!back) return historyRefused('unreadable')
     diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
-    return autoBuffer
-      ? { v: 'at', args: [src, back], limit: AUTO_MAX_BARS_BACK, auto: true }
-      : { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+    return { v: 'at', args: [src, back], limit: reach, auto: true }
   }
   const historyRefused = (why) => {
     if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}
@@ -22766,10 +22818,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // ⭐ C37 — the script's version rides on the program ONLY where an uncoloured
   // object's default depends on it (v4, v5 — `VERSIONS_WITH_OBJECT_DEFAULTS`), so
   // every other program keeps its bytes.
+  // ⭐ H11 — v6 only where the program draws a family a v6 row reaches (a box, a
+  // table cell; `versionStampedFor`), so every other v6 program keeps its bytes.
   let defaultsVersion = null
   try {
     const pv = activePaletteVersion()
-    if (VERSIONS_WITH_OBJECT_DEFAULTS.includes(pv)) defaultsVersion = pv
+    const families = new Set()
+    const walk = (list) => {
+      for (const o of list || []) {
+        if (!o || typeof o !== 'object') continue
+        if (o.k === 'create' && o.family) families.add(o.family)
+        if (o.k === 'cell' || o.k === 'cellpatch') families.add('cell')
+        if (Array.isArray(o.body)) walk(o.body)
+      }
+    }
+    walk(keptOps)
+    if (versionStampedFor(pv, families)) defaultsVersion = pv
   } catch { defaultsVersion = null }
 
   return {
@@ -24603,7 +24667,14 @@ function translatePineResult(source, opts = {}) {
 
   const resolved = []
   for (const out of outputs) {
-    const resolver = makeResolver(positionEnv(out))
+    // ⭐⭐ H11 (CAP5 Q-F9c) — the output's COLOUR reads names at the output's own
+    // line too (`outEnv`), as its value does. Measured on
+    // `vw-cap5-f9-h6-rddt-1d-2026-10-04`: `col = color.red` / `plot(…, color = col)` /
+    // `col := cond ? green : orange` draws R01 RED on every bar (Pine runs top to
+    // bottom); read against the end-of-program env it drew R02's green / orange.
+    // F9 measured the move as 0 of the 266 corpus scripts' outputs.
+    const outEnv = positionEnv(out)
+    const resolver = makeResolver(outEnv)
     // ⭐ C48 — see `Resolver.resolveBinding`: a CHART's plot reads a conditional
     // call through and carries its block's guard for the bind. ⛔ The host lane
     // only: the screener lane binds no chart, and reads as it always has.
@@ -24799,7 +24870,7 @@ function translatePineResult(source, opts = {}) {
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
-        presentation: displacedPresentation(outputPresentation(args, { env, resolver, kind: out.kind }), shift),
+        presentation: displacedPresentation(outputPresentation(args, { env: outEnv, resolver, kind: out.kind }), shift),
         // ⭐ THE HANDLE TRAVELS WITH THE ROW so a hidden column can be labelled by the
         // name its author gave it (`mPlot`) rather than by the SCRIPT's title, which is
         // the label that made this a mistranslation in the first place.
@@ -24919,7 +24990,7 @@ function translatePineResult(source, opts = {}) {
       if (err && (err.route || opts.refusedPresentation === true)) {
         try {
           const pargs = parseArguments(new Cursor(out.toks.slice(2)))
-          row.presentation = outputPresentation(pargs, { env, resolver, kind: out.kind })
+          row.presentation = outputPresentation(pargs, { env: outEnv, resolver, kind: out.kind })
           // ⭐ RT1 — whether the call was written with an `offset` (named, or at
           // its place in Pine's signature), so a door that draws this row bar by
           // bar can withhold a shifted one rather than draw it on the wrong bar.
@@ -27038,9 +27109,14 @@ function securityColourRule(node, env, depth, ctx) {
  *
  *  ⛔ ONLY A `t` THAT FOLDS (a literal, an input's default — `alphaNumberOf`),
  *  truncated as Pine holds it (`wholeTransparency`, C29); a per-bar `t` declines.
- *  ⛔ A RULE WITH AN `na` LEAF DECLINES: `color.new(na, t)` is TradingView's black
- *  at `t` (RT9, C03), not "nothing", and no capture shows that leaf inside a
- *  conditional under `color.new` (queued, `capture-queue-2026-10-04-f9-divergences.md`).
+ *  ⭐⭐ H11 — AN `na` LEAF IS BLACK AT `t` (CAP5, Q-F9a/b, measured on
+ *  `vw-cap5-f9-h6-rddt-1d-2026-10-04` and `-spy-1d-`): `color.new(cond ? blue : na, 40)`
+ *  draws `#00000099` where the test is false, `color.new(cond ? na : red, 0)` draws
+ *  `#000000ff` where it is true, and `color.new(v, 40)` over a `var` colour with an
+ *  `na` write draws `#00000099` on the bars `v` is `na` — RT9 C03's
+ *  `color.new(color(na), 40)` reading, now witnessed inside a test and a `var`. So
+ *  the palette's transparent `na` entry becomes `#000000` at the call's alpha.
+ *  ⚰️ It declined (the pane's gold on 636 / 8,477 of 636 / 8,477 bars).
  *  Returns `undefined` for a call that is not this shape (the caller goes on),
  *  else the rule or null. New rules never mint (`withholdMint`, R36). */
 function colorNewOverRule(node, env, depth, ctx) {
@@ -27070,7 +27146,7 @@ function colorNewOverRule(node, env, depth, ctx) {
     return { ...inner, opacity: alpha, withholdMint: true }
   }
   if (inner.indexTree && Array.isArray(inner.palette)) {
-    const palette = inner.palette.map(paletteEntryHex)
+    const palette = inner.palette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? NA_UNDER_COLOR_NEW : paletteEntryHex(e)))
     if (palette.some((h) => !h)) return null
     return { ...inner, palette, opacity: alpha, withholdMint: true }
   }
@@ -27189,6 +27265,58 @@ function containsSelfref(node) {
   return false
 }
 
+/** ⭐⭐ H11 — `nz(<a colour rule>)` / `nz(<rule>, <static colour>)` (CAP5 Q-RT15b,
+ *  `vw-rt15-colour-nz-rddt-1d-2026-10-04` / `-spy-1d-`).
+ *
+ *      var color c = na
+ *      c := bar_index < 10 ? na : (close > open ? color.green : color.red)
+ *      plot(close, color = nz(c))            N01
+ *      plot(high, color = nz(c, color.gray)) N03
+ *      barcolor(nz(c))                       B01
+ *
+ *  ⚰️ MEASURED: N03 is gray on bars 0-9 and `c`'s green / red after; N01 is `c`'s
+ *  green / red from bar 10; and on bars 0-9 B01 paints NOTHING — the candles keep the
+ *  chart's own colours (screenshot `cap-round5/vw-rt15-colour-nz-rddt-1d-…jpg`), so
+ *  `nz` of an `na` colour with no replacement is still the absent colour. (The
+ *  vendor's PALETTE colorer records index 0 on those bars for N01 / B01 — its
+ *  encoding, the screenshot is the reading.) Both drew the pane's gold on every bar.
+ *  So `nz(x)` is `x`'s rule, and `nz(x, y)` is that rule with its `na` entry
+ *  replaced by `y` — a static colour at the rule's own alpha only.
+ *  Returns `undefined` for a call that is not `nz`, else the rule or null. */
+function nzColourRule(node, env, depth, ctx) {
+  if (node.name !== 'nz') return undefined
+  const args = node.args || []
+  if (!args.length || args.length > 2 || args.some((a) => !a || a.name)) return null
+  let inner = null
+  // ⭐ `nz(c[k])` of a `var` colour (N02): the same palette, its running index read
+  // `k` bars back — the history of the index IS the history of the colour.
+  const a0 = args[0].value
+  if (a0 && a0.type === 'offset' && Number.isInteger(a0.n) && a0.n >= 1 && a0.n <= 500
+      && a0.arg && a0.arg.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(a0.arg.name) : null
+    const rule = bound && bound.kind === 'state' ? colourStateRule(a0.arg, bound, ctx) : null
+    inner = rule && rule.indexTree
+      ? { ...rule, indexTree: { type: 'offset', n: a0.n, arg: rule.indexTree, tok: a0.tok || a0.arg.tok } }
+      : null
+  } else {
+    inner = colourConditional(a0, env, depth + 1, ctx)
+  }
+  if (!inner || inner.inline || inner.naGated) return null
+  if (args.length === 1) return { ...inner, withholdMint: true }
+  const repl = staticColourOf(args[1].value, env, 0, ctx)
+  if (!repl) return null
+  if (inner.test && typeof inner.up === 'string' && typeof inner.down === 'string') return { ...inner, withholdMint: true }
+  if (!inner.indexTree || !Array.isArray(inner.palette)) return null
+  const replAlpha = colourHelperAlpha(args[1].value, env, ctx)
+  const innerAlpha = inner.opacity === undefined ? null : inner.opacity
+  if ((replAlpha === null ? 1 : replAlpha) !== (innerAlpha === null ? 1 : innerAlpha)) return null
+  if (inner.palette.some((e) => e !== TRANSPARENT_PALETTE_ENTRY && !/^#[0-9a-f]{6}$/i.test(String(e)))) return null
+  return { ...inner, palette: inner.palette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? repl : e)), withholdMint: true }
+}
+
+/** ⭐ H11 — what `color.new(na, t)` is: black, at `t` (CAP5 Q-F9a/b; RT9 C03). */
+const NA_UNDER_COLOR_NEW = '#000000'
+
 /** A palette entry (`#RRGGBB` or `rgba(r, g, b, a)`) → its `#rrggbb`, ignoring the
  *  alpha; null for the transparent `na` entry or anything else. */
 function paletteEntryHex(entry) {
@@ -27239,6 +27367,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     if (ctx && ctx.inline) return null
     const renewed = colorNewOverRule(node, env, depth, ctx)
     if (renewed !== undefined) return renewed
+    const nzd = nzColourRule(node, env, depth, ctx)
+    if (nzd !== undefined) return nzd
     const requested = securityColourRule(node, env, depth, ctx)
     if (requested !== undefined) return requested
     const helper = openColourHelper(node, env, ctx)
@@ -27598,6 +27728,16 @@ function resolvePaint(p, ctx) {
   if (v4DefaultTransp && !plainColourExpr(colour)) {
     return withhold('paint:v4-default-transp',
       `a v${ctx.version} \`bgcolor\` with no \`transp\` over a colour with its own alpha has no capture (${PAINT_PROBE})`)
+  }
+  // ⛔ H11 — `nz(<colour>)` with NO replacement on a paint stays withheld. CAP5's
+  // `vw-rt15-colour-nz-*` B01 shows no paint on the bars where the colour is `na`
+  // (screenshot), but TradingView's palette colorer records index 0 there - the
+  // same number as its first colour - so no capture can grade those bars, and the
+  // paint rail admits no paint that cannot be shown equal. (The plot colour is
+  // carried; its 10 such bars are pinned DIVERGE in `vendorHarness.cap5Captures`.)
+  if (colour && colour.type === 'call' && colour.name === 'nz' && Array.isArray(colour.args) && colour.args.length === 1) {
+    return withhold('paint:colour', `\`${p.kind}(nz(<colour>))\`: the bars where the colour is \`na\` are painted nothing on TradingView, `
+      + 'but its palette colorer records them as its first colour, so no capture can grade them')
   }
   const args = [{ name: 'color', value: colour }]
   if (named.has('transp')) args.push({ name: 'transp', value: named.get('transp') })

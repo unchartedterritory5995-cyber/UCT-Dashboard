@@ -296,9 +296,10 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     expect(drawn(6)).toEqual(['#FFFFFF']) // v6: white, the base default
   }, 60000)
 
-  it('⛔ only the (version, slot) pairs a capture shows — v6 and unknown versions are the base, untouched', () => {
-    expect(VERSIONS_WITH_OBJECT_DEFAULTS).toEqual([4, 5])
-    for (const v of [6, 3, undefined, null, 7]) {
+  it('⛔ only the (version, slot) pairs a capture shows — unknown versions are the base, untouched', () => {
+    // ⭐ H11 — v6 joins with the two slots CAP5 witnessed (`vw-cap5-version-defaults-v6-…`)
+    expect(VERSIONS_WITH_OBJECT_DEFAULTS).toEqual([4, 5, 6])
+    for (const v of [3, undefined, null, 7]) {
       expect(versionObjectDefaults(v), String(v)).toEqual({})
       const d = objectDefaultsFor(v)
       for (const f of Object.keys(OBJECT_DEFAULTS)) expect(d[f], `${v} ${f}`).toEqual(OBJECT_DEFAULTS[f])
@@ -308,20 +309,25 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     expect(objectDefaultsFor(6).label.textcolor).toBe('#FFFFFF')
     expect(versionObjectDefaults(4)).toEqual({
       line: { color: '#2196F3' }, label: { color: '#2196F3', textcolor: '#363A45' },
+      box: { border_color: '#2196F3', bgcolor: '#2196F3' }, cell: { text_color: '#363A45' },
     })
     expect(versionObjectDefaults(5)).toEqual({
       label: { textcolor: '#363A45' }, box: { bgcolor: '#2962FF', text_color: '#363A45' }, cell: { text_color: '#363A45' },
     })
+    expect(versionObjectDefaults(6)).toEqual({
+      box: { bgcolor: '#2962FF' }, cell: { text_color: '#363A45' },
+    })
   })
 
-  it('a v6 program states no version (its bytes are unchanged); a v4 / v5 one does', () => {
+  it('a v6 program states its version only when it draws a box or a cell; a v4 / v5 one always does', () => {
     const LF = String.fromCharCode(10)
-    const prog = (v) => memberPaneDefinition({
+    const prog = (v, draw = '    label.new(bar_index, high, "x")') => memberPaneDefinition({
       source: [`//@version=${v}`, v >= 5 ? 'indicator("d", overlay=true)' : 'study("d", overlay=true)',
-        'if close > open', '    label.new(bar_index, high, "x")', 'plot(close)'].join(LF) + LF,
+        'if close > open', draw, 'plot(close)'].join(LF) + LF,
       id: `u_member-pane-c37v${v}`, name: 'd',
     }).definition.objects
     expect(prog(6).pineVersion).toBeUndefined()
+    expect(prog(6, '    box.new(bar_index - 2, high, bar_index, low)').pineVersion).toBe(6)
     expect(prog(5).pineVersion).toBe(5)
     expect(prog(4).pineVersion).toBe(4)
   })

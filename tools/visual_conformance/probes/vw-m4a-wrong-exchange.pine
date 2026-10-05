@@ -1,0 +1,19 @@
+//@version=6
+indicator("uct-M4a-wrong-exchange-no-ignore", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M4 part A, copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// AMEX:SPY 1D (any chart). EXPECTED TO FAIL: the error text, verbatim, is the reading.
+
+// EXPECTED TO FAIL. If it does: copy the error text verbatim and go to part B.
+// If it does NOT fail, that is the finding -- record the value it returns.
+wrong = request.security("NASDAQ:JPM", "D", close)
+
+plot(wrong, "req_wrong_exchange")
+
+var table t = table.new(position.top_right, 2, 2, border_width = 1)
+if barstate.islast
+    table.cell(t, 0, 0, "NASDAQ:JPM close", text_color = color.white)
+    table.cell(t, 1, 0, str.tostring(wrong), text_color = color.yellow)
+    table.cell(t, 0, 1, "is na",             text_color = color.white)
+    table.cell(t, 1, 1, str.tostring(na(wrong)), text_color = color.yellow)

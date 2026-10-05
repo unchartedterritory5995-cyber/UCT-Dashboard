@@ -188,7 +188,19 @@ export const DEFAULT_LIMITS = Object.freeze({
   CARRIED_CELLS: 65536,
   // ⭐⭐ RT17 — PER BAR (`PER_BAR_CHARGED`), was a run-wide 100,000,000.
   CARRIED_STEPS: PER_BAR_WORK,
-  REQUEST_COUNT: 16,
+  // ⭐⭐ H11 — TRADINGVIEW'S OWN NUMBER (CAP5, vendor packet M5, measured
+  // 2026-10-04 on TradingView Premium, `vw-m5-request-ceiling.pine` stepped
+  // 10 -> 39 -> 40 -> 41 -> 63 -> 64 -> 65 -> 80 -> 100): 40 unique `request.*()`
+  // calls ran; the 41st stops the script on bar 0 with RE10137 "The script
+  // executes too many unique `request.*()` function calls. The limit is 40."
+  // So 40 serve here and the 41st stops by name, as there. Was a provisional 16,
+  // which refused scripts TradingView runs. Cost: each request is one more
+  // pass over another symbol's bars, already bounded by `TOTAL_INSTRUCTIONS`,
+  // `MEMORY` and the pane clock; 40 x 5,000 bars of one float series is 1.6 MB.
+  // ⚠️ Premium's figure: TradingView raises it on higher plans (64 on Ultimate,
+  // the vendor's own docs) — a member on Ultimate may run a script this refuses
+  // (an over-refusal, never a wrong value).
+  REQUEST_COUNT: 40,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,
   WALL_TIME: 5000,

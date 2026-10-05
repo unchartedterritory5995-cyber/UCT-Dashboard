@@ -1,0 +1,17 @@
+//@version=6
+indicator("uct-M8b-timeframe-in-request-string", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M8 part B, copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// AMEX:SPY 5 (a 5-minute chart makes the two readings differ). A compile error is the reading.
+
+// May not compile. If it does not, copy the error and leave part B's fields as
+// the error text -- part A already answers the question numerically.
+reqPeriod = request.security(syminfo.tickerid, "D", timeframe.period)
+
+var table t = table.new(position.top_right, 2, 2, border_width = 1)
+if barstate.islast
+    table.cell(t, 0, 0, "chart timeframe.period", text_color = color.white)
+    table.cell(t, 1, 0, timeframe.period,         text_color = color.yellow)
+    table.cell(t, 0, 1, "req timeframe.period",   text_color = color.white)
+    table.cell(t, 1, 1, reqPeriod,                text_color = color.lime)

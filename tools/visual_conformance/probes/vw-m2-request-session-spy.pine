@@ -1,0 +1,60 @@
+//@version=6
+indicator("uct-M2-request-session-spy", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M2, copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// AMEX:SPY 5: run A extended hours ON, run B extended hours OFF. The ONLY change from the
+// packet is the plain-string default ("AMEX:SPY" for "NASDAQ:AAPL"), so the chart and the
+// string name the same symbol on the SPY 5 setup this runbook already uses.
+
+// A PLAIN STRING ticker -- the thing under test.
+plainTxt = input.string("AMEX:SPY", "Plain string ticker")
+
+plainReq = request.security(plainTxt, timeframe.period, close)
+
+// Controls. Same symbol, session stated explicitly, plus the chart's own tickerid
+// (which carries whatever session the chart is set to).
+regReq  = request.security(ticker.new(syminfo.prefix, syminfo.ticker, session.regular),  timeframe.period, close)
+extReq  = request.security(ticker.new(syminfo.prefix, syminfo.ticker, session.extended), timeframe.period, close)
+tidReq  = request.security(syminfo.tickerid, timeframe.period, close)
+
+var int nBars     = 0
+var int nPlainNa  = 0
+var int nRegNa    = 0
+var int nExtNa    = 0
+nBars    := nBars + 1
+nPlainNa := nPlainNa + (na(plainReq) ? 1 : 0)
+nRegNa   := nRegNa   + (na(regReq)   ? 1 : 0)
+nExtNa   := nExtNa   + (na(extReq)   ? 1 : 0)
+
+plot(close,    "chart_close")
+plot(plainReq, "req_plain_string")
+plot(regReq,   "req_session_regular")
+plot(extReq,   "req_session_extended")
+plot(tidReq,   "req_tickerid")
+
+var table t = table.new(position.top_right, 2, 11, border_width = 1)
+
+if barstate.islast
+    table.cell(t, 0, 0,  "syminfo.session",   text_color = color.white)
+    table.cell(t, 1, 0,  syminfo.session,     text_color = color.yellow)
+    table.cell(t, 0, 1,  "bar: premarket",    text_color = color.white)
+    table.cell(t, 1, 1,  str.tostring(session.ispremarket),  text_color = color.yellow)
+    table.cell(t, 0, 2,  "bar: market",       text_color = color.white)
+    table.cell(t, 1, 2,  str.tostring(session.ismarket),     text_color = color.yellow)
+    table.cell(t, 0, 3,  "bar: postmarket",   text_color = color.white)
+    table.cell(t, 1, 3,  str.tostring(session.ispostmarket), text_color = color.yellow)
+    table.cell(t, 0, 4,  "chart close",       text_color = color.white)
+    table.cell(t, 1, 4,  str.tostring(close),     text_color = color.yellow)
+    table.cell(t, 0, 5,  "req plain string",  text_color = color.white)
+    table.cell(t, 1, 5,  str.tostring(plainReq),  text_color = color.yellow)
+    table.cell(t, 0, 6,  "req session.regular",  text_color = color.white)
+    table.cell(t, 1, 6,  str.tostring(regReq),    text_color = color.yellow)
+    table.cell(t, 0, 7,  "req session.extended", text_color = color.white)
+    table.cell(t, 1, 7,  str.tostring(extReq),    text_color = color.yellow)
+    table.cell(t, 0, 8,  "req syminfo.tickerid", text_color = color.white)
+    table.cell(t, 1, 8,  str.tostring(tidReq),    text_color = color.yellow)
+    table.cell(t, 0, 9,  "bars loaded",       text_color = color.white)
+    table.cell(t, 1, 9,  str.tostring(nBars), text_color = color.yellow)
+    table.cell(t, 0, 10, "na: plain/reg/ext", text_color = color.white)
+    table.cell(t, 1, 10, str.tostring(nPlainNa) + " / " + str.tostring(nRegNa) + " / " + str.tostring(nExtNa), text_color = color.yellow)

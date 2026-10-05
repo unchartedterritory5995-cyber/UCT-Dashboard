@@ -1507,25 +1507,30 @@ function pivotCol(series, left, right, beats) {
 export function pivotAt(series, i, left, right, beats) {
   const v = series[i]
   if (Number.isNaN(v)) return false
-  let ok = true
-  for (let j = i - left; j <= i + right; j++) {
-    if (j === i) continue
+  // ⭐⭐ H11 (CAP5 Q-RT10a, MEASURED) — AN `na` IN THE WINDOW IS A BARRIER, NOT A
+  // VETO. `vw-rt10-runtime-walls-rddt-1d-2026-10-04` plots pivots over a series
+  // that is `na` every 37th bar (P01 `pivothigh(x, 2, 3)`, P02 `pivotlow(x, 2, 2)`,
+  // P03 / P04 `pivotlow(·, 1, 2)` through a function): TradingView compares the
+  // candidate with its neighbours walking OUTWARD and stops at the first `na` on
+  // each side — nothing beyond a hole is compared. Bar 39 of P01: candidate 116.38
+  // (bar 36), bar 37 `na`, bar 38 121.26 — still a pivot high. This walk answers all
+  // 4 x 636 bars of the four rows (0 differ); "a hole vetoes the pivot" (the rule
+  // here before) differs on 72 of them, "a hole is skipped" on 17.
+  // ⚰️ It was "a hole anywhere makes the answer unknown": the runtime lane drew
+  // `na` on those bars where TradingView draws the pivot.
+  // A tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
+  // does not (H1). `ast_interpret._pivot_col` is the same walk.
+  for (let j = i - 1; j >= i - left; j--) {
     const w = series[j]
-    // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
-    // `windowExtreme` states out loud.
-    //
-    // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
-    // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
-    // bars on every fixture including a holed one). `v` is finite by the check
-    // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
-    // bar. ⛔ KEPT to state the rule at the site, and because it stops being
-    // redundant the moment `beats` is anything but a strict comparison — not
-    // because it guards anything today (`lesson_gate_that_cannot_fail`).
-    // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
-    // does not
-    if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
+    if (Number.isNaN(w)) break
+    if (!(beats(v, w) || v === w)) return false
   }
-  return ok
+  for (let j = i + 1; j <= i + right; j++) {
+    const w = series[j]
+    if (Number.isNaN(w)) break
+    if (!beats(v, w)) return false
+  }
+  return true
 }
 
 function windowSum(series, lo, hi) {

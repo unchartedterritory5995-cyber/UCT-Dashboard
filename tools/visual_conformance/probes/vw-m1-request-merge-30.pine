@@ -1,0 +1,75 @@
+//@version=6
+indicator("uct-M1-request-merge-30", overlay = false)
+// CAP5 (2026-10-04) - vendor packet M1 run B, copied from docs/pine/rvol-slice-vendor-packet.md on
+// origin/feat/pine-vendor-packet (3f963ec88f); the answers go to that branch's
+// docs/pine/rvol-slice-vendor-answers.json (see docs/pine/capture-round-5-runbook.md).
+// Run B: AMEX:SPY 1D, regular hours, newest daily bar FORMING. The ONLY change from
+// vw-m1-request-merge.pine is the reqTf default ("30") and the title, so the run is a committed file.
+
+// Run A: chart = 5 minutes, reqTf = "D".
+// Run B: chart = 1 day,     reqTf = "30".
+reqTf   = input.string("30", "Requested timeframe", options = ["D", "30"])
+lateSym = input.symbol("NASDAQ:CRWV", "A symbol that listed AFTER this chart starts")
+
+// The DEFAULT call -- no gaps argument, no lookahead argument. Whatever Pine's
+// defaults do IS the measurement.
+reqDefault = request.security(syminfo.tickerid, reqTf, close)
+
+// Three explicit controls, so "the default behaves like X" is a comparison on the
+// same bar and not a memory.
+reqLookOn  = request.security(syminfo.tickerid, reqTf, close, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+reqLookOff = request.security(syminfo.tickerid, reqTf, close, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+reqGapsOn  = request.security(syminfo.tickerid, reqTf, close, gaps = barmerge.gaps_on,  lookahead = barmerge.lookahead_off)
+
+// A daily request for a symbol that did not exist for most of this chart's history.
+// This is the "before the requested series has its first bar" half.
+reqLate = request.security(lateSym, "D", close, ignore_invalid_symbol = true)
+
+var int   lateNaBars  = 0
+var int   lateFirstTs = na
+var float lateAtFirst = na
+var bool  lateNaAtFirst = na
+
+if na(reqLate)
+    lateNaBars := lateNaBars + 1
+if not na(reqLate) and na(lateFirstTs)
+    lateFirstTs := time
+if barstate.isfirst
+    lateAtFirst   := reqLate
+    lateNaAtFirst := na(reqLate)
+
+// Plotted so the Data Window can be scrubbed back to a CLOSED historical bar.
+plot(close,      "chart_close")
+plot(reqDefault, "req_default")
+plot(reqLookOn,  "req_lookahead_on")
+plot(reqLookOff, "req_lookahead_off")
+plot(reqGapsOn,  "req_gaps_on")
+plot(reqLate,    "req_late_symbol")
+
+var table t = table.new(position.top_right, 2, 12, border_width = 1)
+
+if barstate.islast
+    table.cell(t, 0, 0,  "chart tf",             text_color = color.white)
+    table.cell(t, 1, 0,  timeframe.period,       text_color = color.yellow)
+    table.cell(t, 0, 1,  "requested tf",         text_color = color.white)
+    table.cell(t, 1, 1,  reqTf,                  text_color = color.yellow)
+    table.cell(t, 0, 2,  "chart close",          text_color = color.white)
+    table.cell(t, 1, 2,  str.tostring(close),    text_color = color.yellow)
+    table.cell(t, 0, 3,  "req DEFAULT",          text_color = color.white)
+    table.cell(t, 1, 3,  str.tostring(reqDefault), text_color = color.yellow)
+    table.cell(t, 0, 4,  "req lookahead_on",     text_color = color.white)
+    table.cell(t, 1, 4,  str.tostring(reqLookOn),  text_color = color.yellow)
+    table.cell(t, 0, 5,  "req lookahead_off",    text_color = color.white)
+    table.cell(t, 1, 5,  str.tostring(reqLookOff), text_color = color.yellow)
+    table.cell(t, 0, 6,  "req gaps_on",          text_color = color.white)
+    table.cell(t, 1, 6,  str.tostring(reqGapsOn),  text_color = color.yellow)
+    table.cell(t, 0, 7,  "barstate.isrealtime",  text_color = color.white)
+    table.cell(t, 1, 7,  str.tostring(barstate.isrealtime), text_color = color.yellow)
+    table.cell(t, 0, 8,  "late sym na bars",     text_color = color.white)
+    table.cell(t, 1, 8,  str.tostring(lateNaBars), text_color = color.yellow)
+    table.cell(t, 0, 9,  "late sym @ first bar", text_color = color.white)
+    table.cell(t, 1, 9,  str.tostring(lateAtFirst) + " / na=" + str.tostring(lateNaAtFirst), text_color = color.yellow)
+    table.cell(t, 0, 10, "late sym 1st value",   text_color = color.white)
+    table.cell(t, 1, 10, na(lateFirstTs) ? "never" : str.format_time(lateFirstTs, "yyyy-MM-dd", "America/New_York"), text_color = color.yellow)
+    table.cell(t, 0, 11, "chart 1st bar",        text_color = color.white)
+    table.cell(t, 1, 11, str.format_time(ta.valuewhen(barstate.isfirst, time, 0), "yyyy-MM-dd", "America/New_York"), text_color = color.yellow)

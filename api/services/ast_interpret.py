@@ -974,28 +974,27 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
         v = series[i]
         if math.isnan(v):
             continue
+        # ⭐⭐ H11 (CAP5 Q-RT10a, measured -- ``interpret.js::pivotAt`` carries the
+        # evidence): an ``na`` in the window is a BARRIER, not a veto. Walk outward
+        # from the candidate and stop at the first ``na`` on each side; nothing
+        # beyond a hole is compared. A tie on the LEFT still pivots (the plateau's
+        # last bar); one on the RIGHT does not (H1).
         ok = True
-        for j in range(i - left, i + right + 1):
-            if j == i:
-                continue
+        for j in range(i - 1, i - left - 1, -1):
             w = series[j]
-            # ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN -- the same
-            # rule `_window_extreme` states out loud.
-            #
-            # ⚠️ AND THE `isnan` HALF IS REDUNDANT BY CONSTRUCTION TODAY, WHICH IS
-            # MEASURED RATHER THAN GUESSED: deleting it is an EQUIVALENT MUTANT in
-            # both lanes (W2a.6 sweep, 0 differing bars on every fixture including
-            # a purpose-built holed one). `v` is finite by the check above and
-            # `finite > NaN` is False, so `not beats(v, w)` already blanks the bar.
-            # ⛔ IT IS KEPT, NOT DELETED, AND NOT BECAUSE IT GUARDS ANYTHING TODAY:
-            # it states the rule at the site, and it STOPS being redundant the
-            # moment `beats` is anything but a strict comparison. Labelled so
-            # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
-            # a tie on the LEFT still pivots (the plateau's last bar); one on the
-            # RIGHT does not
-            if math.isnan(w) or not (beats(v, w) or (j < i and v == w)):
+            if math.isnan(w):
+                break
+            if not (beats(v, w) or v == w):
                 ok = False
                 break
+        if ok:
+            for j in range(i + 1, i + right + 1):
+                w = series[j]
+                if math.isnan(w):
+                    break
+                if not beats(v, w):
+                    ok = False
+                    break
         if ok:
             out[i] = v
     return out

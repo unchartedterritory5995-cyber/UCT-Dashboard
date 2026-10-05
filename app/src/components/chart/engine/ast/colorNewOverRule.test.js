@@ -61,11 +61,14 @@ describe('F9 — color.new over an n-way chain', () => {
 })
 
 describe('F9 — what stays declined (`colorDynamic`), by rule', () => {
-  it('⛔ an `na` leaf: color.new(na, t) is black at t (RT9), never witnessed inside a test', () => {
+  // ⭐ H11 — WITNESSED NOW (CAP5 Q-F9a, `vw-cap5-f9-h6-rddt-1d-2026-10-04` N01:
+  // `#00000099` where the test is false): the `na` leaf is black at `t`.
+  it('⭐ H11 — an `na` leaf is carried as BLACK at the alpha of the call (CAP5 Q-F9a)', () => {
     const p = pres('plot(close, color = color.new(close > open ? color.blue : na, 40))')
-    expect(p.colorDynamic).toBe(true)
-    expect(p.colorIndex).toBeUndefined()
-    expect(p.colorCondition).toBeUndefined()
+    expect(p.colorDynamic).toBeUndefined()
+    expect(p.colorIndex).toBeTruthy()
+    expect(p.colorPalette).toEqual(['#2962FF', '#000000'])
+    expect(p.opacity).toBe(0.6)
   })
 
   it('⛔ a per-bar transparency', () => {

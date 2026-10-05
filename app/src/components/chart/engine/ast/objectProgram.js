@@ -429,6 +429,23 @@ export const MAX_BARS_BACK_CAP = 5000
  *  measured on `vw-offset-na-spy-1d-2026-09-30.json`: all 100 na-offset bars). */
 export const AUTO_MAX_BARS_BACK = 400
 
+/** ⭐⭐ H11 (CAP5, measured 2026-10-04) — A DECLARED `max_bars_back` IS NOT A
+ *  CEILING ON A READ. `vw-cap5-buffer-overrun-spy-1d-2026-10-04` declares
+ *  `max_bars_back = 50` and plots `close[bar_index % 60]`: TradingView ran with NO
+ *  runtime error and read the real close on all 8,477 bars, offsets 50..59
+ *  included (0 `na`). So a per-bar read reaches the larger of the declared buffer
+ *  and the automatic one measured to 399 (`vw-mbb-auto-spy-1d-2026-09-30`); a
+ *  whole, non-negative offset at or past THAT is unmeasured and withheld on its
+ *  bar (`auto: true`), never a runtime error and never a guess. ⚰️ The declared
+ *  buffer was read as the ceiling: past it the plot lane withheld and the object
+ *  lane STOPPED the run — the probe's V02 `na` on 1,410 bars where TradingView
+ *  draws the close. ⚠️ Measured at one point past a declared buffer (50 -> 59); the
+ *  reach between 60 and 399 under a declared 50 rests on the automatic buffer's
+ *  measurement, the larger of the two witnessed reaches.
+ *  ONE function, asked by both lanes (`pine.js::historyReadOf`, `historyReadRef`). */
+export const historyReachOf = (declared) => Math.max(
+  Number.isInteger(declared) && declared >= 1 ? declared : 0, AUTO_MAX_BARS_BACK)
+
 /**
  * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
  * holds what the program last set on an object, so it answers:
@@ -957,8 +974,10 @@ function assertValueRef(v, where, live = null) {
       if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
         throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
       }
-      if (v.auto !== undefined && (v.auto !== true || v.limit !== AUTO_MAX_BARS_BACK)) {
-        throw new Error(`${where}: an automatic-buffer history read is bounded by AUTO_MAX_BARS_BACK (${AUTO_MAX_BARS_BACK})`)
+      // ⭐ H11 — the reach is `historyReachOf(declared)`: never below the measured
+      // automatic buffer; a declared buffer above it raises it.
+      if (v.auto !== undefined && (v.auto !== true || v.limit < AUTO_MAX_BARS_BACK)) {
+        throw new Error(`${where}: an automatic-buffer history read reaches at least AUTO_MAX_BARS_BACK (${AUTO_MAX_BARS_BACK})`)
       }
       v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
       return

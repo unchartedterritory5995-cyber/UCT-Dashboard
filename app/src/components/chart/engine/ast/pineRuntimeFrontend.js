@@ -6021,8 +6021,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
             `the length of \`${node.name}\` is only known while the bar is running, `
             + 'so the ring it needs cannot be sized before bar 0', scope)
           if (n < 1) {
+            // ⭐ H11 (CAP5) — `ta.lowest` with a length of 0 (or `na`, read as 0)
+            // stops TradingView's run on bar 0 with RE10001; said in its words.
             throw new RuntimeRefusal('runtime:statement',
-              `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+              `\`${node.name}\` needs a length of at least 1, got ${n}`
+              + ((node.name === 'ta.lowest' || node.name === 'lowest') && (n === 0 || Number.isNaN(n))
+                ? ` — TradingView stops this script on its first bar: "Invalid value of the 'length' argument (0) `
+                  + `in the 'lowest' function. It must be > 0." (RE10001), and draws nothing`
+                : ''), at)
           }
           // ⭐⭐ SPAN COMES FROM `interpret.js`, NOT FROM HERE. `ta.rising(x, n)`
           // spans n+1 bars; asking the table means the runtime cannot disagree
