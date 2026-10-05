@@ -65,3 +65,32 @@ def test_the_kill_switch_leaves_the_map_alone(monkeypatch):
     monkeypatch.setattr(tsi, "_LIQ", {})
     assert tsi.refresh_liquidity() == 0
     assert tsi._LIQ == {}
+
+
+def test_an_empty_boot_read_is_retried_soon_then_refreshed_rarely(monkeypatch):
+    """On the web pod bars.db arrives from the R2 pull AFTER the index thread starts,
+    so the first read finds nothing. Measured live 2026-10-05: search stayed A-Z for
+    30+ minutes because that empty boot read was not retried for a day."""
+    answers = iter([0, 0, 412])
+    monkeypatch.setattr(tsi, "refresh_liquidity", lambda: next(answers))
+    slept = []
+
+    class _Stop(Exception):
+        pass
+
+    def fake_sleep(s):
+        slept.append(s)
+        if len(slept) == 3:
+            raise _Stop
+
+    try:
+        tsi._liquidity_loop(sleep=fake_sleep)
+    except _Stop:
+        pass
+    assert slept == [tsi._LIQ_RETRY_EMPTY_S, tsi._LIQ_RETRY_EMPTY_S, tsi._LIQ_REFRESH_S]
+    assert tsi._LIQ_RETRY_EMPTY_S <= 600
+
+
+def test_status_reports_the_liquidity_map(monkeypatch):
+    monkeypatch.setattr(tsi, "_LIQ", {"NVDA": 1.0, "AAPL": 2.0})
+    assert tsi.status()["liquidity_symbols"] == 2

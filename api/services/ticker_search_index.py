@@ -156,7 +156,24 @@ def refresh_liquidity() -> int:
         with _LOCK:
             _LIQ = {str(k).upper(): float(v) for k, v in dv.items()}
             _LIQ_AT = time.time()
+    logger.info("[ticker_search_index] liquidity map: %d symbols", len(dv))
     return len(dv)
+
+
+#: How long to wait before asking bars.db again. On the web pod bars.db arrives from
+#: the R2 snapshot pull AFTER this thread starts (USE_REMOTE_BARS=1), so the first read
+#: at boot finds nothing; an empty answer is retried soon, a good one refreshed rarely.
+_LIQ_RETRY_EMPTY_S = 300
+_LIQ_REFRESH_S = 6 * 3600
+
+
+def _liquidity_loop(sleep=time.sleep) -> None:
+    while True:
+        try:
+            n = refresh_liquidity()
+        except Exception:  # noqa: BLE001 -- refresh_liquidity already never raises
+            n = 0
+        sleep(_LIQ_REFRESH_S if n else _LIQ_RETRY_EMPTY_S)
 
 
 def _sort_key(rank: int, row: dict, liq: dict) -> tuple:
@@ -346,16 +363,17 @@ def start_background_build() -> None:
                 build_index()
             except Exception:
                 logger.exception("[ticker_search_index] initial build failed")
-        refresh_liquidity()
         while True:
             time.sleep(_REFRESH_TTL)
             try:
                 build_index()
             except Exception:
                 logger.exception("[ticker_search_index] periodic rebuild failed")
-            refresh_liquidity()
 
     threading.Thread(target=_loop, name="ticker-search-index", daemon=True).start()
+    # L6 fix: the dollar-volume ranking keeps its OWN loop, so a boot-time read of a
+    # not-yet-downloaded bars.db is retried in minutes instead of a day later.
+    threading.Thread(target=_liquidity_loop, name="ticker-search-liquidity", daemon=True).start()
 
 
 def ready() -> bool:
@@ -376,7 +394,7 @@ def contains(sym: str) -> bool:
 
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
-            "snapshot": _SNAP_PATH}
+            "snapshot": _SNAP_PATH, "liquidity_symbols": len(_LIQ), "liquidity_at": _LIQ_AT}
 
 
 # ── Search ───────────────────────────────────────────────────────────────────
