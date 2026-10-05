@@ -105,9 +105,13 @@ describe('byte identity against the frozen oracles', () => {
     }
   })
 
-  it('formatPriceDisclosure === the pre-S10 presentationFormat body', () => {
+  // The ONE deliberate move since the oracle was frozen: a negative reads
+  // "-$2.90", not "$-2.90" (presentationPrimitives.formatCurrency).
+  const signMoved = (s) => (typeof s === 'string' ? (s.startsWith('$-') ? `-$${s.slice(2)}` : s) : s)
+
+  it('formatPriceDisclosure === the pre-S10 presentationFormat body (minus before the "$")', () => {
     for (const v of [...VALUES, ...ABSENTS]) {
-      expect(formatPriceDisclosure(v)).toBe(OLD_disclosureFormatPrice(v))
+      expect(formatPriceDisclosure(v)).toBe(signMoved(OLD_disclosureFormatPrice(v)))
     }
   })
 
@@ -117,7 +121,7 @@ describe('byte identity against the frozen oracles', () => {
     // test above would still pass.
     for (const v of [...VALUES, ...ABSENTS]) {
       expect(drawingFormatPrice(v, { tick: 0.01 })).toBe(OLD_drawingFormatPrice(v, { tick: 0.01 }))
-      expect(disclosureFormatPrice(v)).toBe(OLD_disclosureFormatPrice(v))
+      expect(disclosureFormatPrice(v)).toBe(signMoved(OLD_disclosureFormatPrice(v)))
     }
   })
 })

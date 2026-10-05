@@ -2,8 +2,12 @@ import useFilings from '../../../hooks/useFilings'
 import styles from '../ResearchPage.module.css'
 
 export default function FilingsTab({ sym }) {
-  const { data, isLoading } = useFilings(sym)
+  const { data, error, isLoading, mutate } = useFilings(sym)
   const filings = data?.filings || []
+  // A failed read (an SEC outage answered as 200 {error}, a 5xx, a dropped
+  // connection) is NOT an empty filing list -- see useFilings.js.
+  const unavailable = error?.kind === 'unavailable'
+  const noFiler = error?.kind === 'no_filer'
 
   return (
     <div className={styles.finWrap}>
@@ -31,7 +35,16 @@ export default function FilingsTab({ sym }) {
             ))}
           </div>
         )}
-        {!isLoading && !filings.length && <div className={styles.fnote}>No SEC filings found for this ticker.</div>}
+        {!isLoading && unavailable && (
+          <div className={styles.fnote} data-testid="filings-unavailable">
+            SEC EDGAR couldn&rsquo;t be read right now &mdash; this is not a statement about the company.{' '}
+            <button type="button" className={styles.filingLink} onClick={() => mutate()}>Retry</button>
+          </div>
+        )}
+        {!isLoading && noFiler && (
+          <div className={styles.fnote} data-testid="filings-no-filer">No SEC filer matched this ticker.</div>
+        )}
+        {!isLoading && !error && !filings.length && <div className={styles.fnote}>No SEC filings found for this ticker.</div>}
         {/* Non-D1, deliberately: EDGAR filings are documents, not a
             quote-shaped feed -- no fabricated freshness class (mirrors the
             S7 document_arrival trigger's own freshness_class=None choice

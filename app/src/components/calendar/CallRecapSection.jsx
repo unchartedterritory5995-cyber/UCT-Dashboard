@@ -25,14 +25,20 @@ import styles from './CallRecapSection.module.css'
 const hasSpeechSynthesis = () =>
   typeof window !== 'undefined' && 'speechSynthesis' in window
 
-function buildTTSText(recap) {
+// `recap` is NORMALIZED here, so qa_highlights are {takeaway, quote, ...}
+// objects -- joining them raw read "[object Object]" aloud.
+export function buildTTSText(recap) {
   if (!recap) return ''
   const parts = []
   if (recap.headline) parts.push(recap.headline)
   if (recap.sentiment) parts.push(`Sentiment: ${recap.sentiment}.`)
   if (recap.guidance) parts.push(`Guidance: ${recap.guidance}`)
   if (recap.bullets?.length) parts.push(recap.bullets.join('. '))
-  if (recap.qa_highlights?.length) parts.push('Q&A highlights: ' + recap.qa_highlights.join('. '))
+  const qa = (recap.qa_highlights || [])
+    .map((q) => (typeof q === 'string' ? q : (q?.takeaway || q?.quote || '')))
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+  if (qa.length) parts.push('Q&A highlights: ' + qa.join('. '))
   return parts.join(' ')
 }
 

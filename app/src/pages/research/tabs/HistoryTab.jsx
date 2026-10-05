@@ -69,6 +69,10 @@ export default function HistoryTab({ sym }) {
   }, [body])
 
   if (isLoading && !data) return <div className={styles.card}>Loading history…</div>
+  // 402 is the paid gate, not an outage.
+  if (data && !data.ok && data.httpStatus === 402) {
+    return <div className={styles.card} data-testid="history-paywalled">Ticker history requires a paid plan.</div>
+  }
   if (data && !data.ok) {
     return <div className={styles.card} data-testid="history-unavailable">
       History is unavailable right now. That does not mean nothing happened.

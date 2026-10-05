@@ -10,6 +10,26 @@ import styles from '../ResearchPage.module.css'
 // the eager entry chunk.
 const ChartPane = lazy(() => import('../../../components/chart/pane/ChartPane'))
 
+// Consensus buckets arrive separate ({strongBuy, buy, hold, sell, strongSell});
+// the strong buckets used to be dropped from the counts entirely.
+export function consensusText(ct) {
+  if (!ct || (ct.buy == null && ct.strongBuy == null)) return '—'
+  const n = (v) => Number(v) || 0
+  const side = (label, plain, strong) => {
+    const total = n(plain) + n(strong)
+    return n(strong) ? `${label} ${total} (incl. ${n(strong)} strong)` : `${label} ${total}`
+  }
+  return [side('Buy', ct.buy, ct.strongBuy), `Hold ${n(ct.hold)}`, side('Sell', ct.sell, ct.strongSell)].join(' · ')
+}
+
+// The middle of the target range: the mean when the source carries one, else
+// the median (the FMP fallback never has a mean), labelled as such.
+export function targetMid(pt) {
+  if (pt?.targetMean != null) return { value: pt.targetMean, label: null }
+  if (pt?.targetMedian != null) return { value: pt.targetMedian, label: 'median' }
+  return { value: '—', label: null }
+}
+
 function Surprise({ v }) {
   if (v == null) return <span className={styles.muted}>—</span>
   const s = String(v)
@@ -38,6 +58,7 @@ function ReportNote({ state, retry }) {
 export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, retryReport, error, mutate }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
+  const mid = targetMid(pt)
   return (
     <div className={styles.ovWrap}>
       {/* TERM-088 -- a failed read on any of the composing endpoints is not
@@ -128,8 +149,8 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
 
       <section className={styles.card}>
         <div className={styles.ct}>Analyst view</div>
-        <div className={styles.kv}><span>Consensus</span><b>{ct.buy != null ? `Buy ${ct.buy} · Hold ${ct.hold ?? 0} · Sell ${ct.sell ?? 0}` : '—'}</b></div>
-        <div className={styles.kv}><span>Target</span><b>{pt.targetLow ?? '—'} — <span className={styles.gold}>{pt.targetMean ?? '—'}</span> — {pt.targetHigh ?? '—'}</b></div>
+        <div className={styles.kv}><span>Consensus</span><b data-testid="consensus-counts">{consensusText(ct)}</b></div>
+        <div className={styles.kv}><span>Target</span><b data-testid="target-range">{pt.targetLow ?? '—'} — <span className={styles.gold}>{mid.value}{mid.label ? <span className={styles.muted}> ({mid.label})</span> : null}</span> — {pt.targetHigh ?? '—'}</b></div>
       </section>
 
       <section className={styles.card}>

@@ -9,6 +9,8 @@ import OverviewTab from '../../research/tabs/OverviewTab'
 export default function OverviewPanel({ sym }) {
   const data = useResearchOverview(sym)
   const report = useLatestReport(sym)
+  // error + mutate: a failed read renders "couldn't load" with a Retry, never
+  // "will appear here once available" -- the same props ResearchPage passes.
   return (
     <OverviewTab
       sym={data.sym}
@@ -18,6 +20,8 @@ export default function OverviewPanel({ sym }) {
       row={report.row}
       reportState={report.state}
       retryReport={report.retry}
+      error={data.error}
+      mutate={data.mutate}
     />
   )
 }

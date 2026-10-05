@@ -9,13 +9,13 @@ const fin = {
   annual: [
     { period: '2024', revenue: 3.9e11, net_income: 1e11, eps: 6.08, gross_margin: 46.0, operating_margin: 31.0, net_margin: 25.0, revenue_yoy: 2.0, eps_yoy: 30.0 },
   ],
-  balance: { cash: '$50.0B', total_debt: '$100.0B', debt_to_equity: 1.5, current_ratio: 1.1, fcf: '$90.0B' },
+  balance: { cash: '$50.0B', total_debt: '$100.0B', debt_to_equity: 150, current_ratio: 1.1, fcf: '$90.0B' },
   metrics: { roe: 120.0, roa: 25.0, gross_margin: 46.0, operating_margin: 31.0, net_margin: 25.0 },
 }
 
 vi.mock('../hooks/useFinancials', () => ({ default: () => ({ data: fin, isLoading: false }) }))
 
-import FinancialsTab from './FinancialsTab'
+import FinancialsTab, { fmtDebtToEquity } from './FinancialsTab'
 
 describe('FinancialsTab', () => {
   it('renders quarterly + annual grids with formatted values', () => {
@@ -31,6 +31,13 @@ describe('FinancialsTab', () => {
     render(<FinancialsTab sym="AAPL" />)
     expect(screen.getByText('$90.0B')).toBeInTheDocument()    // FCF
     expect(screen.getByText('120%')).toBeInTheDocument()      // ROE
+  })
+
+  it('debt/equity arrives from yfinance as a percent and is shown as a ratio', () => {
+    render(<FinancialsTab sym="AAPL" />)
+    expect(screen.getByTestId('debt-to-equity').textContent).toBe('1.50×')
+    expect(fmtDebtToEquity(null)).toBe('—')
+    expect(fmtDebtToEquity(45.3)).toBe('0.45×')
   })
 
   it('shows no entity note when resolution already succeeded (the fixture default)', () => {

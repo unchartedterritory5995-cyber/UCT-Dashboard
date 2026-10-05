@@ -2,8 +2,19 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 vi.mock('../../../components/calendar/SentimentGauge', () => ({ default: () => <div>sentiment-gauge</div> }))
-vi.mock('../../../components/calendar/CallRecapSection', () => ({ default: ({ recap }) => <div>recap:{recap?.headline}</div> }))
-vi.mock('../hooks/useCallRecap', () => ({ default: () => ({ data: { recap: { headline: 'Strong quarter' } }, isLoading: false }) }))
+// The stub normalizes exactly as the real section does, so it sees what the
+// real one would: the inner recap fields AND the outer ones.
+vi.mock('../../../components/calendar/CallRecapSection', async () => {
+  const { normalizeCallRecap } = await vi.importActual('../../../components/research/callRecap')
+  return { default: ({ recap }) => {
+    const r = normalizeCallRecap(recap) || {}
+    return <div>recap:{r.headline} webcast:{r.webcast_url || 'none'} ratings:{(r.rating_changes || []).length} review:{r.review_status || 'none'}</div>
+  } }
+})
+vi.mock('../hooks/useCallRecap', () => ({ default: () => ({ data: {
+  recap: { headline: 'Strong quarter' },
+  webcast_url: 'https://example.com/live', rating_changes: [{ period: '2026-09' }], review_status: 'reviewed',
+}, isLoading: false }) }))
 vi.mock('../hooks/useEarningsAudio', () => ({ default: () => ({ data: null }) }))
 
 import CallsTab from './CallsTab'
@@ -13,6 +24,12 @@ describe('CallsTab', () => {
     render(<CallsTab sym="AAPL" />)
     expect(screen.getByText('sentiment-gauge')).toBeInTheDocument()
     expect(screen.getByText(/Strong quarter/)).toBeInTheDocument()
+  })
+
+  it('hands the section the whole payload, so the outer webcast/ratings/review fields survive', () => {
+    render(<CallsTab sym="AAPL" />)
+    expect(screen.getByText(/Strong quarter/).textContent)
+      .toBe('recap:Strong quarter webcast:https://example.com/live ratings:1 review:reviewed')
   })
 })
 

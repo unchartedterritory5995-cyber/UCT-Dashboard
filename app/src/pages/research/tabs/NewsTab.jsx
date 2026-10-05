@@ -6,6 +6,7 @@ import { epochSecondsToIso } from '../../../components/provenance/presentationFo
 import { computeSessionStale } from '../../../components/provenance/sessionStale'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import { parseEtTimestamp, ET_ZONE } from '../../../lib/marketClock/etTime'
 import styles from '../ResearchPage.module.css'
 
 // A8 News/Intelligence Slice 1 (owner-authorized narrow slice,
@@ -50,12 +51,21 @@ function TrustStrip({ meta, sessionContext }) {
 // component's silent blank (owner instruction, 2026-09-04: "mark the
 // date/time honestly as unknown/unavailable", not touched there since
 // that component is a preserved compatibility bridge).
+//
+// ⛔ The string has no zone, and it is ET: it is parsed as America/New_York
+// wall clock (DST-correct), never as the BROWSER's local time -- which shifted
+// every headline by the member's offset and, west of ET, put fresh news "in
+// the future" where it was clamped to "just now". Only a small skew (a few
+// minutes) is still "just now"; anything further ahead shows its date.
+const FUTURE_SKEW_MINS = 5
 export function whenLabel(iso, now = Date.now()) {
   if (!iso) return 'Date unknown'
-  const t = Date.parse(String(iso).replace(' ', 'T'))
+  const t = parseEtTimestamp(iso)
   if (!Number.isFinite(t)) return 'Date unknown'
   const mins = Math.floor((now - t) / 60000)
-  if (mins < 0) return 'just now'
+  if (mins < -FUTURE_SKEW_MINS) {
+    return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: ET_ZONE })
+  }
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
@@ -63,7 +73,7 @@ export function whenLabel(iso, now = Date.now()) {
   const days = Math.floor(hrs / 24)
   if (days < 7) return `${days}d ago`
   const d = new Date(t)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: ET_ZONE })
 }
 
 function hideBrokenImage(e) {

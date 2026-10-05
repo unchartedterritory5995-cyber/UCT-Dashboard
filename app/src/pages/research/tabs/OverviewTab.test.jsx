@@ -11,7 +11,7 @@ vi.mock('../LeadershipBadge', () => ({ default: () => null }))
 vi.mock('../ConfidenceBadge', () => ({ default: () => null }))
 vi.mock('../../../components/chart/pane/ChartPane', () => ({ default: () => <div>chart-pane</div> }))
 
-import OverviewTab from './OverviewTab'
+import OverviewTab, { consensusText, targetMid } from './OverviewTab'
 
 describe('OverviewTab', () => {
   it('renders the AI snapshot copy when no analysis exists yet, and no error banner', () => {
@@ -83,4 +83,29 @@ describe('OverviewTab -- Latest report states', () => {
     render(<OverviewTab {...base} row={null} reportState="empty" />)
     expect(screen.getByTestId('latest-report-empty')).toHaveTextContent('No reported quarter on file yet.')
   })
+
+describe('OverviewTab analyst view (DES)', () => {
+  const base = { sym: 'AAPL', stats: {}, ai: {}, row: null, error: false, mutate: () => {} }
+
+  it('the FMP fallback (no mean) shows the median, labelled median -- not a dash', () => {
+    render(<OverviewTab {...base} analyst={{ price_target: { targetLow: 150, targetHigh: 300, targetMean: null, targetMedian: 240 } }} />)
+    expect(screen.getByTestId('target-range').textContent).toBe('150 — 240 (median) — 300')
+  })
+
+  it('a mean wins over the median and carries no label', () => {
+    expect(targetMid({ targetMean: 231.5, targetMedian: 240 })).toEqual({ value: 231.5, label: null })
+    expect(targetMid({})).toEqual({ value: '—', label: null })
+  })
+
+  it('strong buy/sell are counted into the buckets and named', () => {
+    render(<OverviewTab {...base} analyst={{ consensus: { strongBuy: 10, buy: 15, hold: 8, sell: 1, strongSell: 0 } }} />)
+    expect(screen.getByTestId('consensus-counts').textContent).toBe('Buy 25 (incl. 10 strong) · Hold 8 · Sell 1')
+  })
+
+  it('consensus text handles strong sell and absence', () => {
+    expect(consensusText({ buy: 2, hold: 3, sell: 1, strongSell: 2 })).toBe('Buy 2 · Hold 3 · Sell 3 (incl. 2 strong)')
+    expect(consensusText({})).toBe('—')
+    expect(consensusText(undefined)).toBe('—')
+  })
+})
 })

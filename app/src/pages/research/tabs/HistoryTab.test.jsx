@@ -47,6 +47,12 @@ describe('HistoryTab', () => {
     expect(screen.queryByTestId('history-empty')).toBeNull()
   })
 
+  it('a 402 is the paid gate, not "History is unavailable"', async () => {
+    await renderWith({ ok: false, httpStatus: 402, body: null })
+    expect(screen.getByTestId('history-paywalled').textContent).toBe('Ticker history requires a paid plan.')
+    expect(screen.queryByTestId('history-unavailable')).toBeNull()
+  })
+
   it('names an unreadable lane as missing', async () => {
     await renderWith({ ok: true, body: { ...BODY, lanes: { ...BODY.lanes, catalysts: { status: 'unavailable' } } } })
     expect(screen.getByTestId('history-lane-unavailable').textContent).toMatch(/Catalysts/)
