@@ -18,15 +18,21 @@
 // by name (`runtime:time-unserved`) and nothing is drawn.
 //
 // ⚠️ The intraday and weekly captures do not start at the listing, and the runtime
-// lane withholds a stateful script off the listing (`runtime:history-start`, a policy
-// this does not change). Those grades run on a COPY marked `startsAtBar0` — what is
-// proven there is the VALUE the run computes on each bar, which no history reaches
-// (a period anchor and its change). The listing-proved 1D and 1M grades need no copy.
+// lane withholds a stateful script off the listing (`runtime:history-start`) — the
+// product's gate, which these grades leave exactly as it is (each asserts the door
+// still withholds them, F9's control-row rule included). What they grade instead is
+// the stronger, stated claim: these columns DO NOT DEPEND ON WHERE HISTORY STARTS.
+// `oursIndependentOfHistory` runs the installed definition on the capture's bars and
+// on two later starts of the same bars, and proves every shared bar agrees, before
+// the full run is graded. ⚰️ (wave 18) It used a COPY of the capture marked
+// `startsAtBar0`, which F9 rightly overrules where the capture's own `bar_index`
+// control reads 8172 on its first bar — a hand-written sentence was standing in for a
+// fact nobody had measured. The listing-proved 1D and 1M grades need neither.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import * as registry from '../../nativeRegistry'
-import { runOurSide, enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
+import { runOurSide, enterMemberDoor, HARNESS_DEF_ID, toProductBars, tfCodeOf } from './ourSide'
 import { enterDoorState } from './harness'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 
@@ -80,10 +86,9 @@ const corpusSource = () => {
   return fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.startsWith('volume-profile-auto-line-v2__'))), 'utf8')
 }
 
-function ours(capture, { listing = false } = {}) {
+function ours(capture) {
   enterDoorState('runtime')
-  const cap = { ...capture, source: { ...capture.source, text: SCRIPT },
-    history: listing ? { startsAtBar0: true, why: 'RT16 rail copy: the clock value, not the history, is graded' } : capture.history }
+  const cap = { ...capture, source: { ...capture.source, text: SCRIPT } }
   const door = enterMemberDoor(SCRIPT)
   expect(door.def, door.refusal).toBeTruthy()
   expect(door.built.lane).toBe('runtime') // the runtime lane serves it: `periodH2` is reassigned
@@ -96,6 +101,51 @@ function ours(capture, { listing = false } = {}) {
     return Array.from(p.column)
   }
   return { newPeriod: col('NEW_PERIOD'), days: col('DAYS') }
+}
+
+/** Off the listing: the product door withholds (asserted), and the columns are graded
+ *  only after they are PROVED independent of where the loaded history starts — the
+ *  installed definition run on the bars from 0, from n/3 and from 2n/3 agrees on every
+ *  bar the runs share (each later start's first bar excepted: `ta.change` reads one
+ *  back). Then, and only then, the run from 0 is the value graded. */
+function oursIndependentOfHistory(capture) {
+  enterDoorState('runtime')
+  const cap = { ...capture, source: { ...capture.source, text: SCRIPT } }
+  // the product's answer off the listing is unchanged: withheld by name
+  const product = runOurSide(cap)
+  registry.uninstallUserDefinition(HARNESS_DEF_ID)
+  const gated = (product.plots || []).find((x) => x.title === 'NEW_PERIOD')
+  expect(gated && gated.column, 'the listing gate must still withhold this capture').toBeFalsy()
+  expect(String(gated && gated.missingReason)).toMatch(/runtime:history-start/)
+  const door = enterMemberDoor(SCRIPT)
+  expect(door.def, door.refusal).toBeTruthy()
+  expect(door.built.lane).toBe('runtime')
+  const keyOf = (title) => {
+    const idx = door.built.translation.outputs.findIndex((o) => o && o.title === title)
+    const row = (door.built.rows || []).find((r) => r.output === idx)
+    expect(row, title).toBeTruthy()
+    return row.key
+  }
+  const keys = { newPeriod: keyOf('NEW_PERIOD'), days: keyOf('DAYS') }
+  const bars = toProductBars(cap)
+  // ⭐ the ONE place the gate is lifted, and only for runs whose agreement is checked below
+  const run = (b) => registry.computeFor(door.def, b, undefined,
+    { tf: tfCodeOf(cap.timeframe), newestBarIsForming: cap.newestBarIsForming ?? null, historyFromListing: true })
+  const full = run(bars)
+  for (const k of Object.values(keys)) expect(full[k], k).toBeTruthy()
+  let shared = 0
+  for (const from of [Math.floor(bars.length / 3), Math.floor((2 * bars.length) / 3)]) {
+    const part = run(bars.slice(from))
+    for (const k of Object.values(keys)) {
+      const moved = []
+      for (let j = 1; j < bars.length - from; j += 1) if (!same(full[k][from + j], part[k][j])) moved.push(from + j)
+      expect(moved, `${k}: the value moved with the history start at bars`).toEqual([])
+      shared += bars.length - from - 1
+    }
+  }
+  expect(shared).toBeGreaterThan(0)
+  registry.uninstallUserDefinition(HARNESS_DEF_ID)
+  return { newPeriod: Array.from(full[keys.newPeriod]), days: Array.from(full[keys.days]) }
 }
 
 const wrongBars = (theirs, mine, from = 0) => theirs.map((v, i) => (i < from || same(v, mine[i]) ? -1 : i)).filter((i) => i >= 0)
@@ -113,7 +163,7 @@ describe('RT16 W2 — the runtime lane reads `time(periodH)` as the host node of
 
   it('1W: \'1M\' — equals K15 `ta.change(time("M")) != 0` on all 1,758 bars', () => {
     const cap = load('harness/vw-clock-close-tfchange-spy-1w-2026-09-28.json')
-    const { newPeriod } = ours(cap, { listing: true })
+    const { newPeriod } = oursIndependentOfHistory(cap)
     const theirs = vendor(cap, 'K15_newMonth_from_timeM_CONTROL')
     expect(wrongBars(theirs, newPeriod)).toEqual([])
     expect(newPeriod.filter((v) => v === 1).length).toBeGreaterThan(300)
@@ -131,7 +181,7 @@ describe('RT16 W2 — the runtime lane reads `time(periodH)` as the host node of
   for (const file of ['harness/vw-time-tf-spy-5-2026-10-01.json', 'harness/vw-time-tf-spy-15-2026-10-01.json']) {
     it(`${file.split('/')[1]}: '60' — \`time("60") − time\` equals T06 on every bar`, () => {
       const cap = load(file)
-      const { days } = ours(cap, { listing: true })
+      const { days } = oursIndependentOfHistory(cap)
       const theirs = vendor(cap, 'T06_time60_minus_time_DAYS')
       expect(wrongBars(theirs, days)).toEqual([])
       expect(days.some((v) => v < 0)).toBe(true) // the 60-minute bucket is not the bar's own time
@@ -145,8 +195,9 @@ describe('RT16 W2 — the runtime lane reads `time(periodH)` as the host node of
     let compared = 0
     for (const w of ex.windows) {
       const cap = { ...d1, id: `rt16-60-${w.from}`, timeframe: '60', newestBarIsForming: false,
+        history: { startsAtBar0: false, why: 'a window of the 60m capture' },
         bars: { ...d1.bars, rows: w.bars, count: w.bars.length }, plotValues: undefined, study: undefined }
-      const { newPeriod } = ours(cap, { listing: true })
+      const { newPeriod } = oursIndependentOfHistory(cap)
       const theirs = w.plotRows.map((r) => r[k])
       expect(wrongBars(theirs, newPeriod, 1)).toEqual([])
       compared += theirs.length - 1
