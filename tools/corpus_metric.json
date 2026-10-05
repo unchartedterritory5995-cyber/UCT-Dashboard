@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-04",
+  "measured_at": "2026-10-05",
   "scripts": 266,
-  "host_ok": 77,
-  "screener_ok": 67,
+  "host_ok": 78,
+  "screener_ok": 68,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -325,12 +325,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ],
       "screenerGuards": [
-        "pine:function-def",
-        "pine:na"
+        "pine:function-def"
       ]
     },
     {
@@ -369,14 +367,12 @@
     {
       "file": "breaks-and-retests-hg__ddba061af8.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:na",
         "pine:tuple",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:na",
         "pine:tuple",
         "pine:function"
       ]
@@ -2423,14 +2419,10 @@
     },
     {
       "file": "support-and-resistance__1505.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:na"
-      ],
-      "screenerGuards": [
-        "pine:na"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "support-and-resistance__UgNPprOr8h.pine",
