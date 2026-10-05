@@ -1,12 +1,14 @@
 // Tour `meaning-search` (wave 14, W14-B1). Data only: see ./index.js for the contract.
 // Screen: the Notebook with its sidebar showing (desktop and tablet; on a phone the
 // sidebar is hidden while a note is open). `search-count` exists only while a search
-// has results, so a tour opened with an empty search box shows steps 1 and 3.
+// has results. W14-Q2 (measured in a real browser): a tour opened from Help always starts
+// with an empty box, so step 2 never showed; step 1 now asks the member to type a word
+// (`waitFor` the count), and moves on by itself when results appear. Next skips it.
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 const SIDEBAR = 'components/notebook/FolderSidebar.jsx'
 
 export const STEPS = Object.freeze([
-  step('search', 'search', SIDEBAR),
+  Object.freeze({ id: 'search', anchor: 'search', file: SIDEBAR, waitFor: 'search-count' }),
   step('count', 'search-count', SIDEBAR),
   step('related', 'search', SIDEBAR),
 ])
@@ -14,7 +16,7 @@ export const STEPS = Object.freeze([
 export const COPY = Object.freeze({
   search: {
     title: 'Search by meaning',
-    body: 'Search still finds notes that use your words. It also lists notes about the same idea written in other words.',
+    body: 'Search still finds notes that use your words. It also lists notes about the same idea written in other words. Type a word to try it.',
   },
   count: {
     title: 'Matches, then related',

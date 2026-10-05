@@ -20,7 +20,8 @@ import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
-  REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, takePendingRegistryTourOpenAny,
+  REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
+  takePendingRegistryTourOpenAny,
 } from './tourRegistryControl'
 
 /** This gate's own boundary: a failed chunk (or a throw while it renders) renders
@@ -89,6 +90,10 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
       const id = wantedRef.current
       wantedRef.current = null
       setWantedId(null)
+      // A request this tour answered must not outlive it: `openRegistryTour` leaves its id
+      // pending, and the next shell remount (any change of page) would open the tour again
+      // (W14-Q2).
+      if (id && hasPendingRegistryTourOpen() === id) takePendingRegistryTourOpenAny()
       if (id) announceRegistryTourClosed(id, info?.opened === true)
     }, [])
 

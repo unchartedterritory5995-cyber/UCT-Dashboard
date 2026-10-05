@@ -21,6 +21,9 @@ import { openRegistryTour, __resetRegistryTourControl } from './tourRegistryCont
 import { SAMPLE_IMPORT_PREFIX } from './tourStart'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { installTourLayout } from './__fixtures__/tourLayout'
+// The app mounts the gate inside this boundary, keyed by pathname, so every change of page
+// remounts the gate (W14-Q2: a stand-in without it could not see trade tours being dropped).
+import RouteErrorBoundary from '../../../../../components/RouteErrorBoundary'
 
 // Where each anchor file renders in the app (journal-2-0 relative). A function of the
 // location: true when that component is on screen there.
@@ -129,8 +132,10 @@ describe('every registered tour, opened from Help the way a member opens it', ()
         <MemoryRouter initialEntries={['/support']}>
           <Where />
           <Help tour={tour} />
-          <World tour={tour} />
-          <RegistryToursGate tours={OTHER_TOURS} />
+          <RouteErrorBoundary>
+            <World tour={tour} />
+            <RegistryToursGate tours={OTHER_TOURS} />
+          </RouteErrorBoundary>
         </MemoryRouter>
       </SWRConfig>,
     )
