@@ -449,3 +449,99 @@ Exit 0, budget unchanged.
   owed; everything here is measured in jsdom.
 - The flags-off parity compares against the wave-13 landing, not master (master does not carry
   wave 13 yet); the merge of wave 13 to master is its own gate.
+
+## Round 4 (2026-10-05): q2, keys and cap2 merged
+
+**Lane merges** (one merge commit each, in this order, all three lanes based on `9004bd8dac`):
+
+| commit | lane | tip | conflicts and resolution |
+|---|---|---|---|
+| `1e1cc7330a` | W14-Q2: real-browser tour fixes | `c05d2c1e30` | none |
+| `eedb40aced` | W14-keys: skip links, roving focus, Ctrl+K "Help: Walkthroughs", focus after base tour | `4a0b9e62be` | none textual. The only file both lanes touched, `tabs/NotebookTab.jsx`, auto-merged into two separate hunks: keys' `GettingStartedSkipLink` first in the skip-link portal, and q2's `data-tour="note-phone-back"` on the phone Back button. Both kept. The other files expected to conflict (`GenericTourEngine.jsx`, `RegistryToursGate.jsx`, `TourOfferPrompt`, `GettingStarted*`, `Support.jsx`) were each changed by only one of the two lanes. |
+| `39784a2a52` | W14-cap2: `capped_multipart` on the journal and member upload doors, CSV preview-mapped mapping fix, census row for `PUT /api/j2/onboarding/tours/{tour_id}` | `4d96a7a3d1` | none (server only, no overlap) |
+
+**Counts (copied)**, at `39784a2a52` with `app/dist` built:
+
+- `npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=3`:
+  `Test Files  646 passed (646)`, `Tests  8132 passed | 1 skipped (8133)`, exit 0. This run
+  includes every q2 rail (`GenericTourEngine.q2`, `RegistryToursGate.remount`,
+  `WidgetEmbedView.tourReveal`, the `b1*.steps` tests, `EntryContextCard`, `ReportingSoon`,
+  `tourReachability`) and every keys rail under those paths (`a11y/onboardingKeys`,
+  `a11y/skipLinkUntappable`, `NotebookTour.keys`, `ResearchHome.welcome`,
+  `GettingStartedChecklist`, `TourOfferGate`, `Support.keys`).
+- `npx vitest run src/components/Layout src/components/CommandPalette src/hooks/useRovingTabIndex --maxWorkers=2`
+  (Layout, plus keys' `Layout.skipLink`, `CommandPalette.walkthroughs` and `useRovingTabIndex` rails):
+  `Test Files  11 passed (11)`, `Tests  124 passed (124)`.
+- Pytest, one run: `notebook_upload_cap`, `notebook_upload_cap_2`, `upload_cap_member_doors`,
+  `notebook_route_security_census`, `notebook_feature_rail_census`,
+  `api/services/journal_two/test_csv_import.py`, `test_csv_presets.py`, flags (`notebook_flags`,
+  `notebook_flag_parse`, `notebook_flag_table_form`, `notebook_switch_rehearsal`), ledgers
+  (`feature_flag_ledger`, `flag_ledger_knobs`, `visibility_flag_ledger`, `vite_flag_ledger`),
+  sample (`sample_notebook`, `_examples`, `_switch`, `_trade_exclusion`),
+  `notebook_tour_seen_state`, `no_shadowed_definitions`: `1129 passed in 709.39s`, exit 0. The route
+  security census red that cap2 recorded as pre-existing at `9004bd8dac` is green here (cap2 added the
+  row).
+
+**Byte gate**, exactly as `wave14-perf.md` (`npm run build`, then
+`python tools/notebook_perf_budgets.py --dist app/dist`), exit 0, budget unchanged:
+
+```
+bytes.notebook_first_open: 2,256,348 B across 67 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+**Flags-off render parity** (`tools/notebook_w14_flagsoff_parity.py`; copy in
+`evidence/wave14-int-r4/flagsoff-parity.txt`):
+
+```
+base b06ec4fd85 vs HEAD 39784a2a52
+pass A ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+pass B ['Test Files  1 passed (1)', 'Tests  41 passed (41)']
+swapped 48 source files to the base blob; restored, git status unchanged
+40 identical | 0 differ (40 cases)
+VERDICT: PASS -- identical
+```
+
+**Real-browser smoke** on the merged tree (empty sandbox data dirs in the session scratchpad, removed
+after; no `bars.db` copied; `C:\data` CLEAN at every checkpoint of all three sandboxes,
+`evidence/wave14-int-r4/integrity/`).
+
+Q2 walk, `--only writing-help,template-gallery,image-docx-import,S6`, phases on and off, 1200 and 390
+(`evidence/wave14-int-r4/q2-walk.json`, screenshots not kept):
+
+```
+TOUR TABLE
+  1200 writing-help           opens=True  shown=4/4 skipped=[] axe=True notes=[]
+  1200 image-docx-import      opens=True  shown=2/5 skipped=['format:anchor present but has', 'scan:anchor present but has', 'back:anchor present but has'] axe=True notes=[]
+  1200 template-gallery       opens=True  shown=4/4 skipped=[] axe=True notes=[]
+   390 writing-help           opens=True  shown=4/4 skipped=[] axe=True notes=[]
+   390 image-docx-import      opens=True  shown=5/5 skipped=[] axe=True notes=[]
+   390 template-gallery       opens=True  shown=4/4 skipped=[] axe=True notes=[]
+VERDICT: PASS -- 128 checks
+```
+
+image-docx 2/5 at 1200 is q2's recorded design (`wave14-w14-q2.md` R2.2: a desktop has no Scan; the
+three phone steps have no box). S6 (offer accept for writing-help and template-gallery, and the
+no-notes offer not spent) PASS at both widths. Flags-off control: base tour still auto-starts, no
+wave-14 surface on first run, Help, Home or an open note, and no tour chunk fetched, at both widths.
+
+Base tour: Q1's `tools/notebook_w14_onboarding_walk.py --phases on` at 1200/820/390
+(`evidence/wave14-int-r4/keys-walk.json`): S1 base tour (auto-start at step 1, no overflow, tap
+floor, no stacked surfaces, keyboard reach, axe 0, Escape) and S5 Replay PASS at every width. Its
+verdict is FAIL on 9 checks, three per width, none from the merge:
+
+- S4 "Walkthroughs lists ..." and "What's new lists ..." (6): the same instrument staleness keys
+  recorded (`wave14-keys.md` section 4; they fail identically in `evidence/wave14-keys/walk/walk.json`).
+- S6 "Start the Template gallery tour: a tour opens" (3): q2 made the tour's first step a `waitFor`
+  step, which the engine renders NON-modal; this older tool waits only for `[role=dialog][aria-modal=true]`.
+  The tour did open: the member's row reads `template-gallery: started, step templates`, and the Q2
+  walk (which reads the card itself) shows the same start with the card in view at both widths. The
+  tool is left unchanged here.
+
+**Open items**
+
+- `tools/notebook_w14_onboarding_walk.py` needs S4's expected counts derived from the registry and its
+  S6 "a tour opens" probe taught the non-modal card (`[data-tour-card]`), as the Q2 walk does. Owned by
+  the Q1/keys tools; not a product red.
+- The full Q2 walk (all 20 tours, both widths) was not re-run; the subset above is the smoke.
+- Flags-off parity still compares against the wave-13 landing, not master.
