@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from api.routers import auth as auth_router
-from api.services import auth_db, auth_service, notebook_flags
+from api.services import auth_db, auth_service, notebook_flags, notebook_wave14_switch
 from api.services.journal_two import sample_examples, sample_notebook
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,10 +44,10 @@ def test_the_server_switch_is_the_client_rule_read_from_its_source():
     assert m, "checklistEnabled() not found in gettingStartedPref.js"
     client_keys = re.findall(r"flag\('([a-z0-9_]+)'\)\s*===\s*true", m.group(1))
     assert client_keys, "no flag keys read out of checklistEnabled() (the reader is broken)"
-    server_keys = [auth_router._notebook_flag_key(n) for n in notebook_flags.WAVE14_SWITCH]
+    server_keys = [auth_router._notebook_flag_key(n) for n in notebook_wave14_switch.WAVE14_SWITCH]
     assert sorted(server_keys) == sorted(client_keys)
     # both are rows of the one table, so the server reads them with the payload's defaults
-    for n in notebook_flags.WAVE14_SWITCH:
+    for n in notebook_wave14_switch.WAVE14_SWITCH:
         assert n in auth_router.NOTEBOOK_FLAGS
     # and the client's tour rule really is built on that function, not a copy of it
     assert "checklistEnabled(flag)" in REGISTRY_JS.read_text(encoding="utf-8")
@@ -63,7 +63,7 @@ def test_the_switch_reads_like_the_payload(monkeypatch, on, gs, expected):
             monkeypatch.delenv(name, raising=False)
         else:
             monkeypatch.setenv(name, v)
-    assert notebook_flags.wave14_switch_on() is expected
+    assert notebook_wave14_switch.wave14_switch_on() is expected
     p = auth_router._access_payload({"role": "member"}, "free")
     assert (p["notebook_onboarding_enabled"] and p["notebook_getting_started_enabled"]) is expected
 

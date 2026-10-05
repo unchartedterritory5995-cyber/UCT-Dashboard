@@ -59,7 +59,7 @@ from typing import Any
 from api.services import auth_service
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes, sample_examples
-from api.services.notebook_flags import wave14_switch_on
+from api.services.notebook_wave14_switch import wave14_switch_on
 
 SAMPLE_PATH = Path(__file__).with_name("sample_notebook.json")
 PREF_KEY = "notebook_sample"

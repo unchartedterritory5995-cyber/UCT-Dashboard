@@ -101,7 +101,7 @@ MUTS = {
         "        wave14 = wave14_switch_on()\n",
         "        wave14 = True\n",
         ["tests/test_sample_notebook_switch.py"]),
-    "Ms2-switch-reads-one-flag": ("api/services/notebook_flags.py",
+    "Ms2-switch-reads-one-flag": ("api/services/notebook_wave14_switch.py",
         "    return all(flag_on(name, NOTEBOOK_FLAGS[name]) for name in WAVE14_SWITCH)\n",
         "    return flag_on(WAVE14_SWITCH[0], NOTEBOOK_FLAGS[WAVE14_SWITCH[0]])\n",
         ["tests/test_sample_notebook_switch.py"]),
