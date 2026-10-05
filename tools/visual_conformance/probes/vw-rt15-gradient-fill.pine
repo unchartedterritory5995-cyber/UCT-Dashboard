@@ -1,0 +1,21 @@
+// RT15 (2026-10-04) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-04-rt15-presentation.md
+// Chart: NYSE:RDDT 1D from the listing.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+//
+// Q-RT15d — the GRADIENT form of `fill` (smoothed-gaussian-trend-filter-algoalpha,
+// heikin-ashi-true-strength-index-…-erebor): `fill(p1, p2, top_value, bottom_value,
+// top_color, bottom_color)`. Read the fill's plot entries in the capture (what the
+// study lists for a gradient fill, and any per-bar values it records) and screenshot
+// three bars at high zoom: is the colour interpolated LINEARLY in price between
+// top_value and bottom_value, and is the band clipped to the two plots?
+//@version=6
+indicator("vw-rt15-gradient-fill", overlay = true)
+m = ta.sma(close, 20)
+d = ta.stdev(close, 20)
+p1 = plot(m + d, "G01 upper")
+p2 = plot(m - d, "G02 lower")
+// G03: constant colours, values equal to the plots
+fill(p1, p2, m + d, m - d, color.new(color.green, 0), color.new(color.red, 0), title = "G03 gradient fill")
+// G04: per-bar colours (the algoalpha shape)
+pm = plot(m, "G04 mid", display = display.none)
+fill(pm, p1, m + d, m, close > m ? color.new(color.lime, 20) : color.new(color.orange, 20), color.new(color.gray, 90), title = "G05 gradient fill per-bar")

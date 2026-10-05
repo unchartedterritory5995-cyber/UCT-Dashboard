@@ -196,10 +196,14 @@ without it; each row below is a full re-grade of the 47 captures.
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
 <<<<<<< HEAD
+<<<<<<< HEAD
 | 96 (RT13, renumber on merge) | RT13 requests, inputs and the install / builder doors (section RT13): an install-door refusal (series-reference / lookback budget, an unfolded window) is offered to the per-bar runtime lane, as every host refusal has been since RT1; built there the member pane carries the runtime document, declined the host document comes back unchanged and the install door says what it always said (the decline rides beside it). Every request / input-kind row of the family measured and named; none completes a script without a capture, a lower-timeframe store, or data we do not hold | `61ebc9b5b3` | census not measured (measure hold); scoped probe (runtime state, libraries loaded, the family's 31 scripts): attach 1 -> 3 (mtf-key-levels-support-and-resistance, vwap-fibo-dev-extensions-strategy; camarilla-screener already attached at base) | vendorHarness + rt1/rt2/rt6 rails 87/87 unchanged; no committed capture exercises the two scripts (Q-RT13a/b) |
 =======
 | 96 | RT11 missing builtins (section RT11): the 42 scripts whose first runtime wall is `pine:builtin` / `runtime:call-undeclared-builtin-state` / `pine:function`, name by name, each with its NEXT wall by substitution; the two names that complete scripts are served - `alma` on the host lane (v4 bare + v5/v6 `ta.alma`, `BUILTIN_CALL_TREE.alma` = `pine_alma`; Q-H3c + `vw-alma` captures) and `str.tostring` / v4 `tostring` over runtime state in a VALUE build (RT5's formatter, C20 `#.##`); the rest refused by name, Q-RT11a-f queued | W1 `ee4e30dc19`, W2 `76861b393a` | `pine.js`, `pineRuntimeFrontend.js` | census (libraries) 56/82/101 before, after NOT measured (gate hold); single-script probes: highlow-channel-swing, relative-volume (host), order-block-finder (runtime) attach | `vendorHarness.rt11Alma` 10, `rt11ValueBuildTostring` 3 |
 >>>>>>> origin/pine/rt11-builtins
+=======
+| 96 | RT15 (lane brief, wave 17) presentation, strategies and colour typing on the RUNTIME lane (section RT15): **(1)** `plotcandle` / `plotbar` as a statement are SKIPPED and RECORDED (`undrawn`, RT1's ruling: candles have no row on a runtime document, the door names them), arguments with effects still evaluated; candles-only refuses `runtime:presentation` by that name; **(2)** an `if` chain made only of strategy order calls, effect-free tests and locals is the order calls it holds (C50/R1), skipped whole (supersedes R1's "inside a condition" rail); **(3)** `[var] color x = na` and a `color`-typed parameter are colours; a user function / method defined once whose one body expression is a colour returns one; **(4)** `nz(<colour>)` with no replacement refused by name (`runtime:colour-nz`, Q-RT15b) - it answered `#00000000`; **(5)** door: a paint-only runtime document is drawn (pane-only `bgcolor` refused `pine:paint-pane`), a plot-less script reports its drawing build's wall | `5873257d43` | - | member door, runtime state, store loaded: kernel-channel-backquant, linear-regression-channel-breakout-strategy, volatility-trend-score-backquant attach (ungraded, Q-RT15a); 74 captures whose source holds an affected construct: verdicts, plots and reasons identical base vs tip (runtime and on states) |
+>>>>>>> origin/pine/rt15-presentation-libraries
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7939,6 +7943,7 @@ Mutations (pine.js bytes captured and restored, sha verified):
   (`memberPane/atrSrReplay.js` unreached).
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## RT13 - requests, inputs and the install / builder doors (2026-10-04, step 96 - renumber on merge)
 
 Branch `pine/rt13-requests-inputs`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane
@@ -8083,3 +8088,101 @@ green and order-block-finder attaches without it (one mechanism).
 - The runtime lane's RT3 respelling serves bare `alma` over runtime state for ANY version below 5; the host lane now
   serves v4 only. Narrowing the runtime rule to v4 is the consistent move once Q-RT11b reads.
 >>>>>>> origin/pine/rt11-builtins
+=======
+## RT15 - presentation, libraries and strategies: what each refused script needs, and what was taken (2026-10-04, step 96)
+
+Branch `pine/rt15-presentation-libraries`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Family: the wave-17 runtime
+census rows `runtime:presentation` 4, `runtime:fill-gradient` 1, `runtime:colour` 1, `runtime:no-output` 1,
+`runtime:nothing-drawn` 1, `runtime:library` 4, `pine:strategy-call` 4. Every script was read at its refused construct and its
+NEXT wall measured by substitution (scratch probe through `enterMemberDoor`, runtime state, 50-library store) before anything
+was built; only walls that complete a script, or stand directly in front of one, were taken.
+
+### Per script: the construct, the next wall, the outcome
+
+| script | first wall (w17) | next wall (substitution) | after RT15 |
+|---|---|---|---|
+| kernel-channel-backquant | `plotcandle()` | none | **attached** (runtime); its candle is `display.none` at its default and draws nothing on TradingView either |
+| volatility-trend-score-backquant | `plotcandle()` | `var color coloring = na` read as a number; then `bgcolor(c.transp(80))`, a user method | **attached** (runtime): `Long/Short Signal` withheld (`offset`), `bgcolor` withheld (`force_overlay`, host rule) |
+| heikin-ashi-true-strength-...-erebor | `plotcandle()` | gradient `fill` (named args); now `runtime:function-global-state` (`RSIhk_Cl`) | refused, next wall belongs to RT12/RT14 |
+| heikin-ashi-supertrend | `plotcandle()` | `ticker.heikinashi` (`pine:builtin`), then `strategy.opentrades.*` values | refused (builtins / requests lanes) |
+| linear-regression-channel-breakout-strategy | `strategy.position_size` | none: both reads sit in `if` chains that only place orders | **attached** (runtime, its drawings) |
+| buy-monday-exit-tuesday | `strategy.position_size` | its PLOTS read `strategy.position_avg_price` | refused by name (a broker value drawn) |
+| stop-loss-and-take-profit-in-example | `strategy.position_size` | its plot reads `strategy.position_avg_price` | refused by name |
+| take-profit-multi-timeframe | `strategy.position_size` | `lower-tf:store-unmeasured` (240 below 1D) | refused (lower-timeframe gate) |
+| atr-trend-bands-misu | `barcolor()` "not a colour" | it was `var color colorTrend = na`; next `nz(colorTrend[1])` of a colour | refused by name, `runtime:colour-nz` (Q-RT15b) - its only wall |
+| smoothed-gaussian-trend-filter-algoalpha | gradient `fill` | `pine:statement` | refused (C44/C48: gradient withheld until captured, Q-RT15d) |
+| visualizing-displacement-tfo | `runtime:nothing-drawn` | a `barcolor`-only script; its paint is withheld `paint:offset` (`offset = require_fvg ? -1 : na`) | refused `runtime:withheld-all` with that reason (Q-RT15c) |
+| strong-start-rvol-dashboard | `runtime:no-output` | its drawing build: `ta.sma` sized by a parameter (`runtime:history-dynamic-offset`, `calcDaily(simple int N)` inside `request.security`), then `request.security` over a pasted symbol list | refused, now under its TRUE wall (RT12/RT13) |
+| fx-market-sessions, auto-trendlines-tradingfinder, machine-learning-lorentzian-classification `__21f5`, rate-of-change | `runtime:library` (a v5 library in a v6 script) | header set to v5: `runtime:udt-method`, `runtime:history-expression`, a second v5 library, a second v5 library | refused by name (Q-L2b stands; none would complete). Every library they import is in the store |
+
+### Rules served (each railed in `engine/runtime/__tests__/rt15Presentation.test.js`)
+
+1. **Candles on a runtime document** (`pineRuntimeFrontend.js`, `RUNTIME_UNDRAWN_CANDLE_CALLS`). RT1 ruled that candles have no
+   row on a runtime document and are named; the runtime lane nonetheless refused the whole script at the call. A `plotcandle` /
+   `plotbar` statement is now skipped (a candle is void and cannot be bound, so no other statement reads it), its arguments
+   evaluated only where they could change something (one dropped-call rule shared with `alert`), and recorded on the build
+   (`undrawn`, for the rails). The door names it from the host translation's own candle outputs ("This script also writes
+   candles ..."), RT1's disclosure; an author-hidden candle, or one the host's bare-price rule hides, is not named. A script whose ONLY output is candles refuses `runtime:presentation`, "its only output
+   is `plotcandle()`". Proof: the program is byte-identical to the script without the call.
+2. **An order-only `if`** (`orderOnlyChain`). C50/R1 skip an order call; an `if` chain holding only order calls, effect-free
+   tests (`argumentHasEffect`), effect-free locals and nested chains of the same kind changes nothing a drawing reads, so it is
+   skipped whole and each order counted. Anything else in it (`:=`, a drawing, `runtime.error`, a loop, `switch`, a call that
+   could have an effect, in the body or the test) keeps it, and the broker value refuses as before. **This supersedes R1's rail
+   "...including inside a condition the order call would have hidden"** (`runtimeStrategy.test.js` rewritten: a chain guarding an
+   order AND a reassignment still refuses). The host lane is unchanged; no strategy capture exists (R1's Q-S1; Q-RT15a2 queued).
+3. **Colour typing.** `[var|varip] color x = na` is a colour (the declared type; only `na` - a number under the keyword is not
+   admitted on it); a parameter declared `color` is a colour inside the body; a user function / method defined ONCE whose body is
+   one colour expression (`=> color.new(x, t)`, one line or a one-statement block) returns a colour. Controls: untyped
+   `var c = na`, a numeric body, a block with a binding first, an overloaded method - each keeps `runtime:colour`.
+4. **`nz(<colour>)` with no replacement is refused, `runtime:colour-nz`.** It was lowered `nz(x, 0)`: over a colour that is the
+   packed `0`, `#00000000`. No capture witnesses Pine's answer, and on a `barcolor` a transparent colour and no colour are
+   different pictures. Reached through a history offset (`nz(c[1])`). `nz(c, replacement)` is served. Probe
+   `vw-rt15-colour-nz.pine`; two corpus scripts write the shape.
+5. **The door** (`memberPaneDefinition.js::runtimeLaneDefinition`). "Draws nothing" is decided after the paints are read, so a
+   runtime document whose only drawing is a paint is drawn on the RT5 anchor row; a pane (non-overlay) script whose only drawing
+   is a `bgcolor` is refused `pine:paint-pane`, the host lane's rule; when nothing is drawn the decline lists withheld paints
+   too. A script with nothing to plot whose drawing build refused reports THAT refusal (`runtime:no-output` hid strong-start's wall).
+
+### Refused by name and queued (`docs/pine/capture-queue-2026-10-04-rt15-presentation.md`)
+
+Q-RT15a: captures of the three newly attached scripts (the GT allowlist needs a MATCH before a member sees them). Q-RT15b:
+`nz(<na colour>)`. Q-RT15c: a paint `offset` that depends on an input (`flag ? -1 : na`). Q-RT15d: the gradient `fill`.
+Not a capture: a v5 library under a v6 script (Q-L2b; `pine-version-evolution.md` Table C rows 44-67 are the differences a
+version-mixed link would have to honour, several of them silent value changes such as `color.red`).
+
+### Graded
+
+The 74 harness captures whose source holds an affected construct, graded base (`6c557c3308`) vs tip with the store loaded:
+runtime state 32 MATCH / 37 DIVERGE / 5 INCONCLUSIVE, objects-on state 23 / 34 / 17, identical on both sides, every capture's
+plots and reason identical. No MATCH lost.
+
+### Mutations (bytes captured, restored, sha256 verified; `scratchpad/rt15/mutate.py`)
+
+23 mutations over the three source files, each alone under the three rails (`rt15Presentation`, `runtimeStrategy`,
+`presentationOutputs`). First pass: 18 RED, 5 survived - and each survivor was a guard that could not fire: the `:=` check in
+`orderOnlyChain` (a `:=` line has no top-level `=` and was already refused) and the binding check in the colour-result scan (a
+binding does not parse as an expression) were REMOVED, not railed; the door's probe-`undrawn` branch was dead (the host
+translation lists every candle output, refused rows included) and was REMOVED with the probe field; the local-with-effect and
+plain-function-overload controls were MISSING and were added. Second pass on the survivors: both new controls RED.
+
+### Tests
+
+`rt15Presentation` + `runtimeStrategy` + `presentationOutputs`: 51 / 51. `engine/runtime/__tests__` + `builder/memberPane` +
+`capabilityDemandCensus` + `refusalLocationSeam` + `runtimeStrategyWord.vendor`: every red but the R1 rail this step
+supersedes and the presentation rail it updates is red on the base too (`hybridObjects` fixture, `runtimePaneSafety` x2
+`runtime:unmeasured`, four `*.measure` files run without their env) - measured on a `git archive` of `6c557c3308`.
+
+### Open, for the integrator
+
+- **R1's rail was rewritten** (a broker value inside an order-only `if` no longer refuses). The host lane still refuses that
+  shape; the two lanes now differ on it, and the runtime lane is the member door's fallback. A strategy capture (Q-S1,
+  Q-RT15a2) witnesses both.
+- **The host hides a bare-price candle** (`plotcandle(open, high, low, close, color = …)`, `isBareSource`) as carrying no
+  content; TradingView draws it (the chart's own candles, recoloured). The runtime document therefore does not NAME such a
+  candle as undrawn. Kernel-channel's is `display.none` at its default, so nothing is lost there today.
+- Census before / after (wave-17 266, off / on / runtime) to be measured after the gate: by the scratch door probe, three
+  scripts attach in the runtime state that did not (kernel-channel-backquant, linear-regression-channel-breakout-strategy,
+  volatility-trend-score-backquant) - whether any other script moved is what the census will say - and four first-refusal codes move to their true walls (atr-trend-bands
+  `runtime:colour-nz`, visualizing-displacement `runtime:withheld-all`, strong-start `runtime:history-dynamic-offset`,
+  heikin-ashi-tsi-ott `runtime:function-global-state`).
+>>>>>>> origin/pine/rt15-presentation-libraries
