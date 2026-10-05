@@ -143,3 +143,29 @@ describe('L0Strip', () => {
     })
   })
 })
+
+// 2026-10-05 audit #11: the chip ignored `wire_status === 'stale'`, so yesterday's rating read
+// as today's. Same rule as MarketBreadth's wire stamp: stale is dimmed and dated; unknown is not.
+describe('L0Strip — a stale exposure reading says so', () => {
+  it('stale: dimmed, labelled "as of <wire_date>", and the title says it is not today\'s', () => {
+    breadthData.current = { exposure: { score: 55 }, wire_status: 'stale', wire_date: '2026-10-02' }
+    try {
+      renderStrip()
+      const chip = screen.getByTestId('l0-regime-chip')
+      expect(chip.dataset.stale).toBe('true')
+      expect(screen.getByTestId('l0-regime-asof')).toHaveTextContent('as of 2026-10-02')
+      expect(chip.getAttribute('title')).toMatch(/as of 2026-10-02.*not today/)
+    } finally { breadthData.current = { exposure: { score: 82 } } }
+  })
+
+  it('fresh or unknown: no stale marking (asserting staleness we cannot support is the same error)', () => {
+    for (const status of ['fresh', 'unknown', undefined]) {
+      breadthData.current = { exposure: { score: 55 }, wire_status: status, wire_date: '2026-10-05' }
+      const { unmount } = renderStrip()
+      expect(screen.getByTestId('l0-regime-chip').dataset.stale).toBe('false')
+      expect(screen.queryByTestId('l0-regime-asof')).toBeNull()
+      unmount()
+    }
+    breadthData.current = { exposure: { score: 82 } }
+  })
+})

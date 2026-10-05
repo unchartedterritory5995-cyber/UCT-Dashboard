@@ -59,6 +59,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -88,6 +89,8 @@ function renderAt(url, auth = OPEN) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(390)
@@ -135,7 +138,10 @@ describe('phone panel switcher (P14a)', () => {
     expect(screen.getByTestId('terminal-panel-2')).toHaveTextContent('News:AMD')
     expect(screen.queryByTestId('terminal-panel-0')).toBeNull()
     expect(screen.getByTestId('terminal-phone-switch-2').getAttribute('aria-selected')).toBe('true')
-    expect(JSON.parse(store.prefs.terminal_layout).focus).toBe(2)
+    // Focus is a per-viewer convenience (audit #19): remembered on this device by panel id, and
+    // NOT posted — a focus click must not mint a board version.
+    expect(window.localStorage.getItem('uct.terminal.focusPanel')).toBe('p3')   // the v1 migration's slot ids
+    expect(store.writes.filter(([k]) => k === 'terminal_layout')).toHaveLength(0)
   })
 
   it('the phone count control changes the active panel count and tab count, via the same setCount handler', async () => {

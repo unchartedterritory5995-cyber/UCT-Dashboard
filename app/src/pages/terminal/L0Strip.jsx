@@ -56,6 +56,11 @@ export default function L0Strip({ layout, isPhone }) {
   const { data: breadth } = useMobileSWR('/api/breadth', breadthFetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const expScore = breadth?.exposure?.score ?? null
   const rTone = regimeTone(expScore)
+  // The same staleness MarketBreadth stamps (its `wire_status` read, judged server-side against
+  // the trading calendar): a stale reading is dimmed and dated, never shown as today's.
+  // 'unknown' / absent is NOT stale — that would assert what we cannot support.
+  const wireDate = breadth?.wire_date ?? null
+  const wireStale = breadth?.wire_status === 'stale' && expScore != null
 
   const activeChannel = activeChannelOf(layout)
 
@@ -79,12 +84,20 @@ export default function L0Strip({ layout, isPhone }) {
       </div>
 
       <div
-        className={`${styles.chip} ${styles[`regime_${rTone}`]}`}
+        className={`${styles.chip} ${styles[`regime_${rTone}`]} ${wireStale ? styles.regimeStale : ''}`}
         data-testid="l0-regime-chip"
-        title="UCT Exposure Rating"
+        data-stale={wireStale ? 'true' : 'false'}
+        title={wireStale
+          ? `UCT Exposure Rating as of ${wireDate || 'an earlier wire'} — no run since; not today's reading`
+          : 'UCT Exposure Rating'}
       >
         <span className={styles.chipLabel}>{isPhone ? 'EXP' : 'EXPOSURE'}</span>
         <span className={styles.chipValue}>{expScore == null ? '—' : Math.round(expScore)}</span>
+        {wireStale && (
+          <span className={styles.chipAsOf} data-testid="l0-regime-asof">
+            {isPhone ? 'old' : `as of ${wireDate || 'earlier'}`}
+          </span>
+        )}
       </div>
 
       <div className={styles.chip} data-testid="l0-channel-chip" title="Active channel">

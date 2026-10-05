@@ -15,7 +15,9 @@ import styles from '../TerminalShell.module.css'
 
 /** The bindings a terminal user has, read from the declarations (never retyped). */
 export const HELP_SHORTCUT_IDS = ['terminal.focus', 'terminal.panel1', 'terminal.panel2',
-  'terminal.panel3', 'terminal.panel4', 'palette.toggle']
+  'terminal.panel3', 'terminal.panel4', 'terminal.panelPrev', 'terminal.panelNext', 'palette.toggle']
+
+const CODE_LABEL = { BracketLeft: '[', BracketRight: ']' }
 
 /** Pure: a declaration's chord as the keys a member presses. */
 export function chordLabel(d) {
@@ -27,7 +29,7 @@ export function chordLabel(d) {
   if (c.meta) mods.push('Cmd')
   if (c.alt) mods.push('Alt')
   if (c.shift) mods.push('Shift')
-  const key = c.code ? c.code.replace(/^Key|^Digit/, '') : String(c.keys[0]).toUpperCase()
+  const key = c.code ? (CODE_LABEL[c.code] || c.code.replace(/^Key|^Digit/, '')) : String(c.keys[0]).toUpperCase()
   return [...mods, key].join('+')
 }
 

@@ -64,6 +64,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -106,6 +107,8 @@ async function type(text) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(1400)
@@ -375,7 +378,8 @@ describe('linked panels', () => {
     renderAt('/terminal')
     await type('CAL')
     expect(screen.getAllByTestId('stub-Calendar')).toHaveLength(1)
-    expect(JSON.parse(store.prefs.terminal_layout).focus).toBe(0)
+    // focus moved to the calendar's slot (a focus-only change is held on screen, not posted)
+    expect(screen.getByTestId('terminal-panel-0').dataset.focused).toBe('true')
   })
 
   it('arriving on /terminal/calendar shows the calendar in the focused panel', async () => {
@@ -443,7 +447,10 @@ describe('FIX: the H14 ?cmd= write-budget guard surfaces a user-facing notice wh
       for (const c of codes) await type(c)
 
       const notice = screen.getByTestId('terminal-notice')
-      expect(notice).toHaveTextContent(/reload/i)
+      // Accurate (audit #16): the budget is a sliding window that resumes by itself — no
+      // "reload" instruction — and a trailing write catches the URL up (its own rail below).
+      expect(notice).toHaveTextContent(/catches up/i)
+      expect(notice).not.toHaveTextContent(/reload/i)
       expect(notice.textContent.toLowerCase()).toMatch(/address bar|url/)
       expect(quiet).toHaveBeenCalledWith(expect.stringContaining('write budget'))
     } finally {
