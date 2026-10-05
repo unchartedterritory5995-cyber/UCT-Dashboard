@@ -50,13 +50,17 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, histSlotDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
-  clock, session, drawing, readGlobal, objectCall,
+  clock, session, drawing, readGlobal, objectCall, brokerCall,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
+// ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
+import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS } from '../runtime/broker.js'
+import { readStrategyDeclaration, orderArgsOf, StrategyOptionError } from './strategyBroker.js'
+import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind, CLOCK_UNSERVED_FN } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
@@ -287,6 +291,9 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // wrong answer about the one line of their script they did not get wrong.
   'runtime:library': 'a Pine library import — this lane compiles the script it is given, not a library graph',
   'runtime:no-output': 'a script with nothing to plot',
+  // ⭐⭐ S1 — the strategy broker's build refusals (`strategyBroker.js`, docs/pine/strategy-broker-spec.md)
+  'runtime:strategy-option': 'a strategy property or order argument this broker does not serve',
+  'runtime:strategy-value': 'a strategy value this broker does not serve',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
   'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
 })
@@ -1067,7 +1074,18 @@ function foldArrayTypeSuffixes(list) {
 
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
-  const built = buildRuntimeIrLinked(source, opts, holder)
+  let built = buildRuntimeIrLinked(source, opts, holder)
+  // ⭐⭐ S1 — A STRATEGY WHOSE OUTPUTS READ THE BROKER is built a SECOND time with the
+  // broker on, and ONLY then: every script that builds today (orders skipped, C50/R1)
+  // keeps the program it has byte for byte, and only the `pine:strategy-call` refusal -
+  // a broker VALUE read - is retried. DARK behind `VITE_PINE_STRATEGY_BROKER_ENABLED`
+  // (`strategyBrokerGate.js`); `opts.strategyBroker` overrides it for rails.
+  const brokerOn = opts.strategyBroker !== undefined ? opts.strategyBroker === true : strategyBrokerEnabled()
+  if (brokerOn && opts.__strategyBroker !== true && built && built.ok === false
+      && built.refusal && built.refusal.guard === 'pine:strategy-call') {
+    holder.link = null
+    built = buildRuntimeIrLinked(source, { ...opts, __strategyBroker: true }, holder)
+  }
   const link = holder.link
   // ⭐⭐ L1 — present only when a library was linked, so every other result is
   // byte-identical. A refusal inside a library's code points at the member's
@@ -1106,6 +1124,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // as much as one that references forty. `Array.isArray([])` is the test, never
   // `.length`.
   const objectPassOwnsDrawing = Array.isArray(opts.objectTrees)
+  /** ⭐⭐ S1 — this build runs TradingView's broker (`runtime/broker.js`): order calls
+   *  are LOWERED (not skipped) and `strategy.*` values are read from it. Set only by
+   *  `buildRuntimeIr`'s retry. `brokerDecl` is the declaration it read. */
+  const brokerMode = opts.__strategyBroker === true
+  let brokerDecl = null
 
   /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
    *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
@@ -2172,6 +2195,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
     }
     return false
+  }
+
+  /** ⭐⭐ S1 — does this subtree read the broker (a `strategy.*` value or trade
+   *  function), directly or through an immutable binding? Such a subtree is not a
+   *  column: the columnar lane refuses the whole namespace. */
+  const holdsBrokerRead = (node, scope, seen = new Set(), depth = 0) => {
+    if (!brokerMode || !node || typeof node !== 'object' || depth > 64) return false
+    if (Array.isArray(node)) return node.some((x) => holdsBrokerRead(x, scope, seen, depth + 1))
+    if ((node.type === 'name' || node.type === 'call') && typeof node.name === 'string'
+        && node.name.startsWith('strategy.') && !definedNames.has(node.name)) return true
+    if (node.type === 'name' && typeof node.name === 'string' && scope && scope.lookup(node.name) === null
+        && !seen.has(node.name)) {
+      seen.add(node.name)
+      const bound = env.get(node.name)
+      if (bound && bound.kind === 'expr' && holdsBrokerRead(bound.node, scope, seen, depth + 1)) return true
+    }
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      if (holdsBrokerRead(v, scope, seen, depth + 1)) return true
+    }
+    return false
+  }
+  /** ⭐⭐ S1 — a declaration / argument refusal from `strategyBroker.js`, as this lane's. */
+  const brokerRefusal = (e, tok) => {
+    if (!(e instanceof StrategyOptionError)) return e
+    note(e.guard)
+    return new RuntimeRefusal(e.guard, e.detail, locate(e.tok || tok))
   }
 
   const holdsObjectCall = (node, depth = 0) => {
@@ -4942,7 +4992,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // before the branches that serve them, exactly as with `size.*`.
         // ⛔ `RUNTIME_PINE_TWINS` declares the arity each name is owned at, so
         // the house `barssince(cond, n)` still routes to the columnar lane.
-        && !holdsPineTwin(node)) {
+        && !holdsPineTwin(node)
+        // ⭐⭐ S1 — nor a broker read: it is this lane's (`runtime/broker.js`).
+        && !holdsBrokerRead(node, scope)) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -5036,6 +5088,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (ORDER_ENUM[node.name] !== undefined
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
+        }
+        // ⭐⭐ S1 — A BROKER VALUE (`strategy.position_size`, ...), read from the run's
+        // broker; the two directions are the numbers the broker reads ([B-DIR]).
+        if (brokerMode && node.name.startsWith('strategy.')
+            && scope.lookup(node.name) === null && !env.has(node.name)) {
+          if (BROKER_VALUE_NAMES.includes(node.name)) return brokerCall(node.name, [], 'number')
+          if (node.name === 'strategy.long') return num(1)
+          if (node.name === 'strategy.short') return num(-1)
+          note('runtime:strategy-value')
+          throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}\``, locate(node.tok))
         }
         // ⭐⭐ A FIELD PATH THROUGH A USER-DEFINED TYPE — `ob.top`,
         // `sd.info.breakTime`. It arrives as ONE dotted `name` node because the
@@ -5441,6 +5503,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
+        if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
+            && !definedNames.has(node.name)) {
+          const args = node.args || []
+          if (BROKER_TRADE_FNS.includes(node.name) && args.length === 1
+              && (!args[0].name || args[0].name === 'trade_num')) {
+            return brokerCall(node.name, [lowerExpr(args[0].value, scope)], 'number')
+          }
+          note('runtime:strategy-value')
+          throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}()\``, locate(node.tok))
+        }
         // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
         // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
         // tick is the symbol's, settled at bind like every `syminfo.mintick`.
@@ -7577,9 +7650,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `strategy.*` VALUE still refuses by name, because it is a fill this engine never
       // simulates. ⛔ ONLY THE CALL FORM `strategy(`: a bare `strategy` word in any other
       // position is not a declaration and keeps refusing.
-      if (word === 'strategy' && isPunct(toks[1], '(')) { note('runtime:strategy-chart'); continue }
+      if (word === 'strategy' && isPunct(toks[1], '(')) {
+        note('runtime:strategy-chart')
+        // ⭐⭐ S1 — the broker's properties come from this declaration ([B-DECL]).
+        if (brokerMode) {
+          try { brokerDecl = readStrategyDeclaration(parseWholeExpression(toks), pineVersion) } catch (e) {
+            throw brokerRefusal(e, first)
+          }
+        }
+        continue
+      }
       if (word && STRATEGY_ORDER_CALLS.has(word) && isPunct(toks[1], '(')) {
         note('runtime:strategy-order')
+        // ⭐⭐ S1 — with the broker on, an order call is an ORDER, lowered as one.
+        if (brokerMode) {
+          if (!BROKER_ORDER_OPS.includes(word)) {
+            note('runtime:strategy-option')
+            throw new RuntimeRefusal('runtime:strategy-option', `\`${word}()\``, locate(first))
+          }
+          let placed
+          try { placed = orderArgsOf(word, parseWholeExpression(toks), pineVersion) } catch (e) {
+            throw brokerRefusal(e, first)
+          }
+          out.push(exprStmt(brokerCall(word, placed.map((n) => (n === null ? null : lowerExpr(n, scope))), 'void'), 0))
+        }
         continue
       }
       // ⛔ AND ONLY THE CALL FORM IS A DECLARATION. `liquidity-engulfing-candles-upslidedown`
@@ -7987,7 +8081,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (linear-regression-channel-breakout-strategy). ⛔ `orderOnlyChain` admits
         // only order calls, effect-free local declarations and nested `if`s of the
         // same kind; a broker value read anywhere ELSE still refuses by name.
-        const chainOrders = orderOnlyChain(arms, finalElse)
+        // ⭐⭐ S1 — with the broker on, an order changes what the broker values read,
+        // so the chain is lowered like any other.
+        const chainOrders = brokerMode ? 0 : orderOnlyChain(arms, finalElse)
         if (chainOrders > 0) {
           // counted per ORDER CALL, as R1 counts a bare one
           for (let k = 0; k < chainOrders; k += 1) note('runtime:strategy-order')
@@ -9465,6 +9561,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // list — a branch body, a loop body, a function body — and lowers with no
     // sink on purpose (see `stmtHoistSink`).
     statements = lowerStmts(stmts, root, true)
+    // ⭐⭐ S1 — the broker reads the symbol's tick and point value through the columnar
+    // lane's own authority (`syminfo.*`, settled per symbol at bind), first on every bar.
+    if (brokerMode) {
+      if (!brokerDecl) throw new RuntimeRefusal('runtime:strategy-option', 'no strategy() declaration was read', null)
+      const at = { line: 1, column: 1 }
+      statements = [exprStmt(brokerCall('#symbol', [
+        lowerExpr({ type: 'name', name: 'syminfo.mintick', tok: at }, root),
+        lowerExpr({ type: 'name', name: 'syminfo.pointvalue', tok: at }, root),
+      ], 'void'), 0), ...statements]
+    }
     // ⛔ C18 — every positional value must have been emitted (see `objectAt`).
     const missed = (opts.objectTreesAt || []).map((_, k) => k).filter((k) => !objectAtEmitted.has(k))
     if (missed.length) {
@@ -9807,6 +9913,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: declaredCapsOf(strippedForScan(source)) } : {}),
+      ...(brokerMode ? { broker: brokerDecl } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 

@@ -36,6 +36,7 @@ import { ARRAY_FNS } from './collections.js'
 import { COLOUR_FNS } from './colours.js'
 import { isDrawingHandle } from './handles.js'
 import { OBJECT_OPS, ANY_METHODS } from './objectStore.js'
+import { BROKER_OPS } from './broker.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -258,6 +259,10 @@ export const OP = Object.freeze({
   // indexes `program.objectOps` (`{fn, present}`), `b` is how many arguments are
   // on the stack — the PRESENT ones, in parameter order. Appended, never inserted.
   OBJECT: 96,
+  // ⭐⭐ S1 — A BROKER OPERATION (`broker.js`): an order command or a `strategy.*`
+  // value. `a` indexes `program.brokerOps` (`{fn, present, returns}`), `b` is how many
+  // arguments are on the stack — the PRESENT ones, in parameter order. Appended.
+  BROKER: 97,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -288,6 +293,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST,
   OP.WHILE_BOUND,
   OP.OBJECT,
+  OP.BROKER,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -332,6 +338,7 @@ export function makeProgram({
   carried2 = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
   iterOutputs = [], recordTypes = [], fieldNames = [], objectOps = [], objectCaps = {},
+  brokerOps = [], broker = null,
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -472,6 +479,21 @@ export function makeProgram({
     // ⭐ RT5 — the script's declared `max_*_count`s, read once by the front end
     // (comments and strings stripped, `pine.js::strippedForScan`).
     objectCaps: Object.freeze({ ...(objectCaps || {}) }),
+    // ⭐⭐ S1 — each `{fn, present, returns}`, validated against `BROKER_OPS` at build so
+    // an unknown op or a wrong parameter count is a compiler error, never a run-time one.
+    brokerOps: Object.freeze((brokerOps || []).map((o, i) => {
+      const spec = o && typeof o.fn === 'string' ? BROKER_OPS[o.fn] : null
+      if (!spec) throw new ProgramError(`brokerOp ${i}: no broker operation \`${o && o.fn}\``)
+      if (!Array.isArray(o.present) || o.present.length !== spec.params.length
+        || !o.present.every((x) => typeof x === 'boolean')) {
+        throw new ProgramError(`brokerOp ${i}: \`${o.fn}\` takes ${spec.params.length} parameters`)
+      }
+      if (o.returns !== spec.returns) {
+        throw new ProgramError(`brokerOp ${i}: \`${o.fn}\` returns ${spec.returns}, not ${o.returns}`)
+      }
+      return Object.freeze({ fn: o.fn, present: Object.freeze(o.present.slice()), returns: o.returns })
+    })),
+    broker: broker ? Object.freeze({ ...broker }) : null,
     // ⭐ The interned field names both `FIELD_GET` and `FIELD_SET` index.
     fieldNames: Object.freeze((fieldNames || []).map((n, i) => {
       if (typeof n !== 'string' || !n) {
@@ -630,6 +652,18 @@ export function validateProgram(p) {
       const got = p.code[pc * 3 + 2]
       if (got !== want) {
         throw new ProgramError(`pc ${pc}: \`${p.objectOps[a].fn}\` passes ${want} argument(s), `
+          + `the call pushes ${got}`)
+      }
+    }
+    if (op === OP.BROKER) {
+      if (!p.broker) throw new ProgramError(`pc ${pc}: BROKER in a program that declares no broker`)
+      if (a < 0 || a >= p.brokerOps.length) {
+        throw new ProgramError(`pc ${pc}: BROKER ${a} outside ${p.brokerOps.length} broker ops`)
+      }
+      const want = p.brokerOps[a].present.filter(Boolean).length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(`pc ${pc}: \`${p.brokerOps[a].fn}\` passes ${want} argument(s), `
           + `the call pushes ${got}`)
       }
     }

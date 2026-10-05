@@ -35,6 +35,8 @@ import {
 } from './records.js'
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
+// ⭐⭐ S1 — the strategy broker (`broker.js`).
+import { makeBroker, BrokerRefusal } from './broker.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget } from './limits.js'
 import { etClockAt } from '../../indicators.js'
@@ -301,6 +303,27 @@ export function execute(program, ctx, limits, opts) {
     })
     : null)
 
+  // ⭐⭐ S1 — THE RUN'S BROKER, for a program that declares one. A request's sub-run
+  // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
+  const brokerOps = program.brokerOps || []
+  let broker = null
+  if (program.broker && !(opts && opts.entry !== undefined)) {
+    // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
+    if (program.broker.fromListing !== true) {
+      throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
+        + "not known to start at the symbol's first bar", 'Q-S1n')
+    }
+    // [B-EXEC] calc_on_every_tick executes a strategy on every realtime tick of a forming bar.
+    if (program.broker.calcOnEveryTick === true && ctx.confirmed === false) {
+      throw new BrokerRefusal('`calc_on_every_tick = true` executes this strategy on every tick of the forming '
+        + 'bar, which a run over bars cannot reproduce', 'Q-S1o')
+    }
+    broker = makeBroker(program.broker, { series })
+  }
+  // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
+  // it has not run yet, so nothing it computes exists there.
+  const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
+
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
   // The reducers in `interpret.js` take `(series, lo, hi)` over a CONTIGUOUS
@@ -464,8 +487,10 @@ export function execute(program, ctx, limits, opts) {
   // ⭐ RT17 — a nested run (a request's) counts its own bars against the per-bar
   // limits; the outer bar it runs inside gets its count back at the end.
   const outerBar = (opts && opts.budget) ? budget.saveBar() : null
-  for (let bar = 0; bar < ctx.bars; bar += 1) {
+  for (let bar = 0; bar < runBars; bar += 1) {
     budget.startBar()
+    // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
+    if (broker) broker.beginBar(bar)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -762,6 +787,22 @@ export function execute(program, ctx, limits, opts) {
           heldTop = localsTop
           const ov = store.call(oop.fn, oargs, bar, heldNow)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
+          break
+        }
+        // ⭐⭐ S1 — A BROKER OPERATION: the PASSED arguments in parameter order, spread
+        // back onto the op's parameter list (`undefined` where the script passed none).
+        case 97 /* OP.BROKER */: {
+          const bop = brokerOps[a]
+          if (!broker) {
+            throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
+              + '(a request of other bars)')
+          }
+          sp -= b
+          const bargs = new Array(bop.present.length)
+          let k = sp
+          for (let i = 0; i < bop.present.length; i += 1) bargs[i] = bop.present[i] ? stack[k++] : undefined
+          const bv = broker.call(bop.fn, bargs, bar)
+          if (bop.returns !== 'void') stack[sp++] = bv === undefined ? NaN : bv
           break
         }
         case 85 /* OP.COLOUR */: {
@@ -1252,5 +1293,8 @@ export function execute(program, ctx, limits, opts) {
   }
   if (outerBar) budget.restoreBar(outerBar)
 
-  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
+  return {
+    outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
+    ...(broker ? { broker: broker.summary() } : {}),
+  }
 }

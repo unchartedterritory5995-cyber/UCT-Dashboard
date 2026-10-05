@@ -1,0 +1,50 @@
+//@version=5
+strategy("UCTPROBE_S1_BROKER", overlay = false, pyramiding = 2, default_qty_type = strategy.fixed, default_qty_value = 3, initial_capital = 100000, margin_long = 0, margin_short = 0)
+
+// S1 (2026-10-05): the broker rules docs/pine/strategy-broker-spec.md SERVES,
+// witnessed through PLOTTED broker values. Capture on NYSE:RDDT 1D (full history
+// from the listing, market closed) with `tools/vendor_harness/tv_capture.js`, and
+// ALSO export the Strategy Tester "List of trades" (entry/exit bar, price, qty,
+// profit) - docs/pine/capture-queue-2026-10-05-s1.md, Q-S1-core.
+//
+// Every price this probe hands the broker is on the tick grid (opens, or levels
+// rounded with math.round_to_mintick), every size is fixed, commission and
+// slippage are 0: nothing here touches an unsettled rule.
+
+plot(bar_index, "N01_bar_index_CONTROL")
+
+fast = ta.sma(close, 5)
+slow = ta.sma(close, 20)
+up = ta.crossover(fast, slow)
+dn = ta.crossunder(fast, slow)
+
+// market entries both ways (reversal), a pyramid add on a second signal
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.entry("S", strategy.short)
+if strategy.position_size > 0 and close > open and bar_index % 7 == 0
+    strategy.entry("L", strategy.long)
+// a bracket on the long side with absolute levels on the tick grid
+if strategy.position_size > 0
+    strategy.exit("XL", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.15), stop = math.round_to_mintick(strategy.position_avg_price * 0.92))
+// a tick-distance bracket on the short side
+if strategy.position_size < 0
+    strategy.exit("XS", "S", profit = 500, loss = 300)
+// a market close on a time rule
+if bar_index % 40 == 0 and not up and not dn
+    strategy.close_all()
+
+plot(strategy.position_size, "N02_position_size")
+plot(strategy.position_avg_price, "N03_position_avg_price")
+plot(strategy.opentrades, "N04_opentrades")
+plot(strategy.closedtrades, "N05_closedtrades")
+plot(strategy.netprofit, "N06_netprofit")
+plot(strategy.equity, "N07_equity")
+plot(strategy.openprofit, "N08_openprofit")
+plot(strategy.wintrades, "N09_wintrades")
+plot(strategy.losstrades, "N10_losstrades")
+plot(strategy.grossprofit, "N11_grossprofit")
+plot(strategy.grossloss, "N12_grossloss")
+plot(strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) : na, "N13_last_exit_price")
+plot(strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na, "N14_first_open_entry_bar")

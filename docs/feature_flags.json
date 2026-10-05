@@ -2620,6 +2620,19 @@
       "last_changed": "2026-10-04T00:00:00Z",
       "note": "A1 (2026-10-04): the member Pine Editor -- a 'Pine Editor' tab in the indicator builder where a member writes/edits Pine with CodeMirror (Pine highlighting, line numbers), sees the MEMBER DOOR's verdict (memberPaneDefinition) on every 250 ms settle as a problems list with line/column/token (each click jumps to the token), previews it in MemberPane, and applies it through the same doors attachPine uses (validateUserDefinitions -> saveUserDefinition -> installUserDefinitions -> addInstance); later applies in the same session PUT the same stored definition (update in place, no second instance, no sheet close). Read in ONE place, app/src/components/chart/engine/pineAuthoringGate.js::pineAuthoringEnabled, as === '1'; a build with no import.meta.env fails CLOSED. OFF: the tab does not exist and buildMode can never be 'editor', so the sheet is byte-for-byte the shipped one. It sits ON TOP of VITE_PINE_MEMBER_PANE_ENABLED: with that one off the editor still checks a script but offers no Apply. A2 (2026-10-04): the tab ALSO needs the per-member server stage PINE_AUTHORING_STAGE (pine_authoring_enabled on the auth payload, latched per tab) -- building with this ON while the stage is off changes nothing for anyone. A2-A5 add: the Pine source saved with the document (meta.pineSource, private; stripped on share/list unless MPL-2.0/MIT/Apache-2.0), My scripts (open / rename / delete / version restore) and an inputs panel bound to the preview (docs/pine/member-authoring-plan.md). Arming is a Railway build variable plus a rebuild (Dockerfile.web declares the ARG) and an owner decision. Rails: app/src/components/chart/builder/pineEditor/*.test.*"
     },
+    "VITE_PINE_STRATEGY_BROKER_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "pine parity programme (S1)",
+      "owner_decision": "not yet taken -- built dark on branch pine/s1-strategy-broker (2026-10-05)",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-10-05, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-10-05T00:00:00Z",
+      "note": "S1 (2026-10-05): TradingView's strategy BROKER emulator (app/src/components/chart/engine/runtime/broker.js) so a strategy whose plots read broker values (strategy.position_size, position_avg_price, netprofit, equity, opentrades ...) is drawn on the runtime lane. Read in ONE place, app/src/components/chart/engine/strategyBrokerGate.js::strategyBrokerEnabled, as === '1'; a build with no import.meta.env fails CLOSED. OFF: buildRuntimeIr never retries a pine:strategy-call refusal, so every strategy builds and refuses byte-for-byte as before (rail: runtime/__tests__/s1StrategyBroker.test.js 'flag OFF'). ON: only scripts that refused pine:strategy-call are rebuilt with the broker; only rules docs/pine/strategy-broker-spec.md settles are served, the rest stop by name (runtime:strategy-option / -value / -unsettled). No broker value is vendor-graded yet (Q-S1-core, docs/pine/capture-queue-2026-10-05-s1.md) - do not turn on before that capture MATCHes. It also sits behind VITE_PINE_RUNTIME_PANE_ENABLED and the GT allowlist: a script still needs a MATCH capture before a member sees it. Production builds receive it as a Railway build arg on web: Dockerfile.web declares ARG VITE_PINE_STRATEGY_BROKER_ENABLED."
+    },
     "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
       "status": "dark",
       "where": [
