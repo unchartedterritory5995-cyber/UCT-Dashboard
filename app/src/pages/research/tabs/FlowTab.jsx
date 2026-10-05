@@ -58,7 +58,7 @@ export default function FlowTab({ sym }) {
       {/* A failed read is said as a failure, with a retry -- never as "no qualifying flow". */}
       {!isLoading && error && (
         <div className={styles.fnote} data-testid="flow-unavailable">
-          Options flow for {sym} is unavailable right now{error.httpStatus ? ` (the request answered ${error.httpStatus})` : ' (the request did not complete)'}.
+          Options flow for {sym} is unavailable right now{error.httpStatus ? ` (the request answered ${error.httpStatus})` : error.timedOut ? ' (the flow service gave no answer within 30 seconds)' : ' (the request did not complete)'}.
           {' '}That is a failed read, not a quiet tape.{' '}
           <button type="button" onClick={retry} data-testid="flow-retry">Retry</button>
         </div>

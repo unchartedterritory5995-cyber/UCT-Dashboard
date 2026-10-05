@@ -16,14 +16,24 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 // nobody measured. It now keeps the HTTP outcome (the useDecisionRecord.js
 // `{ok, httpStatus, body}` shape) so the tab can say "unavailable" and offer a
 // retry.
-export async function fetchResearchFlow(url) {
+// Live audit 2026-10-05: the ticker-flow read for NVDA gave no answer in 90 s while the rest of
+// the site answered in 0.3 s, and the tab said "Loading options-flow evidence…" for as long as
+// the tab was open. A read that has not answered in this long is reported as a failed read, with
+// the same Retry, instead of an endless loading line.
+export const FLOW_TIMEOUT_MS = 30000
+
+export async function fetchResearchFlow(url, { timeoutMs = FLOW_TIMEOUT_MS } = {}) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null
+  const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null
   try {
-    const r = await fetch(url, { credentials: 'include' })
+    const r = await fetch(url, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) })
     if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
     return { ok: true, httpStatus: r.status, body: await r.json() }
   } catch {
-    // a network failure, or a 200 whose body is not JSON: a failure either way, never "no flow"
-    return { ok: false, httpStatus: 0, body: null }
+    // a network failure, a timeout, or a 200 whose body is not JSON: a failure, never "no flow"
+    return ctl?.signal.aborted ? { ok: false, httpStatus: 0, body: null, timedOut: true } : { ok: false, httpStatus: 0, body: null }
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 
@@ -31,11 +41,11 @@ export default function useResearchFlow(rawSym, days = '5') {
   const sym = (rawSym || '').toUpperCase().trim()
   const { data: result, isLoading, mutate } = useMobileSWR(
     sym ? `/api/live/massive/ticker-flow?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(days)}` : null,
-    fetchResearchFlow,
+    (url) => fetchResearchFlow(url),
   )
   return useMemo(() => ({
     data: result?.ok ? (result.body || null) : null,
-    error: result && !result.ok ? { httpStatus: result.httpStatus } : null,
+    error: result && !result.ok ? { httpStatus: result.httpStatus, ...(result.timedOut ? { timedOut: true } : {}) } : null,
     isLoading: Boolean(isLoading && !result),
     retry: () => mutate(),
   }), [result, isLoading, mutate])
