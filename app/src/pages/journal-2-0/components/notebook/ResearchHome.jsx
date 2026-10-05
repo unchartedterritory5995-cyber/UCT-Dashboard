@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
-import lazyChunk from '../../lib/lazyChunk'
+import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -16,12 +16,9 @@ import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import AiActionsBox from './AiActionsPanel'
-import ReportingSoon from './ReportingSoon'
+import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
-import {
-  reviewDraftsEnabled, draftDailyReview, draftWeeklyReview, draftMonthlyReview,
-  todayDayIso, mondayOfIso, thisMonthIso,
-} from '../../lib/reviewDrafts'
+import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -32,6 +29,12 @@ import styles from './ResearchHome.module.css'
 // Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
 // first-open bytes do not carry it).
 const PassedSetups = lazyChunk(() => import('./PassedSetups'))
+// Wave 14 perf lane (docs/notebook/wave14-perf.md): the same for wave 13's two other dark
+// boxes. "Reporting soon" loads only while notebook_earnings_prep_enabled is on, and the
+// review-drafts box's doc builder (`lib/reviewDrafts.js`) loads on its first click -- the box's
+// own flag is read from `lib/reviewDraftsFlag.js`, which carries nothing else.
+const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
+const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -79,7 +82,8 @@ function ReviewDraftsHomeBox({ onOpenNote }) {
     setBusy(period)
     setError(null)
     try {
-      const { note } = await fn()
+      // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
+      const { note } = await fn(await loadReviewDrafts())
       onOpenNote(note)
     } catch {
       setError(`Could not draft the ${period} review — try again.`)
@@ -95,15 +99,15 @@ function ReviewDraftsHomeBox({ onOpenNote }) {
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
-          onClick={() => run('daily', () => draftDailyReview({ day: todayDayIso() }))}>
+          onClick={() => run('daily', (m) => m.draftDailyReview({ day: m.todayDayIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
-          onClick={() => run('weekly', () => draftWeeklyReview({ weekStart: mondayOfIso() }))}>
+          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ weekStart: m.mondayOfIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)}
-          onClick={() => run('monthly', () => draftMonthlyReview({ month: thisMonthIso() }))}>
+          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ month: m.thisMonthIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
         </button>
       </div>
@@ -368,7 +372,11 @@ export default function ResearchHome({
   // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
   // is off. The SECOND child of the same fragment in every return below, for the same reason
   // as the box above: a home that flips between quiet and full must not remount it mid-draft.
-  const prepBox = <ReportingSoon onOpenNote={openNote} />
+  // Wave 14 perf lane: loaded on demand, and only while its flag is on (the box itself still
+  // checks the flag too). Same element type at the same position, so a flip keeps its state.
+  const prepBox = earningsPrepEnabled()
+    ? <Suspense fallback={null}><ReportingSoon onOpenNote={openNote} /></Suspense>
+    : null
   // Wave 13 lane 13G-1: "Passed setups" -- nothing (and no fetch) while
   // notebook_passed_setups_enabled is off. The THIRD child of the same fragment in every
   // return below, for the same reason as the two boxes above.
