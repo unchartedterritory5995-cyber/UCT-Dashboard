@@ -89,11 +89,11 @@ A1** — see §4.
 | A1a | Server-side validation of `inputs[]` (fail closed, named field-path errors, all lanes) | — | **DONE** (§4) |
 | A1b | Pine Editor tab: CodeMirror + line numbers, pane-door compile on settle, problems list with jump-to-token, preview pane, Add/Update on chart through the attach doors | — | **DONE, dark** (§4) |
 | A2 | **Persist the Pine source with the document** (`meta.pineSource`), never used for compute — the trees stay the authority; its own cap | **O1** | **DONE, dark** (§6) |
-| A3 | Reopen a saved Pine script in the editor → Update on chart across sessions; rename; delete; version list + restore over `GET /{def_id}/history` | A2 | **DONE, dark** (§6) — from My scripts; an "Edit script" entry on the indicator library / legend is still open |
-| A4 | "My scripts" panel in the editor: the member's Pine documents, open/duplicate/delete | A2 | **DONE, dark** (§6) — open / rename / versions+restore / delete; *duplicate* not built |
+| A3 | Reopen a saved Pine script in the editor → Update on chart across sessions; rename; delete; version list + restore over `GET /{def_id}/history` | A2 | **DONE, dark** (§6) — from My scripts; "Edit script" from the indicator library and the legend added by A6 (§7) |
+| A4 | "My scripts" panel in the editor: the member's Pine documents, open/duplicate/delete | A2 | **DONE, dark** (§6) — open / rename / versions+restore / delete; *Duplicate* added by A6 (§7) |
 | A5 | Inputs panel in the editor, bound to the PREVIEW instance (values never rewrite the source), mirroring TradingView's Settings → Inputs | — | **DONE, dark** (§6) |
-| A6 | Pine-aware autocomplete + hover docs from `PINE_CALL_SHAPES` / `closedTable.json`; folding (`foldGutter`, already installed); find/replace | O2 ruled: stay on CodeMirror 6, **no new npm dependency** — find/replace (`@codemirror/search`) DEFERRED | next |
-| A7 | Runtime-lane authoring: when the pane routes a script to the per-bar lane, say so in the status line; Apply honours the runtime save door's sentences | runtime flags | |
+| A6 | Pine-aware autocomplete + hover docs from `PINE_CALL_SHAPES` / `closedTable.json`; folding (`foldGutter`, already installed); find/replace | O2 ruled: stay on CodeMirror 6, **no new npm dependency** — find/replace (`@codemirror/search`) DEFERRED | **DONE, dark** (§7) — find/replace still deferred |
+| A7 | Runtime-lane authoring: when the pane routes a script to the per-bar lane, say so in the status line; Apply honours the runtime save door's sentences | runtime flags | **DONE, dark** (§7) |
 | A8 | Multi-error compile: ask the engine lanes for a "collect all walls" translation mode so the list shows every problem, not the first | engine lanes | |
 | A9 | Device + iframe walk (390/820/1200), screenshot evidence, then the rollout decision | A1b | |
 

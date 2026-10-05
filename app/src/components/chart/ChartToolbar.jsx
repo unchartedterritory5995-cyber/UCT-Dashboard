@@ -52,6 +52,7 @@ import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
+import { pineAuthoringEnabled } from './engine/pineAuthoringGate'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 // A moving average the member REMOVED keeps its slot (the merge is positional)
@@ -1159,6 +1160,21 @@ function ChartToolbar({
   // does, so the chord and the button cannot disagree about where the library is
   // available. `StockChart` calls it; it does not own the state.
   const canManageIndicators = !!(chartSettings && onUpdateSettings)
+  // ⭐⭐ A6 — "EDIT SCRIPT": the indicator library and the legend reopen a
+  // member's own Pine in the ONE builder sheet, on its Pine Editor tab. The
+  // target is a fresh object per request (`at`), so asking twice for the same
+  // script re-opens it rather than being swallowed as "no change".
+  // ⛔ BEHIND THE SAME GATE AS THE TAB ITSELF: with authoring dark there is no
+  // editor to open, so neither door offers the row.
+  const [pineEditTarget, setPineEditTarget] = useState(null)
+  const canEditPineScripts = !!canManageIndicators && pineAuthoringEnabled()
+  const openPineScript = useCallback((defId) => {
+    if (!canEditPineScripts || typeof defId !== 'string' || !defId) return false
+    setLibraryOpen(false)   // never two Sheets: see the library mount below
+    setPineEditTarget({ defId, at: Date.now() })
+    openBuilder()
+    return true
+  }, [canEditPineScripts, openBuilder])
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
@@ -1204,7 +1220,11 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder])
+    // ⭐ A6 — the legend's "Edit script" row asks first (so it is not offered
+    // where nothing would open) and then opens through the same door.
+    canEditPineScripts: () => canEditPineScripts,
+    openPineScript,
+  }), [canManageIndicators, currentSym, openBuilder, canEditPineScripts, openPineScript])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1653,6 +1673,8 @@ function ChartToolbar({
                wrong one and the scroll lock is restored by whichever unmounts
                last. */
             onCreateFormula={() => { setLibraryOpen(false); openBuilder() }}
+            /* ⭐ A6 — a member's own Pine reopens in the Pine Editor. */
+            onEditScript={canEditPineScripts ? openPineScript : undefined}
           />
         )}
 
@@ -1680,6 +1702,8 @@ function ChartToolbar({
                here: the formula is already on the chart with its legend row,
                exactly as if it had been ticked in the indicator library. */
             onSaved={() => setBuilderOpen(false)}
+            /* ⭐ A6 — "Edit script" from the library or the legend. */
+            editScript={pineEditTarget}
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}

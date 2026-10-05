@@ -99,9 +99,9 @@ export function displaySubmenu(options, current, onMove, instanceId) {
  *
  * @param {object} chip a `readout.legendChips` row (label, hidden, instanceId…)
  * @param {object} def  its definition, or null
- * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove}`
+ * @param {object} h    `{onSettings, onToggleHidden, onMove, onDuplicate, onAlerts, onAbout, onRemove, onEditScript?}`
  * @param {object} [caps] what the CALLER knows and this file cannot:
- *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate}`
+ *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate, editScript}`
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
@@ -158,6 +158,18 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       onClick: () => h.onSettings(chip.instanceId),
     },
   ]
+  // ⭐ A6 — "EDIT SCRIPT": a member's own Pine reopens in the Pine Editor. The
+  // CALLER decides (`caps.editScript`) because only it knows whether the host
+  // can open the editor at all; offered nowhere else, so a native indicator's
+  // menu is exactly what it was.
+  if (caps.editScript === true && typeof h.onEditScript === 'function') {
+    rows.push({
+      key: 'editScript',
+      label: 'Edit script',
+      icon: 'edit',
+      onClick: () => h.onEditScript(chip.instanceId),
+    })
+  }
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',

@@ -233,3 +233,13 @@
   .editorBox :global(.cm-content) { min-height: 160px; }
   .apply { width: 100%; }
 }
+
+/* ⭐ A7 — the lane line: which lane draws the script, or why none does. */
+.lane {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.lane[data-lane="none"] { color: var(--text); }
