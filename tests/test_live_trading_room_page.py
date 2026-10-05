@@ -46,21 +46,19 @@ WHOP_PRIVACY = "https://whop.com/privacy"
 TERMS_PAGE = PAGE_DIR / "terms.html"
 TERMS_PATH = "/live-trading-room/terms"
 TERMS_CANONICAL = "https://uctintelligence.com/live-trading-room/terms"
+# v4 (owner-locked 2026-10-04, uct-growth/salespage/SITE-v4.md): five new
+# questions go in AFTER "Who are the traders?", in this order.
 FAQ_QUESTIONS = [
     "What time is the live session, and what if I can't watch?",
     "Who are the traders?",
-    "Can I cancel anytime?",
-    "What makes Uncharted Territory different?",
-]
-# v4 (owner-locked 2026-10-04, uct-growth/salespage/SITE-v4.md): five new
-# questions go in AFTER "Who are the traders?", in this order.
-FAQ_QUESTIONS = FAQ_QUESTIONS[:2] + [
     "I'm new to trading. Is this for me?",
     "Is this signals to copy?",
     "Stocks or options?",
     "What do I need to get started?",
     "Where do I join?",
-] + FAQ_QUESTIONS[2:]
+    "Can I cancel anytime?",
+    "What makes Uncharted Territory different?",
+]
 
 
 class _Collect(HTMLParser):
