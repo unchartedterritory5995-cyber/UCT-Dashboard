@@ -122,7 +122,7 @@ import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import PineEditor from './pineEditor/PineEditor'
 import MyScripts from './pineEditor/MyScripts'
-import { pineSourceOf, inputValuesOf, withName, storableDefinition } from './pineEditor/pineScripts'
+import { pineSourceOf, inputValuesOf, withName, storableDefinition, withPineSource } from './pineEditor/pineScripts'
 import { pineAuthoringEnabled } from '../engine/pineAuthoringGate'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
@@ -841,6 +841,10 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null,
+  /* ⭐ A6 — `{defId, at}`: open this stored Pine script in the Pine Editor
+     ("Edit script" from the indicator library or the chart legend). Held in the
+     caller's state; a new object per request. */
+  editScript = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
@@ -1848,8 +1852,18 @@ export default function BuilderSheet({
     return { ok: true, row, installedId: installed[0].id }
   }, [])
 
-  const attachPine = useCallback(async (definition) => {
-    const stored = await storePine(definition, null)
+  const attachPine = useCallback(async (definition, built = null) => {
+    // ⭐⭐ O6 (ruled 2026-10-04) — THE IMPORT TAB'S ATTACH KEEPS THE MEMBER'S
+    // SCRIPT, EXACTLY AS THE PINE EDITOR'S SAVE DOES: the same field
+    // (`withPineSource`), the same store door, and the SERVER's same rules —
+    // private to its owner, dropped when the stage does not admit authoring,
+    // licence-stripped on share/list (`api/services/pine_authoring.py`). The
+    // text is the one MemberPane BUILT this document from, never a newer paste.
+    // ⛔ Behind the same gate as the editor, so with authoring dark the posted
+    // document is byte-for-byte what it was.
+    const src = built && typeof built.source === 'string' ? built.source : ''
+    const doc = pineAuthoringEnabled() && src.trim() ? withPineSource(definition, src) : definition
+    const stored = await storePine(doc, null)
     if (!stored.ok) return stored
     const row = stored.row
     if (settings && onChange) onChange(addInstance(settings, stored.installedId, engineRegistry))
@@ -1927,6 +1941,30 @@ export default function BuilderSheet({
     return { ok: true }
   }, [loadIntoEditor])
 
+  /** ⭐⭐ A6 — "EDIT SCRIPT": the library's and the legend's door into the
+   *  editor. Declared AFTER the `[open]` reset (effects run in declaration
+   *  order), so the reset empties the sheet first and this fills it — the same
+   *  arrangement `editRow` uses. The store's own sentence is shown when the
+   *  script cannot be opened (no code kept, not the member's, unreachable). */
+  const [editScriptError, setEditScriptError] = useState(null)
+  useEffect(() => {
+    if (!open || !editScript || typeof editScript.defId !== 'string') return undefined
+    if (!pineAuthoringEnabled()) return undefined
+    let live = true
+    Promise.resolve()
+      .then(() => {
+        if (!live) return { ok: true }
+        setBuildMode('editor')
+        setEditScriptError(null)
+        return openScript(editScript.defId)
+      })
+      .catch(() => ({ ok: false, error: 'Could not reach the store.' }))
+      .then((res) => {
+        if (live && (!res || !res.ok)) setEditScriptError((res && res.error) || 'This script could not be opened.')
+      })
+    return () => { live = false }
+  }, [open, editScript, openScript])
+
   /** ⭐ A3 — RENAME: read my row, change `meta.name`, store it through the sheet's
    *  doors (a PUT that appends a version; the maths and the source are unchanged). */
   const renameScript = useCallback(async (defId, nextName) => {
@@ -1938,6 +1976,24 @@ export default function BuilderSheet({
     if (authored && authored.defId === defId) setAuthoredName(doc.meta.name)
     return { ok: true }
   }, [storePine, authored])
+  /** ⭐ A6 — DUPLICATE: the owner's row read back WITH its script (`GET
+   *  /{def_id}`), renamed, and stored as a NEW definition through the same doors
+   *  (a create — the server mints the id), then opened in the editor, so Apply
+   *  updates the copy and never the original. Not added to the chart. */
+  const duplicateScript = useCallback(async (defId) => {
+    const res = await fetchUserDefinition(defId)
+    if (!res.ok) return res
+    const original = storableDefinition(res.row.definition)
+    if (!pineSourceOf(original)) {
+      return { ok: false, error: 'This definition was saved without its Pine code, so it cannot be copied as a script.' }
+    }
+    const name = (original.meta && original.meta.name) || 'Untitled script'
+    const doc = withName(original, `${name.slice(0, 35)} copy`)
+    const stored = await storePine(doc, null)
+    if (!stored.ok) return stored
+    loadIntoEditor(stored.installedId, doc)
+    return { ok: true, defId: stored.installedId }
+  }, [storePine, loadIntoEditor])
   /** ⭐ A3 — RESTORE: the chosen version's document stored AGAIN as the newest
    *  version (append-only — nothing is overwritten), then opened in the editor. */
   const restoreScript = useCallback(async (defId, versionRow) => {
@@ -2672,6 +2728,9 @@ export default function BuilderSheet({
             />
           )}
 
+          {buildMode === 'editor' && editScriptError && (
+            <p className={styles.pickerNote} role="alert" data-testid="pine-edit-script-error">{editScriptError}</p>
+          )}
           {buildMode === 'editor' && (
             <MyScripts
               rows={rows}
@@ -2680,6 +2739,7 @@ export default function BuilderSheet({
               onRename={renameScript}
               onDelete={deleteScript}
               onRestore={restoreScript}
+              onDuplicate={duplicateScript}
             />
           )}
           {buildMode === 'editor' && (

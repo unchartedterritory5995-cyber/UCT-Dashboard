@@ -233,3 +233,21 @@
   .editorBox :global(.cm-content) { min-height: 160px; }
   .apply { width: 100%; }
 }
+
+/* ⭐ A7 — the lane line: which lane draws the script, or why none does. */
+.lane {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.lane[data-lane="none"] { color: var(--text); }
+
+/* ⭐ A9 (device walk): the inputs panel reuses `ParamControls`, whose number
+   field measured 32px tall at 390 and 28px at 820 — under the touch floor.
+   Raised HERE, for this panel's fields only, so the Formula tab's controls are
+   not restyled from a lane that does not own them. */
+@media (max-width: 1024px) {
+  .inputs input, .inputs select { min-height: var(--tap-min); }
+}

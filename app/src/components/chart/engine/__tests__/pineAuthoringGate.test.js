@@ -50,11 +50,15 @@ describe('pineAuthoringGate', () => {
     expect(be.build_flags[GATE_NAME].status).toBe('dark')
   })
 
-  it('⛔ one consumer: only the builder sheet asks it', () => {
+  it('⛔ two consumers, both named: the builder sheet (the tab, the O6 attach) and the toolbar that owns it (the A6 "Edit script" doors)', () => {
     const callers = sourceFiles()
       .filter((f) => f !== GATE_SRC && fs.readFileSync(f, 'utf8').includes('pineAuthoringEnabled('))
       .map((f) => path.relative(APP, f).split(path.sep).join('/'))
-    expect(callers).toEqual(['src/components/chart/builder/BuilderSheet.jsx'])
+      .sort()
+    expect(callers).toEqual([
+      'src/components/chart/ChartToolbar.jsx',
+      'src/components/chart/builder/BuilderSheet.jsx',
+    ])
   })
 
   // ⭐⭐ A2 (O3) — the per-member stage. The build flag alone is NOT enough.

@@ -89,13 +89,13 @@ A1** — see §4.
 | A1a | Server-side validation of `inputs[]` (fail closed, named field-path errors, all lanes) | — | **DONE** (§4) |
 | A1b | Pine Editor tab: CodeMirror + line numbers, pane-door compile on settle, problems list with jump-to-token, preview pane, Add/Update on chart through the attach doors | — | **DONE, dark** (§4) |
 | A2 | **Persist the Pine source with the document** (`meta.pineSource`), never used for compute — the trees stay the authority; its own cap | **O1** | **DONE, dark** (§6) |
-| A3 | Reopen a saved Pine script in the editor → Update on chart across sessions; rename; delete; version list + restore over `GET /{def_id}/history` | A2 | **DONE, dark** (§6) — from My scripts; an "Edit script" entry on the indicator library / legend is still open |
-| A4 | "My scripts" panel in the editor: the member's Pine documents, open/duplicate/delete | A2 | **DONE, dark** (§6) — open / rename / versions+restore / delete; *duplicate* not built |
+| A3 | Reopen a saved Pine script in the editor → Update on chart across sessions; rename; delete; version list + restore over `GET /{def_id}/history` | A2 | **DONE, dark** (§6) — from My scripts; "Edit script" from the indicator library and the legend added by A6 (§7) |
+| A4 | "My scripts" panel in the editor: the member's Pine documents, open/duplicate/delete | A2 | **DONE, dark** (§6) — open / rename / versions+restore / delete; *Duplicate* added by A6 (§7) |
 | A5 | Inputs panel in the editor, bound to the PREVIEW instance (values never rewrite the source), mirroring TradingView's Settings → Inputs | — | **DONE, dark** (§6) |
-| A6 | Pine-aware autocomplete + hover docs from `PINE_CALL_SHAPES` / `closedTable.json`; folding (`foldGutter`, already installed); find/replace | O2 ruled: stay on CodeMirror 6, **no new npm dependency** — find/replace (`@codemirror/search`) DEFERRED | next |
-| A7 | Runtime-lane authoring: when the pane routes a script to the per-bar lane, say so in the status line; Apply honours the runtime save door's sentences | runtime flags | |
+| A6 | Pine-aware autocomplete + hover docs from `PINE_CALL_SHAPES` / `closedTable.json`; folding (`foldGutter`, already installed); find/replace | O2 ruled: stay on CodeMirror 6, **no new npm dependency** — find/replace (`@codemirror/search`) DEFERRED | **DONE, dark** (§7) — find/replace still deferred |
+| A7 | Runtime-lane authoring: when the pane routes a script to the per-bar lane, say so in the status line; Apply honours the runtime save door's sentences | runtime flags | **DONE, dark** (§7) |
 | A8 | Multi-error compile: ask the engine lanes for a "collect all walls" translation mode so the list shows every problem, not the first | engine lanes | |
-| A9 | Device + iframe walk (390/820/1200), screenshot evidence, then the rollout decision | A1b | |
+| A9 | Device + iframe walk (390/820/1200), screenshot evidence, then the rollout decision | A1b | **WALKED 2026-10-05** (§7.4) — two defects fixed; rollout decision is the owner's |
 
 ---
 
@@ -229,7 +229,97 @@ atomicity, the source on Apply.
   rather than strips, because their source is their implementation). Alternative: share a hybrid
   without its `objectsRun` (plots only, no drawings). Not built; say if wanted.
 * **O6 — should the Import tab's "Add this script to my chart" also keep the source?** A2 keeps it
-  only for documents written from the Pine Editor (the stage-gated authoring surface).
+  only for documents written from the Pine Editor (the stage-gated authoring surface). → **YES (ruled
+  2026-10-04), built by A6** (§7.1); O5 → keep; O7 → yes as built (both ruled 2026-10-04).
 * **O7 — what Apply stores for edited inputs.** A5 stores the preview's edited values in the trees
   (the source keeps the author's defaults), and reopening reseeds the panel from them. The
   alternative is preview-only values (Apply always stores the script's defaults).
+
+---
+
+## 7. What A6 / A7 / O6 / A9 shipped (dark, branch `pine/a6-editor-intelligence`)
+
+### 7.1 O6 — the Import tab's attach keeps the source
+
+`MemberPane` hands its attach door the text it BUILT the document from (`onAttach(def, {source})`);
+`BuilderSheet.attachPine` stores it with `withPineSource` through the same `storePine` door the
+editor uses, behind the same `pineAuthoringEnabled()` gate. The server's rules are the A2 rules
+(private, stage-dropped, licence-stripped). Authoring dark ⇒ the posted document is byte-identical
+to before. Rail: `pineEditor/importKeepsSource.test.jsx`.
+
+### 7.2 A6 — Pine-aware editing (CodeMirror 6, installed packages only)
+
+* **Vocabulary, derived** (`builder/editor/pineVocabularyDerive.js` → frozen
+  `pineVocabulary.json`, 180 rows). WHICH names: the engine's tables — closed-table `functions`
+  (via `parse.js::TABLE`), `PINE_CALL_SHAPES`, `PINE_SHORT_FORM`, `BUILTIN_CALL_TREE` and every
+  exported built-in tree (`PINE_NAMESPACED_TREE`, `barstate.*`, `timeframe.*`, `syminfo.*`,
+  `dayofweek.*`, `math.pi`, output/paint calls, folded `input.*`, the palette), normalised with the
+  translator's own rule. HOW each is SPELLED per version: the committed corpus
+  (`corpus/committed` + `tests/fixtures/pine_community`, 296 scripts) lexed with the engine's
+  `lexPine` — the translator resolves `ta.sma` and `math.sma` alike, so it cannot say which one
+  TradingView means. Every spelling must be RESOLVED by the host-lane translator in that version
+  (`translatorResolves`). v4 offers `sma(`, v5/v6 `ta.sma(`; v5 and v6 fill each other's gaps, v4
+  borrows nothing. `ta.max` is excluded because the engine owns `math.max` (Pine's `ta.max(x)` is a
+  different function). Regenerate after a deliberate table/corpus change:
+  `UPDATE_PINE_VOCAB=1 npx vitest run src/components/chart/builder/editor/pineVocabulary.test.js`.
+* **Completions** (`pineVocabulary.js::pineCompletionSource`): version read from `//@version=` by
+  `lexPine`; none inside a comment or string; calls insert their `(`.
+* **Hover docs** (`pineHover`): the closed table's own `sentence`, Pine's argument order from the
+  measured shape plan (`ta.stoch(close, high, low, period)`) or `PINE_ARG_NAMES`, plus the entry's
+  `vendorNote`. No TradingView reference text is restated (the extracted reference JSON is not in
+  the repo — `docs/pine/pine-reference-extraction.md`).
+* **Folding**: indentation `foldService` + `foldGutter` + `foldKeymap`; bracket matching was already
+  on. **Find/replace still deferred** (O2: `@codemirror/search` is not installed).
+* `CodeEditor`: dialect `pine` gets all of the above (the Pine Editor AND the Import box); every
+  other dialect is unchanged.
+* **"Edit script"**: `ChartToolbar` (owner of the one builder sheet) exposes `openPineScript(defId)`
+  / `canEditPineScripts()`; the indicator library shows "Edit script" on the member's own Pine rows
+  whose code the store kept (`pineScriptsOf`); the legend chip menu shows it for a stored
+  (`^u_[0-9a-f]{12}$`) user definition carrying a translator stamp (`recurrenceOrigin` /
+  `lane: 'runtime'`). `BuilderSheet editScript={defId, at}` opens it on the Pine Editor tab; the
+  store's sentence is shown when it cannot. The gate census now names two consumers
+  (`BuilderSheet.jsx`, `ChartToolbar.jsx`).
+* **Duplicate** in My scripts: the owner's row read WITH its script, renamed `<name> copy`, stored
+  as a NEW definition (create), opened as the edit target; not added to the chart.
+
+### 7.3 A7 — the lane line
+
+`authoringDiagnostics.laneStatus(built)` → the editor's `pine-editor-lane` line: *Drawn by the host
+lane* (and whether its drawings come from a per-bar run), *Drawn by the per-bar lane* (with the
+outputs it withholds), or *Not drawn: <the door's reason, verbatim>* plus the per-bar lane's own
+`runtimeDeclined.why` when it was asked and declined (never repeated when the reason already quotes
+it). Apply already renders the store's refusal verbatim (runtime save door included).
+
+### 7.4 A9 — device walk (2026-10-05; local backend, build flags + `PINE_AUTHORING_STAGE=admins` locally)
+
+Walked `/charts` → indicator library → New formula → Pine Editor at 390×844 (touch), 820×1180
+(touch) and 1200×900 (desktop): template loaded, saved (My scripts row: Editing / Rename /
+Duplicate / Versions / Delete), My scripts expanded, Inputs panel present. Sheet geometry: 390 =
+full-width bottom sheet (left 0, width 390); 820 = centred 720 px sheet; 1200 = centred 640 px
+modal. Page horizontal overflow 0 at every width.
+
+**Fixed:**
+1. **Builder mode tab row** (`BuilderSheet.module.css .modeRow`) — with the Pine Editor tab the six
+   tabs overflowed the sheet body at 390 (scrollWidth 513 / client 388; `Screenshot` and `Formula`
+   off-screen). It wraps on touch now; re-walk: no overflow.
+2. **Inputs panel number field** (`param-input-__uct_param_*`, `ParamControls` inside
+   `InputsPanel`) — 32 px tall at 390, 28 px at 820. Raised to `--tap-min` on touch, scoped to the
+   Inputs panel.
+
+**Named, not fixed (outside the authoring panels):** the preview chart's own chrome inside the
+sheet — its drawing toolbar (`_tools`, an intentional horizontal scroller, 40 px buttons), range
+buttons 3M/6M/YTD/1Y/5Y (27–39 px wide), price-scale A/L/% toggles (11 px tall at 820) and the
+legend's "Show 2 more indicators" chip (14 px tall); and the Formula tab's plot row "Hide plot 1"
+checkbox (13 px), which still renders in editor mode together with the sheet footer's formula
+**Save** — two Save buttons on the Pine Editor tab is a UX defect for the editor's owner.
+
+### 7.5 Rails and mutation checks
+
+New: `pineEditor/importKeepsSource.test.jsx` (3), `editor/pineVocabulary.test.js` (13),
+`editor/CodeEditor.pine.test.jsx` (4), `pineEditor/editScriptDoors.test.jsx` (10),
+`pineEditor/laneStatus.test.jsx` (9). Mutation-checked (copy/restore, each reverted, all KILLED):
+O6 source not carried / gate dropped / MemberPane not handing the source; the derivation's
+owned-elsewhere rule and translator filter; the version read; the comment guard; the dialect
+completion source; the Pine aids compartment; the lane runtime branch / decline de-dupe / lane
+render; the editScript gate; Duplicate as a create; the library row's stopPropagation; the toolbar
+gate; the chip-menu caps.

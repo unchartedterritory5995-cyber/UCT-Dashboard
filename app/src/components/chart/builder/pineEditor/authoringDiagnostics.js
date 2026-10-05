@@ -139,3 +139,43 @@ export function offsetOf(text, line, column) {
   const col = isPos(column) ? column : 1
   return Math.min(at + col - 1, end)
 }
+
+/**
+ * ⭐⭐ A7 — WHICH LANE WILL DRAW IT, OR WHY NONE WILL: the status line.
+ *
+ * Read off the member door's OWN answer (`memberPaneDefinition`), never
+ * re-derived: `lane: 'runtime'` is the per-bar lane's document; an accepted
+ * document without it is the host lane's (and `objectsRun` says whether its
+ * drawings come from a per-bar run); a refusal is the door's `reason`,
+ * verbatim, with the per-bar lane's own `runtimeDeclined.why` when that lane
+ * was asked and declined.
+ *
+ * @param {object|null} built the `memberPaneDefinition` result for the settled text
+ * @returns {{lane: 'runtime'|'host'|'none', text: string}|null}
+ */
+export function laneStatus(built) {
+  if (!built) return null
+  const declined = built.runtimeDeclined && typeof built.runtimeDeclined.why === 'string'
+    ? built.runtimeDeclined.why : null
+  if (built.ok && built.lane === 'runtime') {
+    const withheld = Array.isArray(built.withheld) && built.withheld.length
+      ? ` Not drawn from it: ${built.withheld.join(', ')}.` : ''
+    return {
+      lane: 'runtime',
+      text: `Drawn by the per-bar lane — the script runs bar by bar, as TradingView runs it.${withheld}`,
+    }
+  }
+  if (built.ok) {
+    let objects = ''
+    if (built.objectsRun === 'served') objects = ' Its drawings come from a per-bar run of the script.'
+    else if (typeof built.objectsRun === 'string') objects = ` Its drawings are not drawn (the per-bar run declined: ${built.objectsRun}).`
+    const also = declined ? ` The per-bar lane declined this script: ${declined}` : ''
+    return {
+      lane: 'host',
+      text: `Drawn by the host lane — translated into the engine's own columns.${objects}${also}`,
+    }
+  }
+  const reason = typeof built.reason === 'string' && built.reason.trim() ? built.reason : 'the member door refused it'
+  const tail = declined && !reason.includes(declined) ? ` The per-bar lane declined it too: ${declined}` : ''
+  return { lane: 'none', text: `Not drawn: ${reason}.${tail}` }
+}

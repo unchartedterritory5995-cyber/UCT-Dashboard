@@ -5,7 +5,8 @@
 // Lists every stored definition that carries a Pine source (the store's LIST
 // answers with a `pine_source` summary, never the text), and offers: Open (into
 // the editor, where Apply then UPDATES that definition in place), Rename,
-// Versions (every stored version, oldest first, with Restore) and Delete.
+// Duplicate (A6: a new definition carrying the same script, opened), Versions
+// (every stored version, oldest first, with Restore) and Delete.
 //
 // ⛔ EVERY WRITE GOES THROUGH THE HOST, which walks the sheet's own store doors
 // (`validateUserDefinitions` → `saveUserDefinition` → `installUserDefinitions`).
@@ -30,7 +31,7 @@ const when = (ts) => {
   } catch { return '' }
 }
 
-function ScriptRow({ s, active, onOpen, onRename, onDelete, onRestore, loadHistory }) {
+function ScriptRow({ s, active, onOpen, onRename, onDelete, onRestore, onDuplicate, loadHistory }) {
   const [mode, setMode] = useState(null)          // null | 'rename' | 'delete' | 'versions'
   const [draft, setDraft] = useState(s.name)
   const [busy, setBusy] = useState(false)
@@ -71,6 +72,11 @@ function ScriptRow({ s, active, onOpen, onRename, onDelete, onRestore, loadHisto
         <button type="button" className={styles.ghost} disabled={busy}
           onClick={() => { setDraft(s.name); setMode(mode === 'rename' ? null : 'rename') }}
           data-testid="pine-script-rename">Rename</button>
+        {onDuplicate && (
+          <button type="button" className={styles.ghost} disabled={busy}
+            onClick={() => { setMode(null); run(() => onDuplicate(s.defId)) }}
+            data-testid="pine-script-duplicate">Duplicate</button>
+        )}
         <button type="button" className={styles.ghost} disabled={busy}
           onClick={() => (mode === 'versions' ? setMode(null) : openVersions())}
           data-testid="pine-script-versions">Versions</button>
@@ -137,9 +143,10 @@ function ScriptRow({ s, active, onOpen, onRename, onDelete, onRestore, loadHisto
  * @param {Function} onRename      (defId, name) => Promise<{ok, error?}>
  * @param {Function} onDelete      (defId) => Promise<{ok, error?}>
  * @param {Function} onRestore     (defId, versionRow) => Promise<{ok, error?}>
+ * @param {Function} [onDuplicate] (defId) => Promise<{ok, error?}> — A6: a copy, opened
  */
 export default function MyScripts({
-  rows = [], activeDefId = null, onOpen, onRename, onDelete, onRestore,
+  rows = [], activeDefId = null, onOpen, onRename, onDelete, onRestore, onDuplicate = null,
   loadHistory = fetchDefinitionHistory,
 }) {
   const scripts = useMemo(() => pineScriptsOf(rows), [rows])
@@ -170,7 +177,7 @@ export default function MyScripts({
           {scripts.map((s) => (
             <ScriptRow key={s.defId} s={s} active={s.defId === activeDefId}
               onOpen={doOpen} onRename={onRename} onDelete={onDelete} onRestore={onRestore}
-              loadHistory={loadHistory} />
+              onDuplicate={onDuplicate} loadHistory={loadHistory} />
           ))}
         </ul>
       ))}

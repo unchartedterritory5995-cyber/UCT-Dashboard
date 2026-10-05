@@ -47,7 +47,7 @@ import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from '../memberPane/memb
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { usePineLibraries } from '../usePineLibraries'
 import { PINE_DEBOUNCE_MS } from '../PineBox'
-import { authoringDiagnostics, offsetOf } from './authoringDiagnostics'
+import { authoringDiagnostics, offsetOf, laneStatus } from './authoringDiagnostics'
 import { applyInputValues, withName, withPineSource } from './pineScripts'
 import InputsPanel from './InputsPanel'
 import styles from './PineEditor.module.css'
@@ -121,6 +121,8 @@ export default function PineEditor({
     [settled, applied, libRevision],
   )
   const report = useMemo(() => authoringDiagnostics(built, settled), [built, settled])
+  // ⭐ A7 — which lane will draw it, or why none will (the door's own answer).
+  const lane = useMemo(() => laneStatus(built), [built])
   const pending = value !== settled
   // ⭐ A5 — the document as the inputs panel has it (atomic; see `applyInputValues`).
   const shown = useMemo(
@@ -285,6 +287,11 @@ export default function PineEditor({
           </div>
         )}
       </div>
+      {!pending && lane && (
+        <p className={styles.lane} role="status" data-testid="pine-editor-lane" data-lane={lane.lane}>
+          {lane.text}
+        </p>
+      )}
       {onApply && !paneOn && (
         <p className={styles.note} data-testid="pine-editor-apply-off">
           Drawing a member script on a chart is switched off on this build, so this

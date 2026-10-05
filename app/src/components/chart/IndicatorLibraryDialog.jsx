@@ -67,6 +67,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
+import { pineScriptsOf } from './builder/pineEditor/pineScripts'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -216,7 +217,7 @@ export function toggledRow(row, settings, registry) {
 // reaches the builder through the settings panel, so the launcher renders only
 // where a host asks for it rather than appearing twice on the surfaces that
 // already have one.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '' }) {
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, onEditScript, sheetClassName = '' }) {
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
 
@@ -272,6 +273,12 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // that would read as "nothing was refused".
   const { rows: storedRows } = useUserDefinitions()
   const { errors: installErrors } = useInstalledUserDefinitions()
+  // ⭐ A6 — which of the member's rows are Pine scripts with their code kept:
+  // the store's own answer (`pine_source`), read by My scripts' own rule.
+  const scriptIds = useMemo(
+    () => new Set(onEditScript ? pineScriptsOf(storedRows).map((s) => s.defId) : []),
+    [storedRows, onEditScript],
+  )
 
   // ⛔ `generation` IS NOT DECORATION IN THIS DEPENDENCY LIST. `registry` is a
   // module NAMESPACE — the same object for the lifetime of the tab — so a memo
@@ -546,6 +553,18 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         live control that writes nowhere — the exact defect this
                         phase retires. A second volume profile is not a thing the
                         canvas overlay can draw anyway. */}
+                    {/* ⭐ A6 — "EDIT SCRIPT": only on the member's own Pine whose
+                        code the store kept, and only when the host can open the
+                        Pine Editor (`onEditScript` is absent with authoring dark). */}
+                    {onEditScript && row.userDefined && scriptIds.has(row.id) && (
+                      <button
+                        type="button"
+                        className={styles.addAnother}
+                        aria-label={`Edit the script ${row.name}`}
+                        data-testid="library-edit-script"
+                        onClick={(e) => { e.stopPropagation(); onEditScript(row.id) }}
+                      >Edit script</button>
+                    )}
                     {on && !row.carvedOut && !row.singleton && (
                       <button
                         type="button"

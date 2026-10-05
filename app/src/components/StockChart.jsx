@@ -348,6 +348,18 @@ const STUDY_STACK_MAX_FRAC = 0.42
  * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
  * label node as-is, so the reason rides along beside it.
  */
+/** ⭐ A6 — a member's own PINE document as the STORE minted it (the server's
+ *  `DEF_ID_RE`, `^u_[0-9a-f]{12}$` — never a builder preview's throwaway id),
+ *  installed in this tab, carrying a translator's stamp: `recurrenceOrigin` on
+ *  the host lane, `lane: 'runtime'` on the per-bar one. */
+const STORED_DEF_ID = /^u_[0-9a-f]{12}$/
+function isMemberPineDefinition(def) {
+  if (!def || typeof def.id !== 'string' || !STORED_DEF_ID.test(def.id)) return false
+  if (!engineRegistry.listUserDefinitions().includes(def)) return false
+  const meta = def.meta || {}
+  return meta.recurrenceOrigin === engineRegistry.PINE_RECURRENCE_ORIGIN || meta.lane === 'runtime'
+}
+
 function chipMenuRowToPopoverRow(it) {
   if (it.separator) return it
   const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
@@ -18221,10 +18233,21 @@ export default function StockChart({
           // click went away. One click, the canonical writer, and the popover
           // closes with the thing it was about.
           onRemove: (id) => { close(); handleChipRemove(id) },
+          // ⭐ A6 — the toolbar owns the one builder sheet; it opens the script there.
+          onEditScript: () => {
+            close()
+            try { toolbarRef.current?.openPineScript?.(c.defId) } catch { /* noop */ }
+          },
         }, {
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
+          // ⭐ A6 — a member's own PINE document (the translator stamps
+          // `recurrenceOrigin` on the host lane and `lane: 'runtime'` on the
+          // per-bar one), on a toolbar that can open the Pine Editor. Whether the
+          // store kept its code is the store's answer when it opens.
+          editScript: isMemberPineDefinition(def)
+            && (() => { try { return toolbarRef.current?.canEditPineScripts?.() === true } catch { return false } })(),
         })
         const move = items.find((i) => i.key === 'move')
         const page = (chipPage === 'move' && move && !move.disabled)
