@@ -384,11 +384,21 @@ export function tfCodeOf(interval) {
 
 const isDailyLike = (interval) => /^\d*[DWM]$/.test(String(interval || '').trim())
 
-/** The ISO date a unix time falls on, in the exchange's timezone. */
+/** The ISO date a unix time falls on, in the exchange's timezone.
+ *  ⭐ G17 — ONE formatter per timezone, reused. This built a fresh
+ *  `Intl.DateTimeFormat` per BAR; `toProductBars` calls it for every daily row of
+ *  every committed capture when the other-symbol index is first built, and with
+ *  wave 16's 337 captures (163 MB, master: 139 / 78 MB) that build measured 66 s
+ *  of a 64 s first `request.security` read — past C26's 60 s case budget. The
+ *  formatter is pure, so the dates are byte-identical. */
+const ISO_DATE_FORMATTERS = new Map()
 export function isoDateIn(unixSeconds, timeZone) {
-  const f = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timeZone || 'Etc/UTC', year: 'numeric', month: '2-digit', day: '2-digit',
-  })
+  const zone = timeZone || 'Etc/UTC'
+  let f = ISO_DATE_FORMATTERS.get(zone)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    ISO_DATE_FORMATTERS.set(zone, f)
+  }
   return f.format(new Date(unixSeconds * 1000))
 }
 
