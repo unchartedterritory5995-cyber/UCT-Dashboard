@@ -531,14 +531,16 @@ describe('FIX: the channel-link popover survives a layout mutation (re-keyed by 
 describe('PHONE (<=640): one panel, the command line pinned first, functions in a Sheet', () => {
   beforeEach(() => setViewport(390))
 
-  it('renders exactly one panel even when the layout holds four', () => {
+  it('shows exactly one panel even when the layout holds four (the rest stay mounted, hidden)', () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 4, focus: 2, panels: [
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
-    const panels = screen.getAllByTestId(/^terminal-panel-/)
-    expect(panels).toHaveLength(1)
-    expect(panels[0].getAttribute('data-testid')).toBe('terminal-panel-2')
+    const panels = screen.getAllByTestId(/^terminal-panel-\d+$/)
+    expect(panels).toHaveLength(4)
+    const shown = panels.filter((el) => !el.hidden)
+    expect(shown).toHaveLength(1)
+    expect(shown[0].getAttribute('data-testid')).toBe('terminal-panel-2')
     expect(screen.getByTestId('terminal-grid').getAttribute('data-count')).toBe('1')
     expect(screen.queryByTestId('terminal-count-4')).toBeNull()
   })

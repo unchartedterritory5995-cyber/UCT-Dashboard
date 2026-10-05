@@ -371,6 +371,11 @@
   outline-offset: -1px;
 }
 
+/* Phone keeps every active panel mounted and hides the unfocused ones (TerminalShell.jsx). */
+.panel[hidden] {
+  display: none;
+}
+
 .panelFocused {
   outline-color: var(--accent);
 }
@@ -676,7 +681,7 @@
 
 .helpRow {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-sm);
   width: 100%;
@@ -692,6 +697,17 @@
 
 .helpRow:hover {
   background: var(--bg-hover);
+}
+
+/* A HELP function row: number · code · label · scope. The number column is 3ch so
+   two-digit rows line up. */
+.helpFnRow {
+  grid-template-columns: 3ch 52px minmax(0, 1fr) auto;
+}
+
+/* A two-part HELP row (Reset my ranking): label and its note, no number or code. */
+.helpRowPlain {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .helpScope {
@@ -827,12 +843,34 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* At 375px the scope note wraps onto its own line under the label instead of
+     pushing the row wider than the screen. */
   .helpRow {
     grid-template-columns: 52px minmax(0, 1fr);
+    row-gap: 0;
+    padding-block: var(--space-xs);
+  }
+
+  .helpFnRow {
+    grid-template-columns: 3ch 52px minmax(0, 1fr);
   }
 
   .helpScope {
-    display: none;
+    grid-column: 2 / -1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .helpFnRow .helpScope {
+    grid-column: 3 / -1;
+  }
+
+  .helpRowPlain {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .helpRowPlain .helpScope {
+    grid-column: 1 / -1;
   }
 }
 
@@ -840,6 +878,11 @@
    and the bar buttons. Without the wrap, the non-shrinking L0 strip plus the 44px
    button floor squeezed .cmdBlock to 0px on every phone and on iPad portrait. */
 @media (max-width: 1024px) {
+  /* Keep the bottom of the last panel clear of the phone's home indicator. */
+  .body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   .bar {
     flex-wrap: wrap;
     row-gap: var(--space-xs, 4px);

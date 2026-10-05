@@ -169,3 +169,34 @@ describe('L0Strip — a stale exposure reading says so', () => {
     breadthData.current = { exposure: { score: 82 } }
   })
 })
+
+// Phone/a11y pass: the session state stays readable on phone, and the exposure chip's colour
+// (its tone) is spoken, not only painted.
+describe('L0Strip — phone session label and exposure tone in words', () => {
+  it('phone keeps a short visible session label, with the full one as its accessible name', () => {
+    renderStrip({ isPhone: true })
+    const lbl = screen.getByTestId('l0-session-label')
+    expect(lbl).toHaveTextContent('OPEN')
+    expect(lbl).not.toHaveTextContent('MARKET OPEN')
+    expect(lbl.getAttribute('aria-label')).toBe('MARKET OPEN')
+  })
+
+  it('desktop shows the full session label', () => {
+    renderStrip({ isPhone: false })
+    expect(screen.getByTestId('l0-session-label')).toHaveTextContent('MARKET OPEN')
+  })
+
+  it('the exposure chip names its score AND its tone for a screen reader', () => {
+    renderStrip()
+    expect(screen.getByRole('group', { name: /UCT Exposure Rating 82, bullish/ })).toBeInTheDocument()
+  })
+
+  it('a missing score is named as not available, with no invented tone', () => {
+    breadthData.current = {}
+    try {
+      renderStrip()
+      const chip = screen.getByTestId('l0-regime-chip')
+      expect(chip.getAttribute('aria-label')).toBe('UCT Exposure Rating not available')
+    } finally { breadthData.current = { exposure: { score: 82 } } }
+  })
+})

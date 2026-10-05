@@ -95,6 +95,11 @@ describe('VolSurfacePanel', () => {
     expect(charts.smile.series.map((s) => s.name)).toEqual(['Call'])
     expect(screen.getByTestId('smile-puts-not-drawn').textContent).toMatch(/Only 3 put strikes.*not drawn/)
     expect(screen.queryByTestId('smile-calls-not-drawn')).toBeNull()
+    // the legend names only what is drawn: calls (puts were refused) and the spot marker
+    const legend = screen.getByTestId('vol-smile-legend').textContent
+    expect(legend).toContain('Calls')
+    expect(legend).not.toContain('Puts')
+    expect(legend).toContain('Spot')
     expect(screen.getByTestId('smile-calls-refused').textContent).toBe('Left out: call 775: no two-sided quote.')
   })
 

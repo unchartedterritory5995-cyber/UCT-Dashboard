@@ -46,6 +46,12 @@ function regimeTone(score) {
   return 'bear'
 }
 
+/** The tone bucket in words, so a screen reader hears what the colour says. */
+export const REGIME_TONE_WORD = { bull: 'bullish', neutral: 'neutral', caution: 'cautious', bear: 'bearish', muted: 'no reading' }
+
+/** A short session label for the phone strip, where the full one does not fit. */
+export const SHORT_SESSION_LABEL = { 'MARKET OPEN': 'OPEN', 'PRE-MARKET': 'PRE', 'AFTER-HOURS': 'AH', 'MARKET CLOSED': 'CLOSED' }
+
 export default function L0Strip({ layout, isPhone }) {
   const session = useMarketOpen()
   const now = useEtNow()
@@ -80,13 +86,20 @@ export default function L0Strip({ layout, isPhone }) {
         <span className={`${styles.sessionDot} ${toneCls}`} aria-hidden="true" />
         <span className={styles.time}>{time}</span>
         <span className={styles.etLabel}>ET</span>
-        {!isPhone && <span className={`${styles.sessionLabel} ${toneCls}`}>{label}</span>}
+        {/* Phone keeps a short label (OPEN / PRE / AH / CLOSED): the dot's colour alone is
+            not enough, and the full label does not fit beside the command bar. */}
+        <span className={`${styles.sessionLabel} ${toneCls}`} data-testid="l0-session-label"
+          aria-label={isPhone ? label : undefined}>
+          {isPhone ? (SHORT_SESSION_LABEL[label] || label) : label}
+        </span>
       </div>
 
       <div
         className={`${styles.chip} ${styles[`regime_${rTone}`]} ${wireStale ? styles.regimeStale : ''}`}
         data-testid="l0-regime-chip"
         data-stale={wireStale ? 'true' : 'false'}
+        role="group"
+        aria-label={`UCT Exposure Rating ${expScore == null ? 'not available' : Math.round(expScore)}${expScore == null ? '' : `, ${REGIME_TONE_WORD[rTone]}`}${wireStale ? `, as of ${wireDate || 'an earlier wire'}, not today's reading` : ''}`}
         title={wireStale
           ? `UCT Exposure Rating as of ${wireDate || 'an earlier wire'} — no run since; not today's reading`
           : 'UCT Exposure Rating'}

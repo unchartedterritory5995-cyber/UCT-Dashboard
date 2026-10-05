@@ -54,6 +54,7 @@ describe('MarketTidePanel (FT-056)', () => {
     expect(screen.getByTestId('market-tide-partial').textContent).toContain('no readable time')
     expect(screen.getByText('computed')).toBeTruthy()
     expect(screen.getByTestId('market-tide-chart')).toBeTruthy()
+    expect(screen.getByTestId('market-tide-legend').textContent).toMatch(/Net call premium.*Net put premium.*Zero/)
   })
 
   it('a failed request says so, never an empty tide', async () => {

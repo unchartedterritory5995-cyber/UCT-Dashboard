@@ -114,15 +114,15 @@ describe('phone panel switcher (P14a)', () => {
     expect(screen.getByTestId('terminal-phone-switch-3')).toHaveTextContent('FA')
   })
 
-  it('the active tab reflects layout.focus, and only the focused panel renders', () => {
+  it('the active tab reflects layout.focus, and only the focused panel is shown (the rest stay mounted, hidden)', () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 4, focus: 1, panels: [
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
     expect(screen.getByTestId('terminal-phone-switch-1').getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTestId('terminal-phone-switch-0').getAttribute('aria-selected')).toBe('false')
-    expect(screen.getByTestId('terminal-panel-1')).toBeTruthy()
-    expect(screen.queryByTestId('terminal-panel-0')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-1').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(true)
   })
 
   it('tapping a tab calls setFocus: the UI moves focus to that panel and persists it', async () => {
@@ -130,13 +130,14 @@ describe('phone panel switcher (P14a)', () => {
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
-    expect(screen.getByTestId('terminal-panel-0')).toBeTruthy()
-    expect(screen.queryByTestId('terminal-panel-2')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-2').hidden).toBe(true)
 
     await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-2')) })
 
     expect(screen.getByTestId('terminal-panel-2')).toHaveTextContent('News:AMD')
-    expect(screen.queryByTestId('terminal-panel-0')).toBeNull()
+    expect(screen.getByTestId('terminal-panel-2').hidden).toBe(false)
+    expect(screen.getByTestId('terminal-panel-0').hidden).toBe(true)
     expect(screen.getByTestId('terminal-phone-switch-2').getAttribute('aria-selected')).toBe('true')
     // Focus is a per-viewer convenience (audit #19): remembered on this device by panel id, and
     // NOT posted — a focus click must not mint a board version.
@@ -153,13 +154,29 @@ describe('phone panel switcher (P14a)', () => {
 
     expect(screen.getByTestId('terminal-phone-switcher').querySelectorAll('[role="tab"]')).toHaveLength(2)
     expect(JSON.parse(store.prefs.terminal_layout).count).toBe(2)
-    // the phone grid still renders exactly one panel (the focused one) even though 2 are active
-    expect(screen.getAllByTestId(/^terminal-panel-/)).toHaveLength(1)
+    // the phone grid still SHOWS exactly one panel (the focused one) even though 2 are active;
+    // the other is mounted and hidden so switching back does not refetch or reset it
+    const panels = screen.getAllByTestId(/^terminal-panel-\d+$/)
+    expect(panels).toHaveLength(2)
+    expect(panels.filter((el) => !el.hidden)).toHaveLength(1)
   })
 
   it('the desktop panel-count control is absent on phone; only the phone one is present', () => {
     renderAt('/terminal')
     expect(screen.queryByTestId('terminal-count-2')).toBeNull()
     expect(screen.getByTestId('terminal-phone-count-2')).toBeTruthy()
+  })
+  it('switching away and back keeps the panel mounted: its content is the same element, not a remount', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 2, focus: 0, panels: [
+      { code: 'DES', group: 'N', sym: 'AAPL' }, { code: 'CN', group: 'N', sym: 'AMD' },
+    ] }) }
+    renderAt('/terminal')
+    await screen.findByText('Overview:AAPL')
+    const before = screen.getByTestId('terminal-panel-0').querySelector('[data-testid^="stub-"]')
+    expect(before).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-1')) })
+    await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-switch-0')) })
+    const after = screen.getByTestId('terminal-panel-0').querySelector('[data-testid^="stub-"]')
+    expect(after).toBe(before)
   })
 })

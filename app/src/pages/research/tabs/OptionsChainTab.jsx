@@ -15,6 +15,7 @@ import { extraGreeks } from '../../optionsAnalytics/chainModels'
 import { EdgePanel, SpreadBookPanel, StrategyFinder } from '../../optionsAnalytics/ChainModelPanels'
 import VolSkewPanels from '../../optionsAnalytics/VolSkewPanels'
 import { mergeChain, atmIvOf, midOf, volOiOf, isItm, expectedMove } from './chainMath'
+import { useIsPhone } from '../../../hooks/useBreakpoint'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -44,6 +45,8 @@ const COLS = [
 // lambda and epsilon (chainModels.extraGreeks) and a Calls / Puts / Both view. 404 = the chain above.
 const FULL_COLS = [...COLS, ['rho', 'ρ', 3], ['lambda', 'λ', 2], ['epsilon', 'ε', 3]]
 const MODES = [['both', 'Both'], ['calls', 'Calls'], ['puts', 'Puts']]
+// Phone: one side at a time (a 12-column-a-side chain cannot fit 375px), Strike first.
+const PHONE_SIDES = [['calls', 'Calls'], ['puts', 'Puts']]
 
 function fmt(v, how) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '—'
@@ -80,6 +83,8 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const greeks = useDarkSection(s ? `/api/research/options/${encodeURIComponent(s)}/chain-greeks` : null)
   const full = greeks.data && greeks.data.rho ? greeks.data : null
   const [mode, setMode] = useState('both')
+  const isPhone = useIsPhone()
+  const [phoneSide, setPhoneSide] = useState('calls')
 
   // One row per strike. An adjusted contract sharing a strike with the standard one no longer
   // overwrites it: the standard (100-share, root = underlying) contract wins and the rest are counted.
@@ -105,8 +110,8 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const move = expectedMove(rows, d.spot)
   const expList = exps.data?.expirations || []
   const cols = full ? FULL_COLS : COLS
-  const showCalls = !full || mode !== 'puts'
-  const showPuts = !full || mode !== 'calls'
+  const showCalls = isPhone ? phoneSide === 'calls' : (!full || mode !== 'puts')
+  const showPuts = isPhone ? phoneSide === 'puts' : (!full || mode !== 'calls')
   const days = daysTo(d.expiration)
   const derive = (q) => (q ? { ...q, mid: midOf(q), vol_oi: volOiOf(q) } : q)
   const aug = (q, type) => (q && full ? { ...q, ...extraGreeks({ ...q, type }, Number(d.spot), days) } : q)
@@ -131,7 +136,12 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
           {move ? <b>±${move.dollars.toFixed(2)} (±{move.pct.toFixed(1)}%)</b> : <b>—</b>}
           <span className={styles.muted}> ATM straddle ÷ spot</span>
         </span>
-        {full && (
+        {isPhone && (
+          <span className={styles.mode} role="group" aria-label="Chain side" data-testid="chain-phone-side">
+            {PHONE_SIDES.map(([k, l]) => <button key={k} type="button" aria-pressed={phoneSide === k} onClick={() => setPhoneSide(k)}>{l}</button>)}
+          </span>
+        )}
+        {full && !isPhone && (
           <span className={styles.mode} role="group" aria-label="Chain view" data-testid="chain-mode">
             {MODES.map(([k, l]) => <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>)}
           </span>
@@ -145,10 +155,11 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       <div className={styles.scroll}>
         <table className={styles.grid}>
           <thead>
-            <tr>{showCalls && <th colSpan={cols.length}>Calls</th>}<th />{showPuts && <th colSpan={cols.length}>Puts</th>}</tr>
+            <tr>{isPhone && <th />}{showCalls && <th colSpan={cols.length}>Calls</th>}{!isPhone && <th />}{showPuts && <th colSpan={cols.length}>Puts</th>}</tr>
             <tr>
+              {isPhone && <th className={styles.strikeHead}>Strike</th>}
               {showCalls && cols.map(([k, l, , t]) => <th key={`c-${k}`} title={t}>{l}</th>)}
-              <th className={styles.strikeHead}>Strike</th>
+              {!isPhone && <th className={styles.strikeHead}>Strike</th>}
               {showPuts && cols.map(([k, l, , t]) => <th key={`p-${k}`} title={t}>{l}</th>)}
             </tr>
           </thead>
@@ -156,14 +167,24 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
             {shown.map((r) => (
               <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
                   data-testid={r.strike === atm ? 'atm-row' : undefined}>
+                {isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
                 {showCalls && cols.map(([k, , how]) => <td key={`c-${k}`} className={isItm('call', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
-                <td className={styles.strike}>{fmt(r.strike, 2)}</td>
+                {!isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
                 {showPuts && cols.map(([k, , how]) => <td key={`p-${k}`} className={isItm('put', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {/* The column definitions used to live only in header tooltips, which a finger cannot
+          hover. The same text, tappable. */}
+      <details className={styles.colKey} data-testid="chain-column-key">
+        <summary>What the columns mean</summary>
+        <dl>
+          <dt>ATM IV</dt><dd>Mean of the call and put implied volatility at the strike nearest spot (vendor IV)</dd>
+          {cols.filter((c) => c[3]).map(([k, l, , t]) => <div key={k}><dt>{l}</dt><dd>{t}</dd></div>)}
+        </dl>
+      </details>
       {dropped > 0 && (
         <p className={styles.muted} data-testid="chain-merge-note">
           {dropped} adjusted or duplicate contract{dropped === 1 ? '' : 's'} sharing a strike {dropped === 1 ? 'was' : 'were'} left out;

@@ -188,7 +188,7 @@ export default function TechnicalTab({ sym }) {
 
           <section className={styles.card} data-testid="technical-chart">
             <div className={styles.ct}>View on Chart</div>
-            <div style={{ height: 420 }}>
+            <div style={{ height: 'min(420px, 60vh)' }}>
               <StockChart
                 sym={sym}
                 tf="D"

@@ -55,6 +55,9 @@
 @media (max-width: 640px) {
   .ovChart { height: 240px; }
 }
+/* Overview / Ownership card grid: as many 240px-wide cards as fit, one per row on a phone.
+   min(240px, 100%) so a column narrower than 240px never overflows. */
+.cardGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 10px; }
 .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; }
 .ct { font-size: var(--text-xs); letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
@@ -232,6 +235,10 @@
   .rb { min-width: 58px; padding: 6px 9px; }
   .paywall { padding: 20px 12px; }
   .paywallCta { min-height: var(--tap-min); width: 100%; }
+  /* Filing and insider rows: a fixed column template overflowed 375px, so they wrap instead.
+     Date + name stay on the first line, the figures and link drop below. */
+  .filingRow, .insrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .insrow .rcfirm { flex: 1 1 60%; min-width: 0; white-space: normal; }
 }
 
 /* Reporting-basis toggle on the financial trends (TradingView pattern). */
@@ -300,5 +307,16 @@
   }
   .paywallCta {
     min-height: var(--tap-min);
+  }
+}
+
+/* Touch tier: the basis toggles and every Retry button (basisBtn, and the two that borrow
+   filingLink / explainNewConvoBtn) meet the 44px floor. */
+@media (max-width: 1024px) {
+  .basisOn, .basisOff, .basisBtn, .explainNewConvoBtn, button.filingLink {
+    min-height: var(--tap-min);
+  }
+  .basisBtn, button.filingLink {
+    min-width: var(--tap-min);
   }
 }

@@ -180,7 +180,7 @@ function channelOf(layout, id) {
 
 export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
-  onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone,
+  onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -210,6 +210,7 @@ export function Panel({
       data-code={panel.code}
       data-channel={panelChannel(panel) || ''}
       data-focused={focused ? 'true' : 'false'}
+      hidden={hidden}
     >
       <header className={styles.panelHead}>
         {standalone ? null : linkable ? (
@@ -1051,7 +1052,8 @@ export default function TerminalShell() {
             {DENSITIES.map((d) => (
               <button key={d} type="button" className={`${styles.barBtn} ${layout.density === d ? styles.barBtnOn : ''}`}
                 aria-pressed={layout.density === d} onClick={() => save(setDensity(layout, d))}
-                title={`${d[0].toUpperCase()}${d.slice(1)} density`} data-testid={`terminal-density-${d}`}>
+                title={`${d[0].toUpperCase()}${d.slice(1)} density`} aria-label={`${d[0].toUpperCase()}${d.slice(1)} density`}
+                data-testid={`terminal-density-${d}`}>
                 {d === 'comfortable' ? 'Aa' : d === 'compact' ? 'Ab' : 'ab'}
               </button>
             ))}
@@ -1066,6 +1068,7 @@ export default function TerminalShell() {
                 className={`${styles.barBtn} ${count === n ? styles.barBtnOn : ''}`}
                 aria-pressed={count === n}
                 onClick={() => setCount(n)}
+                aria-label={`Show ${n} panel${n === 1 ? '' : 's'}`}
                 data-testid={`terminal-count-${n}`}
               >{n}</button>
             ))}
@@ -1095,6 +1098,7 @@ export default function TerminalShell() {
                 className={`${styles.barBtn} ${count === n ? styles.barBtnOn : ''}`}
                 aria-pressed={count === n}
                 onClick={() => setCount(n)}
+                aria-label={`Show ${n} panel${n === 1 ? '' : 's'}`}
                 data-testid={`terminal-phone-count-${n}`}
               >{n}</button>
             ))}
@@ -1160,10 +1164,12 @@ export default function TerminalShell() {
           </nav>
         )}
         <div className={styles.grid} data-count={isPhone ? 1 : count} data-testid="terminal-grid">
+          {/* Phone shows one panel at a time, but the others stay MOUNTED and hidden, so
+              switching back does not refetch or reset them. Their SWR polling keeps running. */}
           {visible.map((p, i) => (
-            (!isPhone || i === focus) && (
               <Panel
                 key={p.id}
+                hidden={isPhone && i !== focus}
                 index={i}
                 panel={p}
                 focused={i === focus}
@@ -1185,7 +1191,6 @@ export default function TerminalShell() {
                 canClose={count > 1}
                 isPhone={isPhone}
               />
-            )
           ))}
         </div>
       </div>

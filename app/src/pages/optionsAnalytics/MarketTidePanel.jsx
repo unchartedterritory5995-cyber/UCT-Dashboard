@@ -113,6 +113,13 @@ function TidePanel({ scope, setScope, onPickMinute }) {
         </p>
       ) : <p className={styles.note}>No prints on the tape for the last session.</p>}
       {p && (
+        <ul className={styles.legend} data-testid="market-tide-legend" aria-label="Market Tide legend">
+          <li><span className={`${styles.legendSwatch} ${styles.legendCall}`} aria-hidden="true" />Net call premium</li>
+          <li><span className={`${styles.legendSwatch} ${styles.legendPut}`} aria-hidden="true" />Net put premium</li>
+          <li><span className={`${styles.legendSwatch} ${styles.legendZero}`} aria-hidden="true" />Zero</li>
+        </ul>
+      )}
+      {p && (
         <svg className={`${styles.chart}${onPickMinute ? ` ${styles.clickable}` : ''}`} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="market-tide-chart"
           aria-label="Cumulative net call premium (green) and net put premium (red) by minute"
           onClick={onPickMinute ? (e) => {

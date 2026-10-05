@@ -912,8 +912,9 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
-/* ─── Mobile: prevent iOS Safari zoom on input focus ──────────────────────── */
-@media (max-width: 640px) {
+/* ─── Touch: prevent iOS Safari zoom on input focus ───────────────────────── */
+/* The whole touch tier, not phone only: iPadOS Safari zooms on a sub-16px field too. */
+@media (max-width: 1024px) {
   input, select, textarea {
     font-size: 16px !important;
   }

@@ -115,7 +115,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
           )}
         </div>
       </section>
-      <div className={styles.grid}>
+      <div className={styles.cardGrid}>
       <section className={styles.card}>
         <div className={styles.ct}>Latest report{row?.label ? ` · ${row.label}` : ''}</div>
         <table className={styles.tbl}>
