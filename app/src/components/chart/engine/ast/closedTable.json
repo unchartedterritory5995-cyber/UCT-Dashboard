@@ -3444,6 +3444,12 @@
       "memberNote": "This script's daily request.security is read as the chart's own daily bars — identical on a closed daily chart. On any other chart timeframe that read is withheld rather than drawn, because the bars in hand there are not daily bars.",
       "_ruling": "Ruling 3.5 (2026-09-12): a literal naming the BASE period is the identity, not a resample of it, so `request.security(syminfo.tickerid, 'D', close)` on a daily-base engine emits the child unwrapped. `tf(close,'D')` would read the last CLOSED day and answer yesterday; the identity has no step-back. ⚰️ This ended 'on an intraday base the two differ by one bar, which is what the sentence tells the member' — measured 2026-10-01 (C49, `request-realtime-alignment-spy-5-2026-10-01`) the fold on a 5-minute chart is the chart's own 5-minute series where TradingView answers the DAILY bar: 299 of 300 bars differ, look-ahead on and off. The saved tree now carries its base (`interpret.js::requestBaseNode`) and a chart that states another timeframe withholds the column (`request:other-timeframe`), which is what the sentence tells the member.",
       "_row": "tests/fixtures/vendor/divergences.json::request-security-base-period-identity-vs-lookahead-off-step-back"
+    },
+    "htfLookaheadOffStepBacks": {
+      "kind": "fold",
+      "name": "htfLookaheadOffStepBacks",
+      "memberNote": "This script reads a higher timeframe with request.security (lookahead off). UCT shows a weekly or monthly value only from the first bar AFTER that period has closed. TradingView shows it already on the bar that completes the period (for example, the week's close appears on Friday's daily bar) and, on a forming bar, shows the still-forming period. So on a daily chart this line is one bar later than TradingView on the last bar of every week (about 1 bar in 5) or month (about 1 in 21). UCT never shows a period's value before it has closed.",
+      "_ruling": "P0 truth hardening (2026-10-05, slices inv + imp): `request.security(sym, 'W'|'M', expr, lookahead_off)` is emitted as `tf`, which reads the last CLOSED period on every bar (`interpret.js` tf). TradingView's documented historical rule shows the period's value on the bar that completes it, so the two differ on the last bar of every period (124/600 SPY daily bars, audit D §5). The evaluator is NOT changed in P0; the difference is disclosed as a SEMANTIC DIFFERENCE (`importOutcome.js`), never EXACT. Recorded on the output row by `pine.js::securityAsNode`."
     }
   },
   "_tables_fit": {
