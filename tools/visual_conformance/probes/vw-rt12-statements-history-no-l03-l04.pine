@@ -1,0 +1,48 @@
+//@version=6
+indicator("UCTPROBE_VW_RT12_STATEMENTS_HISTORY_NO_L03_L04", overlay = false)
+
+// --- 2026-10-04 RT12 - statements and history on the runtime lane -------------
+//
+// CAP6 VARIANT (2026-10-05): vw-rt12-statements-history.pine with rows L03 and L04
+// DELETED and nothing else changed. CAP5 measured the whole probe stopping with
+// RE10001 at bar 0 (L04: `ta.lowest(low, lenNa)` with an `na` length); this copy
+// lets C01/C02, D00/D01 and L00-L02, L05, L06 be read.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing AND AMEX:SPY 1D, inputs at defaults.
+// A runtime error is a reading: record the message and the row.
+//
+// C - a comma line of statements (served by RT12, graded so far by the program
+//     written on separate lines)
+//   C01  `cx = close * 2, ta.change(close)`        -> close * 2 on every bar
+//   C02  a binding whose trailing comma carries the next line's plot (loxx:93)
+// D - a function-body local fixed by its call site (served by RT12)
+//   D01  f(x, n) => w = (n * 2) - 1, ta.ema(x, w), called f(close, 5)
+//   D00  ta.ema(close, 9)                           (CONTROL: D01 must equal it)
+// L - a SERIES window length (REFUSED by RT12, `runtime:history-dynamic-offset`;
+//     these rows settle what TradingView answers)
+//   L00  the length itself (CONTROL)
+//   L01  ta.lowest(len)  / L02 ta.highest(len), len = barssince(close > open) + 1
+//   L03  ta.lowest(low, bar_index + 5)              (longer than the bars that exist)
+//   L04  ta.lowest(low, n) with n `na` on every 4th bar
+//   L05  market-structure-break-order-block:60 as written
+//   L06  ta.highestbars(high, bar_index % 7 + 1)    (zigzag-multi-time-frame shape)
+
+cx = close * 2, ta.change(close)
+plot(cx, "C01_comma_binding_then_call")
+float cs = ta.sma(close, 3)
+color cc = cs > cs[1] ? color.green : color.red,
+plot(cs, "C02_trailing_comma_plot", color = cc)
+
+f(x, n) =>
+    w = (n * 2) - 1
+    ta.ema(x, w)
+plot(f(close, 5), "D01_frame_local_len")
+plot(ta.ema(close, 9), "D00_ema9_CONTROL")
+
+len = nz(ta.barssince(close > open), 0) + 1
+plot(len, "L00_len_CONTROL")
+plot(ta.lowest(len), "L01_lowest_series_len")
+plot(ta.highest(len), "L02_highest_series_len")
+lts = ta.barssince((close > open)[1])
+plot(ta.lowest(nz(lts > 0 ? lts : 1, 1)), "L05_msbob_shape")
+plot(ta.highestbars(high, bar_index % 7 + 1), "L06_highestbars_series_len")

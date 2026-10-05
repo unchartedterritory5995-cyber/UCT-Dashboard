@@ -1,0 +1,11 @@
+//@version=5
+indicator("UCTPROBE_VW_H10_WHOLE_FRAC_LENGTH", overlay = false)
+
+// --- 2026-10-05 CAP6, Q-H10c (capture-queue-2026-10-04-h10.md) ----------------
+// A WHOLE-valued fractional-typed length: `len / 2` with len = 20 is 10.0.
+// Does it compile, and is it the 10-bar average (W01 == W00)?
+// CAPTURE: AMEX:SPY 1D, >= 300 bars, inputs at defaults.
+
+len = input.int(20)
+plot(ta.sma(close, 10), "W00_sma10_CONTROL")
+plot(ta.sma(close, len / 2), "W01_sma_len_div_2")

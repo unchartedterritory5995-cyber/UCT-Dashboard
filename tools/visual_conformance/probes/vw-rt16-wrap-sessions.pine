@@ -1,0 +1,46 @@
+//@version=6
+indicator("UCTPROBE_VW_RT16_WRAP_SESSIONS", overlay = false)
+
+// --- 2026-10-05 CAP6, Q-RT16a (capture-queue-2026-10-04-rt16-clock.md) --------
+//
+// The wrapping / whole-day sessions the host refuses by name (`sessionClockOf`:
+// "wraps past midnight (or spans the whole day)"). Each window s is read two
+// ways: `na(time(timeframe.period, s)) ? 1 : 0` (membership) and
+// `(t - time) / 1000` (seconds from the bar's own time; -1 when na).
+// W00-W02 are the controls: a verdict may only be read where they vary.
+//
+// CAPTURE: AMEX:SPY 60 extended ON, AMEX:SPY 1D (>= 300 bars), and a 24h symbol
+// at 60 (BITSTAMP:BTCUSD or the nearest 24h feed available), inputs at defaults.
+
+plot(dayofweek, "W00_dayofweek_CONTROL")
+plot(hour,      "W01_hour_CONTROL")
+plot(minute,    "W02_minute_CONTROL")
+
+isNa(t) => na(t) ? 1 : 0
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+tA = time(timeframe.period, "2000-0000")
+tB = time(timeframe.period, "1900-0001")
+tC = time(timeframe.period, "2000-0400:1234567")
+tD = time(timeframe.period, "1700-0200:1234567")
+tE = time(timeframe.period, "0000-0000:7")
+tF = time(timeframe.period, "0000-0000:1234567")
+tG = time(timeframe.period, "1800-1500")
+tH = time(timeframe.period, "1800-1500:23456")
+
+plot(isNa(tA), "A1_na_2000_0000")
+plot(secs(tA), "A2_secs_2000_0000")
+plot(isNa(tB), "B1_na_1900_0001")
+plot(secs(tB), "B2_secs_1900_0001")
+plot(isNa(tC), "C1_na_2000_0400_all")
+plot(secs(tC), "C2_secs_2000_0400_all")
+plot(isNa(tD), "D1_na_1700_0200_all")
+plot(secs(tD), "D2_secs_1700_0200_all")
+plot(isNa(tE), "E1_na_0000_0000_sun")
+plot(secs(tE), "E2_secs_0000_0000_sun")
+plot(isNa(tF), "F1_na_0000_0000_all")
+plot(secs(tF), "F2_secs_0000_0000_all")
+plot(isNa(tG), "G1_na_1800_1500")
+plot(secs(tG), "G2_secs_1800_1500")
+plot(isNa(tH), "H1_na_1800_1500_mon_fri")
+plot(secs(tH), "H2_secs_1800_1500_mon_fri")

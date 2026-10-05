@@ -1,0 +1,15 @@
+//@version=5
+indicator("UCTPROBE_VW_H10_FRAC_LENGTH_V5", overlay = false)
+
+// --- 2026-10-05 CAP6, Q-H10a (capture-queue-2026-10-04-h10.md) ----------------
+// A v5 fractional length from an input (`len / 2` = 2.5 by D04). If this does not
+// compile, the compiler's sentence and the line it names ARE the reading.
+// CAPTURE: AMEX:SPY 1D, >= 300 bars, inputs at defaults.
+
+len = input.int(5)
+plot(ta.sma(close, 2), "F00_sma2_CONTROL")
+plot(ta.sma(close, 3), "F01_sma3_CONTROL")
+plot(ta.sma(close, len / 2), "F02_sma_len_div_2")
+plot(ta.wma(close, len / 2), "F03_wma_len_div_2")
+plot(ta.highest(high, len / 2), "F04_highest_len_div_2")
+plot(close[len / 2], "F05_close_offset_len_div_2")

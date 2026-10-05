@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_VW_H10_FRAC_LENGTH_V6", overlay = false)
+
+// --- 2026-10-05 CAP6, Q-H10b (capture-queue-2026-10-04-h10.md) ----------------
+// The Q-H10a rows in v6, plus the v6 const-int quotients 5 / 2 and 7 / 2 in a
+// length slot (2.5 / 3.5 by the v6 docs). A compile error is the reading.
+// CAPTURE: AMEX:SPY 1D, >= 300 bars, inputs at defaults.
+
+len = input.int(5)
+plot(ta.sma(close, 2), "F00_sma2_CONTROL")
+plot(ta.sma(close, 3), "F01_sma3_CONTROL")
+plot(ta.sma(close, len / 2), "F02_sma_len_div_2")
+plot(ta.wma(close, len / 2), "F03_wma_len_div_2")
+plot(ta.highest(high, len / 2), "F04_highest_len_div_2")
+plot(close[len / 2], "F05_close_offset_len_div_2")
+plot(ta.sma(close, 5 / 2), "F06_sma_5_div_2")
+plot(ta.sma(close, 7 / 2), "F07_sma_7_div_2")
+plot(ta.sma(close, 4), "F08_sma4_CONTROL")
