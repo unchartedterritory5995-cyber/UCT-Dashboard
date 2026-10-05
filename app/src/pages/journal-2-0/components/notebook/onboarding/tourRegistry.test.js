@@ -16,20 +16,31 @@ import {
 import { TRACK_TOURS } from './tours'
 
 describe('the registry itself', () => {
-  it('is frozen, non-empty, and every entry has exactly these fields', () => {
+  it('is frozen, non-empty, and every entry has exactly these fields (plus the optional `start`)', () => {
     expect(Object.isFrozen(TOUR_REGISTRY)).toBe(true)
     expect(TOUR_REGISTRY.length).toBeGreaterThan(0)
     for (const t of TOUR_REGISTRY) {
       expect(Object.isFrozen(t), `${t.id} is not frozen`).toBe(true)
-      // the five required fields, plus `start` where an entry declares one (tours/index.js)
-      expect(Object.keys(t).filter((k) => !OPTIONAL_FIELDS.includes(k)).sort())
+      // The five required fields, plus `start` where an entry declares one (tours/index.js;
+      // W14-B1, B2 and B3 each wrote this exception; reconciled at integration). The list
+      // of optional fields is read from the module AND pinned below, so widening it is a
+      // visible edit here, never a silent way to let an unknown key through.
+      expect(Object.keys(t).filter((k) => !OPTIONAL_FIELDS.includes(k)).sort(), `${t.id} fields`)
         .toEqual(['flag', 'id', 'load', 'replayable', 'title'])
+      if ('start' in t) {
+        expect(typeof t.start === 'string' && (t.start === NOTEBOOK_ROOT || t.start.startsWith(`${NOTEBOOK_ROOT}/`)
+          || t.start.startsWith(`${NOTEBOOK_ROOT}?`)), `${t.id} start ${JSON.stringify(t.start)} is not under ${NOTEBOOK_ROOT}`).toBe(true)
+      }
       expect(typeof t.id).toBe('string')
       expect(typeof t.flag).toBe('string')
       expect(typeof t.title).toBe('string')
       expect(typeof t.replayable).toBe('boolean')
       expect(typeof t.load).toBe('function')
     }
+  })
+
+  it('`start` is the ONLY optional field', () => {
+    expect([...OPTIONAL_FIELDS]).toEqual(['start'])
   })
 
   it('ids are unique', () => {
@@ -79,18 +90,58 @@ describe('replayableTours', () => {
     expect(replayableTours(fake).map((t) => t.id)).toEqual(['a', 'c'])
   })
 
-  it('the real registry: every entry is replayable except a passive explainer of 1 to 2 steps', async () => {
-    // Plan 4.2 row 21 (W14-B3): `note-resurfaces` is the one passive explainer, not a
-    // stepper, so it is the one entry Help does not list. Any other non-replayable
-    // entry is a stepper Help would silently hide.
+  it('the real registry: an entry Help does not list is a 1-2 step passive explainer, never a stepper', async () => {
+    // Plan 4.2 row 21 (W14-B3): `note-resurfaces` is a passive explainer, not a stepper, so
+    // Help does not list it. Any non-replayable entry must be such an explainer; a hidden
+    // 3+ step tour is a stepper Help would silently hide (the step budget below fails it by
+    // name too). Non-vacuity: today exactly one such entry exists.
     const hidden = TOUR_REGISTRY.filter((t) => !t.replayable)
     expect(hidden.map((t) => t.id)).toEqual(['note-resurfaces'])
-    for (const t of hidden) {
-      const { steps } = await t.load()
-      expect(steps.length, `${t.id} is not a 1-2 step explainer`).toBeGreaterThanOrEqual(1)
-      expect(steps.length, `${t.id} is not a 1-2 step explainer`).toBeLessThanOrEqual(2)
-    }
     expect(replayableTours().length).toBe(TOUR_REGISTRY.length - hidden.length)
+  })
+})
+
+// ── the step budget (plan G2 + section 4.2 row 21; added at integration) ──────────────
+// A capability tour is 3 to 6 steps; a `replayable: false` passive explainer is 1 to 2.
+// The base tour (wave 8, `notebook-basics`) predates the budget and is held to zero drift
+// by reference equality above, so it is the ONE exception, and only by its id.
+function stepBudgetViolation(entry, steps) {
+  const n = Array.isArray(steps) ? steps.length : 0
+  const [lo, hi, kind] = entry.replayable ? [3, 6, 'a replayable tour'] : [1, 2, 'a replayable:false explainer']
+  return n >= lo && n <= hi ? null : `${entry.id}: ${n} steps; ${kind} must have ${lo}-${hi}`
+}
+
+describe('every registered tour keeps the step budget', () => {
+  const budgeted = TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID)
+
+  it('NON-VACUITY: the wave-14 tours are in the registry, both kinds', () => {
+    expect(budgeted.length).toBeGreaterThanOrEqual(20)
+    expect(budgeted.some((t) => t.replayable)).toBe(true)
+    expect(budgeted.some((t) => !t.replayable)).toBe(true)
+  })
+
+  it('all tours: no violations (failing lists every offender by name)', async () => {
+    const bad = []
+    for (const t of budgeted) {
+      const { steps } = await t.load()
+      const v = stepBudgetViolation(t, steps)
+      if (v) bad.push(v)
+    }
+    expect(bad, `step budget broken: ${bad.join('; ')}`).toEqual([])
+  })
+
+  it('CONTROLS: the rule fails on each edge, by name', () => {
+    const steps = (n) => Array.from({ length: n }, (_, i) => ({ id: `s${i}` }))
+    const rep = { id: 'ctl-tour', replayable: true }
+    const exp = { id: 'ctl-explainer', replayable: false }
+    expect(stepBudgetViolation(rep, steps(2))).toMatch(/^ctl-tour: 2 steps/)
+    expect(stepBudgetViolation(rep, steps(3))).toBeNull()
+    expect(stepBudgetViolation(rep, steps(6))).toBeNull()
+    expect(stepBudgetViolation(rep, steps(7))).toMatch(/^ctl-tour: 7 steps/)
+    expect(stepBudgetViolation(exp, steps(0))).toMatch(/^ctl-explainer: 0 steps/)
+    expect(stepBudgetViolation(exp, steps(2))).toBeNull()
+    expect(stepBudgetViolation(exp, steps(3))).toMatch(/^ctl-explainer: 3 steps/)
+    expect(stepBudgetViolation(rep, undefined)).toMatch(/^ctl-tour: 0 steps/)
   })
 })
 

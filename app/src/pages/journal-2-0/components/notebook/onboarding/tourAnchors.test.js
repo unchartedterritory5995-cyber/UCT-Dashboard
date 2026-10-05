@@ -91,7 +91,7 @@ describe('every step\'s anchor is in its named file (lane 8A cannot delete one s
 
   it('every data-tour in those files is a literal AND some step of a registered tour names it IN THAT FILE (no orphan, no expression)', () => {
     const strays = FILES.flatMap((f) => FOUND[f].filter((a) => !DECLARED_IN[f]?.has(a)).map((a) => `${f}: ${a}`))
-    expect(strays, 'an anchor no step names is an attribute nobody reads; an expression evades this rail').toEqual([])
+    expect(strays, `an anchor no step names in its file is an attribute nobody reads; an expression evades this rail: ${strays.join('; ')}`).toEqual([])
   })
 })
 
