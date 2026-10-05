@@ -776,7 +776,9 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # record and its reading (curve-d22-q2.log, curve-d22-q2-box.txt, README-quiet.md). 56 + 3 = 59.
     # Wave 12, lane 12C phase 2 (2026-10-02): G-003/G-045/G-121 cite 12D's sandbox walk report and G-026 cites
     # 12B's template walk 5. 59 + 2 = 61.
-    assert len(paths) == 61, (len(paths), paths)
+    # Wave 15, lane W15-SC (2026-10-04): G-041 and G-153 now cite lane W15-UCT's browser-pass report
+    # (one new path, cited by both rows). 61 + 1 = 62.
+    assert len(paths) == 62, (len(paths), paths)
     for p in ('docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json',
               'docs/notebook/evidence/wave12-12b/walk-5.json'):
         assert p in paths, p

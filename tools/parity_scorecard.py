@@ -97,6 +97,9 @@ PROOF = 'docs/notebook/proof'                                          # 10E-1 +
 KBD_F4 = 'docs/notebook/evidence/a11y-f4-keyboard-2026-09-27/walk-all.json'   # the keyboard re-walk (F4)
 KBD_TOOL = 'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'
 W10C = 'docs/notebook/evidence/wave10-10c'
+# ── wave 15, lane W15-UCT: the browser pass for G-041 (capture) and G-153 (reminders), applied by W15-SC ──
+W15_UCT_WALK = 'docs/notebook/gate-runs/wave15/walk-uct-674012eb1.json'
+W15_UCT_WALK_TOOL = 'tools/notebook_w15_uct_walk.py'
 W10D = 'docs/notebook/evidence/wave10-10d'
 
 # ── the quote bank: key -> (page id, verbatim quote <= 25 words), cut 2026-09-26 ──
@@ -803,6 +806,39 @@ QUOTES = {
  "O_outlinedrag": [
   "obsidian__Plugins_Outline_md__w12c",
   "To rearrange sections in the note, click and drag the heading within the outline."
+ ],
+ # ── wave 15, lane W15-SC (integrator): quotes from the N/E/O research proposals (R20), cut 2026-10-04 ──
+ "N_qarefuse": [
+  "notion__understanding_how_q_and_a_finds_answers_can_help_you_get_better_results",
+  "If you ask about topics that aren't explicitly covered in your workspace, Q&A won't return a result."
+ ],
+ "N_touchundo": [
+  "notion__writing_and_editing_basics_w15",
+  "Undo/Redo: Take back your last action on a page, or reinstate it."
+ ],
+ "N_sidepeek": [
+  "notion__views_filters_and_sorts_w15",
+  "Side peek: Open pages on the right side of the database. The rest of the database view continues to be interactive on the left."
+ ],
+ "N_dailytemplate": [
+  "notion__database_templates_w15",
+  "Repeating database templates automatically create a copy of a template in your database however often you would like."
+ ],
+ "O_crashsafe": [
+  "obsidian__Plugins_File_recovery_md",
+  "File recovery is a core plugin that protects your work from accidental deletions, file corruption, or unwanted changes"
+ ],
+ "O_recents": [
+  "obsidian__Plugins_Quick_switcher_md",
+  "If the search term is empty, the Quick switcher shows the most recent notes."
+ ],
+ "O_searchlimit": [
+  "obsidian__Plugins_Search_md",
+  "Obsidian only searches the contents of notes and canvases."
+ ],
+ "O_sandbox": [
+  "obsidian__getting_started__sandbox_vault",
+  "Obsidian’s sandbox vault is a feature that lets you explore various functionalities without affecting your existing data."
  ]
 }
 
@@ -1871,6 +1907,52 @@ SOURCES = {
   "sha256": "114f299e96fe1bae5d6b75175ee45bad4002e1ebd966a7389a3ca188bfca493b",
   "fetched_utc": "2026-10-02T16:34:19Z",
   "rrow": "R18"
+ },
+ # ── wave 15, lane W15-SC (integrator): pages from the N/E/O research proposals (R20), fetched 2026-10-04 ──
+ "notion__understanding_how_q_and_a_finds_answers_can_help_you_get_better_results": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/guides/understanding-how-q-and-a-finds-answers-can-help-you-get-better-results",
+  "read_from": "https://www.notion.com/help/guides/understanding-how-q-and-a-finds-answers-can-help-you-get-better-results",
+  "status": 200,
+  "sha256": "a6688375cb9f459377c12e3c84f89a901f5d031bf8c9a09178aeb1aa2105a492",
+  "fetched_utc": "2026-10-04T15:08:00Z",
+  "rrow": "R20"
+ },
+ "notion__writing_and_editing_basics_w15": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/writing-and-editing-basics",
+  "read_from": "https://www.notion.com/help/writing-and-editing-basics",
+  "status": 200,
+  "sha256": "032c0f4847ea4f20cbdb765067c8a85cd23f74eceb8c315c7df87a500c928aa8",
+  "fetched_utc": "2026-10-04T15:08:00Z",
+  "rrow": "R20"
+ },
+ "notion__views_filters_and_sorts_w15": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/views-filters-and-sorts",
+  "read_from": "https://www.notion.com/help/views-filters-and-sorts",
+  "status": 200,
+  "sha256": "ca9055b78a059971493d984cf11269ad3b7471695789a82c298695a3066548af",
+  "fetched_utc": "2026-10-04T15:08:00Z",
+  "rrow": "R20"
+ },
+ "notion__database_templates_w15": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/database-templates",
+  "read_from": "https://www.notion.com/help/database-templates",
+  "status": 200,
+  "sha256": "06ca4f4fdf2cb06d6190a6395aa9cc3dcffa74e2ffee530594b393b6763fb2cf",
+  "fetched_utc": "2026-10-04T15:08:00Z",
+  "rrow": "R20"
+ },
+ "obsidian__getting_started__sandbox_vault": {
+  "vendor": "obsidian",
+  "public_url": "https://help.obsidian.md/sandbox",
+  "read_from": "https://help.obsidian.md/sandbox",
+  "status": 200,
+  "sha256": "f60decc353992abb4eb8ac0517e85210c0b4d02065b718e8542a905b7b85d2fe",
+  "fetched_utc": "2026-10-04T14:48:00Z",
+  "rrow": "R20"
  }
 }
 
@@ -2226,6 +2308,11 @@ W12C2_TAG = 'notebook-wave12-C2-2026-10-02'
 # clause and no gap-ledger row moves this pass; the tag exists so a future lane that DOES move one can
 # cite 'wave 13' the way 12C2 cites 'wave 12 C2'.
 WAVE13SC_TAG = 'notebook-wave13-landing-2026-10-03'
+# Integrator W15-SC, 2026-10-04: the UCT-side browser pass for G-041/G-153 (lane W15-UCT), tagged at
+# this worktree's own tip so its evidence file can be proved unchanged since this re-score, the same
+# way 'wave 12 C2' and 'wave 13' are. Also the B0_TIPS anchor for tip 674012eb1 (fix round 1, review
+# I-3: no measured tree leans on literal HEAD, which a squash would leave behind).
+WAVE15SC_TAG = 'notebook-wave15-sc-2026-10-04'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -2256,6 +2343,7 @@ B0_WAVES = (
     ('wave 10 QR', QR_TIP_TAG, 'f09727453', '88e68c94e'),
     ('wave 12 C2', W12C2_TAG, None, None),
     ('wave 13', WAVE13SC_TAG, None, None),
+    ('wave 15', WAVE15SC_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -2367,6 +2455,8 @@ B0_EVIDENCE = (
     ('docs/notebook/perf-runs/ty8/ab/A4.json', 'wave 12 C2'),
     ('docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json', 'wave 12 C2'),
     ('docs/notebook/evidence/wave12-12b/walk-5.json', 'wave 12 C2'),
+    # Integrator W15-SC, 2026-10-04: lane W15-UCT's browser pass (G-041, G-153).
+    (W15_UCT_WALK, 'wave 15'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2387,6 +2477,7 @@ B0_TIPS = (
     ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
     ('4d2a4edfa', L13_TIP_TAG),                        # lane G62's consensus walk, run 3
     ('1ad04a0383', W12C2_TAG),                         # 12D's sandbox walk (G-003, G-045)
+    ('674012eb1', WAVE15SC_TAG),                       # W15-UCT's browser pass (G-041, G-153)
 )
 _PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
 
@@ -2893,6 +2984,10 @@ def build(pages_dir=None):
     def walk12d(cid, want='PASS'):
         return walk_at('tools/notebook_w12d_walk.py', W12D_WALK, '1ad04a0383', cid, want)
 
+    # Wave 15, lane W15-UCT: G-041 (capture dialog) and G-153 (reminder end-to-end), tree 674012eb1.
+    def walk15uct(cid, want='PASS'):
+        return walk_at(W15_UCT_WALK_TOOL, W15_UCT_WALK, '674012eb1', cid, want)
+
     def kbd(cid, want):
         return walk_at(KBD_TOOL, KBD_F4, '0555889ef', cid, want)
 
@@ -3304,9 +3399,11 @@ def build(pages_dir=None):
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named. '
       'Evernote: its security page, re-fetched' + R18 + ', states infrastructure encryption at rest for the data it stores '
       '(wave 9 read it as in transit and for secrets only).')
-    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 226, 'const DRAFT_KEY')],
-      {'N': NFN, 'E': ['E_offline'], 'O': NFO},
-      'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
+    R('G-005', ('NV', 'NV', 'P'), [code(f'{NB}/NoteEditorPage.jsx', 226, 'const DRAFT_KEY')],
+      {'N': NFN, 'E': ['E_offline'], 'O': ['O_crashsafe']},
+      'No Notion page fetched today describes a crash-draft safety net; the draft restore itself was not driven. '
+      'Obsidian\'s File recovery core plugin states the same protective intent (automatic snapshots), PARITY as '
+      'named even though the mechanism (periodic snapshot vs. per-keystroke localStorage) differs (R20). ' + UI_NOT)
     # Search / Retrieval
     R('G-010', 'P', [code(NS, 1481, 'exact_ticker'), walk9('B20_more_older_rows')],
       {'N': ['N_searchfilter'], 'E': ['E_search'], 'O': ['O_search']},
@@ -3400,11 +3497,14 @@ def build(pages_dir=None):
     # Capture
     R('G-040', 'NA', [D(8, 'G-040: stays descoped')], {'N': NA, 'E': NA, 'O': NA},
       'Internal UCT capture coverage (widgets into the Notebook); descoped by the owner.')
-    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note')], {'N': NFN, 'E': ['E_clipcomment'], 'O': NFO},
-      'The capture dialog was not driven, so no verdict against any competitor; Evernote\'s Web Clipper guide states a '
-      'comment added before the clip' + R18 + '. ' + UI_NOT,
-      'drive the capture dialog in a browser pass (UCT side); N: a page that states it (next R-row); O: a page that '
-      'states it (next R-row)')
+    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note'), walk15uct('G041_capture_desktop_1200'),
+                      walk15uct('G041_capture_mobile_390')],
+      {'N': NFN, 'E': ['E_clipcomment'], 'O': NFO},
+      'Wave 15 (lane W15-UCT) drove the source-capture dialog at 1200 and 390px: the "Your note" annotation field '
+      'round-tripped through the real POST /api/j2/capture response and was found verbatim, correctly attributed, by '
+      'the excerpt search. The widget-capture path (CaptureMenu.jsx) stays on a code read only (ledger: DONE, '
+      'verified live 2026-09-22). Evernote\'s Web Clipper guide states a comment added before the clip' + R18 +
+      '; no verdict against Notion or Obsidian, neither of which has a page fetched that states one.')
     R('G-042', 'NA', [code(f'{JT}/note_trade_links.py', 68, 'def resolve_trade_ref(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (trade references).')
     R('G-043', 'BO', [code('extension/manifest.json', 3, '"name": "UCT Browser Capture",'),
@@ -3535,21 +3635,27 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
-      {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
+    R('G-110', ('P', 'NV', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
+      {'N': ['N_favorites'], 'E': EB, 'O': ['O_recents']},
+      'B17: the research home shows Continue working. Obsidian\'s Quick switcher states an MRU recents surface when '
+      'the search term is empty (R20) -- a flat recents list, not the synthesized Continue working/Active theses '
+      'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
     R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 34, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
-    R('G-113', 'NV', [code(f'{JT}/db.py', 1202, 'j2_note_document_pages_fts'), walk9('B29_pdf_upload_preview_search'),
+    R('G-113', ('NV', 'NV', 'A'), [code(f'{JT}/db.py', 1202, 'j2_note_document_pages_fts'), walk9('B29_pdf_upload_preview_search'),
                       code(f'{LB}/bestMatches.js', 28, 'export const RRF_K = 60'), walk10('B4_best_matches')],
-      {'N': NFN, 'E': ['E_searchimg'], 'O': NFO},
+      {'N': NFN, 'E': ['E_searchimg'], 'O': ['O_searchlimit']},
       'B29: a word inside the uploaded PDF was found by the sidebar search, in its own "1 DOCUMENT PAGE" section naming '
       'the file and p.1; since wave 10 a "Best matches" group fuses the top rows of every section above them (L1a B4). '
-      'Evernote searches inside documents too, but whether its results are page-aware and sectioned is not evidenced '
-      'by the fetched text, so no verdict.')
+      'Obsidian\'s Search plugin page states its scope as notes and canvases only (R20) -- an explicit limit naming '
+      'what is excluded (attachments, incl. PDFs), so AHEAD. Evernote searches inside documents too, and its own '
+      'page describes the matched line being shown in the ordinary note list -- that describes how a match is '
+      'DISPLAYED, not a stated limit on page-aware sectioning, so it is an inference rather than a page stating the '
+      'limit (unlike Obsidian\'s), and stays no verdict.')
     R('G-114', 'NA', [code(f'{JT}/ticker_research.py', 140, 'def _documents_for_symbols(')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-115', 'NA', [code(f'{JT}/db.py', 1102, 'j2_note_documents')], {'N': NA, 'E': NA, 'O': NA}, 'An internal model row.')
     R('G-116', 'NA', [code(f'{JT}/db.py', 1251, 'j2_note_excerpts')], {'N': NA, 'E': NA, 'O': NA},
@@ -3579,12 +3685,14 @@ def build(pages_dir=None):
       'Both cite sources; that UCT\'s citation is a verified location and Notion\'s is page-level is not evidenced by the '
       'fetched text, so no AHEAD. Evernote\'s replies name the notes used' + R18 + ' (note-level), the same gap.',
       'O: a page that states it (next R-row); N and E: a page that states where inside a source a citation points')
-    R('G-124', 'NV', [code(f'{JT}/ask_ranking.py', 212, 'def answer_evidence('), test_py('tests/test_ask_evidence.py')],
-      {'N': NFN, 'E': ['E_aifallback'], 'O': NFO},
-      'Refusal is railed. Evernote\'s page' + R18 + ' says that when the notes cannot answer, the assistant may suggest its '
-      'built-in knowledge or a web search: whether that is a refusal is not stated, so no Evernote verdict.',
-      'N: a page that states it (next R-row); O: a page that states it (next R-row); E: a ruling on whether a suggested '
-      'fallback is a refusal')
+    R('G-124', ('P', 'NV', 'NV'), [code(f'{JT}/ask_ranking.py', 212, 'def answer_evidence('), test_py('tests/test_ask_evidence.py')],
+      {'N': ['N_qarefuse'], 'E': ['E_aifallback'], 'O': NFO},
+      'Refusal is railed. Notion\'s own Q&A guide states it will not return a result when a topic is not explicitly '
+      'covered by the workspace (R20), matching UCT\'s refuse-when-unsupported behavior -- PARITY, though the guide '
+      'says nothing about whether a model call still runs to produce that refusal, so "and not paying a model to do '
+      'it" stays a UCT-only claim. Evernote\'s page' + R18 + ' says that when the notes cannot answer, the assistant may '
+      'suggest its built-in knowledge or a web search: whether that is a refusal is not stated, so no Evernote verdict.',
+      'O: a page that states it (next R-row); E: a ruling on whether a suggested fallback is a refusal')
     R('G-125', ('P', 'NV', 'NV'), [code(f'{JT}/ask_prompt.py', 167, 'def system_prompt() -> str:'),
                                   test_py('tests/test_ask_prompt_injection.py')],
       {'N': ['N_injection'], 'E': EB, 'O': NFO},
@@ -3647,12 +3755,13 @@ def build(pages_dir=None):
       {'N': ['N_headings'], 'E': ['E_headings'], 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six. Evernote\'s own '
       'list of its text styles stops at H4' + R18 + ', the limit stated on its page, so AHEAD as for Notion.')
-    R('G-144', ('NV', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', ('P', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
-      {'N': NFN, 'E': ['E_undo'], 'O': NFO},
+      {'N': ['N_touchundo'], 'E': ['E_undo'], 'O': NFO},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
       'B10 reached Undo after 60 lines. Evernote states an Undo button in its editing toolbar that is clicked or '
-      'tapped' + R18 + '; no Notion or Obsidian page fetched states a touch undo.')
+      'tapped' + R18 + '; Notion\'s own page states the same control is reachable from the on-mobile ••• menu (R20). '
+      'No Obsidian page fetched states a touch undo.')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
     R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 52, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
@@ -3673,18 +3782,33 @@ def build(pages_dir=None):
       'B11: a locked note\'s editor is not editable. Notion locks a page; Evernote\'s edit protection (mobile) opens a '
       'note read-only' + R18 + '. No Obsidian page fetched states a lock.')
     R('G-152', ('NV', 'NV', 'P'), [code(f'{LB}/splitView.js', 2, 'split view'), walk9('B12_split_view')],
-      {'N': NFN, 'E': EB, 'O': ['O_tabs']}, 'B12: two editors mounted side by side.')
+      {'N': ['N_sidepeek'], 'E': EB, 'O': ['O_tabs']},
+      'B12: two editors mounted side by side. Notion\'s own page states a "Side peek" (R20): checked and NOT a match '
+      '-- controller ruling, 2026-10-04 -- it opens a page beside a DATABASE VIEW, continuing to show that view '
+      'interactive on the left, not a second arbitrary note opened beside the first the way UCT\'s split view and '
+      'Obsidian\'s tabs both are; stays NOT-VERIFIED rather than PARITY.')
     R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
-                      walk7('W11_reminders')],
+                      walk7('W11_reminders'), walk15uct('G153_reminder_delivered_server'),
+                      walk15uct('G153_reminder_bell_mobile_390')],
       {'N': ['N_remind'], 'E': ['E_tasks'], 'O': NFO},
-      'A reminder has never been observed arriving (wave-6 and wave-7 walks INCONCLUSIVE). ' + UI_NOT,
-      'observe one reminder end to end')
+      'Wave 15 (lane W15-UCT) observed a reminder end to end on a real sandbox, where wave-6 and wave-7\'s walks were '
+      'INCONCLUSIVE (no reachable trigger): a seeded overdue task\'s reminder landed on the real GET /api/alerts 48.7s '
+      'after seeding, shaped exactly as note_tasks.reminder_copy declares, and was read correctly off the real bell '
+      '-- title, message, unread badge, click-through to /journal/notebook?view=tasks. There is no bell at 1200 px to '
+      'drive: NavBar.jsx carries only a comment that the desktop bell was removed by owner request (2026-09-02) and '
+      '<AlertBell/> mounts only from MobileNav.jsx, so the touch-width check is the only UI check this row can have. '
+      'The dropdown itself clips at the right edge at 390 px (a pre-existing AlertBell.module.css finding, not '
+      'Notebook-owned, not fixed here); the notification\'s own text was still fully readable and content-matched.')
     R('G-154', ('P', 'P', 'NV'), [code(f'{NB}/NoteTasksView.jsx', 9, 'Tasks across notes'), walk9('B09_list_views_bulk')],
       {'N': ['N_tasks'], 'E': ['E_taskview'], 'O': NFO})
     R('G-155', 'P', [code(f'{LB}/memberTemplates.js', 2, "the member's OWN templates"), walk9('B11_organise')],
       {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, 'B11: "Save as template" on the note.')
-    R('G-156', ('NV', 'P', 'P'), [code(f'{LB}/dailyNote.js', 2, "the member's daily note"), walk9('B11_organise')],
-      {'N': NFN, 'E': ['E_daily'], 'O': ['O_daily']}, 'B11: Today opened a note.')
+    R('G-156', ('P', 'P', 'P'), [code(f'{LB}/dailyNote.js', 2, "the member's daily note"), walk9('B11_organise')],
+      {'N': ['N_dailytemplate'], 'E': ['E_daily'], 'O': ['O_daily']},
+      'B11: Today opened a note. Notion\'s own page states a repeating database template can recreate a copy on a set '
+      'interval, including daily (R20) -- the functional equivalent of UCT\'s one-note-per-member-per-day design, the '
+      'same way the scorecard already treats Notion subpages as PARITY for nested folders despite a different '
+      'underlying mechanism.')
     R('G-157', 'D10', [D(10, 'folders + links + backlinks')], {'N': ['N_subpage'], 'E': EB, 'O': NFO},
       'Recorded scope, not an oversight.')
     R('G-158', ('P', 'NV', 'NV'), [code(f'{NB}/RelationPropertyValue.jsx', 33, 'export default function RelationPropertyValue'),
@@ -3758,11 +3882,14 @@ def build(pages_dir=None):
                       code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'),
                       test_vt('app/src/lib/errorBeacon.test.js')], {'N': NA, 'E': NA, 'O': NA},
       'An operability row; standard #15 scores it (wave 10, 10D: the core-action events and the SLOs).')
-    R('G-171', ('P', 'NV', 'NV'), [code('app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js', 1, 'The sample notebook'),
+    R('G-171', ('P', 'NV', 'P'), [code('app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js', 1, 'The sample notebook'),
                                   flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')],
-      {'N': ['N_onboard'], 'E': EB, 'O': NFO},
+      {'N': ['N_onboard'], 'E': EB, 'O': ['O_sandbox']},
       'B14: a fresh member got the "Welcome to your Notebook" tour and a sample-notebook offer; Notion documents '
-      'onboarding that adds starter templates.')
+      'onboarding that adds starter templates. Obsidian\'s own page states an always-available sandbox vault for '
+      'exploring the app risk-free (R20) -- the same "try it without touching your real notes" role as a sample '
+      'notebook, though it is not a scripted, in-app first-run tour the way UCT\'s eight-step walkthrough is; '
+      'PARITY as named.')
     R('G-172', ('P', 'P', 'P'), [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
       {'N': ['N_help'], 'E': ['E_help'], 'O': ['O_help']},
       'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre answered R18\'s fetch '
