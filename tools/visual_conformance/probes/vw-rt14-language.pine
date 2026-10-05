@@ -1,0 +1,101 @@
+//@version=5
+// RT14 probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-04-rt14-language.md
+// Each row is ONE plot, titled by its id. Values are read per bar.
+indicator("vw-rt14-language", overlay = false, max_bars_back = 500)
+
+// B01-B03: a never-mutated ROOT binding read where it has no slot (support-and-resistance's shape)
+float top = ta.valuewhen(high >= ta.highest(high, 5), high, 0)
+plot(ta.change(top), "B01 change(valuewhen binding)")
+float r1 = na
+if close < open
+    r1 := top
+plot(r1, "B02 stateful binding read in a block")
+float ltr = ta.change(top) != 0 ? na : top
+bool isNew = ta.change(fixnan(ltr)) != 0
+float r2 = na
+if not na(ltr)
+    if isNew
+        r2 := ltr
+plot(r2, "B03 binding chain read in nested blocks")
+
+// V01-V03: `var x = if|switch` initialises once (first bar), unmatched is na
+var float v1 = if close > open
+    close
+else
+    -1.0
+plot(v1, "V01 var = if")
+var float v2 = switch
+    close > open => 1.0
+    => 2.0
+plot(v2, "V02 var = switch")
+var float v3 = if close > 1e9
+    close
+plot(v3, "V03 var = if unmatched")
+
+// F01-F02: a function ending in an `if` run for its effect, called on its own line
+var a = array.new_float()
+push_up(x) =>
+    if x > x[1]
+        array.push(a, x)
+push_up(close)
+plot(array.size(a), "F01 effect-if function")
+var b = array.new_float()
+push_b(x) =>
+    if x > 0
+        array.push(b, x)
+outer(x) =>
+    if x > open
+        push_b(x)
+outer(close)
+plot(array.size(b), "F02 caller ending in a valueless call")
+
+// W01: an `if` arm whose value is a switch (fvg-detector's shape); W02: no default -> na
+float w1 = if close > open
+    switch
+        close - open > ta.atr(14) => 2.0
+        => 1.0
+else
+    0.0
+plot(w1, "W01 if-arm switch")
+float w2 = if close > open
+    switch
+        close - open > ta.atr(14) => 2.0
+else
+    0.0
+plot(w2, "W02 if-arm switch no default")
+
+// T01: `float[] a` in a function header; A01-A02: an array field of a user type
+total(float[] q) =>
+    float s = 0.0
+    for i = 0 to array.size(q) - 1
+        s += array.get(q, i)
+    s
+var float[] xs = array.new_float()
+array.push(xs, close)
+if array.size(xs) > 3
+    array.shift(xs)
+plot(total(xs), "T01 float[] parameter")
+type Holder
+    float[] vals
+var Holder h = Holder.new(array.new_float())
+h.vals.push(close)
+if h.vals.size() > 5
+    h.vals.shift()
+float hs = 0.0
+for v in h.vals
+    hs += v
+plot(hs, "A01 for-in over a field")
+plot(h.vals.size(), "A02 method form on a field")
+
+// M01: math.max / math.min with three arguments over runtime state
+var float m = 0.0
+m := math.max(high, close + 1, nz(m[1]) - 1)
+plot(m, "M01 math.max(3) over state")
+
+// P01: varip on CLOSED bars (the queue question: equal to `var` on every historical bar?)
+varip int vip = 0
+vip += 1
+var int vv = 0
+vv += 1
+plot(vip, "P01 varip count")
+plot(vv, "P00 var count control")

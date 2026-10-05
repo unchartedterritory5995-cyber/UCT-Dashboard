@@ -195,6 +195,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+| RT14 | RT14 core language completeness on the runtime lane (section RT14): `T[] name` headers; a never-mutated root binding read where it has no slot (or a stateful one read in a block) is the every-bar variable; v1-v4 variadic `max`/`min` (host + runtime) and `math.max/min` with 3+ args over state; `var x = if|switch` once; a function ending in an effect `if` / a field write is valueless; an `if` arm may yield a `switch`; array-typed UDT fields; a record's type through a user call and a global `array<T>` | `2f962978fc`..`874f7855bd` | 4 touched captures byte-identical | - | census runtime 102 -> **106** (blackflag-fts, fvg-detector-tradingfinder, kalman-psar-backquant, support-and-resistance `__1505`; all uncaptured, Q-RT14), off / on 58 / 83 unchanged, 0 lost |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7932,3 +7933,74 @@ Mutations (pine.js bytes captured and restored, sha verified):
   `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
+
+## RT14 - core language completeness on the runtime lane (2026-10-04, step RT14)
+
+Branch `pine/rt14-language`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane still
+dark; `runtime/limits.js` untouched. Concurrent lanes RT11 (builtins), RT12 (statements / history
+access), RT13 (requests / inputs / doors): their families were left alone.
+
+### Step 1 - each family script's exact construct and its next wall
+
+Measured by a scratch probe through `enterMemberDoor` (runtime state, libraries loaded, never
+committed), with in-memory substitutions for the NEXT wall. Several first walls had already moved
+on the wave-17 tip (trendline-pivots-quantvue attaches; cvd-candles / delta-volume-candles stop in
+their imported libraries' `timeframe.from_seconds` / `str.tostring`).
+
+| script | refused construct | next wall (substitution) | taken? |
+|---|---|---|---|
+| kalman-psar-backquant | `f(float []a) =>` header | none - attaches | **yes** |
+| blackflag-fts | v4 `max(a, b, c)` (`pine:arity`) | none - attaches | **yes** |
+| support-and-resistance (`__1505`) | `ta.change(top)` over a never-mutated `ta.valuewhen` binding; the same bindings read in nested `if` blocks | none - attaches | **yes** |
+| fvg-detector-tradingfinder | `x = if … else if …` + `switch` (an `if` arm yielding a `switch`); `FVGDetector` ending in an effect `if` | none - attaches (drawing-only, own objects) | **yes** |
+| delta-imbalance-map-joat | `var tablePos = switch …` | `pine:request` (`request.security_lower_tf`, RT13) | yes (wall) |
+| double-topbottom-ultimate-os | `max_bars_back(high, 1000)` (C18's ruling keeps a bound below 5000 refused); `add_to_array` ends in an effect `if` | `runtime:conditional-history` (RT12) | effect-`if` yes; directive kept |
+| candelacharts-equal-highslows-eqheql | `for obj in store.ehl_ln` (a `line []` UDT field) | `obj.delete()` on a for-in drawing element / a comma line in a `switch` arm | yes (wall) |
+| breaks-and-retests-hg | `drawBox.set_extend()` on a `var box` local; `ta.change(pl)` over a root binding | `runtime:colour` (`color.new(color, 90)`, a colour parameter) | root binding yes; method form not |
+| range-filter-dw | `array.fill` | `pine:text-value` (v4 text `input(options)`, RT13) | no (completes nothing) |
+| smart-money-concept-tradingfinder | `array.insert` | `runtime:history-expression` (RT12) | no |
+| one-sided-gaussian-…-loxx | `matrix.new` | matrix family (not measured further) | no |
+| linear-regression-channel-200 | `max_bars_back(close, 1500)` | `chart.point.new` (RT11) | no |
+| fibonacci-retracement-statistics | `int(str.tonumber(…))` | `str.tonumber` text (RT11) | no |
+| bull-vs-bear-…-kioseff | library `method delete` declared for several receiver types | needs receiver typing | no |
+| bolingger-bands-inside-bar-boxes, inside-bar-boxes, ema-92150 | `varip` | H6: `pine:state` / install budget (0 of 3 attach) | refused; Q-RT14b |
+| mgi-levels-suite, one-indicator-multiple | non-literal parameter defaults | `dayofweek()` clock / `str.format` | no |
+| trendlinesample | `sup[…]` in a block (`runtime:conditional-history`) | RT12 | no |
+| relative-volume-at-time | `input(MD1, options = …)` | RT13 | no |
+| the `pine:collection` / `pine:block` / `pine:text-value` / `pine:undefined` / `pine:role-order` rows | host-resolver sentences inside the runtime lane (collection literals, `switch` in an expression, text inputs, a library's undefined name, `ta.cci`'s role) | RT11 / RT13 | no |
+
+### Step 2 - walls taken (one commit each)
+
+| wall | commit | rule | rails / mutations |
+|---|---|---|---|
+| `T[] name` in a function header | `2f962978fc` | a header's `T [ ] name` is the lexer's `array<T> name` token (only an empty `[ ]` between two words, only a definition header) | 4; fold off 3 red |
+| a root binding with no slot | `e4490e1b54`, `253b3aa197` | a never-mutated ROOT binding (an `env` macro) is Pine's every-bar variable: when `ta.change` needs its slot, or a STATEFUL one (resolver `statefulTree`, else a Pine twin through its bindings) is read in a block, it is lowered in the root context and declared at the end of the root list as it stands (a macro reads no slot, so its position in the bar is immaterial), once; never from a frame, a request, or a block-local binding | 6; each clause red (hook 2, in-block 2, one-slot 1, root flag 1, twin fallback 1) |
+| variadic `max` / `min` | `253b3aa197` | v1-v4 bare `max`/`min` resolve as `math.max`/`math.min` (`variadicFold`, the vendor-pinned left fold) on the host lane; on the runtime lane `math.max`/`min` (and the v4 bare spelling) with 3+ arguments fold before the route decision (bare refused "takes 2 arguments", `math.max` threw inside the column resolver) | 7; legacy route 2 red, runtime fold 1 red, name check 1 red (v4 `round(x, 2)` still `pine:arity`) |
+| `var x = if` / `var x = switch` | `62d7b72006` (+ re-pin `44300f8dd8`) | the variable declared `na` once, a persistent flag declared `0` once, the chain (the binding form's arms) run only while the flag is 0 | 4 + 2 re-pinned; flag never set / not persistent / variable not persistent: 3 red each |
+| effect-`if` function; `if` arm yielding `switch` | `56cc643d5e` | `armYields` / `chainYields` state exactly the shapes `armAssignerFor` lowers; a trailing chain that does not yield (a write, a void collection call, a call to a valueless function) compiles the function VALUELESS (C18's rule; reading the result refuses by name); an arm ending in a `switch` block yields it (seeded `na`) | 5; 5 mutations red |
+| array-typed UDT fields | `5f3c86c37f` | `T [] f` / `T[] f` field declarations are `array<T>`; `holdsArray`, both method forms and `needsRuntime` read a field path whose field is declared an array | 4; 5 mutations red |
+| record types through a call / a global array (integrator, from RT11) | `874f7855bd` | `volData = calcVolumes(ohlcv)`: a user function returning a record answers its type (`record.resultUdt`); the element type of a GLOBAL `array<T>` read inside a function (`for e in pts`, `pts.get(i)`) through `lookupReadable`; a helper ending in a field write is VALUELESS | 4; 4 mutations red. RT11's three "builtins" (`volData.higherVol`, `curRS.isSupport`, `currentOB.breaker`) now read as fields; none completes: volume-delta-hapharmonic and sr-logistic-regression stop at `str.tostring` over state (RT11), smc-welotrades at `input.timeframe` (RT13), volumized-order-blocks at a tuple of records + `runtime:conditional-history` (RT12) |
+
+Re-pinned with measured reason: `blockValuedReassign.test.js`'s two `var x = if|switch` CONTROLS
+(they pinned the refusal; they now pin the ONCE it protected).
+
+### Measured
+
+| | before (wave-17 tip) | after |
+|---|---|---|
+| scripts newly attaching on the runtime lane (scratch door probe, runtime state, libraries) | - | kalman-psar-backquant, blackflag-fts, support-and-resistance (`__1505`), fvg-detector-tradingfinder: **+4**, none captured |
+| census off / on / runtime (libraries loaded; base re-measured on this box from the wave-17 bytes) | 58 / 83 / 102 | **58 / 83 / 106** - +4 runtime (blackflag-fts, fvg-detector-tradingfinder, kalman-psar-backquant, support-and-resistance `__1505`), **0 lost**; first runtime wall moved for 5 more (candelacharts, delta-imbalance, nubia, sr-logistic-regression, volume-delta-hapharmonic) |
+| runtime IR + host formula hash, 341 capture sources + 266 corpus scripts, both runtime builds | - | 15 rows change: the 4 attaches, refusal reasons that moved (delta-imbalance, nubia, candelacharts, bigbeluga-smc, htf-candle-footprint x3), and two `ok` pane builds (dual-view-htf, price-action-as-in-book) |
+| grades of every capture whose build changed (dual-view-htf RDDT/SPY, price-action RDDT/SPY; on + runtime) | per state: 3 DIVERGE + 1 MATCH | **byte-identical verdicts** (sha of the whole verdict) |
+| focused vitest | - | `rt14Language` 34; runtime dir 109 files 1380 tests, 2 red pre-existing (`runtimePaneSafety` x2); ast dir 300 files 4449 passed / 2 skipped, 2 red pre-existing (`barIndexShift` C45 Python parity x2); vendorHarness (non-measure) 98 files 1434 passed / 10 skipped, 22 red in 9 files - the IDENTICAL 22 on the wave-17 base bytes (b1Paints, c17, c26, c29BareSymbol, cap4Captures, coverageAudit, f4Spy, f8Ungraded, h4Loops) |
+
+### Open
+
+- Q-RT14a-g (`docs/pine/capture-queue-2026-10-04-rt14-language.md`, probes `vw-rt14-language.pine`,
+  `vw-rt14-legacy-max.pine`): every served form above, the four attached scripts, and the `varip`
+  question (P01 vs P00 on closed bars).
+- Not taken (complete nothing today): `array.insert` / `array.fill` (index rules past the measured
+  get / set ones unsettled), `matrix.*`, method overloads by receiver type, `max_bars_back` below
+  5000 (C18 ruling), the method form on a `var box` local (`drawBox.set_extend`; its next wall is
+  colour anyway).
+- A full harness sweep (every capture, runtime pane permitted) was not run: the IR + formula hash sweep shows the only `ok` builds that changed are the four graded byte-identical above.

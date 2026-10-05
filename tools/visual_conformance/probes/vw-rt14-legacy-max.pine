@@ -1,0 +1,6 @@
+//@version=4
+// RT14 probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-04-rt14-language.md
+study("vw-rt14-legacy-max", overlay = false)
+plot(max(high, low, close), "L01 max(3) bare v4")
+plot(min(high, low, close, open), "L02 min(4) bare v4")
+plot(max(max(high, low), close), "L00 nested control")
