@@ -1,0 +1,1631 @@
+[
+ {
+  "label": "abs",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "abs"
+ },
+ {
+  "label": "alertcondition",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "alma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "atan",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "atan"
+ },
+ {
+  "label": "atr",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "atrPine"
+ },
+ {
+  "label": "avg",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "barcolor",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "barssince",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "barssince"
+ },
+ {
+  "label": "barstate.isconfirmed",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "barstate.isfirst",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "barstate.ishistory",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "barstate.islast",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "barstate.islastconfirmedhistory",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "barstate.isrealtime",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "bgcolor",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "cci",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "cci"
+ },
+ {
+  "label": "ceil",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "ceil"
+ },
+ {
+  "label": "change",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "change"
+ },
+ {
+  "label": "close",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.aqua",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.black",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.blue",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.fuchsia",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.gray",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.green",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.lime",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.maroon",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.navy",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.olive",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.orange",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.purple",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.red",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.silver",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.teal",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.white",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "color.yellow",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "correlation",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "cos",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "cos"
+ },
+ {
+  "label": "cross",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "crossover",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "crossOver"
+ },
+ {
+  "label": "crossunder",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "crossUnder"
+ },
+ {
+  "label": "cum",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "cum"
+ },
+ {
+  "label": "dayofmonth",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "dayofweek",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "dayofweek.friday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.monday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.saturday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.sunday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.thursday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.tuesday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "dayofweek.wednesday",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "ema",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "ema"
+ },
+ {
+  "label": "exp",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "exp"
+ },
+ {
+  "label": "floor",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "floor"
+ },
+ {
+  "label": "high",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "highest",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "highest"
+ },
+ {
+  "label": "highestbars",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "highestbars"
+ },
+ {
+  "label": "hl2",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "hlc3",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "hlcc4",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "hma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "hma"
+ },
+ {
+  "label": "hour",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "iff",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "input",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "input.bool",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "input.float",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "input.int",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "linreg",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "log",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "ln"
+ },
+ {
+  "label": "low",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "lowest",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "lowest"
+ },
+ {
+  "label": "lowestbars",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "lowestbars"
+ },
+ {
+  "label": "math.abs",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "abs"
+ },
+ {
+  "label": "math.atan",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "atan"
+ },
+ {
+  "label": "math.avg",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "math.ceil",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "ceil"
+ },
+ {
+  "label": "math.cos",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "cos"
+ },
+ {
+  "label": "math.exp",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "exp"
+ },
+ {
+  "label": "math.floor",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "floor"
+ },
+ {
+  "label": "math.log",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "ln"
+ },
+ {
+  "label": "math.max",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "math.min",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "math.pi",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "math.pow",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "pow"
+ },
+ {
+  "label": "math.round",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "math.sign",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "sign"
+ },
+ {
+  "label": "math.sqrt",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "sqrt"
+ },
+ {
+  "label": "math.sum",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "sum"
+ },
+ {
+  "label": "max",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "max"
+ },
+ {
+  "label": "min",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "min"
+ },
+ {
+  "label": "minute",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "month",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "na",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": "na"
+ },
+ {
+  "label": "nz",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": "nz"
+ },
+ {
+  "label": "ohlc4",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "open",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "percentrank",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "percentrank"
+ },
+ {
+  "label": "pivothigh",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "pivothigh"
+ },
+ {
+  "label": "pivotlow",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "pivotlow"
+ },
+ {
+  "label": "plot",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "plotarrow",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "plotchar",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "plotshape",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "pow",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "pow"
+ },
+ {
+  "label": "rma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "rma"
+ },
+ {
+  "label": "round",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "round"
+ },
+ {
+  "label": "rsi",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "rsi"
+ },
+ {
+  "label": "sign",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "sign"
+ },
+ {
+  "label": "sin",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "sin"
+ },
+ {
+  "label": "sma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "sma"
+ },
+ {
+  "label": "sqrt",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "sqrt"
+ },
+ {
+  "label": "stdev",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "stdev"
+ },
+ {
+  "label": "stoch",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "stoch"
+ },
+ {
+  "label": "str.contains",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "str.length",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "str.startswith",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "sum",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "sum"
+ },
+ {
+  "label": "syminfo.basecurrency",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.currency",
+  "versions": [
+   4
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.mintick",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.pointvalue",
+  "versions": [
+   4
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.prefix",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.root",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.session",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.ticker",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.tickerid",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "syminfo.timezone",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "ta.alma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.atr",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "atrPine"
+ },
+ {
+  "label": "ta.cci",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "cci"
+ },
+ {
+  "label": "ta.change",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "change"
+ },
+ {
+  "label": "ta.correlation",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.cross",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.crossover",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "crossOver"
+ },
+ {
+  "label": "ta.crossunder",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "crossUnder"
+ },
+ {
+  "label": "ta.cum",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "cum"
+ },
+ {
+  "label": "ta.ema",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "ema"
+ },
+ {
+  "label": "ta.falling",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "falling"
+ },
+ {
+  "label": "ta.highest",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "highest"
+ },
+ {
+  "label": "ta.highestbars",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.hma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "hma"
+ },
+ {
+  "label": "ta.linreg",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.lowest",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "lowest"
+ },
+ {
+  "label": "ta.lowestbars",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.macd",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "macd"
+ },
+ {
+  "label": "ta.median",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "median"
+ },
+ {
+  "label": "ta.mfi",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "mfiPine"
+ },
+ {
+  "label": "ta.mom",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.percentile_linear_interpolation",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "percentileLinearInterpolation"
+ },
+ {
+  "label": "ta.percentrank",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "percentrank"
+ },
+ {
+  "label": "ta.pivothigh",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.pivotlow",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.rising",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "rising"
+ },
+ {
+  "label": "ta.rma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "rma"
+ },
+ {
+  "label": "ta.roc",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.rsi",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "rsi"
+ },
+ {
+  "label": "ta.sma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "sma"
+ },
+ {
+  "label": "ta.stdev",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "stdev"
+ },
+ {
+  "label": "ta.stoch",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "stoch"
+ },
+ {
+  "label": "ta.tr",
+  "versions": [
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "ta.valuewhen",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "valuewhen"
+ },
+ {
+  "label": "ta.vwap",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "vwap"
+ },
+ {
+  "label": "ta.vwma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "ta.wma",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "wma"
+ },
+ {
+  "label": "ta.wpr",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": "williamsR"
+ },
+ {
+  "label": "timeframe.in_seconds",
+  "versions": [
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "timeframe.isdaily",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.isintraday",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.isminutes",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.ismonthly",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.isseconds",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.isweekly",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "timeframe.multiplier",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "tr",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "valuewhen",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "valuewhen"
+ },
+ {
+  "label": "volume",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": false,
+  "key": null
+ },
+ {
+  "label": "vwap",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "vwap"
+ },
+ {
+  "label": "vwma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": null
+ },
+ {
+  "label": "wma",
+  "versions": [
+   4
+  ],
+  "call": true,
+  "key": "wma"
+ },
+ {
+  "label": "year",
+  "versions": [
+   4,
+   5,
+   6
+  ],
+  "call": true,
+  "key": null
+ }
+]

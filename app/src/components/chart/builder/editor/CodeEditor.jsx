@@ -36,7 +36,7 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, u
 import { EditorState, Compartment } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers as lineNumberGutter } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { syntaxHighlighting, bracketMatching } from '@codemirror/language'
+import { syntaxHighlighting, bracketMatching, foldGutter, foldKeymap } from '@codemirror/language'
 import {
   autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap,
   completionStatus, closeCompletion,
@@ -44,6 +44,7 @@ import {
 import { lintGutter, setDiagnostics } from '@codemirror/lint'
 import { languageFor, highlightStyle, languageKey } from './languages'
 import { formulaCompletionSource } from './completions'
+import { pineCompletionSource, pineHover, pineFolding } from './pineVocabulary'
 import { toDiagnostics } from './diagnostics'
 import styles from './CodeEditor.module.css'
 
@@ -72,6 +73,22 @@ const INPUT_SETTLE_MS = 250
  *  it — two objects with the same names are the same input to every door
  *  below, and re-minting on a fresh identity would be work for no answer. */
 
+/** ⭐ A6 — the completion source for a dialect: Pine gets the ENGINE'S Pine
+ *  vocabulary (`pineVocabulary.js` — `ta.sma`, not the formula dialect's bare
+ *  `sma`); every other dialect keeps the closed-table source it always had. */
+function completionFor(dialect, inputs) {
+  return autocompletion({
+    override: [dialect === 'pine' ? pineCompletionSource() : formulaCompletionSource({ inputs })],
+  })
+}
+
+/** ⭐ A6 — Pine-only aids: indentation folding (Pine blocks have no braces) with
+ *  its gutter and keys, and hover docs in the engine's own words. Nothing for
+ *  any other dialect, so the formula box is exactly what it was. */
+function pineAidsFor(dialect) {
+  return dialect === 'pine' ? [foldGutter(), pineFolding, pineHover, keymap.of(foldKeymap)] : []
+}
+
 const CodeEditor = forwardRef(function CodeEditor({
   value = '',
   onChange = null,
@@ -98,6 +115,7 @@ const CodeEditor = forwardRef(function CodeEditor({
   inputsRef.current = inputs
   const languageComp = useRef(new Compartment()).current
   const completionComp = useRef(new Compartment()).current
+  const pineAidsComp = useRef(new Compartment()).current
   // What the view is CURRENTLY configured for, so a rerender that changes
   // neither dispatches nothing at all.
   const installedRef = useRef({ dialect, names: languageKey(inputs) })
@@ -117,7 +135,8 @@ const CodeEditor = forwardRef(function CodeEditor({
         extensions: [
           ...(lineNumbers ? [lineNumberGutter()] : []),
           languageComp.of(languageFor(dialect, inputsRef.current)),
-          completionComp.of(autocompletion({ override: [formulaCompletionSource({ inputs: inputsRef.current })] })),
+          completionComp.of(completionFor(dialect, inputsRef.current)),
+          pineAidsComp.of(pineAidsFor(dialect)),
           syntaxHighlighting(highlightStyle(styles)),
           history(),
           // ⛔ NO `drawSelection()`. It replaces the native caret with a drawn
@@ -231,16 +250,15 @@ const CodeEditor = forwardRef(function CodeEditor({
       live.dispatch({
         effects: [
           languageComp.reconfigure(languageFor(dialect, inputsRef.current)),
-          completionComp.reconfigure(
-            autocompletion({ override: [formulaCompletionSource({ inputs: inputsRef.current })] }),
-          ),
+          completionComp.reconfigure(completionFor(dialect, inputsRef.current)),
+          pineAidsComp.reconfigure(pineAidsFor(dialect)),
         ],
       })
     }
     if (installed.dialect !== dialect) { apply(); return undefined }
     const id = setTimeout(apply, INPUT_SETTLE_MS)
     return () => clearTimeout(id)
-  }, [dialect, names, languageComp, completionComp])
+  }, [dialect, names, languageComp, completionComp, pineAidsComp])
 
   // ── refusal → lint marks, only against the text it was measured on ────────
   useEffect(() => {

@@ -193,3 +193,19 @@
   overflow: hidden;
   background: var(--bg);
 }
+
+/* ⭐ A6 — the Pine hover doc (the engine's own sentence) and the fold gutter. */
+.editor :global(.cm-pine-doc) {
+  max-width: min(420px, 80vw);
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.editor :global(.cm-pine-doc-sig) { color: var(--text-bright); font-weight: 600; overflow-wrap: anywhere; }
+.editor :global(.cm-pine-doc-body) { margin-top: 4px; }
+.editor :global(.cm-pine-doc-note) { margin-top: 6px; color: var(--text-muted); }
+.editor :global(.cm-foldGutter .cm-gutterElement) { padding: 0 4px; cursor: pointer; color: var(--text-muted); }
