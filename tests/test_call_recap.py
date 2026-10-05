@@ -323,7 +323,9 @@ class TestGetCallRecap:
 class TestGetSentiment:
     def _run(self, sym, pplx_context=_PPLX_WEB_CONTEXT,
              llm_response=None, cache_hit=None):
-        from api.services.call_recap import get_sentiment
+        # S2: the web-grounded read runs OFF the request path now, so the shape,
+        # clamp and TTL are asserted on the background step itself.
+        from api.services.call_recap import _web_sentiment
 
         llm_json = llm_response or json.dumps(_SAMPLE_SENTIMENT)
         mock_response = _make_anthropic_response(llm_json)
@@ -355,8 +357,30 @@ class TestGetSentiment:
             mock_client.messages.create.return_value = mock_response
             mock_client_fn.return_value = mock_client
 
-            result = get_sentiment(sym)
+            result = _web_sentiment(sym, f"call_sentiment::{sym}", "2026-10-05")
         return result, mock_cache
+
+    def test_S2_a_cold_request_answers_at_once_and_reads_in_the_background(self):
+        from api.services.call_recap import get_sentiment
+        with patch("api.services.call_recap._cache") as mock_cache_fn,              patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))),              patch("api.services.call_recap._transcript_for", return_value=None),              patch("api.services.call_recap._cost_guard") as mock_guard_fn,              patch("api.services.call_recap._pplx_earnings_highlights") as pplx,              patch("api.services.call_recap._anthropic_client") as client,              patch("api.services.call_recap._kick_web_sentiment") as kick:
+            mock_cache_fn.return_value = MagicMock(get=MagicMock(return_value=None))
+            mock_guard_fn.return_value = MagicMock(may_synthesize=MagicMock(return_value=True))
+            assert get_sentiment("NVDA") is None
+        pplx.assert_not_called()           # nothing paid for on the request path
+        client.assert_not_called()
+        kick.assert_called_once()
+        assert kick.call_args[0][:2] == ("NVDA", "call_sentiment::NVDA")
+
+    def test_S2_one_background_read_per_symbol(self):
+        import api.services.call_recap as cr
+        submitted = []
+        fake_pool = MagicMock(submit=MagicMock(side_effect=lambda fn: submitted.append(fn)))
+        with patch.object(cr, "_WARM_POOL", fake_pool),              patch.object(cr, "_WARM_INFLIGHT", set()):
+            assert cr._kick_web_sentiment("NVDA", "k", "d") is True
+            assert cr._kick_web_sentiment("NVDA", "k", "d") is False   # in flight
+            assert cr._kick_web_sentiment("AAPL", "k2", "d") is True
+        assert len(submitted) == 2
 
     def test_returns_correct_shape(self):
         result, _ = self._run("NVDA")
@@ -440,7 +464,11 @@ class TestGetSentiment:
             mock_pplx.web_search.side_effect = Exception("network error")
             mock_pplx_fn.return_value = mock_pplx
 
-            result = get_sentiment("ERR")
+            with patch("api.services.call_recap._kick_web_sentiment"):
+                result = get_sentiment("ERR")
+            # the failure path itself, run where it now runs
+            from api.services.call_recap import _web_sentiment
+            assert _web_sentiment("ERR", "call_sentiment::ERR", "2026-10-05") is None
 
         assert result is None
 

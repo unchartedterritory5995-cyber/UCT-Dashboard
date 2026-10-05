@@ -9,6 +9,8 @@ export default function useSentiment(ticker) {
   return useSWR(
     ticker ? `/api/earnings/sentiment/${ticker}` : null,
     fetcher,
-    { refreshInterval: 30 * 60 * 1000, revalidateOnFocus: false },
+    // A cold name's read is generated in the background now (S2, 2026-10-05): the first
+    // answer is null while it runs, so ask again in a minute rather than half an hour.
+    { refreshInterval: (data) => (data == null ? 60 * 1000 : 30 * 60 * 1000), revalidateOnFocus: false },
   )
 }
