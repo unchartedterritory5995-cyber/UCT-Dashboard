@@ -58,3 +58,13 @@ export const FAILED_SYNTHESIS_NOTE = 'No write-up for this day: the summary step
 export function isFailedSynthesis(text) {
   return /^\s*Synthesis (temporarily unavailable|returned malformed output)\b/i.test(String(text || ''))
 }
+
+// Since L5 the engine no longer writes that sentence: a failed write-up is stored as
+// thesis_text = null with thesis_status 'failed' / 'malformed' / 'paused'. This asks both
+// forms (old rows keep the sentence) so a surface can say "no write-up" either way.
+const NO_WRITEUP_STATUSES = new Set(['failed', 'malformed', 'paused'])
+export function hasNoWriteup(entry) {
+  if (!entry) return false
+  if (isFailedSynthesis(entry.thesis_text)) return true
+  return !entry.thesis_text && NO_WRITEUP_STATUSES.has(entry.thesis_status)
+}
