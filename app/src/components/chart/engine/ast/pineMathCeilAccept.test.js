@@ -118,7 +118,11 @@ plot(math.ceil(close))
       // means. The claim here is unchanged — this script still refuses, and still
       // on a blocker that has nothing to do with `math.ceil`.
       ['htf-candle-footprint-cartel-console__ca3ff4e904.pine', 'pine:objects-only'],
-      ['smart-money-concepts-by-welotrades__0bff41a2e5.pine', 'pine:function'],
+      // ⚰️ WAS `pine:function` (`time(res)`). RT16 W1: `res` is the call site's
+      // `input.timeframe("")`, and an empty timeframe is the chart's own for `time`
+      // by Pine's reference, so the script walks to its next blocker — still not
+      // `math.ceil`.
+      ['smart-money-concepts-by-welotrades__0bff41a2e5.pine', 'pine:collection'],
       // ⚰️ WAS `pine:character`, AND THE SCRIPT NOW WALKS FURTHER. The merge of
       // 2026-09-23 brought the postfix member-access fix, which cleared that
       // lexer wall for 23 scripts — so this one reaches its NEXT blocker, an

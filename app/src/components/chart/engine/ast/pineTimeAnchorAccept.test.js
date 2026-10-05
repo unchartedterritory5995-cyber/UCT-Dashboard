@@ -272,10 +272,15 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     // capability. STILL refuses on `time` itself, unaffected by this fix.
     const welotrades = fs.readFileSync(
       path.join(CORPUS, 'smart-money-concepts-by-welotrades__0bff41a2e5.pine'), 'utf8')
+    // ⭐ RT16 W1 (re-pinned with its reason): the parameter IS followed to its call
+    // site since C33, and the call passes `i_tf = input.timeframe("")` — the empty
+    // timeframe, which Pine's reference defines as the chart's own for `time`
+    // (`vendorHarness.rt16EmptyTimeframe`). So `time` is no longer its wall; the
+    // next one is a collection, which is not this lane's.
     const rWelotrades = translatePine(welotrades, { strict: true })
     expect(rWelotrades.ok).toBe(false)
-    expect(rWelotrades.refusal.guard).toBe('pine:function')
-    expect(rWelotrades.refusal.message).toMatch(/OPENING TIMESTAMP/)
+    expect(rWelotrades.refusal.guard).toBe('pine:collection')
+    expect(rWelotrades.refusal.message).not.toMatch(/OPENING TIMESTAMP/)
   })
 
   it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
