@@ -2118,6 +2118,19 @@
       "last_changed": "2026-09-19T04:01:32Z",
       "note": "Whether a member's own translated Pine script may reach a chart pane. Read in ONE place, app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled, as `=== '1'` — absent, '', '0', 'true' and 'yes' are all OFF and only the literal '1' opens it; a build with no import.meta.env fails CLOSED. ⚰️ UNTIL e6ca532c6 THIS FLAG COULD NOT HAVE BEEN TURNED ON AT ALL: Dockerfile.web declared no ARG for it, Railway drops an undeclared build arg silently, so `=1` would have reached the bundle as undefined. That gap is closed (verified: tests/test_dockerfile_vite_build_args.py green, and the live flip actually took). Flipping it is a DEPLOY, not a variable change, because it is a build constant — confirmed by watching an actual rebuild (`railway variables --set` auto-triggered it) rather than assuming one would follow. The reader-level record is docs/frontend_feature_flags.json."
     },
+    "VITE_PINE_AUTHORING_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "pine member authoring (A1)",
+      "owner_decision": "not yet taken -- built dark on branch pine/a1-member-authoring (2026-10-04)",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-10-04, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-10-04T00:00:00Z",
+      "note": "A1 (2026-10-04): the member Pine Editor -- a 'Pine Editor' tab in the indicator builder where a member writes/edits Pine with CodeMirror (Pine highlighting, line numbers), sees the MEMBER DOOR's verdict (memberPaneDefinition) on every 250 ms settle as a problems list with line/column/token (each click jumps to the token), previews it in MemberPane, and applies it through the same doors attachPine uses (validateUserDefinitions -> saveUserDefinition -> installUserDefinitions -> addInstance); later applies in the same session PUT the same stored definition (update in place, no second instance, no sheet close). Read in ONE place, app/src/components/chart/engine/pineAuthoringGate.js::pineAuthoringEnabled, as === '1'; a build with no import.meta.env fails CLOSED. OFF: the tab does not exist and buildMode can never be 'editor', so the sheet is byte-for-byte the shipped one. It sits ON TOP of VITE_PINE_MEMBER_PANE_ENABLED: with that one off the editor still checks a script but offers no Apply. No new persistence format; the Pine source of an ast-lane document is still NOT stored, so a saved script cannot be reopened in the editor yet (docs/pine/member-authoring-plan.md, owner decision O1). Arming is a Railway build variable plus a rebuild (Dockerfile.web declares the ARG) and an owner decision. Rails: app/src/components/chart/builder/pineEditor/*.test.*"
+    },
     "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
       "status": "dark",
       "where": [

@@ -34,7 +34,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
 import { EditorState, Compartment } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, lineNumbers as lineNumberGutter } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, bracketMatching } from '@codemirror/language'
 import {
@@ -81,6 +81,10 @@ const CodeEditor = forwardRef(function CodeEditor({
   ariaLabel = 'Formula editor',
   testId = 'code-editor',
   onApply = null,
+  // ⭐ A1 — OPT-IN, READ ONCE AT MOUNT. The Pine Editor numbers its lines (a
+  // problems list that says "line 12" needs a gutter that shows 12); every
+  // existing caller passes nothing and gets exactly the extensions it had.
+  lineNumbers = false,
 }, ref) {
   const hostRef = useRef(null)
   const viewRef = useRef(null)
@@ -111,6 +115,7 @@ const CodeEditor = forwardRef(function CodeEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
+          ...(lineNumbers ? [lineNumberGutter()] : []),
           languageComp.of(languageFor(dialect, inputsRef.current)),
           completionComp.of(autocompletion({ override: [formulaCompletionSource({ inputs: inputsRef.current })] })),
           syntaxHighlighting(highlightStyle(styles)),

@@ -27,6 +27,14 @@
       ],
       "note": "Item 10 (M1) -- a definition overlaid onto the volume pane gets its OWN pane and its own right-hand scale instead of the shared left axis, so a numeric read has a ladder of its own. Shipped dark because the owner's spec message (Section 6) was truncated mid-sentence at 'Feature fl...' and the tail never arrived: the NAME and the default are assumptions this session made explicit rather than guesses it hid. Renameable in one line -- the gate is read in exactly one place. Turning it on is a member-visible change, which is why it is not on."
     },
+    "VITE_PINE_AUTHORING_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-04",
+      "readBy": [
+        "app/src/components/chart/engine/pineAuthoringGate.js::pineAuthoringEnabled"
+      ],
+      "note": "A1 (2026-10-04): the member Pine Editor -- a 'Pine Editor' tab in the indicator builder where a member writes/edits Pine with CodeMirror (Pine highlighting, line numbers), sees the MEMBER DOOR's verdict (memberPaneDefinition) on every 250 ms settle as a problems list with line/column/token (each click jumps to the token), previews it in MemberPane, and applies it through the same doors attachPine uses (validateUserDefinitions -> saveUserDefinition -> installUserDefinitions -> addInstance); later applies in the same session PUT the same stored definition (update in place, no second instance, no sheet close). Read in ONE place, app/src/components/chart/engine/pineAuthoringGate.js::pineAuthoringEnabled, as === '1'; a build with no import.meta.env fails CLOSED. OFF: the tab does not exist and buildMode can never be 'editor', so the sheet is byte-for-byte the shipped one. It sits ON TOP of VITE_PINE_MEMBER_PANE_ENABLED: with that one off the editor still checks a script but offers no Apply. No new persistence format; the Pine source of an ast-lane document is still NOT stored, so a saved script cannot be reopened in the editor yet (docs/pine/member-authoring-plan.md, owner decision O1). Arming is a Railway build variable plus a rebuild (Dockerfile.web declares the ARG) and an owner decision. Rails: app/src/components/chart/builder/pineEditor/*.test.*"
+    },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
       "status": "armed",
       "where": "web",
