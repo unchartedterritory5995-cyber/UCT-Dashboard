@@ -18,6 +18,11 @@ watch paths set in the Railway service settings (never railway.json — that fil
 # (reached here via flow_admin_auth's cookie fallback) now reads an auth.db that
 # never gained `users.toolkit` as "no toolkit" instead of raising. It exists FOR
 # this worker, which never runs auth_db.init_db. Shipped after 18:00 ET.
+# 2026-10-03 - deploy trigger. The Terminal completion batch changed fourteen
+# modules this worker reaches but does not watch (open_reads_gate, alert_taxonomy
+# db/delivery/outbound_webhooks/routing_rule, bars_sqlite, breadth_timing,
+# data_sync, disk_watchdog, fmp_client, store_retention, ticker_resolver,
+# watchlist_alert_service, web_push). Shipped on a Saturday: no tape to drop.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
 flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,

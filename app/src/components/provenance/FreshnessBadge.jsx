@@ -30,6 +30,9 @@
 import { useEffect, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import { mapD1Freshness } from './freshnessContract'
+// ⛔ ALIASED ON PURPOSE: this component's own `freshnessClass` PROP (D1's tier) would shadow the
+// authority's `freshnessClass()` inside the render, and the call would hit `null`.
+import { freshnessClass as dataClassOf } from './freshnessAge'
 import { formatFreshnessAsOf } from '../../lib/presentation/presentationPrimitives'
 import styles from './FreshnessBadge.module.css'
 
@@ -176,7 +179,14 @@ export default function FreshnessBadge({
         <Tier freshnessClass={freshnessClass} asOf={asOf} />
       )}
 
-      {age != null && <AgeClause cadence={age.cadence} asOfDate={age.asOfDate} />}
+      {/* TERM-006: a caller that names its data class gets the class's own cadence words from
+          the age authority (`freshnessAge.js` FRESHNESS_CLASSES) — never a second spelling. */}
+      {age != null && (
+        <AgeClause
+          cadence={age.dataClass != null ? dataClassOf(age.dataClass).cadence : age.cadence}
+          asOfDate={age.asOfDate}
+        />
+      )}
 
       {sessionState?.label && (
         <span

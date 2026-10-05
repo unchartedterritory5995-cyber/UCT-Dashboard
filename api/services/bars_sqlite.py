@@ -133,6 +133,44 @@ def _conn() -> sqlite3.Connection:
     return _local.conn
 
 
+LOOKUP_INDEX = "idx_ohlcv_lookup"
+DAILY_BYDATE_INDEX = "idx_ohlcv_daily_bydate"
+
+#: ⭐ THE ONE AUTHORITY over which indexes a bars.db is expected to carry, name -> DDL.
+#:
+#: ⛔⛔ INCIDENT 2026-10-02: the worker's R2 snapshot is a backup-API copy of the
+#: WORKER's bars.db, and the worker never ran the web-only by-date build -- so the
+#: snapshot arrived WITHOUT `idx_ohlcv_daily_bydate`, and every web boot after the
+#: install started a 31 GB `CREATE INDEX` that held the write lock for ~13 min.
+#: `data_sync._make_tarball` now creates every index named HERE on the snapshot
+#: copy before it ships, so an install can never arrive short of one, and
+#: `init_db` / `ensure_daily_bydate_index` read their DDL from HERE rather than
+#: restating it. A new index added anywhere in this module without an entry here
+#: fails `tests/test_bars_snapshot_carries_indexes.py` by name.
+BARS_INDEX_DDL = {
+    LOOKUP_INDEX: (
+        f"CREATE INDEX IF NOT EXISTS {LOOKUP_INDEX} ON ohlcv(ticker, tf, ts DESC)"
+    ),
+    DAILY_BYDATE_INDEX: (
+        f"CREATE INDEX IF NOT EXISTS {DAILY_BYDATE_INDEX} "
+        "ON ohlcv(ts, ticker, c) WHERE tf='D'"
+    ),
+}
+
+# One-time migrations: (name, sql_to_run). Runs once per name. Add a new entry
+# whenever the upstream intraday fetch path changes so existing cached rows get
+# re-fetched through the corrected code path.
+_MIGRATIONS = (
+    ("purge_tf60_2f42e55",            "DELETE FROM ohlcv WHERE tf='60'"),
+    ("purge_tf60_3cbe1cf_src_cap",    "DELETE FROM ohlcv WHERE tf='60'"),
+    # Pagination support gives every intraday TF full history instead of the
+    # truncated/stale 30-day window. Repurge ALL intraday rows so they re-fetch
+    # through the paginated path.
+    ("purge_intraday_pagination_v1",  "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60')"),
+)
+MIGRATION_NAMES = tuple(name for name, _sql in _MIGRATIONS)
+
+
 def init_db() -> None:
     c = _conn()
     c.execute("""
@@ -144,9 +182,7 @@ def init_db() -> None:
             PRIMARY KEY (ticker, tf, ts)
         )
     """)
-    c.execute(
-        "CREATE INDEX IF NOT EXISTS idx_ohlcv_lookup ON ohlcv(ticker, tf, ts DESC)"
-    )
+    c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
     # ⚰️ `bars_provenance` LIVED HERE UNTIL 2026-08-09 AND ITS COMMENT PROMISED
     # A DEBUGGING AFFORDANCE THAT NEVER EXISTED. It said future audit logic
     # "joins ohlcv ⨝ bars_provenance to report 'this bad bar came from yfinance
@@ -177,18 +213,7 @@ def init_db() -> None:
     # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
     # bars after the fix. Marker row records that the migration ran.
     c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
-    # Each migration tuple: (name, sql_to_run). Runs once per name. Add a new
-    # entry whenever the upstream intraday fetch path changes so existing
-    # cached rows get re-fetched through the corrected code path.
-    _migrations = [
-        ("purge_tf60_2f42e55",            "DELETE FROM ohlcv WHERE tf='60'"),
-        ("purge_tf60_3cbe1cf_src_cap",    "DELETE FROM ohlcv WHERE tf='60'"),
-        # Pagination support (this commit) gives every intraday TF full history
-        # instead of the truncated/stale 30-day window. Repurge ALL intraday
-        # rows so they re-fetch through the paginated path.
-        ("purge_intraday_pagination_v1",  "DELETE FROM ohlcv WHERE tf IN ('1','5','15','30','60')"),
-    ]
-    for migration_name, sql in _migrations:
+    for migration_name, sql in _MIGRATIONS:
         already = c.execute("SELECT 1 FROM _migrations WHERE name=?", (migration_name,)).fetchone()
         if not already:
             try:
@@ -201,21 +226,47 @@ def init_db() -> None:
     c.commit()
 
 
-_DAILY_BYDATE_INDEX = "idx_ohlcv_daily_bydate"
-
-
 def daily_bydate_index_ready() -> bool:
     """True if the by-date daily index exists — a cheap catalog check (no build)."""
     try:
         return _conn().execute(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
-            (_DAILY_BYDATE_INDEX,),
+            (DAILY_BYDATE_INDEX,),
         ).fetchone() is not None
     except Exception:
         return False
 
 
-def ensure_daily_bydate_index() -> bool:
+#: How long the by-date build may WAIT for bars.db's write lock before giving up
+#: (it then retries at its next opportunity). ⛔ SHORT ON PURPOSE. This used to be
+#: 600 000 ms: a build that could queue ten minutes behind another writer and then
+#: hold the write lock itself for the whole multi-minute build. A build that cannot
+#: get the lock promptly steps aside; it never queues.
+BYDATE_BUILD_BUSY_MS = 2000
+
+_bydate_build_lock = threading.Lock()     # held for a build's duration (dedupe only)
+_bydate_state_lock = threading.Lock()     # guards the dict below; never held across I/O
+_bydate_build_state = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "last_outcome": None,    # "built" | "already_present" | "busy" | "error: ..."
+    "last_seconds": None,
+    "trigger": None,
+}
+
+
+def bydate_build_state() -> dict:
+    """Snapshot of the by-date build's last/current attempt (for the admin route)."""
+    with _bydate_state_lock:
+        out = dict(_bydate_build_state)
+    out["index_present"] = daily_bydate_index_ready()
+    out["busy_timeout_ms"] = BYDATE_BUILD_BUSY_MS
+    return out
+
+
+def ensure_daily_bydate_index(busy_timeout_ms: int = BYDATE_BUILD_BUSY_MS,
+                              trigger: str = "manual") -> bool:
     """Build (once) a PARTIAL, COVERING index over daily rows keyed BY DATE, so a
     whole-market "every ticker's close on date X" read is one contiguous index range-
     scan instead of a scan of the multi-GB daily partition.
@@ -223,42 +274,92 @@ def ensure_daily_bydate_index() -> bool:
     The base index (ticker, tf, ts DESC) leads with `ticker`, so `WHERE tf='D' AND
     ts BETWEEN…` can't use it — that read (the pre-~2004 Custom-Period Sort fallback)
     took MINUTES on cold, network-backed storage. `(ts, ticker, c) WHERE tf='D'` is
-    daily-ONLY (the `WHERE` keeps the huge intraday partitions out, so it's small) and
-    COVERING (ticker + c live in the index → no table lookups), so the windowed read is
-    index-only and fast even cold. Idempotent + guarded by the catalog check → the
-    ~1-2 min build runs at most once per pod volume, then persists. Returns True when
-    the index exists."""
+    daily-ONLY and COVERING, so the windowed read is index-only and fast even cold.
+    Returns True when the index exists afterwards.
+
+    ⛔⛔ NEVER CALL THIS FROM A BOOT OR REQUEST PATH (incident 2026-10-02). On the
+    31 GB production store it is a ~13-minute full scan at the network volume's
+    ~40 MB/s that holds bars.db's write transaction the whole time. Started 90 s
+    after every boot, it ran while three deploys in a row failed their 600 s
+    healthcheck. The index normally ARRIVES with the R2 snapshot
+    (`data_sync._make_tarball` creates every `BARS_INDEX_DDL` index on the copy);
+    on web this build is a fallback, reachable only through `bars_bydate_index`
+    (the owner's admin trigger, or the flag-gated low-traffic window).
+
+    Bounded two ways: a concurrent second call returns False at once instead of
+    queueing a second build, and the build waits at most `busy_timeout_ms` for the
+    write lock (another writer holding it => outcome "busy", False, retry later).
+
+    Do NOT hold _WRITE_LOCK here: CREATE INDEX holds a SQLite write transaction for
+    its entire build and every put_bars acquires _WRITE_LOCK, so holding it would
+    block every bar write site-wide for minutes. Without it, put_bars contends at the
+    SQLite level (fail-fast 2 s + retry) for the build's duration."""
     if daily_bydate_index_ready():
+        with _bydate_state_lock:
+            _bydate_build_state["last_outcome"] = "already_present"
         return True
-    import time as _t
-    t0 = _t.time()
-    # Build on a DEDICATED connection with a LONG lock-wait. CRITICAL: do NOT hold
-    # _WRITE_LOCK here. CREATE INDEX holds a SQLite write transaction for its ENTIRE
-    # (multi-minute) build, and every put_bars acquires _WRITE_LOCK — so holding it
-    # across the build BLOCKS EVERY bar write site-wide for minutes, which stalls any
-    # chart that needs to persist a freshly-fetched deep bar (the "MSFT won't load for
-    # a minute" outage). Without the lock, put_bars still serializes among ITSELF and
-    # merely contends with this build at the SQLite level (fail-fast 2s + retry) — a
-    # brief transient during a one-time build instead of a hard site-wide stall. The
-    # build's own 10-min busy_timeout lets it wait out those quick writes.
+    if not _bydate_build_lock.acquire(blocking=False):
+        return False  # a build is already running; never queue a second one
+    t0 = time.time()
+    with _bydate_state_lock:
+        _bydate_build_state.update(running=True, started_at=int(t0), finished_at=None,
+                                   trigger=trigger)
+    outcome = "error"
     try:
-        bc = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        bc = sqlite3.connect(_DB_PATH, check_same_thread=False,
+                             timeout=max(0.0, busy_timeout_ms / 1000.0))
         try:
             bc.execute("PRAGMA journal_mode=WAL")
-            bc.execute("PRAGMA busy_timeout=600000")   # wait up to 10 min for the lock
+            bc.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
             bc.execute("PRAGMA temp_store=MEMORY")
-            bc.execute(
-                f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
-                "ON ohlcv(ts, ticker, c) WHERE tf='D'"
-            )
+            bc.execute(BARS_INDEX_DDL[DAILY_BYDATE_INDEX])
             bc.commit()
         finally:
             bc.close()
-        print(f"[sqlite-index] built {_DAILY_BYDATE_INDEX} in {_t.time() - t0:.1f}s")
+        outcome = "built"
+        print(f"[sqlite-index] built {DAILY_BYDATE_INDEX} in {time.time() - t0:.1f}s "
+              f"(trigger={trigger})")
         return True
-    except Exception as e:
-        print(f"[sqlite-index] {_DAILY_BYDATE_INDEX} build failed after {_t.time() - t0:.1f}s: {e}")
+    except sqlite3.OperationalError as e:
+        msg = str(e).lower()
+        outcome = "busy" if ("locked" in msg or "busy" in msg) else f"error: {e}"
+        print(f"[sqlite-index] {DAILY_BYDATE_INDEX} not built after {time.time() - t0:.1f}s "
+              f"({outcome}); will retry later")
         return False
+    except Exception as e:
+        outcome = f"error: {e}"
+        print(f"[sqlite-index] {DAILY_BYDATE_INDEX} build failed after {time.time() - t0:.1f}s: {e}")
+        return False
+    finally:
+        with _bydate_state_lock:
+            _bydate_build_state.update(running=False, finished_at=int(time.time()),
+                                       last_outcome=outcome,
+                                       last_seconds=round(time.time() - t0, 1))
+        _bydate_build_lock.release()
+
+
+def ensure_indexes_at(db_path: str) -> list[str]:
+    """Create every `BARS_INDEX_DDL` index MISSING from the bars.db at `db_path`.
+
+    For a PRIVATE copy -- the snapshot `data_sync._make_tarball` is about to ship.
+    Nothing else has it open, so there is no lock to wait on and no member traffic
+    to starve. Returns the names it had to create ([] when the copy already carried
+    them all). Raises on failure: a snapshot that cannot be given its indexes must
+    not ship without them."""
+    c = sqlite3.connect(db_path)
+    try:
+        present = {r[0] for r in c.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
+        created = []
+        for name, ddl in BARS_INDEX_DDL.items():
+            if name in present:
+                continue
+            c.execute(ddl)
+            created.append(name)
+        c.commit()
+        return created
+    finally:
+        c.close()
 
 
 def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
@@ -816,14 +917,42 @@ def nth_recent_trading_date(n: int, before_ymd: int) -> int | None:
     """The Nth most-recent DISTINCT daily-bar date (YYYYMMDD int) strictly before
     before_ymd — the market trading calendar (distinct ts across all tickers, so a
     single-name gap can't skew it). Powers the Top-Gainers scans' "N trading days back"
-    reference date. None when fewer than N sessions exist."""
-    row = _conn().execute(
-        """SELECT ts FROM (
-               SELECT DISTINCT ts FROM ohlcv WHERE tf='D' AND ts<? ORDER BY ts DESC LIMIT ?
-           ) ORDER BY ts ASC LIMIT 1""",
-        (int(before_ymd), int(n)),
-    ).fetchone()
+    reference date. None when fewer than N sessions exist.
+
+    ⛔⛔ THE QUERY THAT HELD THE BOOT, incident 2026-10-02. With
+    `idx_ohlcv_daily_bydate` this is a SEARCH that reads ~N index entries. WITHOUT
+    it the only usable index leads with `ticker`, and SQLite's plan is a SCAN of
+    the whole `idx_ohlcv_lookup` (every row of every timeframe) plus two temp
+    b-trees -- measured 10,017,000 vs 6,000 VM steps on a 2M-row fixture; on the
+    31 GB production store it is a full read of the volume. The lifespan reached
+    it through the pattern-vision contract line, on the event-loop thread.
+    So the full-market query runs ONLY when the by-date index exists; otherwise the
+    calendar is the DISTINCT union of a few always-trading index ETFs, read through
+    the (ticker, tf, ts DESC) lookup index -- a few thousand rows, never a scan.
+    (Four names, not one, so a single-name gap still cannot skew it.)"""
+    if daily_bydate_index_ready():
+        row = _conn().execute(
+            """SELECT ts FROM (
+                   SELECT DISTINCT ts FROM ohlcv WHERE tf='D' AND ts<? ORDER BY ts DESC LIMIT ?
+               ) ORDER BY ts ASC LIMIT 1""",
+            (int(before_ymd), int(n)),
+        ).fetchone()
+    else:
+        marks = ",".join("?" * len(CALENDAR_REFERENCE_TICKERS))
+        row = _conn().execute(
+            f"""SELECT ts FROM (
+                    SELECT DISTINCT ts FROM ohlcv
+                    WHERE ticker IN ({marks}) AND tf='D' AND ts<?
+                    ORDER BY ts DESC LIMIT ?
+                ) ORDER BY ts ASC LIMIT 1""",
+            (*CALENDAR_REFERENCE_TICKERS, int(before_ymd), int(n)),
+        ).fetchone()
     return int(row[0]) if row and row[0] else None
+
+
+#: Always-trading names whose daily bars define the session calendar when the
+#: by-date index is absent (see `nth_recent_trading_date`).
+CALENDAR_REFERENCE_TICKERS = ("SPY", "QQQ", "IWM", "DIA")
 
 
 def close_n_sessions_back(n: int, before_ymd: int) -> dict:

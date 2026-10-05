@@ -180,11 +180,13 @@ def test_census_family_3_stream_prices_recorded_OPEN_with_the_owner_blocker(app)
     assert _verdict(app, "GET", "/api/stream/prices") == "open"
     entry = asc.load_read_baseline()[("GET", "/api/stream/prices")]
     assert entry["reason"].startswith("NOT GATED - BLOCKED")
-    for needle in ("FREE page", "Discord Activity", "owner call"):
+    for needle in ("Discord Activity", "owner call"):
         assert needle in entry["reason"], needle
-    # and it is deliberately NOT in the staged table (the free page must keep it)
+    # and it is deliberately NOT in the staged table: the Discord Activity reads
+    # it with no session. (Until 2026-10-02 the free page was a second reason and
+    # it sat in FREE_PAGE_READS; the "everything is paywall" ruling emptied that.)
     assert g.family_of("/api/stream/prices") is None
-    assert "/api/stream/prices" in g.FREE_PAGE_READS
+    assert "/api/stream/prices" not in g.FREE_PAGE_READS
 
 
 def test_census_family_4_flow_scoreboard_staged_PAID(app):

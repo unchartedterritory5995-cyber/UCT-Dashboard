@@ -89,6 +89,7 @@ import { enter as enterReview, publish as publishReview } from './charts/review/
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
+import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
@@ -887,6 +888,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols, sym? }
+  // FT-041: the metered server export (Excel). Null while the server door is
+  // dark or the plan is free -- then the menu offers only the in-browser CSV.
+  const [serverExport, setServerExport] = useState(null)
+  useEffect(() => {
+    let live = true
+    exportQuota().then(q => { if (live) setServerExport(q) })
+    return () => { live = false }
+  }, [])
   const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
   const [expandedNote, setExpandedNote] = useState(null) // item ID with note open
   const [noteText, setNoteText] = useState('')
@@ -3465,6 +3474,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 const wl = myLists?.find(w => w.id === ctxMenu.id)
                 if (wl) exportCSV(wl)
               }}>Export CSV</button>
+            )}
+            {serverExport && ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
+              <button className={styles.ctxItem} onClick={() => {
+                const id = ctxMenu.id
+                setCtxMenu(null)
+                downloadExport(`/api/exports/watchlists/${encodeURIComponent(id)}`, { format: 'xlsx' })
+                  .catch(e => window.alert(`${e?.message || 'Export failed.'} Nothing was downloaded.`))
+              }}>Export Excel</button>
             )}
             {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={styles.ctxItem} onClick={() => {

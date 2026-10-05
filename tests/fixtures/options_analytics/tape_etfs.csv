@@ -1,0 +1,3 @@
+CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,Strike,Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,StockEtf,Sector,Uoa,Weekly,MktCap,OI
+10/2/2026,9:30:30 AM,SPY,SWEEP,500,1.00,AA,PUT,660,664.2,50000,10/3/2026,,0.18,1,,ETF,Index,,W,,90000
+10/2/2026,12:05:30 PM,QQQ,BLOCK,100,2.00,A,CALL,600,598.0,20000,10/9/2026,,0.21,7,,ETF,Index,,W,,40000

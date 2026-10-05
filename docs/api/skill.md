@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (533)
+## Endpoints (578)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -27,9 +27,12 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/ai-search/threads` | paid | ai |
 | GET | `/api/ai-search/threads/{thread_id}` | paid | ai |
 | GET | `/api/alerts` | member | member-workspace |
+| GET | `/api/alerts/routing` | paid | member-workspace |
 | GET | `/api/alerts/taxonomy/cooldowns` | member | member-workspace |
 | GET | `/api/alerts/taxonomy/document-arrival` | member | member-workspace |
 | GET | `/api/alerts/taxonomy/fires` | member | member-workspace |
+| GET | `/api/alerts/webhooks` | paid | member-workspace |
+| GET | `/api/alerts/webhooks/{webhook_id}/deliveries` | paid | member-workspace |
 | GET | `/api/analogs` | paid | market-analytics |
 | GET | `/api/analyst-actions` | paid | research |
 | GET | `/api/analyst/{sym}` | paid | research |
@@ -57,12 +60,14 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/breadth-monitor/{date_str}/drill/{metric_key}` | paid | market-analytics |
 | GET | `/api/breadth-symbols` | member | market-analytics |
 | GET | `/api/breadth/industries/status` | paid | market-analytics |
+| GET | `/api/calendar/date-status` | paid | research |
 | GET | `/api/calendar/day-metrics` | paid | research |
 | GET | `/api/calendar/day-metrics-batch` | paid | research |
 | GET | `/api/calendar/dividends` | paid | research |
 | GET | `/api/calendar/enrichment` | paid | research |
 | GET | `/api/calendar/enrichment-batch` | paid | research |
 | GET | `/api/calendar/implied-moves` | paid | research |
+| GET | `/api/calendar/index-events` | paid | research |
 | GET | `/api/calendar/ipos` | paid | research |
 | GET | `/api/calendar/most-anticipated.png` | paid | research |
 | GET | `/api/calendar/my-sets` | paid | research |
@@ -84,6 +89,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/chart/{ticker}` | paid | market-data |
 | GET | `/api/charts/layouts` | member | member-workspace |
 | GET | `/api/charts/layouts/{layout_id}/share` | member | member-workspace |
+| GET | `/api/charts/list-sources/screen/{screen_id}` | member | member-workspace |
+| GET | `/api/charts/list-sources/theme/{theme_id}` | member | member-workspace |
 | GET | `/api/coaching-notes` | paid | member-workspace |
 | GET | `/api/community/chat/channels` | member | community-content |
 | GET | `/api/community/chat/channels/{slug}/messages` | member | community-content |
@@ -395,26 +402,57 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/analyst-ratings/{sym}` | paid | research |
 | GET | `/api/research/analyst-revisions/{ticker}` | paid | research |
 | GET | `/api/research/blackline/{sym}` | paid | research |
+| GET | `/api/research/broker-estimates/{sym}` | paid | research |
+| GET | `/api/research/call-replay/{sym}` | paid | research |
 | GET | `/api/research/company-news/{sym}` | paid | research |
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research |
+| GET | `/api/research/earnings-reaction/{sym}` | paid | research |
+| GET | `/api/research/estimate-history/{sym}` | paid | research |
 | GET | `/api/research/estimates/{sym}` | paid | research |
+| GET | `/api/research/events/{sym}` | paid | research |
 | GET | `/api/research/expected-move/{sym}` | paid | research |
+| GET | `/api/research/filing-search` | paid | research |
+| GET | `/api/research/filings-feed` | paid | research |
+| GET | `/api/research/filings-feed/{sym}` | paid | research |
 | GET | `/api/research/financial-history/{sym}` | paid | research |
 | GET | `/api/research/financials/{sym}` | paid | research |
+| GET | `/api/research/ftd/{sym}` | paid | research |
 | GET | `/api/research/history/{sym}` | paid | research |
+| GET | `/api/research/iv-history/{sym}` | paid | research |
+| GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research |
+| GET | `/api/research/mention-series/{sym}` | paid | research |
+| GET | `/api/research/metric-disagreement/{sym}` | paid | research |
+| GET | `/api/research/news-desk/story/{news_id}/versions` | paid | research |
+| GET | `/api/research/news-desk/{sym}` | paid | research |
 | GET | `/api/research/news/{sym}` | paid | research |
+| GET | `/api/research/options-history/{sym}/daily-move` | paid | research |
+| GET | `/api/research/options-history/{sym}/iv-crush` | paid | research |
+| GET | `/api/research/options-history/{sym}/straddle` | paid | research |
+| GET | `/api/research/options/{sym}/backtest-catalog` | paid | research |
+| GET | `/api/research/options/{sym}/backtest/{job}` | paid | research |
+| GET | `/api/research/options/{sym}/builder` | paid | research |
 | GET | `/api/research/options/{sym}/chain` | paid | research |
+| GET | `/api/research/options/{sym}/chain-greeks` | paid | research |
+| GET | `/api/research/options/{sym}/contract/{occ}` | paid | research |
+| GET | `/api/research/options/{sym}/edge` | paid | research |
 | GET | `/api/research/options/{sym}/expirations` | paid | research |
+| GET | `/api/research/options/{sym}/monitor` | paid | research |
+| GET | `/api/research/options/{sym}/payoff-model` | paid | research |
+| GET | `/api/research/options/{sym}/probability` | paid | research |
+| GET | `/api/research/options/{sym}/stance` | paid | research |
+| GET | `/api/research/options/{sym}/strategy-finder` | paid | research |
 | GET | `/api/research/options/{sym}/surface` | paid | research |
 | GET | `/api/research/ownership/{sym}` | paid | research |
+| GET | `/api/research/people/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |
+| GET | `/api/research/rename-notice/{sym}` | paid | research |
 | GET | `/api/research/seasonality/{sym}` | paid | research |
 | GET | `/api/risk-summary` | paid | member-workspace |
 | GET | `/api/rs-rankings` | paid | market-analytics |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics |
-| GET | `/api/rundown` | member | market-analytics |
-| GET | `/api/rundown/speech-text` | member | market-analytics |
+| GET | `/api/rundown` | paid | market-analytics |
+| GET | `/api/rundown/speech-text` | paid | market-analytics |
 | GET | `/api/scanner/universe` | paid | screener |
 | GET | `/api/scans/definition-record` | paid | screener |
 | GET | `/api/scans/definition-results` | paid | screener |
@@ -450,11 +488,16 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/schwab/ytd-performance` | paid | options-flow |
 | GET | `/api/screener` | paid | screener |
 | GET | `/api/screener/alerts` | paid | screener |
+| GET | `/api/screener/compile` | paid | screener |
+| GET | `/api/screener/grammar` | paid | screener |
 | GET | `/api/screener/meta` | paid | screener |
 | GET | `/api/screener/methodology` | paid | screener |
+| GET | `/api/screener/save-fork` | paid | screener |
 | GET | `/api/screener/saved-screens` | paid | screener |
 | GET | `/api/screener/snapshot-status` | paid | screener |
+| GET | `/api/screener/spec-alerts` | paid | screener |
 | GET | `/api/screener/structures` | paid | screener |
+| GET | `/api/screener/to-watchlist` | paid | screener |
 | GET | `/api/sector-strength` | paid | market-analytics |
 | GET | `/api/setup-performance/{setup_type}` | paid | screener |
 | GET | `/api/setup-templates` | paid | screener |
@@ -499,6 +542,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/upb/sections/{section_id}/entries` | member | member-workspace |
 | GET | `/api/user-definitions` | paid | screener |
 | GET | `/api/user-definitions/library` | paid | screener |
+| GET | `/api/user-definitions/runtime-kill` | paid | screener |
 | GET | `/api/user-definitions/{def_id}` | paid | screener |
 | GET | `/api/user-definitions/{def_id}/history` | paid | screener |
 | GET | `/api/user-definitions/{def_id}/list` | paid | screener |

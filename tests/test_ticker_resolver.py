@@ -310,7 +310,9 @@ def resolver_defs(tree) -> list:
 
 
 def _stop_sets() -> dict:
-    sets = {c.name: c.stop for c in R.CONTEXTS}
+    # A context with no stop vocabulary (CASHTAG_POST: cashtags only) has nothing a
+    # module could restate, so it is not a census subject.
+    sets = {c.name: c.stop for c in R.CONTEXTS if c.stop}
     sets["lower_only"] = frozenset(R._LOWER_ONLY_STOP)
     return sets
 

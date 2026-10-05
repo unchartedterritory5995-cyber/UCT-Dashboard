@@ -28,6 +28,8 @@ Env:
   FLOW_FREEZE_WATCHDOG_ENABLED         default "1"
   FLOW_FREEZE_WATCHDOG_STALE_SEC       default "300"  (no inserts for this long -> exit)
   FLOW_FREEZE_WATCHDOG_MIN_UPTIME_SEC  default "300"
+  FLOW_FREEZE_WATCHDOG_MAX_BATCH_SEC   default "1800" (a stall inside a write
+                                       batch younger than this alerts, never exits)
   DISCORD_ALERT_WEBHOOK                optional; best-effort alert before exit
 """
 
@@ -45,6 +47,9 @@ DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 ENABLED = os.environ.get("FLOW_FREEZE_WATCHDOG_ENABLED", "1") == "1"
 STALE_SEC = float(os.environ.get("FLOW_FREEZE_WATCHDOG_STALE_SEC", "300"))
 MIN_UPTIME_SEC = float(os.environ.get("FLOW_FREEZE_WATCHDOG_MIN_UPTIME_SEC", "300"))
+# A write batch running longer than this is treated as wedged and force-exited;
+# shorter than this, a stall inside a batch alerts instead (2026-10-02).
+MAX_BATCH_SEC = float(os.environ.get("FLOW_FREEZE_WATCHDOG_MAX_BATCH_SEC", "1800"))
 CHECK_INTERVAL_SEC = 30.0
 _ET = ZoneInfo("America/New_York")
 
@@ -59,6 +64,17 @@ def note_live_insert() -> None:
     frozen live lane; when this heartbeat is being fed, row-id advance only
     counts as progress if the heartbeat moved too."""
     _live_hb["ts"] = time.time()
+
+
+def _write_in_progress_for():
+    """Seconds the consumer's current write batch has been running, or None when
+    no batch is in progress (or the consumer is not importable)."""
+    try:
+        from api.massive_ws_worker import _state as _ws_state
+        started = _ws_state.get("write_started_ts")
+    except Exception:
+        return None
+    return (time.time() - started) if started else None
 
 
 def _in_watch_window(now_et: datetime) -> bool:
@@ -127,6 +143,7 @@ def _run(service_name: str) -> None:
     last_max_id = None
     last_advance_ts = time.time()
     warned_half = False
+    warned_batch = False        # one "slow batch, not restarting" page per stall
     stocks_dead_since = None    # day-start blind-spot timer (review A8)
     last_hb_seen = 0.0          # live-write heartbeat tracker (review B5)
     # True-lag alerting (2026-07-17): the morning's stealth failure was writes
@@ -222,6 +239,7 @@ def _run(service_name: str) -> None:
                 last_advance_ts = time.time()
                 last_hb_seen = hb
                 warned_half = False
+                warned_batch = False
                 continue
             # NO progress — fall through to the frozen_for check.
             last_hb_seen = max(last_hb_seen, hb)
@@ -242,6 +260,21 @@ def _run(service_name: str) -> None:
                     f"freeze, raise FLOW_FREEZE_WATCHDOG_STALE_SEC before the exit "
                     f"fires and causes a restart spiral.")
             if frozen_for >= STALE_SEC:
+                batch_for = _write_in_progress_for()
+                if batch_for is not None and batch_for < MAX_BATCH_SEC:
+                    # The writer is alive and inside one slow batch. A restart
+                    # starts a COLD consumer whose first batch is slower still —
+                    # on 2026-10-02 that loop restarted the worker ~30 times and
+                    # lost the whole session. Page a human; let the batch land.
+                    if not warned_batch:
+                        warned_batch = True
+                        _alert_discord(
+                            f"🟠 **[{service_name}] flow-watchdog: no inserts for "
+                            f"{int(frozen_for)}s, but a write batch has been running "
+                            f"{int(batch_for)}s** — NOT restarting (a restart makes "
+                            f"the next batch slower). Force-exit only if it passes "
+                            f"{int(MAX_BATCH_SEC)}s.")
+                    continue
                 msg = (f":rotating_light: **[{service_name}] flow-watchdog: tape FROZEN** — "
                        f"no flow.db inserts for {int(frozen_for)}s during market hours "
                        f"(max_id stuck at {max_id}). Force-exiting so Railway restarts "

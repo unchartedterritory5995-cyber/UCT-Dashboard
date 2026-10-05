@@ -266,16 +266,29 @@ def test_iii_an_UNKNOWN_mode_is_shadow_never_a_block_and_never_silent(app, monke
 
 # ── (iv) THE FREE PAGE ───────────────────────────────────────────────────────
 
-def test_iv_no_free_page_read_is_in_the_PAID_or_ADMIN_family():
-    """FREE_PAGES = ['/morning-wire']. Every read that page (and its TickerPopup)
-    makes must stay readable by a free member: never PAID, never ADMIN."""
-    bad = sorted(p for p in g.FREE_PAGE_READS if g.family_of(p) in (g.PAID, g.ADMIN))
-    assert not bad, ("free-page reads moved behind a paid/admin gate -- a free "
-                     "member would lose /morning-wire:\n  " + "\n  ".join(bad))
+def test_iv_there_is_NO_free_page_so_FREE_PAGE_READS_is_empty_and_agrees_with_the_frontend():
+    """⭐ Owner ruling 2026-10-02 (TERM-081 / OI-12): "Everything is paywall".
+
+    ⚰️ Until then FREE_PAGES = ['/morning-wire'] and this rail held the 18 reads
+    that page made out of PAID and ADMIN. With no free page there is nothing a
+    free member must keep, so the list is empty, and it is DERIVED from the
+    frontend's own value rather than restated: if a free page ever comes back,
+    this goes red until its reads are listed again."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parent.parent / "app" / "src" / "constants"
+           / "freePages.js").read_text(encoding="utf-8")
+    m = re.search(r"export const FREE_PAGES = \[([^\]]*)\]", src)
+    assert m, "FREE_PAGES could not be read from app/src/constants/freePages.js"
+    frontend_free = [p.strip().strip("'\"") for p in m.group(1).split(",") if p.strip()]
+    assert frontend_free == [], f"a free page is back: {frontend_free}"
+    assert g.FREE_PAGE_READS == ()
+    # and the Wire's content is not quietly re-listed anywhere as a free read
+    assert "/api/rundown" not in g.FREE_PAGE_READS
 
 
 def test_iv_the_anonymously_read_reference_data_stays_ANONYMOUS(app, monkeypatch):
-    """The free page's popup ALSO reads these, and so do readers with no session
+    """Paid pages' popups read these, and so do readers with no session
     at all (Discord Activity, the /r/chart renderer): they are in no family, and
     under enforce an anonymous GET is not refused by the gate."""
     anon_reads = ("/api/ticker-search", "/api/ticker-meta/{ticker}",
@@ -289,29 +302,11 @@ def test_iv_the_anonymously_read_reference_data_stays_ANONYMOUS(app, monkeypatch
     assert r.status_code == 200, r.text[:200]
 
 
-def test_iv_a_FREE_member_keeps_every_free_page_read_under_ENFORCE(app, monkeypatch):
-    """End to end on the served route table: for every free-page read that is
-    mounted here, the gate does not refuse a free member. Measured at the GATE
-    (`classify` + `decide`), so no handler has to run."""
-    from starlette.requests import Request
-    by_path: dict = {}
-    for r in app.routes:                      # FastAPI serves the FIRST registration
-        by_path.setdefault(getattr(r, "path", None), r)
-    checked = 0
-    for path in g.FREE_PAGE_READS:
-        route = by_path.get(path)
-        if route is None:
-            continue
-        scope = {"type": "http", "method": "GET", "path": path, "route": route,
-                 "headers": [(b"cookie", b"uct_session=tok-free")], "query_string": b""}
-        hit = g.classify_request(Request(scope))
-        if hit is None:
-            checked += 1
-            continue
-        assert g.decide(Request(scope), hit[1]) is None, (
-            f"{path} would refuse a FREE member ({hit[1]}) -- /morning-wire breaks")
-        checked += 1
-    assert checked >= 10, f"only {checked} free-page reads found in the route table"
+# ⚰️ test_iv_a_FREE_member_keeps_every_free_page_read_under_ENFORCE lived here until
+# 2026-10-02. It drove every FREE_PAGE_READS path through the gate as a free member;
+# the owner ruling "everything is paywall" emptied that list, so it would have
+# iterated nothing (its own floor, checked >= 10, would have failed). The emptiness
+# itself is railed above, derived from app/src/constants/freePages.js.
 
 
 # ── (v) THE CENSUS ───────────────────────────────────────────────────────────

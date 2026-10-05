@@ -43,13 +43,13 @@ This repo has already executed a real production job (8,108 contracts) that way,
 and `POST /api/cot/reseed` is a TEN-YEAR CFTC re-download. Those routes are
 verified STRUCTURALLY only, and `NEVER_PROBED` says which and why.
 
-✋ WHAT IS DELIBERATELY *NOT* GATED, ASSERTED SO IT STAYS A DECISION
--------------------------------------------------------------------
-`/api/rundown` and `/api/rundown/speech-text` are the FREE TIER
-(`FREE_PAGES = ['/morning-wire']`). They are gated on `get_current_user`, not on
-payment, and `test_the_FREE_TIER_still_reads_the_morning_wire` drives a free
-member through them and requires 200. A paywall fix that closes the top of the
-funnel is not a fix, and this is the assertion that would notice.
+⭐ THE MORNING WIRE IS PAID TOO (owner ruling 2026-10-02, TERM-081 / OI-12)
+-------------------------------------------------------------------------
+`/api/rundown` and `/api/rundown/speech-text` were the FREE TIER until that
+ruling (`FREE_PAGES = ['/morning-wire']`, session-only). "Everything is
+paywall" emptied FREE_PAGES, so they are `paid` rows now and
+`test_the_morning_wire_is_PAID_since_the_2026_10_02_ruling` drives a free member
+(402) and an anonymous caller (401) through them.
 """
 from __future__ import annotations
 
@@ -220,9 +220,15 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/insider/{ticker}"): "paid",
     ("GET", "/api/insider/{ticker}/has-buy"): "paid",
     ("GET", "/api/backtest/strategies"): "paid",
-    # ── the free tier, gated on identity rather than payment ─────────────────
-    ("GET", "/api/rundown"): "session",
-    ("GET", "/api/rundown/speech-text"): "session",
+    # ── the Morning Wire: the free tier until 2026-10-02, paid since ────────
+    ("GET", "/api/rundown"): "paid",
+    ("GET", "/api/rundown/speech-text"): "paid",
+    # ── session-only reads, still deliberately `get_current_user` ────────────
+    # The control `test_a_LEGITIMATELY_session_gated_route_still_passes` needs
+    # real session-only rows; the rundown pair WAS that set until 2026-10-02.
+    # These two are pinned session-only in test_paywall_gate_free_tier.LEFT_OPEN.
+    ("GET", "/api/tweets/feed"): "session",
+    ("GET", "/api/catalysts/today"): "session",
 }
 
 #: ⛔ NEVER DRIVEN WITH A REQUEST, IN EITHER DIRECTION. Each takes no body and no
@@ -1045,12 +1051,12 @@ def test_a_LEGITIMATELY_session_gated_route_still_passes(app):
     session_rows = [k for k, v in sorted(GATED.items()) if v == "session"]
     # ⚠️ A FLOOR, BECAUSE THIS FILE'S OWN FIX MOVED THE NUMBER. Correcting the
     # patterns-feedback row took `session` from 3 rows to 2, and a control that
-    # shrinks quietly ends up guarding nothing. These two ARE the free tier
-    # (`FREE_PAGES = ['/morning-wire']`); if either stops being session-gated
-    # that is a funnel decision, not a number to lower.
+    # shrinks quietly ends up guarding nothing. Those two were the free tier's
+    # rundown routes until the 2026-10-02 "everything is paywall" ruling made
+    # them paid; the control now holds two shared session-only reads instead.
     assert len(session_rows) >= 2, (
-        f"only {len(session_rows)} session-gated rows left ({session_rows}) — the "
-        "free tier is two routes, and this control is meant to hold both")
+        f"only {len(session_rows)} session-gated rows left ({session_rows}) — "
+        "this control is meant to hold at least two")
     for key in session_rows:
         found = _klass_of(table[key])
         assert _claim_is_satisfied("session", found), (
@@ -1453,22 +1459,23 @@ def test_a_FREE_member_is_refused_on_the_PAID_routes(app, monkeypatch, clean_ove
         "'paid' and this sweep silently stopped covering it")
 
 
-# ── 5. the free tier, which a paywall fix must not break ─────────────────────
+# ── 5. the Morning Wire: no longer a free tier ───────────────────────────────
 
-def test_the_FREE_TIER_still_reads_the_morning_wire(app, monkeypatch, clean_overrides):
-    """✋ `FREE_PAGES = ['/morning-wire']`, and these two routes ARE that page.
+def test_the_morning_wire_is_PAID_since_the_2026_10_02_ruling(app, monkeypatch, clean_overrides):
+    """⭐ Owner ruling 2026-10-02 (TERM-081 / OI-12): "Everything is paywall".
 
-    Gating them on payment would refuse every free member the one thing they
-    were invited in to read — a funnel outage wearing a paywall's clothes. They
-    are gated on `get_current_user`, which is exactly the boundary the page
-    already has, and this is the assertion that notices if that changes.
+    ⚰️ This was `test_the_FREE_TIER_still_reads_the_morning_wire`, which required
+    a free member to get 200 here: the Wire was the one free page. The ruling
+    emptied `FREE_PAGES`, so the inequality flipped: a free member is refused
+    402 with the router's own sentence, and an anonymous caller still gets 401.
     """
     free = _client(app, FREE_USER, monkeypatch)
     for path in ("/api/rundown", "/api/rundown/speech-text"):
         resp = free.get(path)
-        assert resp.status_code == 200, (
-            f"{path} refused a FREE member {resp.status_code} — the free tier is "
-            f"the top of the funnel and this closes it: {resp.text[:200]}")
+        assert resp.status_code == 402, (
+            f"{path} answered a FREE member {resp.status_code} — the Morning Wire "
+            f"is paid since 2026-10-02: {resp.text[:200]}")
+        assert resp.json()["detail"] == "The daily wire surface requires a paid plan"
 
     anon = _client(app, ANON)
     for path in ("/api/rundown", "/api/rundown/speech-text"):

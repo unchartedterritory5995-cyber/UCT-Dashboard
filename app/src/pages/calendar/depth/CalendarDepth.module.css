@@ -1,0 +1,16 @@
+/* Calendar depth strips (Lane R): one per dark surface, stacked under the header. */
+.strip { border-bottom: 1px solid var(--border); padding: 8px 16px; font-size: 13px; color: var(--cal-txt, var(--text)); }
+.summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; min-height: var(--tap-min, 44px); }
+.title { font-weight: 700; }
+.chip { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+.error { color: var(--loss); font-size: 13px; }
+.scroll { overflow-x: auto; max-width: 100%; margin-top: 6px; }
+.grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+.grid th, .grid td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.grid thead th { color: var(--text-muted); font-weight: 600; }
+.wrap { white-space: normal; }
+.list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.button { min-height: var(--tap-min, 44px); padding: 6px 14px; font-size: 13px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: inherit; }
+@media (min-width: 1025px) { .button { min-height: 32px; } .summary { min-height: 0; } }

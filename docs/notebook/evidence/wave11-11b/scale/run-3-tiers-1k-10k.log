@@ -1,0 +1,12 @@
+[notebook-migration] migrated=0 skipped=0 errored=0
+    1000  GET /notes, no computed sort or filter (baseline) p50      8.43  p95      9.42  max      9.54
+    1000  GET /notes sorted by a rollup                  p50     10.19  p95     10.67  max     10.77
+    1000  GET /notes filtered by a formula               p50      8.66  p95     17.15  max     18.18
+    1000  GET one note's properties (500-child parent)   p50      5.76  p95      6.17  max      6.58
+    1000  property write, then the sorted read           p50     15.78  p95     22.94  max     27.25
+   10000  GET /notes, no computed sort or filter (baseline) p50     14.78  p95     22.83  max     23.11
+   10000  GET /notes sorted by a rollup                  p50     22.61  p95     30.89  max     32.61
+   10000  GET /notes filtered by a formula               p50     14.36  p95     22.60  max     24.27
+   10000  GET one note's properties (500-child parent)   p50     11.29  p95     18.54  max     18.57
+   10000  property write, then the sorted read           p50     32.60  p95     45.14  max     46.70
+log-log slope (p50): {"GET /notes, no computed sort or filter (baseline)": 0.244, "GET /notes sorted by a rollup": 0.346, "GET /notes filtered by a formula": 0.22, "GET one note's properties (500-child parent)": 0.292, "property write, then the sorted read": 0.315}

@@ -17,6 +17,7 @@
   "adopters": [
     "app/src/components/calendar/CallRecapSection.jsx",
     "app/src/components/chart/builder/EvidenceTab.jsx",
+    "app/src/components/research/fmpDepth/SourceLine.jsx",
     "app/src/components/screener/ScanResults.jsx",
     "app/src/components/tiles/CatalystTable.jsx",
     "app/src/pages/Breadth.jsx",
@@ -25,6 +26,7 @@
     "app/src/pages/charts/widgets/AiSearchWidget.jsx",
     "app/src/pages/cot/PositioningRail.jsx",
     "app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx",
+    "app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",
     "app/src/pages/research/tabs/AnalystRatingsTab.jsx",
@@ -34,6 +36,7 @@
     "app/src/pages/research/tabs/FlowTab.jsx",
     "app/src/pages/research/tabs/NewsTab.jsx",
     "app/src/pages/research/tabs/OwnershipTab.jsx",
+    "app/src/pages/screener/options/OptionsScreener.jsx",
     "app/src/pages/screener/shell/ScannerShell.jsx"
   ],
   "coverage_line_exempt": {

@@ -381,6 +381,11 @@ const BARE_POLL_SITES = {
   // COV-04 Filing changes (2026-10-01): a JOB-STATUS poll, not a background
   // tick: 5s only while the server says `pending` (an SEC fetch queued), 0 after.
   'app/src/pages/research/tabs/FilingChangesTab.jsx': 1,
+  // COV-09 Filings feed (2026-10-02): the request path is CACHE-ONLY (the server's own poll
+  // refreshes the market feed every FILINGS_FEED_POLL_MINUTES, default 5), so this tick reads a
+  // cache: 5s only while the server says `pending` (a ticker read queued), else 60s. Bare, not
+  // `useMobileSWR`, to keep the app-global `revalidateOnFocus: false` the wrapper would flip.
+  'app/src/pages/research/tabs/FilingsFeedTab.jsx': 1,
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,
@@ -400,6 +405,14 @@ const BARE_POLL_SITES = {
   //     not the clock that matters here -- the server's cache is.
   'app/src/pages/research/tabs/OptionsChainTab.jsx': 1,
   'app/src/pages/research/tabs/VolSurfacePanel.jsx': 1,
+  // ⭐ BRK-01 increment 4 (2026-10-02) -- the options backtester: a JOB-STATUS poll, the same
+  // decision as FilingChangesTab, not a background tick. The interval is a FUNCTION of the
+  // server's answer: 2 s only while the job says `queued`/`running`, 0 once it is `done` or
+  // `failed`, so a finished backtest makes no further request (BacktestPanel.test asserts it).
+  // `useMobileSWR` would double a member's wait for a result they just asked for, flip
+  // `revalidateOnFocus` back on (re-reading a terminal job on every focus), and its
+  // `useMarketOpen` timer is irrelevant: the job runs on the server's clock, open or closed.
+  'app/src/pages/research/tabs/BacktestPanel.jsx': 1,
 }
 
 function census() {

@@ -36,6 +36,7 @@
    stays ShellToolbar's alone, see FilterRail.jsx's own comment). */
 .railMatchCount { padding: 4px 10px 8px; font-size: 11px; color: var(--text-muted); }
 .railMatchCountEmpty { color: var(--loss, #ef4444); font-weight: 500; }
+.railMatchAsOf { color: var(--text-dim); font-weight: 400; }
 /* Keyboard-driven filter editing: the arrow-key-highlighted row ahead of an
    Enter jump. A left accent bar (never a border, which would shift layout)
    in the same gold used by `.filterSelectActive` — one accent color for

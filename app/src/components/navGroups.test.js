@@ -41,12 +41,15 @@ test('navigableTargets() never includes the /catalysts match-prefix-only entry',
   expect(navigableTargets()).not.toContain('/catalysts')
 })
 
-test('navigableTargets() is exactly one `to` per group, plus the home/wire split', () => {
-  // routes[0] of every group, plus routes[1] of home (the free-tier Wire
-  // tab) — five targets total for four groups.
+test('navigableTargets() is exactly one `to` per group — no free-tier Wire tab', () => {
+  // routes[0] of every group. Until 2026-10-02 home ALSO yielded
+  // `/morning-wire` as the free tier's tab; the owner ruled there is no free
+  // tier, so four groups give four targets.
+  expect(navigableTargets()).toEqual(NAV_GROUPS.map((g) => g.routes[0]))
   expect(navigableTargets().sort()).toEqual(
-    ['/calendar', '/dashboard', '/journal', '/model-book', '/morning-wire'].sort(),
+    ['/calendar', '/dashboard', '/journal', '/model-book'].sort(),
   )
+  expect(navigableTargets()).not.toContain('/morning-wire')
 })
 
 // Every desktop nav item must land in exactly one of the four shared groups

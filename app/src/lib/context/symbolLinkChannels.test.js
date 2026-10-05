@@ -123,6 +123,10 @@ const HAND_TYPED_BASELINE = [
   'testing/panes/paneHarness.jsx',
   // A headless renderer for the Discord/bot image path — a different door by design.
   'pages/ChartRender.jsx',
+  // The UCT Terminal's GEX function opens Options Flow at `?view=gex&ticker=SYM`. A different
+  // door (OptionsFlow's own initial GEX ticker, not a /charts deep link): it seeds the page's
+  // initial state once, validates the symbol, and falls back to SPY on anything else.
+  'App.jsx',
   // The admin-only `?gridspike=N&tf=D|5` perf harness (CLAUDE.md, Multi-Chart Grid).
   'pages/charts/grid/MultiChartGrid.jsx',
   // ⛔ THE REAL ONE. Spells the same fact `?ticker=`, where the authority says `sym`.

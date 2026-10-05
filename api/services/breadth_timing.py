@@ -238,7 +238,9 @@ POST_PHASES = ("route_tail", "serialise", "encode_render")
 #: served entirely from `get_history`'s own cache was reported `cache=miss` — for
 #: every request, indefinitely. The label was not merely imprecise; it was wrong in
 #: the direction that makes a warm path look like work.
-CACHE_TIERS = ("body", "deep", "plain", "miss")
+#: TERM-082 adds "stale": the route's bounded last-good slot (serve_stale) answered
+#: while one refresh ran behind the caller. `cache` still reads `hit` for it.
+CACHE_TIERS = ("body", "deep", "plain", "miss", "stale")
 
 #: Session 8 — `reconstructed_fetch` split, because "volume I/O" is a hypothesis
 #: with four sub-causes and the phase-level number cannot tell them apart.
