@@ -202,6 +202,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 100 | RT16 clock, session and timeframe (section RT16): `time("", …)` / `time("")` is the chart's own timeframe by Pine's reference text (v4 / v5 / v6, extracted from the reference bundles) - the same nodes as the measured `timeframe.period` forms; the runtime lane's `time(<text variable>)` chooses the host's node for each literal the variable can hold, a refused spelling a named run-stop (`runtime:time-unserved`). Renumber on merge | `c10714b749`, `3b4cbf432f`, `28ba6c2da1` | unchanged (no committed capture names either script; ict-killzones-pivots-tfo's two captures identical before/after, all three states) | unchanged | member door 58 / 84 / 104: ict-killzone-index-version attaches (host, on + runtime), volume-profile-auto-line-v2 (runtime); welotrades walks `time` -> `pine:collection`; 0 lost. Q-RT16a-i queued (`capture-queue-2026-10-04-rt16-clock.md`) |
 | 101 | H9 host-lane budget / window walls and wave-17 inherited reds (section H9): two install refusals that were MIS-COUNTS fixed - (1) `ta.highestbars` / `ta.lowestbars` (and v4 bare) fold their constant length in the translator like every other Pine `int` slot (`pine.js::foldBarsLength`; pivot-high-low-points `(5 + 5) + 1` -> `11`, was `resolve:window`); (2) `seriesRefs` / `series_refs` stop counting clock columns and `accum`'s `self` as base series (mtf-key-levels 10 > 8 and vwap-fibo-dev-extensions 9 > 8 were four data series each). Real costs stay refused (rsi-vwap-indicator 976 > 960, volume-spikes 1000 > 960). Inherited reds: hybridObjects fixture re-minted (append-only, H6 paints), b1Paints re-pinned (naBoth -> agree; RC1 cold warm-up 15 -> 35, graded bars unchanged), atrSrReplay renamed as test infra; c41LowerTfServe / varReadOrderLanes green at the H9 tip | `56ffe3bce3`, `6a9feab4bf`, `92d090b671`, docs | vendorHarness.test.js green (no committed capture names the three scripts: no MATCH can move) | census (libraries loaded) 56 / 82 / 101 (RT10's wave-17 run) -> **61 / 86 / 105**; H9's own share **+3 / +3 / +3** (pivot-high-low-points, mtf-key-levels, vwap-fibo, host lane in every state); camarilla-screener / ict-killzones-pivots-tfo are base movers (H8) | mutations 8 / 8 red; Q-RT13a / b / e now grade HOST documents |
 | 102 | RT14 core language completeness on the runtime lane (section RT14): `T[] name` headers; a never-mutated root binding read where it has no slot (or a stateful one read in a block) is the every-bar variable; v1-v4 variadic `max`/`min` (host + runtime) and `math.max/min` with 3+ args over state; `var x = if|switch` once; a function ending in an effect `if` / a field write is valueless; an `if` arm may yield a `switch`; array-typed UDT fields; a record's type through a user call and a global `array<T>` | `2f962978fc`..`874f7855bd` | 4 touched captures byte-identical | - | census runtime 102 -> **106** (blackflag-fts, fvg-detector-tradingfinder, kalman-psar-backquant, support-and-resistance `__1505`; all uncaptured, Q-RT14), off / on 58 / 83 unchanged, 0 lost |
+| 103 | H10 merge of H9 into wave 18 + knob reach (section H10): RT13's corpus case rewritten to H9's truth (mtf-key-levels / vwap-fibo install on the HOST lane; no real corpus script is install-refused and runtime-served); a parameter knob is offered only where its edit equals the script re-translated at that value (`memberPane/knobReach.js`, both paste doors), otherwise locked at the script's value and named; `applyParamEdit` restamps `compute.fn`; the fraction-window sentence corrected (v5 const-int `/` truncates, captured) | `82128c7883`, `dd8d9ee5d3`, `340468af4b`, `66f25407b2` | `knobReach.js`, `memberPaneDefinition.js`, `PineBox.jsx`, `builderInputs.js`, `paramEdit.js`, `pine.js` (sentence only) | knobs (member door, 266 committed): 127 offered -> 45 offered, all equal to the re-translation; 82 locked (79 were half applied: 57 colour rule, 14 drawings, 9 folded length / offset; 3 uncheckable), 36 scripts; no tree moves | mutations M1-M8 red; Q-H10a-c queued |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -8472,3 +8473,84 @@ Re-pinned with measured reason: `blockValuedReassign.test.js`'s two `var x = if|
   5000 (C18 ruling), the method form on a `var box` local (`drawBox.set_extend`; its next wall is
   colour anyway).
 - A full harness sweep (every capture, runtime pane permitted) was not run: the IR + formula hash sweep shows the only `ok` builds that changed are the four graded byte-identical above.
+
+## H10 - H9 merged into wave 18, and a parameter knob reaches every use of its input or is not offered (2026-10-04, step 103)
+
+Branch `pine/h10-w18-h9-merge` (from `integrate/wave18-2026-10-04` `b90963c714`, H9 `1c21df53bf` merged, wave 18
+`d2a07fdcbc` (RT14) merged forward). No cap, budget or flag moved.
+
+### 1. The merge
+- RT13's corpus case asserted mtf-key-levels-support-and-resistance and vwap-fibo-dev-extensions-strategy refuse
+  `budget:series` on the host and are served by the runtime lane. H9 showed both refusals were mis-counts; both now
+  install on the HOST lane in both pane states, compute identical, nothing asked of the runtime lane. A sweep of the
+  266 committed scripts (pane off -> install; pane on -> build + install) finds NO real script the install door refuses
+  and the runtime lane serves: the only install refusals left are rsi-vwap-indicator (`budget:lookback`, the runtime
+  lane declines the same) and volume-spikes (`budget:lookback` 1000 > 960, the runtime lane declines `pine:function`),
+  both now railed as declined cases. RT13's served path stays proven by its synthetic `OVER_SERIES` case.
+- Doc conflicts: both sides kept, rows renumbered 96 RT13, 97 RT11, 98 RT15, 99 RT12, 100 RT16, 101 H9, 102 RT14.
+- `tools/lookback_agreement.json` regenerated by `lookbackAgreement.test.js` on the merged tree (pytest twin green).
+
+### 2. The knob-reach defect (H9's routed finding), measured and closed
+A knob (`compute.paramManifest`) is the literals `pine.js::resolveInput` tagged that survived into a saved tree;
+`applyParamEdit` rewrites those. Every other use of the input keeps the author's default when the knob moves: a
+length folded with other numbers (pivot-high-low-points `highestbars(lb + rb + 1)` -> 11), a history offset
+(`high[lb]`), a colour condition column (the manifest never walked `presentation`), and the drawing program (no
+locator addresses `objects` at all). `pineParamManifest.js` called a lost tag "safe"; it is safe only when NO other
+occurrence remains.
+
+Measured (`knobReach.measure.test.js`, on demand: every manifest knob, its edit against the same script translated
+with the input at the probe value through `inputValues`, member door, 266 committed scripts):
+
+| | knobs | scripts |
+|---|---|---|
+| offered before | 127 | 46 |
+| edit equal to the re-translation | 29 (+15 differing only in `meta.description` prose) | |
+| half applied | 79 | 36 |
+| cannot be checked (probe refused / edit refused) | 4 | |
+| **offered after** | **45, every one equal to the re-translation** | |
+| locked, named | 82 (57 colour rule, 14 drawings, 9 folded length / offset, 2 uncheckable) | 36 |
+
+The fix asks the translator, not a list of fold sites: `knobReach.js::unreachedKnobs` re-translates once with every
+knob moved to a distinct probe (so a mismatched literal, or a text one knob's number explains, names its knob by its
+(default, probe) pair) and compares the output trees (edits applied where a locator reaches), the colour-condition
+trees and the drawing program (as held: no edit reaches them); an unattributable difference falls back to one
+re-translation per knob still unnamed. A locked knob is removed from the manifest and named: member door disclosures
+(`meta.disclosures`; `lockedKnobs` on the result; `memberPaneVariants` returns the sentence), paste door `knobLocks`
+(rendered; `paramPlacementsOf` never places it). `memberInputTranslation` stamps its options on the translation
+(non-enumerable `memberOpts`) so a caller's own translation is re-made with the same options. Cost: one extra
+translation per script with knobs, more only for knobs a shape change hides (artemis-oscillator-pro 1.2 s -> 3.7 s on
+this box under load; pivot-point-supertrend 0.3 -> 0.5 s).
+
+Found on the way, fixed: `applyParamEdit` left `compute.fn` (`astHash` of the scan tree) stale when an edit moved the
+scan tree, so the install door refused the edited document (`validateDefinition`). It now restamps a handle that WAS
+the old tree's hash. The C46 saved edits were taken under the stale handle; the replay rail compares on it.
+
+Routed, not fixed: `meta.description` (the scan tree's readback) is not rewritten by an edit, so a 21-bar edit of
+keltner's EMA still reads "the 20-bar exponential average" in the library card (15 knobs differ only there; prose,
+no drawn value).
+
+Rails: `knobReach.test.js` (8: pivot `lb` locked by name on both doors, a synthetic history offset, a synthetic folded
+window only the per-knob fallback names, a control that reaches at two values, atr-bands drawings, six corpus scripts'
+offered knobs equal to the re-translation, `inspectPine`); `memberPaneDefinition.test.js` (Volume v2's Daily / Weekly
+Length are locked - its tables read them - and the two-definitions finding moved to a knob that reaches);
+`savedDocumentRoundTrip.test.js` (a lock is a named removal; the computation is the saved one with the locked entries
+put back); `partialDrawing.test.jsx` (a lock sentence is not a drawing sentence); `hybrid_documents.json` re-minted
+(atr-support-and-resistance's four knobs locked; `test_runtime_hybrid_objects.py` green). Mutations, each red: M1 lock
+not applied (5 of 8), M2 drawings not compared (2), M3 no per-knob fallback (1), M4 folded hits dropped (6), M5 paste
+placement ignores locks (1), M6 paste door computes no locks (1), M7 colour rules not compared (1), M8 `fn` not
+restamped (`memberPaneDefinition.test.js`, 1). Restored by bytes, sha verified.
+
+### 3. `5 / 2` in a length slot (H9's second routed observation)
+Captured truth, not a defect: `vw-int-div-assign` (v5, AMEX:SPY 1D) shows two `const int` operands truncate (D02
+`a /= 100` -> 0, D03 `28 / 100` -> 0, D05) and an `input.int` operand keeps the fraction (D01, D04 -> 0.28); F1 serves
+it and `f1ConstIntDivision.test.js` rails `ta.sma(close, 7 / 2)` as 3 bars. A length that is NOT whole (v6 `5 / 2`,
+v5 `input.int(5) / 2`) is refused by name on both lanes (`pine:window` with both whole-number spellings; runtime
+`runtime:history-dynamic-offset`): no capture says whether TradingView errors, truncates or rounds. Only the member
+sentence was wrong - it said Pine's `/` "on two whole numbers keeps the fraction", false for the v5 literals; it now
+says an input operand keeps it, and from v6 always. Probes Q-H10a-c: `docs/pine/capture-queue-2026-10-04-h10.md`.
+
+### Inherited reds at the tip
+Four `vendorHarness.cap4Captures` pins are red at wave 18 `d2a07fdcbc` itself (measured with this lane's product
+files restored to it): vw-rt7 runtime INCONCLUSIVE -> MATCH, vw-rt8 on / runtime grades moved, Q-RT7's `array.sum`
+of an empty array no longer stops the run - the RT7 / RT11 / RT14 runtime work improved them; the pins are the owning
+lane's to re-measure.
