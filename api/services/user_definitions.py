@@ -1417,17 +1417,37 @@ def save(user_id: Any, def_id: str, definition: dict,
     # why it is placed here rather than behind a `if trees` branch.
     validate_v2(definition)
 
+    # ⭐⭐ A2 — THE MEMBER'S PINE SOURCE (`meta.pineSource`), settled on `stored`
+    # (the bytes persisted) and never on the working copy the rules above read:
+    # it is not compute. New source needs the saver's `PINE_AUTHORING_STAGE`; an
+    # absent field CARRIES the previous version's source across a save whose maths
+    # did not move. `pine_authoring.settle_for_save` is the whole rule.
+    from api.services import pine_authoring
+    with contextlib.closing(_connect()) as _c:
+        _ensure(_c)
+        _src_prev = _newest(_c, user_id, def_id)
+    _src_prev_def = json.loads(_src_prev["definition"]) if _src_prev is not None else None
+    stored, pine_report = pine_authoring.settle_for_save(
+        stored, _src_prev_def,
+        same_maths=bool(_src_prev is not None and _src_prev["ast_hash"] == new_hash
+                        and trees_identity(_src_prev_def) == new_trees),
+        role=role)
+
     # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
     # materialised working copy from here up; persisting it would write the
     # inlining this representation exists to avoid — and the 64 KB cap two lines
     # down would then refuse exactly the documents the graph was built to admit.
     blob = json.dumps(stored, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)
-    size = len(blob.encode("utf-8"))
+    # ⭐ A2 — the compute caps size the MATHS; the Pine source has its own cap
+    # (`pine_authoring.PINE_SOURCE_MAX_BYTES`, checked in `settle_for_save`).
+    capped = pine_authoring.without_source(stored)
+    size = len(json.dumps(capped, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False).encode("utf-8"))
     formula_size = size
     if hybrid:
         formula_size = len(json.dumps(
-            {k: v for k, v in stored.items() if k != runtime_definitions.OBJECTS_RUN_FIELD},
+            {k: v for k, v in capped.items() if k != runtime_definitions.OBJECTS_RUN_FIELD},
             sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         if size > runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES:
             raise ValueError(
@@ -1487,6 +1507,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                     # for this column it heals toward MORE tags.
                     "requirements": _requirements_of(prev),
                     "appended": False,
+                    "pine_source": pine_report,
                 }
             prev_version = prev["version"]
             prior_rev = prev["rev"]
@@ -1650,6 +1671,7 @@ def save(user_id: Any, def_id: str, definition: dict,
         "bindings_on_this_tree": bindings_on_this_tree,
         "ast_hash": new_hash, "repaint": json.loads(repaint),
         "requirements": json.loads(requirements), "appended": True,
+        "pine_source": pine_report,
     }
 
 
@@ -1720,8 +1742,20 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     runtime_definitions.validate(definition)
 
     new_hash = runtime_definitions.handle(definition)
+    # ⭐ A2 — the same source rule as a formula (`save`); the runtime lane's own
+    # `compute.source` is never duplicated into `meta.pineSource`.
+    from api.services import pine_authoring
+    with contextlib.closing(_connect()) as _c:
+        _ensure(_c)
+        _src_prev = _newest(_c, user_id, def_id)
+    definition, pine_report = pine_authoring.settle_for_save(
+        definition,
+        json.loads(_src_prev["definition"]) if _src_prev is not None else None,
+        same_maths=bool(_src_prev is not None and _src_prev["ast_hash"] == new_hash),
+        role=role)
     blob = json.dumps(definition, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    size = len(blob.encode("utf-8"))
+    size = len(json.dumps(pine_authoring.without_source(definition), sort_keys=True,
+                          separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
     cap = runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES
     if size > cap:
         raise ValueError(
@@ -1748,6 +1782,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
                     "bindings_on_this_tree": 0,
                     "ast_hash": prev["ast_hash"], "repaint": json.loads(prev["repaint"]),
                     "requirements": _requirements_of(prev), "appended": False,
+                    "pine_source": pine_report,
                 }
             version = prev["version"] + 1
             rev_bumped = prev["ast_hash"] != new_hash
@@ -1767,6 +1802,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
         "bindings_on_this_tree": 0,
         "ast_hash": new_hash, "repaint": json.loads(repaint),
         "requirements": [], "appended": True,
+        "pine_source": pine_report,
     }
 
 
@@ -1931,6 +1967,16 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
     why = consumer_refusal("share", row.get("requirements"))
     if why:
         raise ShareRefused("requirements", why)
+    # ⭐⭐ A2 (owner ruling O1) — A DOCUMENT WHOSE PINE IS ITS IMPLEMENTATION (a
+    # runtime or hybrid document) LEAVES ITS OWNER ONLY UNDER A PERMISSIVE LICENCE.
+    # Refused HERE, at the door that mints the link, so the owner is told — and
+    # again at `resolve_share`, because a link outlives the predicate it was
+    # minted under. A plain formula always travels; its `meta.pineSource` is
+    # stripped on the way out (`pine_authoring.for_recipient`).
+    from api.services import pine_authoring
+    why = pine_authoring.share_refusal(row.get("definition"))
+    if why:
+        raise ShareRefused("licence", why)
     table_version = _current_table_version()
     with contextlib.closing(_connect()) as c:
         _ensure(c)
@@ -2063,8 +2109,18 @@ def resolve_share(token: str) -> dict:
     doc = get(row["user_id"], row["def_id"], version=row["version"])
     if doc is None:
         raise ShareRefused("gone", "the version that was shared is no longer in the store")
+    # ⛔⛔ A2 (O1) — THE ONE DOOR A DOCUMENT LEAVES ITS OWNER BY. Preview and install
+    # both read this return, so the strip happens once, here: the author's Pine
+    # source rides along only under an MPL-2.0 / MIT / Apache-2.0 header
+    # (`corpus_licence`), and a runtime/hybrid document that cannot travel without
+    # it is refused by name. FAIL CLOSED — an unreadable predicate strips.
+    from api.services import pine_authoring
+    try:
+        shared_definition = pine_authoring.for_recipient(doc["definition"])
+    except pine_authoring.NotRedistributable as exc:
+        raise ShareRefused("licence", str(exc)) from exc
     return {
-        "definition": doc["definition"],
+        "definition": shared_definition,
         "author_id": row["user_id"],
         "origin_def_id": row["def_id"],
         "origin_version": row["version"],
@@ -2158,6 +2214,12 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
         why = consumer_refusal("listing", row.get("requirements"))
         if why:
             raise ShareRefused("requirements", why)
+        # ⭐ A2 (O1) — asked as the LISTING door too (same reason as above: the
+        # member pressed List, so the sentence must not arrive wearing "share").
+        from api.services import pine_authoring
+        why = pine_authoring.share_refusal(row.get("definition"))
+        if why:
+            raise ShareRefused("licence", why.replace("not shared or listed", "not listed"))
     shared = share(user_id, def_id)
     if shared is None:
         return None
