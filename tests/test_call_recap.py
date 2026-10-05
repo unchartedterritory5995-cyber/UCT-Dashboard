@@ -982,3 +982,48 @@ def test_a_name_with_NO_transcript_does_not_synthesize_on_the_request(monkeypatc
     assert (recap, status) == (None, "generating")
     assert pplx == [], "Perplexity was called ON THE REQUEST PATH"
     assert triggered == ["NOTRANS"], "the work was not handed to the background"
+
+
+class TestWarmedRecapReadsRatingsAndWebcastLive:
+    """R19: a warmed recap's rating trend and webcast link were frozen at warm
+    time. They are now read live (inside a short budget), the stored copy only
+    the fallback."""
+
+    def _call(self, monkeypatch, *, live_rat, live_web, slow=False):
+        import time as _t
+        from api.routers import earnings_intel as ei
+        stored = {"headline": "h", "webcast_url": "https://old.example/ir",
+                  "rating_changes": [{"period": "2026-08-01", "net": 10}]}
+        monkeypatch.setattr(ei, "resolve_entity", lambda s, **k: (None, s))
+        monkeypatch.setattr(ei, "get_call_recap_with_status", lambda s, quarter=None: (dict(stored), "ok"))
+
+        def rat(s):
+            if slow:
+                _t.sleep(ei._LIVE_BUDGET + 0.5)
+            return live_rat
+
+        def web(s):
+            if slow:
+                _t.sleep(ei._LIVE_BUDGET + 0.5)
+            return live_web
+        monkeypatch.setattr(ei, "get_rating_changes", rat)
+        monkeypatch.setattr(ei, "get_webcast_url", web)
+        return ei.call_recap_endpoint("AAPL", quarter=None, user={"id": "u"})
+
+    def test_live_values_replace_the_stored_copy(self, monkeypatch):
+        out = self._call(monkeypatch, live_rat=[{"period": "2026-10-01", "net": 12}],
+                         live_web="https://new.example/ir")
+        assert out["rating_changes"] == [{"period": "2026-10-01", "net": 12}]
+        assert out["webcast_url"] == "https://new.example/ir"
+
+    def test_an_empty_live_read_falls_back_to_the_stored_copy(self, monkeypatch):
+        out = self._call(monkeypatch, live_rat=[], live_web=None)
+        assert out["rating_changes"] == [{"period": "2026-08-01", "net": 10}]
+        assert out["webcast_url"] == "https://old.example/ir"
+
+    def test_a_slow_live_read_never_holds_the_panel(self, monkeypatch):
+        import time as _t
+        t0 = _t.monotonic()
+        out = self._call(monkeypatch, live_rat=[{"net": 1}], live_web="x", slow=True)
+        assert _t.monotonic() - t0 < 1.5
+        assert out["rating_changes"] == [{"period": "2026-08-01", "net": 10}]
