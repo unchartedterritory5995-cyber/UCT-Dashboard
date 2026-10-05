@@ -64,6 +64,7 @@ REJ_SUSPICIOUS = "REJECTED_SUSPICIOUS_COUNT_UNCORROBORATED"
 REJ_INVALID_UNIT = "REJECTED_INVALID_UNIT"                 # not a share count ($ / shares column, ADR-member row ...)
 REJ_PRE_LISTING = "REJECTED_PRE_LISTING"                   # dated before the priced security began trading
 REJ_STALE_SPLIT_BASIS = "REJECTED_STALE_PRE_SPLIT_BASIS"      # dated after a forward split, still the pre-split count
+REJ_PROJECTION_NOT_COMMON = "REJECTED_PROJECTION_NOT_COMMON_BASIS"  # M3: priced projection counts non-common instruments
 FLAG_LARGE_CHANGE = "LARGE_CHANGE"
 
 EDGAR_COMPLETE = "1996-05-06"   # EDGAR phase-in complete: all domestic registrants file electronically

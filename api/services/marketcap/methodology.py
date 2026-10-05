@@ -13,6 +13,12 @@ MCAP_V1-M2 (owner decision 2026-10-05, DURABLE ISSUER IDENTITY): M1 plus identit
 issuer over its current SEC tickers PLUS the tickers SEC attributed to it earlier (retained, never current). Every other
 pinned file is byte-identical to M1. M1 -> M2 changes ONLY issuers whose SEC ticker list lost a symbol; an M2 build from
 the M1 candidate's own inputs (one SEC snapshot) is the M1 build.
+
+MCAP_V1-M3 (owner decisions 2026-10-05, OFFERING PROJECTIONS OF AN ALREADY-PUBLIC SECURITY): M2 plus offering_status.py
+(evidence: the issuer's own prospectus says the security already trades; the first priced final prospectus; whether it
+counts pre-funded warrants as shares outstanding) and, in build.py, two eligibility rules -- a preliminary projection is
+usable only once pricing is public (the one existing clock), and a priced projection counting non-common instruments is
+refused. reasons.py gains the observation status REJECTED_PROJECTION_NOT_COMMON_BASIS; no gap reason changes.
 """
 from __future__ import annotations
 
@@ -21,21 +27,21 @@ import os
 
 from .extreme_steps import SEMANTICS_VERSION
 
-METHODOLOGY_VERSION = "MCAP_V1-M2"
-METHODOLOGY_PREVIOUS = "MCAP_V1-M1"
+METHODOLOGY_VERSION = "MCAP_V1-M3"
+METHODOLOGY_PREVIOUS = "MCAP_V1-M2"
 METHODOLOGY_COMMIT = "3c0ed993952d4008dae41c11cd82a59bb384aea5"            # M2 pinned here (M1: ad40add51)
 EXTREME_STEP_SEMANTICS = SEMANTICS_VERSION
 SAFETY_BOUND_DAYS = 456
 
 METHODOLOGY_FILES = {
-    "build.py": "34ba5831718d1ef592b414829487f10ab654f1c9c26de75646f24eb91e648b27",
+    "build.py": "467e8beb3c363ca4d23bfa7f00a85a31286d66cfe65e7be094ede1fc8244b53b",
     "adr.py": "30fedef57a1c6837e8fdce40aaa61f6fb2d1a4870d095d28c4e62f63e6fc3ddd",
     "classecon.py": "69979a2e7a67737ce6f21e9b48ad1a73eb5812043de5192f0c813fcbc9a09886",
     "cover.py": "35de23bf13fe0311fe65141ef19e5ec37cd65afeed25e54410e51a2edd42b261",
     "engine.py": "c62a28193f24e7855d469926527cb2ad940bfc4e68e3ffbfaf3052b8669fe158",
     "extreme_steps.py": "e2c1a42b4b1b4dd8d1c1a15018e972fb8c322a3a592303a108dadccd3d71bf72",
     "identity.py": "cf3b193026f2232d9b10ce35bbdea26500b5086ec86d0382b5d888cb25aad687",
-    "reasons.py": "5e4109d4bd59ddfd1148a9b26d4528e759ca719be6d964dad885459c9b4eb7a1",
+    "reasons.py": "4f78ff04b8e38d3a4b83185968319c09370e8a16fb6e96f7714be3af8650c1dc",
     "state.py": "352e8f5f9dc7e8d859d1279cb3cca483f9275be6e14720027c627504f9efc994",
     "structure.py": "d664a0ce2740478a0fd5e96ad445181e7bfc5147eb08131c220a164797c8fb6b",
     "textcover.py": "6fa7626e3918334dfea2f35c0deb50b4b7ef1760cbba88a8482cab35f53d8f65",
@@ -54,6 +60,7 @@ METHODOLOGY_FILES = {
     "fundamentals_pit/splits.py": "5bf44900ae934d8188d5b6e05228b21b9953671bf9ec4289586edb46a580ae79",
     "fundamentals_pit/filings.py": "d43d133ab7168e9887c65ded1183ec79aa5e5ff0fa1c1e7c2bc8738961323d13",
     "identity_ledger.py": "7130bd8e01cbc1322740153fa0f81a65be39ec5f47cda59a39fffe83d5eea43c",
+    "offering_status.py": "71fe66182a32dcb71c45fb9478f995210a388a9eef3ca27620501ea0f487bf9e",
 }
 
 
