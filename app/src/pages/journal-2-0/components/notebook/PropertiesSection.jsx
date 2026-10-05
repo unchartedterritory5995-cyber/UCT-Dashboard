@@ -425,6 +425,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           type="button"
           className={styles.addLink}
           aria-expanded={false}
+          data-tour="properties-add-empty"
           onClick={() => { focusAfterRef.current = { toggle: true }; setPickerOpen(true) }}
         >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
@@ -452,11 +453,13 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
               <li key={p.id} className={`${styles.row} ${isEditing ? styles.rowEditing : ''}`} data-prop-row={p.id}>
                 <span className={styles.label} id={labelId}>{p.name}</span>
                 <span className={styles.control}>
-                  <span className={styles.readonlyValue}>
+                  <span className={styles.readonlyValue}
+                    data-tour="computed-value">
                     <ComputedValue cell={p.computedValue} />
                   </span>
                   <button type="button" className={styles.editComputed} onClick={() => (isEditing ? setEditing(null) : startEdit(p))}
-                    aria-expanded={isEditing} aria-label={`Edit ${p.type} ${p.name}`}>
+                    aria-expanded={isEditing} aria-label={`Edit ${p.type} ${p.name}`}
+                    data-tour="computed-edit">
                     {isEditing ? 'Close' : 'Edit'}
                   </button>
                 </span>
@@ -504,6 +507,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           type="button"
           className={styles.addLink}
           aria-expanded={pickerOpen}
+          data-tour="properties-add"
           onClick={() => setPickerOpen((o) => !o)}
         >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />

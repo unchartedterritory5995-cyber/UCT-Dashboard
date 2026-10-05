@@ -2271,6 +2271,7 @@ export default function NotebookTab() {
               onClick={() => setPickerOpen(true)}
               disabled={creating}
               aria-haspopup="dialog"
+              data-tour="templates"
             >
               Templates
             </button>

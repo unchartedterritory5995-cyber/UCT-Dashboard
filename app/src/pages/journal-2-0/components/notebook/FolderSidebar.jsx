@@ -1539,7 +1539,8 @@ export default function FolderSidebar({
                   undefined` (a non-empty `serverSearchResults` implies the
                   response that produced it also carried `total`), mirroring
                   NotebookTab's own comment on the identical fallback. */}
-              <div className={styles.searchCount}>
+              <div className={styles.searchCount}
+                data-tour="search-count">
                 {searchCountText(serverSearchResults, searchTotal)}
               </div>
               {serverSearchResults.map((n) => {

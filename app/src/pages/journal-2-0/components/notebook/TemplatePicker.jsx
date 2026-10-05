@@ -299,6 +299,7 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
             className={styles.galleryDoor}
             onClick={() => setCommunity(true)}
             data-community-gallery-door=""
+            data-tour="template-gallery-door"
           >
             <UIcon name="community" size={14} gold={false} />
             <span>Browse the community gallery</span>
