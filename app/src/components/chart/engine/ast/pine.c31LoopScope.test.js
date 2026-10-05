@@ -45,13 +45,8 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
     expect(refusesName(t, 'n'), refusalNames(t).join('\n')).toBe(true)
   })
 
-  it('⛔ THE MAIN WALK STILL REFUSES THE BLOCK AT ITS LOOP — the step-over belongs to the object lane', () => {
-    // ⚰️ The reason here was parameter ids (a chain the main walk folds reaches
-    // inputs a refused one never did). C46 removed that reason: an id is the input
-    // call's place in the source. It stays refused BY NAME because no committed
-    // capture shows a value written below a loop in a block and read at the top
-    // level — queued in `docs/pine/capture-queue-2026-10-01-loop-in-block.md`
-    // (probe `vw-loop-in-block.pine`); the fold is on `pine/c46-stepover-trial`.
+  it('⭐ W19-H1 — the main walk folds the chain again, stepping over its loop (Q-C46a captured)', () => {
+    // Evidence: `vw-loop-in-block-spy-1d-2026-10-02`; see `pine.c46MainWalkStepOver.test.js`.
     const t = translatePine(src(
       'float m = 0.0',
       'if close > open',
@@ -60,10 +55,7 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
       '    m := high - low',
       'plot(m, "m")',
     ))
-    expect(outputOk(t, 'm')).toBe(false)
-    // …and by name: the member is told which name, and that the fold stopped at the loop.
-    expect(refusalNames(t).some((r) => r.startsWith('pine:reassign|') && r.includes('`m`') && r.includes('`for`')),
-      refusalNames(t).join(' / ')).toBe(true)
+    expect(outputOk(t, 'm')).toBe(true)
   })
 
   it('⛔ an array the loop pushes into (method form) refuses when read after it', () => {

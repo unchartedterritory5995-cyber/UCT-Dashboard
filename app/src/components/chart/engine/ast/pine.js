@@ -14346,8 +14346,10 @@ const selfNode = (tok) => ({ type: 'selfref', tok })
  *  its left operand at the state binding would make `x += 1` mean
  *  `accum(...) + 1` — a whole column plus one, evaluated inside its own update.
  *  That is a cycle, and the one it would produce reads plausibly. */
-const reassignState = (prior, env, toks, mut, nameTok) => {
-  const rhs = parseWholeExpression(toks.slice(mut + 1))
+const reassignState = (prior, env, toks, mut, nameTok, rhsNode = null) => {
+  // ⭐ W19-H1 — `rhsNode`: a value already read off a BLOCK (`x := switch`, see
+  // `stateSwitchNode`), which has no tokens on this line to parse.
+  const rhs = rhsNode || parseWholeExpression(toks.slice(mut + 1))
   const op = toks[mut].value
   const innerEnv = new Map(env)
   const inner = { kind: 'expr', node: prior.update, env: prior.updateEnv, at: prior.at }
@@ -14367,6 +14369,20 @@ const reassignState = (prior, env, toks, mut, nameTok) => {
 const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
   kind: 'state', seed, seedEnv, update, updateEnv, at,
 })
+
+/** ⭐⭐ W19-H1 — `x := switch` (NO SUBJECT) ON A `var`: the arms are the ternary
+ *  chain they spell (`subjectlessSwitchNode`, the reader H2 gave the non-`var`
+ *  form), and that chain is the `var`'s update exactly as `x := c1 ? a : c2 ? b : na`
+ *  would be. ⚰️ `smart-money-breakouts-chartprime:208` (`TP := switch` / `Long =>`
+ *  / `Short =>`, `TP` a `var`) refused `pine:block`, and the refusal cost every
+ *  top-level name its block writes. Null for any other shape: the caller then
+ *  parses the line as it always did, and refuses what it always refused. */
+function stateSwitchNode(toks, mut, subStmts) {
+  if (toks[mut].value !== ':=' || toks.length !== mut + 2) return null
+  const word = toks[mut + 1]
+  if (!word || word.kind !== 'ident' || word.value !== 'switch') return null
+  return subjectlessSwitchNode(subStmts, word)
+}
 
 /** How many bars of history a translated `var` accumulates over.
  *
@@ -16890,20 +16906,21 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         i += 1
         continue
       }
-      // ⛔ THE STEP-OVER IS THE OBJECT LANE'S (`ctx.loopStepOver`, set by the block
-      // harvest alone). The main walk keeps refusing the block at its loop.
-      // ⚰️ The reason written here until C46 was parameter ids: a chain the main
-      // walk folds reaches inputs a refused one never did, and under the walk-order
-      // counter that renumbered saved ids. It no longer can — an id is the input
-      // call's place in the source (`paramIdSource.js`; measured, objects triage
-      // § C46: ids are gained, none moves). What keeps it refused NOW is that no
-      // committed capture shows a top-level value written below a loop in a block
-      // (the 47 and the harness dir: 0 entries move when it is folded), so it waits
-      // on `docs/pine/capture-queue-2026-10-01-loop-in-block.md`. The fold itself
-      // is built and measured on branch `pine/c46-stepover-trial`.
+      // ⛔ THE STEP-OVER IS ASKED FOR (`ctx.loopStepOver`): by the block harvest, and
+      // — since C46 — by the main walk's SECOND try at a chain that stopped here
+      // (`foldChainOverLoops`). It was the object lane's alone while a parameter id
+      // was a walk-order counter: a chain the main walk folds reaches inputs a
+      // refused one never did, and that renumbered saved ids. An id is now the
+      // input call's place in the source (`paramIdSource.js`), so it cannot.
+      // ⭐ W19-H1 — on the vendor's word since `vw-loop-in-block-spy-1d-2026-10-02`
+      // (Q-C46a, AMEX:SPY 1D): what the loop does not write grades MATCH there.
       if (!(ctx && ctx.loopStepOver)) {
-        throw new PineRefusal('pine:block',
+        // ⭐ C46 — `loopWall` says the fold stopped AT a loop and nowhere else, so
+        // the main walk can try the chain once more stepping over it.
+        const wall = new PineRefusal('pine:block',
           `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
+        wall.loopWall = true
+        throw wall
       }
       if (ctx.loopSeen) ctx.loopSeen.v = true
       for (const name of loopWrites(st.body || toks, env)) {
@@ -17027,7 +17044,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
           prior ? prior.at : locate(toks[mut]))
       }
       if (prior.kind === 'state') {
-        env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
+        env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok, stateSwitchNode(toks, mut, st.sub)))
         // ⭐ C42 — a `var` written from a `ta.*` call in a block that runs exactly
         // ONCE holds that call's one-run answer from then on; no one-execution
         // binding is built for a running variable, so the object lane refuses it
@@ -23128,6 +23145,25 @@ function translatePineResult(source, opts = {}) {
   }
   const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf }
 
+  /** ⭐⭐ C46 — the main walk's SECOND try at an `if` chain whose fold stopped at a
+   *  loop: the same fold, stepping over the loop (C31's rule, `loopWrites`).
+   *
+   *  ⛔ A TRIAL, AND IT LEAKS NOTHING WHEN IT FAILS. It folds into a COPY of
+   *  `env`, with its own `consumed` set and its own record map, and returns null
+   *  on any refusal — so a chain that holds a loop AND something else this walk
+   *  cannot read is refused exactly as it was before this existed. The records
+   *  are discarded either way: a block local's value is still the harvest's to
+   *  give (`harvestBlockLocals`), read against the scope before the chain. */
+  const foldChainOverLoops = (at) => {
+    const trial = new Map(env)
+    const stepCtx = { ...ctx, consumed: new Set(), bindingByStatement: new Map(), loopStepOver: true, loopSeen: { v: false } }
+    try {
+      const folded = foldIfChain(stmts, at, stepCtx, trial)
+      for (let k = at; k < folded.next; k += 1) consumeMutators(stepCtx, stmts[k].body)
+      return { env: trial, consumed: stepCtx.consumed, ctx: stepCtx }
+    } catch { return null }
+  }
+
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
    *
@@ -23601,13 +23637,23 @@ function translatePineResult(source, opts = {}) {
         for (let k = si - 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
         si = folded.next
       } catch (err) {
-        const r = fromError(err)
-        notes.push({ ...r, code: r.guard })
+        // ⭐⭐ C46 — A CHAIN THAT STOPPED AT A LOOP IS FOLDED AGAIN, STEPPING OVER IT.
+        // The refusal used to cost every TOP-LEVEL name the chain writes — also
+        // the ones no loop touches (poor-man: `row0_price := (row0_low + row0_high)
+        // / 2`, written below the loops in one `if` and read in another, came out
+        // `pine:reassign row0_price`). A loop's only effect on the names around it
+        // is what its body WRITES (`loopWrites`, C31), so those take the loop's own
+        // refusal and every other name folds as it does in a chain with no loop.
+        // ⛔ Only when the SECOND fold completes: a chain that also holds something
+        // else this walk refuses is refused exactly as before.
+        const stepped = err && err.loopWall ? foldChainOverLoops(si - 1) : null
+        const r = stepped ? null : fromError(err)
+        if (r) notes.push({ ...r, code: r.guard })
         // ⛔ THE REASON IS REMEMBERED PER NAME. Without this the closing pass
         // would relabel a genuine `pine:state` accumulator as "reassigned later",
         // which is true and tells a member nothing about the bar-to-bar value
         // that is actually the problem.
-        for (let k = si - 1; k < last; k += 1) {
+        for (let k = si - 1; r && k < last; k += 1) {
           for (const name of mutatorTargets(stmts[k].body)) {
             if (!unfoldable.has(name)) unfoldable.set(name, r)
           }
@@ -23644,6 +23690,19 @@ function translatePineResult(source, opts = {}) {
           const cond = ht[0] && ht[0].value === 'if' ? ht.slice(1) : isElseIf ? ht.slice(2) : null
           if (cond) chainVaries = chainVaries || guardVaries(cond)
           harvestBlockLocals(stmts[k].sub, env, chainVaries, !!cond && guardIsLastBarOnly(cond))
+        }
+        // ⭐ C46 — the stepped fold's top-level bindings are adopted AFTER the
+        // harvest, which reads the scope as it stood BEFORE the chain (as it
+        // always has). Each says it was made below a stepped-over loop
+        // (`afterLoop`), so what the columnar reader still cannot say under it
+        // stays the runtime lane's to answer, as `pine:reassign` was.
+        if (stepped) {
+          for (const index of stepped.consumed) ctx.consumed.add(index)
+          for (const [name, binding] of stepped.env) {
+            if (env.get(name) === binding) continue
+            markAfterLoop(stepped.ctx, binding)
+            env.set(name, binding)
+          }
         }
         si = last
       }
@@ -23898,7 +23957,7 @@ function translatePineResult(source, opts = {}) {
       const prior = env.get(nameTok.value)
       try {
         if (prior && prior.kind === 'state') {
-          env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok))
+          env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok, stateSwitchNode(toks, mutAt, stmts[si - 1].sub)))
           ctx.consumed.add(toks[mutAt].index)
           continue
         }
