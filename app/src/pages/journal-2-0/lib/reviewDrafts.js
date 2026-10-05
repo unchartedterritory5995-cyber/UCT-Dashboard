@@ -28,15 +28,12 @@ import { createNoteViaApi } from './noteCreation'
 import { openDailyNote } from './dailyNote'
 import { buildAskInsertNode } from './askInsert'
 import { widgetSlotNode } from './widgetEmbedCore'
-import { notebookFlag } from './offline/notebookFlags'
 import { settleNoteWrite } from './offline/settleNoteWrite'
 import { notebookSchemaHeaders } from './notebookSchema'
 
-export const REVIEW_DRAFTS_FLAG = 'notebook_review_drafts_enabled'
-
-export function reviewDraftsEnabled() {
-  return notebookFlag(REVIEW_DRAFTS_FLAG) === true
-}
+// The flag's one authority is `reviewDraftsFlag.js` (wave 14 perf lane): Research Home reads it
+// without loading this file. Re-exported so every existing import is unchanged.
+export { REVIEW_DRAFTS_FLAG, reviewDraftsEnabled } from './reviewDraftsFlag'
 
 const BASE = '/api/j2/review-drafts'
 

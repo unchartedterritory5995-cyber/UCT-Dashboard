@@ -36,16 +36,23 @@ import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
 import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
-import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import AccountSelector from './components/accounts/AccountSelector'
-import NewAccountModal from './components/accounts/NewAccountModal'
-import GenerateReportModal from './components/GenerateReportModal'
+import lazyChunk from './lib/lazyChunk'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
 import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
+
+// Wave 14 perf lane (docs/notebook/wave14-perf.md): the header's three on-demand dialogs load
+// when first opened, not with the shell. Each is mounted only while its flag below is true, so
+// nothing about when or how it shows changes -- only that its code is fetched on that first
+// open instead of before the Journal (and so the Notebook) can render. ~34 kB of minified JS
+// off `bytes.notebook_first_open`, most of it PortfolioSettingsModal.
+const PortfolioSettingsModal = lazyChunk(() => import('./components/PortfolioSettingsModal'))
+const NewAccountModal = lazyChunk(() => import('./components/accounts/NewAccountModal'))
+const GenerateReportModal = lazyChunk(() => import('./components/GenerateReportModal'))
 
 // The 6 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
 // Free tier sees a designed teaser, per spec §61), disabled + lock glyph when
@@ -389,21 +396,27 @@ export default function JournalLayout() {
       </J2PriceProvider>
 
       {showSettings && settings && (
-        <PortfolioSettingsModal
-          settings={settings}
-          onSave={save}
-          onClose={closeSettings}
-          accountName={accountName}
-          isAllAccounts={isAllAccounts}
-        />
+        <Suspense fallback={null}>
+          <PortfolioSettingsModal
+            settings={settings}
+            onSave={save}
+            onClose={closeSettings}
+            accountName={accountName}
+            isAllAccounts={isAllAccounts}
+          />
+        </Suspense>
       )}
 
       {showNewAccount && (
-        <NewAccountModal onClose={() => setShowNewAccount(false)} />
+        <Suspense fallback={null}>
+          <NewAccountModal onClose={() => setShowNewAccount(false)} />
+        </Suspense>
       )}
 
       {showReport && (
-        <GenerateReportModal onClose={() => setShowReport(false)} />
+        <Suspense fallback={null}>
+          <GenerateReportModal onClose={() => setShowReport(false)} />
+        </Suspense>
       )}
 
       <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />
