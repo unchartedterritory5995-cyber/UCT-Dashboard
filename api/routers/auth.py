@@ -266,6 +266,19 @@ def _options_screener_flag() -> dict:
         return {}
 
 
+def _terminal_grammar_flag() -> dict:
+    """R17: TERMINAL_GRAMMAR_ENABLED (MOVE, aliases, command stats) -- the SAME reader
+    the grammar routes' dark gate uses. Those routes answer a byte-identical 404 for
+    "flag off" and "not in the cohort", so the client could not tell the two apart;
+    this lets it. ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): flag unset =>
+    this payload is byte-identical to before. The client reads `=== true`. Never raises."""
+    try:
+        from api.services import terminal_grammar
+        return {"terminal_grammar_enabled": True} if terminal_grammar.is_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
+
+
 # Research > Depth panels (lane gaps-research): payload key -> the service module whose
 # `is_enabled()` is that surface's ONE gate (the same reader its routes' dark gate uses).
 _RESEARCH_DEPTH_SURFACES = (
@@ -696,6 +709,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
         **_options_screener_flag(),
+        **_terminal_grammar_flag(),
         **_research_depth_flags(),
         **_research_notice_flags(),
         **_calendar_depth_flags(),

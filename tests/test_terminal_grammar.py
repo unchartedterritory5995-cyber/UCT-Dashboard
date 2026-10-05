@@ -126,16 +126,20 @@ def test_the_ticker_check_reads_the_real_universe():
 
 # ── MOVE / since last visit ──────────────────────────────────────────────────────
 
-def _patch_sources(monkeypatch, facts, catalysts, *, intel_raises=False):
+def _patch_sources(monkeypatch, facts, catalysts, *, intel_raises=False, status="ok", live=(None, None),
+                   seen_changes=None):
     import api.services.watchlist_intelligence as wi
     from api.services.catalyst import store
 
     def fake_intel(tickers, changes=None, observed=None):
+        if seen_changes is not None:
+            seen_changes.append((changes, observed))
         if intel_raises:
             raise RuntimeError("vendor down")
-        return {t: {"status": "ok", "notable": bool(facts), "facts": list(facts), "context": {}} for t in tickers}
+        return {t: {"status": status, "notable": bool(facts), "facts": list(facts), "context": {}} for t in tickers}
     monkeypatch.setattr(wi, "get_intelligence_for_symbols", fake_intel)
     monkeypatch.setattr(store, "history_for_ticker", lambda s, limit=50: list(catalysts))
+    monkeypatch.setattr(tg, "_live_change", lambda s: live)
 
 
 def test_move_says_what_is_new_since_the_members_last_visit(client, monkeypatch):
@@ -159,6 +163,73 @@ def test_move_reports_an_outage_rather_than_a_quiet_tape(client, monkeypatch):
     _patch_sources(monkeypatch, [], [], intel_raises=True)
     body = c.get("/api/terminal/move/NVDA").json()
     assert body["intelligence"]["status"] == "unavailable"
+
+
+def test_R14_a_fact_that_drops_out_and_returns_is_NOT_new(client, monkeypatch):
+    # The seen-set is the UNION of what was shown; overwriting it re-flagged a
+    # fact that a source blip had briefly hidden.
+    c, _ = client
+    f1 = {"kind": "filing", "label": "8-K", "as_of": "2026-10-01"}
+    f2 = {"kind": "analyst", "label": "Upgrade", "as_of": "2026-10-02"}
+    _patch_sources(monkeypatch, [f1, f2], [])
+    c.get("/api/terminal/move/NVDA")
+    _patch_sources(monkeypatch, [f1], [])
+    c.get("/api/terminal/move/NVDA")
+    _patch_sources(monkeypatch, [f1, f2], [])
+    assert c.get("/api/terminal/move/NVDA").json()["since_last_visit"]["new"] == []
+
+
+def test_R14_a_partial_read_records_no_visit(client, monkeypatch):
+    c, _ = client
+    f1 = {"kind": "filing", "label": "8-K", "as_of": "2026-10-01"}
+    _patch_sources(monkeypatch, [f1], [])
+    first = c.get("/api/terminal/move/NVDA").json()
+    assert first["visit_recorded"] is True
+    f2 = {"kind": "analyst", "label": "Upgrade", "as_of": "2026-10-02"}
+    _patch_sources(monkeypatch, [f1, f2], [], status="partial")
+    outage = c.get("/api/terminal/move/NVDA").json()
+    assert outage["visit_recorded"] is False
+    # The next clean visit still diffs against the last CLEAN one: f2 is new.
+    _patch_sources(monkeypatch, [f1, f2], [])
+    assert c.get("/api/terminal/move/NVDA").json()["since_last_visit"]["new"] == ["analyst|Upgrade|2026-10-02"]
+
+
+def test_R14_seen_keys_older_than_the_window_are_pruned():
+    now = 1_790_000_000.0          # 2026-09-21 UTC
+    kept = tg._prune_seen({"filing|8-K|2026-09-01", "filing|8-K|2025-01-01", "cat|None|x"}, now)
+    assert kept == {"filing|8-K|2026-09-01", "cat|None|x"}
+
+
+def test_R18_the_change_is_looked_up_server_side_when_the_client_sends_none(client, monkeypatch):
+    c, _ = client
+    seen = []
+    _patch_sources(monkeypatch, [], [], live=(4.2, 1_790_000_000), seen_changes=seen)
+    c.get("/api/terminal/move/NVDA")
+    assert seen[-1] == ({"NVDA": 4.2}, {"NVDA": 1_790_000_000})
+
+
+def test_R18_a_client_supplied_change_still_wins(client, monkeypatch):
+    c, _ = client
+    seen = []
+    _patch_sources(monkeypatch, [], [], live=(4.2, 1), seen_changes=seen)
+    c.get("/api/terminal/move/NVDA?change_pct=-5")
+    assert seen[-1][0] == {"NVDA": -5.0}
+
+
+def test_R18_live_change_reads_the_shared_cache_and_ignores_a_closed_session(monkeypatch):
+    from api.routers import live_prices as lp
+    monkeypatch.setattr(lp.cache, "get", lambda k: {"change_pct": 3.5, "observed_at": 9.0}
+                        if k == lp._px_key("AAA") else {"change_pct": 7.0, "market_closed": True})
+    assert tg._live_change("AAA") == (3.5, 9.0)
+    assert tg._live_change("BBB") == (None, None)
+
+
+def test_R17_the_flag_rides_the_auth_payload_only_when_on(monkeypatch):
+    from api.routers import auth
+    monkeypatch.delenv("TERMINAL_GRAMMAR_ENABLED", raising=False)
+    assert auth._terminal_grammar_flag() == {}
+    monkeypatch.setenv("TERMINAL_GRAMMAR_ENABLED", "1")
+    assert auth._terminal_grammar_flag() == {"terminal_grammar_enabled": True}
 
 
 def test_move_refuses_a_non_ticker(client):

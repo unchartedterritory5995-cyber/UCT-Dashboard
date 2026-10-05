@@ -97,17 +97,46 @@ class TestPriceMoveEvidenceTimestamp:
 
 class TestAnalystFact:
     def test_a_recent_action_fires_with_evidence_date_from_the_action_itself(self):
+        recent = (wi._today_et() - _dt.timedelta(days=1)).isoformat()
         with _patch("api.services.research.analyst_ratings.get_analyst_ratings", return_value={
             "recent_actions": {"items": [{"firm": "Piper Sandler", "action": "Upgrade to Overweight",
-                                           "date": "2026-09-01"}],
+                                           "date": recent}],
                                 "_meta": {"vendor": "FMP", "freshnessClass": "fresh"}},
         }):
             out = wi.get_intelligence_for_symbols(["NVDA"])
         facts = [f for f in out["NVDA"]["facts"] if f["kind"] == "analyst_action"]
         assert len(facts) == 1
-        assert facts[0]["as_of"] == "2026-09-01"
+        assert facts[0]["as_of"] == recent
         assert facts[0]["source"] == "FMP"
         assert facts[0]["freshness"] == "fresh"
+
+    def test_R15_an_OLD_action_is_not_why_it_is_moving(self):
+        old = (wi._today_et() - _dt.timedelta(days=wi._ANALYST_RECENCY_DAYS + 30)).isoformat()
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings", return_value={
+            "recent_actions": {"items": [{"firm": "Old Firm", "action": "Downgrade", "date": old}],
+                                "_meta": {"vendor": "FMP"}}}):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
+        assert out["NVDA"]["status"] == "ok"
+
+    def test_R15_the_NEWEST_action_is_used_not_items_0(self):
+        today = wi._today_et()
+        older = (today - _dt.timedelta(days=3)).isoformat()
+        newer = (today - _dt.timedelta(days=1)).isoformat()
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings", return_value={
+            "recent_actions": {"items": [{"firm": "A", "action": "Hold", "date": older},
+                                         {"firm": "B", "action": "Upgrade", "date": newer}],
+                                "_meta": {}}}):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        fact = next(f for f in out["NVDA"]["facts"] if f["kind"] == "analyst_action")
+        assert fact["label"] == "B: Upgrade" and fact["as_of"] == newer
+
+    def test_R15_an_undated_action_cannot_be_shown_as_recent(self):
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings", return_value={
+            "recent_actions": {"items": [{"firm": "A", "action": "Upgrade"}],
+                                "_meta": {"fetchedAt": "2026-10-05"}}}):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
 
     def test_no_recent_actions_does_not_fire(self):
         with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
@@ -156,10 +185,24 @@ class TestAnalystFact:
         assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
 
 
+class TestEasternDate:
+    def test_R16_after_8pm_ET_today_is_still_the_ET_date(self, monkeypatch):
+        # 2026-10-05 21:30 ET is 2026-10-06 01:30 UTC: the server's UTC date is
+        # already tomorrow, the trading calendar's is not.
+        real = wi.datetime.datetime
+
+        class _Fixed(real):
+            @classmethod
+            def now(cls, tz=None):
+                return real(2026, 10, 6, 1, 30, tzinfo=_dt.timezone.utc).astimezone(tz)
+        monkeypatch.setattr(wi.datetime, "datetime", _Fixed)
+        assert wi._today_et() == _dt.date(2026, 10, 5)
+
+
 class TestFilingFact:
     def test_a_filing_within_the_recency_window_fires(self):
         import datetime
-        recent = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        recent = (wi._today_et() - datetime.timedelta(days=1)).isoformat()
         with _patch("api.services.sec_filings.recent_filings",
                     return_value={"filings": [{"form": "8-K", "filed": recent, "accession": "x"}]}):
             out = wi.get_intelligence_for_symbols(["NVDA"])
@@ -169,7 +212,7 @@ class TestFilingFact:
 
     def test_an_old_filing_does_not_fire(self):
         import datetime
-        old = (datetime.date.today() - datetime.timedelta(days=90)).isoformat()
+        old = (wi._today_et() - datetime.timedelta(days=90)).isoformat()
         with _patch("api.services.sec_filings.recent_filings",
                     return_value={"filings": [{"form": "10-K", "filed": old, "accession": "x"}]}):
             out = wi.get_intelligence_for_symbols(["NVDA"])
@@ -186,7 +229,7 @@ class TestFilingFact:
 class TestEarningsProximityFact:
     def test_reporting_tomorrow_fires_with_the_actual_report_date(self):
         import datetime
-        today = datetime.date.today()
+        today = wi._today_et()
         tomorrow = today + datetime.timedelta(days=1)
 
         def fake_reporters(date_str):
@@ -202,7 +245,7 @@ class TestEarningsProximityFact:
         import datetime
         # Seam 4: the window length is derived from one declaration in
         # calendar_alerts rather than a module-level literal here.
-        far = datetime.date.today() + datetime.timedelta(days=wi._earnings_proximity_days() + 5)
+        far = wi._today_et() + datetime.timedelta(days=wi._earnings_proximity_days() + 5)
 
         def fake_reporters(date_str):
             return ({"NVDA"}, True) if date_str == far.isoformat() else (set(), True)
