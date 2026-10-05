@@ -118,6 +118,15 @@ describe('parseCommand — T3: rows, channels, expressions, ASK, aliases, collis
     expect(parseCommand('@Z NVDA').ok).toBe(false)     // E is not a group
   })
 
+  it('@B ASK <question> is accepted — ASK opens a panel, so a channel-targeted ASK is valid', () => {
+    const r = parseCommand('@B ASK why is NVDA down')
+    expect(r).toMatchObject({ ok: true, type: 'ask', channel: 'B', question: 'why is NVDA down' })
+    expect(formatCommand(r)).toBe('@B ASK why is NVDA down')
+    // `@B <question>` (ASK implied via the question fallback) is likewise accepted.
+    const r2 = parseCommand('@2 what is driving the market today')
+    expect(r2).toMatchObject({ ok: true, type: 'ask', channel: '2' })
+  })
+
   it('a symbol expression A/B in the noun slot is a comparison, and only CMP takes one', () => {
     expect(parseCommand('NVDA/QQQ')).toMatchObject({ ok: true, code: 'CMP', sym: 'NVDA', args: ['QQQ'], expr: 'NVDA/QQQ', compareMode: 'security' })
     expect(parseCommand('spy/qqq cmp')).toMatchObject({ code: 'CMP', sym: 'SPY', args: ['QQQ'], compareMode: 'index' })
@@ -169,7 +178,11 @@ describe('parseCommand — T3: rows, channels, expressions, ASK, aliases, collis
     expect(parseCommand('AA', { aliases })).toMatchObject({ code: 'DES', sym: 'BB', alias: 'AA' })
   })
 
-  it.each(['DASH', 'CF', 'GP', 'FORM', 'COMM', 'RES', 'LIVE', 'MB', 'DP'])(
+  // 2026-10-05 collision-list audit: cross-checked against api/data/cap_universe.json.
+  // GP/MB/LIVE/DP/COMM were REMOVED (none is a real tracked ticker — a false collision);
+  // CAL/TECH/FA/EE/PPL/CMP/NB/EXP were ADDED (each IS a real tracked ticker that was missing
+  // its warning). DASH/CF/FORM/RES stay — all four verified still in the universe.
+  it.each(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'NB', 'EXP'])(
     'V5: bare %s runs the function and is FLAGGED as a ticker collision; $ reads the ticker', (code) => {
       expect(parseCommand(code)).toMatchObject({ ok: true, type: 'function', code, collision: code })
       expect(parseCommand(`$${code}`)).toMatchObject({ code: 'DES', sym: code })
@@ -178,7 +191,9 @@ describe('parseCommand — T3: rows, channels, expressions, ASK, aliases, collis
     })
 
   it('a non-colliding bare code carries no collision flag', () => {
-    expect(parseCommand('CAL').collision).toBeUndefined()
+    // GP/MB/LIVE/DP/COMM were removed from TICKER_COLLISIONS — none is a real ticker.
+    expect(parseCommand('GP').collision).toBeUndefined()
+    expect(parseCommand('MB').collision).toBeUndefined()
     expect(parseCommand('GP NVDA').collision).toBeUndefined()
   })
 })

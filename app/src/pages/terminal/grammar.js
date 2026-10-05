@@ -12,8 +12,12 @@ import { BY_CODE, ABSENT, isCode } from './functions'
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
  *  2026-10-02; e.g. CF = CF Industries, DASH = DoorDash). `grammar.test.js` pins every
- *  entry to a registered code, so this list cannot name a code the registry dropped. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'GP', 'FORM', 'COMM', 'RES', 'LIVE', 'MB', 'DP'])
+ *  entry to a registered code, so this list cannot name a code the registry dropped.
+ *  Cross-checked against `api/data/cap_universe.json` (2026-10-05 collision-list audit):
+ *  GP, MB, LIVE, DP and COMM were removed — none is a tracked symbol, so warning on them
+ *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
+ *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'EXP'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '

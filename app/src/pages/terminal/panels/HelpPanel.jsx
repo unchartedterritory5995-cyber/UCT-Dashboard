@@ -31,11 +31,16 @@ export function chordLabel(d) {
   return [...mods, key].join('+')
 }
 
-/** The flag that gates a code, if any — the ticker variant's when present (HELP lists codes
- *  with no security in hand, and most flagged codes are ticker-scoped), else the market
- *  variant's. A code with neither carries no flag and HELP shows no marker for it at all. */
+/** The flag that gates a code, if any. HELP lists codes with no security in hand, so the
+ *  variant that would actually run from HELP is the MARKET one when the code has one (the
+ *  same selection `variantFor`/`resolvePanel` make for a ticker-less command) — the ticker
+ *  variant's flag is read only as a fallback, for a ticker-only code. A code with neither
+ *  carries no flag and HELP shows no marker for it at all.
+ *  FLOW is why this order matters: its market door (`/options-flow`, bare `FLOW`) carries no
+ *  flag and always runs, while its ticker panel is gated by `researchFlowTabEnabled` — reading
+ *  the ticker flag first made HELP say "not enabled" for a code that works when typed bare. */
 function flagFor(f) {
-  return f.ticker?.flag || f.market?.flag || null
+  return f.market?.flag || f.ticker?.flag || null
 }
 
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {

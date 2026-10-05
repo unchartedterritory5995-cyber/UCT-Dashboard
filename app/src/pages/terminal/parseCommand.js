@@ -35,6 +35,13 @@ const ROW_RE = /^\d{1,3}$/
 const EXPR_RE = /^\$?([A-Za-z][A-Za-z.-]{0,6})\/\$?([A-Za-z][A-Za-z.-]{0,6})$/
 const ALIAS_DEF_RE = /^\S+\s+(\S+?)\s*(?:=\s*|\s+)(.+)$/
 
+/** Parse result `type`s that open something a channel can target: a function (every code
+ *  resolves to a panel/door/surface) and `ask` (ASK's own panel/door — `ASK <question>` is
+ *  refused ONLY when the question itself failed to parse, never because ASK "isn't a panel
+ *  command"). `row`, `address` and the `alias-*` types are shell bookkeeping / whole-page
+ *  navigations the shell does not (yet) resolve against a channel's target panel. */
+const OPENS_A_PANEL = new Set(['function', 'ask'])
+
 /**
  * Parse one command line. `opts.aliases` is the member's `{ NAME: expansion }` map (server-
  * owned; `api/services/terminal_grammar.py`).
@@ -56,7 +63,9 @@ export default function parseCommand(input, opts = {}) {
     if (!rest) return { ok: false, error: `${tokens[0]} needs a command after it — e.g. ${tokens[0]} NVDA`, suggestions: [] }
     const inner = parseCommand(rest, opts)
     if (!inner.ok) return inner
-    if (inner.type !== 'function') {
+    // Channel targeting only makes sense for a command that OPENS something (see
+    // OPENS_A_PANEL above for which types qualify, and why `address` does not — yet).
+    if (!OPENS_A_PANEL.has(inner.type)) {
       return { ok: false, error: `${tokens[0]} targets a panel; "${rest}" does not open one.`, suggestions: [] }
     }
     return { ...inner, channel: ch[1].toUpperCase() }
@@ -193,7 +202,10 @@ function parseCore(raw) {
 export function formatCommand(cmd) {
   if (!cmd || !cmd.ok) return ''
   if (cmd.type === 'address') return cmd.address
-  if (cmd.type === 'ask') return `ASK ${cmd.question}`
+  if (cmd.type === 'ask') {
+    const text = `ASK ${cmd.question}`
+    return cmd.channel ? `@${cmd.channel} ${text}` : text
+  }
   if (cmd.type !== 'function') return ''
   const text = [cmd.sym, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
   return cmd.channel ? `@${cmd.channel} ${text}` : text
