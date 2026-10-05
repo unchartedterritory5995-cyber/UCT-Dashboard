@@ -184,6 +184,7 @@ from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import etf as etf_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
+from api.routers import ltr_call_request as ltr_call_request_router  # /live-trading-room call requests
 # landing_analytics existed but was never mounted, so the landing page's track()
 # calls and the /admin/landing-analytics page had no backend at all.
 from api.routers import landing_analytics as landing_analytics_router
@@ -9062,6 +9063,7 @@ def _wire_enabled() -> bool:
 app.include_router(insider_router.router)
 app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
+app.include_router(ltr_call_request_router.router)
 app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router, dependencies=_OPEN_READS)
