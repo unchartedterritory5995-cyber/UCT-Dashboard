@@ -3382,7 +3382,14 @@ function dailySessionVwap(name, bars, args, length, opts) {
     const b = bars[i]
     if (!(b.v > 0)) continue
     const v = src ? src[i] : (b.h + b.l + b.c) / 3
-    out[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
+    // ⭐ F10 (2026-10-04) — AS THE ACCUMULATOR COMPUTES IT, TO THE LAST BIT:
+    // `sum(src * volume) / sum(volume)` over the bar's one-bar session, so
+    // `(v * vol) / vol`, NOT `v`. The two differ by an ulp on some bars, and a
+    // script that rounds to the tick (`ceil(vwap * 100) / 100`) turns that ulp into
+    // a cent. ⚰️ MEASURED (CAP5, mtf-key-levels D-VWAP): `v` missed 5 / 636 RDDT and
+    // 33 / 8,477 SPY bars by 0.01; `(v * vol) / vol` misses 0 of either.
+    const w = typeof v === 'number' ? (v * b.v) / b.v : NaN
+    out[i] = Number.isFinite(w) ? w : NaN
   }
   return out
 }

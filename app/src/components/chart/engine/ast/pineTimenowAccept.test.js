@@ -89,10 +89,18 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     ['dayofmonth', 'lastbardayofmonth'],
     ['hour', 'lastbarhour'],
     ['minute', 'lastbarminute'],
-  ])('%s(timenow) is an identity onto %s', (fn, target) => {
-    const t = translatePine(S(`${fn}(timenow)`), { strict: true })
+  ])('%s(timenow) is an identity onto %s WHILE THE NEWEST BAR IS FORMING', (fn, target) => {
+    // ⚰️ F10 (2026-10-04) restated: this was the identity on EVERY translation, and
+    // the header's "stale fetch" divergence was then MEASURED drawn on the host lane
+    // (CAP5 mtf-key-levels, captured on a Sunday: `is_today` coloured the newest bar
+    // where TradingView coloured none). The identity now holds only where it is
+    // exact - the newest bar still forming (it contains "now"); otherwise `na`.
+    const t = translatePine(S(`${fn}(timenow)`), { strict: true, newestBarIsForming: true })
     expect(t.ok, JSON.stringify(t.refusal)).toBe(true)
     expect(t.outputs[t.selected].formula).toBe(target)
+    const closed = translatePine(S(`${fn}(timenow)`), { strict: true })
+    expect(closed.ok, JSON.stringify(closed.refusal)).toBe(true)
+    expect(closed.outputs[closed.selected].formula).not.toContain(target)
   })
 
   // ⭐⭐ VALUE CORRECTNESS, NOT JUST TRANSLATION — measured directly against

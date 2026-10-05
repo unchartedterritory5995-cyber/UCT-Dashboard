@@ -12756,6 +12756,21 @@ export class Resolver {
         }
         return tree
       }
+      // ⭐⭐ F10 (2026-10-04) — `timenow`'S CALENDAR IS THE WALL CLOCK, NOT THE NEWEST
+      // BAR'S, AND ON A CLOSED NEWEST BAR THIS ENGINE DOES NOT KNOW IT: `na`.
+      // `lastbartime` stands in for `timenow` (`PINE_TO_CLOCK_SPELLING`); its calendar
+      // fields are the wall clock's only while the newest bar is still FORMING (the
+      // bar that contains "now"). Once it has closed, "now" may be a later day.
+      // ⚰️ MEASURED (CAP5, mtf-key-levels RDDT / SPY 1D, captured Sunday 2026-10-05
+      // 00:45Z, newest bar Friday 10-02): `is_today = year == year(timenow) and …`
+      // colours D-VWAP on NO bar in TradingView; the stand-in made it true on the
+      // newest bar and drew it blue there, on the HOST lane. Withheld (`na`) on
+      // every bar unless the caller states the newest bar is forming, so a reader
+      // of the field compares false / draws nothing - never a confident "today".
+      if (CLOCK_IDENTITY_FIELDS.has(bare) && built.length === 1 && isLastBarTime(built[0])
+          && !this.newestBarIsForming) {
+        return cOp('/', [cNum(0), cNum(0)])
+      }
       return BUILTIN_CALL_TREE[bare](built)
     }
     // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
@@ -19138,8 +19153,58 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const dv = named ? named.value : first ? first.value : null
     return depth > 0 && dv && dv.type === 'number' && Number.isFinite(Number(dv.value)) ? Number(dv.value) : null
   }
+  /** ⭐⭐ F10 (2026-10-04) — A COLOUR WRITTEN THROUGH THE SCRIPT'S OWN ONE-EXPRESSION
+   *  METHOD IS THAT METHOD'S BODY, the receiver as its first parameter:
+   *  `method transp(color x, int t) => color.new(x, t)` makes
+   *  `chart.fg_color.transp(50)` exactly `color.new(chart.fg_color, 50)`.
+   *  ⚰️ MEASURED (CAP5, volatility-trend-score-backquant RDDT 1D, runtime door): both
+   *  reference lines dropped their `color` (`droppedPropNames: line.color@…`) and drew
+   *  in the renderer's default `#2962ff` where TradingView draws its foreground at 50 %
+   *  (`#0f0f0f80`) - a drawn colour TradingView never drew.
+   *  ⛔ ONLY `readMethodDefs`'s methods (declared once, one expression, writes nothing,
+   *  not also a plain function), positional arguments, and - for the dotted form the
+   *  parser joins into one name (`a.b.m(…)`) - a receiver that IS a colour value: a
+   *  theme name, a Pine colour constant, or a name the script binds. A namespace
+   *  call (`ta.sma`) never matches. The body's parameters are substituted by the
+   *  argument NODES, read in the caller's scope; nothing else changes. */
+  let colourMethodDefs = null
+  const substituteParams = (n, subst) => {
+    if (Array.isArray(n)) return n.map((x) => substituteParams(x, subst))
+    if (!n || typeof n !== 'object') return n
+    if (n.type === 'name' && subst.has(n.name)) return subst.get(n.name)
+    const out = {}
+    for (const [k, v] of Object.entries(n)) out[k] = (k === 'tok' || k === 'endTok') ? v : substituteParams(v, subst)
+    return out
+  }
+  const colourMethodBody = (node, scope) => {
+    if (!node || (node.type !== 'call' && node.type !== 'method')) return null
+    let recv
+    let method
+    if (node.type === 'method') {
+      recv = node.recv
+      method = node.name
+    } else {
+      const mf = splitMethodName(node.name)
+      if (!mf) return null
+      const bound = scope && typeof scope.get === 'function' ? scope.get(mf.recv) : null
+      if (!(THEME_NAMES.includes(mf.recv) || bound || isPineColourSpelling(mf.recv))) return null
+      recv = { type: 'name', name: mf.recv, tok: node.tok }
+      method = mf.method
+    }
+    if (!colourMethodDefs) colourMethodDefs = readMethodDefs(stmts)
+    const def = colourMethodDefs.get(method)
+    const args = node.args || []
+    if (!def || def.params.length !== args.length + 1 || args.some((a) => !a || a.name)) return null
+    const subst = new Map([[def.params[0], recv]])
+    def.params.slice(1).forEach((p, k) => subst.set(p, args[k].value))
+    return substituteParams(def.body, subst)
+  }
   const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    {
+      const body = colourMethodBody(node, scope)
+      if (body) return colorNodeOf(body, scope, depth + 1)
+    }
     // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
     // carried as a REFERENCE (the Pine name itself) and resolved where the
     // drawing is painted, against the chart it is painted on
@@ -26928,6 +26993,7 @@ function openColourHelper(node, env, ctx) {
  *  any leaf is not a static colour. Bounded like every other chase here. */
 function staticColourArity(node, env, depth = 0, seen = new Set(), ctx = null) {
   if (!node || depth > 8) return 0
+  node = iffAsTernary(node) || node
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
     return arm ? staticColourArity(arm.node, arm.env, depth + 1, seen, ctx) : 0
@@ -27004,15 +27070,34 @@ function paletteEntryWithAlpha(hex, a) {
   return `rgba(${ch[0]}, ${ch[1]}, ${ch[2]}, ${Math.round(a * 1e4) / 1e4})`
 }
 
+/** ⭐⭐ F10 (2026-10-04) — `iff(cond, a, b)` IS THE TERNARY, TO A COLOUR READER TOO.
+ *  The value path already expands Pine v2-v4's `iff` to `?:` (`BUILTIN_CALL_TREE.iff`);
+ *  the colour readers walk the SOURCE tree and only knew `?:`, so a v4 colour rule
+ *  written `iff(close > TS, color.green, iff(close < TS, color.red, color.black))`
+ *  was uncarried and its plot drew in the pane's gold on every bar.
+ *  ⚰️ MEASURED (vendor harness, atr-trailing-stoploss-strategy RDDT / SPY 1D, CAP5):
+ *  gold `#c9a84c` vs TradingView's green / red / `#363A45` on 636 / 8,477 of 636 / 8,477
+ *  bars, with the line's VALUE matching on every bar. Only three positional arguments
+ *  (a named `iff` refuses at translation, `refuseUnmeasuredNamedArgs`). Colour leaves
+ *  are static, so evaluating both arms (an `iff`'s calls) and one arm (a `?:`'s)
+ *  cannot differ here. */
+function iffAsTernary(node) {
+  if (!node || node.type !== 'call' || node.name !== 'iff') return null
+  const args = node.args || []
+  if (args.length !== 3 || args.some((a) => !a || a.name || a.value === undefined)) return null
+  return { type: 'ternary', test: args[0].value, yes: args[1].value, no: args[2].value, tok: node.tok }
+}
+
 function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
   if (!node || depth > 8) return null
+  node = iffAsTernary(node) || node
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
     return arm ? colourIndexChain(arm.node, arm.env, ctx, depth + 1, acc) : null
   }
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
-    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+    if (b && b.kind === 'expr' && b.node && (b.node.type === 'ternary' || iffAsTernary(b.node))) {
       return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
     }
   }
@@ -27329,6 +27414,7 @@ function paletteEntryHex(entry) {
 
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  node = iffAsTernary(node) || node
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
     return arm ? colourConditional(arm.node, arm.env, depth + 1, ctx) : null
