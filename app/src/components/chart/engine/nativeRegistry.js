@@ -102,7 +102,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
+import { resolveOtherSymbols, resolveFormulaSymbols, symTickersOf, isPineOriginDoc, otherSymbolPending } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -2392,6 +2392,23 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     for (const key of keys) errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) || [...periodWhy.values()][0] }
     return withColumnErrors({}, errors)
   }
+  // ⭐⭐ P0 — A READ BELOW THE CHART (`ltf`) IN A DOCUMENT THAT IS NOT A PINE
+  // TRANSLATION IS REFUSED BY NAME, per plot. Its supply (`lowerTfFor`) is built
+  // from the member door's stamp and its admission rules (`lower-tf:expression`,
+  // `lowerTf.js`) are checked by the Pine translator — neither exists for a
+  // typed formula, so it was accepted and starved: all-NaN, no report.
+  const ltfWhy = new Map()
+  if (!isPineOriginDoc(def)) {
+    for (const k of keys) {
+      const tree = trees ? trees[k] : def.compute && def.compute.ast
+      if (treeReadsLtf(tree)) ltfWhy.set(k, FORMULA_LTF_MESSAGE)
+    }
+  }
+  if (ltfWhy.size && (!trees || ltfWhy.size === keys.length)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: FORMULA_LTF_GUARD, message: FORMULA_LTF_MESSAGE }
+    return withColumnErrors({}, errors)
+  }
   // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
   // into the integers THIS binding needs. `Uncharted Volume` line 233's
   // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
@@ -2489,6 +2506,10 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       // ⭐ C29 — only the plots that folded the other period's value are refused.
       if (periodWhy.has(key)) {
         errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
+        continue
+      }
+      if (ltfWhy.has(key)) {
+        errors[key] = { guard: FORMULA_LTF_GUARD, message: ltfWhy.get(key) }
         continue
       }
       try {
@@ -2597,6 +2618,52 @@ export function lowerTfFor(def, ctx) {
   })
 }
 
+/** ⭐⭐ P0 — the guard a formula document's `ltf` plot is refused under. */
+export const FORMULA_LTF_GUARD = 'lower-tf:formula-unsupported'
+export const FORMULA_LTF_MESSAGE = 'This indicator reads a timeframe below the chart (`ltf(…)`), which is '
+  + 'only computed for an imported Pine script; a formula that reads one is not computed on any chart.'
+
+/** Does a tree contain an `ltf` node? Iterative, like `symTickersOf`. */
+function treeReadsLtf(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (Array.isArray(n)) { for (const x of n) stack.push(x); continue }
+    if (n.type === 'ltf') return true
+    for (const k of Object.keys(n)) {
+      const v = n[k]
+      if (v && typeof v === 'object') stack.push(v)
+    }
+  }
+  return false
+}
+
+/** ⭐⭐ P0 — WHAT A MEMBER IS TOLD ABOUT AN INSTANCE'S EXTERNAL READS ON THIS
+ *  CHART: `[{code, reason}]` for a document that is NOT a Pine translation — each
+ *  other symbol refused by the bind (a read still waiting for its bars says
+ *  nothing yet) and each plot refused for reading below the chart. The binder
+ *  publishes it on the same per-instance strip as `chartClockReport`
+ *  (`chartClockNotice.js` → `AttachedPineDisclosures`), so a refused `sym` /
+ *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
+ *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
+export function externalReadNotices(def, columns) {
+  if (!def || isPineOriginDoc(def) || !columns) return []
+  const out = []
+  const other = otherSymbolReport(columns)
+  for (const r of (other && other.refused) || []) {
+    if (otherSymbolPending(r)) continue
+    out.push({ code: r.code, reason: r.reason })
+  }
+  const errs = columnErrors(columns)
+  if (Object.values(errs).some((e) => e && e.guard === FORMULA_LTF_GUARD)) {
+    out.push({ code: FORMULA_LTF_GUARD, reason: FORMULA_LTF_MESSAGE })
+  }
+  return out
+}
+
 /** The key a column map carries its lower-timeframe decision under —
  *  non-enumerable, like `__otherSymbols`. */
 const LOWER_TF = '__lowerTf'
@@ -2617,11 +2684,21 @@ export function lowerTfReport(columns) {
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
- *  or null when the document reads none. The member door's Pine documents are
- *  the only ones decided here: a `sym` in a document from any other translator
- *  keeps the unsupplied answer it always had. */
+ *  or null when the document reads none.
+ *
+ *  ⭐⭐ P0 — EVERY DOCUMENT THAT READS ONE IS DECIDED HERE. A Pine translation by
+ *  its recorded spellings (`resolveOtherSymbols`); any other document — a formula
+ *  a member typed — by our store's ticker (`resolveFormulaSymbols`): served when
+ *  its bars are in hand, refused by name otherwise.
+ *  ⚰️ Until P0 a non-Pine `sym` "kept the unsupplied answer it always had":
+ *  all-NaN, no report, never fetched — a definition accepted and starved. */
 export function otherSymbolsFor(def, ctx) {
-  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
+  if (!def) return null
+  if (!isPineOriginDoc(def)) {
+    if (!symTickersOf(def).length) return null
+    return resolveFormulaSymbols(def, { secondary: ctx && ctx.secondary, framed: !!(ctx && ctx.framed) })
+  }
+  if (!def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
   if (!symTickersOf(def).length && !(def.meta.otherSymbols || []).length) return null
   return resolveOtherSymbols(def, {
     secondary: ctx && ctx.secondary,
