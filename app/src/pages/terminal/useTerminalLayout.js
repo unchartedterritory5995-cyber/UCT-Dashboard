@@ -82,13 +82,20 @@ export default function useTerminalLayout() {
   }, [libRead.status, setPref])
 
   const setGroupSym = useCallback((group, sym) => {
+    // FIX 4: an empty/null `sym` is a real instruction — clear the channel back to
+    // unlinked (e.g. `revertLayout` restoring a previously-unlinked channel over a
+    // board-injected ticker) — never dropped as if it were a no-op call.
     const s = String(sym || '').trim().toUpperCase()
-    if (!s || !['A', 'B', 'C', 'D'].includes(group)) return
+    if (!['A', 'B', 'C', 'D'].includes(group)) return
     // Merge, never replace: the other letters are /charts' live comparison slots.
     setPrefMerged(FOCUS_PREF_KEY, (cur) => {
       const base = cur && typeof cur === 'object' ? cur : {}
-      if (base[group] === s) return undefined          // no-op writes cost a POST
-      return { ...base, [group]: s }
+      const next = s || undefined
+      if ((base[group] || undefined) === next) return undefined   // no-op writes cost a POST
+      const out = { ...base }
+      if (next) out[group] = next
+      else delete out[group]
+      return out
     })
   }, [setPrefMerged])
 
