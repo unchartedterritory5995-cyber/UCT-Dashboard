@@ -62,6 +62,9 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 // through the generic engine. `OTHER_TOURS` is a module-level constant (never
 // recomputed per render) so RegistryToursGate's own effects see a stable array.
 import RegistryToursGate from '../components/notebook/onboarding/RegistryToursGate'
+// Wave 14 (lane W14-C2): "newly switched on, offer once" -- an eager gate that fetches its
+// small card only when a registered tour is due to be offered.
+import TourOfferGate from '../components/notebook/onboarding/TourOfferGate'
 import { BASE_TOUR_ID, TOUR_REGISTRY } from '../components/notebook/onboarding/tourRegistry'
 
 const OTHER_TOURS = TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID)
@@ -2632,6 +2635,9 @@ export default function NotebookTab() {
           W14-B's charter), so this renders null and fetches nothing; it exists so a
           future lane adds a registry entry and an anchor line, nothing here. */}
       <RegistryToursGate tours={OTHER_TOURS} />
+      {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
+          which the member has never seen. Never while a note is open (R4). */}
+      <TourOfferGate tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
     </div>
     </SplitViewContext.Provider>
   )

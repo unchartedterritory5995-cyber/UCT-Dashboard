@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
 import { replayableTours, startPath, startState } from './journal-2-0/components/notebook/onboarding/tourRegistry'
+import usePreferences from '../hooks/usePreferences'
+import { TOURS_PREF } from './journal-2-0/components/notebook/onboarding/tourSeenState'
+import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tourEligibility'
+import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import styles from './Support.module.css'
 
@@ -347,6 +351,46 @@ function WalkthroughsSection() {
         ))}
       </ul>
     </div>
+  )
+}
+
+/** Help > What's new (wave 14, lane W14-C2; default D4). Every registered tour whose
+ *  capability is ON for this member and which the member has not TAKEN -- never seen, or
+ *  declined from the Notebook's one-time offer before walking a step -- each with Start.
+ *
+ *  "Became available" has no timestamp on the client: flags arrive as booleans on the
+ *  auth payload, and the arming time lives only in docs/feature_flags.json. So it is
+ *  DEFINED as "flag on and never taken" (tourEligibility.js, the same rules the offer
+ *  uses). A tour leaves this list the moment the member starts it; Walkthroughs above
+ *  keeps listing it forever.
+ *
+ *  D4: this is where a newly armed capability goes INSTEAD of reopening the "get
+ *  started" checklist -- nothing here reads or writes that list's key. Start goes
+ *  through the same `startPath`/`startState` door as Replay. */
+function WhatsNewSection() {
+  const { prefs, loading } = usePreferences()
+  if (loading) return null
+  const items = whatsNewTours({ tours: replayableTours(), flagOn: notebookOn, toursPrefRaw: prefs?.[TOURS_PREF] })
+  if (!items.length) return null
+  return (
+    <section className={styles.faqWrap} aria-labelledby="support-whats-new">
+      <h2 id="support-whats-new" className={`${styles.faqTitle} ${styles.whatsNewTitle}`}>
+        <UIcon name="sparkle" size={13} />
+        {WHATS_NEW_COPY.heading}
+      </h2>
+      <p className={styles.whatsNewLead}>{WHATS_NEW_COPY.lead}</p>
+      <ul className={styles.walkthroughList}>
+        {items.map((t) => (
+          <li key={t.id} className={styles.walkthroughRow}>
+            <span>{t.title}</span>
+            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+              aria-label={`${WHATS_NEW_COPY.start} the ${t.title} tour`}>
+              {WHATS_NEW_COPY.start}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1344,6 +1388,7 @@ export default function Support() {
           </>
         )}
 
+        {!loading && <WhatsNewSection />}
         {!loading && <WalkthroughsSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}

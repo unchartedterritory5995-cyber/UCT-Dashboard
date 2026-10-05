@@ -121,6 +121,27 @@ export async function refreshPreferences() {
   return { ...DEFAULTS, ...data }
 }
 
+/**
+ * Put a value into the shared preferences cache WITHOUT a request -- for a write that
+ * reaches the server through its own door and answers with what it stored (wave 14,
+ * lane W14-C2: `PUT /api/j2/onboarding/tours/{id}` merges ONE tour's row on the server
+ * and answers the merged `notebook_tours`). The sibling of `refreshPreferences` above,
+ * minus the re-read: the door's answer IS the server's value.
+ *
+ * `updater(current) -> next` (current parsed, like `setPrefMerged`), or a plain value.
+ * `undefined` changes nothing. Nothing loaded yet ⇒ nothing is fabricated: the next read
+ * brings the server's value anyway. Never POSTs -- calling this is not a save.
+ */
+export async function mergeIntoPreferenceCache(key, updater) {
+  await mutateGlobal(PREFS_URL, (prev) => {
+    if (!prev || typeof prev !== 'object') return prev
+    const current = parsePref(prev[key], undefined)
+    const next = typeof updater === 'function' ? updater(current) : updater
+    if (next === undefined) return prev
+    return { ...prev, [key]: typeof next === 'string' ? next : JSON.stringify(next) }
+  }, { revalidate: false })
+}
+
 // `enabled` defaults to true, so every existing caller (all ~79 of them) is
 // unaffected — it exists for a root-mounted caller that renders for EVERY
 // visitor, signed in or not, so it can hold off this authed-only GET until a
