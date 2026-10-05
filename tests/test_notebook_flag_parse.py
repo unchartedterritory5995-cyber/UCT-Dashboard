@@ -59,6 +59,7 @@ from api.services.journal_two import note_levels
 from api.services.journal_two import setups_board
 from api.services.journal_two import similar_matches
 from api.services.journal_two import review_drafts
+from api.services.journal_two import document_extraction, note_semantic, note_tasks
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -149,6 +150,10 @@ def _server_gates() -> dict:
         # Wave 13 lane 13F: the review-drafts service's own gate function (the router's
         # `enabled()` is a thin re-export of this one).
         "NOTEBOOK_REVIEW_DRAFTS_ENABLED": review_drafts.enabled,
+        # Wave 14 lane W14-C1: three capabilities' own gate functions, now on the payload.
+        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
+        "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
+        "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
     }
 
 

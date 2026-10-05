@@ -1,9 +1,16 @@
+import { useEffect } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import { formatET } from '../../../../utils/timeAgo'
 import { useJ2NoteVersion } from '../../hooks/useJ2NoteVersions'
 import NoteVersionPreview from './NoteVersionPreview'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ResurfaceVersionSheet.module.css'
+// Wave 14 (W14-C1, item f): the first time this notice shows what the member wrote, it asks
+// the registry for its passive explainer. The gate checks the capability's flag and the
+// engine shows it once per member; nothing here decides either.
+import { openRegistryTour } from './onboarding/tourRegistryControl'
+
+export const RESURFACE_EXPLAINER_ID = 'note-resurfaces'
 
 /**
  * Wave 13 lane 13D — "here's what you thought then".
@@ -22,6 +29,8 @@ import styles from './ResurfaceVersionSheet.module.css'
  */
 export default function ResurfaceVersionSheet({ noteId, versionId, onClose }) {
   const { version, isLoading, error } = useJ2NoteVersion(noteId, versionId)
+  const shown = !isLoading && Boolean(version)
+  useEffect(() => { if (shown) openRegistryTour(RESURFACE_EXPLAINER_ID) }, [shown])
 
   return (
     <Sheet

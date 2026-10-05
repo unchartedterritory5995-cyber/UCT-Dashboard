@@ -47,12 +47,61 @@ export const BASE_TOUR_ID = 'notebook-basics'
 
 /** The field set every entry carries (tours/index.js, authoring contract)... */
 export const ENTRY_FIELDS = Object.freeze(['flag', 'id', 'load', 'replayable', 'title'])
-/** ...plus the fields an entry MAY carry. `start` is the location the tour
- *  starts at (plan 4.2): a path under NOTEBOOK_ROOT, because that is where the
- *  generic engine is mounted (NotebookTab -> RegistryToursGate); a start
- *  anywhere else would unmount the engine that navigated there. */
+/** ...plus the fields an entry MAY carry. `start` is where the tour starts (plan 4.2), in one
+ *  of three declarative forms (wave 14, lane W14-C1 -- the registry gate is mounted ONCE, in
+ *  the app shell `components/Layout.jsx`, so a tour survives the navigation to its start):
+ *    * a PATH, e.g. '/journal/notebook?view=tasks' or '/journal-2-0/playbook': its pathname
+ *      must be one of START_ROUTES, the known in-app pages a tour may start on;
+ *    * `{ note: 'sample:<key>' | 'recent', embed?: '<widget id>' }`: a tour that runs inside
+ *      a note. `sample:<key>` opens the W14-E example note for that capability (import key
+ *      `sample-example:<key>`, api/services/journal_two/sample_examples.py), else the
+ *      member's most recently edited note (holding an `embed` widget, when one is named);
+ *    * `{ trade: 'recent' }`: the member's most recent trade's page.
+ *  A note or trade is only ever OPENED, never created: with nothing to open, the card says
+ *  so and offers a way out (tourStart.js). */
 export const OPTIONAL_FIELDS = Object.freeze(['start'])
 export const NOTEBOOK_ROOT = '/journal/notebook'
+
+/** The in-app pages a PATH start may name (pathname only; a query is allowed). Each is a
+ *  route App.jsx registers inside the authenticated `Layout`, where the gate is mounted
+ *  (railed by tourRegistry.test.js against App.jsx). A parameterised page (a trade, a
+ *  position, one note) is reached through an object start instead, never a typed id. */
+export const START_ROUTES = Object.freeze([
+  NOTEBOOK_ROOT,
+  '/journal/notebook/setups',
+  '/journal/trades',
+  '/journal-2-0/playbook',
+])
+
+/** The object start kinds, and the values each accepts. */
+const NOTE_SPEC = /^(recent|sample:[a-z][a-z0-9_]*)$/
+const EMBED_SPEC = /^[a-z][a-zA-Z0-9_-]*$/
+
+/** Why `start` is not a valid start, or null when it is. */
+export function startProblem(start) {
+  if (typeof start === 'string') {
+    if (!start.startsWith('/')) return 'a path must begin with /'
+    const pathname = start.split(/[?#]/)[0]
+    return START_ROUTES.includes(pathname) ? null : `its page ${JSON.stringify(pathname)} is not one of START_ROUTES`
+  }
+  if (!start || typeof start !== 'object' || Array.isArray(start)) return 'it must be a path or an object'
+  const keys = Object.keys(start).sort().join()
+  if (keys === 'note' || keys === 'embed,note') {
+    if (typeof start.note !== 'string' || !NOTE_SPEC.test(start.note)) return 'note must be "recent" or "sample:<key>"'
+    if ('embed' in start && (typeof start.embed !== 'string' || !EMBED_SPEC.test(start.embed))) return 'embed must be a widget id'
+    return null
+  }
+  if (keys === 'trade') return start.trade === 'recent' ? null : 'trade must be "recent"'
+  return `unknown start kind (${keys || 'no keys'})`
+}
+
+/** Which kind of start an entry declares: 'path', 'note', 'trade', or null for none. */
+export function startKind(entry) {
+  const s = entry?.start
+  if (s == null) return null
+  if (typeof s === 'string') return 'path'
+  return 'note' in s ? 'note' : 'trade'
+}
 
 const BASE_ENTRY = Object.freeze({
   id: BASE_TOUR_ID,
@@ -80,9 +129,9 @@ export function assembleRegistry(...lists) {
       if (required.join() !== ENTRY_FIELDS.join()) {
         throw new Error(`tour registry: ${where} (id ${JSON.stringify(e?.id)}) must have exactly the fields ${ENTRY_FIELDS.join(', ')} (optionally ${OPTIONAL_FIELDS.join(', ')}); it has ${keys.join(', ') || 'none'}`)
       }
-      if ('start' in e && !(typeof e.start === 'string'
-        && (e.start === NOTEBOOK_ROOT || e.start.startsWith(`${NOTEBOOK_ROOT}/`) || e.start.startsWith(`${NOTEBOOK_ROOT}?`)))) {
-        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) start must be a path under ${NOTEBOOK_ROOT}; it is ${JSON.stringify(e.start)}`)
+      const problem = 'start' in e ? startProblem(e.start) : null
+      if (problem) {
+        throw new Error(`tour registry: ${where} (id ${JSON.stringify(e.id)}) start is not a known start: ${problem}; it is ${JSON.stringify(e.start)}`)
       }
       if (typeof e.id !== 'string' || !e.id || typeof e.flag !== 'string' || !e.flag
         || typeof e.title !== 'string' || typeof e.replayable !== 'boolean' || typeof e.load !== 'function') {
@@ -92,7 +141,10 @@ export function assembleRegistry(...lists) {
         throw new Error(`tour registry: duplicate tour id "${e.id}" (${seen.get(e.id)} and ${where})`)
       }
       seen.set(e.id, where)
-      out.push(Object.isFrozen(e) ? e : Object.freeze({ ...e }))
+      const start = e.start && typeof e.start === 'object' ? Object.freeze({ ...e.start }) : e.start
+      out.push(Object.isFrozen(e) && (!e.start || typeof e.start !== 'object' || Object.isFrozen(e.start))
+        ? e
+        : Object.freeze({ ...e, ...('start' in e ? { start } : {}) }))
     })
   })
   return Object.freeze(out)
@@ -111,8 +163,15 @@ export function getTourEntry(id, registry = TOUR_REGISTRY) {
  *  the Notebook root (the base tour's own, unchanged, destination). */
 export function startPath(entryOrId, registry = TOUR_REGISTRY) {
   const e = typeof entryOrId === 'string' ? getTourEntry(entryOrId, registry) : entryOrId
-  return (e && e.start) || NOTEBOOK_ROOT
+  const kind = startKind(e)
+  if (kind === 'path') return e.start
+  // An object start is resolved by the engine once the tour is wanted (tourStart.js); the
+  // link lands on the page that lists what it resolves among, and the engine goes on from there.
+  if (kind === 'trade') return '/journal/trades'
+  return NOTEBOOK_ROOT
 }
+
+
 
 /** Every tour Help should offer a Replay button for, in registry order. */
 export function replayableTours(registry = TOUR_REGISTRY) {
@@ -129,3 +188,7 @@ export function startState(entryOrId) {
   const id = typeof entryOrId === 'string' ? entryOrId : entryOrId.id
   return id === BASE_TOUR_ID ? TOUR_START_STATE : Object.freeze({ startRegistryTourId: id })
 }
+
+/** Every registered tour except the base one, which keeps its own gate and engine (wave 8).
+ *  One frozen array, so every mount (Layout's gate, NotebookTab's offer) sees a stable list. */
+export const OTHER_TOURS = Object.freeze(TOUR_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID))

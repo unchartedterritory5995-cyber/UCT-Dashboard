@@ -2,7 +2,8 @@
 // Anchors live in WidgetEmbedView.jsx (the chart in a note, its Draw and Plan buttons) and
 // ChartPlanPanel.jsx (the plan panel), the capability's own components (wave 13 lane 13H-2).
 // On a computer the chart's toolbar shows while the pointer is over the chart, and the
-// panel only once Plan is open; a step whose anchor is not on screen is skipped.
+// panel only once Plan is open. The Plan step waits for the member to open it (`waitFor`,
+// W14-C1), so the panel steps show; a step whose anchor never appears is skipped.
 const EMBED = 'components/notebook/WidgetEmbedView.jsx'
 const PANEL = 'components/notebook/ChartPlanPanel.jsx'
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
@@ -10,7 +11,7 @@ const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 export const STEPS = Object.freeze([
   step('chart', 'chart-embed', EMBED),
   step('draw', 'chart-plan-draw', EMBED),
-  step('plan', 'chart-plan-open', EMBED),
+  Object.freeze({ id: 'plan', anchor: 'chart-plan-open', file: EMBED, waitFor: 'chart-plan-panel' }),
   step('roles', 'chart-plan-panel', PANEL),
   step('numbers', 'chart-plan-numbers', PANEL),
   step('alert', 'chart-plan-alert', PANEL),
@@ -27,7 +28,7 @@ export const COPY = Object.freeze({
   }),
   plan: Object.freeze({
     title: 'Open the plan',
-    body: 'Plan lists every flat line you drew, with its price.',
+    body: 'Plan lists every flat line you drew, with its price. Choose Plan to continue.',
   }),
   roles: Object.freeze({
     title: 'Entry, stop and target',

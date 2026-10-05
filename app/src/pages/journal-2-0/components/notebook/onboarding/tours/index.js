@@ -40,15 +40,26 @@
 //   * `replayable` boolean; false only for a passive explainer that is not a stepper.
 //   * `load`       `() => Promise<{ steps, copy }>`, resolved ONLY when the tour is
 //                  wanted.
-//   * `start`      OPTIONAL. The location the tour starts at (plan 4.2: "the screen
-//                  where a member would naturally first meet it"), a path under
-//                  `/journal/notebook`, e.g. `'/journal/notebook?view=all'`. Help's
-//                  Replay links there, and when a tour is opened elsewhere while its
-//                  FIRST step's anchor is not on screen, the engine navigates there.
-//                  Either way it then waits up to START_WAIT_MS for that anchor.
+//   * `start`      OPTIONAL. Where the tour starts (plan 4.2: "the screen where a
+//                  member would naturally first meet it"). One of (tourRegistry.js
+//                  `startProblem` is the one validator, W14-C1):
+//                    - a PATH whose page is in START_ROUTES, e.g.
+//                      `'/journal/notebook?view=tasks'`, `'/journal-2-0/playbook'`;
+//                    - `{ note: 'sample:<key>' | 'recent', embed?: '<widget>' }`: inside
+//                      a note. `sample:<key>` opens the W14-E example note whose import
+//                      key is `sample-example:<key>` (sample_examples.py), else the
+//                      member's most recently edited note (holding `embed`, if named);
+//                    - `{ trade: 'recent' }`: the member's most recent trade's page.
+//                  When the FIRST step's anchor is not on screen, the engine resolves
+//                  the start (read-only, never creating anything) and navigates there,
+//                  then waits up to START_WAIT_MS for that anchor. Help's Replay links
+//                  to `startPath()`. The registry gate is mounted once, in the app shell.
 //   Those five fields, plus optionally `start`; the registry rail refuses any other.
 //
-//   steps: `[{ id, anchor, file }]` in tour order, 3 to 6 of them (plan 4.2).
+//   steps: `[{ id, anchor, file, waitFor? }]` in tour order, 3 to 6 of them (plan 4.2).
+//          `waitFor` (W14-C1) makes a "do this to continue" step: the card asks the
+//          member to act (open a panel, a sheet) and moves on when that anchor
+//          appears. It must name the anchor of a LATER step in the same tour.
 //   copy:  `{ [step.id]: { title, body } }`, one entry per step.
 //
 // ANCHOR RULE (risk R1). Each step's `anchor` is a literal `data-tour="<anchor>"`
@@ -56,9 +67,10 @@
 // app/src/pages/journal-2-0/). tourAnchors.test.js loads every registered tour
 // and fails by tour and step name when an anchor is missing, duplicated or only
 // in a comment. Adding the anchor is the one agreed line in the capability's own
-// component. A step whose anchor is not on screen at run time is skipped, never
-// shown pointing at nothing; an anchor that exists only on one tier (phone or
-// desktop) is fine for that reason, and the step says so in its copy if needed.
+// component. The engine re-checks on every Next: a step whose anchor is not on screen
+// is waited for (bounded, STEP_WAIT_MS) and then skipped, never shown pointing at
+// nothing; an anchor that exists only on one tier (phone or desktop) is fine for that
+// reason, and the step says so in its copy if needed.
 //
 // To add a track: create `tours/<track>.js` exporting `TOURS`, add one import
 // line and one spread below. Nothing else in the engine changes.

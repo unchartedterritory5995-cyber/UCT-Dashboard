@@ -11,18 +11,20 @@ import { __resetNotebookFlags, latchNotebookFlags } from './journal-2-0/lib/offl
 import { expectNoAxeViolations } from './journal-2-0/a11y/axeHarness'
 import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 
-const FLAG_A = 'notebook_template_gallery_enabled'
-const FLAG_B = 'notebook_ta_fingerprint_enabled'
-const FLAG_OFF = 'notebook_setups_board_enabled'
+// Integration (C2 merged onto B1-B3): the fake tours borrow flags NO real tour is gated on,
+// so the real registry's tours stay out of these lists (they borrowed real tour flags before).
+const FLAG_A = 'notebook_voice_notes_enabled'
+const FLAG_B = 'notebook_ai_actions_enabled'
+const FLAG_OFF = 'notebook_trade_canvas_enabled'
 
 vi.mock('./journal-2-0/components/notebook/onboarding/tourRegistry', async (importOriginal) => {
   const real = await importOriginal()
   const tour = (id, flag, title, extra = {}) => ({ id, flag, title, replayable: true, load: async () => ({}), ...extra })
   const FAKE = [
     ...real.TOUR_REGISTRY,
-    tour('c2-a', 'notebook_template_gallery_enabled', 'Template gallery'),
-    tour('c2-b', 'notebook_ta_fingerprint_enabled', 'Chart fingerprint', { start: '/journal/notebook?view=all' }),
-    tour('c2-off', 'notebook_setups_board_enabled', 'Setups board'),
+    tour('c2-a', 'notebook_voice_notes_enabled', 'Template gallery'),
+    tour('c2-b', 'notebook_ai_actions_enabled', 'Chart fingerprint', { start: '/journal/notebook?view=all' }),
+    tour('c2-off', 'notebook_trade_canvas_enabled', 'Setups board'),
   ]
   return { ...real, TOUR_REGISTRY: FAKE, replayableTours: () => FAKE.filter((t) => t.replayable) }
 })
@@ -33,7 +35,8 @@ const { default: Support } = await import('./Support')
 let server
 beforeEach(() => {
   __resetNotebookFlags()
-  latchNotebookFlags({ notebook_onboarding_enabled: true, [FLAG_A]: true, [FLAG_B]: true, [FLAG_OFF]: false })
+  // W14-C1: task reminders reads ON when unset (a kill switch); pinned OFF so the fake tours are the list
+  latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_task_reminders_enabled: false, [FLAG_A]: true, [FLAG_B]: true, [FLAG_OFF]: false })
   server = { prefs: {} }
   global.fetch = vi.fn(async (url) => {
     if (url === '/api/auth/preferences') return { ok: true, json: async () => ({ ...server.prefs }) }

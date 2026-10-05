@@ -5,10 +5,8 @@
 // FLAG through the real generic gate. The anchors themselves are railed generically
 // by ../tourAnchors.test.js, which reads every registered tour.
 //
-// Three flags are not yet on the auth payload (FLAG_FALLBACKS has no key for them),
-// so `notebookFlag()` answers null for them whatever the server says. For those the
-// gate rail proves the tour stays CLOSED even when a payload claims the flag is on:
-// fail closed, never a tour for a capability the tab cannot see.
+// W14-C1 (item g): the three flags that were server-only now ride the auth payload, each
+// with its capability's own polarity (task reminders is a kill switch: unset reads ON).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -46,10 +44,17 @@ describe('the B1 track is registered', () => {
     }
   })
 
-  it('`start`, where set, is a path under the Notebook (no engine change for B1)', () => {
-    for (const t of TOURS) {
-      if ('start' in t) expect(t.start.startsWith('/journal/notebook'), t.id).toBe(true)
-    }
+  it('W14-C1: the four editor tours start in a note; the rest on a Notebook screen', () => {
+    const starts = Object.fromEntries(TOURS.map((t) => [t.id, t.start ?? null]))
+    expect(starts).toEqual({
+      'writing-help': { note: 'recent' },
+      'image-docx-import': { note: 'recent' },
+      'publish-share': { note: 'recent' },
+      'task-reminders': '/journal/notebook?view=tasks',
+      'template-gallery': null,
+      'meaning-search': null,
+      'formulas-rollups': { note: 'recent' },
+    })
   })
 })
 
@@ -60,7 +65,8 @@ describe.each(TOURS.map((t) => [t.id, t]))('tour %s', (id, entry) => {
     expect(steps.length, `${id} step count`).toBeLessThanOrEqual(6)
     expect(Object.keys(copy).sort()).toEqual([...new Set(steps.map((s) => s.id))].sort())
     for (const s of steps) {
-      expect(Object.keys(s).sort()).toEqual(['anchor', 'file', 'id'])
+      // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c?.title?.trim(), `${id}.${s.id} title`).toBeTruthy()
       expect(c?.body?.trim(), `${id}.${s.id} body`).toBeTruthy()
@@ -118,26 +124,43 @@ afterEach(() => {
 })
 
 describe.each(TOURS.map((t) => [t.id, t.flag]))('tour %s is gated by %s', (id, flag) => {
-  const plumbed = Object.prototype.hasOwnProperty.call(FLAG_FALLBACKS, flag)
+  it('its flag is a notebookFlag() key (W14-C1 put the last three on the payload)', () => {
+    expect(Object.keys(FLAG_FALLBACKS)).toContain(flag)
+  })
 
   it('flag OFF: opening it shows nothing', async () => {
-    latchNotebookFlags({ notebook_onboarding_enabled: true, ...(plumbed ? { [flag]: false } : {}) })
+    latchNotebookFlags({ notebook_onboarding_enabled: true, [flag]: false })
     expect(await openAndRead(id)).toBeNull()
   })
 
-  if (plumbed) {
-    it('flag ON: opening it shows the tour (CONTROL: the gate can open)', async () => {
-      latchNotebookFlags({ [flag]: true })
-      expect(notebookFlag(flag)).toBe(true)
-      const dialog = await openAndRead(id)
-      expect(dialog).not.toBeNull()
-      expect(dialog.textContent).toContain(`${TOURS.find((t) => t.id === id).title} is open`)
-    })
-  } else {
-    it('flag not on the auth payload yet: stays closed even when a payload claims it is on', async () => {
-      latchNotebookFlags({ notebook_onboarding_enabled: true, [flag]: true })
-      expect(notebookFlag(flag)).toBeNull()
-      expect(await openAndRead(id)).toBeNull()
-    })
-  }
+  it('flag ON: opening it shows the tour (CONTROL: the gate can open)', async () => {
+    latchNotebookFlags({ [flag]: true })
+    expect(notebookFlag(flag)).toBe(true)
+    const dialog = await openAndRead(id)
+    expect(dialog).not.toBeNull()
+    expect(dialog.textContent).toContain(`${TOURS.find((t) => t.id === id).title} is open`)
+  })
+})
+
+// ── (g) W14-C1: the three flags that were server-only, each with its OWN polarity ──────────
+describe('(g) a payload that does not carry the key reads the capability own default', () => {
+  it.each([
+    ['notebook_task_reminders_enabled', true, 'task-reminders'],       // a kill switch: ON in prod when unset
+    ['notebook_image_docx_documents_enabled', false, 'image-docx-import'], // enablement gates
+    ['notebook_semantic_search_enabled', false, 'meaning-search'],
+  ])('%s absent -> %s', async (flag, expected, tourId) => {
+    expect(FLAG_FALLBACKS[flag]).toBe(expected)
+    latchNotebookFlags({ notebook_onboarding_enabled: true })       // a payload without the key
+    expect(notebookFlag(flag)).toBe(expected)
+    const dialog = await openAndRead(tourId)
+    if (expected) expect(dialog).not.toBeNull()
+    else expect(dialog).toBeNull()
+  })
+
+  it('no payload latched yet: every flag answers null, so no tour opens before the server answers', () => {
+    // notebookFlags.js contract (unchanged): the fallbacks apply once ANY payload latches.
+    for (const f of ['notebook_task_reminders_enabled', 'notebook_image_docx_documents_enabled', 'notebook_semantic_search_enabled']) {
+      expect(notebookFlag(f), f).toBeNull()
+    }
+  })
 })

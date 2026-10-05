@@ -9,14 +9,16 @@
 //   * setups board + find similar: `notebook_setups_board_enabled`. The tour starts on
 //     a board card; the find-similar steps sit on elements that render only while that
 //     capability is on, so with it off they are skipped, never shown pointing at nothing.
-//   * transcript capture + thesis chips: `notebook_transcript_capture_enabled`. The
-//     transcript sheet is the only one of the two with a surface inside the Notebook;
-//     the thesis-chip step is skipped wherever no chip is on screen.
+//   * transcript capture: `notebook_transcript_capture_enabled`. W14-C1 removed the
+//     thesis-chip step: chips render only on Journal positions, holdings and
+//     Watchlists, never in a note, so inside this tour it was always skipped
+//     (docs/notebook/wave14-w14-c1.md, item h).
 //
-// `start` is set only where the starting screen is a fixed Notebook location (Research
-// Home). A chart block, a playbook sheet, a transcript sheet and a resurfaced version
-// all live inside one particular note, which a static path cannot name, and the setups
-// board is a sibling route the engine is not mounted on.
+// Starts (W14-C1): the chart-block tours open the W14-E example trade-plan note
+// (`sample:plan`), else the member's most recent note with a chart; the transcript tour
+// opens the example call-excerpt note (`sample:transcript`) and asks the member to open
+// a call; the setups board is its own page. The resurfacing explainer has no start: it
+// is shown when the resurfacing sheet first renders (ResurfaceVersionSheet.jsx).
 const steps = (m) => ({ steps: m.STEPS, copy: m.COPY })
 
 export const TOURS = Object.freeze([
@@ -25,6 +27,7 @@ export const TOURS = Object.freeze([
     flag: 'notebook_ta_fingerprint_enabled',
     title: 'The technical fingerprint',
     replayable: true,
+    start: Object.freeze({ note: 'sample:plan', embed: 'chart' }),
     load: () => import('./taFingerprint.steps').then(steps),
   },
   {
@@ -32,6 +35,7 @@ export const TOURS = Object.freeze([
     flag: 'notebook_visual_playbook_enabled',
     title: 'Visual playbook',
     replayable: true,
+    start: Object.freeze({ note: 'sample:plan', embed: 'chart' }),
     load: () => import('./visualPlaybook.steps').then(steps),
   },
   {
@@ -39,6 +43,7 @@ export const TOURS = Object.freeze([
     flag: 'notebook_setups_board_enabled',
     title: 'Active setups and find more like this',
     replayable: true,
+    start: '/journal/notebook/setups',
     load: () => import('./setupsBoard.steps').then(steps),
   },
   {
@@ -52,8 +57,9 @@ export const TOURS = Object.freeze([
   {
     id: 'transcript-capture',
     flag: 'notebook_transcript_capture_enabled',
-    title: 'Transcript passages and thesis chips',
+    title: 'Transcript passages',
     replayable: true,
+    start: Object.freeze({ note: 'sample:transcript' }),
     load: () => import('./transcriptCapture.steps').then(steps),
   },
   {

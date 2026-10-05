@@ -162,3 +162,18 @@ describe('a chunk that cannot load costs the tour, and nothing else (same contra
     errorSpy.mockRestore()
   })
 })
+
+describe('W14-C1: a request for a tour whose capability is off is dropped, never held', () => {
+  it('the one-tour slot is free again: a later request for an allowed tour opens', async () => {
+    const OFF = { id: 'w14-c1-off', flag: 'notebook_formulas_enabled', title: 'Off tour', replayable: true }
+    __resetNotebookFlags()
+    latchNotebookFlags({ [BORROWED_FLAG]: true, notebook_formulas_enabled: false })
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[OFF, TOUR_A]} />)
+    act(() => { openRegistryTour('w14-c1-off') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Tour A is open')
+  })
+})

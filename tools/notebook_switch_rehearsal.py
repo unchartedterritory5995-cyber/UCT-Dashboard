@@ -184,12 +184,17 @@ DOOR_OFF = 404
 # A gate missing here is printed as "no rendered probe written" -- never silently dropped.
 NOT_REHEARSED = {
     "NOTEBOOK_ASK_INSERT_ON": "payload only: its surface needs an Ask answer (a model call)",
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "no read-only surface: it acts only on an upload",
-    "NOTEBOOK_TASK_REMINDERS_ENABLED": "kill switch read per scheduled run: its only evidence is "
+    # Wave 14 W14-C1: these two (and semantic search below) now ride the auth payload, so the
+    # window switches and verifies them by their payload key; no RENDERED probe is written.
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "payload key only (W14-C1, its tour's gate): the "
+                                             "capability itself acts only on an upload",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": "payload key only (W14-C1, its tour's gate): the kill switch "
+                                       "is read per scheduled run, so its only other evidence is "
                                        "a reminder members would not get",
     "COMPASS_NOTES_TOOL_ENABLED": "no read-only surface: it acts only inside a Compass chat turn",
     "NOTEBOOK_INBOUND_EMAIL_ENABLED": "dark (external blockers: DNS/MX, WAF, wrangler)",
-    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "dark (waits for OpenAI's written ZDR, R-20)",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "dark (waits for OpenAI's written ZDR, R-20); payload key "
+                                        "since W14-C1 (its tour's gate)",
     "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, inert while semantic search is dark",
     "NOTEBOOK_OFFLINE_READ_ON": "dark: the feature is NOT BUILT",
     "NOTEBOOK_CONFLICT_UX_ON": "dark: the feature is NOT BUILT",

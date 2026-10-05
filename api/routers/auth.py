@@ -238,6 +238,18 @@ NOTEBOOK_FLAGS = {
     # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
     # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
     "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
+    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
+    # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
+    # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
+    # payload key only lets the client see the state; the capability's own server read is
+    # unchanged and remains the authority over what the capability does.
+    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
+    #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
