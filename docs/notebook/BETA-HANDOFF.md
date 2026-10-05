@@ -46,7 +46,7 @@ All are read per request; unset means off. Turn on one change at a time, then ch
 | `NOTEBOOK_AI_ACTIONS_ENABLED=1` | "Ask Notebook to do something" (plan, approve each change, undo) | ARMED on web, 2026-10-03 |
 | `NOTEBOOK_FORMULAS_ENABLED=1` | formula and rollup properties, the position-tracker template's formulas | ready: the quiet 50k reading passed, every operation finishes well under the 100 ms budget (`docs/notebook/formulas-and-rollups.md`, Scale section, run 3) |
 | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1` | community template gallery (admin approves before listing) | after this wave's PR merges |
-| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a), and the upload-size gap fixed first (census row :254 in `security-review-notebook-routes.md`: an upload with no Content-Length is spooled before the 90 MiB cap) |
+| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a, the owner's). The upload-size gap is closed (wave 14: the body is capped while it is read; `docs/notebook/wave14-upload-cap.md`) |
 
 ## 1b. Wave 13 switches (built, all still dark)
 

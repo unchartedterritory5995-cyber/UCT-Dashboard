@@ -92,6 +92,10 @@ from api.services.journal_two.note_citation_text import (
 _ATTACHMENT_ROOT = _attachment_root()
 _ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
+# The refusal for an image over `_MAX_IMAGE_BYTES`, said by the bytes-level
+# check below AND by the upload routes' streaming cap (wave 14), which reads
+# it from here. tiptap.js's pre-check says it too (test_inline_image_precheck_parity).
+IMAGE_TOO_BIG_SENTENCE = "Image must be < 5 MB"
 _ALLOWED_FILE_MIMES = {
     "application/pdf", "text/plain", "text/csv", "text/markdown",
     "application/zip", "audio/mpeg", "audio/mp4",
@@ -104,6 +108,13 @@ _ALLOWED_FILE_MIMES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
 }
 _MAX_FILE_BYTES = 25 * 1024 * 1024
+# WAVE P POST-CLOSURE: the byte cap is the ONLY member-facing authority.
+# `_MAX_PAGES = 500` is an internal secondary ceiling and must never be
+# quoted as an upload guarantee: how many scanned pages fit inside 25 MB moves
+# with DPI, colour depth, compression and page composition (measured on the
+# Wave P fixture it was ~145 pages), which is why no page number appears here.
+FILE_TOO_BIG_SENTENCE = ("File is larger than the 25 MB limit. How many scanned pages "
+                         "fit depends on scan quality and compression.")
 
 
 class NoteValidationError(ValueError):
@@ -5482,7 +5493,7 @@ def save_note_image_bytes(
     if content_type not in _ALLOWED_IMAGE_MIMES:
         raise NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")
     if len(data) > _MAX_IMAGE_BYTES:
-        raise NoteValidationError("Image must be < 5 MB")
+        raise NoteValidationError(IMAGE_TOO_BIG_SENTENCE)
     if len(data) == 0:
         raise NoteValidationError("Empty file")
     try:
@@ -5539,15 +5550,7 @@ def save_note_attachment_bytes(
     if content_type not in _ALLOWED_FILE_MIMES:
         raise NoteValidationError(f"MIME type {content_type} not allowed")
     if len(data) > _MAX_FILE_BYTES:
-        # WAVE P POST-CLOSURE: the byte cap is the ONLY member-facing
-        # authority. `_MAX_PAGES = 500` is an internal secondary ceiling and
-        # must never be quoted as an upload guarantee: how many scanned
-        # pages fit inside 25 MB moves with DPI, colour depth, compression
-        # and page composition. Measured on the Wave P fixture it was ~145
-        # pages — which is exactly why no page number appears here.
-        raise NoteValidationError(
-            "File is larger than the 25 MB limit. How many scanned pages "
-            "fit depends on scan quality and compression.")
+        raise NoteValidationError(FILE_TOO_BIG_SENTENCE)   # see the constant's note
     if len(data) == 0:
         raise NoteValidationError("Empty file")
     try:
