@@ -180,6 +180,40 @@ def _filing_fact(sym: str) -> Optional[dict]:
     )
 
 
+# S8 (terminal backend fixes, 2026-10-05): MOVE and the watchlist card walked the
+# whole earnings window -- one calendar lookup per day, each able to fall through to
+# Finnhub -- on EVERY request. The window answers the same for every symbol and every
+# member, and report dates a few days out do not move minute to minute, so it is
+# memoized per (ET day, window). This is this module's OWN memo, not the awareness
+# engine's (the reason that module's docstring gives for not sharing one still holds),
+# with a shorter TTL because a member is looking at it.
+#
+# The memo also records WHICH lookup produced it and is reused only while that same
+# function is still in place, so a test (or anything) that swaps the lookup gets a
+# fresh walk instead of an answer built from the previous one.
+_EARNINGS_WINDOW_TTL_S = 600
+_EARNINGS_WINDOW_TTL_PARTIAL_S = 60
+_EARNINGS_WINDOW_MEMO: dict = {}
+
+
+def _earnings_window(today, days: int, walk) -> tuple[dict, bool]:
+    import time as _time
+    from api.services import calendar_alerts as _ca
+    leaf = getattr(_ca, "_get_reporters_for_date_with_status", None)
+    key = (today.isoformat(), int(days))
+    now = _time.monotonic()
+    hit = _EARNINGS_WINDOW_MEMO.get(key)
+    if hit is not None and hit[3] is leaf and hit[4] is walk:
+        ttl = _EARNINGS_WINDOW_TTL_PARTIAL_S if hit[2] else _EARNINGS_WINDOW_TTL_S
+        if now - hit[0] < ttl:
+            return dict(hit[1]), hit[2]
+    out, failed = walk(today, days)
+    if len(_EARNINGS_WINDOW_MEMO) > 16:
+        _EARNINGS_WINDOW_MEMO.clear()
+    _EARNINGS_WINDOW_MEMO[key] = (now, dict(out), bool(failed), leaf, walk)
+    return dict(out), failed
+
+
 def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
     """{SYM: fact} for symbols reporting within the shared proximity window, plus
     whether every day in the window was answered by a leg that actually ran
@@ -211,7 +245,7 @@ def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
 
     wanted = {s.upper() for s in symbols}
     today = _today_et()
-    by_sym, any_day_failed = collect_earnings_window(today, _earnings_proximity_days())
+    by_sym, any_day_failed = _earnings_window(today, _earnings_proximity_days(), collect_earnings_window)
 
     out: dict[str, dict] = {}
     for sym, d_str in by_sym.items():
