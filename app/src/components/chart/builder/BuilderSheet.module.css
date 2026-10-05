@@ -324,6 +324,14 @@
    button heights and two focus rings. Spec §1.5: ride the shipped primitives. */
 
 .modeRow { display: flex; gap: 8px; }
+/* ⭐ A9 (device walk, 390px): with the Pine Editor tab the row holds six tabs
+   and their text no longer fits one line on a phone — the sheet body measured
+   scrollWidth 513 over a 388 client, `Screenshot` and `Formula` sat off-screen.
+   On touch the row WRAPS; every tab keeps its 44px height. */
+@media (max-width: 1024px) {
+  .modeRow { flex-wrap: wrap; }
+  .modeRow .modeTab { flex: 1 1 auto; }
+}
 
 .modeTab {
   flex: 1 1 0;
