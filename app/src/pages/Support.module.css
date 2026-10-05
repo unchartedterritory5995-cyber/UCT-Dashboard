@@ -553,11 +553,16 @@
   text-decoration: none;
 }
 .walkthroughReplay:hover { text-decoration: underline; }
+/* W14-Q1: the floor is BOTH dimensions. With min-height alone the real browser measured
+   "Start" at 27 x 44 px and "Replay" at 37 x 44 px at 390 and 820 px
+   (docs/notebook/wave14-w14-q1.md, walk S4). */
 @media (max-width: 1024px) {
   .walkthroughReplay {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     min-height: var(--tap-min);
+    min-width: var(--tap-min);
   }
 }
 

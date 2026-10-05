@@ -18,8 +18,12 @@ const FLAG_OFF = 'notebook_setups_board_enabled'
 vi.mock('./journal-2-0/components/notebook/onboarding/tourRegistry', async (importOriginal) => {
   const real = await importOriginal()
   const tour = (id, flag, title, extra = {}) => ({ id, flag, title, replayable: true, load: async () => ({}), ...extra })
+  // Only the BASE entry of the real registry. Since the W14-B tracks registered real tours, a
+  // spread of the whole registry put a second "Template gallery" (and every other armed track
+  // tour) beside these fakes and every list assertion below went red (W14-Q1, after merging
+  // W14-C2 onto the integration tip).
   const FAKE = [
-    ...real.TOUR_REGISTRY,
+    ...real.TOUR_REGISTRY.filter((t) => t.id === real.BASE_TOUR_ID),
     tour('c2-a', 'notebook_template_gallery_enabled', 'Template gallery'),
     tour('c2-b', 'notebook_ta_fingerprint_enabled', 'Chart fingerprint', { start: '/journal/notebook?view=all' }),
     tour('c2-off', 'notebook_setups_board_enabled', 'Setups board'),
@@ -145,6 +149,19 @@ describe('the Start control meets the touch tier', () => {
     renderSupport()
     const s = await section()
     for (const a of within(s).getAllByRole('link')) expect(a.className).toMatch(/walkthroughReplay/)
+  })
+
+  // W14-Q1: a real browser measured "Start" at 27 x 44 px with the height floor alone -- the
+  // floor is a box, so the WIDTH must be declared in the same touch-tier rule.
+  it('declares the floor in BOTH dimensions in that same rule', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const css = fs.readFileSync(path.resolve(__dirname, 'Support.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = css.match(/@media \(max-width: 1024px\) \{\s*\.walkthroughReplay \{([^}]*)\}/)
+    expect(rule).not.toBeNull()
+    expect(rule[1]).toMatch(/min-height: var\(--tap-min\)/)
+    expect(rule[1]).toMatch(/min-width: var\(--tap-min\)/)
   })
 })
 
