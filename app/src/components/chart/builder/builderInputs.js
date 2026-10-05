@@ -263,6 +263,14 @@ export const FOLDED_INPUT_INEXPRESSIBLE = Object.freeze({
     + '"you typo\'d" one. Landing it as a plain number field would be a different '
     + 'control wearing the same name. TO UNBLOCK: the phase that ships the `price` '
     + 'input type.',
+  // ⭐ W19-T — `pine.js::inputTimeDefault` serves an `input.time` at its witnessed
+  // default instant and mints no parameter for it, so its knob is LOCKED by name.
+  'input.time': 'is an INSTANT (milliseconds since 1970) the member picks from a '
+    + 'calendar, and it is held at the author\'s default: `pine.js` reads only that '
+    + 'default (a `timestamp("…")` spelling a capture has read) and mints no parameter '
+    + 'for it, so a number typed here would move nothing it reaches. TO UNBLOCK: a '
+    + '`time` input type in `defSchema.INPUT_TYPES` and a knob-reach proof '
+    + '(`memberPane/knobReach.js`) that the instant reaches every use.',
 })
 
 /** Every name the closed table already owns. ⛔ DERIVED FROM THE MANIFEST, never

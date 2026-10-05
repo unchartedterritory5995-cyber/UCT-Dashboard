@@ -1142,6 +1142,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  as the walk goes and a definition may sit below a call inside another
    *  function body. */
   const definedNames = new Set()
+  /** ⭐⭐ W19-T — IS THIS CALL A TEXT INPUT? `input.string` / `input.text_area`, and
+   *  the v4 generic `input(…)` whose DEFAULT IS A WRITTEN STRING — the same rule RT6
+   *  applies to a generic `input(defval = <colour>)`: the kind is its default's
+   *  (macd-with-filter-visual-backtest-module-sample `input("EMA", options = […])`,
+   *  williams-fractal-trailing-stops `input(title = …, defval = "Close", options = […])`).
+   *  Read through `admitTextInput` like every other text input: the default, or the
+   *  member's value only when the author's `options` admit it.
+   *  ⛔ NARROW: a string LITERAL default only, no `type =` argument (an explicit
+   *  `input.resolution` / `input.session` is a different kind with its own rules),
+   *  and never a script's own `input` definition. */
+  const isTextInputCall = (node) => {
+    if (!node || node.type !== 'call') return false
+    if (TEXT_INPUTS.has(node.name)) return true
+    if (node.name !== 'input' || definedNames.has('input')) return false
+    const args = node.args || []
+    if (args.some((a) => a && a.name === 'type')) return false
+    const named = args.find((a) => a && a.name === 'defval')
+    const positional = args.find((a) => a && !a.name)
+    const d = named ? named.value
+      : (positional ? (positional.value !== undefined ? positional.value : positional) : null)
+    return !!(d && d.type === 'string')
+  }
   /** ⭐⭐ C11 — THE PINE 6 `method` NAMES, AND HOW MANY TIMES EACH IS DECLARED.
    *  A method is a user function whose receiver is argument 0; only a name
    *  declared as a `method` may be called in the dotted form (`top.push2(x)`),
@@ -1888,7 +1910,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // would route `n + 1` to `CONCAT` and refuse a correct script.
     if (node.type === 'call' && producesText(node.name)) return true
     if (objectsInRun && isRunTostring(node)) return true
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) return true
+    if (isTextInputCall(node)) return true
     // ⭐⭐ AN ELEMENT OF A TEXT ARRAY IS TEXT. Without this, `array.get(syms, r)`
     // — a watchlist row, the single commonest per-row value in the corpus — reads
     // as numeric, and a buffer allocated to hold it throws on the first symbol.
@@ -2967,7 +2989,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // reason than text: that lane refuses `request.security` outright — it
     // evaluates ONE symbol on ONE timeframe, which is exactly what a request
     // is not. There is nothing there for it to fall back to.
-    if (node.type === 'call') return TEXT_INPUTS.has(node.name) || node.name === 'request.security'
+    if (node.type === 'call') return isTextInputCall(node) || node.name === 'request.security'
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
       const guard = seen || new Set()
@@ -5814,7 +5836,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
+        if (isTextInputCall(node)) return admitTextInput(node, scope)
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
@@ -9330,7 +9352,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const fixedTextOf = (node, scope, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'string') return typeof node.value === 'string' ? node.value : null
-    if (node.type === 'call' && TEXT_INPUTS.has(node.name)) {
+    if (isTextInputCall(node)) {
       const lowered = admitTextInput(node, scope || root)
       return lowered && lowered.kind === EXPR.STR ? lowered.value : null
     }

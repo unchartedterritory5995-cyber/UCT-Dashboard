@@ -1,0 +1,24 @@
+//@version=6
+// W19-T probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-05-w19-t.md (Q-W19T-a)
+// `str.format_time` has no capture. fibonacci-retracement-mtflog writes
+// `str.format_time(start, "dd.MM.yyyy - HH:mm")` in a label. One table, printed on the last bar: each row is
+// a format applied to (a) a FIXED instant (2022-05-18 00:00 UTC) and (b) this bar's `time`, with and without a
+// timezone argument. A compile error is a reading: record it verbatim and delete that row only.
+// CAPTURE: AMEX:SPY 1D and AMEX:SPY 60 (extended hours OFF), inputs at defaults.
+indicator("vw-w19t-format-time", overlay = true)
+var table t = table.new(position.top_right, 3, 12)
+row(r, id, a, b) =>
+    table.cell(t, 0, r, id, text_color = color.white, bgcolor = color.black)
+    table.cell(t, 1, r, a, text_color = color.white, bgcolor = color.black)
+    table.cell(t, 2, r, b, text_color = color.white, bgcolor = color.black)
+fixed = timestamp("18 May 2022 00:00 +0000")
+if barstate.islast
+    row(0, "F01 dd.MM.yyyy - HH:mm (fibonacci)", str.format_time(fixed, "dd.MM.yyyy - HH:mm"), str.format_time(time, "dd.MM.yyyy - HH:mm"))
+    row(1, "F02 yyyy-MM-dd", str.format_time(fixed, "yyyy-MM-dd"), str.format_time(time, "yyyy-MM-dd"))
+    row(2, "F03 HH:mm:ss", str.format_time(fixed, "HH:mm:ss"), str.format_time(time, "HH:mm:ss"))
+    row(3, "F04 tz UTC dd.MM.yyyy - HH:mm", str.format_time(fixed, "dd.MM.yyyy - HH:mm", "UTC"), str.format_time(time, "dd.MM.yyyy - HH:mm", "UTC"))
+    row(4, "F05 tz America/New_York", str.format_time(fixed, "dd.MM.yyyy - HH:mm", "America/New_York"), str.format_time(time, "dd.MM.yyyy - HH:mm", "America/New_York"))
+    row(5, "F06 default format", str.format_time(fixed), str.format_time(time))
+    row(6, "F07 MMM d, yyyy", str.format_time(fixed, "MMM d, yyyy"), str.format_time(time, "MMM d, yyyy"))
+    row(7, "F08 CONTROL syminfo.timezone", syminfo.timezone, str.tostring(time))
+plot(bar_index, "X00 bar_index CONTROL", display = display.data_window)

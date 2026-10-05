@@ -1,0 +1,16 @@
+//@version=6
+// W19-T probe (never compiled here) - capture queue docs/pine/capture-queue-2026-10-05-w19-t.md (Q-W19T-b)
+// `vw-time-tf` T16 read ONE spelling: timestamp("18 May 2022 00:00 +0000") = 1652832000000 ms. These rows
+// ask the spellings the corpus writes that it did not. Each row is minutes since 1970 (ms / 60000), so the
+// zone a spelling is read in shows as a whole-hour offset from the P00 control. A compile error is a
+// reading: record it verbatim and delete that row only.
+// CAPTURE: AMEX:SPY 1D (any depth) and BITSTAMP:BTCUSD 1D (another exchange zone), inputs at defaults.
+indicator("vw-w19t-timestamp-spellings", overlay = false)
+plot(timestamp("18 May 2022 00:00 +0000") / 60000.0, "P00 +0000 CONTROL (27547200)")
+plot(timestamp("18 May 2022 00:00") / 60000.0, "P01 no zone")
+plot(timestamp("01 Jan 2000 00:00:00 GMT+10") / 60000.0, "P02 GMT+10 with seconds (knn)")
+plot(timestamp("31 Dec 2025 23:45:00 GMT+10") / 60000.0, "P03 GMT+10 23:45:00 (knn)")
+plot(timestamp("2022-05-18T00:00:00") / 60000.0, "P04 ISO no zone")
+plot(timestamp("18 May 2022 00:00 +0100") / 60000.0, "P05 +0100")
+plot(input.time(timestamp("01 Jan 2000 00:00:00 GMT+10"), "Start") / 60000.0, "P06 input.time GMT+10")
+plot(bar_index, "P99 bar_index CONTROL")

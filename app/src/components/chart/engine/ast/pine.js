@@ -1793,6 +1793,45 @@ export const PINE_TEXT_PREDICATE = Object.freeze({
   'str.length': 1,
 })
 
+/** ⭐ W19-T — the one text PRODUCER the bind-time fold reads, and only over TEXT:
+ *  `str.tostring(<text>)` is its argument (Q-RT11a, `vw-rt11-builtins` A01-A05 on
+ *  AMEX:SPY 1D / 60 / 1). Not a `PINE_TEXT_PREDICATE` entry: it answers with text,
+ *  and `stringValueOf` is the only reader. A number argument is not text here. */
+export const TEXT_IDENTITY_TOSTRING = 'str.tostring'
+
+/** ⭐ W19-T — THE `timestamp("…")` SPELLINGS A CAPTURE HAS READ, as an `input.time`
+ *  default. `vw-time-tf` T16 printed `input.time(timestamp("18 May 2022 00:00
+ *  +0000"))` as 19130 days = 1652832000000 ms on all 18 committed captures (SPY 1 /
+ *  5 / 15 / 30 / 60 / 240 / 1D / 1W / 1M, RDDT, EURUSD, BITSTAMP:BTCUSD) — the
+ *  instant the string names in UTC, whatever the chart's symbol, zone or
+ *  timeframe. So a string of exactly that shape — day, English month
+ *  abbreviation, four-digit year, `HH:MM`, an explicit `+0000` — is that UTC
+ *  instant. ⛔ Anything else (no offset: the exchange zone? `GMT+10`, seconds,
+ *  ISO `T`) is a spelling no capture has read and stays refused by name
+ *  (`capture-queue-2026-10-05-w19-t.md`, Q-W19T-b). */
+export const INPUT_TIME_WITNESSED_TIMESTAMP = Object.freeze({
+  pattern: /^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{2}):(\d{2}) \+0000$/,
+  months: Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
+  witness: 'vw-time-tf T16 (18 committed captures, 2026-09-28..2026-10-02)',
+})
+
+/** The UTC instant (ms) a witnessed `timestamp("…")` string names, or null. */
+export function witnessedTimestampMs(text) {
+  const m = typeof text === 'string' ? INPUT_TIME_WITNESSED_TIMESTAMP.pattern.exec(text) : null
+  if (!m) return null
+  const day = Number(m[1])
+  const month = INPUT_TIME_WITNESSED_TIMESTAMP.months.indexOf(m[2])
+  const year = Number(m[3])
+  const hh = Number(m[4])
+  const mm = Number(m[5])
+  if (hh > 23 || mm > 59) return null
+  const ms = Date.UTC(year, month, day, hh, mm)
+  // ⛔ a day the month does not have (`31 Feb`) is not rolled into March
+  const back = new Date(ms)
+  if (back.getUTCDate() !== day || back.getUTCMonth() !== month) return null
+  return ms
+}
+
 /** Pine CALLS that take arguments and are an EXACT expansion in this table's own
  *  vocabulary. The sibling of `BUILTIN_SERIES_TREE`, which holds the zero-argument
  *  ones.
@@ -8066,6 +8105,20 @@ export class Resolver {
       const defval = named ? named.value : (positional ? positional.value : null)
       return defval ? this.stringValueOf(defval, depth + 1) : null
     }
+    // ⭐⭐ W19-T (Q-RT11a) — `str.tostring(<text>)` IS THAT TEXT. Measured, not
+    // assumed: `vw-rt11-builtins` A01-A03 (`str.tostring(timeframe.period) ==
+    // timeframe.period`, of `syminfo.ticker`, of a literal) read 1 on EVERY bar of
+    // AMEX:SPY 1D (8477 bars), 60 and 1 (CAP5, 2026-10-04), and A04 == A05 (the
+    // length is unchanged). So the call is asked of its argument and of nothing
+    // else: a NUMBER argument still returns null here (its formatting is the
+    // object runtime's `str.tostring` rule, not this fold's).
+    // ⛔ ONE ARGUMENT, the namespaced spelling only (v5 / v6 — bare v4 `tostring`
+    // was not asked), and never a script's own `str`-shadowing definition.
+    if (node.type === 'call' && node.name === TEXT_IDENTITY_TOSTRING
+        && Array.isArray(node.args) && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(node.name)) {
+      return this.stringValueOf(node.args[0].value, depth + 1)
+    }
     return null
   }
 
@@ -8187,6 +8240,17 @@ export class Resolver {
     if (!node || typeof node !== 'object') return null
     const lit = this.stringValueOf(node)
     if (lit !== null) return { type: 'str', value: lit }
+    // ⭐ W19-T (Q-RT11a A02) — `str.tostring(syminfo.ticker)` is the symbol's own
+    // text, the same operand the bare field is (`stringValueOf` reads the
+    // literal / period cases; this reads the bind-time one).
+    if (node.type === 'call' && node.name === TEXT_IDENTITY_TOSTRING && Array.isArray(node.args)
+        && node.args.length === 1 && !node.args[0].name && !this.shadowedByDefinition(node.name)) {
+      // ⛔ `symTextOf`, NOT `textOperandOf`: only a TEXT field unwraps. A number
+      // (`str.tostring(syminfo.mintick)`, smarter-snr) is a FORMATTING question and
+      // keeps the `str.tostring` refusal that names it.
+      const inner = this.symTextOf(node.args[0].value)
+      if (inner) return inner
+    }
     // ⚰️ THIS RETURNED NULL FOR AN UNSERVED FIELD AND THE MEMBER GOT THE WRONG
     // SENTENCE. `str.length(syminfo.mintick)` fell out of the text branch, hit
     // the `str` namespace guard, and refused *"`str.length`"* — naming the one
@@ -13391,6 +13455,46 @@ export class Resolver {
    *  the definition could never be saved at all. TradingView's own screener does
    *  the same thing to the three inputs it cannot set. The fold is recorded and
    *  shown, never silent. */
+  /** ⭐ W19-T — an `input.time`'s default as a `num` (milliseconds), or a refusal
+   *  that names what is unread. Served: the default written as
+   *  `timestamp("<witnessed spelling>")` (`INPUT_TIME_WITNESSED_TIMESTAMP`).
+   *  ⛔ `confirm = true` is refused: TradingView asks the member to click an
+   *  instant on the chart when the script is added, so the written default is not
+   *  what the script runs with. */
+  inputTimeDefault(node, defval) {
+    const at = locate(node.tok)
+    const say = (why) => new PineRefusal('pine:input-kind',
+      `${REFUSALS['pine:input-kind']} — \`input.time\` — ${why}`, at)
+    const confirm = node.args.find((a) => a.name === 'confirm')
+    if (confirm && !(confirm.value && confirm.value.type === 'number' && confirm.value.value === 0)) {
+      throw say('`confirm = true` has the member pick the instant on the chart when the script is added, so the written default is not the value it runs with')
+    }
+    if (!defval) throw say('it states no default')
+    // a name the script binds ONCE to its default (`int startdate = timestamp(…)`,
+    // machine-learning-knn-based-strategy) is that default; a reassigned name is
+    // not in `env` as an expression and falls to the refusal below
+    for (let hop = 0; hop < 8 && defval && defval.type === 'name' && !own(this.table.series, defval.name); hop += 1) {
+      const b = this.env.get(defval.name)
+      if (!b || b.kind !== 'expr' || !b.node) break
+      defval = b.node
+    }
+    if (!(defval.type === 'call' && defval.name === 'timestamp' && !this.shadowedByDefinition('timestamp')
+        && Array.isArray(defval.args) && defval.args.length === 1 && !defval.args[0].name
+        && defval.args[0].value && defval.args[0].value.type === 'string')) {
+      throw say('its default is not written as `timestamp("…")` with one date string, the only '
+        + `shape a capture has read (${INPUT_TIME_WITNESSED_TIMESTAMP.witness})`)
+    }
+    const text = defval.args[0].value.value
+    const ms = witnessedTimestampMs(text)
+    if (ms === null) {
+      throw say(`\`timestamp("${text}")\` is a date spelling no capture has read — only `
+        + '`DD Mon YYYY HH:MM +0000` is witnessed '
+        + `(${INPUT_TIME_WITNESSED_TIMESTAMP.witness}); a zone other than \`+0000\`, no zone, `
+        + 'or seconds is queued as Q-W19T-b')
+    }
+    return cNum(ms)
+  }
+
   resolveInput(node) {
     const name = node.name
     const kind = name === 'input' ? 'input' : name.slice('input.'.length)
@@ -13440,14 +13544,10 @@ export class Resolver {
       // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
       // does. Without it a member is told their expression default will be handled
       // and not told it cannot reach a pane while D2 stands.
-      // ⛔ R21 — two facts, both measured: no IR path today, AND no IR result on a
-      // pane while D2 stands. The D2 half alone reads as "it will be carried, just
-      // not drawn here", which the IR measurement contradicts.
-      time:
-        '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
-        + 'are expressions are item (c)\'s — and the IR lane has no path for them '
-        + 'yet, nor does any IR result reach a pane while ruling D2 stands. '
-        + '6 reach a column, under the threshold',
+      // ⚰️ `time` WAS RETIRED HERE ("20 uses across 11 files … 6 reach a column,
+      // under the threshold"). W19-T serves the witnessed default and
+      // `inputTimeDefault` names every other shape before this table is read, so the
+      // sentence could no longer fire; removed rather than left unreachable.
       string:
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
@@ -13457,7 +13557,17 @@ export class Resolver {
     if (this.knobReads && NUMERIC.has(kind) && typeof node.boundName === 'string') {
       this.knobReads.add(node.boundName)
     }
-    if (!NUMERIC.has(kind)) {
+    // ⭐⭐ W19-T — `input.time` AT ITS DEFAULT IS ONE FIXED INSTANT, read off a
+    // witnessed `timestamp("…")` spelling (`INPUT_TIME_WITNESSED_TIMESTAMP`, the
+    // `vw-time-tf` T16 capture). It is a NUMBER in Pine's own unit, milliseconds,
+    // the unit a versioned script's `time` already reconciles to
+    // (`PINE_CLOCK_TRANSFORM`), so it composes with `time >= start` as written.
+    // ⛔ NO KNOB: `time` is not a `PARAM_MANIFEST_ELIGIBLE_KINDS` kind and is never
+    // declared, so the instant is locked at the author's default — named in
+    // `builderInputs.FOLDED_INPUT_INEXPRESSIBLE['input.time']`. A member value for
+    // it is refused rather than half-applied. Any other default refuses by name.
+    const timeDefault = kind === 'time' ? this.inputTimeDefault(node, defval) : null
+    if (!NUMERIC.has(kind) && !timeDefault) {
       const why = RETIRED_INPUT_KIND[kind]
       throw new PineRefusal('pine:input-kind',
         `${REFUSALS['pine:input-kind']} — \`${name}\`${why ? ` — ${why}` : ''}`,
@@ -13475,6 +13585,12 @@ export class Resolver {
     // exists to prevent.
     let overrideNode = null
     const overrideName = typeof node.boundName === 'string' ? node.boundName : null
+    if (timeDefault && overrideName && this.inputValues
+        && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
+      throw new PineRefusal('pine:input-kind',
+        `${REFUSALS['pine:input-kind']} — \`${overrideName}\` is an \`input.time\`, which this `
+        + 'engine reads only at its default instant; a member value for it is not applied', locate(node.tok))
+    }
     if (overrideName && this.inputValues
         && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
       // ⛔⛔ `memberNumber`, NOT `Number(…)`. This line read
@@ -13511,7 +13627,7 @@ export class Resolver {
       // resolve entirely and emits the canonical node directly.
       overrideNode = cNum(wanted)
     }
-    const resolved = overrideNode || this.resolve(defval)
+    const resolved = overrideNode || timeDefault || this.resolve(defval)
     const boundName = typeof node.boundName === 'string' ? node.boundName : null
     // ⭐ DECLARE MODE: hand back the IDENTIFIER instead of the literal.
     // `translatePine(src, { declareInputs })` asks for this; the default path is
@@ -13520,7 +13636,7 @@ export class Resolver {
     // ⛔ THE NODE STILL CARRIES ITS DEFAULT (`inputDefault`), which is what lets
     // `foldWindow` reduce it back to a literal in an `int` slot. Emitting a bare
     // identifier into a window would produce a formula this engine refuses.
-    const declared = boundName && this.declareInputs
+    const declared = boundName && this.declareInputs && !timeDefault
       && (this.declareInputs === 'all' || this.declareInputs.has(boundName))
     // ⭐ THE BOUNDS ARE THE AUTHOR'S OWN, not ours. Passing `minval`/`maxval`
     // through means the member's control stops where the script's author said it
