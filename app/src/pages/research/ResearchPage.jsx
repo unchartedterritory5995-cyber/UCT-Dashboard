@@ -219,7 +219,7 @@ export default function ResearchPage() {
           >{t}</button>
         ))}
       </nav>
-      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
+      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} error={data.error} mutate={data.mutate} />}
       {active === 'News' && <NewsTab sym={sym} />}
       {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}

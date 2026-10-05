@@ -17,11 +17,23 @@ function Surprise({ v }) {
   return <span className={up ? styles.up : styles.down}>{s}</span>
 }
 
-export default function OverviewTab({ sym, stats, analyst, ai, row }) {
+export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutate }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
   return (
     <div className={styles.ovWrap}>
+      {/* TERM-088 -- a failed read on any of the composing endpoints is not
+          "nothing available yet". Rendered BEFORE the per-card empty-state
+          fallbacks below, which stay guarded by their own `??`/`||` em-dash
+          defaults -- this banner just tells the member those dashes mean
+          "couldn't load", not "nothing here". */}
+      {error && (
+        <div className={styles.fnote} data-testid="overview-error">
+          Couldn't load some of this overview.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate && mutate()}>Retry</button>
+        </div>
+      )}
       <section className={styles.card}>
         <FundamentalSnapshot sym={sym} showResearchLink={false} />
       </section>
@@ -104,7 +116,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row }) {
       <section className={styles.card}>
         <div className={styles.ct}>AI snapshot</div>
         <p className={styles.ai}>
-          {ai?.analysis_summary || ai?.preview_text || 'Earnings analysis will appear here once available.'}
+          {ai?.analysis_summary || ai?.preview_text || (error ? '—' : 'Earnings analysis will appear here once available.')}
         </p>
       </section>
       </div>

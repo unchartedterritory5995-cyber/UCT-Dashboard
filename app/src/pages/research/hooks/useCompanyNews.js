@@ -1,9 +1,27 @@
+import { useMemo } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 
-const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-088 -- company news (CN). A failed read is not an empty news feed; see
+// useDecisionRecord.js for why the fetcher keeps the HTTP outcome instead of
+// collapsing a non-2xx into null.
+export async function fetchCompanyNews(url) {
+  try {
+    const r = await fetch(url, { credentials: 'include' })
+    if (!r.ok) return { ok: false, httpStatus: r.status, body: null }
+    return { ok: true, httpStatus: r.status, body: await r.json() }
+  } catch {
+    return { ok: false, httpStatus: 0, body: null }
+  }
+}
 
 export default function useCompanyNews(rawSym) {
   const sym = (rawSym || '').toUpperCase().trim()
-  const { data, isLoading } = useMobileSWR(sym ? `/api/research/company-news/${sym}` : null, fetcher)
-  return { data: data || null, isLoading: isLoading && !data }
+  const key = sym ? `/api/research/company-news/${sym}` : null
+  const { data, isLoading, mutate } = useMobileSWR(key, fetchCompanyNews)
+  return useMemo(() => ({
+    data: data ? data.body : null,
+    isLoading: Boolean(isLoading && !data),
+    error: Boolean(data && !data.ok),
+    mutate,
+  }), [data, isLoading, mutate])
 }
