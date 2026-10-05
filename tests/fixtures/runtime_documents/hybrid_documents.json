@@ -76,19 +76,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 153
+         "node": 119
         },
         "y1": {
          "v": "graph",
-         "node": 162
+         "node": 128
         },
         "x2": {
          "v": "graph",
-         "node": 161
+         "node": 127
         },
         "y2": {
          "v": "graph",
-         "node": 168
+         "node": 133
         },
         "xloc": {
          "v": "const",
@@ -117,7 +117,7 @@
            "t": "if",
            "cond": {
             "v": "graph",
-            "node": 21
+            "node": 18
            },
            "then": {
             "t": "lit",
@@ -143,7 +143,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 21
+         "node": 18
         }
        }
       },
@@ -159,19 +159,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 189
+         "node": 151
         },
         "y1": {
          "v": "graph",
-         "node": 187
+         "node": 149
         },
         "x2": {
          "v": "graph",
-         "node": 191
+         "node": 153
         },
         "y2": {
          "v": "graph",
-         "node": 193
+         "node": 155
         },
         "xloc": {
          "v": "const",
@@ -190,7 +190,7 @@
           "t": "if",
           "cond": {
            "v": "graph",
-           "node": 21
+           "node": 18
           },
           "then": {
            "t": "lit",
@@ -226,7 +226,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 21
+         "node": 18
         }
        }
       },
@@ -242,19 +242,19 @@
        "props": {
         "x1": {
          "v": "graph",
-         "node": 188
+         "node": 150
         },
         "y1": {
          "v": "graph",
-         "node": 190
+         "node": 152
         },
         "x2": {
          "v": "graph",
-         "node": 186
+         "node": 148
         },
         "y2": {
          "v": "graph",
-         "node": 192
+         "node": 154
         },
         "xloc": {
          "v": "const",
@@ -273,7 +273,7 @@
           "t": "if",
           "cond": {
            "v": "graph",
-           "node": 21
+           "node": 18
           },
           "then": {
            "t": "lit",
@@ -309,7 +309,7 @@
         },
         "width": {
          "v": "graph",
-         "node": 21
+         "node": 18
         }
        }
       }
@@ -361,10 +361,6 @@
        },
        {
         "type": "num",
-        "value": 14
-       },
-       {
-        "type": "num",
         "value": 200
        },
        {
@@ -378,10 +374,6 @@
        {
         "type": "series",
         "name": "volumeOnOff"
-       },
-       {
-        "type": "num",
-        "value": 14
        },
        {
         "type": "series",
@@ -405,10 +397,6 @@
        },
        {
         "type": "num",
-        "value": 21
-       },
-       {
-        "type": "num",
         "value": 3
        },
        {
@@ -426,10 +414,6 @@
        {
         "type": "series",
         "name": "close"
-       },
-       {
-        "type": "num",
-        "value": 200
        },
        {
         "type": "series",
@@ -451,7 +435,7 @@
         "type": "op",
         "name": ">",
         "args": [
-         23,
+         20,
          2
         ]
        },
@@ -459,8 +443,8 @@
         "type": "op",
         "name": "+",
         "args": [
-         22,
-         13
+         19,
+         11
         ]
        },
        {
@@ -468,24 +452,24 @@
         "name": "-",
         "args": [
          2,
-         13
+         11
         ]
        },
        {
         "type": "call",
         "name": "atrPine",
         "args": [
-         22,
-         13,
-         23,
-         17
+         19,
+         11,
+         20,
+         15
         ]
        },
        {
         "type": "op",
         "name": "-",
         "args": [
-         22,
+         19,
          2
         ]
        },
@@ -494,63 +478,45 @@
         "name": "*",
         "args": [
          3,
-         15
+         13
         ]
        },
        {
         "type": "offset",
         "value": 1,
         "args": [
-         23
+         20
         ]
        },
        {
         "type": "call",
         "name": "lowest",
         "args": [
-         13,
-         8
+         11,
+         7
         ]
        },
        {
         "type": "op",
         "name": "<",
         "args": [
-         23,
+         20,
          2
-        ]
-       },
-       {
-        "type": "call",
-        "name": "highest",
-        "args": [
-         22,
-         24
         ]
        },
        {
         "type": "call",
         "name": "ema",
         "args": [
-         14,
-         26
+         12,
+         22
         ]
        },
        {
         "type": "call",
         "name": "highest",
         "args": [
-         22,
-         8
-        ]
-       },
-       {
-        "type": "call",
-        "name": "atrPine",
-        "args": [
-         22,
-         13,
-         23,
+         19,
          7
         ]
        },
@@ -559,29 +525,29 @@
         "name": "sma",
         "args": [
          2,
-         8
+         7
         ]
        },
        {
         "type": "offset",
         "value": 1,
         "args": [
-         22
+         19
         ]
        },
        {
         "type": "op",
         "name": "-",
         "args": [
-         22,
-         13
+         19,
+         11
         ]
        },
        {
         "type": "op",
         "name": "+",
         "args": [
-         27,
+         23,
          0
         ]
        },
@@ -589,30 +555,14 @@
         "type": "offset",
         "value": 1,
         "args": [
-         13
-        ]
-       },
-       {
-        "type": "call",
-        "name": "sma",
-        "args": [
-         2,
-         24
+         11
         ]
        },
        {
         "type": "call",
         "name": "change",
         "args": [
-         23
-        ]
-       },
-       {
-        "type": "call",
-        "name": "ema",
-        "args": [
-         2,
-         24
+         20
         ]
        },
        {
@@ -626,24 +576,8 @@
         "type": "call",
         "name": "ema",
         "args": [
-         14,
-         18
-        ]
-       },
-       {
-        "type": "call",
-        "name": "ema",
-        "args": [
          2,
-         8
-        ]
-       },
-       {
-        "type": "call",
-        "name": "lowest",
-        "args": [
-         13,
-         24
+         7
         ]
        },
        {
@@ -658,14 +592,14 @@
         "type": "offset",
         "value": 1,
         "args": [
-         14
+         12
         ]
        },
        {
         "type": "call",
         "name": "max",
         "args": [
-         48,
+         41,
          5
         ]
        },
@@ -673,23 +607,31 @@
         "type": "op",
         "name": ">=",
         "args": [
-         22,
-         43
+         19,
+         37
         ]
        },
        {
         "type": "op",
         "name": "+",
         "args": [
-         53,
-         38
+         43,
+         36
         ]
        },
        {
         "type": "op",
-        "name": "+",
+        "name": ">",
         "args": [
-         52,
+         12,
+         45
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         20,
          42
         ]
        },
@@ -697,53 +639,22 @@
         "type": "op",
         "name": ">",
         "args": [
-         14,
-         55
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         23,
-         50
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         14,
-         39
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         49,
-         47
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         41
+         12,
+         34
         ]
        },
        {
         "type": "call",
         "name": "sign",
         "args": [
-         48
+         41
         ]
        },
        {
         "type": "op",
         "name": "/",
         "args": [
-         30,
+         26,
          4
         ]
        },
@@ -751,7 +662,7 @@
         "type": "call",
         "name": "min",
         "args": [
-         48,
+         41,
          5
         ]
        },
@@ -759,163 +670,194 @@
         "type": "op",
         "name": ">",
         "args": [
-         23,
-         35
+         20,
+         31
         ]
        },
        {
         "type": "op",
         "name": "<",
         "args": [
-         23,
-         50
+         20,
+         42
         ]
        },
        {
         "type": "op",
         "name": "*",
         "args": [
-         32,
-         28
+         28,
+         24
         ]
        },
        {
         "type": "op",
         "name": "<",
         "args": [
-         23,
-         35
+         20,
+         31
         ]
        },
        {
         "type": "op",
         "name": "-",
         "args": [
-         13,
-         35
+         11,
+         31
         ]
        },
        {
         "type": "op",
         "name": "-",
         "args": [
-         22,
-         35
+         19,
+         31
         ]
        },
        {
         "type": "offset",
         "value": 1,
         "args": [
-         32
+         28
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         13,
-         46
+         11,
+         40
         ]
        },
        {
         "type": "op",
         "name": "+",
         "args": [
-         36,
-         40
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         14,
-         51
-        ]
-       },
-       {
-        "type": "op",
-        "name": "*",
-        "args": [
-         41,
-         28
+         32,
+         35
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         62,
-         60
+         51,
+         49
         ]
        },
        {
         "type": "op",
         "name": "*",
         "args": [
-         65,
-         14
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         76,
-         4
-        ]
-       },
-       {
-        "type": "call",
-        "name": "rma",
-        "args": [
-         56,
-         17
-        ]
-       },
-       {
-        "type": "call",
-        "name": "rma",
-        "args": [
-         56,
+         52,
          12
         ]
        },
        {
         "type": "op",
-        "name": "&&",
+        "name": "/",
         "args": [
-         77,
-         60
+         63,
+         4
         ]
        },
        {
-        "type": "op",
-        "name": "/",
+        "type": "call",
+        "name": "rma",
         "args": [
-         58,
-         4
+         46,
+         15
         ]
        },
        {
         "type": "op",
         "name": "u-",
         "args": [
-         67
+         54
         ]
        },
        {
         "type": "call",
         "name": "abs",
         "args": [
-         72
+         59
         ]
        },
        {
         "type": "call",
         "name": "abs",
         "args": [
+         60
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         10,
+         64
+        ]
+       },
+       {
+        "type": "call",
+        "name": "cum",
+        "args": [
+         65
+        ]
+       },
+       {
+        "type": "call",
+        "name": "rma",
+        "args": [
+         68,
+         15
+        ]
+       },
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         67,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         48,
+         66
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         64,
+         50
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         64,
+         56
+        ]
+       },
+       {
+        "type": "call",
+        "name": "max",
+        "args": [
+         70,
+         69
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         67,
          73
         ]
        },
@@ -923,54 +865,70 @@
         "type": "op",
         "name": "&&",
         "args": [
-         11,
-         79
-        ]
-       },
-       {
-        "type": "call",
-        "name": "rma",
-        "args": [
-         86,
-         12
-        ]
-       },
-       {
-        "type": "call",
-        "name": "cum",
-        "args": [
-         80
+         77,
+         47
         ]
        },
        {
         "type": "op",
-        "name": "&&",
+        "name": "/",
         "args": [
-         84,
-         69
-        ]
-       },
-       {
-        "type": "call",
-        "name": "rma",
-        "args": [
-         86,
-         17
+         75,
+         16
         ]
        },
        {
         "type": "op",
         "name": "==",
         "args": [
-         82,
+         73,
          5
+        ]
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         72,
+         22
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         71,
+         49
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         76,
+         62
+        ]
+       },
+       {
+        "type": "call",
+        "name": "max",
+        "args": [
+         38,
+         78
         ]
        },
        {
         "type": "op",
         "name": "+",
         "args": [
-         59,
+         18,
+         79
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
          81
         ]
        },
@@ -979,110 +937,110 @@
         "name": "&&",
         "args": [
          84,
-         61
+         58
         ]
        },
        {
         "type": "op",
-        "name": "+",
+        "name": "<",
         "args": [
-         63,
-         85
-        ]
-       },
-       {
-        "type": "call",
-        "name": "max",
-        "args": [
-         88,
-         87
+         72,
+         83
         ]
        },
        {
         "type": "op",
-        "name": "==",
+        "name": ">=",
         "args": [
-         83,
-         5
+         86,
+         57
         ]
        },
        {
         "type": "op",
-        "name": "/",
+        "name": ">",
         "args": [
-         82,
-         93
+         72,
+         83
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         92,
-         57
+         84,
+         55
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         86
         ]
        },
        {
         "type": "op",
-        "name": "==",
+        "name": "?:",
         "args": [
-         90,
-         5
+         17,
+         81,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         91,
+         33
         ]
        },
        {
         "type": "op",
         "name": "/",
         "args": [
-         95,
-         19
+         6,
+         87
         ]
        },
        {
         "type": "op",
-        "name": "==",
+        "name": ">",
+        "args": [
+         81,
+         88
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
         "args": [
          93,
          5
         ]
        },
        {
-        "type": "call",
-        "name": "ema",
+        "type": "op",
+        "name": "<=",
         "args": [
-         91,
-         26
+         94,
+         61
         ]
        },
        {
         "type": "op",
         "name": "&&",
         "args": [
-         89,
-         60
-        ]
-       },
-       {
-        "type": "call",
-        "name": "max",
-        "args": [
-         44,
-         98
+         91,
+         25
         ]
        },
        {
         "type": "op",
-        "name": "/",
+        "name": "&&",
         "args": [
-         97,
-         19
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         83,
+         8,
          90
         ]
        },
@@ -1090,334 +1048,32 @@
         "type": "op",
         "name": "&&",
         "args": [
-         96,
-         75
+         8,
+         92
         ]
        },
        {
         "type": "op",
-        "name": "+",
+        "name": "!=",
         "args": [
-         21,
+         89,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         102,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         91,
          100
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         107,
-         78
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         103
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         106,
-         71
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<",
-        "args": [
-         91,
-         105
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         107,
-         70
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         20,
-         108,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         91,
-         105
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         106,
-         68
-        ]
-       },
-       {
-        "type": "offset",
-        "value": 1,
-        "args": [
-         107
-        ]
-       },
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         21,
-         109
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         116,
-         37
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         6,
-         111
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         6,
-         121
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">",
-        "args": [
-         103,
-         113
-        ]
-       },
-       {
-        "type": "op",
-        "name": "!=",
-        "args": [
-         119,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         120,
-         74
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         112,
-         29
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         116,
-         29
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         9,
-         115
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         9,
-         118
-        ]
-       },
-       {
-        "type": "op",
-        "name": "!=",
-        "args": [
-         114,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         112,
-         37
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         120,
-         64
-        ]
-       },
-       {
-        "type": "op",
-        "name": "!=",
-        "args": [
-         130,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         116,
-         127
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         126,
-         21,
-         4
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         129,
-         127
-        ]
-       },
-       {
-        "type": "op",
-        "name": "-",
-        "args": [
-         6,
-         124
-        ]
-       },
-       {
-        "type": "op",
-        "name": "!=",
-        "args": [
-         131,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "-",
-        "args": [
-         6,
-         123
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         133,
-         134
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         128,
-         134
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         122,
-         127
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         144,
-         66,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         144,
-         27,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         138,
-         27,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         144,
-         21,
-         4
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         138,
-         31,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         94,
-         5,
-         141
         ]
        },
        {
@@ -1425,52 +1081,75 @@
         "name": "?:",
         "args": [
          99,
-         5,
-         139
+         18,
+         4
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         101,
+         100
+        ]
+       },
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         103,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "-",
+        "args": [
+         6,
+         97
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         96,
+         100
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         138,
-         66,
-         54
+         111,
+         53,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         136,
-         27,
-         54
+         111,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         144,
-         33,
-         54
+         108,
+         23,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         144,
-         2,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         135,
-         21,
+         111,
+         18,
          4
         ]
        },
@@ -1478,106 +1157,63 @@
         "type": "op",
         "name": "?:",
         "args": [
-         132,
+         108,
+         27,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         74,
          5,
-         137
+         110
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         144,
-         22,
-         54
+         108,
+         53,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         138,
-         13,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         138,
-         2,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         136,
-         45,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         136,
+         106,
          23,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         154,
-         107
-        ]
-       },
-       {
-        "type": "op",
-        "name": "/",
-        "args": [
-         149,
-         107
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         140,
-         5,
-         156
+         111,
+         29,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         138,
-         5,
-         148
+         111,
+         2,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         102,
-         6,
-         151
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         136,
-         162,
-         54
+         105,
+         18,
+         4
         ]
        },
        {
@@ -1585,55 +1221,128 @@
         "name": "?:",
         "args": [
          104,
+         5,
+         107
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         111,
+         19,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
+         11,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
+         2,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         39,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         20,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         120,
+         86
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         116,
+         86
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         109,
+         5,
+         122
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         108,
+         5,
+         115
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         106,
+         128,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         82,
          6,
-         150
+         117
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         169,
-         25
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         169,
-         1
-        ]
-       },
-       {
-        "type": "op",
-        "name": ">=",
-        "args": [
-         167,
-         16
+         134,
+         21
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         164,
-         34
-        ]
-       },
-       {
-        "type": "op",
-        "name": "<=",
-        "args": [
-         163,
-         34
+         134,
+         9
         ]
        },
        {
         "type": "op",
         "name": ">=",
         "args": [
-         167,
+         134,
          1
         ]
        },
@@ -1641,15 +1350,57 @@
         "type": "op",
         "name": "<=",
         "args": [
-         167,
-         10
+         130,
+         30
         ]
        },
        {
         "type": "op",
         "name": "<=",
         "args": [
-         167,
+         129,
+         30
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         134,
+         14
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         138,
+         18,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         137,
+         135
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         139,
+         18,
+         5
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         142,
          25
         ]
        },
@@ -1657,230 +1408,115 @@
         "type": "op",
         "name": "&&",
         "args": [
-         175,
-         177
+         33,
+         142
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         142,
+         33
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         25,
+         142
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         173,
-         21,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         171,
-         170
+         147,
+         39,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         174,
-         21,
-         5
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         178,
-         37
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         37,
-         180
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         178,
-         29
-        ]
-       },
-       {
-        "type": "op",
-        "name": "&&",
-        "args": [
-         29,
-         180
+         145,
+         20,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         185,
-         45,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         183,
+         147,
          23,
-         54
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         185,
-         27,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         183,
-         27,
-         54
-        ]
-       },
-       {
-        "type": "op",
-        "name": "?:",
-        "args": [
-         185,
+         145,
          23,
-         54
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         183,
-         45,
-         54
+         147,
+         20,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         185,
-         190,
-         54
+         145,
+         39,
+         44
         ]
        },
        {
         "type": "op",
         "name": "?:",
         "args": [
-         183,
-         187,
-         54
+         147,
+         152,
+         44
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         145,
+         149,
+         44
         ]
        }
       ],
       "outputRoots": {
-       "out10": 125,
-       "out11": 166,
-       "out12": 157,
-       "out13": 165,
-       "out2": 142,
-       "out3": 182,
-       "out4": 184,
-       "out5": 172,
-       "out6": 176,
-       "out7": 101,
-       "out8": 110,
-       "out9": 117,
-       "value": 143
+       "out10": 98,
+       "out11": 132,
+       "out12": 123,
+       "out13": 131,
+       "out2": 111,
+       "out3": 146,
+       "out4": 144,
+       "out5": 140,
+       "out6": 136,
+       "out7": 80,
+       "out8": 85,
+       "out9": 95,
+       "value": 108
       },
-      "parameters": {
-       "__uct_param_1": {
-        "sourceName": "period",
-        "title": "ATR Period",
-        "type": "int",
-        "default": 14,
-        "min": 1,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 7,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_2": {
-        "sourceName": "rsiPeriod",
-        "title": "Period",
-        "type": "int",
-        "default": 14,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 12,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_3": {
-        "sourceName": "volumePeriod",
-        "title": "EMA Period",
-        "type": "int",
-        "default": 21,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 18,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       },
-       "__uct_param_4": {
-        "sourceName": "maPeriod",
-        "title": "Period",
-        "type": "int",
-        "default": 200,
-        "min": null,
-        "max": null,
-        "step": null,
-        "options": null,
-        "locators": [
-         {
-          "node": 24,
-          "path": [
-           "value"
-          ]
-         }
-        ]
-       }
-      }
+      "parameters": {}
      }
     },
     "meta": {
@@ -1898,6 +1534,22 @@
       {
        "name": "Drawings",
        "note": "24 of 27 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 27 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.)"
+      },
+      {
+       "name": "Period",
+       "note": "`Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (200), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "ATR Period",
+       "note": "`ATR Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (14), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "EMA Period",
+       "note": "`EMA Period` is not offered as an adjustable setting here: it also sets a colour rule, which a new value here cannot move. It stays at the script's value (21), which is what TradingView draws until it is changed. Change it in the script and paste it again."
+      },
+      {
+       "name": "Period",
+       "note": "`Period` is not offered as an adjustable setting here: it also sets its drawings (lines, labels, boxes, tables), which a new value here cannot move. It stays at the script's value (14), which is what TradingView draws until it is changed. Change it in the script and paste it again."
       },
       {
        "name": "Drawings",

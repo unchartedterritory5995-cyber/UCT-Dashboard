@@ -5928,8 +5928,14 @@ function fractionalWindowAdvice(node) {
     choice = `. Write ${upSpell} if that is the length you mean`
   }
 
-  return ` — ${named} reduces to ${v}, and Pine's \`/\` on two whole numbers keeps `
-    + 'the fraction (their own docs: `5 / 2 = 2.5`), so this is not a whole number '
+  // ⭐ H10 — WHICH `/` KEEPS THE FRACTION, said exactly. Before v6 two `const int`
+  // operands truncate (`vw-int-div-assign` D02/D03/D05) and fold to a whole window
+  // before this sentence is reached; an `input` operand keeps the fraction (D04),
+  // and from v6 every `/` does (Pine's docs: `5 / 2 = 2.5`). The old sentence
+  // ("two whole numbers keep the fraction") was false for the v5 literals.
+  return ` — ${named} reduces to ${v}: Pine's \`/\` keeps the fraction when an operand `
+    + 'is an input, and from v6 always (their own docs: `5 / 2 = 2.5`; before v6 two '
+    + 'literal whole numbers truncate), so this is not a whole number '
     + `of bars${choice}`
 }
 

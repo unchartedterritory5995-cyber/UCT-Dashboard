@@ -38,6 +38,7 @@ import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
+import { unreachedKnobs, knobLockedNote } from './knobReach'
 import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
@@ -129,6 +130,21 @@ function tradingViewDefaultColour(output, version) {
   }
 }
 
+/** The member door's translation options, ONE spelling for the build and for
+ *  `knobReach`'s re-translation at a knob's new value (`inputValues`). */
+export function memberTranslationOpts(inputValues = null) {
+  return {
+    paramManifest: true, strict: true, colourInputs: true, guardInputs: true,
+    objectRuntimeCheck: probeObjectRuntime,
+    // ⭐ RT1 — with the runtime fallback switched on, every refused row keeps
+    // what the author said it looks like (`pine.js`, `refusedPresentation`):
+    // the runtime lane may draw it. Off, the option is absent and the
+    // translation is byte-identical to before.
+    ...(runtimePaneEnabled() ? { refusedPresentation: true } : {}),
+    ...(inputValues ? { inputValues } : {}),
+  }
+}
+
 export function memberPaneDefinition({ source, id, name, translation = null } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
@@ -149,15 +165,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // ⭐ C43 — `guardInputs: true`: an input only a `runtime.error` condition
       // reads is declared too, so a member's own value can reach the script's
       // validation as it does on TradingView — `builderInputs.withGuardInputs`.
-      t = memberInputTranslation(translatePine, source, {
-        paramManifest: true, strict: true, colourInputs: true, guardInputs: true,
-        objectRuntimeCheck: probeObjectRuntime,
-        // ⭐ RT1 — with the runtime fallback switched on, every refused row keeps
-        // what the author said it looks like (`pine.js`, `refusedPresentation`):
-        // the runtime lane may draw it. Off, the option is absent and the
-        // translation is byte-identical to before.
-        ...(runtimePaneEnabled() ? { refusedPresentation: true } : {}),
-      })
+      t = memberInputTranslation(translatePine, source, memberTranslationOpts())
     } catch (err) {
       // ⛔ A THROW IS A REASON, NOT A CRASH ON THE PAINT PATH. `PreviewPane`'s
       // header is explicit that a pane which dies reads as "correctly inert"
@@ -577,6 +585,27 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     }
   })
   for (const pid of withheld) delete manifest[pid]
+  // ⭐⭐ H10 — A KNOB REACHES EVERY USE OF ITS INPUT, OR IT IS NOT OFFERED.
+  // Its locators are the literals whose tag survived; a use folded into a length
+  // (`lb + rb + 1`), a history offset (`high[lb]`) or a drawing program keeps the
+  // default when the knob moves. The translator, asked at the knob's new value,
+  // is the authority on what the script draws there (`knobReach.js`); a knob
+  // whose edit differs from it stays at the script's value, named below.
+  const lockedKnobs = Object.keys(manifest).length
+    ? unreachedKnobs({
+      translation: t,
+      offered: new Set(Object.keys(manifest)),
+      drawsOutput: (i) => drawable.includes((t.outputs || [])[i]),
+      drawsObjects,
+      // ⛔ THE SAME TRANSLATION at another value: a caller's own (`translation`)
+      // carries the options it was made with (`memberOpts`, H10).
+      retranslate: (inputValues) => memberInputTranslation(translatePine, source,
+        t.memberOpts ? { ...t.memberOpts, inputValues } : memberTranslationOpts(inputValues)),
+    })
+    : new Map()
+  // the entries as built, for a reader that must name what was not offered
+  const lockedEntries = [...lockedKnobs].map(([pid, why]) => ({ id: pid, why, entry: manifest[pid] }))
+  for (const pid of lockedKnobs.keys()) delete manifest[pid]
   // ⛔ A BAND BETWEEN TWO PLOTS DRAWN AT DIFFERENT DISPLACEMENTS IS REFUSED BY NAME.
   // Each edge would be drawn where its own plot is, but which bar's colour a band
   // takes when its edges disagree is not something this door has measured against
@@ -750,6 +779,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // ⭐ 2026-09-26 — A PARAMETER WITHHELD BECAUSE IT SETS A DISPLACEMENT THE
   // DOCUMENT CANNOT RECOMPUTE, said in words beside the others. Silence would
   // read as "this script has no such setting".
+  for (const [pid, where] of lockedKnobs) {
+    notes.push(knobLockedNote((t.inputParams || []).find((x) => x && x.id === pid), where))
+  }
   for (const pid of withheld) {
     const p = (t.inputParams || []).find((x) => x && x.id === pid)
     const name = (p && (p.title || p.sourceName)) || pid
@@ -920,6 +952,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // ⭐ RT9 — 'served' when the drawings may come from the run, the declining
     // code when the run was asked and declined, null when it was not asked.
     objectsRun: hybrid ? (hybrid.ok ? 'served' : hybrid.code) : null,
+    // ⭐ H10 — the knobs not offered because an edit would only half apply them
+    // (`knobReach.js`), each with its reason and the manifest entry it would have had.
+    lockedKnobs: lockedEntries,
     // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
@@ -1809,6 +1844,11 @@ export function memberPaneVariants({ source, paramId, values, idPrefix = MEMBER_
       // goes to Alerts the knob has no drawn series left to move.
       const known = ((one.translation || {}).inputParams || [])
         .find((p) => p && p.id === paramId)
+      // ⭐ H10 — a knob locked because an edit would only half apply it says so in
+      // ITS sentence (`knobReach.js`), not the "reaches no series" one below.
+      const lock = known && (one.notes || []).find((n) => n.name === (known.title || known.sourceName)
+        && n.note.includes('is not offered as an adjustable setting here: '))
+      if (lock) return { ok: false, variants: [], reason: lock.note }
       if (known && !((one.definition.compute || {}).paramManifest || {})[paramId]) {
         return {
           ok: false,
