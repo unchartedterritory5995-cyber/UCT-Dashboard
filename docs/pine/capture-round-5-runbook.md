@@ -235,7 +235,108 @@ header, except the three named variants (M1 run B's default `"30"`, M2's plain s
 
 | # | id written | bars | `startsAtBar0` | `verify_capture` | compile / runtime error (verbatim) | notes |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| S1-1 | `vw-cap5-f9-h6-rddt-1d-2026-10-04` | 636 | true | PASS | — | combined probe compiled; 20 plots |
+| S1-2 | `vw-rt15-colour-nz-rddt-1d-2026-10-04` | 636 | true | PASS | — | screenshot `cap-round5/vw-rt15-colour-nz-rddt-1d-2026-10-04.jpg`: bars 0-9 keep the chart's own candle colours (B01 `nz(na colour)` paints nothing visible; not transparent) |
+| S1-3 | `vw-rt15-paint-offset-rddt-1d-2026-10-04` | 636 | true | PASS | — | screenshot: yellow paint shifted one bar left (offset -1) |
+| S1-4 | `vw-rt15-paint-offset-flag-false-rddt-1d-2026-10-04` | 636 | true | PASS | — | screenshot: `offset = na` drawn as offset 0 (yellow on the up bars themselves) |
+| S1-5 | `vw-rt15-gradient-fill-rddt-1d-2026-10-04` | 636 | true | PASS | — | screenshot at 200 px/bar, price 33-60: G03 band green at the upper plot to red at the lower, clipped to the two plots, smooth vertical gradient |
+| S1-6 | `vw-rt13-requests-rddt-1d-2026-10-04` | 636 | true | PASS | — (R01/R02/R05 compiled and ran) | 6 plots |
+| S1-7 | — (no fixture: runtime error) | 636 | — | — | `Runtime error` RE10001: "Error on bar 0: Invalid value of the 'length' argument (0) in the 'lowest' function. It must be > 0." stack `#main` p 43 | the error IS the reading (L03/L04 class); study status type 3, no rows |
+| S1-8 | `vw-rt10-runtime-walls-rddt-1d-2026-10-04` | 636 | true | PASS | — (the duplicate `1 =>` switch arm compiled) | 11 plots |
+| S1-9 | `vw-cap5-version-defaults-v6-rddt-1d-2026-10-04` | 636 | true | PASS | — | objects: 3 boxes, 1 table, 3 cells |
+| S1-10 | `vw-cap5-version-defaults-v4-rddt-1d-2026-10-04` | 636 | true | PASS | — | objects: 3 boxes, 1 table, 2 cells |
+| S1-11 | `order-block-finder-rddt-1d-2026-10-04` | 636 | true | PASS | — | 28 plots, 6 lines |
+| S1-12 | `mtf-key-levels-support-and-resistance-rddt-1d-2026-10-04` | 636 | true | PASS | — | 8 plots, 23 lines, 27 labels, 1 table |
+| S1-13 | `vwap-fibo-dev-extensions-strategy-rddt-1d-2026-10-04` | 636 | true | PASS | — | strategy; 5 plots |
+| S1-14 | `pivot-high-low-points-rddt-1d-2026-10-04` | 636 | true | PASS | — | 2 plots; 77 study rows (offset = -lb) |
+| S1-15 | `kernel-channel-backquant-rddt-1d-2026-10-04` | 636 | true | PASS | — | 23 plots |
+| S1-16 | `linear-regression-channel-breakout-strategy-rddt-1d-2026-10-04` | 636 | true | PASS | — | strategy, objects-only: 15 lines, 1 label |
+| S1-17 | `volatility-trend-score-backquant-rddt-1d-2026-10-04` | 636 | true | PASS | — | 18 plots, 2 lines |
+| S1-18 | `range-filter-bs-signals-rddt-1d-2026-10-04` | 636 | true | PASS | — | 9 plots |
+| S1-19 | `nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d-2026-10-04` | 636 | true | PASS | — | 7 plots |
+| S1-20 | `atr-trailing-stoploss-strategy-rddt-1d-2026-10-04` | 636 | true | PASS | — | strategy; 3 plots |
+| S1-21 | `volume-divergence-by-mm-rddt-1d-2026-10-04` | 636 | true | PASS | — | 14 plots |
+| S1-22 | `smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-10-04` | 636 | true | PASS | — | 22 plots, 1 table / 14 cells |
+| S1-23 | `smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d-2026-10-04` | 636 | true | PASS | — | 22 plots; 52 lines, 21 labels, 2 boxes, 10 linefills |
+| S1-24 | `ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-10-04` | 636 | true | PASS | — | 19 plots, 1 table / 12 cells |
+| S1-25 | `bolingger-bands-inside-bar-boxes-rddt-1d-2026-10-04` | 636 | true | PASS | — | 6 plots, 54 boxes |
+| S1-26 | `inside-bar-boxes-rddt-1d-2026-10-04` | 636 | true | PASS | — | 3 plots, 54 boxes |
+| S1-27 | `neural-network-buy-and-sell-signals-rddt-1d-2026-10-04` | 636 | true | PASS | — | 34 plots, 42 labels |
+| S1-28 | `williams-fractal-trailing-stops-rddt-1d-2026-10-04` | 636 | true | PASS | — | 10 plots, 1 label |
+| S2-1 | `vw-cap5-f9-h6-spy-1d-2026-10-04` | 8477 | true | PASS | — | full history from 1993-01-29 |
+| S2-2 | `vw-rt11-builtins-spy-1d-2026-10-04` | 8477 | true | PASS | — (compiled whole, 22 plots) | |
+| S2-3 | — (no fixture: compile error) | 8477 | — | — | `Compilation error`: "Could not find function or function reference 'alma'" (line 6, cols 6-9) | v5 bare `alma` is REFUSED. ⚠️ the failed unsaved study appeared on the chart titled `UCTPROBE_RT1_NA_TEST` (the shared unsaved slot's stale name); removed |
+| S2-4 | `vw-rt11-alma-v3-bare-spy-1d-2026-10-04` | 8477 | true | PASS | — | v3 bare `alma` COMPILES and runs (2 plots) |
+| S2-5 | — (no fixture: runtime error) | 8477 | — | — | `Runtime error` RE10001: "Error on bar 0: Invalid value of the 'length' argument (0) in the 'lowest' function. It must be > 0." stack `#main` p 43 | same as S1-7 (line 43 = L04 `ta.lowest(low, lenNa)`, an `na` length read as 0) |
+| S2-6 | `vw-cap5-spy-text-spy-1d-2026-10-04` | 8477 | true | PASS | — | 1 table, 63 cells |
+| S2-7 | `vw-cap5-max-bars-back-spy-1d-2026-10-04` | 8477 | true | PASS | — (`max_bars_back(x, n)` compiled) | first clipboard read was another session's text (ID check refused it, nothing written); re-copied |
+| S2-8 | `vw-cap5-buffer-overrun-spy-1d-2026-10-04` | 8477 | true | PASS | — **NO runtime error** | the expected error did not happen: V02 `close[e]` with `e` up to 59 past `max_bars_back = 50` reads real values on every bar (0 `na`); screenshot `cap-round5/vw-cap5-buffer-overrun-spy-1d-2026-10-04.jpg` |
+| S2-9 | `vw-rt15-colour-nz-spy-1d-2026-10-04` (optional) | 8477 | true | PASS | — | |
+| S2-10 | `order-block-finder-spy-1d-2026-10-04` | 8477 | true | PASS | — | full depth computed (no 1,800-bar fallback needed for any S2 corpus script) |
+| S2-11 | `mtf-key-levels-support-and-resistance-spy-1d-2026-10-04` | 8477 | true | PASS | — | 23 lines, 27 labels, 1 table |
+| S2-12 | `vwap-fibo-dev-extensions-strategy-spy-1d-2026-10-04` | 8477 | true | PASS | — | strategy |
+| S2-13 | `kernel-channel-backquant-spy-1d-2026-10-04` | 8477 | true | PASS | — | |
+| S2-14 | `range-filter-bs-signals-spy-1d-2026-10-04` | 8477 | true | PASS | — | |
+| S2-15 | `nonlinear-regression-zero-lag-moving-average-loxx-spy-1d-2026-10-04` | 8477 | true | PASS | — | |
+| S2-16 | `atr-trailing-stoploss-strategy-spy-1d-2026-10-04` | 8477 | true | PASS | — | strategy |
+| S2-17 | `volume-divergence-by-mm-spy-1d-2026-10-04` | 8477 | true | PASS | — | |
+| S2-18 | `vw-m3-daily-bar-time-spy-1d-2026-10-04` (optional capture) | 8477 | true | PASS | — | **M3**: newest bar `time` 1790947800000 = 2026-10-02 13:30 UTC = 09:30 New_York (exchange tz America/New_York); `time_close` 1790971200000 = 2026-10-02 16:00 NY; `time[1]` 1790861400000 = 2026-10-01 09:30 NY / 13:30 UTC |
+| S2-19 | — (expected failure) | 8477 | — | — | `Runtime error`: "Invalid symbol: NASDAQ:JPM" (ctx `{symbol: "NASDAQ:JPM"}`) | **M4 part A**: a wrong-exchange symbol without `ignore_invalid_symbol` stops the script |
+| S2-20 | — (readings) | 8477 | — | — | n = 41: `Runtime error` RE10137 "Error on bar 0: The script executes too many unique `request.*()` function calls. The limit is 40. You can increase the limit by upgrading your plan." | **M5**: control n = 10 -> calls made 10; n = 39 -> 39; **n = 40 -> 40 (largest that ran)**; **41 first refused**; 63/64/65/80/100 refused with the same RE10137 (limit 40). Plan: TradingView Premium (account per the owner). Stepped by `setInputValues` on the study's own `in_0` input; restored to 10 before removal |
+| S2-21 | `vw-m7-sort-indices-ties-spy-1d-2026-10-04` (optional capture) | 8477 | true | PASS | — | **M7**: a = 5,3,5,1,3,5: asc indices 3,1,4,0,2,5; desc 5,2,0,4,1,3 (ties: asc keeps index order, desc REVERSES it); b all-equal 7,7,7,7: asc 0,1,2,3, desc 3,2,1,0; c already-descending input, asc: 2,1,0 |
+| S2-T1 / T2 | SKIPPED | | | | | theme backgrounds: owner declined/deferred (owner-only step) |
+| S3-1 | `vw-rt11-builtins-spy-60-2026-10-04` | 431 | false | PASS | — | SPY 60, extended hours OFF (`sessionId` regular), default load from 2026-07-08 |
+| S4-1 | `vw-rt11-builtins-spy-1-2026-10-04` | 431 | false | PASS | — | SPY 1, extended hours OFF, default load 2026-10-01 19:19Z .. 10-02 19:59Z |
+| S5-1 | NOT TAKEN | | | | | rig fault, see below |
+| S5-2 | NOT TAKEN | | | | | rig fault |
+| S5-3 | NOT TAKEN | | | | | rig fault |
+| S5-4 | NOT TAKEN (optional) | | | | | rig fault |
+
+**Run notes (CAP5 lane, 2026-10-04 evening, ANYTIME block).** Rig: layout `01f1AcIj`, a fresh tab in the
+extension's group (front, `visible`, 1918x888, `hasFocus` true, no disconnect dialog); start state AMEX:SPY 1D,
+extended hours OFF (`sessionId` regular), 0 studies, editor holding a saved account script's historical version
+(never edited: the first act was **Create new > Indicator**, then Ctrl+K Ctrl+I for every later probe). Each probe
+went into an unsaved draft through the Monaco handle (module `568088`, 18,234 factories seen), the binding gate
+(one visible `Add to chart`, zero `Update on chart`, sha256 of the read-back buffer = the committed blob's) checked
+in the same evaluation as the click.
+
+⚠️ **Route change, source in:** the sources were not pasted into the JS call. They were fetched in the page from
+`raw.githubusercontent.com` at the PINNED commit `262cafc486` (this branch, public repo) and admitted ONLY when the
+page's sha256 equalled the committed blob's sha256 computed on the shell (`git show HEAD:<path> | sha256sum`; 47/47
+equal); `tv_capture.js` came the same way (sha `bf0251d7...`, = the git blob) and loaded through a `blob:` script
+(TradingView's CSP refuses `eval`). The clipboard was never used for source in. Out: one chunk per capture
+(`chunkSize` 50,000,000, up to 2.19M chars), staged in an injected textarea, real Ctrl+A / Ctrl+C, read on the shell,
+chunk FNV-1a re-hashed AND the capture's own `id` compared with the expected id before `verify_capture.mjs
+--assemble` (the id check fired once, S2-7: another session had overwritten the clipboard with a ticker list;
+nothing was written; re-copied). Every assembled fixture: `VERDICT: PASS`. Screenshots are JPEG (the tool's
+format), not PNG.
+
+⛔ **Rig fault, S5 not taken.** To turn extended hours ON for S5 the lane called the chart model's
+`setProperty(sessionId, 'extended', <plain string label>)`. The value applied, but the plain-string undo label
+poisoned TradingView's undo history (`n.text(...).translatedText is not a function` in `_getStateFromUndoHistory`,
+then `originalText is not a function` in every later `endUndoMacro`). From then on **Add to chart does nothing**
+(no study, no error; JS click and pointer click alike) and **`setResolution` does not apply** (the toolbar reads
+D, the series stays on 5). The session toggle still applies (restored to Regular through the chart's own session
+menu). A page reload clears it, and the reload is blocked by the page's "Leave site?" dialog, which this lane may
+not answer. **Owner: reload the rig tab (accept "Leave"), confirm it opens on AMEX:SPY 1D, extended hours OFF,
+0 studies.** Then S5 (M2 run A/B, M8 part B, optional rolling-vwap SPY 5) and the RT16 add-on can run. Lesson: change
+the session with the chart's own control (the `ETH`/`RTH` button, bottom toolbar), never a model `setProperty`.
+
+**Grades (`CAP5_MEASURE=1`, `cap5Captures.measure.test.js`, `--maxWorkers=1`, this branch = wave-17 base, no lane
+branches merged, NO `PINE_LIBRARY_STORE`; `cap5-verdicts.json` rewritten from the harness, 43 of 50 idPrefixes graded,
+both door states):**
+
+| verdict (on / runtime) | captures |
+|---|---|
+| MATCH / MATCH | `vw-rt15-gradient-fill-rddt-1d` |
+| DIVERGE / DIVERGE | `vw-cap5-f9-h6` (rddt + spy: the F9 colour rows N01-N03, V01, V02, R0x by colour; K00 / O0x match), `vw-rt15-colour-nz` (rddt + spy: N01-N03 colour), `vw-rt15-paint-offset` + `-flag-false` (paints), `vw-cap5-version-defaults-v6` (objects), `vw-cap5-spy-text` (table cells), `vw-cap5-buffer-overrun` (V02: TradingView reads real values past `max_bars_back`, ours `na`) |
+| INCONCLUSIVE / DIVERGE | `vw-rt10-runtime-walls-rddt-1d` (on: `pine:reassign`; runtime: P01-P03 pivots `na`) |
+| INCONCLUSIVE both (our door refuses) | `vw-rt13-requests` (`pine:request`), `vw-cap5-version-defaults-v4` (`pine:hidden-only`), `vw-rt11-builtins` 1d / 60 / 1 (`pine:builtin`), `vw-rt11-alma-v3-bare` (`pine:undefined` — TradingView COMPILES bare `alma` in v3), `vw-cap5-max-bars-back` (`pine:offset-literal`), and every corpus script on both symbols: `pine:reassign` (order-block-finder, bb/ib boxes, inside-bar-boxes, williams), `pine:block` (kernel-channel, loxx, volume-divergence on; runtime INCONCLUSIVE per plot), `pine:collection` (range-filter), `pine:statement` (atr-trailing), `pine:state` (gaussian, ema-pro, neural-network), `pine:type` (volatility-trend-score), `pine:no-output` (linear-regression strategy), install door `compute` (mtf-key-levels, vwap-fibo strategy, pivot-high-low-points) |
+| absent (no fixture) | rt12 rddt / spy (TradingView runtime error), alma-v5-bare (TradingView compile error), smc-structures (library row: needs `PINE_LIBRARY_STORE`, fixture IS captured), rolling-vwap-spy-5 + the two `-rth` rows (not taken) |
+
+No corpus script graded MATCH, so no new D6 starter-allowlist candidates from this round on the wave-17 base;
+the lanes whose fixes are on unmerged branches (RT10-RT15, F9, H6, H7) should re-run the measure on their own tips.
+§ 8 steps 3-5 (pin test, hand-back, triage CAP5 section) are NOT done by this lane.
 
 ---
 

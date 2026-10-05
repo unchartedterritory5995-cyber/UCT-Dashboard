@@ -3,111 +3,497 @@
   "captures": [
     {
       "idPrefix": "vw-cap5-f9-h6-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-f9-h6-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
       "queue": "Q-F9a-c, Q-H6a",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "MATCH",
+            636
+          ],
+          [
+            "N01 new(cond ? blue : na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N02 new(cond ? na : red, 0)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N03 new(a ? g : b ? r : na, 70)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "V01 var colour with an na write",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "V02 new(var with na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "R01 colour read before its reassignment",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "R02 the same name after it",
+            "MATCH",
+            636
+          ],
+          [
+            "O01 ta.obv",
+            "MATCH",
+            636
+          ],
+          [
+            "O02 cum(sign(change(close)) * volume)",
+            "MATCH",
+            636
+          ],
+          [
+            "O03 difference (0 or na)",
+            "MATCH",
+            636
+          ],
+          [
+            "O04 an unchanged close",
+            "MATCH",
+            636
+          ],
+          [
+            "O05 the bar's term",
+            "MATCH",
+            636
+          ],
+          [
+            "O00 bar_index control",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-f9-h6-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-f9-h6-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
       "queue": "Q-F9a-c, Q-H6a",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "MATCH",
+            636
+          ],
+          [
+            "N01 new(cond ? blue : na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N02 new(cond ? na : red, 0)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N03 new(a ? g : b ? r : na, 70)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "V01 var colour with an na write",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "V02 new(var with na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "R01 colour read before its reassignment",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "R02 the same name after it",
+            "MATCH",
+            636
+          ],
+          [
+            "O01 ta.obv",
+            "MATCH",
+            636
+          ],
+          [
+            "O02 cum(sign(change(close)) * volume)",
+            "MATCH",
+            636
+          ],
+          [
+            "O03 difference (0 or na)",
+            "MATCH",
+            636
+          ],
+          [
+            "O04 an unchanged close",
+            "MATCH",
+            636
+          ],
+          [
+            "O05 the bar's term",
+            "MATCH",
+            636
+          ],
+          [
+            "O00 bar_index control",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt15-colour-nz-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-colour-nz-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
       "queue": "Q-RT15b",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "N01 nz(c) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N02 nz(c[1]) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N03 nz(c, gray) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-colour-nz-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-colour-nz-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
       "queue": "Q-RT15b",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "N01 nz(c) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N02 nz(c[1]) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ],
+          [
+            "N03 nz(c, gray) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-paint-offset-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-paint-offset-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-paint-offset.pine",
       "queue": "Q-RT15c (flag true)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "P02 up",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-paint-offset-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-paint-offset-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-paint-offset.pine",
       "queue": "Q-RT15c (flag true)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "P02 up",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-paint-offset-flag-false-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-paint-offset-flag-false-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-paint-offset-flag-false.pine",
       "queue": "Q-RT15c (flag false)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "P02 up",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-paint-offset-flag-false-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-paint-offset-flag-false-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-paint-offset-flag-false.pine",
       "queue": "Q-RT15c (flag false)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "P02 up",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-gradient-fill-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-gradient-fill-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-gradient-fill.pine",
       "queue": "Q-RT15d",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "G01 upper",
+            "MATCH",
+            636
+          ],
+          [
+            "G02 lower",
+            "MATCH",
+            636
+          ],
+          [
+            "G04 mid",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt15-gradient-fill-rddt-1d",
-      "id": null,
+      "id": "vw-rt15-gradient-fill-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-gradient-fill.pine",
       "queue": "Q-RT15d",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "G01 upper",
+            "MATCH",
+            636
+          ],
+          [
+            "G02 lower",
+            "MATCH",
+            636
+          ],
+          [
+            "G04 mid",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt13-requests-rddt-1d",
-      "id": null,
+      "id": "vw-rt13-requests-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt13-requests.pine",
       "queue": "Q-RT13c/d",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt13-requests-rddt-1d",
-      "id": null,
+      "id": "vw-rt13-requests-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt13-requests.pine",
       "queue": "Q-RT13c/d",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt12-statements-history-rddt-1d",
@@ -129,273 +515,591 @@
     },
     {
       "idPrefix": "vw-rt10-runtime-walls-rddt-1d",
-      "id": null,
+      "id": "vw-rt10-runtime-walls-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt10-runtime-walls.pine",
       "queue": "Q-RT10a/b/c/e",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt10-runtime-walls-rddt-1d",
-      "id": null,
+      "id": "vw-rt10-runtime-walls-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt10-runtime-walls.pine",
       "queue": "Q-RT10a/b/c/e",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "P01 pivothigh(x,2,3)",
+            "DIVERGE",
+            39,
+            "na",
+            19,
+            "scattered"
+          ],
+          [
+            "P02 pivotlow(x,2,2)",
+            "DIVERGE",
+            41,
+            "na",
+            15,
+            "scattered"
+          ],
+          [
+            "P03 f(x) pivotlow(1,2)",
+            "DIVERGE",
+            3,
+            "na",
+            19,
+            "scattered"
+          ],
+          [
+            "P04 f(x+1) pivotlow(1,2)",
+            "DIVERGE",
+            3,
+            "na",
+            19,
+            "scattered"
+          ],
+          [
+            "P00 x control",
+            "MATCH",
+            636
+          ],
+          [
+            "S01 switch with subject",
+            "MATCH",
+            636
+          ],
+          [
+            "S02 stateful subject once",
+            "MATCH",
+            636
+          ],
+          [
+            "H01 sma(v*volume,n) in f",
+            "MATCH",
+            636
+          ],
+          [
+            "H02 (v+1)[2] in f",
+            "MATCH",
+            636
+          ],
+          [
+            "H03 change(v*2) in f",
+            "MATCH",
+            636
+          ],
+          [
+            "C01 cum(x)",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-version-defaults-v6-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-version-defaults-v6-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v6.pine",
       "queue": "owed row 14",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D00 bar_index CONTROL",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-version-defaults-v6-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-version-defaults-v6-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v6.pine",
       "queue": "owed row 14",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "D00 bar_index CONTROL",
+            "MATCH",
+            636
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-version-defaults-v4-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-version-defaults-v4-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v4.pine",
       "queue": "owed row 14",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:hidden-only): the only outputs th",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-version-defaults-v4-rddt-1d",
-      "id": null,
+      "id": "vw-cap5-version-defaults-v4-rddt-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-version-defaults-v4.pine",
       "queue": "owed row 14",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:hidden-only): the only outputs th",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "order-block-finder-rddt-1d",
-      "id": null,
+      "id": "order-block-finder-rddt-1d-2026-10-04",
       "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
       "queue": "Q-RT11f",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "order-block-finder-rddt-1d",
-      "id": null,
+      "id": "order-block-finder-rddt-1d-2026-10-04",
       "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
       "queue": "Q-RT11f",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
-      "id": null,
+      "id": "mtf-key-levels-support-and-resistance-rddt-1d-2026-10-04",
       "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
       "queue": "Q-RT13a",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "mtf-key-levels-support-and-resistance-rddt-1d",
-      "id": null,
+      "id": "mtf-key-levels-support-and-resistance-rddt-1d-2026-10-04",
       "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
       "queue": "Q-RT13a",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vwap-fibo-dev-extensions-strategy-rddt-1d",
-      "id": null,
+      "id": "vwap-fibo-dev-extensions-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
       "queue": "Q-RT13b",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vwap-fibo-dev-extensions-strategy-rddt-1d",
-      "id": null,
+      "id": "vwap-fibo-dev-extensions-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
       "queue": "Q-RT13b",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "pivot-high-low-points-rddt-1d",
-      "id": null,
+      "id": "pivot-high-low-points-rddt-1d-2026-10-04",
       "script": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
       "queue": "Q-RT13e",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "pivot-high-low-points-rddt-1d",
-      "id": null,
+      "id": "pivot-high-low-points-rddt-1d-2026-10-04",
       "script": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
       "queue": "Q-RT13e",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "kernel-channel-backquant-rddt-1d",
-      "id": null,
+      "id": "kernel-channel-backquant-rddt-1d-2026-10-04",
       "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
       "queue": "Q-RT15a1",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "kernel-channel-backquant-rddt-1d",
-      "id": null,
+      "id": "kernel-channel-backquant-rddt-1d-2026-10-04",
       "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
       "queue": "Q-RT15a1",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "linear-regression-channel-breakout-strategy-rddt-1d",
-      "id": null,
+      "id": "linear-regression-channel-breakout-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
       "queue": "Q-RT15a2",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:no-output): the pasted script off",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "linear-regression-channel-breakout-strategy-rddt-1d",
-      "id": null,
+      "id": "linear-regression-channel-breakout-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/linear-regression-channel-breakout-strategy__3a1cf28800.pine",
       "queue": "Q-RT15a2",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:no-output): the pasted script off",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volatility-trend-score-backquant-rddt-1d",
-      "id": null,
+      "id": "volatility-trend-score-backquant-rddt-1d-2026-10-04",
       "script": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
       "queue": "Q-RT15a3",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:type): a user-defined type is out",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volatility-trend-score-backquant-rddt-1d",
-      "id": null,
+      "id": "volatility-trend-score-backquant-rddt-1d-2026-10-04",
       "script": "corpus/committed/volatility-trend-score-backquant__0794882a37.pine",
       "queue": "Q-RT15a3",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:type): a user-defined type is out",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "range-filter-bs-signals-rddt-1d",
-      "id": null,
+      "id": "range-filter-bs-signals-rddt-1d-2026-10-04",
       "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
       "queue": "Q-RT12c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "range-filter-bs-signals-rddt-1d",
-      "id": null,
+      "id": "range-filter-bs-signals-rddt-1d-2026-10-04",
       "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
       "queue": "Q-RT12c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d",
-      "id": null,
+      "id": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d-2026-10-04",
       "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
       "queue": "Q-RT12d",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d",
-      "id": null,
+      "id": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d-2026-10-04",
       "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
       "queue": "Q-RT12d",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "atr-trailing-stoploss-strategy-rddt-1d",
-      "id": null,
+      "id": "atr-trailing-stoploss-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
       "queue": "Q-RT12e",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "atr-trailing-stoploss-strategy-rddt-1d",
-      "id": null,
+      "id": "atr-trailing-stoploss-strategy-rddt-1d-2026-10-04",
       "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
       "queue": "Q-RT12e",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volume-divergence-by-mm-rddt-1d",
-      "id": null,
+      "id": "volume-divergence-by-mm-rddt-1d-2026-10-04",
       "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
       "queue": "Q-RT10d",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volume-divergence-by-mm-rddt-1d",
-      "id": null,
+      "id": "volume-divergence-by-mm-rddt-1d-2026-10-04",
       "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
       "queue": "Q-RT10d",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "Volume",
+            "MATCH",
+            636
+          ],
+          [
+            "Regular Bullish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Regular Bullish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bullish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bullish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — hidden on this runtime document (con"
+          ],
+          [
+            "Regular Bearish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Regular Bearish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bearish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bearish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — hidden on this runtime document (con"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d",
-      "id": null,
+      "id": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-10-04",
       "script": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d",
-      "id": null,
+      "id": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-10-04",
       "script": "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "smc-structures-and-multi-timeframe-fvg-ma-py-rddt-1d",
@@ -417,129 +1121,397 @@
     },
     {
       "idPrefix": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d",
-      "id": null,
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-10-04",
       "script": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d",
-      "id": null,
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-10-04",
       "script": "corpus/committed/ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "bolingger-bands-inside-bar-boxes-rddt-1d",
-      "id": null,
+      "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-10-04",
       "script": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "bolingger-bands-inside-bar-boxes-rddt-1d",
-      "id": null,
+      "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-10-04",
       "script": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "inside-bar-boxes-rddt-1d",
-      "id": null,
+      "id": "inside-bar-boxes-rddt-1d-2026-10-04",
       "script": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "inside-bar-boxes-rddt-1d",
-      "id": null,
+      "id": "inside-bar-boxes-rddt-1d-2026-10-04",
       "script": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "neural-network-buy-and-sell-signals-rddt-1d",
-      "id": null,
+      "id": "neural-network-buy-and-sell-signals-rddt-1d-2026-10-04",
       "script": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "neural-network-buy-and-sell-signals-rddt-1d",
-      "id": null,
+      "id": "neural-network-buy-and-sell-signals-rddt-1d-2026-10-04",
       "script": "corpus/committed/neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:state): this value carries forwar",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "williams-fractal-trailing-stops-rddt-1d",
-      "id": null,
+      "id": "williams-fractal-trailing-stops-rddt-1d-2026-10-04",
       "script": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
       "queue": "Q-H6c",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "williams-fractal-trailing-stops-rddt-1d",
-      "id": null,
+      "id": "williams-fractal-trailing-stops-rddt-1d-2026-10-04",
       "script": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
       "queue": "Q-H6c",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-f9-h6-spy-1d",
-      "id": null,
+      "id": "vw-cap5-f9-h6-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
       "queue": "Q-H6b, Q-F9 second witness",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "N01 new(cond ? blue : na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N02 new(cond ? na : red, 0)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N03 new(a ? g : b ? r : na, 70)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "V01 var colour with an na write",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "V02 new(var with na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "R01 colour read before its reassignment",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "R02 the same name after it",
+            "MATCH",
+            8477
+          ],
+          [
+            "O01 ta.obv",
+            "MATCH",
+            8477
+          ],
+          [
+            "O02 cum(sign(change(close)) * volume)",
+            "MATCH",
+            8477
+          ],
+          [
+            "O03 difference (0 or na)",
+            "MATCH",
+            8477
+          ],
+          [
+            "O04 an unchanged close",
+            "MATCH",
+            8477
+          ],
+          [
+            "O05 the bar's term",
+            "MATCH",
+            8477
+          ],
+          [
+            "O00 bar_index control",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-f9-h6-spy-1d",
-      "id": null,
+      "id": "vw-cap5-f9-h6-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-f9-h6.pine",
       "queue": "Q-H6b, Q-F9 second witness",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "K00_bar_index_CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "N01 new(cond ? blue : na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N02 new(cond ? na : red, 0)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N03 new(a ? g : b ? r : na, 70)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "V01 var colour with an na write",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "V02 new(var with na, 40)",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "R01 colour read before its reassignment",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "R02 the same name after it",
+            "MATCH",
+            8477
+          ],
+          [
+            "O01 ta.obv",
+            "MATCH",
+            8477
+          ],
+          [
+            "O02 cum(sign(change(close)) * volume)",
+            "MATCH",
+            8477
+          ],
+          [
+            "O03 difference (0 or na)",
+            "MATCH",
+            8477
+          ],
+          [
+            "O04 an unchanged close",
+            "MATCH",
+            8477
+          ],
+          [
+            "O05 the bar's term",
+            "MATCH",
+            8477
+          ],
+          [
+            "O00 bar_index control",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-1d",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11a/c/d/e (1D)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-1d",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11a/c/d/e (1D)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-alma-v5-bare-spy-1d",
@@ -561,21 +1533,33 @@
     },
     {
       "idPrefix": "vw-rt11-alma-v3-bare-spy-1d",
-      "id": null,
+      "id": "vw-rt11-alma-v3-bare-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-alma-v3-bare.pine",
       "queue": "Q-RT11b v3",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:undefined): this Pine name was ne",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-alma-v3-bare-spy-1d",
-      "id": null,
+      "id": "vw-rt11-alma-v3-bare-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-alma-v3-bare.pine",
       "queue": "Q-RT11b v3",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:undefined): this Pine name was ne",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt12-statements-history-spy-1d",
@@ -597,255 +1581,602 @@
     },
     {
       "idPrefix": "vw-cap5-spy-text-spy-1d",
-      "id": null,
+      "id": "vw-cap5-spy-text-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-spy-text.pine",
       "queue": "H7 format.volume, Q-C31b",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "X00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              63,
+              23
+            ]
+          ]
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-spy-text-spy-1d",
-      "id": null,
+      "id": "vw-cap5-spy-text-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-spy-text.pine",
       "queue": "H7 format.volume, Q-C31b",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "X00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "DIVERGE",
+          [
+            [
+              "tableCells",
+              63,
+              23
+            ]
+          ]
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-max-bars-back-spy-1d",
-      "id": null,
+      "id": "vw-cap5-max-bars-back-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-max-bars-back.pine",
       "queue": "owed row 12",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:offset-literal): a bar offset has",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-max-bars-back-spy-1d",
-      "id": null,
+      "id": "vw-cap5-max-bars-back-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-max-bars-back.pine",
       "queue": "owed row 12",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:offset-literal): a bar offset has",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-buffer-overrun-spy-1d",
-      "id": null,
+      "id": "vw-cap5-buffer-overrun-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-buffer-overrun.pine",
       "queue": "owed row 12 (expected runtime error)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "V00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "V01 e (reaches 50..59 every 60 bars)",
+            "MATCH",
+            8477
+          ],
+          [
+            "V02 close[e] past max_bars_back = 50",
+            "DIVERGE",
+            50,
+            "na",
+            1410,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-cap5-buffer-overrun-spy-1d",
-      "id": null,
+      "id": "vw-cap5-buffer-overrun-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-cap5-buffer-overrun.pine",
       "queue": "owed row 12 (expected runtime error)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "V00 bar_index CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "V01 e (reaches 50..59 every 60 bars)",
+            "MATCH",
+            8477
+          ],
+          [
+            "V02 close[e] past max_bars_back = 50",
+            "DIVERGE",
+            50,
+            "na",
+            1410,
+            "scattered"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt15-colour-nz-spy-1d",
-      "id": null,
+      "id": "vw-rt15-colour-nz-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
       "queue": "Q-RT15b SPY witness (optional)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "N01 nz(c) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N02 nz(c[1]) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N03 nz(c, gray) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "vw-rt15-colour-nz-spy-1d",
-      "id": null,
+      "id": "vw-rt15-colour-nz-spy-1d-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt15-colour-nz.pine",
       "queue": "Q-RT15b SPY witness (optional)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "DIVERGE",
+        "reason": null,
+        "plots": [
+          [
+            "N01 nz(c) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N02 nz(c[1]) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ],
+          [
+            "N03 nz(c, gray) plot colour",
+            "DIVERGE",
+            0,
+            "color",
+            8477,
+            "persistent"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": "DIVERGE"
+      }
     },
     {
       "idPrefix": "order-block-finder-spy-1d",
-      "id": null,
+      "id": "order-block-finder-spy-1d-2026-10-04",
       "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
       "queue": "Q-RT11f (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "order-block-finder-spy-1d",
-      "id": null,
+      "id": "order-block-finder-spy-1d-2026-10-04",
       "script": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
       "queue": "Q-RT11f (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:reassign): a name that is reassig",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
-      "id": null,
+      "id": "mtf-key-levels-support-and-resistance-spy-1d-2026-10-04",
       "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
       "queue": "Q-RT13a (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "mtf-key-levels-support-and-resistance-spy-1d",
-      "id": null,
+      "id": "mtf-key-levels-support-and-resistance-spy-1d-2026-10-04",
       "script": "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine",
       "queue": "Q-RT13a (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vwap-fibo-dev-extensions-strategy-spy-1d",
-      "id": null,
+      "id": "vwap-fibo-dev-extensions-strategy-spy-1d-2026-10-04",
       "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
       "queue": "Q-RT13b (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vwap-fibo-dev-extensions-strategy-spy-1d",
-      "id": null,
+      "id": "vwap-fibo-dev-extensions-strategy-spy-1d-2026-10-04",
       "script": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
       "queue": "Q-RT13b (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "kernel-channel-backquant-spy-1d",
-      "id": null,
+      "id": "kernel-channel-backquant-spy-1d-2026-10-04",
       "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
       "queue": "Q-RT15a1 (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "kernel-channel-backquant-spy-1d",
-      "id": null,
+      "id": "kernel-channel-backquant-spy-1d-2026-10-04",
       "script": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
       "queue": "Q-RT15a1 (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "range-filter-bs-signals-spy-1d",
-      "id": null,
+      "id": "range-filter-bs-signals-spy-1d-2026-10-04",
       "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
       "queue": "Q-RT12c (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "range-filter-bs-signals-spy-1d",
-      "id": null,
+      "id": "range-filter-bs-signals-spy-1d-2026-10-04",
       "script": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
       "queue": "Q-RT12c (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:collection): an array, a matrix o",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d",
-      "id": null,
+      "id": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d-2026-10-04",
       "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
       "queue": "Q-RT12d (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d",
-      "id": null,
+      "id": "nonlinear-regression-zero-lag-moving-average-loxx-spy-1d-2026-10-04",
       "script": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
       "queue": "Q-RT12d (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "atr-trailing-stoploss-strategy-spy-1d",
-      "id": null,
+      "id": "atr-trailing-stoploss-strategy-spy-1d-2026-10-04",
       "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
       "queue": "Q-RT12e (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "atr-trailing-stoploss-strategy-spy-1d",
-      "id": null,
+      "id": "atr-trailing-stoploss-strategy-spy-1d-2026-10-04",
       "script": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
       "queue": "Q-RT12e (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:statement): this Pine line is not",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volume-divergence-by-mm-spy-1d",
-      "id": null,
+      "id": "volume-divergence-by-mm-spy-1d-2026-10-04",
       "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
       "queue": "Q-RT10d (SPY)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:block): a Pine block spans severa",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "volume-divergence-by-mm-spy-1d",
-      "id": null,
+      "id": "volume-divergence-by-mm-spy-1d-2026-10-04",
       "script": "corpus/committed/volume-divergence-by-mm__cvG2Djaryv.pine",
       "queue": "Q-RT10d (SPY)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": null,
+        "plots": [
+          [
+            "Volume",
+            "MATCH",
+            8477
+          ],
+          [
+            "Regular Bullish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Regular Bullish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bullish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bullish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — hidden on this runtime document (con"
+          ],
+          [
+            "Regular Bearish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Regular Bearish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bearish",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — withheld by name on this runtime doc"
+          ],
+          [
+            "Hidden Bearish Label",
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — hidden on this runtime document (con"
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-60",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-60-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11c (60)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-60",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-60-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11c (60)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-1",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-1-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11a (1)",
       "state": "on",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "vw-rt11-builtins-spy-1",
-      "id": null,
+      "id": "vw-rt11-builtins-spy-1-2026-10-04",
       "script": "tools/visual_conformance/probes/vw-rt11-builtins.pine",
       "queue": "Q-RT11a (1)",
       "state": "runtime",
       "library": false,
-      "signature": null
+      "signature": {
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:builtin): this Pine built-in name",
+        "plots": [],
+        "objects": null,
+        "paints": null
+      }
     },
     {
       "idPrefix": "rolling-vwap-spy-5",
