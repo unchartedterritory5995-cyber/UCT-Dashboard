@@ -43,8 +43,9 @@ def db(monkeypatch, tmp_path):
     path = str(tmp_path / "sample.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     auth_db.init_db()
-    # W14-E: one capability example (resurfacing) writes a `voice_proactive_insights` row,
-    # which carries a real `REFERENCES users(id)` -- unlike the j2_* family, which has none
+    # W14-E: a capability example (the passed setup; a legacy resurfacing insight in the
+    # removal rails) can write a row that carries a real `REFERENCES users(id)` -- unlike the
+    # j2_* family, which has none
     # (account_purge.py's own docstring). A member who can click "Add a sample notebook" is
     # always a real signed-up row; a test user needs one made for it explicitly.
     c = auth_db.get_connection()
@@ -210,7 +211,9 @@ def test_seed_writes_the_sample_linked_and_records_its_ids(db):
     assert pref["examples"]["errors"] == {}, pref["examples"]["errors"]
     # No example trade or entry context is seeded (wave 14 integration round 2).
     assert pref["examples"]["tradeId"] is None and pref["examples"]["entryContext"] is None
-    assert pref["examples"]["passedSetupId"] and pref["examples"]["insightId"]
+    assert pref["examples"]["passedSetupId"]
+    # The resurfacing example is a callout inside its note, never an inbox insight.
+    assert pref["examples"]["insightId"] is None
 
 
 def test_after_seeding_nothing_reads_as_a_stock_or_a_reminder(db):
@@ -362,7 +365,7 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     assert result["trashed"] == [i for i in out["ids"] if i != already]
     # No trade or entry context was seeded, so there is none to delete.
     assert result["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                         "passedSetupDismissed": True, "insightDismissed": True}
+                                         "passedSetupDismissed": True, "insightDismissed": False}
     assert notes.get_note(U1, mine) is not None     # the member's own note is untouched
     for nid in out["ids"]:
         assert notes.get_note(U1, nid) is None
@@ -370,11 +373,9 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     again = sample_notebook.remove(U1)
     assert again["trashed"] == []
     # passedSetupDismissed is False the second time -- passed_setups.dismiss() filters
-    # `dismissed_at IS NULL`. `voice_proactive_service.dismiss()` carries no such guard (it re-stamps the
-    # timestamp and reports True as long as the row exists) -- a property of that capability's
-    # own door, not a defect of this removal.
+    # `dismissed_at IS NULL`. No insight is seeded, so none is dismissed either time.
     assert again["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
-                                        "passedSetupDismissed": False, "insightDismissed": True}
+                                        "passedSetupDismissed": False, "insightDismissed": False}
 
 
 def test_active_ids_reads_the_pref_and_the_trash(db):

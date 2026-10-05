@@ -145,21 +145,111 @@ def test_thesis_chip_shows_status_and_stop(db, seeded):
     assert chip["stop"] == 110.0
 
 
-def test_resurfacing_fired_once_and_is_in_the_voice_inbox(db, seeded):
-    out, examples = seeded
+# ⛔⛔ THE EXAMPLE NOTICE NEVER COMPETES WITH A REAL ALERT (wave 14 docs lane). The first
+# version queued a real insight at importance 8 -- above every real resurfacing (<= 7) -- which
+# led the Compass inbox, was mirrored into the Compass chat thread, opened the next voice
+# session, spent a resurfacing slot and put NVDA on cooldown. The notice now lives ONLY in the
+# thesis note, as a callout labelled as an example. Each test below fails on the old seed.
+
+def _walk(node):
+    if isinstance(node, dict):
+        yield node
+        for c in node.get("content") or []:
+            yield from _walk(c)
+
+
+def _thesis_note(c, user_id):
+    return c.execute("SELECT id, body_json, import_source FROM j2_notes WHERE user_id = ? AND title LIKE ?",
+                     (user_id, f"Thesis: example -- {sample_examples.SYM_THESIS}%")).fetchone()
+
+
+def test_seeding_queues_no_insight_at_all(db, monkeypatch):
+    """The ONE insight door is never knocked on -- so nothing reaches the inbox, the Compass
+    chat mirror (which a dismissal cannot undo) or a voice session's opener."""
     from api.services import voice_proactive_service
+    calls = []
+    real = voice_proactive_service.add_insight
+    monkeypatch.setattr(voice_proactive_service, "add_insight",
+                        lambda *a, **k: calls.append((a, k)) or real(*a, **k))
+    sample_notebook.seed(U1)
+    assert calls == []
+    assert voice_proactive_service.list_pending_insights(U1, limit=20) == []
+    assert voice_proactive_service.list_history(U1, limit=50) == []
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    assert pref["examples"]["insightId"] is None
+    assert pref["examples"]["errors"] == {}
     c = _conn()
     try:
-        fired = c.execute(
-            "SELECT kind, note_id FROM j2_note_resurface_fires WHERE user_id = ? AND fire_key = ?",
-            (U1, sample_examples.RESURFACE_FIRE_KEY)).fetchone()
+        assert _count(c, "voice_proactive_insights", U1) == 0
+        assert _count(c, "j2_note_resurface_fires", U1) == 0     # no ledger row -> no review-draft line
     finally:
         c.close()
-    assert fired is not None
-    assert fired["kind"] == sample_examples.RESURFACE_KIND
-    pending = voice_proactive_service.list_pending_insights(U1, limit=10)
-    assert any(p["id"] == examples["insightId"] for p in pending)
-    assert any("NVDA" in (p["headline"] or "") for p in pending)
+
+
+def test_the_example_notice_is_shown_in_the_thesis_note_and_labelled(db, seeded):
+    c = _conn()
+    try:
+        row = _thesis_note(c, U1)
+    finally:
+        c.close()
+    callouts = [n for n in _walk(json.loads(row["body_json"])) if n.get("type") == "callout"]
+    assert len(callouts) == 1
+    text = " ".join(n.get("text", "") for n in _walk(callouts[0]) if n.get("type") == "text")
+    assert text.startswith("Example: ")
+    assert sample_examples.RESURFACE_HEADLINE in text and "not a live alert" in text
+
+
+def test_the_sample_leaves_the_real_resurfacing_budget_untouched(db, seeded):
+    """A REAL NVDA stop touch right after seeding is queued, and so is a second resurfacing
+    the same day -- the old seed's insight put NVDA on a 6-hour per-kind cooldown and spent
+    one of the two resurfacing slots a day."""
+    from api.services import voice_proactive_service
+    first = voice_proactive_service.add_insight(
+        U1, kind="note_level_touch", symbol=sample_examples.SYM_THESIS,
+        headline="NVDA reached 120.00, the stop you named", importance=7)
+    second = voice_proactive_service.add_insight(
+        U1, kind="note_big_move", symbol="AMD", headline="AMD is up 9.0% today", importance=6)
+    assert first is not None and second is not None
+
+
+def test_a_sample_note_is_never_read_by_the_resurfacing_scan(db, seeded):
+    """The thesis chip still reads the sample's stop from the level index, but the scan
+    (`load_index`) skips a sample note -- so an NVDA move can never resurface the example. A
+    member's OWN note naming the same stop is still scanned (the control)."""
+    own = notes.import_confirm(U1, {"source": "file", "notes": [{
+        "importKey": "own:nvda", "title": "My NVDA thesis", "tags": [], "folderPath": [],
+        "ticker": sample_examples.SYM_THESIS,
+        "bodyJson": sample_examples._thesis_note_body(sample_examples.SYM_THESIS, 110.0),
+    }]})["created"][0]["id"]
+    c = _conn()
+    try:
+        thesis_id = _thesis_note(c, U1)["id"]
+        assert c.execute("SELECT COUNT(*) FROM j2_note_levels WHERE user_id = ? AND note_id = ?",
+                         (U1, thesis_id)).fetchone()[0] >= 1      # indexed (the chip needs it)
+        own_row = c.execute("SELECT id, ticker, body_json, properties_json, updated_at FROM j2_notes"
+                            " WHERE id = ?", (own,)).fetchone()
+        note_levels.project_note(c, U1, own_row)
+        c.commit()
+        scanned = {r["note_id"] for r in note_levels.load_index(c).get(U1, [])}
+    finally:
+        c.close()
+    assert thesis_id not in scanned
+    assert own in scanned
+
+
+def test_remove_still_clears_an_insight_recorded_by_the_earlier_version(db, seeded):
+    """A preference written by the first version names an `insightId`; Remove dismisses it."""
+    from api.services import voice_proactive_service
+    legacy = voice_proactive_service.add_insight(
+        U1, kind="note_level_touch", symbol=sample_examples.SYM_THESIS,
+        headline="Example: NVDA reached 110.00, the stop you wrote about", importance=8)
+    assert legacy is not None
+    pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
+    pref["examples"]["insightId"] = legacy
+    auth_service.set_user_preference(U1, sample_notebook.PREF_KEY, json.dumps(pref))
+    out = sample_notebook.remove(U1)
+    assert out["examplesRemoved"]["insightDismissed"] is True
+    assert voice_proactive_service.list_pending_insights(U1, limit=10) == []
 
 
 # ── passed setups (13G-1 G3) ─────────────────────────────────────────────────────────────
@@ -301,7 +391,7 @@ def test_a_members_examples_never_touch_another_members(db, seeded):
     examples2 = pref2["examples"]
     assert examples["tradeId"] is None and examples2["tradeId"] is None
     assert examples["passedSetupId"] != examples2["passedSetupId"]
-    assert examples["insightId"] != examples2["insightId"]
+    assert examples["insightId"] is None and examples2["insightId"] is None
 
     sample_notebook.remove(U1)
     c = _conn()
@@ -332,7 +422,7 @@ def test_a_second_seed_while_the_sample_is_live_is_refused_and_writes_nothing_ne
         assert c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (U1,)).fetchone()[0] == 10
     finally:
         c.close()
-    # the preference is unchanged -- still naming the FIRST seed's passed setup and insight.
+    # the preference is unchanged -- still naming the FIRST seed's passed setup.
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
     assert pref["examples"]["passedSetupId"] == examples["passedSetupId"]
-    assert pref["examples"]["insightId"] == examples["insightId"]
+    assert pref["examples"]["insightId"] is None

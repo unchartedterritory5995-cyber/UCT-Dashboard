@@ -307,7 +307,12 @@ def catch_up_all(conn: sqlite3.Connection, budget: int = PROJECT_BUDGET) -> dict
 
 def load_index(conn: sqlite3.Connection) -> dict[str, list[dict]]:
     """{user_id: [row]} for every live note's levels, dates and ``note`` rows -- one query,
-    joined to j2_notes so a trashed note is never read even before its rows are dropped."""
+    joined to j2_notes so a trashed note is never read even before its rows are dropped.
+
+    ⛔ A SAMPLE NOTE IS NEVER SCANNED (wave 14): a note the sample notebook seeded
+    (`import_source = 'sample'`) keeps its index rows -- the thesis chip reads its stop -- but
+    is left out here, so an example can never fire a real resurfacing or spend the member's
+    two-a-day resurfacing budget (`sample_examples.py`). `IS NOT` keeps a NULL source."""
     ensure_schema(conn)
     out: dict[str, list[dict]] = {}
     for r in conn.execute(
@@ -315,7 +320,8 @@ def load_index(conn: sqlite3.Connection) -> dict[str, list[dict]]:
             " l.version_id, l.named_at, l.last_side, n.title AS note_title,"
             " n.updated_at AS note_updated_at"
             " FROM j2_note_levels l JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
-            " WHERE n.deleted_at IS NULL AND l.role != ? AND l.symbol != ''", (ROLE_NONE,)):
+            " WHERE n.deleted_at IS NULL AND l.role != ? AND l.symbol != ''"
+            " AND n.import_source IS NOT 'sample'", (ROLE_NONE,)):
         out.setdefault(r["user_id"], []).append(dict(r))
     return out
 
