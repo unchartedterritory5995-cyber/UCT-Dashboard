@@ -357,6 +357,70 @@ def _withheld_reason(codes: Sequence[str]) -> str:
     return ("; ".join(parts) or "the lane withholds it on every bar") + "."
 
 
+#: ⭐ P0 — the codes a plot is refused under when it reads a series the alert
+#: lane is never handed (``unsupplied_reads``).
+UNSUPPLIED_OTHER_SYMBOL = "other-symbol:unsupplied"
+UNSUPPLIED_LOWER_TF = "lower-tf:unsupplied"
+
+
+def _external_reads(tree: Any) -> tuple:
+    """(tickers read through ``sym``, whether any ``ltf`` node is read) -- an
+    iterative walk over every node, the shape ``ast_interpret``'s walkers take."""
+    tickers: set = set()
+    lower = False
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind == "sym" and isinstance(node.get("value"), str):
+            tickers.add(node["value"].strip().upper())
+        elif kind == "ltf":
+            lower = True
+        for value in node.values():
+            if isinstance(value, (Mapping, list)):
+                stack.append(value)
+    return tuple(sorted(tickers)), lower
+
+
+def unsupplied_reads(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> list:
+    """⭐⭐ P0 — the codes by which ``tree`` reads a series ``opts`` does not
+    supply: ``other-symbol:unsupplied`` for a ``sym`` read with no
+    ``opts["symbols"][ticker]``, ``lower-tf:unsupplied`` for an ``ltf`` read with
+    no ``opts["lowerTf"]``. ``[]`` when everything it reads is in hand.
+
+    ⛔ THE INTERPRETER DOES NOT FETCH -- THE CALLER SUPPLIES (``ast_interpret``'s
+    ``sym`` / ``ltf`` arms). A caller that supplies nothing gets "no number" on
+    every bar, which is exactly the silent never-firing alert this refuses."""
+    tickers, lower = _external_reads(tree)
+    supplied = (opts or {}).get("symbols") or {}
+    out = []
+    if any(not supplied.get(t) for t in tickers):
+        out.append(UNSUPPLIED_OTHER_SYMBOL)
+    if lower and not (opts or {}).get("lowerTf"):
+        out.append(UNSUPPLIED_LOWER_TF)
+    return out
+
+
+def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
+    tickers, _lower = _external_reads(tree)
+    parts = []
+    if UNSUPPLIED_OTHER_SYMBOL in codes:
+        parts.append("it reads another symbol (%s), and the alert lane evaluates "
+                     "each alert on its own symbol's bars only"
+                     % ", ".join("`sym('%s', …)`" % t for t in tickers))
+    if UNSUPPLIED_LOWER_TF in codes:
+        parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
+                     "lane holds no intraday bars for it")
+    return "; ".join(parts) + "."
+
+
 def _make_value_fn(def_id: str, plot_key: str,
                    definition: Mapping[str, Any]) -> Callable[[list, dict], Optional[float]]:
     """One admitted (definition, plot) -> "what number is this formula at now".
@@ -451,6 +515,20 @@ def _make_value_fn(def_id: str, plot_key: str,
     # plot's tree with the SAME opts the column below evaluates with; no bars are
     # needed (with no `tf` the decision reads none).
     withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
+    # ⭐⭐ P0 — AND A PLOT THAT READS A SERIES THIS LANE IS NEVER SUPPLIED. A
+    # `sym('SPY', …)` or `ltf(…, '60')` evaluates off `opts["symbols"]` /
+    # `opts["lowerTf"]`, and `lane_opts_for` supplies neither — so before P0 the
+    # plot armed, evaluated "no number" on every bar (or, in a comparison, a
+    # confident 0), and never fired. Refused here, under the SAME gate and with
+    # the same sibling rule as a whole-series withholding: it is one.
+    unsupplied = unsupplied_reads(tree, lane_opts)
+    if unsupplied:
+        raise AdmissionRefused(
+            "withheld",
+            f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(unsupplied)}): "
+            + _unsupplied_reason(tree, unsupplied)
+            + " An alert on it would arm and never fire. It still draws on a "
+            "chart that can supply it.")
     if withheld:
         raise AdmissionRefused(
             "withheld",

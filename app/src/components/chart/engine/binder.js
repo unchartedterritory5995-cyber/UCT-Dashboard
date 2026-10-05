@@ -1630,8 +1630,12 @@ export function createBinder({ chart, LWC }) {
       // columns the decision was made for; a registry without the report (a test
       // double) publishes nothing.
       clockSeen.add(inst.instanceId)
-      publishClock(inst.instanceId, 'plots', typeof registry.chartClockReport === 'function'
-        ? ((registry.chartClockReport(cols) || {}).withheld || []) : [])
+      publishClock(inst.instanceId, 'plots', [
+        ...(typeof registry.chartClockReport === 'function'
+          ? ((registry.chartClockReport(cols) || {}).withheld || []) : []),
+        // ⭐⭐ P0 — a formula's refused `sym` / `ltf` read says so on the same strip.
+        ...(typeof registry.externalReadNotices === 'function' ? registry.externalReadNotices(def, cols) : []),
+      ])
       // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
       //
       // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved

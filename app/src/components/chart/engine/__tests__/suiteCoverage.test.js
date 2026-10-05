@@ -45,6 +45,7 @@ const IS_TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/
 const ACKNOWLEDGED = [
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
+  'src/components/chart/engine/__truth__',   // P0 truth corpus (every slice's p0.<slice>.truth.test.js)
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
@@ -188,6 +189,7 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/economic',
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
+  'src/components/chart/engine/__truth__',   // P0 truth corpus
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
