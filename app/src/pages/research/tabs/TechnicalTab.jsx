@@ -63,7 +63,7 @@ function VerdictCard({ v, selected, onSelect }) {
 }
 
 export default function TechnicalTab({ sym }) {
-  const { data, isLoading } = useTechnical(sym, 'D')
+  const { data, isLoading, error, mutate } = useTechnical(sym, 'D')
   const [searchParams] = useSearchParams()
   const scannerHint = (searchParams.get('setup') || '').trim()
 
@@ -138,7 +138,20 @@ export default function TechnicalTab({ sym }) {
         </div>
       )}
 
-      {!isLoading && !verdicts.length && (
+      {/* TERM-088 -- a failed read is not "nothing confirmed". This branch
+          must be checked BEFORE the empty-state below, or an outage renders
+          as "none confirmed" -- collapsing the confirmed/rejected signal
+          this tab exists to preserve into a false "nothing confirmed"
+          bucket. */}
+      {!isLoading && error && (
+        <div className={styles.fnote} data-testid="technical-error">
+          Couldn't load technical setups for {sym}.
+          {' '}
+          <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+        </div>
+      )}
+
+      {!isLoading && !error && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
           {evaluated > 0 ? (
             <>

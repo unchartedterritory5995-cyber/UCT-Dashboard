@@ -137,4 +137,29 @@ describe('TechnicalTab', () => {
     renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
     expect(screen.getByText('Loading technical evidence…')).toBeInTheDocument()
   })
+
+  // TERM-088 -- a failed read must render as an error, never collapsed into
+  // the "none confirmed" bucket SEAM 24 exists to distinguish from a genuine
+  // zero-confirmed outcome.
+  it('renders the error state on a failed read, never "no confirmed technical setups"', () => {
+    mockReturn = { data: null, isLoading: false, error: true, mutate: () => {} }
+    renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.getByTestId('technical-error')).toHaveTextContent("Couldn't load technical setups for AAPL")
+    expect(screen.queryByTestId('technical-empty-state')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine zero-confirmed empty state when the read succeeded', () => {
+    mockReturn = { data: { verdicts: [], evaluated: 4 }, isLoading: false, error: false, mutate: () => {} }
+    renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.getByTestId('technical-empty-state')).toHaveTextContent('none confirmed')
+    expect(screen.queryByTestId('technical-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', () => {
+    const mutate = vi.fn()
+    mockReturn = { data: null, isLoading: false, error: true, mutate }
+    renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByText('Retry'))
+    expect(mutate).toHaveBeenCalled()
+  })
 })

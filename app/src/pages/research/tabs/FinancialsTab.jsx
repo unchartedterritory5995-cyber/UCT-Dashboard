@@ -145,10 +145,23 @@ function TrendPair({ quarterly, annual }) {
 }
 
 export default function FinancialsTab({ sym, showGrids = true }) {
-  const { data, isLoading } = useFinancials(sym)
+  const { data, isLoading, error, mutate } = useFinancials(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading financials…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not an empty statement history. Render the
+  // error distinctly so a backend hiccup never reads as "no financials
+  // available".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="financials-error">
+        Couldn't load financials for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const fin = data || {}

@@ -37,3 +37,33 @@ describe('OwnershipTab', () => {
     data.entity = { status: 'resolved', entityId: 'em_aapl' }
   })
 })
+
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "ownership data is unavailable" empty state.
+describe('OwnershipTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useOwnership', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./OwnershipTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "Ownership data is unavailable"', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('ownership-error')).toHaveTextContent("Couldn't load ownership data")
+    expect(screen.queryByText('Ownership data is unavailable for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no ownership data', async () => {
+    await renderWith({ data: {}, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('Ownership data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('ownership-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})
