@@ -48,6 +48,20 @@ export class PineRuntimeError extends Error {
   }
 }
 
+/** ⭐⭐ RT16 — the run-stop `time(<text>)` lowers to on a bar whose text names a
+ *  timeframe the host lane refused (or one outside every value the script can
+ *  write). A refusal-shaped error (`guard`), so `runtimeColumns.js` passes it to
+ *  the member as the run's named answer, exactly as a VM limit's. */
+export const CLOCK_UNSERVED_FN = '#time:unserved'
+export const CLOCK_UNSERVED_GUARD = 'runtime:time-unserved'
+export class ClockUnservedError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'ClockUnservedError'
+    this.guard = CLOCK_UNSERVED_GUARD
+  }
+}
+
 /** What kind is this runtime value? The VM checks declared operand kinds
  *  against this, so 'array' is a real kind rather than `typeof v === 'object'`
  *  spread across nine call sites.
@@ -628,6 +642,14 @@ export const ARRAY_FNS = Object.freeze({
   'runtime.error': {
     args: ['string'], returns: 'void',
     fn: (a) => { throw new PineRuntimeError(a[0]) },
+  },
+  // ⭐⭐ RT16 — `time(<text>)` REACHED A SPELLING THIS ENGINE DOES NOT SERVE ON THIS
+  // CHART (`pineRuntimeFrontend.js::timeOverText`). The run stops BY NAME and
+  // nothing is drawn — never an `na` that reads like "no period started". The name
+  // carries a `#`, which no Pine identifier can, so no script can call it.
+  [CLOCK_UNSERVED_FN]: {
+    args: ['string'], returns: 'number',
+    fn: (a) => { throw new ClockUnservedError(a[0]) },
   },
 })
 

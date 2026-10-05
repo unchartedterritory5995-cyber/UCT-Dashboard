@@ -58,7 +58,7 @@ import {
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
-import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, isVoid, argKind, CLOCK_UNSERVED_FN } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
 // so a method-form call is admitted or refused by the same table, with the same
@@ -4351,6 +4351,134 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return folded === null ? null : folded !== 0
   }
 
+  /** ⭐⭐ RT16 W2 — every right-hand side this script ever binds or assigns to the
+   *  main-program name `name` (`name = e`, `var string name = e`, `name := e`), as
+   *  parse nodes; `null` when one of them is a shape this cannot read (a tuple
+   *  target, a compound `+=`, an unparsable line) — so the set is COMPLETE or it
+   *  is nothing. Function bodies are walked too: a superset only adds branches. */
+  const assignedExprsOf = (name) => {
+    const out = []
+    let bad = false
+    const walk = (list) => {
+      for (const st of list || []) {
+        const t = st.header || []
+        const walrus = findTop(t, (x) => isPunct(x, ':='))
+        const eq = walrus > 0 ? -1 : findTop(t, (x) => isPunct(x, '='))
+        if (walrus > 0 && t.slice(0, walrus).some((x) => x && x.kind === 'ident' && x.value === name)) {
+          if (walrus !== 1) bad = true
+          else { try { out.push(parseWholeExpression(t.slice(walrus + 1))) } catch { bad = true } }
+        } else if (eq > 0 && t.slice(0, eq).some((x) => x && x.kind === 'ident' && x.value === name)) {
+          const nt = isPunct(t[0], '[') ? null : boundName(t, eq)
+          if (!nt || nt.value !== name) bad = true
+          else { try { out.push(parseWholeExpression(t.slice(eq + 1))) } catch { bad = true } }
+        }
+        const compound = findTop(t, (x) => x.kind === 'punct' && x.value.length === 2
+          && x.value.endsWith('=') && MUTATOR_OPS.has(x.value[0]))
+        if (compound === 1 && t[0] && t[0].kind === 'ident' && t[0].value === name) bad = true
+        if (st.sub && st.sub.length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    return bad ? null : out
+  }
+
+  /** ⭐⭐ RT16 W2 — EVERY TEXT a timeframe argument can hold, or `null`.
+   *  A quoted string; a `?:` (both arms — a `switch` arrives as one); the chart's
+   *  own `timeframe.period` (this compile's period, `periodTextOf`, as the name
+   *  lowers); an `input.timeframe` at its DEFAULT, verbatim (C48 — it has no
+   *  member knob); an `input.string` at the value in force (`fixedTextOf`); a
+   *  binding, followed; a main-program VARIABLE, through every assignment the
+   *  script writes to it (`assignedExprsOf`). Anything else — a parameter, text
+   *  built while the bar runs — answers `null`, and the call keeps the refusal it
+   *  had. */
+  const timeTextValues = (n, scope, seen, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 32) return null
+    if (n.type === 'string') return typeof n.value === 'string' ? [n.value] : null
+    if (n.type === 'ternary') {
+      const a = timeTextValues(n.yes, scope, seen, depth + 1)
+      const b = a ? timeTextValues(n.no, scope, seen, depth + 1) : null
+      return b ? [...new Set([...a, ...b])] : null
+    }
+    if (n.type === 'call') {
+      if (n.name === 'input.timeframe') {
+        const args = n.args || []
+        const d = args.find((x) => x && x.name === 'defval') || (args[0] && !args[0].name ? args[0] : null)
+        const v = d && (d.value !== undefined ? d.value : d)
+        return v && v.type === 'string' && typeof v.value === 'string' ? [v.value] : null
+      }
+      const t = fixedTextOf(n, scope)
+      return t !== null ? [t] : null
+    }
+    if (n.type !== 'name' || typeof n.name !== 'string') return null
+    const slot = scope.lookup(n.name)
+    if (slot === null) {
+      if (!env.has(n.name) && OWN_TF_NAMES.has(n.name)) {
+        notePeriodRead('timeframe.period', pineVersion)
+        return [periodTextOf(lanePeriod, pineVersion)]
+      }
+      const bound = env.get(n.name)
+      return bound && bound.kind === 'expr' ? timeTextValues(bound.node, scope, seen, depth + 1) : null
+    }
+    // (A frame's own name never reaches here: `timeOverText` serves the main
+    // program only, whose scope holds no frame slot — measured, RT16 mutation M6.)
+    if (!slots[slot]) return null
+    if (seen.has(n.name)) return []
+    seen.add(n.name)
+    const rhs = assignedExprsOf(n.name)
+    if (!rhs || !rhs.length) return null
+    const all = []
+    for (const r of rhs) {
+      const v = timeTextValues(r, scope, seen, depth + 1)
+      if (!v) return null
+      all.push(...v)
+    }
+    return [...new Set(all)]
+  }
+
+  /** ⭐⭐ RT16 W2 — `time(<text held in a variable>)`: THE HOST LANE'S OWN NODE FOR
+   *  WHICHEVER TEXT THE VARIABLE HOLDS ON THE BAR.
+   *
+   *  `time(tf)` takes a `series string`, so on each bar it is `time("<the text tf
+   *  holds then>")`. That adds no reading of the clock: every value is the host
+   *  lane's translation of the LITERAL spelling (`time("1W")`, `time("D")`,
+   *  `time("60")` …), with that lane's own witnesses and per-chart gates — this only
+   *  chooses among them. The texts are every value the script can write
+   *  (`timeTextValues`), so the choice is complete by construction.
+   *
+   *  ⛔ A SPELLING THE HOST LANE REFUSES IS NOT DROPPED AND NOT `na`: its branch
+   *  stops the run by name (`CLOCK_UNSERVED_FN`, guard `runtime:time-unserved`)
+   *  with the host's own sentence — on the charts where the script actually reaches
+   *  it, and nowhere else. `volume-profile-auto-line-v2` writes `"1"` for a seconds
+   *  chart; on every chart this engine draws, that branch is never taken.
+   *  ⛔ A frame parameter has no assignment to enumerate, so it keeps its refusal;
+   *  inside a request's value a variable is refused by the request's own rule
+   *  (`runtime:request-with-state`) before this is asked — a guard here was measured
+   *  redundant (RT16 mutation M7) and is not kept. At most 16 texts. */
+  const timeOverText = (node, scope) => {
+    const a0 = node.args[0]
+    const argNode = a0 && a0.value !== undefined ? a0.value : a0
+    if (!argNode || !readsSlot(argNode, scope)) return null
+    const values = timeTextValues(argNode, scope, new Set())
+    if (!values || !values.length || values.length > 16) return null
+    const at = locate(node.tok)
+    const stop = (why) => arrayCall(CLOCK_UNSERVED_FN, [str(why)])
+    let acc = stop('`time(<text>)` read a text none of this script\'s own assignments writes')
+    for (const v of [...values].sort().reverse()) {
+      const lit = { type: 'string', value: v, tok: node.tok }
+      const call = { ...node, args: [a0 && a0.value !== undefined ? { ...a0, value: lit } : lit] }
+      let branch
+      try {
+        branch = column(columnOf(call, at))
+      } catch (e) {
+        if (!(e && typeof e.guard === 'string')) throw e
+        branch = stop(`\`time(${JSON.stringify(v)})\` on this chart — ${String(e.message || e.guard).slice(0, 400)}`)
+      }
+      const test = lowerExpr({ type: 'binary', op: '==', left: argNode, right: lit, tok: node.tok }, scope)
+      acc = ternary(test, branch, acc)
+    }
+    return acc
+  }
+
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -5613,6 +5741,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // the bar being evaluated, so a computed instant (`time + 3600`, a
         // stored timestamp) is refused rather than silently answered for the
         // wrong moment.
+        // ⭐⭐ RT16 W2 — `time(<text this script holds in a variable>)`.
+        if (node.name === 'time' && node.args && node.args.length === 1 && !node.args[0].name
+            && !definedNames.has('time')) {
+          const served = timeOverText(node, scope)
+          if (served !== null) return served
+        }
         if (CLOCK_FIELDS.includes(node.name) && node.args && node.args.length) {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
