@@ -195,6 +195,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+| 96 | RT16 clock, session and timeframe (section RT16): `time("", …)` / `time("")` is the chart's own timeframe by Pine's reference text (v4 / v5 / v6, extracted from the reference bundles) - the same nodes as the measured `timeframe.period` forms; the runtime lane's `time(<text variable>)` chooses the host's node for each literal the variable can hold, a refused spelling a named run-stop (`runtime:time-unserved`). Renumber on merge | `c10714b749`, `3b4cbf432f`, `28ba6c2da1` | unchanged (no committed capture names either script; ict-killzones-pivots-tfo's two captures identical before/after, all three states) | unchanged | member door 58 / 84 / 104: ict-killzone-index-version attaches (host, on + runtime), volume-profile-auto-line-v2 (runtime); welotrades walks `time` -> `pine:collection`; 0 lost. Q-RT16a-i queued (`capture-queue-2026-10-04-rt16-clock.md`) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7932,3 +7933,68 @@ Mutations (pine.js bytes captured and restored, sha verified):
   `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
+
+## RT16 - clock, session and timeframe: `time("")` by the reference, `time(<text variable>)` on the runtime lane (2026-10-04, step 96 - renumber on merge)
+
+Branch `pine/rt16-clock-timeframe`, base `integrate/wave17-2026-10-03` (`6c557c3308`). Runtime pane still dark;
+lower timeframe stays OFF (R-LTF). Queue: `docs/pine/capture-queue-2026-10-04-rt16-clock.md`.
+
+### Step 1 - the family's walls, script by script (scratch substitution through `enterMemberDoor`, runtime state, 50-library store, never committed)
+
+| script | refused construct | next wall once served (substitution) | taken? |
+|---|---|---|---|
+| ict-killzone-index-version | `time("", "0830-1201", "America/New_York")` - an EMPTY timeframe | **attaches (host)** | **W1** |
+| volume-profile-auto-line-v2 | `ta.change(time(periodH))`, `periodH2` reassigned in an `if` ladder (Q-RT11c) | **attaches (runtime)** | **W2** |
+| sessions | `"2000-0400:1234567"` / `"1700-0200:1234567"` wrap midnight | **attaches (host)** with non-wrapping windows - wrap is its SOLE wall | no: Q-RT16a (unmeasured) |
+| asianrange-and-killzones | `"1900-0001"` wraps | `time("1440", sess)`: a session on another timeframe | no: Q-RT16a, Q-RT16i |
+| session-highs-and-lows-indicator-smc-sessions-dst-safe | `time("", sess, TZ)` in a function (runtime lane: tf must be `timeframe.period`, session a literal); `"2000-0000"` wraps | runtime `input.session` (`pine:input-kind`); host outputs hidden | no: Q-RT16a first |
+| chart-champions-part-1-npoc-levels-vwaps | `"0000-0000:1..7"` whole-day windows | install budget (`vwap()` 961 > 960) | no: Q-RT16a |
+| session-hilo | `"1800-1500"` wraps | `input.time` | no |
+| initial-balance-ib-and-previous-day-week-high-low-close | `timeinrange(res, sess)`: a frame parameter as the timeframe (runtime lane) | `pine:request` | no |
+| session-tpo-profile | session from `input.session` through a parameter (runtime lane) | `str.substring` over state (`runtime:call-text-state`) | no |
+| smt-divergence-ict-killzones | session through a parameter; `timeframe.in_seconds(corr_tf)` | `timestamp(tz, …)` over computed instants | no: Q-RT16e |
+| volume-profile-v054beta | v4 unsuffixed `"0930-1600"` (default days unmeasured) | `syminfo.timezone == …` (unserved by design) | no: Q-RT16b |
+| fair-value-gap | `time(res)` in a function | `str.tostring(timeframe.period)` (RT11), `input.timeframe` in a value position | no |
+| higher-time-frame-fair-value-gap-zeroherotrading | `session.isfirstbar` | `time_close(tf, 1)` (2 arguments) | no: Q-RT16c/d |
+| multiple-mtf-moving-average-xdecow | `timeframe.in_seconds(_tf)` (a parameter) | `switch` block, `runtime:request-with-state` | no |
+| volatility-stop-mtf, cvd-cumulative-volume-delta-candles | `timeframe.from_seconds` | `input.timeframe` value position; lower-tf (R-LTF) | no: Q-RT16f |
+| smart-money-breakout-channels-algoalpha | `timeframe.in_seconds` in `TradingView/ta/10::checkLTF` | a lower-timeframe request (R-LTF) | no |
+| 3-level-zigzag-semafor, zigzag-ma-pattern-recognition | `time(<lower tf>)` | lower-tf (R-LTF) | no |
+
+### Step 2 - served (one commit each)
+
+| wall | commit | rule, evidence, rails | scripts moved |
+|---|---|---|---|
+| `time("", …)` / `time("")` | W1 `c10714b749` (+ metric `3b4cbf432f`) | Pine's reference text for `time`'s first parameter, v4 / v5 / v6, extracted from TradingView's reference bundles (quoted, with bundle and string ids, in the queue file): the empty string IS the chart's timeframe. So `pine.js::emptyTimeframeOf` routes `time("", s[, tz])` into `sessionClockOf`'s own-timeframe branch and `time("")` into `chartOwnTimeOf` - the SAME nodes as the measured `timeframe.period` spellings, no new semantics. Exactly `''` (spaces are not empty). `time_close("")` stays refused with `time_close(timeframe.period)` (unmeasured). Rail `vendorHarness.rt16EmptyTimeframe` (11): the `vw-time-session` probe re-spelled `time("", …)` equals the vendor bar for bar on 1D / 60 RTH / 60 ext (14 rows each); `time("")` equals T05 on 1D-full, 15, 5, 1W, 1M; tree identity; controls | ict-killzone-index-version -> **attaches (host)**, on and runtime states. smart-money-concepts-by-welotrades walks `pine:function` -> `pine:collection` (re-pinned with reason: `pineTimeAnchorAccept`, `pineMathCeilAccept`). ict-killzones-pivots-tfo (already attached; writes `time("", …)`): both captures grade IDENTICALLY before/after in off / on / runtime |
+| `time(<text variable>)`, runtime lane | W2 `28ba6c2da1` | `time(tf)` takes a series string. When `tf` is a main-program variable every assignment of which is enumerable text (literals, `?:`, `timeframe.period`, `input.timeframe` at its default, `input.string` in force, bindings), `pineRuntimeFrontend.js::timeOverText` chooses among the HOST lane's translation of each literal (`time("1W")`, `time("D")`, `time("60")`, …) by the text on the bar - the host's witnesses and chart gates throughout. A spelling the host refuses is a named run-stop (`runtime:time-unserved`, `collections.js` `#time:unserved`) on the bars that reach it, never `na`. Rail `vendorHarness.rt16TimeOverText` (11), the script's own ladder through the runtime run: 1D '1W' = K14 on 8,473 bars (listing), 1W '1M' = K15 on 1,758, 1M '12M' = T04 on 406 (listing), 5m / 15m '60' = T06 on 3,300 each, 60m '1D' = K07 on the four excerpt windows; the stop on a reached refused spelling; an untaken one changes nothing; unenumerable text keeps its refusal. Non-listing grades run on a copy marked `startsAtBar0` (the value graded is a period anchor; the product's listing gate is unchanged) | volume-profile-auto-line-v2 -> **attaches (runtime)**; off / on unchanged; no capture (Q-RT16h) |
+
+### Measured
+
+Census (`memberDoorCensus`, 50-library store, runtime state, at the RT16 tip `28ba6c2da1`, run after the gate lifted): off / on / runtime **58 / 84 / 104** against the wave-17 file 56 / 82 / 101 (`rt10-census-w17.json`). Row diff: RT16's are `ict-killzone-index-version` (on, runtime; host lane) and `volume-profile-auto-line-v2` (runtime lane) - +0 / +1 / +2. The other moves (`camarilla-screener`, `cumulative-volume-delta`, `support-and-resistance` in all three states; `ict-killzones-pivots-tfo` off) are base drift between that file's tip and `6c557c3308`, not RT16 (camarilla-screener is recorded as attaching at base in RT13; ict-killzones-pivots-tfo graded identically with W1 disabled). 0 scripts lost an attach.
+
+| | |
+|---|---|
+| W1 rail + clock rails (`c30TimeAnchor`, `c36TimeFollowups`, `c49CapturedClock`, `vendorHarness.test`, `clockCloseTfChange.vendor`, `periodAnchorParity`, `pineTimeAnchorAccept`, `pineVocabularyWave`, `sessionClockDailyBars`, `sessionClockTimeframe`) | 11 files, 445 tests; the one red (`pineTimeAnchorAccept` welotrades) re-pinned with its reason, 12 / 12 |
+| snapshot consumers (`corpusMetric`, `paramIdLegacy`, `paramIds`, `runtimeRepaint`, `bothLanesAgreeOnFacts`, `savedDocumentRoundTrip`, `c43RuntimeError`, `inputKindSpeaksItsNumber`, `refusalsAreASurfaceProperty`, `pineMathCeilAccept`) | 79 passed / 1 skipped after the `pineMathCeilAccept` re-pin; `tools/corpus_metric.json` regenerated (3 rows, headline counts unchanged) |
+| W2: `runtime/__tests__` + `ast/pineRuntime*` + `vendorHarness.rt*` + `memberPane/runtime*` | 132 files, 1526 passed, 7 red: 2 in `runtimePaneSafety` (`runtime:unmeasured` vs `runtime:failed`) red at the BASE too (checked by restoring both files' base bytes), 5 opt-in `*.measure` files the directory scope swept in (not run on purpose) |
+
+### Mutations (bytes captured, applied asserted, restored, sha verified)
+
+W1: the session form ignores `""` (5 red), the anchor form ignores it (6 red), spaces trimmed (1 red).
+W2: rule off (9 red), every branch reads the first spelling (7), a refused spelling as `na` instead of a stop (1),
+`input.timeframe` default unread (7), reassignments ignored (7). Two guards were measured redundant (their
+mutations stayed green) and REMOVED rather than kept: a frame-slot owner check (the main-program scope holds
+no frame slot) and a request-value check (`runtime:request-with-state` refuses a variable there first; the
+rail keeps that case as a refusal).
+
+### Open
+
+- Q-RT16a (wrapping / whole-day sessions) completes `sessions` on the host lane and is the first wall of five
+  more; Q-RT16b-i in the queue file. None needs market hours.
+- Not taken (completes nothing measured): the runtime lane's own session clock over a frame parameter
+  (`session-tpo-profile`, `smt-divergence-ict-killzones`, `initial-balance`, `session-highs-and-lows`). The
+  right shape is the W2 one - substitute the call site's fixed text and read the HOST node through `columnOf`,
+  retiring the runtime's second session parser (`OP.SESSION`, which also refuses `""`, day masks and `GMT±H`
+  that the host serves) - once Q-RT16a lands and one of them completes.
+- `time_close("")`, `timeframe.in_seconds(<parameter>)`, `timeframe.from_seconds`, `session.*` flags,
+  `time_close(tf, bars_back)`, `timestamp(tz, …)`: queued (Q-RT16c-f).
