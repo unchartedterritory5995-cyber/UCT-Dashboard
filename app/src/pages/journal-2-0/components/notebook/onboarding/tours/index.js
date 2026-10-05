@@ -65,9 +65,11 @@
 
 import { TOURS as b1CoreTours } from './b1Core'
 import { TOURS as b2TradingTours } from './b2Trading'
+import { TOURS as b3ResearchTours } from './b3Research'
 
 export const TRACK_TOURS = Object.freeze([
   // ...writingHelpTours,   <- one spread per track file, in registry order
   ...b1CoreTours,
   ...b2TradingTours,
+  ...b3ResearchTours,
 ])

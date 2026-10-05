@@ -199,7 +199,7 @@ export default function SaveTranscriptPassage({
           {quarters && quarters.length > 0 && (
             <label className={styles.inline}>
               <span className={styles.label}>Call</span>
-              <select className={styles.select} value={quarter} aria-label="Call quarter"
+              <select className={styles.select} value={quarter} aria-label="Call quarter" data-tour="transcript-call"
                 onChange={(e) => setQuarter(e.target.value)}>
                 {quarters.map((q) => (
                   <option key={q.quarter} value={q.quarter}>
@@ -227,12 +227,12 @@ export default function SaveTranscriptPassage({
               {transcript.source} · {quarterText(transcript.quarter)} ·{' '}
               {transcript.callDate ? `call of ${transcript.callDate}` : 'call date not stored'}
             </p>
-            <label className={styles.findRow}>
+            <label className={styles.findRow} data-tour="transcript-find">
               <span className={styles.label}>Find in this call</span>
               <input className={styles.input} type="search" value={find}
                 onChange={(e) => setFind(e.target.value)} placeholder="margin, guidance, supply…" />
             </label>
-            <ol className={styles.turns} aria-label="Speaker turns">
+            <ol className={styles.turns} aria-label="Speaker turns" data-tour="transcript-turns">
               {turns.map((t) => (
                 <li key={t.turn} className={`${styles.turn} ${turn?.turn === t.turn ? styles.picked : ''}`}>
                   <div className={styles.turnHead}>
@@ -240,7 +240,7 @@ export default function SaveTranscriptPassage({
                     {t.speaker && <span className={styles.speaker}>{t.speaker}</span>}
                     <button type="button" className={styles.action}
                       onMouseDown={(e) => e.preventDefault() /* keep the member's selection */}
-                      onClick={() => pickTurn(t)} aria-label={`Quote from turn ${t.turn}`}>
+                      onClick={() => pickTurn(t)} aria-label={`Quote from turn ${t.turn}`} data-tour="transcript-quote">
                       Quote from this turn
                     </button>
                   </div>

@@ -144,7 +144,7 @@ function Templates({ onPick }) {
     { revalidateOnFocus: false, shouldRetryOnError: false })
   const items = Array.isArray(data?.templates) ? data.templates : []
   return (
-    <section className={styles.board} aria-labelledby="similar-pick-title" data-similar-templates="">
+    <section className={styles.board} aria-labelledby="similar-pick-title" data-similar-templates="" data-tour="setups-templates">
       <div className={styles.header}>
         <h2 id="similar-pick-title" className={styles.title}>Find more like this</h2>
         <span className={styles.scope}>

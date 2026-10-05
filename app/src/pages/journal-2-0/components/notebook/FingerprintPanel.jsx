@@ -264,7 +264,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
               )}
             </p>
           )}
-          <ul className={styles.summary} aria-label="Fingerprint summary">
+          <ul className={styles.summary} aria-label="Fingerprint summary" data-tour="fp-summary">
             {SUMMARY_FIELDS.map((f) => {
               const shown = formatFingerprintValue(f, fields[f]?.value)
               return (
@@ -275,7 +275,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
               )
             })}
           </ul>
-          <button type="button" className={styles.linkBtn} aria-expanded={expanded}
+          <button type="button" className={styles.linkBtn} aria-expanded={expanded} data-tour="fp-all-fields"
             onClick={() => setExpanded((v) => !v)}>
             {expanded ? 'Hide all fields' : 'Show all fields and sources'}
           </button>
@@ -293,7 +293,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
         </>
       )}
 
-      <div className={styles.tagRow}>
+      <div className={styles.tagRow} data-tour="fp-setup-tag">
         <label className={styles.tagLabel} htmlFor={`fp-tag-${embedKey}`}>Setup</label>
         {editable ? (
           <select id={`fp-tag-${embedKey}`} className={styles.select} value={ta?.setupTag || ''}
@@ -334,7 +334,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
       {(editable || vpOn) && (
         <div className={styles.actions}>
           {editable && frozen && templateKey && (
-            <button type="button" className={styles.btn} onClick={planThisSetup} disabled={creating}>
+            <button type="button" className={styles.btn} onClick={planThisSetup} disabled={creating} data-tour="fp-plan">
               {creating ? 'Creating the plan…' : `Plan this setup (${getTemplate(templateKey)?.label || templateKey})`}
             </button>
           )}

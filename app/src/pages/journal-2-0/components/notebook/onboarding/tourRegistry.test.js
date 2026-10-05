@@ -10,19 +10,20 @@ import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY } from './tourCopy'
 import { TOUR_START_STATE } from './tourControl'
 import {
-  BASE_TOUR_ID, ENTRY_FIELDS, NOTEBOOK_ROOT, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours,
+  BASE_TOUR_ID, ENTRY_FIELDS, NOTEBOOK_ROOT, OPTIONAL_FIELDS, TOUR_REGISTRY, assembleRegistry, getTourEntry, replayableTours,
   startPath, startState,
 } from './tourRegistry'
 import { TRACK_TOURS } from './tours'
 
 describe('the registry itself', () => {
-  it('is frozen, non-empty, and every entry has exactly these fields (plus the optional `start`)', () => {
+  it('is frozen, non-empty, and every entry has exactly these fields', () => {
     expect(Object.isFrozen(TOUR_REGISTRY)).toBe(true)
     expect(TOUR_REGISTRY.length).toBeGreaterThan(0)
     for (const t of TOUR_REGISTRY) {
       expect(Object.isFrozen(t), `${t.id} is not frozen`).toBe(true)
-      // `start` is the contract's one OPTIONAL field (tours/index.js); every other key is required.
-      expect(Object.keys(t).filter((k) => k !== 'start').sort()).toEqual(['flag', 'id', 'load', 'replayable', 'title'])
+      // the five required fields, plus `start` where an entry declares one (tours/index.js)
+      expect(Object.keys(t).filter((k) => !OPTIONAL_FIELDS.includes(k)).sort())
+        .toEqual(['flag', 'id', 'load', 'replayable', 'title'])
       expect(typeof t.id).toBe('string')
       expect(typeof t.flag).toBe('string')
       expect(typeof t.title).toBe('string')
@@ -78,8 +79,18 @@ describe('replayableTours', () => {
     expect(replayableTours(fake).map((t) => t.id)).toEqual(['a', 'c'])
   })
 
-  it('the real registry: every entry today is replayable', () => {
-    expect(replayableTours().length).toBe(TOUR_REGISTRY.length)
+  it('the real registry: every entry is replayable except a passive explainer of 1 to 2 steps', async () => {
+    // Plan 4.2 row 21 (W14-B3): `note-resurfaces` is the one passive explainer, not a
+    // stepper, so it is the one entry Help does not list. Any other non-replayable
+    // entry is a stepper Help would silently hide.
+    const hidden = TOUR_REGISTRY.filter((t) => !t.replayable)
+    expect(hidden.map((t) => t.id)).toEqual(['note-resurfaces'])
+    for (const t of hidden) {
+      const { steps } = await t.load()
+      expect(steps.length, `${t.id} is not a 1-2 step explainer`).toBeGreaterThanOrEqual(1)
+      expect(steps.length, `${t.id} is not a 1-2 step explainer`).toBeLessThanOrEqual(2)
+    }
+    expect(replayableTours().length).toBe(TOUR_REGISTRY.length - hidden.length)
   })
 })
 
