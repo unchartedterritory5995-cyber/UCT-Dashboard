@@ -18,11 +18,30 @@
 // '0', 'true' are all off), read INSIDE a function so a test can flip it, and a
 // build with no `import.meta.env` fails CLOSED.
 
-/** May the member see and use the Pine Editor tab? One reader, on purpose. */
-export function pineAuthoringEnabled() {
+//
+// ⭐⭐ A2 (owner ruling O3) — AND A PER-MEMBER STAGE. The build flag is one
+// bundle for every member; `PINE_AUTHORING_STAGE` (off / admins / all, server,
+// read per request, default off) decides WHICH members, and arrives on the auth
+// payload as `pine_authoring_enabled`, latched per tab in
+// `src/lib/pineAuthoringPermission.js`. The tab needs BOTH. The client never
+// re-derives the stage from a role; it is told yes or no.
+export {
+  latchPineAuthoringPermission, pineAuthoringPermitted, pineAuthoringPermissionDebug,
+  __resetPineAuthoringPermission, __permitPineAuthoringForTests,
+} from '../../../lib/pineAuthoringPermission'
+import { pineAuthoringPermitted } from '../../../lib/pineAuthoringPermission'
+
+/** Is the build flag on? (`VITE_PINE_AUTHORING_ENABLED === '1'`). */
+export function pineAuthoringBuilt() {
   try {
     return import.meta.env.VITE_PINE_AUTHORING_ENABLED === '1'
   } catch {
     return false
   }
+}
+
+/** May the member see and use the Pine Editor tab? One reader, on purpose.
+ *  ⭐ A2: BOTH the build flag AND the latched per-member stage. */
+export function pineAuthoringEnabled() {
+  return pineAuthoringBuilt() && pineAuthoringPermitted()
 }

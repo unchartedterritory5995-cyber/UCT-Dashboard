@@ -51,6 +51,7 @@ import { setRuntimeKillList, setRuntimeAllowList, RUNTIME_KILL_PATH } from '../.
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
+import { applyInputValues } from '../pineEditor/pineScripts'
 import styles from './MemberPane.module.css'
 
 const noop = () => {}
@@ -70,10 +71,13 @@ const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: f
  * @param {((definition: object) => Promise<{ok: boolean, error?: string}>)|null}
  *        [props.onAttach] omit for a preview-only pane; supply it and the pane
  *        offers to SAVE the document and put it on the member's real chart.
+ * @param {object|null} [props.inputValues] A5 — the Pine Editor's inputs panel
+ *        values ({inputName: value}); the preview draws at them through
+ *        `applyInputValues` (atomic: a refusal draws the script's own values).
  */
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
-  onAttach = null,
+  onAttach = null, inputValues = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -132,6 +136,14 @@ export default function MemberPane({
     [live, source, defId, libRevision, killVersion],
   )
   const [installed, setInstalled] = useState(null)
+  // ⭐ A5 — the preview at the member's input values. ⛔ Atomic: any refusal
+  // draws the door's own document, never a half-applied one.
+  const previewDefinition = useMemo(() => {
+    if (!built || !built.ok) return null
+    if (!inputValues || !Object.keys(inputValues).length) return built.definition
+    const res = applyInputValues(built.definition, inputValues)
+    return res.ok ? res.definition : built.definition
+  }, [built, inputValues])
 
   useEffect(() => {
     if (!built || !built.ok) {
@@ -143,7 +155,7 @@ export default function MemberPane({
     // the ast lane and refuses a document whose declared repaint mode disagrees
     // with what it measures; a draft it refuses installs nothing and this pane
     // stays inert rather than drawing on a verdict nobody re-measured.
-    const { installed: got } = engineRegistry.installUserDefinitions([built.definition])
+    const { installed: got } = engineRegistry.installUserDefinitions([previewDefinition])
     if (got.length === 1) {
       setInstalled(got[0])
       return undefined
@@ -155,7 +167,7 @@ export default function MemberPane({
     engineRegistry.uninstallUserDefinition(defId)
     setInstalled(null)
     return undefined
-  }, [built, defId])
+  }, [built, previewDefinition, defId])
 
   // ⛔ A SEPARATE, EMPTY-DEP EFFECT for the teardown. Putting it in the cleanup
   // above would fire on every source change — uninstall-then-reinstall bumps the

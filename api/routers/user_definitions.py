@@ -38,6 +38,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import indicator_telemetry as telemetry
+from api.services import pine_authoring
 from api.services import runtime_definitions
 from api.services import scan_definition
 from api.services import user_definitions as svc
@@ -291,8 +292,11 @@ def _maybe_compact(rows, graph: bool):
 @router.get("")
 def list_definitions(user: dict = Depends(require_paid),
                      graph: bool = _GRAPH_PARAM):
+    # ⭐ A2 — the LIST carries a `pine_source` summary, never the text: it is read
+    # on the chart path for every installed definition, and only a reopen needs
+    # the script (`GET /{def_id}` serves it to its owner).
     return {"definitions": _maybe_compact(
-        [_stamped(r) for r in svc.list_for_user(user["id"])], graph)}
+        [pine_authoring.for_listing(_stamped(r)) for r in svc.list_for_user(user["id"])], graph)}
 
 
 @router.post("")
@@ -577,8 +581,10 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: script is refused identically, and a member who reads 403 goes looking for a
 #: plan upgrade that would not help. 409 is the same answer `table-version` gets
 #: and for the same shape of reason: the request conflicts with what the thing IS.
+#: ⭐ A2 — `licence` is 409 for the same reason: anybody's copy of a script whose
+#: Pine is its implementation and is not permissively licensed is refused alike.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
-                 "table-version": 409, "requirements": 409}
+                 "table-version": 409, "requirements": 409, "licence": 409}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:

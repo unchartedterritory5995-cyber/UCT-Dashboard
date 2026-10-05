@@ -706,6 +706,12 @@ def _access_payload(user: dict, plan: str) -> dict:
         # door asks of the saving member. The client needs BOTH this and the
         # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
         **_pine_runtime_pane_flag(user.get("role")),
+        # ── A2 (owner ruling O3) — the member Pine Editor, RESOLVED FOR THIS
+        # MEMBER. `PINE_AUTHORING_STAGE` (off / admins / all), read PER REQUEST in
+        # `pine_authoring.permitted` — the same function the save door asks before
+        # it keeps a new Pine source. The client's tab needs BOTH this and the
+        # build flag (`pineAuthoringGate.pineAuthoringEnabled`), latched per tab.
+        **_pine_authoring_flag(user.get("role")),
         **_lane_r_client_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
@@ -751,6 +757,20 @@ def _pine_runtime_pane_flag(role) -> dict:
         return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role))}
     except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
         return {"pine_runtime_pane_enabled": False}
+
+
+def _pine_authoring_flag(role) -> dict:
+    """A2 (owner ruling O3) — may THIS member see the Pine Editor?
+
+    ⛔ ALWAYS A BOOLEAN, and FALSE unless `PINE_AUTHORING_STAGE` says otherwise
+    for this member: unset reads `off`, `admins` is true for `role == "admin"`
+    only, `all` is true for everyone. ⛔ NEVER RAISES: this is the universal auth
+    path, and an unreadable stage is an OFF stage."""
+    try:
+        from api.services import pine_authoring
+        return {"pine_authoring_enabled": bool(pine_authoring.permitted(role))}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {"pine_authoring_enabled": False}
 
 
 # Lane R client-only surfaces: no route reads these flags, so the auth payload IS the

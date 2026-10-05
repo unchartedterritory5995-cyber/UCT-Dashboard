@@ -101,9 +101,9 @@ import { treesHash, worstRepaint, stalestFreshness } from '../engine/ast/trees'
 import TABLE from '../engine/ast/closedTable.json'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
-import { addInstance } from '../engine/instanceControls'
+import { addInstance, setIndicatorEnabled } from '../engine/instanceControls'
 import {
-  useUserDefinitions, saveUserDefinition, deleteUserDefinition,
+  useUserDefinitions, saveUserDefinition, deleteUserDefinition, fetchUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
@@ -121,6 +121,8 @@ import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import PineEditor from './pineEditor/PineEditor'
+import MyScripts from './pineEditor/MyScripts'
+import { pineSourceOf, inputValuesOf, withName, storableDefinition } from './pineEditor/pineScripts'
 import { pineAuthoringEnabled } from '../engine/pineAuthoringGate'
 import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
@@ -905,6 +907,9 @@ export default function BuilderSheet({
   // stored definition its Apply has already written this session, if any.
   const [editorSettled, setEditorSettled] = useState('')
   const [authored, setAuthored] = useState(null)
+  // ⭐ A2–A5 — the open script's name and its inputs-panel values.
+  const [authoredName, setAuthoredName] = useState('')
+  const [editorInputs, setEditorInputs] = useState({})
 
   /** Every plot row in document order — plot 1 first. */
   const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
@@ -1196,7 +1201,7 @@ export default function BuilderSheet({
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
-    setEditorSettled(''); setAuthored(null)
+    setEditorSettled(''); setAuthored(null); setAuthoredName(''); setEditorInputs({})
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -1241,7 +1246,7 @@ export default function BuilderSheet({
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
-    setEditorSettled(''); setAuthored(null)
+    setEditorSettled(''); setAuthored(null); setAuthoredName(''); setEditorInputs({})
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -1883,20 +1888,78 @@ export default function BuilderSheet({
    *  write, apply, look, write again — and closing on the first apply would end
    *  it. The store write still revalidates every list (`saveUserDefinition`
    *  mutates the SWR keys), so nothing downstream waits on the hand-back. */
-  const applyAuthored = useCallback(async (definition) => {
+  const applyAuthored = useCallback(async (definition, { addToChart = true } = {}) => {
     const defId = authored ? authored.defId : null
     const stored = await storePine(definition, defId)
     if (!stored.ok) return stored
     const id = stored.installedId
-    if (settings && onChange) {
+    if (addToChart && settings && onChange) {
       const list = Array.isArray(settings.indicatorInstances) ? settings.indicatorInstances : []
       if (!list.some((inst) => inst && inst.defId === id)) {
         onChange(addInstance(settings, id, engineRegistry))
       }
     }
     if (!defId) setAuthored({ defId: id })
-    return { ok: true, updated: !!defId }
+    // ⭐ A2 — the store's own answer about the source (`stored` / `carried` /
+    // `withheld` + why), handed to the editor verbatim.
+    return { ok: true, updated: !!defId, pineSource: (stored.row && stored.row.pine_source) || null }
   }, [authored, storePine, settings, onChange])
+
+  /** ⭐⭐ A3 — OPEN A SAVED SCRIPT IN THE EDITOR. The owner's own row
+   *  (`GET /{def_id}`, the one read that serves the source), its script into the
+   *  editor, its id as the edit target — so Apply PUTs THAT definition in place —
+   *  and its stored input values back into the inputs panel. */
+  const loadIntoEditor = useCallback((defId, definition) => {
+    const src = pineSourceOf(definition)
+    if (!src) return false
+    setPineText(src)
+    setAuthored({ defId })
+    setAuthoredName((definition.meta && definition.meta.name) || '')
+    setEditorInputs(inputValuesOf(definition))
+    return true
+  }, [])
+  const openScript = useCallback(async (defId) => {
+    const res = await fetchUserDefinition(defId)
+    if (!res.ok) return res
+    if (!loadIntoEditor(defId, res.row.definition)) {
+      return { ok: false, error: 'This definition was saved without its Pine code, so it cannot be opened as a script.' }
+    }
+    return { ok: true }
+  }, [loadIntoEditor])
+
+  /** ⭐ A3 — RENAME: read my row, change `meta.name`, store it through the sheet's
+   *  doors (a PUT that appends a version; the maths and the source are unchanged). */
+  const renameScript = useCallback(async (defId, nextName) => {
+    const res = await fetchUserDefinition(defId)
+    if (!res.ok) return res
+    const doc = withName(storableDefinition(res.row.definition), nextName)
+    const stored = await storePine(doc, defId)
+    if (!stored.ok) return stored
+    if (authored && authored.defId === defId) setAuthoredName(doc.meta.name)
+    return { ok: true }
+  }, [storePine, authored])
+  /** ⭐ A3 — RESTORE: the chosen version's document stored AGAIN as the newest
+   *  version (append-only — nothing is overwritten), then opened in the editor. */
+  const restoreScript = useCallback(async (defId, versionRow) => {
+    const doc = storableDefinition(versionRow.definition)
+    const stored = await storePine(doc, defId)
+    if (!stored.ok) return stored
+    loadIntoEditor(defId, doc)
+    return { ok: true }
+  }, [storePine, loadIntoEditor])
+  /** ⭐ A3 — DELETE (soft: the store appends a tombstone). The script also leaves
+   *  this chart, and the editor stops pointing at it — its text stays in the box,
+   *  so the next Apply makes a NEW definition rather than resurrecting a deleted one. */
+  const deleteScript = useCallback(async (defId) => {
+    const res = await deleteUserDefinition(defId)
+    if (!res.ok) return res
+    if (settings && onChange && Array.isArray(settings.indicatorInstances)
+      && settings.indicatorInstances.some((i) => i && i.defId === defId)) {
+      onChange(setIndicatorEnabled(settings, defId, false, engineRegistry))
+    }
+    if (authored && authored.defId === defId) setAuthored(null)
+    return { ok: true }
+  }, [settings, onChange, authored])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -2610,6 +2673,16 @@ export default function BuilderSheet({
           )}
 
           {buildMode === 'editor' && (
+            <MyScripts
+              rows={rows}
+              activeDefId={authored ? authored.defId : null}
+              onOpen={openScript}
+              onRename={renameScript}
+              onDelete={deleteScript}
+              onRestore={restoreScript}
+            />
+          )}
+          {buildMode === 'editor' && (
             <PineEditor
               value={pineText}
               onChange={setPineText}
@@ -2617,6 +2690,10 @@ export default function BuilderSheet({
               onApply={applyAuthored}
               applied={authored}
               disabled={saving}
+              name={authoredName}
+              onNameChange={setAuthoredName}
+              inputValues={editorInputs}
+              onInputValuesChange={setEditorInputs}
             />
           )}
 
@@ -2716,6 +2793,7 @@ export default function BuilderSheet({
             source={buildMode === 'editor' ? editorSettled : pineText}
             settings={settings}
             onAttach={buildMode === 'editor' ? null : attachPine}
+            inputValues={buildMode === 'editor' ? editorInputs : null}
           />
 
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
