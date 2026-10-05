@@ -93,7 +93,12 @@ describe('R33a — a NAME base resolves, exactly as a bare name already does', (
     const src = `${HEAD}c = close > open ? color.green : color.red\nplot(close, "A", color = color.new(c, 30))\n`
     const { p } = presOf(src)
     expect(p.color, 'a series-bound name was folded to a static colour').toBeUndefined()
-    expect(p.colorDynamic, 'and the loss is declared').toBe(true)
+    // ⭐ F9 (`pine.js::colorNewOverRule`, CAP4 `vw-rt8-runtime-followups` S03): a
+    // `color.new` over a TWO-COLOUR TEST is that test at one alpha — carried as the
+    // per-bar rule it is, never a flat colour (the direction this control guards).
+    expect(p.colorDynamic).toBeUndefined()
+    expect(p.colorCondition.formula).toBe('close > open')
+    expect(p.opacity).toBe(0.7)
   })
 
   it('⛔⛔ CONTROL — a NAME base with a DYNAMIC alpha is still dynamic', () => {

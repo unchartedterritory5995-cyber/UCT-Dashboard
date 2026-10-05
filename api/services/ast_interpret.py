@@ -774,20 +774,27 @@ def _rolling(series: Sequence[float], n: int,
     """
     out = _nan_col(len(series))
     src: Sequence[float] = series
+    # F9 -- and it first answers on its n-th FINITE input (rule A, CAP4
+    # ``vw-rt8-runtime-followups``: W01 bar 26, W03 bar 58). The JS twin is
+    # ``interpret.js::rolling`` (``finiteSeen``).
+    finite_seen: List[int] = []
     if policy == NA_FFILL:
         filled: List[float] = []
         carry = NAN
+        seen = 0
         for v in series:
             if math.isfinite(v):
                 carry = v
+                seen += 1
             filled.append(carry)
+            finite_seen.append(seen)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
     for i in range(n - 1, len(series)):
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
         # being asked about.
-        if policy == NA_FFILL and not math.isfinite(series[i]):
+        if policy == NA_FFILL and (not math.isfinite(series[i]) or finite_seen[i] < n):
             continue
         w = _window_operands(src, n, i, inner)
         if w is not None:
