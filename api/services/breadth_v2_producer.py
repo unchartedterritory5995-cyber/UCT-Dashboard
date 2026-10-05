@@ -37,6 +37,7 @@ import urllib.request
 from typing import Optional
 
 from api.services import breadth_authority as ba
+from api.services import breadth_vintage_archive as va
 
 ROOT = os.environ.get("BV2_PRODUCER_ROOT", "/data/breadth_v2_producer")
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -54,6 +55,9 @@ PINNED_UCT = os.environ.get(
 UNIVERSES = ("uct", "uct_backtest", "us", "nasdaq", "nyse")
 PCT = {m for m in ba.V2_METRICS if m.startswith("pct_above_")}
 KEEP_VINTAGES = 3
+#: ⛔ Exchange Breadth V1's owner-vintage archive. A vintage beyond KEEP_VINTAGES is deleted ONLY after
+#: `breadth_vintage_archive.verify` re-proves its archived copy here (see `_prune_vintages`).
+EXCH_ARCHIVE_DIR = os.environ.get("BV2_EXCH_ARCHIVE_DIR", "/data/_audit/exch_v1/live_v1/vintage_archive")
 MAX_ATTEMPTS = 6
 POP_TOLERANCE = 0.20          # universe_count vs the previous canonical session (collapse guard)
 
@@ -84,7 +88,9 @@ def _state() -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS vintage (tag TEXT PRIMARY KEY, last_session TEXT, grouped_dir TEXT,
             inputs_dir TEXT, pit_ledger TEXT, created_at TEXT, state TEXT, report TEXT);
         CREATE TABLE IF NOT EXISTS conflict (date TEXT, offered_sha256 TEXT, accepted_sha256 TEXT, seen_at TEXT);
-        CREATE TABLE IF NOT EXISTS event (at TEXT, kind TEXT, detail TEXT);""")
+        CREATE TABLE IF NOT EXISTS event (at TEXT, kind TEXT, detail TEXT);
+        CREATE TABLE IF NOT EXISTS prune_guard (tag TEXT PRIMARY KEY, checked_at TEXT, ok INTEGER,
+            reason TEXT, detail TEXT, first_blocked_at TEXT);""")
     return c
 
 
@@ -273,12 +279,108 @@ def build_vintage(last: str, export: dict) -> dict:
     return {"tag": tag, "grouped_dir": grouped, "inputs_dir": inputs, "pit_ledger": ledger, "dir": vd}
 
 
-def _prune_vintages() -> None:
+def _owned_provenance(tag: str) -> list:
+    """The canonical provenance of every session `tag` published (the archive must hold those inputs)."""
+    out = []
+    with _canon() as c:
+        for d, prov in c.execute("SELECT date, provenance FROM v2_session"):
+            p = json.loads(prov)
+            if p.get("vintage_tag") == tag:
+                out.append({"date": d, "input_manifest_sha256": p.get("input_manifest_sha256"),
+                            "reference_sha256": p.get("reference_sha256")})
+    return out
+
+
+def _alarm(severity: str, message: str, detail) -> None:
+    """The existing operator alert sink (a CRITICAL pages Discord). Best-effort: never raises."""
+    try:
+        from api.services import chart_health_alerts as cha
+        cha.emit("breadth_v2_prune_guard", severity, message, {"detail": detail})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _prune_vintages() -> dict:
+    """⛔⛔ THE ONE PRUNE DECISION PATH. Every caller (a normal build, a retry's build, any manual call)
+    comes through here, and a vintage beyond the newest KEEP_VINTAGES is deleted ONLY when
+    `breadth_vintage_archive.verify` re-proves — now, byte for byte — that Exchange Breadth's archive
+    holds it (ack present and well-formed, SUMS identity, every archived file, every required producer
+    file, and the input/reference identity of every session it published). Anything else — no ack, a
+    malformed ack, a mismatch, an unreadable archive, an exception — means NO PRUNE: disk grows and an
+    alarm fires; owner evidence never disappears. Publication is NOT coupled to this: a blocked prune
+    never fails or delays a session."""
+    out = {"pruned": [], "blocked": {}}
     with _state() as c:
         tags = [r[0] for r in c.execute("SELECT tag FROM vintage WHERE state='ready' ORDER BY created_at DESC")]
-        for t in tags[KEEP_VINTAGES:]:
-            shutil.rmtree(os.path.join(ROOT, "vintages", t), ignore_errors=True)
+    for t in tags[KEEP_VINTAGES:]:
+        src = os.path.join(ROOT, "vintages", t)
+        try:
+            va.verify(EXCH_ARCHIVE_DIR, t, src, owned_provenance=_owned_provenance(t))
+        except Exception as e:  # noqa: BLE001 — AckRefused or anything unexpected: both mean NO PRUNE
+            reason = e.reason if isinstance(e, va.AckRefused) else "GUARD_ERROR"
+            detail = e.detail if isinstance(e, va.AckRefused) else "%s: %s" % (type(e).__name__, e)
+            out["blocked"][t] = reason
+            with _state() as c:
+                c.execute("INSERT INTO prune_guard(tag, checked_at, ok, reason, detail, first_blocked_at) "
+                          "VALUES(?,?,0,?,?,?) ON CONFLICT(tag) DO UPDATE SET checked_at=excluded.checked_at, "
+                          "ok=0, reason=excluded.reason, detail=excluded.detail, "
+                          "first_blocked_at=COALESCE(prune_guard.first_blocked_at, excluded.first_blocked_at)",
+                          (t, _utc(), reason, json.dumps(detail, default=str)[:4000], _utc()))
+            continue
+        with _state() as c:
+            c.execute("INSERT INTO prune_guard(tag, checked_at, ok, reason, detail, first_blocked_at) "
+                      "VALUES(?,?,1,'verified',NULL,NULL) ON CONFLICT(tag) DO UPDATE SET "
+                      "checked_at=excluded.checked_at, ok=1, reason='verified', detail=NULL", (t, _utc()))
+        shutil.rmtree(src, ignore_errors=True)
+        with _state() as c:
             c.execute("UPDATE vintage SET state='pruned' WHERE tag=?", (t,))
+        out["pruned"].append(t)
+    if out["blocked"]:
+        integrity = {t: r for t, r in out["blocked"].items() if r != "ACK_MISSING"}
+        _event("prune_blocked", out["blocked"])
+        _alarm("critical" if integrity else "warning",
+               "Breadth V2 producer: %d vintage(s) NOT pruned — exchange archive not verified: %s"
+               % (len(out["blocked"]), ", ".join("%s=%s" % kv for kv in sorted(out["blocked"].items()))),
+               out["blocked"])
+    if out["pruned"]:
+        _event("pruned", out["pruned"])
+    return out
+
+
+def archive_guard_status() -> dict:
+    """Machine-readable prune/archive/disk health — CHEAP (no re-hashing; the last full verification
+    of each prune candidate is read from `prune_guard`)."""
+    now = time.time()
+    with _state() as c:
+        ready = list(c.execute("SELECT tag, created_at FROM vintage WHERE state='ready' ORDER BY created_at DESC"))
+        guard = {r[0]: r[1:] for r in c.execute(
+            "SELECT tag, checked_at, ok, reason, first_blocked_at FROM prune_guard")}
+    created = dict(ready)
+    cands = [t for t, _c in ready[KEEP_VINTAGES:]]
+    blocked = {t: (guard[t][2] if t in guard and not guard[t][1] else "NOT_YET_EVALUATED")
+               for t in cands if t not in guard or not guard[t][1]}
+    integrity = [t for t, r in blocked.items() if r not in ("ACK_MISSING", "NOT_YET_EVALUATED")]
+    oldest = min(blocked, key=lambda t: created[t]) if blocked else None
+    age_h = None
+    if oldest:
+        since = (guard.get(oldest) or (None, None, None, None))[3] or created[oldest]
+        try:
+            age_h = (now - dt.datetime.strptime(since, "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=dt.timezone.utc).timestamp()) / 3600.0
+        except (TypeError, ValueError):
+            age_h = None
+    ack_state = {t: va.cheap_state(EXCH_ARCHIVE_DIR, t) for t, _c in ready}
+    du = shutil.disk_usage(ROOT if os.path.isdir(ROOT) else ".")
+    level, reasons = va.disk_level(du.free, len(blocked), age_h, len(integrity))
+    return {"archive_dir": EXCH_ARCHIVE_DIR, "protocol": va.PROTOCOL, "keep_vintages": KEEP_VINTAGES,
+            "ready_vintages": [t for t, _c in ready], "prune_candidates": cands,
+            "prune_blocked": blocked, "prune_blocked_count": len(blocked), "oldest_prune_blocked": oldest,
+            "oldest_prune_blocked_age_hours": round(age_h, 1) if age_h is not None else None,
+            "unarchived_ready_vintages": [t for t, s in ack_state.items() if s != "acked"],
+            "ack_state": ack_state, "verification_failures": integrity,
+            "disk": {"free_bytes": du.free, "total_bytes": du.total,
+                     "warn_free_bytes": va.DISK_WARN_FREE_BYTES, "crit_free_bytes": va.DISK_CRIT_FREE_BYTES},
+            "level": level, "reasons": reasons}
 
 
 class ReviewRequired(Exception):
@@ -554,7 +656,15 @@ def status() -> dict:
         canon = c.execute("SELECT COUNT(*), MAX(date) FROM v2_session").fetchone()
     return {"role": "breadth-v2-producer (the ONE writer of canonical live V2)", "sessions": sessions,
             "canonical_sessions": canon[0], "latest_canonical": canon[1], "events": events, "conflicts": conflicts,
-            "hold": os.path.exists(os.path.join(ROOT, "HOLD")), "updated_at": _utc()}
+            "hold": os.path.exists(os.path.join(ROOT, "HOLD")), "archive_guard": _guard_status_safe(),
+            "updated_at": _utc()}
+
+
+def _guard_status_safe() -> dict:
+    try:
+        return archive_guard_status()
+    except Exception as e:  # noqa: BLE001 — a status page never fails on its health block
+        return {"level": "CRITICAL", "reasons": ["archive guard status error: %s: %s" % (type(e).__name__, e)]}
 
 
 def singleton_lock():

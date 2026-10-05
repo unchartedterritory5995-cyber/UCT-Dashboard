@@ -113,7 +113,7 @@ for u, d, m, o, h, l, c, s in pc.execute("SELECT universe, date, metric, o, h, l
 
 # ── archive every READY producer vintage before the producer can prune it ──────────────────
 READY = [r[0] for r in ps.execute("SELECT tag FROM vintage WHERE state='ready'")]
-ARCHIVAL = lc.archive_vintages(os.path.join(PROD, "vintages"), READY, ARCHIVE)
+ARCHIVAL = lc.archive_vintages(os.path.join(PROD, "vintages"), READY, ARCHIVE, code_commit=A.code_commit)
 
 # ── frozen boundary: ledger end, derived trend state (must reproduce every frozen value) ─────
 LDOC = json.load(open(PARENTS["ledger"][0]))

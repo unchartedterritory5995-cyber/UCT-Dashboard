@@ -356,23 +356,81 @@ def tables_equivalent(archive_inputs: str, remap_inputs: str, replaced_path=None
     return out
 
 
-# ── 6. VINTAGE ARCHIVAL (the producer keeps only its 3 newest vintages) ───────────────────────────
-def archive_vintages(producer_root: str, ready_tags: list, archive_dir: str) -> dict:
-    """Copy every READY producer vintage not yet archived into the exchange archive, verified file-by-file
-    against the producer's copy, then made read-only. Append-only: an archived vintage is never rewritten.
-    ⚠ The live leg must run at least once per (KEEP_VINTAGES - 1) producer publications, or an owner
-    vintage can be pruned before it is archived (that is exactly how p202609292209 was lost)."""
+# ── 6. VINTAGE ARCHIVAL + ACKNOWLEDGEMENT (the producer prunes ONLY what this has acknowledged) ──────
+_VA = {}
+
+
+def va():
+    """`api/services/breadth_vintage_archive.py` — THE ack protocol the producer's prune guard reads —
+    loaded by FILE from this tree, so the leg uses the same bytes whatever the runner's /app predates."""
+    if "m" not in _VA:
+        import importlib.util
+        p = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "api",
+                                          "services", "breadth_vintage_archive.py"))
+        spec = importlib.util.spec_from_file_location("exch_breadth_vintage_archive", p)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        _VA["m"] = m
+    return _VA["m"]
+
+
+def _sync():
+    try:
+        os.sync()                      # archived bytes reach the disk BEFORE the ack can exist
+    except AttributeError:
+        pass
+
+
+def archive_vintages(producer_root: str, ready_tags: list, archive_dir: str, code_commit: str = "unrecorded",
+                     backfill: bool = True) -> dict:
+    """Archive every READY producer vintage, then ACKNOWLEDGE it (`<tag>.ARCHIVED.json`, the commit marker
+    the producer's prune guard re-verifies). Idempotent and crash-safe: every step before the ack can be
+    redone; a run that dies anywhere leaves no ack and therefore no prune eligibility.
+
+    * copy → `<tag>.partial` (rebuilt from scratch on a re-run), REQUIRED files (inputs_/grouped_) verified
+      against the producer copy, logs/scratch recorded as copied (the producer may still append to them)
+    * SUMS written, dir and SUMS renamed into place, files made 0444, `os.sync()`, then the ack
+    * an archive without an ack (a crash before it, or a pre-protocol archive) is BACKFILLED: proven and
+      acknowledged, against the producer copy when it still exists
+    * a final archive that fails proof while the producer copy still exists is QUARANTINED (renamed, never
+      deleted) and re-archived; with the producer copy gone it is reported, never touched
+    Append-only: a valid acknowledged archive is never rewritten."""
     import shutil
     import stat
+    import time
+    V = va()
+    archiver = {"tool": "tools/breadth_exch/live_core.archive_vintages", "code_commit": code_commit}
+    ro = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     out = {}
     os.makedirs(archive_dir, exist_ok=True)
-    for tag in sorted(ready_tags):
-        dst, sums = os.path.join(archive_dir, tag), os.path.join(archive_dir, tag + ".SHA256SUMS")
-        if os.path.isdir(dst) and os.path.exists(sums):
-            out[tag] = "already archived"
-            continue
+    tags = set(ready_tags)
+    if backfill:
+        tags |= {f[:-len(V.SUMS_SUFFIX)] for f in os.listdir(archive_dir) if f.endswith(V.SUMS_SUFFIX)}
+    for tag in sorted(tags):
+        dst, sums = os.path.join(archive_dir, tag), V.sums_path(archive_dir, tag)
         src = os.path.join(producer_root, tag)
-        if not os.path.isdir(src):
+        src_ok = os.path.isdir(src)
+        if os.path.isdir(dst) and os.path.exists(sums):
+            if os.path.exists(V.ack_path(archive_dir, tag)):
+                out[tag] = "already archived"
+                continue
+            try:
+                V.write_ack(archive_dir, V.build_ack(archive_dir, tag, src if src_ok else None, archiver))
+                out[tag] = "acknowledged (backfill%s)" % ("" if src_ok else ", producer copy already pruned")
+                continue
+            except V.AckRefused as e:
+                if not src_ok or e.reason in ("SOURCE_MISMATCH", "SOURCE_INCOMPLETE"):
+                    out[tag] = "ACK_REFUSED:" + e.reason          # evidence problem: an operator decides
+                    continue
+                q = "%s.QUARANTINE.%d" % (dst, int(time.time()))
+                os.replace(dst, q)
+                os.replace(sums, q + V.SUMS_SUFFIX)
+                out[tag + "#quarantined"] = "%s → %s" % (e.reason, os.path.basename(q))
+        elif os.path.isdir(dst):                                  # crash between the two renames
+            q = "%s.INCOMPLETE.%d" % (dst, int(time.time()))
+            os.replace(dst, q)
+            out[tag + "#incomplete"] = os.path.basename(q)
+        if not src_ok:
             out[tag] = "MISSING at producer (pruned before archival)"
             continue
         part = dst + ".partial"
@@ -386,19 +444,24 @@ def archive_vintages(producer_root: str, ready_tags: list, archive_dir: str) -> 
                 lines.append((rel, sha_file(os.path.join(root, fn))))
         lines.sort()
         for rel, h in lines:
-            if sha_file(os.path.join(src, rel)) != h:
+            if V.is_required(rel, tag) and sha_file(os.path.join(src, rel[2:])) != h:
                 shutil.rmtree(part)
                 raise Refused("ARCHIVE_COPY_MISMATCH", {"tag": tag, "file": rel})
         with open(sums + ".tmp", "w") as f:
             for rel, h in lines:
                 f.write("%s  %s\n" % (h, rel))
+        for root, _dirs, files in os.walk(part):
+            for fn in files:
+                os.chmod(os.path.join(root, fn), ro)
         os.replace(part, dst)
         os.replace(sums + ".tmp", sums)
-        for root, dirs, files in os.walk(dst):
-            for fn in files:
-                os.chmod(os.path.join(root, fn), stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-        os.chmod(sums, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-        out[tag] = "archived"
+        os.chmod(sums, ro)
+        _sync()
+        try:
+            V.write_ack(archive_dir, V.build_ack(archive_dir, tag, src, archiver))
+            out[tag] = "archived"
+        except V.AckRefused as e:
+            out[tag] = "ACK_REFUSED:" + e.reason
     return out
 
 
