@@ -22,10 +22,12 @@ import datetime as _dt
 import math
 from typing import Callable, Optional
 
+from api.services.options_analytics import move_convention as _mc
+
 DAILY_MOVE_MIN_PAIRS = 20
 CRUSH_MIN_PRINTS = 4
 CRUSH_OFFSETS = tuple(range(-5, 6))
-SQRT_252 = math.sqrt(252)
+SQRT_252 = math.sqrt(_mc.SESSIONS_PER_YEAR)  # O11: the one convention, one session = IV / sqrt(252)
 
 
 def _ivh():

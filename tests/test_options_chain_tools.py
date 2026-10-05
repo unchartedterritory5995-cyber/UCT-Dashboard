@@ -2,9 +2,10 @@
 (api/services/options_analytics/chain_tools.py + routes). No network: the vendor chain and the
 contract aggregates are stubs shaped like polygon_options.get_chain / massive.get_daily_agg.
 
-Hand-computed: spot 100, ATM IV (0.20 + 0.22)/2 = 0.21, 30 days ->
-  68.27%: z 1.0000, w = 0.21 x sqrt(30/365) = 0.06021 -> 94.16 .. 106.21
-  95.45%: z 2.0000 -> 88.66 .. 112.80 ;  90%: z 1.6449 -> 90.57 .. 110.41
+Hand-computed: spot 100, ATM IV (0.20 + 0.22)/2 = 0.21, 30 calendar days = 20 NYSE sessions
+(Fri 2026-10-02 -> Sun 2026-11-01), on the one convention IV x sqrt(sessions/252) (O11) ->
+  68.27%: z 1.0000, w = 0.21 x sqrt(20/252) = 0.05916 -> 94.26 .. 106.09
+  95.45%: z 2.0000 -> 88.84 .. 112.56 ;  90%: z 1.6449 -> 90.73 .. 110.22
 """
 from __future__ import annotations
 
@@ -61,15 +62,25 @@ def test_each_chain_tool_is_dark_until_its_own_switch(flag, route, monkeypatch):
 def test_the_one_sd_and_two_sd_ranges():
     r = ct.probability("TST", today=TODAY)
     assert r["atm_strike"] == 100.0 and r["atm_iv"] == 0.21 and r["days"] == 30
-    assert r["ranges"][0] == {"probability": 0.6827, "z": 1.0, "low": 94.16, "high": 106.21}
-    assert r["ranges"][1] == {"probability": 0.9545, "z": 2.0, "low": 88.66, "high": 112.8}
+    assert r["sessions"] == 20
+    assert r["ranges"][0] == {"probability": 0.6827, "z": 1.0, "low": 94.26, "high": 106.09}
+    assert r["ranges"][1] == {"probability": 0.9545, "z": 2.0, "low": 88.84, "high": 112.56}
     assert r["label"] == "computed" and r["iv_label"] == "vendor"
 
 
 def test_a_chosen_probability_leads_and_the_standard_ones_follow():
     r = ct.probability("TST", p=0.9, today=TODAY)
     assert [x["probability"] for x in r["ranges"]] == [0.9, 0.6827, 0.9545]
-    assert (r["ranges"][0]["low"], r["ranges"][0]["high"]) == (90.57, 110.41)
+    assert (r["ranges"][0]["low"], r["ranges"][0]["high"]) == (90.73, 110.22)
+
+
+def test_one_convention_a_one_session_range_equals_the_levels_one_day_move():
+    """O11: a range to the next session and Levels' implied 1-day move are the same number."""
+    from api.services.options_analytics import move_convention as mc
+    one = ct.range_at(100.0, 0.252, mc.sessions_between(dt.date(2026, 10, 2), dt.date(2026, 10, 5)),
+                      0.6827)                                       # Fri -> Mon is ONE session
+    w = 0.252 * (1 / 252) ** 0.5
+    assert one["high"] == round(100 * 2.718281828459045 ** w, 2)
 
 
 def test_no_atm_iv_is_a_sentence_not_a_range(monkeypatch):

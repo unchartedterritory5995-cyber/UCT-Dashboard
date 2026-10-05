@@ -155,3 +155,59 @@ def test_the_massive_walk_follows_the_cursor_url_unchanged(monkeypatch):
     assert err is None and data["massive_contracts"] == 2 and data["massive_truncated"] is False
     cursor_calls = [(u, p) for u, p in seen if "cursor=abc" in u]
     assert cursor_calls == [(page2 + "&apiKey=KEY", None)]      # own query intact, no params override
+
+
+# ── O5: zero gamma names how it was found ─────────────────────────────────────────────────────
+
+def _fake_schwab_with(monkeypatch, chain):
+    async def fake(t, f, to):
+        return chain, None
+    monkeypatch.setattr(g, "_fetch_chain_schwab", fake)
+
+
+def test_zero_gamma_says_which_method_found_it(monkeypatch):
+    _fake_schwab_with(monkeypatch, _schwab_equivalent())
+    out = asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    assert out["zeroGammaMethod"] in ("cumulative_flip", "cumulative_flip_from_top",
+                                      "first_negative_strike_below_spot",
+                                      "below_1pct_of_call_wall", "put_wall_fallback")
+    assert out["zeroGammaIsFlip"] == (out["zeroGammaMethod"] in ("cumulative_flip",
+                                                                 "cumulative_flip_from_top"))
+
+
+def test_an_all_positive_chain_does_not_pass_a_fallback_off_as_a_flip(monkeypatch):
+    """Calls only: cumulative gamma never changes sign, so whatever level comes back is a
+    stand-in -- and the payload must say so instead of calling it Zero Gamma silently."""
+    key = f"{EXP}:3"
+    chain = {"underlyingPrice": 101.0,
+             "callExpDateMap": {key: {"100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.55}],
+                                      "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.30}]}},
+             "putExpDateMap": {}}
+    _fake_schwab_with(monkeypatch, chain)
+    out = asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    assert out["zeroGammaIsFlip"] is False
+    if out["zeroGamma"] is not None:
+        assert out["zeroGammaMethod"] not in ("cumulative_flip", "cumulative_flip_from_top")
+
+
+# ── O10: the expiry window is the ET trading date ─────────────────────────────────────────────
+
+def test_the_expiry_window_starts_on_the_et_date_not_utc(monkeypatch):
+    """At 21:00 ET it is already tomorrow in UTC; the window must still start today (ET)."""
+    import datetime as _dt
+    seen = {}
+
+    class _Late(_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            utc = _dt.datetime(2026, 10, 6, 1, 0, tzinfo=_dt.timezone.utc)   # 21:00 ET on 10-05
+            return utc.astimezone(tz) if tz else utc.replace(tzinfo=None)
+
+    async def fake(t, f, to):
+        seen["from"] = f
+        return _schwab_equivalent(), None
+
+    monkeypatch.setattr(_dt, "datetime", _Late)
+    monkeypatch.setattr(g, "_fetch_chain_schwab", fake)
+    asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    assert seen["from"] == "2026-10-05"

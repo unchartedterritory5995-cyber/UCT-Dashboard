@@ -26,7 +26,9 @@ CONTRACT_HISTORY_DAYS = 120
 MAX_LEGS = 8
 _OCC = re.compile(r"^O:([A-Z][A-Z0-9.]{0,9})(\d{6})([CP])(\d{8})$")
 
-PROBABILITY_METHOD = ("Range = spot x exp(+/- z x IV x sqrt(days/365)), where z is the standard-normal "
+PROBABILITY_METHOD = ("Range = spot x exp(+/- z x IV x sqrt(sessions/252)), where sessions counts the NYSE "
+                      "trading sessions from today to the expiration (the one convention every options "
+                      "panel uses), z is the standard-normal "
                       "quantile for the chosen two-sided probability and IV is the mean of the call and "
                       "put implied volatility at the strike closest to spot for that expiration. A "
                       "lognormal, no-drift, no-dividend model centred on today's spot: what the option "
@@ -54,9 +56,11 @@ def _atm(chain: dict) -> Optional[tuple]:
     return k, sum(ivs) / len(ivs)
 
 
-def range_at(spot: float, iv: float, days: float, p: float) -> dict:
+def range_at(spot: float, iv: float, sessions: float, p: float) -> dict:
+    """`sessions` = NYSE trading sessions to the expiration (move_convention, O11)."""
+    from api.services.options_analytics import move_convention as mc
     z = NormalDist().inv_cdf((1 + p) / 2)
-    w = z * iv * math.sqrt(max(days, 0) / 365)
+    w = z * mc.sigma(iv, sessions)
     return {"probability": p, "z": round(z, 4), "low": round(spot * math.exp(-w), 2),
             "high": round(spot * math.exp(w), 2)}
 
@@ -78,8 +82,11 @@ def probability(sym: str, expiration: str = "", p: float = DEFAULT_PROBABILITY, 
     if days < 0:
         return {**base, "atm_iv": atm[1], "ranges": [], "note": "This expiration has passed."}
     probs = [p] + [q for q in STANDARD_PROBABILITIES if abs(q - p) > 1e-9]
+    from api.services.options_analytics import move_convention as mc
+    sessions = mc.sessions_between(today, _dt.date.fromisoformat(exp))
     return {**base, "atm_strike": atm[0], "atm_iv": round(atm[1], 4), "days": days,
-            "ranges": [range_at(float(c["spot"]), atm[1], days, q) for q in probs],
+            "sessions": sessions,
+            "ranges": [range_at(float(c["spot"]), atm[1], sessions, q) for q in probs],
             "note": "Same-day expiration: the range is today's spot." if days == 0 else None}
 
 
