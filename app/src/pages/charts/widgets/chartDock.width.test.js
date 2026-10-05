@@ -28,14 +28,14 @@ describe('company panel width', () => {
   })
 
   it('migrates every previously shipped default forward', () => {
-    // 360 clipped the News tab; 400 left dead space after the search control.
+    // 360 clipped the News tab; 380 had no room for the collapse chevron.
     // Neither was chosen by the user, so neither should outlive the default.
-    for (const shipped of [360, 400]) {
+    for (const shipped of [360, 380]) {
       expect(normalizeDock({ rightW: shipped }).rightW).toBe(DEFAULT_RIGHT_W)
     }
   })
 
-  it('leaves no dead space after the search control', () => {
+  it('leaves no dead space after the header controls', () => {
     // The strip hugs its content now, so any slack piles up at the right edge.
     expect(DEFAULT_RIGHT_W - TABSTRIP_FIT_W).toBeLessThanOrEqual(12)
   })

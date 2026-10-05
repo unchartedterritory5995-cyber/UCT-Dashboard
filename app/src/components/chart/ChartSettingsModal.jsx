@@ -268,6 +268,9 @@ const SETTINGS_TARGET_TAB = {
   axis: 'canvas',
   ma: 'indicators',
   volume: 'indicators',
+  // The chart header's "Add to Chart" control: Indicators, already in the add
+  // surface (ChartSettingsIndicators `openAdd`).
+  add: 'indicators',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -305,6 +308,9 @@ export default function ChartSettingsModal({
   // The timeframe the chart this modal belongs to is ON — handed to Indicators so
   // it can SAY when a calculation timeframe cannot draw here. Absent on the grid.
   chartTf = null,
+  // Host features (Earnings Strip, Company Info) for the Indicators tab — see
+  // ChartSettingsIndicators' `chartFeatures`. Absent everywhere but /charts.
+  chartFeatures = null,
   onAdjustWatermark = null,
   onResetWatermark = null,
   watermarkCustomized = false,
@@ -1279,6 +1285,8 @@ export default function ChartSettingsModal({
                rather than a click plus a hunt down a list. */
             openRowId={indTargetRow(scrollTo)}
             chartTf={chartTf}
+            chartFeatures={chartFeatures}
+            openAdd={scrollTo === 'add'}
           />
           )}
 
