@@ -28,9 +28,8 @@ ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
   * the plan / setup notes `notes.import_confirm`        -- the sample notebook's own door
   * the thesis property    `notes.update_note({"properties": ...})` -- the editor's own door
   * the chart-block index  `chart_blocks.catch_up`       -- pure projection of the note body
-  * the resurfacing index  `note_levels.project_note`     -- pure projection of the note body
-  * the resurfacing insight `voice_proactive_service.add_insight` -- the ONE insight door
-  * the resurfacing ledger `note_levels.record_fire`      -- the ledger's own writer
+  * the level index        `note_levels.project_note`     -- pure projection of the note body
+                                                             (the thesis chip reads its stop)
   * the passed setup       `passed_setups.add_manual`     -- the member's own "I passed on
                                                              this" door; scores from bars.db,
                                                              zero vendor or model calls
@@ -50,6 +49,19 @@ silently answer for the other. The setups board and passed setups read different
 populations too (the untraded AAPL plan also shows on the setups board, truthfully: a drawn
 entry and stop with no linked trade is exactly what that board watches). Picking six real, highly-liquid large-caps removes the
 ambiguity a shared or invented symbol would create, while keeping every WRITE here static.
+
+⛔⛔ THE RESURFACING EXAMPLE IS SHOWN IN THE NOTE, NEVER IN AN INBOX (wave 14 docs lane). The
+first version queued a real `voice_proactive_insights` row at importance 8 -- above every real
+resurfacing (R7-R9 never exceed 7) and at the away floor -- so a sample led the Compass inbox,
+was mirrored into the member's Compass chat thread (which no dismissal undoes), opened their
+next voice session as an "FYI", spent one of the two resurfacing slots a day and put NVDA on a
+6-hour cooldown that would swallow a REAL NVDA resurfacing. A sample must never compete with a
+real alert. So no insight and no ledger row are written: the thesis note itself carries the
+example notice, in a callout labelled as an example, which is the one place that explains it.
+Trashing the note (`sample_notebook.remove`) clears it. And the level the note names is left out
+of the resurfacing scan (`note_levels.load_index` skips `import_source = 'sample'`), so the
+example can never fire a real one either. `remove()` still dismisses an `insightId` recorded by
+the earlier version. Rail: `tests/test_sample_notebook_examples.py`.
 
 DARK WHILE A CAPABILITY'S OWN FLAG IS OFF, ON PURPOSE (plan section 4.5): the row is written
 regardless (seeding never reads a capability's flag), and every one of the modules above
@@ -92,14 +104,12 @@ EXAMPLES_FOLDER_PATH = ("Sample notebook", "Capability examples")
 IMPORT_SOURCE = "sample"
 KEY_PREFIX = "sample-example:"
 
-#: `j2_note_resurface_fires.fire_key` for the one static resurfacing example -- shaped like
-#: `awareness/rules.py` would key a real R7 price-touch fire, namespaced so it can never
-#: collide with a real fire for this member.
-RESURFACE_FIRE_KEY = "sample_example:stop@NVDA"
-RESURFACE_KIND = "note_level_touch"
-RESURFACE_HEADLINE = "Example: NVDA reached 110.00, the stop you wrote about"
-RESURFACE_BODY = ("Example -- this is what resurfacing looks like: a price your note named, "
-                   "touched. Not a live alert.")
+#: The example resurfacing notice, shown ONLY inside the thesis note (a callout), worded the
+#: way `awareness/rules.py` R7 words a real stop touch. Never an insight row (see above).
+RESURFACE_HEADLINE = "Example: NVDA reached 110.00, the stop you named"
+RESURFACE_BODY = ("This is what a resurfacing notice looks like: a price your note named was "
+                   "touched, and the notice opens the note as you wrote it then. It is an "
+                   "example, not a live alert, and it appears only here.")
 
 EARNINGS_PREP_TAG = "earnings-prep"
 
@@ -164,6 +174,10 @@ def _p(*text_or_marks) -> dict:
 def _h(level: int, text: str) -> dict:
     return {"type": "heading", "attrs": {"level": level},
             "content": [{"type": "text", "text": text}]}
+
+
+def _callout(*blocks: dict) -> dict:
+    return {"type": "callout", "attrs": {"variant": "info"}, "content": list(blocks)}
 
 
 def _bullets(*items: str) -> dict:
@@ -245,9 +259,10 @@ def _thesis_note_body(symbol: str, stop: float) -> dict:
         _p("Leadership names that held up best through the last pullback make new highs first."),
         _p(f"Stop: {stop:.2f}"),
         _p("A Watchlist or Open Positions row for this symbol shows a small chip with the "
-           "status above and this stop. This example also seeds one resurfacing notice in "
-           "the Voice Insights Inbox (Settings > Compass), as if the stop had just been "
-           "touched -- \"here's what you thought then.\""),
+           "status above and this stop. When a level one of your own notes names is touched, "
+           "a resurfacing notice arrives in the Voice Insights Inbox (Settings > Compass). "
+           "This example does not send one; this is what it would say:"),
+        _callout(_p((RESURFACE_HEADLINE, [{"type": "bold"}])), _p(RESURFACE_BODY)),
     ]}
 
 
@@ -303,9 +318,9 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
     rest, so `remove()` below can always clean up exactly what this call actually created.
 
     Returns {"noteIds": [...], "tradeId": None, "entryContext": None, "passedSetupId": str|None,
-    "insightId": int|None, "errors": {capability: str}}. `tradeId` and `entryContext` are
-    always None now (no trade is seeded) and are kept so a preference written by either
-    version reads the same way."""
+    "insightId": None, "errors": {capability: str}}. `tradeId`, `entryContext` and `insightId`
+    are always None now (no trade and no inbox notice is seeded) and are kept so a preference
+    written by either version reads the same way."""
     today = _et_today()
     note_ids: list[str] = []
     errors: dict[str, str] = {}
@@ -345,7 +360,7 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         log.warning("[sample_examples] setups-board example failed", exc_info=True)
         errors["setupsBoard"] = str(e)
 
-    # -- thesis chips / resurfacing -------------------------------------------------------------
+    # -- thesis chips (+ the resurfacing example, which lives in the note body only) -----------
     try:
         thesis_note_id = _own_import(
             user_id, conn, "thesis", f"Thesis: example -- {SYM_THESIS} leadership",
@@ -360,11 +375,8 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
             note_levels.ensure_schema(conn)
             note_levels.project_note(conn, user_id, note_row)
             conn.commit()
-            insight_id = _add_resurface_insight(user_id)
-            if insight_id is not None:
-                result["insightId"] = insight_id
-                note_levels.record_fire(conn, user_id, RESURFACE_FIRE_KEY, _iso(today),
-                                        insight_id, RESURFACE_KIND, thesis_note_id, None)
+            # ⛔ No `add_insight`, no `record_fire`: the example notice is the callout in the
+            # note body (module docstring). `insightId` stays None.
     except Exception as e:  # noqa: BLE001
         log.warning("[sample_examples] thesis/resurfacing example failed", exc_info=True)
         errors["thesisResurfacing"] = str(e)
@@ -396,13 +408,6 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         errors["transcriptCapture"] = str(e)
 
     return result
-
-
-def _add_resurface_insight(user_id: str) -> int | None:
-    from api.services import voice_proactive_service
-    return voice_proactive_service.add_insight(
-        user_id, kind=RESURFACE_KIND, headline=RESURFACE_HEADLINE, symbol=SYM_THESIS,
-        body=RESURFACE_BODY, importance=8)
 
 
 _TRANSCRIPT_PASSAGE = ("We are pleased with the pace of deliveries this quarter and remain "
@@ -452,7 +457,8 @@ def _seed_transcript_example(user_id: str, conn: sqlite3.Connection) -> str:
 
 def remove(user_id: str, recorded: dict[str, Any], conn: sqlite3.Connection) -> dict[str, Any]:
     """Undo everything `seed()` wrote that a note's own Trash cannot: the passed setup (dismissed -- that capability's own "remove" verb, same as a
-    member's), and the resurfacing insight (dismissed -- same). The example NOTES are not
+    member's), and -- for a preference recorded by the earlier version only -- the resurfacing
+    insight it queued (dismissed -- same; today's `seed()` queues none). The example NOTES are not
     handled here: their ids are folded into `sample_notebook`'s own `ids` list, so the
     existing Trash loop in `sample_notebook.remove()` covers them for free, exactly like the
     five base notes -- restorable, consistent with how this whole feature already treats
