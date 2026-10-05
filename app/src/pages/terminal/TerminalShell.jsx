@@ -265,6 +265,7 @@ export default function TerminalShell() {
   } = useTerminalLayout()
   const [notice, setNotice] = useState(null)
   const [sheet, setSheet] = useState(null)           // 'functions' | 'boards' | 'recents' | null
+  const [boardsOpenToVersions, setBoardsOpenToVersions] = useState(false)
   // Keyed by the panel's STABLE `id` (never a positional index): `onClose`/`onDuplicate`/
   // `undoClose`/`setCount` all reshuffle `layout.panels`, and this popover is non-modal, so a
   // click can land long after a close/duplicate shifted every index behind it. Resolving by id
@@ -881,7 +882,7 @@ export default function TerminalShell() {
               : 'Your saved terminal layout could not be read.'}
             {' '}It has not been changed. This session is using a fresh board, and nothing you do here is saved yet.
           </span>
-          <button type="button" className={styles.chip} onClick={() => setSheet('boards')}>Version history</button>
+          <button type="button" className={styles.chip} onClick={() => { setBoardsOpenToVersions(true); setSheet('boards') }}>Version history</button>
           {layoutStatus === 'unreadable' && (
             <button type="button" className={styles.chip} onClick={replaceStoredLayout} data-testid="terminal-start-fresh">
               Start fresh (replace it)
@@ -980,14 +981,18 @@ export default function TerminalShell() {
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
         <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />
       </Sheet>
-      <Sheet open={sheet === 'boards'} onClose={() => setSheet(null)} title="Boards">
+      <Sheet open={sheet === 'boards'} onClose={() => { setSheet(null); setBoardsOpenToVersions(false) }} title="Boards">
         <BoardsMenu
           library={library}
           libraryWritable={libraryWritable}
           currentName={currentBoard}
+          openToVersions={boardsOpenToVersions}
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
-          onDelete={(b) => saveLibrary(deleteBoard(library, b.id))}
+          onDelete={(b) => {
+            saveLibrary(deleteBoard(library, b.id))
+            if (b.name === currentBoard) setCurrentBoard(null)
+          }}
           onPreset={(sym, id) => saveLibrary(setPreset(library, sym === '*' ? '*' : sym, id))}
           onKeepCalendar={(on) => saveLibrary(setKeepCalendar(library, on))}
           onShareCurrent={() => `${window.location.origin}${shareHref(encodeShare(currentBoard || 'My terminal board', layout, syms))}`}
