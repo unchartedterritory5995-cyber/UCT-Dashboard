@@ -93,6 +93,18 @@ _KNOWN_2026_09_15 = frozenset({
     "api/services/calendar_alerts.py",
 })
 
+#: Sites reasoned about AFTER F-S6-1, each with the reading that clears it.
+#: * api/services/journal_two/earnings_prep.py (Notebook wave 13, lane 13C;
+#:   read 2026-10-05 at the waves 12-15 landing): `_member_sets` reads the
+#:   returned dict ONLY by the named source keys in `MEMBER_SOURCES`
+#:   ("positions", "watchlist", "flagged") and never `all_mine`, so it depends on
+#:   exactly the shape `test_get_user_ticker_sets_still_returns_the_declared_five_keys`
+#:   pins -- the migration is a no-op there for the same reason it is at the
+#:   three sites above.
+_REASONED_AFTER_2026_09_15 = frozenset({
+    "api/services/journal_two/earnings_prep.py",
+})
+
 
 def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
     """⛔⛔ THE RAIL, failing BY NAME on a site nobody has looked at. A new
@@ -102,7 +114,7 @@ def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
     ABOUT, and this rail's whole purpose is to stop that from being silent
     the way F-S6-1's original "Calendar the only caller" claim was."""
     sites = _call_sites_of("get_user_ticker_sets")
-    unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15)
+    unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15 - _REASONED_AFTER_2026_09_15)
     assert not unreasoned, (
         f"get_user_ticker_sets is now called from {unreasoned}, which this "
         "migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. "
