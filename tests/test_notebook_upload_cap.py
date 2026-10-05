@@ -52,14 +52,18 @@ BOUNDARY = "w14capBOUNDARY"
 # ── the lazy body and the counting ASGI driver ───────────────────────────────
 
 def _multipart(field: str, filename: str, ctype: str, size: int,
-               fields: dict[str, str] | None = None, chunk: int = CHUNK) -> Iterator[bytes]:
-    """A multipart body whose file part is `size` bytes, produced chunk by chunk."""
+               fields: dict[str, str] | None = None, chunk: int = CHUNK,
+               head: bytes = b"") -> Iterator[bytes]:
+    """A multipart body whose file part is `size` bytes, produced chunk by chunk.
+    `head` opens the file part (a real image header, say) and counts toward `size`."""
     for name, value in (fields or {}).items():
         yield (f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n"
                f"{value}\r\n").encode()
     yield (f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"{field}\"; "
            f"filename=\"{filename}\"\r\nContent-Type: {ctype}\r\n\r\n").encode()
-    left = size
+    if head:
+        yield head[:size]
+    left = size - min(len(head), size)
     block = b"\x89" * chunk
     while left > 0:
         n = min(chunk, left)

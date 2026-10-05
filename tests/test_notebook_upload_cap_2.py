@@ -376,3 +376,82 @@ def test_readers_no_longer_buffer_the_whole_body_first():
         src = Path(_reader(name).__file__).read_text(encoding="utf-8")
         assert _calls(src, "body") == [], name
         assert _calls(src, "read_capped_body"), name
+
+
+# ── preview-mapped: the member's column mapping reaches the server ───────────
+#
+# ⚰️ Before this fix the route declared `mapping: str = ""`, which FastAPI reads
+# from the QUERY STRING, while ImportCsvModal.jsx sends `mapping` as a FORM field.
+# Every mapped import parsed with an empty mapping and answered "mapping missing
+# required fields". The route now reads the form field the client sends, and still
+# honours a query-string `mapping` for any other caller.
+
+MAPPED_HEADERS = "Ticker,Dir,Qty,In,InDate,Out,OutDate\r\nAAPL,long,10,100,2026-01-02,110,2026-01-05\r\n"
+MAPPING = {"symbol": "Ticker", "side": "Dir", "shares": "Qty", "entry_price": "In",
+           "entry_date": "InDate", "exit_price": "Out", "exit_date": "OutDate"}
+CLIENT = Path(__file__).resolve().parent.parent / "app/src/pages/journal-2-0/components/ImportCsvModal.jsx"
+
+
+def _client_mapping_shape() -> tuple[str, str]:
+    """What ImportCsvModal.jsx actually sends to preview-mapped: the URL it posts to,
+    and the FORM field name it appends the mapping under -- read off the client
+    source, so a client change reds here instead of drifting."""
+    import re
+    src = CLIENT.read_text(encoding="utf-8")
+    block = src[src.index("postPreviewMapped"):]
+    block = block[:block.index("}, [file])")]
+    url = re.search(r"fetch\('([^']+)'", block).group(1)
+    field = re.search(r"form\.append\('(\w+)', JSON\.stringify\(mapping\)\)", block).group(1)
+    return url, field
+
+
+def test_the_client_posts_the_mapping_as_a_form_field_not_a_query_string():
+    url, field = _client_mapping_shape()
+    assert url == "/api/j2/trades/import/preview-mapped" and "?" not in url
+    assert field == "mapping"
+
+
+def test_preview_mapped_reads_the_mapping_from_the_form_field_the_client_sends(journal_app):
+    """End to end in the client's exact shape: multipart `file` + a `mapping` form
+    field holding JSON. On the old route this answered format=unknown, 0 trades."""
+    import json as _json
+    _login(journal_app)
+    url, field = _client_mapping_shape()
+    r = TestClient(journal_app).post(
+        url, files={"file": ("broker.csv", MAPPED_HEADERS.encode(), "text/csv")},
+        data={field: _json.dumps(MAPPING)})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["format"] == "mapped", body
+    assert [t["symbol"] for t in body["trades"]] == ["AAPL"]
+    assert body["errors"] == []
+
+
+def test_preview_mapped_still_honours_a_query_string_mapping(journal_app):
+    import json as _json
+    from urllib.parse import quote
+    _login(journal_app)
+    r = TestClient(journal_app).post(
+        "/api/j2/trades/import/preview-mapped?mapping=" + quote(_json.dumps(MAPPING)),
+        files={"file": ("broker.csv", MAPPED_HEADERS.encode(), "text/csv")})
+    assert r.status_code == 200 and r.json()["format"] == "mapped", r.text
+
+
+def test_preview_mapped_form_field_wins_over_a_query_string(journal_app):
+    import json as _json
+    from urllib.parse import quote
+    _login(journal_app)
+    r = TestClient(journal_app).post(
+        "/api/j2/trades/import/preview-mapped?mapping=" + quote(_json.dumps({"symbol": "Nope"})),
+        files={"file": ("broker.csv", MAPPED_HEADERS.encode(), "text/csv")},
+        data={"mapping": _json.dumps(MAPPING)})
+    assert r.status_code == 200 and r.json()["format"] == "mapped", r.text
+
+
+def test_preview_mapped_bad_mapping_json_keeps_its_400(journal_app):
+    _login(journal_app)
+    r = TestClient(journal_app).post(
+        "/api/j2/trades/import/preview-mapped",
+        files={"file": ("broker.csv", MAPPED_HEADERS.encode(), "text/csv")},
+        data={"mapping": "{not json"})
+    assert r.status_code == 400 and r.json()["detail"].startswith("mapping is not valid JSON")

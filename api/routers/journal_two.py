@@ -87,6 +87,11 @@ _DAY_IMAGE_UPLOAD = body_cap.capped_upload(
 _CSV_UPLOAD = body_cap.capped_upload(
     "file", lambda: csv_import_service.MAX_BYTES,
     lambda: csv_import_service.too_big_sentence())
+# preview-mapped also takes the column mapping, as the FORM field ImportCsvModal
+# sends (`form.append('mapping', JSON.stringify(mapping))`).
+_CSV_MAPPED_UPLOAD = body_cap.capped_multipart(
+    "file", lambda: csv_import_service.MAX_BYTES,
+    lambda: csv_import_service.too_big_sentence(), fields=("mapping",))
 
 
 # Allow-list of FE telemetry events (landing_analytics.py:32-45 pattern). Only
@@ -1293,15 +1298,24 @@ async def import_preview(
 async def import_preview_mapped(
     mapping: str = "",
     user: dict = Depends(get_current_user),
-    file: UploadFile = Depends(_CSV_UPLOAD),
+    parts: body_cap.CappedMultipart = Depends(_CSV_MAPPED_UPLOAD),
 ) -> dict[str, Any]:
     """Parse an unknown-format CSV using a user-supplied column mapping.
     `mapping` is a JSON string mapping pre-matched field names to source
-    CSV header names. Returns the same shape as /import/preview."""
+    CSV header names. Returns the same shape as /import/preview.
+
+    ⚰️ `mapping` used to be read ONLY from the query string (a bare `str = ""`
+    parameter beside a file is a query parameter to FastAPI), while the client
+    sends it as a form field -- so every mapped import parsed with `{}` and
+    answered "mapping missing required fields". The form field wins; the query
+    parameter is still honoured for any other caller."""
     import csv as _csv
     import io as _io
     import json as _json
 
+    file = parts.file
+    if parts.fields["mapping"] is not None:
+        mapping = parts.fields["mapping"]
     try:
         mapping_dict = _json.loads(mapping) if mapping else {}
     except _json.JSONDecodeError as e:

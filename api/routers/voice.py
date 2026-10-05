@@ -38,9 +38,11 @@ from api.services.voice_openai import synthesize_speech, synthesize_speech_strea
 # generous enough for a full Morning Wire rundown (~11k) plus headroom.
 # ~50k chars ≈ 50+ minutes of audio.
 MAX_TTS_CHARS = 50_000
-from fastapi import UploadFile, File, Form
+from fastapi.exceptions import RequestValidationError
+from pydantic import TypeAdapter, ValidationError
+from api.services import request_body_cap as body_cap
 from urllib.parse import quote as _urlquote
-from api.services.voice_openai import transcribe_audio, cleanup_transcript
+from api.services.voice_openai import transcribe_audio, cleanup_transcript, MAX_AUDIO_BYTES, audio_too_big_sentence
 from api.services.voice_intent import run_oneshot
 from api.services.voice_tools import get_schema_for_context
 from api.services.voice_usage import (
@@ -439,24 +441,59 @@ def vision_describe(
     )
 
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+VISION_MAX_BYTES = 5 * 1024 * 1024
+VISION_TOO_BIG_SENTENCE = "image too large (max 5MB)"
+DOCUMENT_MAX_BYTES = 10 * 1024 * 1024
+DOCUMENT_TOO_BIG_SENTENCE = "file too large (max 10MB)"
+
+_VISION_UPLOAD = body_cap.capped_multipart(
+    "image", lambda: VISION_MAX_BYTES, lambda: VISION_TOO_BIG_SENTENCE, fields=("symbol",))
+_DOCUMENT_UPLOAD = body_cap.capped_multipart(
+    "file", lambda: DOCUMENT_MAX_BYTES, lambda: DOCUMENT_TOO_BIG_SENTENCE, fields=("title",))
+# Audio: Whisper's own ceiling, the service's constant and sentence.
+_ONESHOT_UPLOAD = body_cap.capped_multipart(
+    "audio", lambda: MAX_AUDIO_BYTES, lambda: audio_too_big_sentence(), fields=("context",))
+_TRANSCRIBE_UPLOAD = body_cap.capped_multipart(
+    "audio", lambda: MAX_AUDIO_BYTES, lambda: audio_too_big_sentence(), fields=("cleanup",))
+
+_FORM_BOOL = TypeAdapter(bool)
+
+
+def _form_bool(name: str, value, default: bool) -> bool:
+    """A `Form(bool)` parameter's parse, with its 422 for an unreadable value."""
+    if value is None:
+        return default
+    try:
+        return _FORM_BOOL.validate_python(value)
+    except ValidationError:
+        raise RequestValidationError([{"type": "bool_parsing", "loc": ("body", name),
+                                       "msg": "Input should be a valid boolean", "input": value}]) from None
+
+
 @router.post("/vision/upload")
 @limiter.limit("10/minute")
 def vision_upload(
     request: Request,
-    image: UploadFile = File(...),
-    symbol: str = Form(""),
     user: dict = Depends(requires_voice_access),
+    parts: body_cap.CappedMultipart = Depends(_VISION_UPLOAD),
 ):
     """Upload a chart screenshot for analysis (multipart). Returns same shape
     as /vision/describe."""
     import base64
     from api.services.voice_chart_vision import describe_chart
+    image, symbol = parts.file, parts.fields["symbol"] or ""
     raw = image.file.read() if image else b""
     if not raw:
         raise HTTPException(status_code=400, detail="empty image")
     # Cap at 5 MB to keep tokens reasonable
-    if len(raw) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="image too large (max 5MB)")
+    if len(raw) > VISION_MAX_BYTES:
+        raise HTTPException(status_code=400, detail=VISION_TOO_BIG_SENTENCE)
     b64 = base64.b64encode(raw).decode("ascii")
     regime = None
     try:
@@ -497,17 +534,17 @@ def documents_ingest_text(
 @limiter.limit("5/minute")
 def documents_upload(
     request: Request,
-    file: UploadFile = File(...),
-    title: str = Form(""),
     user: dict = Depends(requires_voice_access),
+    parts: body_cap.CappedMultipart = Depends(_DOCUMENT_UPLOAD),
 ):
     """Upload a PDF (or text file) for RAG ingestion."""
     from api.services.voice_document_service import ingest_pdf_bytes, ingest_text
+    file, title = parts.file, parts.fields["title"] or ""
     raw = file.file.read() if file else b""
     if not raw:
         raise HTTPException(status_code=400, detail="empty file")
-    if len(raw) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="file too large (max 10MB)")
+    if len(raw) > DOCUMENT_MAX_BYTES:
+        raise HTTPException(status_code=400, detail=DOCUMENT_TOO_BIG_SENTENCE)
     filename = (file.filename or "untitled").rsplit(".", 1)[0]
     doc_title = (title or filename).strip() or "Untitled"
     if (file.filename or "").lower().endswith(".pdf"):
@@ -696,10 +733,11 @@ def agents_stats(
 @limiter.limit("60/minute")
 def oneshot(
     request: Request,
-    audio: UploadFile = File(...),
-    context: str = Form("global"),
     user: dict = Depends(requires_voice_access),
+    parts: body_cap.CappedMultipart = Depends(_ONESHOT_UPLOAD),
 ):
+    audio = parts.file
+    context = parts.fields["context"] if parts.fields["context"] is not None else "global"
     audio_bytes = audio.file.read() if audio else b""
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="audio is empty")
@@ -769,10 +807,11 @@ def oneshot(
 @limiter.limit("60/minute")
 def transcribe(
     request: Request,
-    audio: UploadFile = File(...),
-    cleanup: bool = Form(False),
     user: dict = Depends(requires_voice_access),
+    parts: body_cap.CappedMultipart = Depends(_TRANSCRIBE_UPLOAD),
 ):
+    audio = parts.file
+    cleanup = _form_bool("cleanup", parts.fields["cleanup"], False)
     audio_bytes = audio.file.read() if audio else b""
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="audio is empty")
