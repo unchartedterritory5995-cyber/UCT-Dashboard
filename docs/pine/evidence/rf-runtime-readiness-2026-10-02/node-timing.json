@@ -1,0 +1,428 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js",
+ "budgetMs": 1000,
+ "runs": 3,
+ "lengths": [
+  "D 5000",
+  "D 11534",
+  "5m 20208",
+  "5m 32000"
+ ],
+ "scripts": [
+  {
+   "slug": "adx-and-di-for-v4",
+   "file": "corpus/committed/adx-and-di-for-v4__932.pine",
+   "plots": 3,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 20,
+   "doorWarmMedianMs": 14.9,
+   "doorRuntimeOffMedianMs": 6.4,
+   "runtimeProbeMedianMs": 4.3,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 215.8,
+     "maxMs": 235.8,
+     "peakHeapMB": 12.6,
+     "columnBytes": 120000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 431.9,
+     "maxMs": 432.3,
+     "peakHeapMB": 16.2,
+     "columnBytes": 276816,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 98.1,
+     "maxMs": 111.7,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 127.9,
+     "maxMs": 128.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "runtime:history-start",
+   "budget": []
+  },
+  {
+   "slug": "delta-rsi-oscillator-strategy",
+   "file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+   "plots": 4,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 39,
+   "doorWarmMedianMs": 47.1,
+   "doorRuntimeOffMedianMs": 22.5,
+   "runtimeProbeMedianMs": 13.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 81.1,
+     "maxMs": 92.7,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 5000 when drawn bar by bar (array.sum over an na element — how Pine treats one here has not been measured on a chart, and this e"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 87,
+     "maxMs": 99.2,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 11534 when drawn bar by bar (array.sum over an na element — how Pine treats one here has not been measured on a chart, and this "
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 93.2,
+     "maxMs": 94.8,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 181.3,
+     "maxMs": 185,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "runtime:history-start",
+   "budget": []
+  },
+  {
+   "slug": "fibonacci-dolphintradebot",
+   "file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 136.5,
+   "doorWarmMedianMs": 155.9,
+   "doorRuntimeOffMedianMs": 113.1,
+   "runtimeProbeMedianMs": 19.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 1883.1,
+     "maxMs": 1914.5,
+     "peakHeapMB": 57.6,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 4397.4,
+     "maxMs": 4880.8,
+     "peakHeapMB": 64.2,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 227.3,
+     "maxMs": 235.2,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 315.9,
+     "maxMs": 778.4,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "runtime:history-start",
+   "budget": [
+    {
+     "length": "D 5000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1941 of 5000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "D 11534",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 2265 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    }
+   ]
+  },
+  {
+   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": true,
+   "runtimeHistory": null,
+   "repaint": "non-repainting",
+   "doorColdMs": 25.9,
+   "doorWarmMedianMs": 20,
+   "doorRuntimeOffMedianMs": 15.2,
+   "runtimeProbeMedianMs": 2.5,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 239.8,
+     "maxMs": 622.5,
+     "peakHeapMB": 6.5,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 533.7,
+     "maxMs": 815.4,
+     "peakHeapMB": 13.3,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 55.7,
+     "maxMs": 57.6,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 89.6,
+     "maxMs": 99,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": [
+    {
+     "length": "D 11534",
+     "stopped": null
+    }
+   ]
+  },
+  {
+   "slug": "trend-targets-algoalpha",
+   "file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
+   "plots": 4,
+   "withheld": [
+    "Baseline"
+   ],
+   "drawsObjects": true,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 1123.5,
+   "doorWarmMedianMs": 1018.5,
+   "doorRuntimeOffMedianMs": 1131.4,
+   "runtimeProbeMedianMs": 9.7,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 782,
+     "maxMs": 990,
+     "peakHeapMB": 20.5,
+     "columnBytes": 160000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 2468.1,
+     "maxMs": 2778.4,
+     "peakHeapMB": 32.1,
+     "columnBytes": 369088,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 180.4,
+     "maxMs": 255.4,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 356.1,
+     "maxMs": 366.2,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "runtime:history-start",
+   "budget": [
+    {
+     "length": "D 5000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 4716 of 5000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "D 11534",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 3966 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    }
+   ]
+  },
+  {
+   "slug": "wyckoff-accumulation-distribution",
+   "file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine",
+   "plots": 5,
+   "withheld": [
+    "The Selling Climax",
+    "the Secondary Test",
+    "The Buying Climax"
+   ],
+   "drawsObjects": false,
+   "runtimeHistory": null,
+   "repaint": "non-repainting",
+   "doorColdMs": 61.6,
+   "doorWarmMedianMs": 73.6,
+   "doorRuntimeOffMedianMs": 58.5,
+   "runtimeProbeMedianMs": 10.7,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 200.3,
+     "maxMs": 303.7,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 5000 when drawn bar by bar (array.max of an empty array — what Pine answers here has not been measured on a chart, and this engi"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 231.2,
+     "maxMs": 233.6,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 11534 when drawn bar by bar (array.max of an empty array — what Pine answers here has not been measured on a chart, and this eng"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 372.8,
+     "maxMs": 384.2,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 20208) on bar 0 of 20208, so it is stopped and not"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 503,
+     "maxMs": 592,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (HISTORY: at most 20000, it reached 32000) on bar 0 of 32000, so it is stopped and not"
+     }
+    }
+   ],
+   "productIntraday": "runtime:failed",
+   "budget": []
+  }
+ ]
+}

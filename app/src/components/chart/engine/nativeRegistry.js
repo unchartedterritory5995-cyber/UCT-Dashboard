@@ -2252,6 +2252,82 @@ export function columnErrors(columns) {
   return e || {}
 }
 
+// ─── ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN ─────────────────────
+//
+// A runtime-lane document (`memberPaneDefinition.js::runtimeLaneDefinition`)
+// draws its lines from its own per-bar run and carries the HOST lane's object
+// program beside them. The object reader evaluates that program on its own, so
+// on a chart where the run computed NOTHING — refused at its listing check
+// (`runtime:history-start`), its time budget, a request, a reached
+// `runtime.error`, or a run still in flight — the drawings were drawn alone.
+// Measured (RT2, harness dir, runtime flag on): `vw-int-array-avg` and its `-neg`
+// probe drew labels 25 vendor vs 1 ours from a document whose every line was
+// withheld — a wrong drawing on a pane that otherwise said "nothing is drawn".
+// Integrator ruling (RT4): such a document does not draw its object program.
+
+/** The guard a runtime document's withheld drawings carry. */
+export const RUNTIME_OBJECTS_GUARD = 'runtime:objects-without-run'
+
+/**
+ * Why a runtime document's object program is NOT drawn over these columns, or
+ * `null` when it may be (any other document, a runtime document with no object
+ * program, or a run that produced at least one of its columns).
+ *
+ * @param {object} def the installed definition
+ * @param {object|null|undefined} cols what `computeFor` answered for it on THIS
+ *   chart (`undefined`/`null`: nothing was computed)
+ * @returns {{guard: string, message: string} | null}
+ */
+export function runtimeObjectsWithheld(def, cols) {
+  if (!def || !def.compute || def.compute.kind !== 'runtime') return null
+  if (!def.objects || !Array.isArray(def.objects.ops) || !def.objects.ops.length) return null
+  const keys = Object.keys(def.compute.outputs || {})
+  if (cols && keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
+  const first = Object.values(columnErrors(cols))[0]
+  const why = first
+    ? `its run computed nothing on this chart (${first.guard})`
+    : 'its run has not computed on this chart'
+  return {
+    guard: RUNTIME_OBJECTS_GUARD,
+    message: `This script's drawings are not drawn: ${why}, and its drawings belong to that run — `
+      + 'drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.',
+  }
+}
+
+// ─── ⭐⭐ RF — A RUNTIME PANE THAT DREW NOTHING SAYS WHY ───────────────────────
+//
+// `columnErrors` is "not UX" (C2A.8) and no surface rendered it, so a runtime
+// document whose run was refused on this chart — `runtime:history-start` (every
+// chart that does not start at the listing: every intraday chart, most daily
+// ones), the time budget, a VM limit, a failed worker — drew an EMPTY pane with
+// no sentence. Measured before RF: the six runtime-only corpus scripts are all
+// fallback documents, so on an intraday chart every one was a silent blank. The
+// script's own `runtime.error` already had its sentence (C43); this is the same
+// strip, for every other stop of the run.
+
+/**
+ * The sentence for a runtime document whose run produced NONE of its columns on
+ * this chart, or `null` (any other document; a run that drew; a run in flight;
+ * the script's own `runtime.error`, which C43's stop words).
+ *
+ * @param {object} def the installed definition
+ * @param {object|null|undefined} cols what `computeFor` answered for it
+ * @returns {{guard: string, sentence: string} | null}
+ */
+export function runtimeRunStopOf(def, cols) {
+  if (!def || !def.compute || def.compute.kind !== 'runtime' || !cols) return null
+  const keys = Object.keys(def.compute.outputs || {})
+  if (keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
+  if (runtimeErrorStopOf(cols)) return null
+  const first = Object.values(columnErrors(cols))[0]
+  if (!first || !first.guard) return null
+  const why = String(first.message || '').trim()
+  return {
+    guard: first.guard,
+    sentence: `not drawn on this chart (${first.guard}): ${why || 'the per-bar run computed nothing'}`,
+  }
+}
+
 // ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
 //
 // TradingView's study holds NOTHING once the script's own `runtime.error` is
@@ -2422,7 +2498,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-            ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+            ...listingOptsFor(def, ctx),
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
@@ -2450,7 +2526,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
         undefined, { tf: ctx && ctx.tf,
           newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...listingOptsFor(def, ctx),
           ...(other ? { symbols: other.symbols } : {}), crossMemo,
           chartClockSink: new Map() }))
       if (runsWhy) {
@@ -2486,7 +2562,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...listingOptsFor(def, ctx),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2496,7 +2572,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...listingOptsFor(def, ctx),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
@@ -2631,6 +2707,18 @@ export const PINE_RECURRENCE_ORIGIN = 'pine'
 export function historyFromListingFor(def, ctx) {
   return !!(ctx && ctx.historyFromListing === true
     && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
+}
+
+/** ⭐⭐ F1 — the listing facts `interpret` reads, as ONE spread: the listing
+ *  (`historyFromListingFor`) and, with it, whether this document's Pine version
+ *  reads an `na` `?:` test as false (`meta.naConditionFalse`, written by the
+ *  member door from `interpret.js::naConditionIsFalse`; `interpret.js::
+ *  pineTernaryFor`). Off the listing, or for a document that does not declare
+ *  it, nothing changes. */
+export function listingOptsFor(def, ctx) {
+  if (!historyFromListingFor(def, ctx)) return {}
+  return { historyFromListing: true,
+    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}) }
 }
 
 /** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?
@@ -2785,8 +2873,16 @@ export function registerRuntimeLane(fn) {
  *  makes it a code-splitting build the worker format cannot take. */
 let _runtimeLoader = null
 let _runtimeLoading = null
+// ⛔ RF — A LOAD THAT FAILED IS SAID, NOT RETRIED ON EVERY PAINT. Before RF a
+// failed `import()` (a stale chunk after a deploy, a dropped connection) cleared
+// the in-flight mark and told nobody, so every later paint asked again, drew
+// `{}` and said nothing: a pane blank forever with no reason. Now the failure is
+// remembered for this tab, the chart is told once, and the definition answers it
+// by name.
+let _runtimeLoadFailed = null
 export function registerRuntimeLaneLoader(fn) {
   _runtimeLoader = typeof fn === 'function' ? fn : null
+  _runtimeLoadFailed = null
 }
 function loadRuntimeLane() {
   if (_runtimeLoading) return true
@@ -2794,15 +2890,28 @@ function loadRuntimeLane() {
   _runtimeLoading = Promise.resolve()
     .then(() => _runtimeLoader())
     .then(() => { _runtimeLoading = null; notifyColumnsLanded('runtime:lane') })
-    .catch(() => { _runtimeLoading = null })
+    .catch((err) => {
+      _runtimeLoading = null
+      _runtimeLoadFailed = String((err && err.message) || err || 'the load failed')
+      notifyColumnsLanded('runtime:lane')
+    })
   return true
 }
+
+/** ⭐ RF — the guard a runtime document carries when this tab could not load the
+ *  lane at all. */
+export const RUNTIME_LOAD_FAILED_GUARD = 'runtime:load-failed'
 
 function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   const keys = Object.keys((def.compute && def.compute.outputs) || {})
   const reasonFor = (guard, message) => withColumnErrors({},
     Object.fromEntries(keys.map((k) => [k, { guard, message }])))
   if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null && runtimePaneEnabled()) {
+      return reasonFor(RUNTIME_LOAD_FAILED_GUARD, 'the part of the app that draws a script bar by bar could not '
+        + `be loaded in this tab (${_runtimeLoadFailed.slice(0, 160)}), so nothing is drawn. The chart is `
+        + 'unaffected; reloading the page tries again.')
+    }
     if (runtimePaneEnabled() && loadRuntimeLane()) return {}
     return reasonFor('runtime:unregistered',
       'the per-bar runtime lane is not loaded in this client, so this definition computes nothing')
@@ -3420,6 +3529,10 @@ export function validateUserDefinitions(rawDefs) {
   const base = registerDefinitions(rawDefs)
   const errors = [...base.errors]
   const defs = []
+  // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or
+  // the latched list): `installUserDefinitions` takes an already-installed copy
+  // of each off this tab, so a kill reaches an open chart on its next read.
+  const killedIds = []
 
   for (const def of base.defs) {
     const kind = def.compute.kind
@@ -3433,10 +3546,17 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐ GT (D6) — a stored row whose script is not on the server's starter
+      // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
+      // way: kept in the store, drawn again once the script is listed. The server
+      // stamp is the authority here (a saved pane must not wait on the preview's
+      // read of the list to learn it may draw).
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
+        || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
       if (killed) {
         errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        killedIds.push(def.id)
         continue
       }
       defs.push(def)
@@ -3461,7 +3581,7 @@ export function validateUserDefinitions(rawDefs) {
     defs.push(def)
   }
 
-  return { defs, errors }
+  return { defs, errors, killedIds }
 }
 
 const _registered = registerDefinitions(RAW_DEFS)
@@ -3686,8 +3806,17 @@ function installKey(def) {
  *          `getDefinition` will now answer with — never the input documents.
  */
 export function installUserDefinitions(rawDefs) {
-  const { defs, errors } = validateUserDefinitions(rawDefs)
+  const { defs, errors, killedIds } = validateUserDefinitions(rawDefs)
   const installed = []
+  // ⛔ RF — A KILL TAKES THE INSTALLED COPY OFF THIS TAB. Before RF a re-read
+  // that served a listed runtime document (same id and version, now stamped
+  // `meta.runtimeKilled`) was refused here while the copy installed before the
+  // kill stayed in `_userById` and kept drawing until a full page reload. The
+  // stored row is untouched (the server never deletes it); only this tab's
+  // installed copy goes, and the binder draws nothing for the instance.
+  for (const id of killedIds || []) {
+    if (_userById.has(id)) { _userById.delete(id); _generation += 1 }
+  }
   for (const def of defs) {
     if (_byId.has(def.id)) {
       errors.push(

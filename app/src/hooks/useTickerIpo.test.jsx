@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import useTickerIpo, { fetcher, prefetchTickerIpo } from './useTickerIpo'
+import useTickerIpo, { fetcher, prefetchTickerIpo, NON_FINAL_POLL_MS } from './useTickerIpo'
 
 const wrapper = ({ children }) => (
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
@@ -23,6 +23,13 @@ describe('useTickerIpo', () => {
     const { result } = renderHook(() => useTickerIpo('ABNB'), { wrapper })
     await waitFor(() => expect(result.current.list_date).toBe('2020-12-10'))
     expect(global.fetch).toHaveBeenCalledWith('/api/ticker-ipo/ABNB', expect.objectContaining({ credentials: 'include' }))
+  })
+
+  it('carries first_trade_date through when the server sends it (the listing reference)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ list_date: '1993-01-22', first_trade_date: '1993-01-29' }) })
+    const { result } = renderHook(() => useTickerIpo('SPY'), { wrapper })
+    await waitFor(() => expect(result.current.first_trade_date).toBe('1993-01-29'))
+    expect(result.current.list_date).toBe('1993-01-22')
   })
 
   it('null-safe when fetch fails', async () => {
@@ -50,6 +57,40 @@ describe('useTickerIpo', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(result.current).toEqual({ list_date: null })
     expect(localStorage.getItem('tipo:OLD')).toBeNull()
+  })
+
+  it('does NOT persist a non-final first-trade answer (the server is still resolving it)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ list_date: '1993-01-22', first_trade_date: '1993-01-22', first_trade_final: false }) })
+    const { result } = renderHook(() => useTickerIpo('SPY'), { wrapper })
+    await waitFor(() => expect(result.current.first_trade_final).toBe(false))
+    expect(localStorage.getItem('tipo:SPY')).toBeNull()
+  })
+
+  it('persists a FINAL first-trade answer', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ list_date: '1993-01-22', first_trade_date: '1993-01-29', first_trade_final: true }) })
+    const { result } = renderHook(() => useTickerIpo('SPY'), { wrapper })
+    await waitFor(() => expect(result.current.first_trade_final).toBe(true))
+    expect(JSON.parse(localStorage.getItem('tipo:SPY')).d).toEqual({ list_date: '1993-01-22', first_trade_date: '1993-01-29', first_trade_final: true })
+  })
+
+  it('asks again while non-final and stops once final', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const answers = [
+        { list_date: '1993-01-22', first_trade_date: '1993-01-22', first_trade_final: false },
+        { list_date: '1993-01-22', first_trade_date: '1993-01-29', first_trade_final: true },
+      ]
+      global.fetch = vi.fn().mockImplementation(async () => ({ ok: true, json: async () => answers[Math.min(global.fetch.mock.calls.length - 1, 1)] }))
+      const { result } = renderHook(() => useTickerIpo('SPY'), { wrapper })
+      await waitFor(() => expect(result.current.first_trade_final).toBe(false))
+      await vi.advanceTimersByTimeAsync(NON_FINAL_POLL_MS + 50)
+      await waitFor(() => expect(result.current.first_trade_date).toBe('1993-01-29'))
+      const calls = global.fetch.mock.calls.length
+      await vi.advanceTimersByTimeAsync(NON_FINAL_POLL_MS * 3)
+      expect(global.fetch.mock.calls.length).toBe(calls)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('paints synchronously from a warm localStorage entry', () => {

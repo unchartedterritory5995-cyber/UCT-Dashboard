@@ -66,6 +66,13 @@ def store(tmp_path, monkeypatch):
     rev.init_schema()
     monkeypatch.delenv(rt.SAVE_ENV, raising=False)
     monkeypatch.delenv(rt.KILL_ENV, raising=False)
+    monkeypatch.delenv(rt.ALLOW_ENV, raising=False)
+    # ⭐ GT — the rails here are about the save door's SHAPE checks, so the two
+    # doors GT put in front of it are opened: the stage for everyone, and the
+    # starter allowlist answered "graded" for these synthetic sources.
+    # `test_pine_runtime_switch_on.py` rails both doors themselves.
+    monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
+    monkeypatch.setattr(rt, "not_graded", lambda source: None)
     return tmp_path
 
 
@@ -117,6 +124,8 @@ def test_ON_a_runtime_document_is_stored_under_a_runtime_handle(store, monkeypat
      r"meta\.repaint — declared 'non-repainting' but this script measures 'preview-repaints' "
      r"\(it reads barstate\.islast\)"),
     (lambda d: d["plots"][0].update(forward=1), r"plots\.value\.forward — declared 1 but this script reads 0"),
+    # ⭐ RT5 — `objects` is `true` or absent, never another value
+    (lambda d: d["compute"].update(objects=1), r"compute\.objects: when present, true"),
 ])
 def test_a_malformed_or_forged_runtime_document_is_refused_by_name(store, monkeypatch, mutate, message):
     monkeypatch.setenv(rt.SAVE_ENV, "1")
@@ -124,6 +133,27 @@ def test_a_malformed_or_forged_runtime_document_is_refused_by_name(store, monkey
     mutate(d)
     with pytest.raises(ValueError, match=message):
         svc.save(USER, DEF_ID, d)
+
+
+DRAWING_SOURCE = ('//@version=5\nindicator("t", overlay=true)\n'
+                  'if barstate.islast\n    label.new(bar_index, high, "x")\n')
+
+
+def test_RT5_a_drawing_only_document_maps_no_plot_and_is_stored(store, monkeypatch):
+    """`compute.objects: true` — the run draws the document's objects, so
+    `outputs` may be empty; without the flag an empty map is still refused."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(DRAWING_SOURCE)
+    d["compute"].update(outputs={}, objects=True)
+    d["meta"]["repaint"] = "preview-repaints"
+    d["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    row = svc.save(USER, DEF_ID, d)
+    assert row["appended"] is True
+    # ⛔ CONTROL — the same document without `objects` is refused
+    d2 = runtime_defn(DRAWING_SOURCE, "u_0000000000a2")
+    d2["compute"].update(outputs={})
+    with pytest.raises(ValueError, match=r"compute\.outputs"):
+        svc.save(USER, "u_0000000000a2", d2)
 
 
 def test_the_count_cap_is_asked_for_a_runtime_document_too(store, monkeypatch):
@@ -179,11 +209,12 @@ def test_KILL_is_never_a_delete_the_served_row_is_stamped_the_stored_row_is_not(
 
 
 def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch):
-    assert client.get("/api/user-definitions/runtime-kill").json() == {"kill": [], "save_enabled": False}
+    allow = rt.allow_list()
+    assert client.get("/api/user-definitions/runtime-kill").json() ==         {"kill": [], "allow": allow, "save_enabled": False}
     monkeypatch.setenv(rt.KILL_ENV, f"{DEF_ID}, not-an-entry, {'A' * 64}")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     got = client.get("/api/user-definitions/runtime-kill").json()
-    assert got == {"kill": [DEF_ID, "a" * 64], "save_enabled": True}
+    assert got == {"kill": [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True}
 
 
 # ─── nothing that needs a tree admits a runtime row ──────────────────────────

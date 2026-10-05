@@ -157,6 +157,25 @@
   flex: 0 0 auto;
 }
 
+/* ── PHONE: the panel switcher + count control row, below the command bar ── */
+.phoneBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  min-width: 0;
+}
+
+.phoneSwitcher {
+  display: flex;
+  gap: var(--space-xs);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+}
+
 .suggest {
   position: absolute;
   top: calc(100% + 4px);
@@ -603,6 +622,12 @@
   white-space: nowrap;
   color: var(--text-muted);
   font-size: var(--text-sm);
+}
+
+/* V8 — a panel-reported freshness badge (`panelFreshness.js`), beside the function label. Never
+   shrinks below its content; the label beside it is what ellipsizes under width pressure. */
+.panelFreshness {
+  flex: 0 0 auto;
 }
 
 .panelLink {

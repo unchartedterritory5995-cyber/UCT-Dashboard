@@ -35,7 +35,8 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
-import { historyFromListingOf } from './chart/engine/listingSeed'
+import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
+import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -6576,6 +6577,13 @@ export default function StockChart({
     return null
   }, [cs])
   const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
+  // ⭐ B1P — does any member pane on this chart carry a recurrence withheld off the
+  // listing (`listingDeepen.definitionWithholdsOffListing`)? Read by the grid deepen.
+  const _carriesListingRecurrence = useMemo(() => {
+    try {
+      return (_storedInstances() || []).some((i) => definitionWithholdsOffListing(_defOf(i && i.defId)))
+    } catch { return false }
+  }, [_storedInstances, _defOf, userDefsGeneration])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
   // asynchronously; a ref would leave the chart painted with the empty map until
   // something unrelated triggered another paint. The hook keeps the map's
@@ -8443,9 +8451,11 @@ export default function StockChart({
   // warm-up curtain. The rule lives in `listingSeed.historyFromListingOf` — daily,
   // exact date equality, read off the SAME `filteredBars` the binder receives —
   // never the IPO badge's five-day tolerance above, which only labels a candle.
+  // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
+  // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
   const historyFromListing = useMemo(() => historyFromListingOf({
-    bars: filteredBars, tf: resolvedTf, listDate: ipoInfo?.list_date,
-  }), [filteredBars, resolvedTf, ipoInfo?.list_date])
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -17423,6 +17433,45 @@ export default function StockChart({
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday])
+
+  // ⭐⭐ B1P — A GRID CELL'S DAILY SERIES DEEPENS TO THE LISTING, BOUNDED.
+  // A grid cell (`backgroundWarm={false}`) first-paints FIRST_PAINT_BARS and never
+  // deepens unless maximized or panned, so a member pane carrying a Pine recurrence
+  // that is withheld off the listing stayed blank across long stretches. When (and
+  // only when) such a pane is on a DAILY cell, this deepens ONLY 'D' to the full
+  // depth through the cell's own fetch path, behind a page-wide gate of
+  // LISTING_DEEPEN_MAX (= the grid warm's _IDB_MAX). No all-TF chain, no direct
+  // fetch, and `backgroundWarm` stays false (`listingDeepen.js` has the rules).
+  // The slot is released when the deep bars arrive (or by the gate's safety timer).
+  const _listingDeepenReleaseRef = useRef(null)
+  const _listingDeepenLenRef = useRef(0)
+  const _listingFetchDepthRef = useRef(fetchDepth)
+  _listingFetchDepthRef.current = fetchDepth
+  const _listingBarsLenRef = useRef(0)
+  _listingBarsLenRef.current = bars?.length || 0
+  const _wantsListingDeepen = wantsListingDeepen({
+    backgroundWarm, deepWarm, tf: resolvedTf, carries: _carriesListingRecurrence,
+    pinned: !!(_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff),
+  })
+  useEffect(() => {
+    if (!_wantsListingDeepen) return undefined
+    if (_listingFetchDepthRef.current >= _fullTarget) return undefined
+    return listingDeepenGate.request((release) => {
+      const have = _listingBarsLenRef.current
+      // a shallow answer SHORTER than it asked for is already the whole history
+      if (have > 0 && have < _listingFetchDepthRef.current) { release(); return }
+      _listingDeepenReleaseRef.current = release
+      _listingDeepenLenRef.current = have
+      setFetchDepth(_fullTarget)
+    })
+  }, [_wantsListingDeepen, sym, resolvedTf, _fullTarget])
+  useEffect(() => {
+    const release = _listingDeepenReleaseRef.current
+    if (!release || loading) return
+    if ((bars?.length || 0) === _listingDeepenLenRef.current) return
+    _listingDeepenReleaseRef.current = null
+    release()
+  }, [loading, bars])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {

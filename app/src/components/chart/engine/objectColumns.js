@@ -31,7 +31,7 @@ import {
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
 import {
-  resolveInputs, bindConstsFor, historyFromListingFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
   runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
@@ -449,6 +449,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(opts.symbols ? { symbols: opts.symbols } : {}),
         ...(opts.lowerTf ? { lowerTf: opts.lowerTf } : {}) }
@@ -611,6 +612,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // asks (`historyFromListingFor`), so an object and the plot beside it can
     // never read two different answers about where the series starts.
     historyFromListing: historyFromListingFor(definition, opts),
+    // ⭐⭐ F1 — and the `?:` rule that rides with it (`nativeRegistry.listingOptsFor`).
+    naConditionFalse: listingOptsFor(definition, opts).naConditionFalse === true,
     // ⭐⭐ C45 — whether this document's `barindex` is Pine's `bar_index`, by the
     // SAME declaration the plot lane reads (`nativeRegistry.barIndexAbsoluteFor`).
     barIndexAbsolute: barIndexAbsoluteFor(definition, opts),
@@ -698,6 +701,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
         ...(evalOpts.lowerTf ? { lowerTf: evalOpts.lowerTf } : {}) }

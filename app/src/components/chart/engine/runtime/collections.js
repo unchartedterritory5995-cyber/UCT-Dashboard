@@ -74,8 +74,18 @@ export const kindOf = (v) => {
 }
 
 /** ⛔ BOUNDS ARE CHECKED IN ONE PLACE, and the message names the index AND the
- *  size — "index out of range" sends a member hunting through a watchlist. */
-const at = (arr, i, what) => {
+ *  size — "index out of range" sends a member hunting through a watchlist.
+ *
+ *  ⭐ RT7 — IN A v6 SCRIPT A NEGATIVE INDEX COUNTS FROM THE END: measured,
+ *  `vw-array-na-spy-1d-2026-10-02` N10 reads `array.get(array.from(3, na, 1, 2), -1)`
+ *  as **2** on every bar, and N12's vote reads `array.get(outcome, -1)` (an
+ *  `indexof` that found nothing) as the last outcome. ⛔ Only v6 is measured: a
+ *  v5-or-older script, or a caller that does not say (`budget.pineVersion` unset),
+ *  keeps the stop; and an index below `-size` stops in every version. */
+const at = (arr, i, what, budget) => {
+  if (Number.isInteger(i) && i < 0 && i >= -arr.length && budget && budget.pineVersion >= 6) {
+    return arr.length + i
+  }
   if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
     throw new CollectionError(
       `${what}: index ${i} is outside an array of ${arr.length} — `
@@ -158,26 +168,46 @@ const nonEmpty = (arr, what) => {
   return arr
 }
 
-/** ⛔⛔ A REDUCTION IS SERVED OVER A NON-EMPTY ARRAY OF REAL NUMBERS ONLY.
- *  What Pine answers for `array.max`/`avg`/`sum`/`median`/`stdev` when an
- *  element is `na`, or the array is empty, has NOT been measured on a chart —
- *  skip the `na`, propagate it, or answer `na` for the whole call are three
- *  plausible rules that draw three different pictures. This engine does not
- *  pick one: it stops the run BY NAME, which a member reads as a refusal, never
- *  as a number. */
-const realNumbers = (arr, what) => {
-  if (!arr.length) {
-    throw new CollectionError(`${what} of an empty array — what Pine answers here has not `
-      + 'been measured on a chart, and this engine does not guess a value a member would read as data')
-  }
+/** ⭐⭐ RT7 — A REDUCTION SKIPS ITS `na` ELEMENTS: MEASURED.
+ *
+ *  `vw-array-na-spy-1d-2026-10-02` (probe `vw-array-na.pine`, Q-C47-3) reads, on
+ *  every bar, over `array.from(3, na, 1, 2)`: `array.min` 1 (N01), `array.max` 3
+ *  (N02), `array.sum` 6 (N03), `array.avg` **2** (N04: the mean of the THREE real
+ *  elements, not 6 / 4), and `array.min` of `(na, na)` **na** (N05). So Pine
+ *  reduces over the real elements and skips the `na` ones.
+ *
+ *  ⭐ `array.min` / `array.max` over ZERO real elements answer `na`: N05 measures
+ *  it for an all-`na` array, and an EMPTY array leaves the same zero real
+ *  elements to reduce. That TradingView does not stop the script there is
+ *  witnessed by `wyckoff-accumulation-distribution-rddt-1d-2026-10-02`: its
+ *  `myhigh` / `mylow` push nothing while `boxlen` is still `na` (`for i = 0 to
+ *  na`), call `array.max` / `array.min` of the empty array, and TradingView draws
+ *  the script through those bars (Q-RT7a asks the empty case directly).
+ *
+ *  ⛔ `array.sum` / `array.avg` over ZERO real elements stay UNMEASURED (0, `na`,
+ *  or a stop are all plausible, and no capture separates them): they stop the
+ *  run by name, as before, unless a caller's probe answers (C18). A NON-numeric
+ *  element (a string, a handle) is not a number to reduce and stops by name. */
+const realsOf = (arr, what) => {
+  const xs = []
   for (const v of arr) {
-    if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new CollectionError(`${what} over an ${typeof v === 'number' ? 'na' : 'non-numeric'} `
-        + 'element — how Pine treats one here has not been measured on a chart, and this '
-        + 'engine does not guess a value a member would read as data')
+    if (typeof v !== 'number') {
+      throw new CollectionError(`${what} over a non-numeric element — this runtime reduces `
+        + 'numbers only')
     }
+    if (!Number.isNaN(v)) xs.push(v)
   }
-  return arr
+  return xs
+}
+/** ⛔ zero real elements under `sum` / `avg`: the unmeasured stop, word for word. */
+const realNumbers = (arr, what) => {
+  const xs = realsOf(arr, what)
+  if (!xs.length) {
+    throw new CollectionError(`${what} of ${arr.length ? 'an array whose every element is na' : 'an empty array'}`
+      + ' — what Pine answers here has not been measured on a chart, and this engine does '
+      + 'not guess a value a member would read as data')
+  }
+  return xs
 }
 
 /** ⭐⭐ C18 — A REDUCTION OF AN EMPTY ARRAY, UNDER A CALLER'S PROBE.
@@ -233,16 +263,14 @@ const unmeasuredReduction = (name) => ({
   },
 })
 
-/** ⛔ AN `na` SEARCH VALUE IS REFUSED: whether Pine's `indexof`/`includes`
- *  match `na` against an `na` element is unmeasured, and IEEE equality would
- *  answer "never" by accident rather than by measurement. */
-const searchable = (v, what) => {
-  if (typeof v === 'number' && !Number.isFinite(v)) {
-    throw new CollectionError(`${what} for an na value — whether Pine matches na against na `
-      + 'has not been measured on a chart')
-  }
-  return v
-}
+/** ⭐ RT7 — AN `na` SEARCH VALUE IS FOUND NOWHERE: MEASURED. `vw-array-na-spy-1d-
+ *  2026-10-02` reads `array.indexof(a, na)` **-1** (N06) and `array.includes(a, na)`
+ *  **false** (N07) over an array that HOLDS an `na`, and `array.indexof` of an
+ *  all-`na` array's own `array.min` (itself `na`) **-1** (N09). So `na` never
+ *  equals `na` here. ⛔ JS `Array#includes` would answer TRUE (SameValueZero);
+ *  both members compare with `indexOf`'s strict equality, under which NaN
+ *  matches nothing — the measured answer. */
+const indexOfValue = (arr, v) => ((typeof v === 'number' && Number.isNaN(v)) ? -1 : arr.indexOf(v))
 
 /** ⭐⭐ C11 — THE MEMBERS THE NINE C11 SCRIPTS WRITE, each Pine's documented
  *  behaviour and nothing inferred. ⛔ `array.slice` is deliberately ABSENT: its
@@ -302,32 +330,30 @@ const C11_MEMBERS = {
     args: ['array', 'any'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      return a[0].indexOf(searchable(a[1], 'array.indexof'))
+      return indexOfValue(a[0], a[1])
     },
   },
   'array.includes': {
     args: ['array', 'any'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      return a[0].includes(searchable(a[1], 'array.includes')) ? 1 : 0
+      return indexOfValue(a[0], a[1]) >= 0 ? 1 : 0
     },
   },
   'array.max': {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.max', budget)
-      if (p) return p.value
-      return realNumbers(a[0], 'array.max').reduce((m, v) => (v > m ? v : m), -Infinity)
+      const xs = realsOf(a[0], 'array.max')
+      return xs.length ? xs.reduce((m, v) => (v > m ? v : m), -Infinity) : NaN
     },
   },
   'array.min': {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.min', budget)
-      if (p) return p.value
-      return realNumbers(a[0], 'array.min').reduce((m, v) => (v < m ? v : m), Infinity)
+      const xs = realsOf(a[0], 'array.min')
+      return xs.length ? xs.reduce((m, v) => (v < m ? v : m), Infinity) : NaN
     },
   },
   'array.sum': {
@@ -513,13 +539,13 @@ export const ARRAY_FNS = Object.freeze({
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },
   'array.get': {
     args: ['array', 'number'], returns: 'any',
-    fn: (a) => a[0][at(a[0], a[1], 'array.get')],
+    fn: (a, budget) => a[0][at(a[0], a[1], 'array.get', budget)],
   },
   'array.set': {
     args: ['array', 'number', 'any'], returns: 'void',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
-      guardSliceWrite(a[0], 'array.set')[at(a[0], a[1], 'array.set')] = a[2]
+      guardSliceWrite(a[0], 'array.set')[at(a[0], a[1], 'array.set', budget)] = a[2]
     },
   },
   'array.push': {

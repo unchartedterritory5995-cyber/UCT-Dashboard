@@ -10,6 +10,7 @@
 // through `onRows`, so typing `2` + Enter opens row 2.
 import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
+import { usePanelFreshness } from '../panelFreshness'
 import styles from '../TerminalShell.module.css'
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
@@ -28,19 +29,27 @@ const STATUS_TEXT = {
 }
 
 export default function MovePanel({ sym, onRun, onRows }) {
-  const [state, setState] = useState({ phase: 'loading', data: null, error: null })
+  const [state, setState] = useState({ phase: 'loading', data: null, error: null, fetchedAt: null })
   useEffect(() => {
     if (!sym) return undefined
     let live = true
-    setState({ phase: 'loading', data: null, error: null })
+    setState({ phase: 'loading', data: null, error: null, fetchedAt: null })
     jsonFetcher(`/api/terminal/move/${encodeURIComponent(sym)}`)
-      .then((data) => { if (live) setState({ phase: 'ready', data, error: null }) })
-      .catch((err) => { if (live) setState({ phase: 'error', data: null, error: err }) })
+      .then((data) => { if (live) setState({ phase: 'ready', data, error: null, fetchedAt: Date.now() }) })
+      .catch((err) => { if (live) setState({ phase: 'error', data: null, error: err, fetchedAt: null }) })
     return () => { live = false }
   }, [sym])
 
   const rows = useMemo(() => moveRows(sym), [sym])
   useEffect(() => { onRows?.(rows) }, [onRows, rows])
+
+  // V8: MOVE composes the watchlist-intelligence + catalyst services fresh on every request
+  // (`terminal_grammar.why_moving` — no cache, TERM-006's `real_time` tier verbatim), so the
+  // panel's own fetch completion is an honest "as of" for what is on screen. Reported only once
+  // data has actually landed — nothing fresh to claim while loading or after a failed fetch.
+  usePanelFreshness(state.phase === 'ready' && state.fetchedAt
+    ? { freshnessClass: 'real_time', asOf: new Date(state.fetchedAt).toISOString() }
+    : null)
 
   if (!sym) return <div className={styles.panelEmpty}>Type a ticker for MOVE — e.g. <kbd>NVDA MOVE</kbd></div>
   if (state.phase === 'loading') return <div className={styles.panelEmpty}>Loading why {sym} is moving…</div>

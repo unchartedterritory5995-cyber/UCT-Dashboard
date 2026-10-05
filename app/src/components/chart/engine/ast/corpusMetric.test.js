@@ -120,10 +120,20 @@ describe('the committed corpus, both lanes', () => {
     // two lanes is not what its name says.
     // ⭐ C50 (2026-10-02): ONE deliberate exception - a STRATEGY draws on the chart (the host
     // lane reads its plots) and is still refused by the screener (a backtest is not a screen).
-    // Those rows are taken out of the host count before the comparison; nothing else is.
+    // Those rows are taken out of the host count before the comparison.
+    // ⭐ O1 (2026-10-02, step 67): and a script whose ONLY output is a clean object
+    // program (`pine:objects-only` on the screener lane) — the host lane draws it, the
+    // screener refuses it BY CONTRACT (pine.js: "an object-only script has zero
+    // numeric/boolean columns — there is nothing to screen on"). The balance held
+    // before only by a margin of 0: G7 made one more clean (fib-retracement) and G8
+    // moved host by two and screener by one (auto-trendline was screener-ok already). The
+    // same row-wise test as the strategy one: excluded by the screener's own guard.
     const strategyOnlyHost = rows.filter((r) => r.host && !r.screener
       && (r.screenerGuards || []).includes('pine:declaration-strategy')).length
+    const objectsOnlyHost = rows.filter((r) => r.host && !r.screener
+      && (r.screenerGuards || []).includes('pine:objects-only')).length
     expect(strategyOnlyHost).toBeGreaterThan(0)
-    expect(screenerOk).toBeGreaterThanOrEqual(hostOk - strategyOnlyHost)
+    expect(objectsOnlyHost).toBeGreaterThan(0)
+    expect(screenerOk).toBeGreaterThanOrEqual(hostOk - strategyOnlyHost - objectsOnlyHost)
   })
 })

@@ -175,7 +175,14 @@ describe('⭐⭐ the group-B vendor readings, finally pinned', () => {
     // measured — `ta.vwap(hlc3)` now reads back as `vwap()`, so the difference is
     // exactly 0. An ARBITRARY source is still the unruled half and still refuses.
     expect(lastOf('plot(ta.vwap - ta.vwap(hlc3))')).toBe(0)
-    expect(lastOf('plot(ta.vwap - ta.vwap(close))')).toBe('pine:arity')
+    // ⭐ H3 (2026-10-02): a bar price is served by the SAME accumulator
+    // (`vwapOf`), graded bar for bar on `vw-clock-vwap-spy-5-ext-2026-09-28`.
+    // These daily bars are one ET session each, so the difference on the last
+    // bar is that bar's `hlc3 - close`; a COMPUTED source keeps the refusal.
+    const last = BARS[N - 1]
+    expect(lastOf('plot(ta.vwap - ta.vwap(close))'))
+      .toBeCloseTo((last.h + last.l + last.c) / 3 - last.c, 9)
+    expect(lastOf('plot(ta.vwap(ta.sma(close, 5)))')).toBe('pine:arity')
     expect(READINGS['ta.vwap_no_arg_default'].verdict).toBe('hlc3')
   })
 })

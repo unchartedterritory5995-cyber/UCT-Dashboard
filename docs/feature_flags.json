@@ -61,12 +61,6 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
-    "PINE_RUNTIME_SAVE_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "owner": "pine parity programme",
-      "note": "RT1 (2026-10-02): the store's save door for a RUNTIME-lane document (compute.kind 'runtime'), api/services/runtime_definitions.py::save_enabled, read per call as == '1'. DARK on purpose: unset refuses every runtime document with a sentence the member door renders, and the runtime pane itself is not built into production (VITE_PINE_RUNTIME_PANE_ENABLED off). It goes on only in the owner-approved admins-first switch-on (docs/pine/runtime-pane-switch-on-plan.md, arriving with wave 16, which adds PINE_RUNTIME_STAGE). Rollback: unset (verify a NEW boot; delete does not restart). Rails: tests/test_runtime_definitions.py."
-    },
     "ARTIFACT_VERSIONS_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
@@ -1761,6 +1755,12 @@
       "where": [],
       "note": "FT-046 (Lane R): a numbered per-surface 'how to trade with this' checklist (SpotGamma's pattern). Mechanism only: one registry keyed by surface id (app/src/components/howTo/howToChecklists.js) and one component (HowToChecklist.jsx), placed on the Research > Depth panels and the /screener page. ⛔ THE COPY NEEDS THE OWNER'S VOICE SIGN-OFF: every shipped entry is status 'draft-awaiting-owner-voice' and a draft renders NOTHING to members even with this flag on; only an entry with status 'approved' plus approved_by and approved_on renders. So arming this flag today changes nothing a member sees until the owner approves copy. Client-only: no route reads the flag; the auth payload carries how_to_checklists_enabled ONLY when on (api/routers/auth.py how_to_checklists_enabled, read per call). Rails: tests/test_lane_r_client_flags.py, app/src/components/howTo/HowToChecklist.test.jsx. Owner: approve (or rewrite) each entry's steps, then arm. Arm: railway variables --service web --set HOW_TO_CHECKLISTS_ENABLED=1 (owner). Rollback = unset it."
     },
+    "RESEARCH_FMP_DEPTH_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-03",
+      "where": [],
+      "note": "Terminal gap audit gaps 3+4 (lane/fa-ee-fmp): the /research Financials and Estimates tabs render the FMP depth views the terminal's FA and EE panels already show. FA: income, balance and cash-flow tables (12 fiscal years / 24 fiscal quarters, FMP /stable/*-statement through api/services/research/financial_history.py, the same cached reader behind the ERN modal's six panels) plus key ratios DERIVED from those statements, plus the six panels; yfinance grids only when FMP holds no statements, labelled as the fallback. EE: FMP /stable/analyst-estimates consensus, annual (up to 5 fiscal years) and quarterly (up to 8), EPS and revenue mean/low/high and analyst counts, EBITDA and net income (api/services/research/estimates_consensus.py via GET /api/research/estimates/{sym}?consensus=1); yfinance revisions kept and labelled as yfinance; yfinance forward table only when FMP is empty or failed, labelled as the fallback. Off: both tabs are byte-identical to before. The terminal FA/EE panels do NOT read this flag (the terminal is its own gate). Client-only: no route reads the flag; the auth payload carries research_fmp_depth_enabled ONLY when on (api/routers/auth.py research_fmp_depth_enabled, read per call). Rails: tests/test_lane_r_client_flags.py, tests/test_fa_ee_fmp_depth.py, app/src/components/research/fmpDepth/*.test.jsx. Arm: railway variables --service web --set RESEARCH_FMP_DEPTH_ENABLED=1 (owner). Rollback = unset it."
+    },
     "FILING_BLACKLINE_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
@@ -2021,6 +2021,26 @@
         "worker"
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
+    },
+    "PINE_RUNTIME_SAVE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 rulings D1/D6 recorded in docs/pine/runtime-pane-switch-on-plan.md (GT); the flip itself is not yet taken",
+      "note": "RT1 (2026-10-02): the store's save door for a RUNTIME-lane document (compute.kind 'runtime', api/services/runtime_definitions.py::save_enabled, read per call as == '1'). Unset refuses every runtime document with a sentence the member door renders. Since GT (2026-10-02) a save ALSO needs: the saving member permitted at PINE_RUNTIME_STAGE (off/admins/all; a member cannot save while it is admins), the script off PINE_RUNTIME_KILL_LIST, and the script on the starter allowlist (api/data/pine_runtime_allowlist.json + PINE_RUNTIME_ALLOWLIST). Size cap for a runtime document 128 KiB (D2), formula 64 KiB. Declared by GT: this gate shipped with RT1 and had no ledger entry, which kept tests/test_feature_flag_ledger.py red on the wave-16 base. Rollback: unset (verify a NEW boot; delete does not restart). Operator steps: docs/pine/runtime-pane-switch-on-plan.md, section 'GT operator steps'. Rails: tests/test_runtime_definitions.py, tests/test_runtime_document_round_trip.py, tests/test_pine_runtime_switch_on.py."
+    },
+    "PINE_RUNTIME_STAGE": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); the flip itself is not yet taken",
+      "default": "off",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "note": "GT (2026-10-02): WHO the per-bar runtime pane is for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins (role == 'admin' only) | all. Read PER REQUEST in api/services/runtime_definitions.py::stage / pane_permitted, declared as PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. Rides the auth payload resolved for THIS member as pine_runtime_pane_enabled (api/routers/auth.py::_access_payload, no new endpoint); the client latches it per tab (engine/runtimePaneGate.js) and runtimePaneEnabled() needs BOTH it and the build flag VITE_PINE_RUNTIME_PANE_ENABLED. The save door asks the same question of the saving member. While admins or all, the lane serves only the starter allowlist (adx-and-di-for-v4 today). Rollback: set off (a variable, NO deploy; reaches a member on their next authenticated request or reload, an open tab keeps its latched answer). Rails: tests/test_pine_runtime_switch_on.py, app/src/components/chart/engine/__tests__/runtimeSwitchOn.test.js."
     },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
@@ -2558,7 +2578,7 @@
       "baked_value": "undefined (never set)",
       "baked_measured_on": "2026-09-28, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
       "last_changed": "2026-09-28T00:00:00Z",
-      "note": "May a member pane draw a script through the per-bar RUNTIME lane when the columnar lane refuses it for a structural reason? Read in ONE place, app/src/components/chart/engine/runtimePaneGate.js::runtimePaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its two readers are memberPaneDefinition (the router) and nativeRegistry.validateUserDefinitions (the install door, which refuses a compute.kind 'runtime' document while it is off). ⛔ IT IS OFF. What arming it changes for a member: a pasted script whose EVERY host refusal carries route 'runtime' (today: two `var`s that each read the other before setting their own) is PREVIEWED in the member pane instead of refused, with a 'Drawn bar by bar' disclosure and NO 'Add this script to my chart' button — the server store accepts compute.kind 'ast' only, so it cannot be saved, alerted on or screened. Measured reach 2026-09-28 over corpus/committed + tests/fixtures/{pine,pine_oos,member}, both objects-only states: ONE script routes and draws — inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat, whose two plotshape columns then match its TradingView capture on all 632 RDDT 1D bars (runtimePaneRoute.vendor.test.js); three more are refused only for coupled latches but read barstate/another timeframe, so the route is DECLINED (no linter on this lane to state their repaint behaviour) and they keep the host refusal: volatility-coil-edge-bullbyte, 03-rsi-directional-momentum-scanner, high_engagement__23-sweep-reversal-map-plus-herman. Nothing a member has already saved changes. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
+      "note": "GT (2026-10-02): runtimePaneEnabled() now needs BOTH this build flag AND the per-member server permission pine_runtime_pane_enabled (PINE_RUNTIME_STAGE, read per request, default off), latched per tab; building with this ON while the stage is off changes nothing for anyone. The flip order and rollback are in docs/pine/runtime-pane-switch-on-plan.md, section GT operator steps. Production builds receive it as a Railway build arg on web: Dockerfile.web declares ARG VITE_PINE_RUNTIME_PANE_ENABLED and passes it to npm run build; a Railway variable set on web reaches the build ONLY because of that ARG (tests/test_dockerfile_vite_build_args.py), and setting it triggers a rebuild. PREVIOUS NOTE: May a member pane draw a script through the per-bar RUNTIME lane when the columnar lane refuses it for a structural reason? Read in ONE place, app/src/components/chart/engine/runtimePaneGate.js::runtimePaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its two readers are memberPaneDefinition (the router) and nativeRegistry.validateUserDefinitions (the install door, which refuses a compute.kind 'runtime' document while it is off). ⛔ IT IS OFF. What arming it changes for a member: a pasted script whose EVERY host refusal carries route 'runtime' (today: two `var`s that each read the other before setting their own) is PREVIEWED in the member pane instead of refused, with a 'Drawn bar by bar' disclosure and NO 'Add this script to my chart' button — the server store accepts compute.kind 'ast' only, so it cannot be saved, alerted on or screened. Measured reach 2026-09-28 over corpus/committed + tests/fixtures/{pine,pine_oos,member}, both objects-only states: ONE script routes and draws — inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat, whose two plotshape columns then match its TradingView capture on all 632 RDDT 1D bars (runtimePaneRoute.vendor.test.js); three more are refused only for coupled latches but read barstate/another timeframe, so the route is DECLINED (no linter on this lane to state their repaint behaviour) and they keep the host refusal: volatility-coil-edge-bullbyte, 03-rsi-directional-momentum-scanner, high_engagement__23-sweep-reversal-map-plus-herman. Nothing a member has already saved changes. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
     },
     "VITE_REALTIME_BARS": {
       "status": "dark",

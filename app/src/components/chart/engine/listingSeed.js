@@ -58,3 +58,26 @@ export function historyFromListingOf({ bars, tf, listDate } = {}) {
   if (typeof t !== 'string' || !ISO_DATE.test(t.slice(0, 10))) return false
   return t.slice(0, 10) === day
 }
+
+/**
+ * ⭐ THE DATE THE LISTING STATEMENT COMPARES AGAINST, from `/api/ticker-ipo`'s
+ * payload. `first_trade_date` when the server sends one, else `list_date`.
+ *
+ * ⛔ THIS CORRECTS THE REFERENCE, NOT THE RULE. Exact equality (`historyFromListingOf`)
+ * is untouched. Polygon's `list_date` for an ETF is the fund's inception, a few
+ * days BEFORE its first session (measured on production 2026-10-04: SPY
+ * `1993-01-22` against a first daily bar of `1993-01-29`, IWM `2000-05-22` against
+ * `2000-05-26`, DIA `1998-01-13` against `1998-01-20`), so a series that DOES start
+ * at the symbol's first session can never equal it. `first_trade_date` is the
+ * server's corroborated first session; when it is absent or malformed this answers
+ * exactly what it answered before.
+ *
+ * ⛔ The IPO badge (`StockChart`'s `ipoEvent`) does NOT read this: it stays on
+ * `list_date`, its own field, with its own five-day tolerance.
+ */
+export function listingReferenceDate(ipo) {
+  if (!ipo || typeof ipo !== 'object') return null
+  const ft = ipo.first_trade_date
+  if (typeof ft === 'string' && ISO_DATE.test(ft.trim())) return ft.trim()
+  return typeof ipo.list_date === 'string' ? ipo.list_date : null
+}

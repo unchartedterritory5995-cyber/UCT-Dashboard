@@ -393,8 +393,20 @@
     // answer is `objects`, so an empty plotValues is the truth, not "still computing".
     // A study that declares plots and has no rows is still refused.
     const declaredPlots = (tryOr(() => ds.metaInfo().plots, []) || []).length
-    if (!onGrid.length && declaredPlots > 0) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
-    if (!onGrid.length) warnings.push('objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer')
+    // ⭐ CAP2 (2026-10-02): a study whose only declared plot is `plot(na)` (Swing
+    // High/Low [ChartPrime] on RDDT 1D: one `plot(na, editable = false)`, data()
+    // empty, the zigzag drawn as lines / labels / a table) carries NO data rows
+    // either. It is still refused by default — "no rows" can also mean "still
+    // computing" — and admitted only when the capturer OPTS IN with
+    // `allowEmptyPlots: true` AND the study holds at least one drawing, so the
+    // empty plotValues is recorded as the vendor's answer, by name, in warnings.
+    if (!onGrid.length && declaredPlots > 0) {
+      const g0 = o.allowEmptyPlots === true ? readGraphics(ds) : null
+      const drawn = g0 ? Object.values(g0.counts || {}).reduce((a, b) => a + (b || 0), 0) : 0
+      if (!drawn) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
+      warnings.push(`allowEmptyPlots: the study declares ${declaredPlots} plot(s) and data() holds no rows on the bar grid; it holds ${drawn} drawing(s), which are the whole answer`)
+    }
+    if (!onGrid.length && declaredPlots === 0) warnings.push('objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer')
 
     // ⛔ ORDER FROM `metaInfo().plots`, NEVER `Object.keys(styles)`.
     const plots = (mi.plots || []).map((p) => ({

@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_R1_STRATEGY", overlay = false)
+
+// R1 (2026-10-02): does a STRATEGY draw its plots exactly as an INDICATOR with
+// the same body draws them? C50 (host lane) and R1 (runtime lane) serve that
+// rule; no committed capture of a strategy witnesses it yet.
+//
+// Capture this file on NYSE:RDDT 1D (full history, market closed), THEN the same
+// file with line 2 replaced by
+//     indicator("UCTPROBE_R1_STRATEGY", overlay = false)
+// and the strategy.* order lines below deleted. Every plot below must agree bar
+// for bar between the two captures. A row that differs is a finding: the rule
+// is wrong for that row's shape and the lanes must refuse it.
+//
+// The order calls are the broker's and draw nothing of their own; they sit in
+// the same `if` blocks as state the plots read, so a strategy whose execution
+// model differed (an extra intrabar pass after a fill, say) would show here.
+
+// control: known-nonzero on every bar
+plot(bar_index, "N01_bar_index_CONTROL")
+
+fast = ta.sma(close, 5)
+slow = ta.sma(close, 20)
+var int crosses = 0
+var float lastCross = na
+if ta.crossover(fast, slow)
+    crosses += 1
+    lastCross := close
+
+plot(fast, "N02_fast")
+plot(crosses, "N03_crosses_var")
+plot(lastCross, "N04_lastCross_var")
+plotshape(ta.crossover(fast, slow), "N05_cross_shape")

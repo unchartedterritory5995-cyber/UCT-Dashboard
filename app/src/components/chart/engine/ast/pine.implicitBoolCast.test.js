@@ -15,7 +15,7 @@
 // 0 would pass against the bare `&&` the door used to emit, which propagates `na`.
 // Each fixture below walks all three values the cast distinguishes.
 import { describe, it, expect } from 'vitest'
-import { translatePine, conditionKindOf, implicitBoolCast, implicitBoolCastApplies } from './pine.js'
+import { translatePine, conditionKindOf, implicitBoolCast, implicitBoolCastApplies, conditionNeverNa } from './pine.js'
 import { interpret } from './interpret.js'
 import { parseFormula } from './parse.js'
 
@@ -27,6 +27,7 @@ const BARS = [
   { t: 20260103, o: 1, h: 9, l: 0, c: 5, v: 1 },
 ]
 const HEAD = { 4: '//@version=4\nstudy("t")\n', 5: '//@version=5\nindicator("t")\n', 6: '//@version=6\nindicator("t")\n' }
+const NL = String.fromCharCode(10)
 const tr = (v, body, opts = {}) => translatePine(`${HEAD[v] || ''}${body}\n`, { strict: true, ...opts })
 const formulaOf = (t) => {
   expect(t.refusal, t.refusal && t.refusal.message).toBe(null)
@@ -105,15 +106,42 @@ describe('v5: a numeric operand of and/or/not/?: is cast — na and 0 are false'
 })
 
 describe('what is NOT cast', () => {
-  it('⛔⛔ a BOOL operand is untouched — its warm-up `na` stays `na`', () => {
+  it('⭐⭐ F2 — a BOOL operand of `and`/`or`/`not` that can be `na` is read AS A CONDITION (Q-NL), not cast as a number', () => {
+    // ⚰️ This pinned "its warm-up `na` stays `na`". The Q-NL captures
+    // (`rt3-na-logic` v5 / `-v4`, RDDT 1D) measured TradingView reading an `na`
+    // operand of `and` / `or` / `not` as FALSE, the answer never `na` — so the
+    // operand becomes `x != 0` (`interpret.js::pineBool` by construction).
     const f = formulaOf(tr(5, 'plot((close > open)[1] and high > low ? 1 : 2)'))
-    expect(f).not.toMatch(/!= 0/)
-    expect(f).toBe('(close > open)[1] && high > low ? 1 : 2')
+    expect(f).toBe('(close > open)[1] != 0 && high > low ? 1 : 2')
+    // ⛔ a comparison can never be `na`, so it is untouched (its bytes kept)
+    expect(formulaOf(tr(5, 'plot(close > open and high > low ? 1 : 2)'))).toBe('close > open && high > low ? 1 : 2')
+    // ⛔ below v4 nothing is claimed
+    expect(formulaOf(tr(3, 'plot((close > open)[1] and high > low ? 1 : 2)'))).not.toMatch(/!= 0/)
+    // ⛔ and v6 is left as it was (a v6 bool is never `na`; measured: casting there moved
+    // trend-duration-forecast-chartprime MATCH -> DIVERGE)
+    expect(formulaOf(tr(6, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] && high > low ? 1 : 2')
   })
 
-  it('⛔ a `var` bool accumulated through `self` stays bool (the accum join)', () => {
+  it('⛔ a `var` bool accumulated through `self` stays a bool for the KIND (no number cast) and is read as a condition in `and`', () => {
     const f = formulaOf(tr(5, 'var f = false\nf := close > open ? true : f\nplot(f and high > low ? 1 : 2)'))
+    expect(f).toMatch(/^accum\(0, close > open \? 1 : self, 250\) != 0 && high > low \? 1 : 2$/)
+  })
+
+  it('⭐ F2 — a member’s declared bool input is never `na`, so it is NOT re-read as a condition (no node growth)', () => {
+    // MEASURED: wrapping every `jz or bz or zz` input knob put keltner-center-of-gravity
+    // over the install door's node budget (MATCH -> refused). A declared input is a
+    // number the member sets; only an operand that can be `na` is wrapped.
+    const src = 'jz = input.bool(false, "a")' + NL + 'bz = input.bool(false, "b")' + NL
+      + 'plot((jz or bz) ? close : open)'
+    const f = formulaOf(tr(5, src, { declareInputs: 'all' }))
+    expect(f).toBe('jz || bz ? close : open')
     expect(f).not.toMatch(/!= 0/)
+    // the predicate itself, on the leaf shape the declare mode emits
+    const leaf = { type: 'series', name: 'jz' }
+    Object.defineProperty(leaf, 'inputName', { value: 'jz', enumerable: false })
+    Object.defineProperty(leaf, 'inputDefault', { value: 0, enumerable: false })
+    expect(conditionNeverNa(leaf)).toBe(true)
+    expect(conditionNeverNa({ type: 'series', name: 'jz' })).toBe(false) // an undeclared series can be na
   })
 
   it('⛔⛔ v6 is UNCHANGED — TradingView refuses to compile it, so there is nothing to cast to', () => {

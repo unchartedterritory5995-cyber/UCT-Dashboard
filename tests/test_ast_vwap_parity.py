@@ -332,7 +332,9 @@ def test_both_entries_declare_the_session_window_and_READ_THE_BARS(bars):
     fns_all = ast_table.TABLE["functions"]
     session_readers = {n for n in ast_table.bar_readers()
                        if fns_all[n]["lookback"] == "session"}
-    assert session_readers == {"vwap", "avwap"}, sorted(session_readers)
+    # (2026-10-02, H3) `vwapOf(source)` joins them: the same session accumulator,
+    # weighting a bar price (`tests/test_ast_vwap_of.py`).
+    assert session_readers == {"vwap", "avwap", "vwapOf"}, sorted(session_readers)
     # ⛔ AND THE NARROWING IS NON-VACUOUS — A FLOOR, NOT A SECOND ROSTER. This
     # asserted `- session_readers == {"obvN"}`, which swapped one hand list for
     # another and rots on the NEXT bar reader exactly as the first one did. What

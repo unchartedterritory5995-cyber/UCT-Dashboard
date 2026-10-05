@@ -765,6 +765,12 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_research_notice_flags(),
         **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
+        # ── GT (D1) — the per-bar runtime pane, RESOLVED FOR THIS MEMBER ────
+        # `PINE_RUNTIME_STAGE` (off / admins / all), read PER REQUEST in
+        # `runtime_definitions.pane_permitted` — the same function the save
+        # door asks of the saving member. The client needs BOTH this and the
+        # build flag (`runtimePaneGate.runtimePaneEnabled`), and latches it per tab.
+        **_pine_runtime_pane_flag(user.get("role")),
         **_lane_r_client_flags(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
@@ -798,6 +804,20 @@ def _charts_list_subscribe_flag() -> dict:
         return {}
 
 
+def _pine_runtime_pane_flag(role) -> dict:
+    """GT (owner ruling D1) — may THIS member's pane draw through the runtime lane?
+
+    ⛔ ALWAYS A BOOLEAN, and FALSE unless `PINE_RUNTIME_STAGE` says otherwise
+    for this member: unset reads `off`, `admins` is true for `role == "admin"`
+    only, `all` is true for everyone. ⛔ NEVER RAISES: this is the universal auth
+    path, and an unreadable stage is an OFF stage."""
+    try:
+        from api.services import runtime_definitions
+        return {"pine_runtime_pane_enabled": bool(runtime_definitions.pane_permitted(role))}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {"pine_runtime_pane_enabled": False}
+
+
 # Lane R client-only surfaces: no route reads these flags, so the auth payload IS the
 # gate. (env var, payload key) -- each key is present ONLY when on (the TERM-077 form).
 #   CHARTS_EXTRA_GROUPS_ENABLED  COV-10 remainder: /charts colour groups E-H beyond A-D
@@ -817,9 +837,17 @@ def how_to_checklists_enabled() -> bool:
     return os.environ.get("HOW_TO_CHECKLISTS_ENABLED", "0").strip().lower() in _TRUTHY
 
 
+def research_fmp_depth_enabled() -> bool:
+    """FA/EE on FMP for the /research Financials and Estimates tabs (the terminal's
+    FA/EE panels show it unconditionally — the terminal is its own gate). Client-
+    only: the routes it reads answer every caller. Read PER CALL. Unset means OFF."""
+    return os.environ.get("RESEARCH_FMP_DEPTH_ENABLED", "0").strip().lower() in _TRUTHY
+
+
 _LANE_R_CLIENT_SURFACES = (
     ("charts_extra_groups_enabled", charts_extra_groups_enabled),
     ("how_to_checklists_enabled", how_to_checklists_enabled),
+    ("research_fmp_depth_enabled", research_fmp_depth_enabled),
 )
 
 

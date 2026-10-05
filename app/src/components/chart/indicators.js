@@ -301,7 +301,20 @@ function etDayKey(msInstant) {
  */
 export const VWAP_MIN_INSTANT = 631152000
 
-export function computeVWAP(bars) {
+/**
+ * ⭐ H3 (2026-10-02) — `price`: the ONE session accumulator, with the price it
+ * weights named. Absent (every existing caller), it is the typical price
+ * `(h + l + c) / 3` exactly as before. Present, it is a column aligned with
+ * `bars` — Pine's `ta.vwap(source)`, `sum(source * volume) / sum(volume)` since
+ * the session began (`interpret.js::BAR_FN.vwapOf`). The session boundary is
+ * this function's and nobody else's, so `vwap(close)` and `vwap()` can never
+ * disagree about where a session starts.
+ *
+ * ⛔ A NON-FINITE PRICE BLANKS THE REST OF ITS SESSION. A total with an unknown
+ * term is unknown, and every later total in the session contains it (the
+ * `cumFrom` rule); the next session starts clean.
+ */
+export function computeVWAP(bars, price = null) {
   if (!bars?.length) return []
   // THE UNIT GATE — all-or-nothing, before any accumulation. A per-bar skip
   // would leave the surviving bars in one bucket, which is the shape refused.
@@ -310,7 +323,7 @@ export function computeVWAP(bars) {
     if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return blank(bars)
   }
   const result = blank(bars)
-  let cumPV = 0, cumVol = 0, currentDay = null
+  let cumPV = 0, cumVol = 0, currentDay = null, broken = false
   // One-entry memo on the UTC HOUR. This is exact, not an approximation: every
   // `America/New_York` offset is a whole number of hours and every transition
   // lands on a whole UTC hour, so the ET date cannot change inside one UTC hour.
@@ -349,8 +362,9 @@ export function computeVWAP(bars) {
       dayKey = etDayKey(bar.t * 1000)
       memoHour = hour; memoKey = dayKey
     }
-    if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey }
-    const tp = (bar.h + bar.l + bar.c) / 3
+    if (dayKey !== currentDay) { cumPV = 0; cumVol = 0; currentDay = dayKey; broken = false }
+    const tp = price ? price[i] : (bar.h + bar.l + bar.c) / 3
+    if (price && (broken || !Number.isFinite(tp))) { broken = true; continue }
     cumPV += tp * bar.v
     cumVol += bar.v
     if (cumVol > 0) result[i].value = cumPV / cumVol
@@ -2061,16 +2075,22 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
  *    places to write one shift, and an off-by-one between them would read as a
  *    plausible weekday rather than as an error.
  */
-let etMemoHour = null
-let etMemoParts = null
+// ⭐ RT7 — the parts are a pure function of the UTC HOUR (an ET offset only ever
+// changes on a whole UTC hour, which is what the single-entry memo this replaces
+// already relied on), so they are kept per hour in a bounded map. A daily series
+// visits a new hour every bar, and the runtime lane asks the clock for the same
+// bars several times per run: `Intl.formatToParts` was ~18% of a 5,000-bar run.
+const ET_PARTS_BY_HOUR = new Map()
+const ET_PARTS_CAP = 200000
 export function etClockAt(t) {
   if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return null
   const utcHour = Math.floor(t / 3600)
-  if (utcHour !== etMemoHour) {
-    etMemoParts = etClockParts(t)
-    etMemoHour = utcHour
+  let p = ET_PARTS_BY_HOUR.get(utcHour)
+  if (p === undefined) {
+    if (ET_PARTS_BY_HOUR.size >= ET_PARTS_CAP) ET_PARTS_BY_HOUR.clear()
+    p = etClockParts(t)
+    ET_PARTS_BY_HOUR.set(utcHour, p)
   }
-  const p = etMemoParts
   return { y: p.y, m: p.m, d: p.d, wd: p.wd, dow: p.wd + 1, h: p.h,
     min: Math.floor((t - utcHour * 3600) / 60) }
 }

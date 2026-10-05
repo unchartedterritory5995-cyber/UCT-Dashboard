@@ -54,6 +54,7 @@ import {
   signColorsForPlot,
   columnColorsForPlot,
   gradientPointColour,
+  packedPointColour,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
@@ -68,13 +69,15 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
+import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 import { chartThemeOf } from './objectTheme'
 
@@ -293,6 +296,10 @@ export function displacedColumn(column, d) {
   return out
 }
 
+/** ⭐ RT6 — the point a run's `na` colour draws: fully transparent, the same
+ *  string the host lane's palette uses for its `na` leaf. */
+const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
+
 function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
@@ -310,6 +317,11 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
     // rule — an `na` condition takes the ELSE branch — see `pointColour`.
     const colour = pointColour(colColors, condColumn, i)
     if (colour) { out[i] = { time, value: v, color: colour }; continue }
+    // ⭐⭐ RT6 — a run's `na` colour draws NOTHING at that point (TradingView
+    // hides a plot point whose colour is `na`) — the transparent entry a
+    // palette's `na` leaf already draws (`pine.js` TRANSPARENT_PALETTE_ENTRY),
+    // never the series colour, which would be a colour the script never chose.
+    if (colColors && colColors.packed) { out[i] = { time, value: v, color: PACKED_NA_POINT }; continue }
     out[i] = { time, value: v }
   }
   return out
@@ -343,6 +355,9 @@ function pointColour(colColors, condColumn, i) {
   // endpoints, and the colour is the vendor-measured blend at that position.
   // ⛔ A non-finite position is NO COLOUR (`gradientPointColour`), never an end.
   if (colColors.gradient) return gradientPointColour(colColors.gradient, c)
+  // ⭐⭐ RT6 — A COLOUR THE RUN COMPUTED: the column IS the bar's colour; `na`
+  // (NaN) is no colour, and the caller says what that draws.
+  if (colColors.packed) return packedPointColour(colColors.packed, c)
   // ⭐⭐ OWNER RULING 2 (2026-09-28) — AN `na` CONDITION TAKES THE ELSE BRANCH,
   // AS PINE'S DOES. `cond ? up : down` with `cond` na is `down` in Pine, on a
   // plot and a fill alike, and TradingView draws it that way.
@@ -376,6 +391,25 @@ function pointColour(colColors, condColumn, i) {
  *  condition column read through `columnColorsForPlot` exactly as a fill's is, or
  *  its static colour with the opacity folded in. Exported so the vendor harness
  *  grades the very function the chart draws with. */
+/** ⭐⭐ F1 — WHERE a paint's per-bar colour is DRAWN. `offset` and `show_last` are
+ *  render-time only (CAP round 4, `vw-bgcolor-barcolor-spy-1d-2026-10-02`: the
+ *  per-bar record sits on the unshifted bar; the chart shades `offset` bars over,
+ *  and only the last `show_last` bars): bar `j` draws the colour computed on bar
+ *  `j - offset`, and nothing before `n - show_last`. A paint with neither is
+ *  returned as it is. */
+export function paintRenderColours(paint, colours, n) {
+  const off = paint && Number.isInteger(paint.offset) ? paint.offset : 0
+  const last = paint && Number.isInteger(paint.showLast) && paint.showLast >= 0 ? paint.showLast : null
+  if (!off && last === null) return colours
+  const out = new Array(n).fill(null)
+  for (let j = 0; j < n; j += 1) {
+    if (last !== null && j < n - last) continue
+    const from = j - off
+    out[j] = from >= 0 && from < n ? colours[from] : null
+  }
+  return out
+}
+
 export function paintColoursFor(paint, instanceId, columns, n) {
   if (!paint) return null
   if (typeof paint.colorMode === 'string') return fillColours(paint, instanceId, columns, n)
@@ -720,9 +754,10 @@ export function createBinder({ chart, LWC }) {
    *  series (its pane), or — for an overlay script that binds no series — on the
    *  chart's own price series (`ctx.priceSeries()`), i.e. the price pane.
    *  `barcolor` → one map `time → colour` over every instance, handed to the host
-   *  (`ctx.setBarColours`), which owns the candles. Two visible `barcolor`s that
-   *  colour one bar DIFFERENTLY are not resolved here — which one TradingView shows
-   *  has no capture — so that bar keeps its own colour (counted, `conflicts`).
+   *  (`ctx.setBarColours`), which owns the candles. Within one script the LATER
+   *  `barcolor` wins (RT6, captured: CAP round 4 P1/P2); two DIFFERENT scripts
+   *  that colour one bar differently are not resolved — no capture says which
+   *  instance TradingView shows — so that bar keeps its own colour (`conflicts`).
    *
    *  ⛔ It never touches React: every write is a primitive's `setOptions` or one
    *  call to the host's capability, and the capability is called only when the
@@ -749,10 +784,19 @@ export function createBinder({ chart, LWC }) {
       const priceHost = target === 'price' && typeof ctx.priceSeries === 'function'
         ? attempt(() => ctx.priceSeries()).value : null
       const host = own ? own.series : priceHost
+      // ⭐⭐ RT6 — WITHIN ONE SCRIPT THE LATER `barcolor` WINS. CAP round 4
+      // (`vw-bgcolor-barcolor-spy-1d-2026-10-02`, screenshot
+      // `docs/pine/vendor-harness/cap-round4/vw-bgcolor-barcolor-spy-1d-2026-10-02.png`):
+      // on a bar where P1 (`#ffeb3b`) and the later P2 (`#000080`) both hold a
+      // colour, TradingView paints P2. So a script's own paints resolve in source
+      // order here; two DIFFERENT scripts disagreeing on a bar keep the bar's own
+      // colour (`conflicts`) — no capture says which instance wins.
+      const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const colours = paintColoursFor(p, inst.instanceId, columns, n)
-        if (!colours) return
+        const computed = paintColoursFor(p, inst.instanceId, columns, n)
+        if (!computed) return
+        const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
           if (!host || typeof host.attachPrimitive !== 'function') return
           const key = `${inst.instanceId}#${i}`
@@ -780,13 +824,15 @@ export function createBinder({ chart, LWC }) {
         for (let j = 0; j < n; j += 1) {
           const c = colours[j]
           if (c == null || isNaColour(c)) continue
-          const k = String(tt[j])
-          if (conflicts.has(k)) continue
-          const had = overrides.get(k)
-          if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
-          overrides.set(k, c)
+          instOverrides.set(String(tt[j]), c)
         }
       })
+      for (const [k, c] of instOverrides) {
+        if (conflicts.has(k)) continue
+        const had = overrides.get(k)
+        if (had !== undefined && had !== c) { overrides.delete(k); conflicts.add(k); continue }
+        overrides.set(k, c)
+      }
     }
     for (const [key, L] of paintLayers) {
       if (alive.has(key)) continue
@@ -832,13 +878,43 @@ export function createBinder({ chart, LWC }) {
    *  object program that refuses, exceeds its envelope, or throws must never
    *  take the columns, the legend or the scan down with it. That is the C2A
    *  failure-containment rule applied to the newest surface. */
-  const syncObjects = (ctx, instances, bars) => {
+  const syncObjects = (ctx, instances, bars, runCols = null) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
     const theme = chartThemeOf(ctx.cs)
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
+      // already computed (one run, both answers), drawn by the same render state.
+      // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
+      // draws nothing — never a stale picture, never the host program's.
+      if (drawsRuntimeObjects(def)) {
+        alive.add(inst.instanceId)
+        if (typeof make !== 'function') continue
+        let rlayer = objectLayers.get(inst.instanceId)
+        if (!rlayer) {
+          const made = attempt(() => make(inst))
+          rlayer = made.ok ? made.value : null
+          if (!rlayer) continue
+          objectLayers.set(inst.instanceId, rlayer)
+        }
+        const memo = computeMemo.get(inst.instanceId)
+        const payload = runtimeObjectsOf(memo && memo.cols)
+        if (!payload) { attempt(() => rlayer.set(null, '')); continue }
+        const rstate = attempt(() => toRenderState(payload.live,
+          { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
+        if (!rstate) { attempt(() => rlayer.set(null, '')); continue }
+        const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
+        attempt(() => rlayer.set(rstate, rsig, {
+          liveIds: payload.live.map((o) => o.id),
+          createdBars: payload.live.map((o) => o.createdBar),
+          lane: 'runtime',
+          withheld: payload.withheld || {},
+          reason: payload.reason || null,
+        }))
+        continue
+      }
       const program = def && def.objects
       if (!program) continue
       alive.add(inst.instanceId)
@@ -849,6 +925,13 @@ export function createBinder({ chart, LWC }) {
         layer = made.ok ? made.value : null
         if (!layer) continue
         objectLayers.set(inst.instanceId, layer)
+      }
+      // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
+      // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
+      if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
+        publishClock(inst.instanceId, 'objects', [])
+        attempt(() => layer.set(null, ''))
+        continue
       }
       // ⛔⛔ BOTH DOCUMENT FORMS. A small script stays V1 and its program stays
       // UNBOUND; only a document over the byte budget carries a graph. Reading
@@ -890,6 +973,8 @@ export function createBinder({ chart, LWC }) {
           // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
           // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
           readUnknown: reader.readUnknown,
+          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
+          offListing: reader.historyFromListing !== true,
         })
         return {
           run,
@@ -1085,9 +1170,16 @@ export function createBinder({ chart, LWC }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
-  const noteRuntimeErrorStop = (instanceId, cols) => {
+  const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
     const stop = cols ? runtimeErrorStopOf(cols) : null
-    const sentence = stop && stop.reached ? stop.sentence : null
+    let sentence = stop && stop.reached ? stop.sentence : null
+    // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
+    // why on the same strip (`nativeRegistry.runtimeRunStopOf`): history-start,
+    // the time budget, a VM limit, a failed worker. Never an empty pane alone.
+    if (!sentence && def) {
+      const ran = runtimeRunStopOf(def, cols)
+      if (ran) sentence = ran.sentence
+    }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
     else stoppedIds.delete(instanceId)
@@ -1216,6 +1308,13 @@ export function createBinder({ chart, LWC }) {
       // when there is a sentence to take down. Zero calls when none was published.
       pruneClock('plots', null)
       pruneClock('objects', null)
+      // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
+      // that drew nothing binds NO series, so `held` is empty exactly when there
+      // is a "not drawn because …" sentence to take down. Zero calls when none.
+      if (stoppedIds.size) {
+        for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+        stoppedIds.clear()
+      }
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1242,6 +1341,8 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
+    // ⭐ RT4 — what step 1 computed per instance, for the object step's runtime gate.
+    const runCols = new Map()
     // ⭐ C36 — the instances whose columns were in hand this pass (`publishClock`).
     const clockSeen = new Set()
 
@@ -1506,21 +1607,24 @@ export function createBinder({ chart, LWC }) {
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
             lowerTf }))
-        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
+        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); runCols.set(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
         // one column, so this can only be the server lane answering "the fetch
         // has not landed yet" — and remembering that answer against an unchanged
         // (def, bars, inputs) key would pin the indicator blank until the bars
         // array changed for some unrelated reason.
-        if (Object.keys(cols).length) {
+        // ⭐ RT5 — a drawing-only runtime document's record carries no column
+        // and IS an answer (its drawings ride non-enumerably beside them).
+        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
         }
       }
+      runCols.set(inst.instanceId, cols)
       // ⭐ C43 — reached on this chart at these settings, or no longer reached
-      noteRuntimeErrorStop(inst.instanceId, cols)
+      noteRuntimeErrorStop(inst.instanceId, cols, def)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
       // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
       // columns the decision was made for; a registry without the report (a test
@@ -1612,7 +1716,7 @@ export function createBinder({ chart, LWC }) {
     // AFTER the columns and BEFORE the pool, because a drawing must never be
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
-    attempt(() => syncObjects(ctx, instances, bars))
+    attempt(() => syncObjects(ctx, instances, bars, runCols))
 
     // ── 2. Ask the pool what should happen ──
     // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
@@ -1730,7 +1834,8 @@ export function createBinder({ chart, LWC }) {
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
       const palette = cc && cc.palette ? cc.palette.join('|')
-        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}` : null)
+        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}`
+          : (cc && cc.packed ? cc.packed.sig : null))
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would

@@ -51,7 +51,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber } from './pineTextFormat'
+import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -81,6 +81,56 @@ export function defaultNumberText(n) {
   // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
   if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
   return s.replace(/0+$/, '').replace(/\.$/, '')
+}
+
+/** ⭐ RT5 — lifted to module level, unchanged, so the runtime lane's
+ *  `str.tostring` (`runtime/text.js`) formats with this ONE implementation. */
+/**
+ * ⭐⭐ PINE'S `str.tostring` FORMAT — `#` AND `0` ARE DIFFERENT CHARACTERS.
+ *
+ * `#` is an OPTIONAL digit and `0` is a REQUIRED one, which is the whole
+ * difference between the two formats the reachable corpus writes:
+ *
+ *     str.tostring(6.2,  '#.##')  ->  '6.2'      trailing zeros TRIMMED
+ *     str.tostring(6.0,  '#.##')  ->  '6'        …and the point goes too
+ *     str.tostring(1.007, '0.00') ->  '1.01'     always two decimals
+ *     str.tostring(45.5,  '0.00') ->  '45.50'    a zero the author asked for
+ *
+ * ⚰⚰ THIS READ ONLY THE `#.##` FAMILY, and the `0.00` FAMILY FELL THROUGH
+ * TO THE RAW NUMBER. Measured 2026-09-13 on `uncharted-volume-v2.pine`, whose
+ * Volume cell is `str.tostring(volMult, '0.00')`: the dashboard drew
+ * `Vol : 45.187M (1.0070985212342736x)` where the vendor draws
+ * `Vol : 45.51M (1.05x)`. The old regex tested `^#*\.?(#*|0*)$`, which a
+ * leading `0` cannot match, so the guard fired and returned `String(n)` —
+ * the "honest fallback" doing seventeen significant figures inside a cell
+ * eight characters wide. ⛔ A fallback that has never been SEEN is not a
+ * fallback, it is an unreached branch, and this one was reached by two of
+ * v2's four visible cells.
+ *
+ * ⛔ STILL NARROW, AND STILL HONEST ABOUT IT. A thousands separator
+ * (`'#,###'`) is read only where it cannot APPEAR; where it would, the text
+ * is WITHHELD (`pineTextFormat.js::formatPatternedNumber`, F3).
+ */
+export function formatNumber(n, fmt) {
+  if (!Number.isFinite(n)) return 'NaN'
+  if (typeof fmt !== 'string' || !fmt) {
+    // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
+    // (`#.##########`), MEASURED on `vw-int-array-avg-spy-1d-2026-09-30` and
+    // `vw-fn-series-history-rddt-1d-2026-09-30`. ONE implementation:
+    // `defaultNumberText`, which also keeps a small value out of exponent form.
+    return defaultNumberText(n)
+  }
+  // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
+  // formatting the remainder is how `'#,###'` would silently become `'####'`.
+  // ⭐⭐ F3 (2026-10-02) — the renderings live in `pineTextFormat.js`: a plain
+  // `#`/`0` pattern is `formatPlainNumber`; literal text around a pattern, or
+  // grouping commas, is `formatPatternedNumber`. ⚰️ Anything else used to answer
+  // `String(n)` — `"Swing H  (#,###.####)"` drew a bare `282.95` with the author's
+  // words gone. A format neither reads is now WITHHELD (`null`), never printed.
+  // (Wave 16: RT5 hoisted this to the module so the runtime lane's drawings share
+  // it; F3 rewrote the body of the old inner copy. One function, F3's body.)
+  if (isPlainNumberPattern(fmt)) return formatPlainNumber(n, fmt)
+  return formatPatternedNumber(n, fmt)
 }
 
 /** Pine's own ceiling on an array's length (the reference: "the maximum size of
@@ -283,6 +333,20 @@ export function beginObjects(program, ctx) {
   const numTaint = new Set()
   /** A list whose length (and so every slot) is unknown. */
   const collLenTaint = new Set()
+  /** ⭐⭐ F1 — the `var` lists that are a FIFO cap and nothing else: every op on
+   *  the list appends (`push`), evicts its OLDEST (`collremove` at the literal
+   *  index 0) under a guard that is exactly `size(list) > <value>`, or deletes
+   *  that oldest element. Once THIS run evicts (`fifoEvicted`), this run's own
+   *  list was over the cap — so TradingView's, which holds these same newest
+   *  objects behind whatever came before the chart's first bar, was over it at
+   *  every eviction too, and both keep the same newest ones: the list (and its
+   *  drawings) have converged. rsi-horizontal-resistance-levels (`array.push` ·
+   *  `if array.size(rays) > maxRays` · `line.delete(array.shift(rays))`) MATCHes
+   *  off the listing on SPY 1D (CAP2). Any other op on the list is no proof. */
+  const fifoCapped = fifoCappedColls(program)
+  const fifoEvicted = new Set()
+  /** ⭐ F1 — a capped list one of whose removals did NOT take its oldest element. */
+  const fifoBroken = new Set()
   /** Per list, a boolean per slot, kept in step with `colls`. */
   const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(false)]))
   /** table instanceId → Set<"col,row"> | '*'. */
@@ -751,79 +815,6 @@ export function beginObjects(program, ctx) {
     const latches = new Map()
     let opsThisBar = 0
 
-    /**
-     * ⭐⭐ PINE'S `str.tostring` FORMAT — `#` AND `0` ARE DIFFERENT CHARACTERS.
-     *
-     * `#` is an OPTIONAL digit and `0` is a REQUIRED one, which is the whole
-     * difference between the two formats the reachable corpus writes:
-     *
-     *     str.tostring(6.2,  '#.##')  ->  '6.2'      trailing zeros TRIMMED
-     *     str.tostring(6.0,  '#.##')  ->  '6'        …and the point goes too
-     *     str.tostring(1.007, '0.00') ->  '1.01'     always two decimals
-     *     str.tostring(45.5,  '0.00') ->  '45.50'    a zero the author asked for
-     *
-     * ⚰⚰ THIS READ ONLY THE `#.##` FAMILY, and the `0.00` FAMILY FELL THROUGH
-     * TO THE RAW NUMBER. Measured 2026-09-13 on `uncharted-volume-v2.pine`, whose
-     * Volume cell is `str.tostring(volMult, '0.00')`: the dashboard drew
-     * `Vol : 45.187M (1.0070985212342736x)` where the vendor draws
-     * `Vol : 45.51M (1.05x)`. The old regex tested `^#*\.?(#*|0*)$`, which a
-     * leading `0` cannot match, so the guard fired and returned `String(n)` —
-     * the "honest fallback" doing seventeen significant figures inside a cell
-     * eight characters wide. ⛔ A fallback that has never been SEEN is not a
-     * fallback, it is an unreached branch, and this one was reached by two of
-     * v2's four visible cells.
-     *
-     * ⛔ STILL NARROW, AND STILL HONEST ABOUT IT. A thousands separator
-     * (`'#,###'`) is NOT implemented: ignoring the comma would print the right
-     * digits in the wrong grouping, which is a number the author did not ask
-     * for, so a format containing one falls back to the plain value exactly as
-     * before. Nothing in the reachable 27 writes one.
-     */
-    const formatNumber = (n, fmt) => {
-      if (!Number.isFinite(n)) return 'NaN'
-      if (typeof fmt !== 'string' || !fmt) {
-        // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
-        // (`#.##########`), MEASURED: `str.tostring(4 / 3)` prints `1.3333333333`
-        // (`vw-int-array-avg-spy-1d-2026-09-30`) and `str.tostring(hlc3)` prints
-        // `151.5633333333` (`vw-fn-series-history-rddt-1d-2026-09-30`) — thirteen
-        // significant digits. ⚰️ This kept ten SIGNIFICANT digits (`toPrecision`,
-        // never read off a chart): `1.333333333`, a digit short, and a price in
-        // the hundreds three short.
-        // (C42 read the same rule off the same two captures independently; wave 10
-        // keeps ONE implementation, `defaultNumberText`, which also keeps a small
-        // value like 0.0000001 out of exponent form.)
-        return defaultNumberText(n)
-      }
-      // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
-      // formatting the remainder is how `'#,###'` would silently become `'####'`.
-      if (!/^[#0]*(\.[#0]*)?$/.test(fmt)) return String(n)
-      const dot = fmt.indexOf('.')
-      const frac = dot < 0 ? '' : fmt.slice(dot + 1)
-      const intPart = dot < 0 ? fmt : fmt.slice(0, dot)
-      const max = Math.max(0, Math.min(10, frac.length))
-      // Required decimals are the `0`s; Pine writes them contiguously after the
-      // optional `#`s, and counting them is enough for either order.
-      const min = Math.min(max, (frac.match(/0/g) || []).length)
-      let out = n.toFixed(max)
-      if (max > min) {
-        // Trim only the OPTIONAL tail, never a digit the author demanded.
-        out = out.replace(/0+$/, (z) => z.slice(0, Math.max(0, min - (max - z.length))))
-        out = out.replace(/\.$/, '')
-      }
-      // `'00.0'` asks for a leading zero. Rare, but it is a request like any
-      // other, and padding is the only way to answer it.
-      const wantInt = (intPart.match(/0/g) || []).length
-      if (wantInt > 1) {
-        const neg = out.startsWith('-')
-        const body = neg ? out.slice(1) : out
-        const head = body.split('.')[0]
-        if (head.length < wantInt) {
-          out = (neg ? '-' : '') + '0'.repeat(wantInt - head.length) + body
-        }
-      }
-      return out
-    }
-
     const textOf = (t) => {
       if (!isObj(t)) return ''
       switch (t.t) {
@@ -838,7 +829,28 @@ export function beginObjects(program, ctx) {
             if (s === null) textsWithheld += 1
             return s
           }
-          return formatNumber(n, t.fmt)
+          // ⭐⭐ F3 — a format the translator could not read (`fmtUnread`):
+          // `na` prints `NaN` under any format (witnessed under a computed one,
+          // position-size-calculator RDDT); a finite value is WITHHELD.
+          if (typeof t.fmtUnread === 'string') {
+            if (Number.isFinite(n)) { textsWithheld += 1; return null }
+            return 'NaN'
+          }
+          // ⭐⭐ H5 — `format.volume`: the witnessed M / B rendering or nothing.
+          if (t.volume === true) {
+            const s = volumeNumberText(n)
+            if (s === null) textsWithheld += 1
+            return s
+          }
+          // ⭐⭐ F3 — `format.mintick`: the binding's tick or nothing.
+          if (typeof t.tick === 'string') {
+            const s = tickNumberText(n, t.tickText)
+            if (s === null) textsWithheld += 1
+            return s
+          }
+          const s = formatNumber(n, t.fmt)
+          if (s === null) textsWithheld += 1
+          return s
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
         // string, never `String(v)`: an `undefined` row would render the word
@@ -868,7 +880,9 @@ export function beginObjects(program, ctx) {
         case 'val': {
           const n = value(t.v)
           if (typeof n !== 'number') { textsWithheld += 1; return null }
-          return formatNumber(n, t.fmt)
+          const s = formatNumber(n, t.fmt)
+          if (s === null) textsWithheld += 1
+          return s
         }
         default: return ''
       }
@@ -1967,6 +1981,12 @@ export function beginObjects(program, ctx) {
           if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) {
             arr.splice(i, 1)
             collSlotTaint.get(op.coll).splice(i, 1)
+            // ⭐ F1 — a FIFO-capped list evicted its oldest on THIS run's own length.
+            const oldest = fifoCapped.get(op.coll)
+            if (oldest) {
+              if ((oldest === 'front' && i === 0) || (oldest === 'end' && i === arr.length)) fifoEvicted.add(op.coll)
+              else fifoBroken.add(op.coll)
+            }
           }
           break
         }
@@ -2035,6 +2055,25 @@ export function beginObjects(program, ctx) {
   // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
   // this run could not decide pushed the possible count past its trigger).
   for (const fam of collectorUnknown) withheldFams.add(fam)
+  // ⭐⭐ F1 — OFF THE LISTING, A `var` LIST OF DRAWINGS HOLDS WHAT THIS RUN NEVER
+  // SAW. TradingView ran the script from the symbol's first bar: the list (and the
+  // chart) already holds the objects earlier bars made, and the script keeps
+  // acting on them — sonarlab-order-blocks off the listing (SPY / AAPL / BRK.A 1D,
+  // CAP round 4) holds 24 / 17 / 24 order blocks, many made years before the
+  // first loaded bar (SPY's first held box tops at 71.73), where this run made 10 /
+  // 9 / 17. Which ones TradingView still holds is not knowable from these bars, so
+  // the family is withheld whole, by name (`withheldBy`). From the listing the
+  // list starts empty, exactly as here (RDDT: 5 / 5).
+  // ⛔ Only when the caller STATES the series does not start at the listing
+  // (`ctx.offListing === true`); a caller that says nothing keeps today's answer.
+  const offListingFams = new Set()
+  if (ctx.offListing === true) {
+    const renewed = renewedColls(program)
+    for (const c of program.colls || []) {
+      if (c.persist === true && c.family && !(fifoEvicted.has(c.id) && !fifoBroken.has(c.id)) && !renewed.has(c.id)) offListingFams.add(c.family)
+    }
+  }
+  for (const fam of offListingFams) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
@@ -2087,6 +2126,12 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
+    ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
+    // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
+    // vendor harness's window analysis); never drawn — the binder reads `live`.
+    ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]
+      .filter((o) => offListingFams.has(o.family)).sort((x, y) => x.id - y.id)
+      .map((o) => ({ family: o.family, id: o.id, site: o.site, createdBar: o.createdBar, props: { ...o.props } })) } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,
@@ -2141,6 +2186,90 @@ export function beginObjects(program, ctx) {
 /** ⭐ THE WHOLE DRAWING, DRIVEN HERE — the shape every caller but the runtime
  *  lane wants, and the ONE driver for everyone who has no bar loop of their own.
  *  ⛔ DERIVED FROM THE STEPPER, NEVER A SECOND COPY OF THE WALK. */
+/** ⭐ F1 — the collections whose every op is a FIFO cap (see `fifoCapped` in
+ *  `beginObjects`), each mapped to the end its OLDEST element sits at: `'front'`
+ *  (index 0) when it grows by `array.push`, `'end'` (index size - 1) when it grows
+ *  by `array.unshift`. Every removal must take that oldest element, under a guard
+ *  that tests the list's own size (`array.size(arr) > n` / `>= n`, alone or in an
+ *  `and`). CAP3 SPY 1D: `average-day-range-adr-pivots` (push · `>=` · remove 0)
+ *  and `htf-liquidity-dashboard-tfo` (unshift · `>` · remove size - 1) both MATCH
+ *  off the listing on those lists. Read off the program, never off a name. */
+function fifoCappedColls(program) {
+  const ops = []
+  const walk = (list) => { for (const op of list || []) { ops.push(op); if (op && op.k === 'loop') walk(op.body) } }
+  walk(program.ops)
+  const latches = new Map(ops.filter((o) => o && o.k === 'latch').map((o) => [o.id, o]))
+  // the guards a list grows under: two lists pushed under the SAME guards, at the
+  // same end, hold the same number of elements on every bar, so a cap on one's size
+  // caps the other (`htf-liquidity-dashboard-tfo`: the high and low lines of a level
+  // are unshifted together and trimmed by `_hline.size() > n`)
+  const growth = (coll) => JSON.stringify(ops.filter((o) => o && o.k === 'push' && o.coll === coll)
+    .map((o) => [o.front === true, o.when || null]))
+  const isCap = (when, coll) => {
+    const l = when && when.v === 'latch' ? latches.get(when.id) : null
+    const c = l && l.cond
+    const sized = !!c && c.v === 'cmp' && (c.op === '>' || c.op === '>=') && Array.isArray(c.args) && c.args[0]
+      && c.args[0].v === 'size' ? c.args[0].coll : null
+    return sized === coll || (sized !== null && growth(sized) === growth(coll))
+  }
+  const capLatch = (when, coll) => isCap(when, coll)
+    || (!!when && when.v === 'bool' && when.op === 'and' && Array.isArray(when.args) && when.args.some((a) => isCap(a, coll)))
+  const atFront = (idx) => !!idx && idx.v === 'const' && idx.value === 0
+  const atEnd = (idx, coll) => !!idx && idx.v === 'op' && idx.op === '-' && Array.isArray(idx.args)
+    && idx.args[0] && idx.args[0].v === 'size' && idx.args[0].coll === coll && !!idx.args[1]
+  // ⚠️ `size - k` with a computed `k` cannot be read off the program as `size - 1`:
+  // the run checks it instead — a removal that lands anywhere but the oldest end
+  // breaks the exemption for that list (`fifoBroken` in `beginObjects`)
+  const out = new Map()
+  for (const c of program.colls || []) {
+    if (c.persist !== true) continue
+    const touching = ops.filter((o) => o && (o.coll === c.id
+      || (o.target && o.target.r === 'coll' && o.target.id === c.id)
+      || JSON.stringify(o).includes(`"coll":"${c.id}"`)))
+    const pushes = touching.filter((o) => o.k === 'push' && o.coll === c.id)
+    if (!pushes.length) continue
+    const fronts = new Set(pushes.map((o) => o.front === true))
+    if (fronts.size !== 1) continue
+    const oldest = fronts.has(true) ? 'end' : 'front'
+    const isOldest = (idx) => (oldest === 'front' ? atFront(idx) : atEnd(idx, c.id))
+    let evicts = false
+    const ok = touching.every((o) => {
+      if (o.k === 'push' && o.coll === c.id) return true
+      if (o.k === 'latch') return true
+      // a property written on a member never changes which objects the list holds
+      if (o.k === 'update' && o.target && o.target.r === 'coll' && o.target.id === c.id) return true
+      // the oldest element read into a register, under the cap, before it is removed
+      // (`box = array.get(arr, 0)` · `box.delete(box)` · `array.remove(arr, 0)`)
+      if (o.k === 'setreg' && o.value && o.value.r === 'coll' && o.value.id === c.id && isOldest(o.value.index)
+        && capLatch(o.when, c.id)) return true
+      if (o.k === 'collremove' && o.coll === c.id && isOldest(o.index) && capLatch(o.when, c.id)) { evicts = true; return true }
+      if (o.k === 'delete' && o.target && o.target.r === 'coll' && o.target.id === c.id && isOldest(o.target.index)
+        && capLatch(o.when, c.id)) return true
+      return false
+    })
+    if (ok && evicts) out.set(c.id, oldest)
+  }
+  return out
+}
+
+/** ⭐ F1 — the collections a run RENEWS: emptied unconditionally (`collclear` with
+ *  no guard, on every bar or on the last bar only), so what one holds at the end
+ *  was put there after its last clear, on bars this run has — never an object an
+ *  earlier, unseen bar left. CAP3 `ict-killzones-pivots-tfo-spy-1d-2026-10-03`
+ *  (its pivot labels are cleared and redrawn on the last bar) MATCHes off the
+ *  listing. */
+function renewedColls(program) {
+  const out = new Set()
+  const walk = (list) => {
+    for (const op of list || []) {
+      if (op && op.k === 'collclear' && op.when == null) out.add(op.coll)
+      if (op && op.k === 'loop') walk(op.body)
+    }
+  }
+  walk(program.ops)
+  return out
+}
+
 export function evaluateObjects(program, ctx) {
   const run = beginObjects(program, ctx)
   for (let bar = 0; bar < run.barCount; bar += 1) run.step(bar)

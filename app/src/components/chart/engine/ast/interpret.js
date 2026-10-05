@@ -1857,6 +1857,17 @@ const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
  */
 const BARSSINCE_PINE_CELLS = 1
 
+/** ⭐⭐ RT7 — PINE'S `fixnan(x)`: `x` with every `na` replaced by the most recent
+ *  non-`na` value of `x`, and `na` until `x` has had one (Pine reference:
+ *  "replaces NaN values with previous nearest non-NaN value"). One cell, the
+ *  last real value; stepped only on a bar the call runs, as every member here. */
+const FIXNAN_PINE_CELLS = 1
+function fixnanPineInit(st, o) { st[o] = NaN }
+function fixnanPineStep(st, o, v) {
+  if (typeof v === 'number' && !Number.isNaN(v)) st[o] = v
+  return st[o]
+}
+
 function barsSincePineInit(st, o) { st[o] = NaN }
 
 /** One bar of Pine's `ta.barssince`.
@@ -2367,6 +2378,17 @@ export const CARRIED = Object.freeze({
     cells: BARSSINCE_PINE_CELLS,
     init: barsSincePineInit,
     step: barsSincePineStep,
+    runtimeOnly: true,
+  },
+  // ⭐⭐ RT7 — Pine's `fixnan`. `runtimeOnly` for the same reason: the columnar lane
+  // refuses `fixnan` by design (`pine:na`, an unbounded carry has no window), so
+  // there is no column to differentiate it against; `rt7Fixnan.test.js` holds it
+  // to a hand replay of the reference's rule instead. The key is not `fixnan` so a
+  // name lookup by bare spelling can never reach it from the columnar lane.
+  fixnanPine: {
+    cells: FIXNAN_PINE_CELLS,
+    init: fixnanPineInit,
+    step: fixnanPineStep,
     runtimeOnly: true,
   },
 })
@@ -3148,8 +3170,17 @@ function barCumFrom(bars, args) {
   return out
 }
 
+/** `vwapOf(source)` — Pine's `ta.vwap(source)`: the SAME session accumulator
+ *  (`computeVWAP`, its session boundary and all), weighting `source` instead of
+ *  the typical price. `args[0]` is the evaluated column, aligned with `bars`.
+ *  H3 (2026-10-02); the translator admits only a bar price series as `source`
+ *  (`pine.js`, the `key === 'vwap'` branch), witnessed by
+ *  `vw-clock-vwap-spy-5-ext-2026-09-28` (V08 + V09) and
+ *  `groupb-round-max-vwap-spy-1d-2026-09-10` (N14 + N12). */
+const barVwapOf = (bars, args) => computeVWAP(bars, args[0] || [])
+
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
+  vwap: barVwap, vwapOf: barVwapOf, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 
@@ -3167,14 +3198,48 @@ export const BAR_FN = Object.freeze({
   }
 }
 
+/** ⭐⭐ F1 — `ta.vwap` / `ta.vwap(source)` ON A DAILY CHART: every daily bar is its
+ *  own session, so the value is the bar's own price — the source, or the typical
+ *  price `(h + l + c) / 3` for the bare form — wherever the bar has volume.
+ *  WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` (CAP2 Q-H3a, AMEX:SPY 1D): S01 bare
+ *  = hlc3 and S02..S08 (close, open, high, low, hl2, ohlc4, hlcc4) = that price, on
+ *  every bar. `computeVWAP` refuses a daily store key (no instant to bucket by), so
+ *  without this the rows were BLANK where TradingView draws values.
+ *  ⛔ Only when the CALLER states the chart is daily (`opts.tf === 'D'`) and every
+ *  bar is a daily key; a weekly or monthly bar is not witnessed and stays blank —
+ *  and the Python lane, which states no chart, keeps `computeVWAP`'s answer.
+ *  Returns null when it does not apply. */
+function dailySessionVwap(name, bars, args, length, opts) {
+  if (!opts || opts.tf !== 'D' || !Array.isArray(bars) || bars.length !== length || !length) return null
+  // the CHART's daily key, `'YYYY-MM-DD'`, on every bar. ⛔ Not the server sweep's
+  // `YYYYMMDD` integer: that lane (and its Python twin) keeps `computeVWAP`'s
+  // refusal, which `nanLaundering.test.js` pins — the screener states no chart.
+  for (let i = 0; i < length; i++) {
+    const t = bars[i] ? bars[i].t : undefined
+    if (!(typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t))) return null
+  }
+  const src = name === 'vwapOf' ? (args && args[0]) : null
+  if (name === 'vwapOf' && !(src && typeof src.length === 'number')) return null
+  const out = nan(length)
+  for (let i = 0; i < length; i++) {
+    const b = bars[i]
+    if (!(b.v > 0)) continue
+    const v = src ? src[i] : (b.h + b.l + b.c) / 3
+    out[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
+  }
+  return out
+}
+
 /** Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
  *
  *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL — the same contract
  *  `bindShipped` states, against the same `[]` "there is nothing to say here"
  *  signal both refusals above return. A short array padded from the left would
  *  put a real value at the wrong bar. */
-function barColumn(name, bars, args, length) {
+function barColumn(name, bars, args, length, opts) {
   const out = nan(length)
+  const daily = (name === 'vwap' || name === 'vwapOf') ? dailySessionVwap(name, bars, args, length, opts) : null
+  if (daily) return daily
   const points = BAR_FN[name](bars, args)
   if (!Array.isArray(points) || points.length !== length) return out
   for (let i = 0; i < length; i++) {
@@ -3252,6 +3317,62 @@ export const UNARY = Object.freeze({
 })
 
 export const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
+
+/** ⭐⭐ RT3 — PINE'S CONDITION RULE, IN ONE PLACE: a value read AS A CONDITION
+ *  (a `?:` test, an `if`, an operand of `and` / `or` / `not`) that is `na` is
+ *  FALSE; 0 is false; any other number is true.
+ *
+ *  `TERNARY` above answers `NaN` for a `NaN` test, and that is right for what it
+ *  serves — the columnar lane's `{0,1,NaN}` domain, where `NaN` can mean "not
+ *  computable yet" (a probe value, a window that starts mid-history). It is NOT
+ *  Pine's answer where `NaN` IS Pine's `na`, and two lanes now read Pine's:
+ *    - the host lane's listing pass (`pineBoolAt`, H1), and
+ *    - the per-bar runtime lane (`runtime/lowerIr.js`, RT3), whose `NaN` is
+ *      always Pine's `na` because it runs every bar from the listing.
+ *
+ *  The rule, and where each version of it stands:
+ *    - v4: MEASURED. Two committed vendor captures take the else branch on an
+ *      `na` test (`qqe-signals` RDDT 1D bar 73: `cross(…) ? 1 : … :
+ *      nz(trend[1], 1)` in warm-up; `pivot-point-supertrend` RDDT 1D bar 517:
+ *      `ph ? ph : pl ? pl : na` with `ph` na). v4 casts a number to `bool`
+ *      implicitly, `na` to false.
+ *    - v5: the same implicit cast (`na` → false) for a number; a v5 `bool` can
+ *      itself be `na`, and an `if` / `?:` on it takes the false branch.
+ *    - v6: "`bool` values can no longer be `na`" (TradingView's v6 migration
+ *      guide), and `bool(na)` is false — so any `NaN` this engine holds where
+ *      v6 reads a condition stands for false.
+ *    - v1–v3 (and a script with no `//@version`, which Pine reads as v1): no
+ *      capture and no rule this engine has read. NOT claimed — the runtime lane
+ *      keeps `TERNARY`'s answer there and the member door declines it by name
+ *      (`runtime:na-test`). */
+export const pineBool = (v) => (isNan(v) || v === 0 ? 0 : 1)
+
+/** The first Pine version whose `na` condition this engine reads as false (see
+ *  `pineBool`). Below it, nothing is claimed. */
+export const NA_CONDITION_FALSE_FROM_VERSION = 4
+
+/** Does this script's version read an `na` condition as false (`pineBool`)? The
+ *  version is the LEXED pragma (`lexed.version`), never re-detected. */
+export const naConditionIsFalse = (version) => {
+  const v = Number(version)
+  return Number.isFinite(v) && v >= NA_CONDITION_FALSE_FROM_VERSION
+}
+
+/** ⭐⭐ F1 — Pine's `?:`: an `na` test takes the ELSE branch (`pineBool`).
+ *  WITNESSED for every test shape and every version CAP probed
+ *  (`rt1-na-test-v4/v5/v6`, NYSE:RDDT 1D from the listing, 2026-10-02):
+ *  `cross(close, warm)` with `warm` in warm-up -> 2 on bars 0..19, and
+ *  `bool b = na` · `b ? 1 : 2` -> 2 on every bar (v4, v5). */
+export const PINE_TERNARY = (t, a, b) => (pineBool(t) ? a : b)
+
+/** Does this evaluation read a `?:` test as Pine does? Two facts, both stated by
+ *  the CALLER and neither inferred: the series starts at the listing (so a `NaN`
+ *  is Pine's `na`, never a value behind the curtain), and the document's Pine
+ *  version has the rule (`opts.naConditionFalse`, from `meta.naConditionFalse`,
+ *  `nativeRegistry.listingOptsFor`). The same two the runtime lane asks
+ *  (`runtime/lowerIr.js` `naFalse`). Off the listing `TERNARY` stands. */
+export const pineTernaryFor = (opts) => !!opts && opts.historyFromListing === true
+  && opts.naConditionFalse === true
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
@@ -4903,7 +5024,14 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
       // ⛔ `calendar` is null only when a bar's instant is unreadable, which the
       // regime already answered `unreadable` for: fail closed rather than trust it.
       if (!calendar) { mask.fill(1); return mask }
-      spread(unknown, a, true)
+      // ⭐ H5 — "the bar before the series is unknown" holds only when the series
+      // does NOT start at the symbol's first bar. From the listing (ruling R-W,
+      // `opts.historyFromListing`) there IS no earlier bar: a read there is Pine's
+      // `na`, which is what this lane answers — the exception `historyReadMask`
+      // already makes. Graded: `vw-library-import-rddt-1d-2026-10-02` L03/L04
+      // (`var` maxima reset at `ta.change(time("M"|"W"))`, RDDT from the listing)
+      // were withheld for 251 bars here and are TradingView's from bar 0.
+      spread(unknown, a, !historyBeforeFirstKnown(opts && opts.historyFromListing))
       continue
     }
     // every day of the week (C36): the literal tree, its period's CALENDAR first day, one clock regime
@@ -5718,7 +5846,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // pack of argument columns whose `t` is a bar index. The question asked
         // is "does this entry declare it", never "is this call `vwap`", so a
         // third such entry needs no edit here.
-        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
+        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length, opts)
         return FN[n.name](...args)
       }
       case 'str':
@@ -5921,7 +6049,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return lift3(values[0], values[1], values[2], TERNARY, length)
+      return lift3(values[0], values[1], values[2], pineTernaryFor(opts) ? PINE_TERNARY : TERNARY, length)
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -5955,7 +6083,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (values.length !== 3) {
         refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
       }
-      return TERNARY(values[0], values[1], values[2])
+      return (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(values[0], values[1], values[2])
     }
     if (own(UNARY, name)) {
       if (values.length !== 1) {
@@ -6232,13 +6360,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     const pineBoolAt = (x, j) => {
       if (x.type === 'call') {
         const c = toColumn(evalNode(x), length)
-        return c[j] !== c[j] ? 0 : c[j]
+        return pineBool(c[j])
       }
       if (x.name === '!') return pineBoolAt(x.args[0], j) ? 0 : 1
       if (x.name === '&&') return pineBoolAt(x.args[0], j) && pineBoolAt(x.args[1], j) ? 1 : 0
       if (x.name === '||') return pineBoolAt(x.args[0], j) || pineBoolAt(x.args[1], j) ? 1 : 0
+      // ⭐ RT3 — the ONE rule (`pineBool`), shared with the runtime lane.
       const c = toColumn(evalNode(x), length)
-      return c[j] !== c[j] ? 0 : c[j]
+      return pineBool(c[j])
     }
     /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
     let heldLatch = false
@@ -6294,7 +6423,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             v = pineTest === LISTING_UNKNOWN || (strict && Number.isNaN(pineTest))
               ? LISTING_UNKNOWN
               : heldLatch && Number.isNaN(pineTest) ? values[2]
-                : TERNARY(pineTest, values[1], values[2])
+                : (pineTernaryFor(opts) ? PINE_TERNARY : TERNARY)(pineTest, values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {

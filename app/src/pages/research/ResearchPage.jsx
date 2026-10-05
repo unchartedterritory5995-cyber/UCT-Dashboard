@@ -8,6 +8,8 @@ import useRatings from './hooks/useRatings'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
+import FinancialsDeep from '../../components/research/fmpDepth/FinancialsDeep'
+import ConsensusEstimates from '../../components/research/fmpDepth/ConsensusEstimates'
 import AnalystRatingsTab from './tabs/AnalystRatingsTab'
 import NewsTab from './tabs/NewsTab'
 import CatalystsTab from './tabs/CatalystsTab'
@@ -143,7 +145,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth, researchNotices } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, researchDepth, researchNotices, researchFmpDepthEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -222,8 +224,9 @@ export default function ResearchPage() {
       {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}
       {active === 'Flow' && <FlowTab sym={sym} />}
-      {active === 'Financials' && <FinancialsTab sym={sym} />}
-      {active === 'Estimates' && <EstimatesTab sym={sym} />}
+      {/* RESEARCH_FMP_DEPTH_ENABLED: the terminal's FA/EE depth views. Off => as before. */}
+      {active === 'Financials' && (researchFmpDepthEnabled ? <FinancialsDeep sym={sym} /> : <FinancialsTab sym={sym} />)}
+      {active === 'Estimates' && (researchFmpDepthEnabled ? <ConsensusEstimates sym={sym} /> : <EstimatesTab sym={sym} />)}
       {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}
       {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}

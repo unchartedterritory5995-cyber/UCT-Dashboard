@@ -180,15 +180,29 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         plain: [856, 7194, 'c264e378ba65bd90'], manifest: [856, 7194, 'c264e378ba65bd90'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
+      // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now
+      // resolve on the plot lane, so its `pine:function-def` wall is gone and the walk
+      // goes further before `pine:block` (corpus_metric guards: function-def dropped,
+      // script still refused — no member-visible change). 2 fewer Resolvers, ~1,146
+      // more steps. Pre-wave-16: plain [38, 20104, '1c4c4d2d8bb41941'] / manifest
+      // [38, 20110, '751365c865ed51f9'].
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
-        plain: [38, 20104, '1c4c4d2d8bb41941'], manifest: [38, 20110, '751365c865ed51f9'] },
+        plain: [36, 21250, '3c20665225e9541d'], manifest: [36, 21256, '88d23acb3dae910a'] },
       // ⭐ C43 moved 72s-strategy: `label.set_x(pvtLabel, label.get_x(pvtLabel) +
       // ((time-time[1]) * 21))` — a getter in `+` arithmetic as a bar coordinate —
       // is read now (`pine.js::stateArith`), so one more Resolver is built for the
       // getter-free operand, 6 more steps. Plots byte-identical (translation
       // census). Pre-C43: [101, 931, 'b03efcd81da53a58'] both.
+      // ⭐ WAVE 16 (2026-10-03) moved 72s-strategy: one more Resolver, 513 more steps.
+      // The script stays refused with the SAME guards (pine:statement, pine:strategy-call;
+      // corpus_metric unchanged), so nothing a member sees moves. ATTRIBUTION NOT
+      // BISECTED: the wave's host-lane changes that add resolver work on conditions are
+      // F2's v4/v5 and/or/not na re-read and H2's block-valued reassignment; recorded as
+      // the measured wave-16 cost. Pre-wave-16: [102, 937, '6aa396f1a09699d5'] both.
+      // ⭐ F1 (wave 16) +1 Resolver, +33 steps: its const-int division fold
+      // (`pineConstIntValue`) resolves one more operand. Pre-F1: [103, 1450, 'ae4f9119eeecd7d5'].
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [102, 937, '6aa396f1a09699d5'], manifest: [102, 937, '6aa396f1a09699d5'] },
+        plain: [104, 1483, '5adeff2487d271ca'], manifest: [104, 1483, '5adeff2487d271ca'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {

@@ -435,7 +435,10 @@ function MarketReadCard({ stats }) {
           ● {isLiveWindow ? "LIVE" : "HISTORICAL"} MARKET READ
         </span>
         <span style={{ color: P.mt, fontSize: 10 }}>
-          (premium-weighted · {stats.total_classified.toLocaleString()} alerts on {stats.query_date})
+          (premium-weighted · {(stats.directional_count ?? stats.total_classified).toLocaleString()} directional
+          {stats.directional_count != null && ` of ${stats.total_classified.toLocaleString()}`} alerts on {stats.query_date}
+          {stats.covers_from && ` · partial: since ${new Date(stats.covers_from * 1000)
+            .toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`})
         </span>
       </div>
 
@@ -4643,6 +4646,17 @@ export default function LiveFlowMassive() {
                 : `Historical view: ${targetDate}`} (remove ?date param to return to live)
           </div>
         )
+      )}
+
+      {/* Multi-day By-Contract ranges keep each day's LARGEST prints within a row
+          budget (full sessions, but small prints may be missing → hit counts low). */}
+      {viewMode === "contract" && byContract?.budget_cut_days?.length > 0 && (
+        <div style={{ margin: "0 0 12px", fontSize: 12, color: P.mt }}>
+          Multi-day range: {byContract.budget_cut_days.length} busy day
+          {byContract.budget_cut_days.length > 1 ? "s show their" : " shows its"} largest prints only
+          (whole session covered; smaller prints may be left out, so hit counts can read low).
+          Pick a single day for every print.
+        </div>
       )}
 
       {/* Past day, market open: the server reads only the newest prints so it

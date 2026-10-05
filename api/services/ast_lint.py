@@ -748,7 +748,17 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                 # ``ast_freshness`` exists because a scalar's zero hides a
                 # day-old value; a clock leaf is read off the bar being drawn, so
                 # it answers ``live`` and this window is the whole truth.
-                reach_of[id(node)] = _own_window(clock_names[name], [])
+                clock_back, clock_forward = _own_window(clock_names[name], [])
+                # ⭐ RT4 -- a right-edge leaf says so, in the words a call's
+                # declared forward reach is said in (mirrors `lint.js`).
+                if clock_forward != UNKNOWN and clock_forward != 0:
+                    reasons.append(
+                        "`%s` declares an UNBOUNDED forward reach - no bar makes this value final"
+                        % name
+                        if clock_forward == UNBOUNDED else
+                        "`%s` reads %d bar%s ahead of the bar it writes"
+                        % (name, clock_forward, "" if clock_forward == 1 else "s"))
+                reach_of[id(node)] = (clock_back, clock_forward)
             elif isinstance(name, str) and name in scalar_names:
                 # ⭐ A TABLE-DECLARED SCALAR, AND IT IS THE SAME (0, 0) AS A
                 # DECLARED INPUT FOR THE SAME REASON: one number for the whole

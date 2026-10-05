@@ -1,0 +1,681 @@
+{
+ "generatedBy": "lane CAP2 (2026-10-02): memberDoorCensus.measure.test.js with VENDOR_BATCH_CENSUS_RUNTIME=1, joined to every tests/fixtures/vendor/**/*.json capture by source.sha256 == the corpus file's sha256",
+ "base": "304a6ec692d2ed6cedf9c4ff475bddfff94bf35a",
+ "census": {
+  "files": 266,
+  "attached": {
+   "off": 54,
+   "on": 79,
+   "runtime": 85
+  },
+  "flag": "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED",
+  "runtimeFlag": "VITE_PINE_RUNTIME_PANE_ENABLED"
+ },
+ "attachedOn": 79,
+ "attachedOnWithCapture": 61,
+ "runtimeOnlyAttached": 6,
+ "runtimeOnlyWithCapture": [
+  "adx-and-di-for-v4",
+  "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat"
+ ],
+ "withCapture": [
+  {
+   "slug": "artemis-oscillator-pro",
+   "captures": [
+    "artemis-oscillator-pro-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "atr-support-and-resistance",
+   "captures": [
+    "atr-support-and-resistance-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "atr-trailing-stoploss",
+   "captures": [
+    "atr-trailing-stoploss-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "auto-trendline-dojiemoji",
+   "captures": [
+    "auto-trendline-dojiemoji-rddt-1d-2026-10-02.json"
+   ]
+  },
+  {
+   "slug": "average-day-range-adr-pivots",
+   "captures": [
+    "average-day-range-adr-pivots-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "btc-charlie-trader-xo-macro-trend-scanner",
+   "captures": [
+    "btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json"
+   ]
+  },
+  {
+   "slug": "candlestick-patterns-identified-update-1-17-26",
+   "captures": [
+    "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "contraction-box-doji-lines",
+   "captures": [
+    "contraction-box-doji-lines-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "cumulative-volume-delta",
+   "captures": [
+    "cumulative-volume-delta-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "donchian-channels",
+   "captures": [
+    "donchian-channels-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "dual-view-htf-candlestick-patterns-theultimator5",
+   "captures": [
+    "dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "elliott-wave-3-finder-v2",
+   "captures": [
+    "elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "ema-ribbon-trend-filter-strixedge",
+   "captures": [
+    "ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "engulfingcandle",
+   "captures": [
+    "engulfingcandle-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "extrapolated-pivot-connector",
+   "captures": [
+    "extrapolated-pivot-connector-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "fib-retracement",
+   "captures": [
+    "fib-retracement-extrafibs-rddt-1d-2026-10-02.json",
+    "fib-retracement-rddt-1d-2026-10-02.json"
+   ]
+  },
+  {
+   "slug": "fibonacci-pivot-points-cc",
+   "captures": [
+    "fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "heat-map-seasons",
+   "captures": [
+    "heat-map-seasons-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "high-low-open-mid-ranges",
+   "captures": [
+    "high-low-open-mid-ranges-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "htf-candle-footprint-cartel-console",
+   "captures": [
+    "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "htf-liquidity-dashboard-tfo",
+   "captures": [
+    "htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "ict-ipda-look-back",
+   "captures": [
+    "ict-ipda-look-back-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "ict-killzones-pivots-tfo",
+   "captures": [
+    "ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "institutional-smc-order-flow-matrix-pro",
+   "captures": [
+    "institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "k-clustering",
+   "captures": [
+    "k-clustering-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "keltner-center-of-gravity-channel",
+   "captures": [
+    "keltner-center-of-gravity-channel-rddt-1d-2026-09-30.json"
+   ]
+  },
+  {
+   "slug": "keltner-channels-bands",
+   "captures": [
+    "keltner-channels-bands-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "linear-regression-channel-tradingfinder-existing-trend-lines",
+   "captures": [
+    "linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "liquidation-levels",
+   "captures": [
+    "liquidation-levels-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "liquidity-engulfing-candles-upslidedown",
+   "captures": [
+    "liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "liquidity-heatmap-nephew-sam",
+   "captures": [
+    "liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "liquidity-pools",
+   "captures": [
+    "liquidity-pools-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "madrid-moving-average-ribbon",
+   "captures": [
+    "madrid-moving-average-ribbon-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "makuchaku039s-trade-tools-fair-value-gaps",
+   "captures": [
+    "makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "market-structure-by-leviathan",
+   "captures": [
+    "market-structure-by-leviathan-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "mcclellan-indicators",
+   "captures": [
+    "mcclellan-indicators-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "momentum-volatility-scanner",
+   "captures": [
+    "momentum-volatility-scanner-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "multi-timeframe-supply-demand-zones",
+   "captures": [
+    "multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "options-max-pain-calculator-backquant",
+   "captures": [
+    "options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "pa-zigzag-fibonacci-fan",
+   "captures": [
+    "pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02.json"
+   ]
+  },
+  {
+   "slug": "pivot-point-supertrend",
+   "captures": [
+    "pivot-point-supertrend-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "poor-man039s-volume-profile",
+   "captures": [
+    "poor-man039s-volume-profile-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "position-size-calc",
+   "captures": [
+    "position-size-calc-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "position-size-calculator",
+   "captures": [
+    "position-size-calculator-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "price-action-as-in-book-fibonacci-supportresistant-trendline",
+   "captures": [
+    "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "pro-trading-art-double-top-bottom-with-alert",
+   "captures": [
+    "pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "qqe-signals",
+   "captures": [
+    "qqe-signals-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "reverse-stochastic-momentum-index-on-chart",
+   "captures": [
+    "reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "rsi-swing-indicator",
+   "captures": [
+    "rsi-swing-indicator-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "rvol",
+   "captures": [
+    "rvol-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "sector-rotation",
+   "captures": [
+    "sector-rotation-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "smt-divergence-ict-01-tradingfinder-smart-money-technique",
+   "captures": [
+    "smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "sonarlab-order-blocks",
+   "captures": [
+    "sonarlab-order-blocks-aapl-1d-2026-10-02.json",
+    "sonarlab-order-blocks-brk-a-1d-2026-10-02.json",
+    "sonarlab-order-blocks-rddt-1d-2026-10-02.json",
+    "sonarlab-order-blocks-spy-1d-2026-10-02.json"
+   ]
+  },
+  {
+   "slug": "trend-duration-forecast-chartprime",
+   "captures": [
+    "trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "trend-lines-supports-and-resistances",
+   "captures": [
+    "trend-lines-supports-and-resistances-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "trendlines",
+   "captures": [
+    "trendlines-rddt-1d-2026-09-27.json"
+   ]
+  },
+  {
+   "slug": "ultimate-pivot-points",
+   "captures": [
+    "ultimate-pivot-points-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "vdubus-pattern-gen-v2-restored-refined",
+   "captures": [
+    "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "vold-market-breadth",
+   "captures": [
+    "vold-market-breadth-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "volume-profile",
+   "captures": [
+    "volume-profile-rddt-1d-2026-09-28.json"
+   ]
+  },
+  {
+   "slug": "zero-lag-ma-trend-levels-chartprime",
+   "captures": [
+    "zero-lag-ma-trend-levels-rddt-1d-2026-09-27.json"
+   ]
+  }
+ ],
+ "ungraded": [
+  {
+   "boosts": 25066,
+   "state": "on",
+   "slug": "supertrend-strategy",
+   "title": "SuperTrend STRATEGY",
+   "pine": "v4",
+   "declaration": "strategy",
+   "plots": 8,
+   "drawsObjects": false,
+   "largestWindow": 513,
+   "sha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
+   "file": "corpus/committed/supertrend-strategy__rcRbtoBiKG.pine"
+  },
+  {
+   "boosts": 16997,
+   "state": "on",
+   "slug": "pmax-explorer",
+   "title": "PMax Explorer",
+   "pine": "v4",
+   "declaration": "strategy",
+   "plots": 8,
+   "drawsObjects": false,
+   "largestWindow": 513,
+   "sha256": "4d19cd30686373aef6a3f501260b92f43a60fdb0bb255fe16f8bc1645d4c6a69",
+   "file": "corpus/committed/pmax-explorer__jN9HBNhynF.pine"
+  },
+  {
+   "boosts": 16304,
+   "state": "on",
+   "slug": "supertrend-explorer",
+   "title": "Supertrend Explorer",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 8,
+   "drawsObjects": false,
+   "largestWindow": 513,
+   "sha256": "60da22900b14fe6bdfe90264ca159890e7c3fa16b69d401bd85bcb0608441ffd",
+   "file": "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine"
+  },
+  {
+   "boosts": 15160,
+   "state": "runtime",
+   "slug": "trend-targets-algoalpha",
+   "title": "Trend Targets [AlgoAlpha]",
+   "pine": "v6",
+   "declaration": "indicator",
+   "plots": 4,
+   "drawsObjects": true,
+   "largestWindow": 396,
+   "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
+   "file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine"
+  },
+  {
+   "boosts": 11525,
+   "state": "on",
+   "slug": "twin-range-filter",
+   "title": "Twin Range Filter",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 2,
+   "drawsObjects": false,
+   "largestWindow": 917,
+   "sha256": "66414b9d934f0c4171cdf20bcb960f11104cd51c7b2a7cbb583a8a6b16da7063",
+   "file": "corpus/committed/twin-range-filter__xF3L2PeXm7.pine"
+  },
+  {
+   "boosts": 9120,
+   "state": "on",
+   "slug": "support-and-resistance",
+   "title": "Support and Resistance",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 4,
+   "drawsObjects": false,
+   "largestWindow": 20,
+   "sha256": "978b8a87e6c733509cf28754fd68eedf52c3394eff2e730b603277a76281d1ec",
+   "file": "corpus/committed/support-and-resistance__UgNPprOr8h.pine"
+  },
+  {
+   "boosts": 8807,
+   "state": "on",
+   "slug": "multicator-table",
+   "title": "Multicator Table",
+   "pine": "v6",
+   "declaration": "indicator",
+   "plots": 31,
+   "drawsObjects": false,
+   "largestWindow": 960,
+   "sha256": "1d39ab50b74c2194ef276fadcdc1abef9ea4057f68bdeb4ec7349614533b2f18",
+   "file": "corpus/committed/multicator-table__486858895c.pine"
+  },
+  {
+   "boosts": 8785,
+   "state": "runtime",
+   "slug": "delta-rsi-oscillator-strategy",
+   "title": "Delta-RSI Oscillator Strategy",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 4,
+   "drawsObjects": false,
+   "largestWindow": null,
+   "sha256": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
+   "file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine"
+  },
+  {
+   "boosts": 7621,
+   "state": "on",
+   "slug": "tradingview-alerts-to-mt4-mt5-strategy-example",
+   "title": "TradingView Alerts to MT4 MT5 Strategy example",
+   "pine": "v5",
+   "declaration": "strategy",
+   "plots": 2,
+   "drawsObjects": true,
+   "largestWindow": 20,
+   "sha256": "11c64ced01d4a7b2503502094ed78c1e702d34ad32bc991baf4221f9a1a21c99",
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine"
+  },
+  {
+   "boosts": 6094,
+   "state": "on",
+   "slug": "atr-bands",
+   "title": "ATR Bands",
+   "pine": "v5",
+   "declaration": "indicator",
+   "plots": 4,
+   "drawsObjects": true,
+   "largestWindow": 3,
+   "sha256": "42ef9b8a7ab4b836d692c3ca48a55ded9ff1734fa9980334b2121d5effb62bbc",
+   "file": "corpus/committed/atr-bands__ad60b125e6.pine"
+  },
+  {
+   "boosts": 5870,
+   "state": "on",
+   "slug": "swing-highlow-zigzag-chartprime",
+   "title": "Swing High/Low (ZigZag) [ChartPrime]",
+   "pine": "v6",
+   "declaration": "indicator",
+   "plots": 1,
+   "drawsObjects": true,
+   "largestWindow": 0,
+   "sha256": "c8cda9379b7ff3fe413146ece400b0c3bff109490f67ccaa1b779236c33cd363",
+   "file": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine"
+  },
+  {
+   "boosts": 4581,
+   "state": "on",
+   "slug": "atr-trailing-stop-by-ceyhun",
+   "title": "ATR Trailing Stop by ceyhun",
+   "pine": "v5",
+   "declaration": "indicator",
+   "plots": 6,
+   "drawsObjects": false,
+   "largestWindow": 261,
+   "sha256": "7ce4458ad42c3f1d3cec9462475e4f251c29c55f2192a23704d139ebb0e0be93",
+   "file": "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine"
+  },
+  {
+   "boosts": 3499,
+   "state": "runtime",
+   "slug": "wyckoff-accumulation-distribution",
+   "title": "Wyckoff Accumulation Distribution",
+   "pine": "v5",
+   "declaration": "indicator",
+   "plots": 5,
+   "drawsObjects": false,
+   "largestWindow": 520,
+   "sha256": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+   "file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine"
+  },
+  {
+   "boosts": 3462,
+   "state": "on",
+   "slug": "support-and-resistance-multi-time-frame",
+   "title": "Support and Resistance Multi Time frame",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 6,
+   "drawsObjects": false,
+   "largestWindow": 735,
+   "sha256": "3d6a2d8e4e9c3d187b0217cc77fde75218d8aa706e544a87ff20b517fd004c6d",
+   "file": "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine"
+  },
+  {
+   "boosts": 3444,
+   "state": "on",
+   "slug": "implied-volatility-suite",
+   "title": "Implied Volatility Suite",
+   "pine": "v4",
+   "declaration": "study",
+   "plots": 1,
+   "drawsObjects": false,
+   "largestWindow": 412,
+   "sha256": "2d4fcd7524b6b073991b1e70c54f9e2871a9b3d1e274661fdc0314c6b03e421f",
+   "file": "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine"
+  },
+  {
+   "boosts": 1193,
+   "state": "on",
+   "slug": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto",
+   "title": "TradingView Alerts to MT4 MT5 - Forex, indices, commodities, stocks, crypto",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "strategy",
+   "plots": 2,
+   "drawsObjects": false,
+   "largestWindow": 20,
+   "sha256": "555d1419e61005199bb2d5181a5f56fdff6ac37759b0f6420f7171c84eee4fe2",
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine"
+  },
+  {
+   "boosts": 744,
+   "state": "runtime",
+   "slug": "fibonacci-dolphintradebot",
+   "title": "Fibonacci - DolphinTradeBot",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "study",
+   "plots": 2,
+   "drawsObjects": false,
+   "largestWindow": null,
+   "sha256": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
+   "file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine"
+  },
+  {
+   "boosts": 718,
+   "state": "on",
+   "slug": "opening-range-initial-balance-opening-price",
+   "title": "Opening Range, Initial Balance, Opening Price",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "study",
+   "plots": 14,
+   "drawsObjects": false,
+   "largestWindow": 261,
+   "sha256": "aca5bf3c04743738c8a95ce8cecce5bc34f6bec85e89a59e0de52e50f148b2fe",
+   "file": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine"
+  },
+  {
+   "boosts": 524,
+   "state": "on",
+   "slug": "optimized-keltner-channels-sltp-strategy-for-btc",
+   "title": "Optimized Keltner Channels SL/TP Strategy for BTC",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "strategy",
+   "plots": 5,
+   "drawsObjects": false,
+   "largestWindow": 270,
+   "sha256": "2395e1caa875d21a825bfd49f48b7e4c12c3db28d005287ddbabbc5c2bd91fa2",
+   "file": "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine"
+  },
+  {
+   "boosts": 512,
+   "state": "on",
+   "slug": "macd-shortlong-strategy-for-tradingview-input-optimizer",
+   "title": "MACD Short/Long Strategy for TradingView Input Optimizer",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "strategy",
+   "plots": 8,
+   "drawsObjects": false,
+   "largestWindow": 29,
+   "sha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
+   "file": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine"
+  },
+  {
+   "boosts": 472,
+   "state": "on",
+   "slug": "cdc-btc-rainbow-road",
+   "title": "CDC_BTC Rainbow Road",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "study",
+   "plots": 13,
+   "drawsObjects": false,
+   "largestWindow": 730,
+   "sha256": "2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06",
+   "file": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine"
+  },
+  {
+   "boosts": 433,
+   "state": "on",
+   "slug": "rsi-horizontal-resistance-levels",
+   "title": "RSI Horizontal resistance levels",
+   "pine": "unknown — source not yet fetched",
+   "declaration": "study",
+   "plots": 0,
+   "drawsObjects": true,
+   "largestWindow": null,
+   "sha256": "eabf8db5f2cd2f72b9266124f48a536e20be760b22a83639eb5d7a7dfb04791f",
+   "file": "corpus/committed/rsi-horizontal-resistance-levels__a3f8454f81.pine"
+  }
+ ]
+}
