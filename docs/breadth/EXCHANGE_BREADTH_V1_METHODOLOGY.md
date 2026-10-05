@@ -84,3 +84,31 @@ and learned delisting dates (with the snapshot that taught them).
 - **Accepted limitations.** Old share-class reshuffles without FIGI (e.g. GOOG 2014) cannot be
   separated. A de-SPAC that receives a new FIGI (HVII→ONEN) is a new security.
   Neither affects breadth, because venue is per-session evidence.
+
+## Live leg (2026-10-05) — built; first authoritative append BLOCKED on one owner decision
+
+- **Pipeline** (`tools/breadth_exch/exch_live_leg.py`, `live_session_worker.py`, `live_core.py`):
+  - **Owner vintage:** each session uses the vintage the US V2 producer published it from (its own
+    `state.db` record), cross-checked against the publication provenance. The copy used is hash-verified in
+    an exchange-owned archive, `/data/_audit/exch_v1/live_v1/vintage_archive`. It never falls forward.
+  - **Preflight:** the unmodified V2c2 preflight runs against `pinned/breadth_exch_live_pins.json`, which is
+    the V2c2 pins with exactly 3 declared overrides — the `unchanged` patch.
+  - **Membership:** sessions through the frozen ledger's last session use the accepted ledger rows via
+    `identity_model.Bridge`. After that, live venue evidence decides: the session's dated listings plus its
+    SIP tape, through the accepted `classify()` rule table.
+  - **Compute and validate:** each session is computed twice. Validation is independent of the engine, and
+    the session's US rows must equal the US V2 publication.
+  - **Commit:** one atomic transaction per session, completion marker last.
+  - **Derived:** AD/MCO/MCS continue from the frozen boundary state.
+- **Archive → compute remap.** The engine requires the manifest's grouped `dir`. A copy of the archived
+  inputs is rewritten in exactly 3 declared fields. The tables the engine rebuilds must equal the archived
+  ones except for their cache keys.
+- **Retention.** The producer keeps 3 vintages. The live leg archives every ready vintage on each run, so
+  it must run before an owner vintage is pruned. `p202609292209` (owner of 09-25 and 09-28) was pruned
+  before the archive existed.
+- **OPEN DECISION.** Under the first-containing rule, 09-25 and 09-28 are irreproducible, so the
+  append-mode candidate refuses with `OWNER_VINTAGE_MISSING`.
+  - Proposed: declare `p202609302026` (the earliest surviving vintage containing them) as the substitute
+    for exactly those two sessions.
+  - It reproduces the published US V2 rows byte-for-byte (35/35 on each day).
+  - The exchange rows are identical under any surviving vintage.
