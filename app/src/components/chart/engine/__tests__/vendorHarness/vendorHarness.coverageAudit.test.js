@@ -394,10 +394,15 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     // runtime lane named the drawings' `calc-bars-count` instead of the run's stop). The
     // supplier is now refused BY that name and the paint is graded on the cold replay
     // of the window, its first 200 bars apart as warm-up (RC1's fallback, labelled).
-    expect(paintSupply.kind).toBe('cold')
-    expect(paintSupply.replayed).toBe(false)
-    expect(paintSupply.reason).toMatch(/warm replay over 8477 bars .* stopped \(runtime:limit: .*ARRAY_OPERATIONS/)
-    expect(paintSupply.reason).not.toMatch(/calc-bars-count/)
+    // ⭐⭐ RT17 (2026-10-04) — the cause is gone: `ARRAY_OPERATIONS` counts ONE BAR
+    // (`limits.js` PER_BAR_CHARGED; wyckoff's worst SPY bar is 992), so the 8,477-bar
+    // warm replay runs to the end and the paint is graded WARM, from TradingView's
+    // own history (6,677 bars from the listing), and agrees bar for bar.
+    expect(paintSupply.kind).toBe('warm')
+    expect(paintSupply.replayed).toBe(true)
+    expect(paintSupply.bars).toBe(6677)
+    expect(paintSupply.historyFromListing).toBe(true)
+    expect(paintSupply.reason).not.toMatch(/ARRAY_OPERATIONS|runtime:limit|calc-bars-count/)
   }, T)
   it('fibonacci-dolphintradebot RDDT (runtime pane): MATCH — RT5 draws the 7 lines + 7 labels from the run', () => {
     const v = grade('fibonacci-dolphintradebot-rddt-1d-2026-10-02', 'runtime').v

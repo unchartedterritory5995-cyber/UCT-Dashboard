@@ -29,6 +29,7 @@ import path from 'node:path'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { DEFAULT_LIMITS } from '../limits.js'
 
 const OUT = process.env.WINDOW_PERF_OUT
   ? path.resolve(process.cwd(), process.env.WINDOW_PERF_OUT) : null
@@ -67,13 +68,16 @@ function timeRun(sites, span, n, reps = 3) {
   execute(program, env)                                   // warm the JIT
   let best = Infinity
   let cells = 0
+  let perBar = 0
   for (let r = 0; r < reps; r += 1) {
     const t0 = performance.now()
     const res = execute(program, env)
     best = Math.min(best, performance.now() - t0)
-    cells = res.budget.counts.WINDOW_CELLS
+    // ⭐ RT17 — the run's cells (`counts` holds the worst BAR since RT17).
+    cells = res.budget.runTotals.WINDOW_CELLS
+    perBar = res.budget.counts.WINDOW_CELLS
   }
-  return { ms: best, cells, windows: program.windows.length }
+  return { ms: best, cells, perBar, windows: program.windows.length }
 }
 
 const report = { runs: [], market: {} }
@@ -126,15 +130,17 @@ describe('⭐ finite windows — cost in bars, sites and span', () => {
     report.market = {
       typical: { perSymbolMs: typical.ms, scanSeconds: (typical.ms * SYMBOLS) / 1000, cells: typical.cells },
       heavy: { perSymbolMs: heavy.ms, scanSeconds: (heavy.ms * SYMBOLS) / 1000, cells: heavy.cells },
-      windowCellsCeiling: 100000000,
+      windowCellsCeilingPerBar: DEFAULT_LIMITS.WINDOW_CELLS,
       heavyCellsPerSymbol: heavy.cells,
     }
     // ⛔ THE HEAVY CASE IS THE ONE THAT MATTERS, and it is a WARNING not a pass:
     // 8 sites × 200 span × 5,000 bars is ~8M cells for ONE symbol. `WINDOW_CELLS`
-    // is per-execution, so the ceiling bounds a runaway symbol, NOT the scan —
-    // budgeting the SCAN is 2G's problem and this is the evidence for it.
+    // is per BAR since RT17 (it was per execution), so the ceiling bounds a
+    // runaway bar, NOT the scan — budgeting the SCAN is 2G's problem and this is
+    // the evidence for it.
     expect(heavy.cells).toBeGreaterThan(1000000)
-    expect(heavy.cells).toBeLessThan(100000000)
+    expect(heavy.perBar).toBe(8 * 200)
+    expect(heavy.perBar).toBeLessThan(DEFAULT_LIMITS.WINDOW_CELLS)
     // a single symbol must stay well under a second even in the heavy shape
     expect(heavy.ms, `heavy symbol took ${heavy.ms.toFixed(1)}ms`).toBeLessThan(3000)
   })

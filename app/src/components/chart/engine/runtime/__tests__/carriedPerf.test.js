@@ -67,7 +67,8 @@ function timeRun(sites, len, n, { inUdf = false, reps = 3 } = {}) {
   }
   return {
     ms: best,
-    steps: res.budget.counts.CARRIED_STEPS,
+    // ⭐ RT17 — the run's steps (`counts` holds the worst BAR since RT17).
+    steps: res.budget.runTotals.CARRIED_STEPS,
     cells: res.budget.counts.CARRIED_CELLS,
     instances: res.budget.counts.CARRIED_INSTANCES,
     rings: program.history.length,
@@ -154,7 +155,7 @@ describe('⛔⛔ the 5,000-symbol scan', () => {
     report.market = {
       typical: { perSymbolMs: typical.ms, scanSeconds: (typical.ms * S) / 1000, steps: typical.steps },
       heavy: { perSymbolMs: heavy.ms, scanSeconds: (heavy.ms * S) / 1000, steps: heavy.steps },
-      note: 'CARRIED_STEPS is per execution — it bounds a runaway SYMBOL, never the SCAN.',
+      note: 'CARRIED_STEPS is per BAR (RT17) — it bounds a runaway BAR, never the SCAN.',
     }
     expect(heavy.steps).toBe(20 * 5000)
     expect(heavy.ms, `heavy symbol took ${heavy.ms.toFixed(1)}ms`).toBeLessThan(3000)

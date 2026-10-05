@@ -304,12 +304,15 @@ describe('⛔ resource accounting covers work inside calls (§56/§57)', () => {
     const src = `${head}f(x) => x * 2\nplot(f(close))\n`
     const { budget, program } = runPine(src)
     expect(budget.counts.TOTAL_INSTRUCTIONS).toBeGreaterThan(program.instructions)
-    expect(budget.counts.CALL_COUNT).toBe(N)
+    // ⭐ RT17 — `CALL_COUNT` counts ONE BAR (its worst); the run's sum is a
+    // measurement beside it, never checked.
+    expect(budget.counts.CALL_COUNT).toBe(1)
+    expect(budget.runTotals.CALL_COUNT).toBe(N)
   })
 
   it('a call-count ceiling stops by name', () => {
     let err = null
-    try { runPine(`${head}f(x) => x\nplot(f(close))\n`, {}, { CALL_COUNT: 5 }) } catch (e) { err = e }
+    try { runPine(`${head}f(x) => x\nplot(f(close))\n`, {}, { CALL_COUNT: 0 }) } catch (e) { err = e }
     expect(err).toBeInstanceOf(RuntimeLimitError)
     expect(err.limit).toBe('CALL_COUNT')
   })
