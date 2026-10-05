@@ -57,7 +57,9 @@ export default function MovePanel({ sym, onRun, onRows }) {
     const status = state.error?.status
     return (
       <div className={styles.panelEmpty} role="status" data-testid="terminal-move-error">
-        {status === 404 ? `MOVE is not enabled for your account yet.`
+        {/* A 404 here is either the grammar flag off or a cohort gap, and the
+            backend sends the same body for both, so the copy claims neither. */}
+        {status === 404 ? `MOVE isn't switched on yet.`
           : `Could not load why ${sym} is moving just now. Run ${sym} MOVE again to retry.`}
       </div>
     )
