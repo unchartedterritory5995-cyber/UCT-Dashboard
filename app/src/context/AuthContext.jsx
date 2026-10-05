@@ -47,6 +47,9 @@ export function AuthProvider({ children }) {
   const [filingBlacklineEnabled, setFilingBlacklineEnabled] = useState(false)
   // COV-02/03: the Screener's Options view. Present in the payload ONLY when on.
   const [optionsScreenerEnabled, setOptionsScreenerEnabled] = useState(false)
+  // O12: the IVH / STRS terminal panels' own switches. Present in the payload ONLY when on.
+  const [ivHistoryEnabled, setIvHistoryEnabled] = useState(false)
+  const [optionsStrategyScreensEnabled, setOptionsStrategyScreensEnabled] = useState(false)
   // COV-05 / COV-07 / COV-09 (RM-L19): three dark Research tabs, default FALSE.
   const [researchPeopleEnabled, setResearchPeopleEnabled] = useState(false)
   const [estimateHistoryEnabled, setEstimateHistoryEnabled] = useState(false)
@@ -135,6 +138,9 @@ export function AuthProvider({ children }) {
     ['filing_blackline_enabled', (d) => d.filing_blackline_enabled === true, setFilingBlacklineEnabled],
     // COV-02/03: same form -- the key rides the payload ONLY when on; absent reads as false.
     ['options_screener_enabled', (d) => d.options_screener_enabled === true, setOptionsScreenerEnabled],
+    // O12: same form -- each key rides the payload ONLY when on; absent reads as false.
+    ['iv_history_enabled', (d) => d.iv_history_enabled === true, setIvHistoryEnabled],
+    ['options_strategy_screens_enabled', (d) => d.options_strategy_screens_enabled === true, setOptionsStrategyScreensEnabled],
     ['research_people_enabled', (d) => d.research_people_enabled === true, setResearchPeopleEnabled],
     ['estimate_history_enabled', (d) => d.estimate_history_enabled === true, setEstimateHistoryEnabled],
     ['filings_feed_enabled', (d) => d.filings_feed_enabled === true, setFilingsFeedEnabled],
@@ -362,7 +368,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
