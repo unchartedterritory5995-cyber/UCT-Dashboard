@@ -51,3 +51,36 @@ describe('OverviewTab -- failed read vs genuine empty state', () => {
     expect(mutate).toHaveBeenCalled()
   })
 })
+
+// The "Latest report" card (useLatestReport): loading, outage, genuinely-none and a real row
+// are four different sentences, and an outage must never read as "nothing reported".
+describe('OverviewTab -- Latest report states', () => {
+  const base = { sym: 'AAPL', stats: {}, analyst: {}, ai: {}, error: false, mutate: () => {} }
+
+  it('renders the reported row and its quarter label', () => {
+    const row = { label: 'FY26 Q2', eps_estimate: '$1.10', reported_eps: '$1.25', surprise_pct: '+13.6%',
+      rev_estimate: '$46.00B', rev_actual: '$46.70B', rev_surprise_pct: '+1.5%' }
+    render(<OverviewTab {...base} row={row} reportState="ready" retryReport={() => {}} />)
+    expect(screen.getByText('Latest report · FY26 Q2')).toBeInTheDocument()
+    expect(screen.getByText('$1.25')).toBeInTheDocument()
+    expect(screen.getByText('+13.6%')).toBeInTheDocument()
+    expect(screen.queryByTestId('latest-report-error')).not.toBeInTheDocument()
+  })
+
+  it('a failed read says it could not load, with a Retry -- never "no report"', () => {
+    const retry = vi.fn()
+    render(<OverviewTab {...base} row={null} reportState="error" retryReport={retry} />)
+    expect(screen.getByTestId('latest-report-error')).toHaveTextContent("Couldn't load the latest report.")
+    expect(screen.queryByTestId('latest-report-empty')).not.toBeInTheDocument()
+    screen.getByText('Retry').click()
+    expect(retry).toHaveBeenCalled()
+  })
+
+  it('loading and genuinely-none are distinct copy', () => {
+    const { unmount } = render(<OverviewTab {...base} row={null} reportState="loading" />)
+    expect(screen.getByTestId('latest-report-loading')).toBeInTheDocument()
+    unmount()
+    render(<OverviewTab {...base} row={null} reportState="empty" />)
+    expect(screen.getByTestId('latest-report-empty')).toHaveTextContent('No reported quarter on file yet.')
+  })
+})

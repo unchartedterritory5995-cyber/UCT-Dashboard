@@ -17,7 +17,25 @@ function Surprise({ v }) {
   return <span className={up ? styles.up : styles.down}>{s}</span>
 }
 
-export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutate }) {
+// The "Latest report" card's status line. `reportState` comes from
+// useLatestReport; absent (older callers) it renders exactly as before.
+// ⛔ 'error' is NOT 'empty': an outage must never read as "nothing reported".
+function ReportNote({ state, retry }) {
+  if (state === 'loading') return <div className={styles.fnote} data-testid="latest-report-loading">Loading latest report…</div>
+  if (state === 'empty') return <div className={styles.fnote} data-testid="latest-report-empty">No reported quarter on file yet.</div>
+  if (state === 'error') {
+    return (
+      <div className={styles.fnote} data-testid="latest-report-error">
+        Couldn't load the latest report.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => retry && retry()}>Retry</button>
+      </div>
+    )
+  }
+  return null
+}
+
+export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, retryReport, error, mutate }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
   return (
@@ -78,7 +96,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutat
       </section>
       <div className={styles.grid}>
       <section className={styles.card}>
-        <div className={styles.ct}>Latest report</div>
+        <div className={styles.ct}>Latest report{row?.label ? ` · ${row.label}` : ''}</div>
         <table className={styles.tbl}>
           <thead><tr><th>Metric</th><th>Est</th><th>Actual</th><th>Surp</th></tr></thead>
           <tbody>
@@ -96,6 +114,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutat
             </tr>
           </tbody>
         </table>
+        <ReportNote state={reportState} retry={retryReport} />
       </section>
 
       <section className={styles.card}>

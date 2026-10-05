@@ -240,11 +240,24 @@ export function fillDoor(door, { sym = null, args = [] } = {}) {
   return missing ? null : out
 }
 
-/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. */
-export function researchHref(sym, section) {
+/** The Research › Depth panel a variant opens, DERIVED from its own flag (never typed a second
+ *  time): `section: 'depth'` + `flag: 'researchDepth.<key>'` → `<key>`, the same key DepthTab
+ *  anchors that panel by. The whole-tab code (`researchDepth.*`) and every non-depth section
+ *  name no panel. */
+export function depthPanelOf(variant) {
+  if (variant?.section !== 'depth') return null
+  const [head, tail] = String(variant.flag || '').split('.')
+  return head === DEPTH && tail && tail !== '*' ? tail : null
+}
+
+/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. A Depth
+ *  panel also carries `&panel=<key>` so the page lands on that panel, not the tab's top. */
+export function researchHref(sym, section, panel = null) {
   if (!sym) return null
   const s = encodeURIComponent(String(sym).toUpperCase())
-  return section ? `/research/${s}?section=${encodeURIComponent(section)}` : `/research/${s}`
+  if (!section) return `/research/${s}`
+  const p = panel ? `&panel=${encodeURIComponent(panel)}` : ''
+  return `/research/${s}?section=${encodeURIComponent(section)}${p}`
 }
 
 /** Prefix + edit-distance suggestions over the registry (and ABSENT, so a near-miss on an
