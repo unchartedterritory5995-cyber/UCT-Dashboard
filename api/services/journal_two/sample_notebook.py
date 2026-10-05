@@ -31,17 +31,20 @@ Notebook's own soft delete, so every one of them can be restored from Trash.
 
 ⛔⛔ WAVE 14, LANE W14-E -- ONE EXAMPLE PER CAPABILITY, SAME CLICK, SAME DOOR. Right after pass
 2, `seed` also calls `sample_examples.seed`, which writes one seeded example per Notebook
-capability (a closed trade graded against a plan, an active setup, a thesis with a
+capability (an untraded trade plan with its chart, an active setup, a thesis with a
 resurfacing notice, a passed setup, an earnings-prep draft, a cited transcript passage) --
 each through that capability's own real door, documented in `sample_examples.py`'s module
 docstring. Those six example notes' ids are folded into the SAME `ids` list this module has
 always recorded, so `remove` trashes them exactly like the five base notes, for free. The
-non-note rows a capability example also wrote (a trade, a frozen entry context, a passed
-setup, a resurfacing insight) are recorded under the preference's new `examples` key and
+non-note rows a capability example also wrote (a passed setup, a resurfacing insight) are
+recorded under the preference's new `examples` key and
 cleaned up by `sample_examples.remove` -- see that module for which capability's own "remove"
 verb each one uses and why none of it is raw SQL. The preference's `v` moved to 2 for this
 (a `v: 1` reader -- `recorded_ids`/`active_ids` -- reads the unchanged `ids` key and does not
 notice; `examples` is ignored by anything that does not look for it).
+⛔⛔ NO TRADE IS EVER SEEDED (wave 14 integration, round 2): an example trade would land in
+every P&L, stat, equity curve, report and export, which read `j2_trades` with no sample filter.
+See `sample_examples.py` and `tests/test_sample_notebook_trade_exclusion.py`.
 """
 from __future__ import annotations
 
@@ -247,8 +250,9 @@ def recorded_ids(user_id: str) -> list[str]:
 
 
 def recorded_examples(user_id: str) -> dict[str, Any]:
-    """W14-E: the non-note rows `sample_examples.seed` recorded (a trade id, a frozen entry
-    context key, a passed-setup id, a resurfacing insight id), or `{}` for a pre-W14-E sample
+    """W14-E: the non-note rows `sample_examples.seed` recorded (a passed-setup id, a
+    resurfacing insight id; a trade id or entry-context key only in a preference written by
+    the earlier, never-shipped version), or `{}` for a pre-W14-E sample
     (a `v: 1` preference, or none at all) -- `sample_examples.remove` then has nothing to do,
     which is correct: there is nothing of that shape to clean up."""
     examples = _recorded_pref(user_id).get("examples")
@@ -271,8 +275,9 @@ def active_ids(user_id: str, *, conn: sqlite3.Connection | None = None) -> list[
 
 def remove(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
     """Trash exactly the recorded sample notes that are not in Trash already, and (W14-E)
-    undo every non-note row a capability example wrote -- a trade, a frozen entry context, a
-    passed setup, a resurfacing insight -- through that capability's own "remove" verb
+    undo every non-note row a capability example wrote -- a passed setup, a resurfacing
+    insight (and, for a preference from the earlier version only, a trade and an entry
+    context) -- through that capability's own "remove" verb
     (`sample_examples.remove`; see its docstring for which verb each one is and why none of
     it is a Trash-shaped soft delete).
 

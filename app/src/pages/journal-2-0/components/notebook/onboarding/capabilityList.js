@@ -76,7 +76,11 @@ export const PREVIEW_COPY = Object.freeze({
   sampleLead: 'Want to try it first?',
   // ⛔ The sample button's label has ONE authority (SAMPLE_COPY.add); the promotion names it.
   sampleButton: SAMPLE_COPY.add,
-  sampleTail: 'puts example notes in their own folder. You can remove them in one click.',
+  // ⛔ Truthful about what the click adds (wave 14 integration round 2): example notes in their
+  // own folder, one example passed setup and one example notice, and NO trade -- a sample trade
+  // would land in the member's P&L and stats. tests/test_sample_notebook_trade_exclusion.py
+  // reads this line.
+  sampleTail: 'puts example notes in their own folder, plus one example passed setup and one example notice. It adds no trades. You can remove it all in one click.',
 })
 
 /** The lines armed for this member, in list order. `flag` is injectable for rails only. */

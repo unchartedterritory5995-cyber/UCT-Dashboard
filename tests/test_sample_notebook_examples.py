@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 from api.services import auth_db, auth_service
 from api.services.journal_two import (
-    chart_blocks, entry_context, note_levels, notes, passed_setups, plan_grading,
+    chart_blocks, note_levels, notes, passed_setups,
     playbook_stats, sample_examples, sample_notebook, setups_board, thesis_chips,
     visual_playbook,
 )
@@ -56,39 +56,45 @@ def seeded(db):
     return out, pref["examples"]
 
 
-# ── plan grading (13A) + entry context (13E) + TA fingerprint (13I-1) ──────────────────────
+# ── the trade plan example (chart plan + TA fingerprint): UNTRADED, no entry context ───────
+# Wave 14 integration round 2: no example trade is seeded (a member's P&L and stats read
+# `j2_trades` with no sample filter). The per-consumer exclusion rails live in
+# tests/test_sample_notebook_trade_exclusion.py.
 
-def test_plan_grading_shows_a_fully_kept_plan(db, seeded):
+def _count(c, table, user_id):
+    exists = c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+    if not exists:
+        return 0
+    return c.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id = ?", (user_id,)).fetchone()[0]
+
+
+def test_the_plan_example_is_an_untraded_plan_and_no_trade_is_seeded(db, seeded):
     out, examples = seeded
     assert examples["errors"] == {}
+    assert examples["tradeId"] is None and examples["entryContext"] is None
     c = _conn()
     try:
-        trade = plan_grading.get_trade(c, U1, examples["tradeId"])
-        assert trade is not None
-        payload = plan_grading.grade_payload(c, U1, trade)
-        assert payload["status"] == plan_grading.STATUS_PLANNED
-        checks = payload["checks"]
-        assert checks["entry"]["state"] == "kept"
-        assert checks["stop"]["state"] == "kept"
-        assert checks["size"]["state"] == "kept"
-        assert checks["target"]["state"] == "hit"
-        assert checks["followedPlan"] is True
-        # the grade was frozen at SEED time (pure arithmetic, no live call) -- a second read
-        # answers from the same frozen row, never re-matching or re-grading.
-        link = plan_grading.get_link(c, U1, plan_grading.trade_ref_for_row(trade))
-        assert link is not None and link["matchTier"] == "explicit"
+        assert _count(c, "j2_trades", U1) == 0
+        assert _count(c, "j2_positions", U1) == 0
+        row = c.execute("SELECT title, body_json FROM j2_notes WHERE user_id = ? AND title LIKE ?",
+                        (U1, f"Trade plan: example -- {sample_examples.SYM_PLAN}%")).fetchone()
     finally:
         c.close()
+    assert row is not None
+    embeds = [n for n in json.loads(row["body_json"])["content"] if n.get("type") == "widgetEmbed"]
+    assert len(embeds) == 1
+    assert "tradeRef" not in embeds[0]["attrs"]
+    assert {a["role"] for a in embeds[0]["attrs"]["annotations"]} == {"entry", "stop", "target"}
 
 
-def test_entry_context_is_frozen_static_never_a_live_read(db, seeded):
-    out, examples = seeded
-    ectx = examples["entryContext"]
-    ctx = entry_context.get_context(U1, ectx["symbol"], ectx["entryDay"])
-    assert ctx is not None
-    assert ctx["fields"]["regime"]["value"] == "Confirmed Uptrend"
-    assert ctx["fields"]["fingerprint"]["value"]["symbol"] == sample_examples.SYM_PLAN
-    assert all(ctx["fields"][f] is not None for f in entry_context.FIELDS)
+def test_no_entry_context_is_seeded(db, seeded):
+    """Keyed by (member, symbol, day): a sample row would be read by -- and block the freeze
+    of -- a real trade on the same symbol and day."""
+    c = _conn()
+    try:
+        assert _count(c, "j2_entry_context", U1) == 0
+    finally:
+        c.close()
 
 
 def test_the_fingerprint_travels_with_the_note_no_live_compute(db, seeded, monkeypatch):
@@ -118,9 +124,12 @@ def test_the_setups_board_shows_the_untraded_example(db, seeded):
     assert sample_examples.SYM_SETUP in cards
     card = cards[sample_examples.SYM_SETUP]
     assert card["entry"] == 410.0 and card["stop"] == 395.0
-    # the GRADED plan note must NOT also show here -- it is consumed (13A already froze a
-    # trade against it), which is exactly what makes the board "active", not "everything".
-    assert sample_examples.SYM_PLAN not in cards
+    # The trade-plan example is untraded too (no sample trade is seeded), so the board
+    # truthfully lists it as well: a drawn entry and stop with no linked trade IS an active
+    # setup. Before round 2 a seeded trade had consumed it.
+    assert sample_examples.SYM_PLAN in cards
+    assert cards[sample_examples.SYM_PLAN]["entry"] == 180.0
+    assert cards[sample_examples.SYM_PLAN]["stop"] == 170.0
 
 
 # ── thesis chips (13G-2) + resurfacing (13D) ────────────────────────────────────────────
@@ -199,28 +208,25 @@ def test_transcript_excerpt_is_cited_in_the_note(db, seeded):
 
 # ── My Playbook (13B) + Visual Playbook (13I-2) + Reviews (13F): fully derived ────────────
 
-def test_my_playbook_shows_the_tagged_setup(db, seeded):
+def test_my_playbook_stats_never_count_the_sample(db, seeded):
+    """My Playbook's numbers are TRADE stats; the sample adds no trade, so it adds nothing
+    here. (It used to show the sample trade as n=1 -- exactly the contamination ruled out.)"""
     c = _conn()
     try:
         stats = playbook_stats.get_playbook_stats(U1, conn=c)
     finally:
         c.close()
-    by_setup = {s["setup"]: s for s in stats}
-    assert "Classic Flag/Pullback" in by_setup
-    assert by_setup["Classic Flag/Pullback"]["sample"]["n"] == 1
+    assert stats == []
 
 
-def test_visual_playbook_shows_a_before_after_for_the_graded_trade(db, seeded):
-    out, examples = seeded
+def test_visual_playbook_shows_the_examples_charts_by_setup(db, seeded):
     c = _conn()
     try:
         grid = visual_playbook.cards(U1, conn=c)
-        tags = {c2["setupTag"] for c2 in grid["cards"]}
-        assert "Classic Flag/Pullback" in tags and "Flat Base Breakout" in tags
-        ba = visual_playbook.before_after(U1, examples["tradeId"], conn=c)
     finally:
         c.close()
-    assert ba is not None
+    tags = {c2["setupTag"] for c2 in grid["cards"]}
+    assert "Classic Flag/Pullback" in tags and "Flat Base Breakout" in tags
 
 
 # ── removal: every surface above goes back to showing nothing ───────────────────────────
@@ -232,10 +238,8 @@ def test_removal_clears_every_capability_surface(db, seeded):
     try:
         assert setups_board.build_cards(c, U1)["cards"] == []
         assert thesis_chips.batch_chips(c, U1, [sample_examples.SYM_THESIS]) == {}
-        assert entry_context.get_context(U1, examples["entryContext"]["symbol"],
-                                         examples["entryContext"]["entryDay"], conn=c) is None
         assert chart_blocks.list_blocks(U1, conn=c) == []
-        assert plan_grading.get_trade(c, U1, examples["tradeId"]) is None
+        assert _count(c, "j2_trades", U1) == 0
         stats = playbook_stats.get_playbook_stats(U1, conn=c)
         assert stats == []
     finally:
@@ -270,7 +274,7 @@ def test_flag_off_routes_answer_404_even_though_the_example_exists(db, seeded, m
     fa.dependency_overrides[get_current_user] = lambda: {"id": U1, "role": "admin"}
     client = TestClient(fa)
 
-    assert client.get(f"/api/j2/plan-grades/trades/{examples['tradeId']}").status_code == 404
+    assert client.get("/api/j2/plan-grades/trades/any-trade-id").status_code == 404
     assert client.get("/api/j2/setups-board").status_code == 404
     r = client.post("/api/j2/thesis-chips", json={"symbols": [sample_examples.SYM_THESIS]})
     assert r.status_code == 404
@@ -280,7 +284,6 @@ def test_flag_off_routes_answer_404_even_though_the_example_exists(db, seeded, m
     # dark, never the row.
     c = _conn()
     try:
-        assert plan_grading.get_trade(c, U1, examples["tradeId"]) is not None
         assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ?",
                          (U1,)).fetchone()[0] == 1
     finally:
@@ -296,7 +299,7 @@ def test_a_members_examples_never_touch_another_members(db, seeded):
     out2 = sample_notebook.seed(U2)
     pref2 = json.loads(auth_service.get_user_preferences(U2)[sample_notebook.PREF_KEY])
     examples2 = pref2["examples"]
-    assert examples["tradeId"] != examples2["tradeId"]
+    assert examples["tradeId"] is None and examples2["tradeId"] is None
     assert examples["passedSetupId"] != examples2["passedSetupId"]
     assert examples["insightId"] != examples2["insightId"]
 
@@ -304,15 +307,13 @@ def test_a_members_examples_never_touch_another_members(db, seeded):
     c = _conn()
     try:
         # U2's rows are untouched by U1's removal.
-        assert plan_grading.get_trade(c, U2, examples2["tradeId"]) is not None
-        assert c.execute("SELECT COUNT(*) FROM j2_entry_context WHERE user_id = ?",
-                         (U2,)).fetchone()[0] == 1
         assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ? AND dismissed_at IS NULL",
                          (U2,)).fetchone()[0] == 1
         board2 = setups_board.build_cards(c, U2)
         assert sample_examples.SYM_SETUP in {card["symbol"] for card in board2["cards"]}
         # U1's are gone.
-        assert plan_grading.get_trade(c, U1, examples["tradeId"]) is None
+        assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ? AND dismissed_at IS NULL",
+                         (U1,)).fetchone()[0] == 0
     finally:
         c.close()
 
@@ -325,12 +326,13 @@ def test_a_second_seed_while_the_sample_is_live_is_refused_and_writes_nothing_ne
         sample_notebook.seed(U1)
     c = _conn()
     try:
-        assert c.execute("SELECT COUNT(*) FROM j2_trades WHERE user_id = ?", (U1,)).fetchone()[0] == 1
+        assert _count(c, "j2_trades", U1) == 0
         assert c.execute("SELECT COUNT(*) FROM j2_passed_setups WHERE user_id = ?",
                          (U1,)).fetchone()[0] == 1
         assert c.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?", (U1,)).fetchone()[0] == 10
     finally:
         c.close()
-    # the preference is unchanged -- still naming the FIRST seed's trade/passed-setup/insight.
+    # the preference is unchanged -- still naming the FIRST seed's passed setup and insight.
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
-    assert pref["examples"]["tradeId"] == examples["tradeId"]
+    assert pref["examples"]["passedSetupId"] == examples["passedSetupId"]
+    assert pref["examples"]["insightId"] == examples["insightId"]

@@ -8,15 +8,25 @@ these examples, which must each name a real-looking ticker to show its capabilit
 anything. Keeping the two apart means the wave-8 rails keep reading exactly the five notes
 they have always read.
 
+⛔⛔ NO TRADE, NO POSITION, NO ENTRY CONTEXT -- EVER (wave 14 integration, round 2). The first
+version of this module seeded a closed AAPL trade through `trades.create_trade_manual` so plan
+grading had something to grade, plus a frozen entry-context row for it. That trade landed in
+`j2_trades` UNMARKED, and `j2_trades` is read by ~60 modules with raw SQL -- P&L, analytics, the
+equity curve, calendar, tax report, exports, playbook stats, discipline, community, the public
+track record, Compass. There is no single choke point to filter a sample flag at, so exclusion
+could not be made airtight, and a member's numbers must never include an example. So the trade
+is not seeded at all; the entry-context row went with it, because that table is keyed by
+(member, symbol, day) and a real AAPL trade on the same day would have read -- and been blocked
+from freezing -- the sample's fabricated context. The plan note stays, unlinked: it still shows
+the chart plan, the drawn levels and the frozen fingerprint, and it tells the member how to get
+a grade (link one of their own trades). `tests/test_sample_notebook_trade_exclusion.py` is the
+rail: seeding writes no row to any trade-side table, and every trade consumer reads the same
+for a seeded member as for an empty one. `remove()` still knows how to delete a recorded trade
+and entry context, for any preference written by the earlier version on a dev box.
+
 ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
-  * the trade              `trades.create_trade_manual` -- the same function Add Trade calls
   * the plan / setup notes `notes.import_confirm`        -- the sample notebook's own door
   * the thesis property    `notes.update_note({"properties": ...})` -- the editor's own door
-  * the plan's grade       `plan_grading.grade_payload`  -- pure arithmetic; freezing it here
-                                                             means the grade already shows
-                                                             working, not "visit this page
-                                                             first" (same guarantee a GET
-                                                             would give, computed once)
   * the chart-block index  `chart_blocks.catch_up`       -- pure projection of the note body
   * the resurfacing index  `note_levels.project_note`     -- pure projection of the note body
   * the resurfacing insight `voice_proactive_service.add_insight` -- the ONE insight door
@@ -24,12 +34,6 @@ ONE REAL DOOR PER PIECE, NEVER RAW SQL THAT SKIPS AN INVARIANT:
   * the passed setup       `passed_setups.add_manual`     -- the member's own "I passed on
                                                              this" door; scores from bars.db,
                                                              zero vendor or model calls
-  * the entry context      `entry_context.freeze_static`  -- added alongside this lane
-                                                             (entry_context.py), because the
-                                                             real `freeze()` always calls
-                                                             `build_context()`, which can read
-                                                             a live earnings-date vendor. A
-                                                             sample must never make that call.
 
 R6 (no live paid model or vendor call on sample data): every number below is written once,
 by hand, here. Nothing in this module calls an LLM, fetches a quote, or reads an earnings
@@ -42,8 +46,9 @@ for a real member, never a crash and never an invented number.
 
 SIX SYMBOLS, ONE EACH, ON PURPOSE. Thesis chips and resurfacing read "the most recently
 updated note that names this symbol" -- two notes on the same ticker would make one example
-silently answer for the other. Plan grading, the setups board and passed setups each read a
-DIFFERENT note/trade population too. Picking six real, highly-liquid large-caps removes the
+silently answer for the other. The setups board and passed setups read different
+populations too (the untraded AAPL plan also shows on the setups board, truthfully: a drawn
+entry and stop with no linked trade is exactly what that board watches). Picking six real, highly-liquid large-caps removes the
 ambiguity a shared or invented symbol would create, while keeping every WRITE here static.
 
 DARK WHILE A CAPABILITY'S OWN FLAG IS OFF, ON PURPOSE (plan section 4.5): the row is written
@@ -66,7 +71,6 @@ from api.services.journal_two import (
     note_levels,
     note_properties,
     passed_setups,
-    plan_grading,
     trades as trades_service,
 )
 from api.services.journal_two import notes as notes_service
@@ -76,10 +80,10 @@ log = logging.getLogger(__name__)
 
 #: One symbol per capability that needs a real-looking ticker, each used exactly once so
 #: "newest note on this symbol" can never cross capabilities.
-SYM_PLAN = "AAPL"        # plan grading, chart plan, TA fingerprint, entry context, visual playbook
+SYM_PLAN = "AAPL"        # chart plan, TA fingerprint, visual playbook (an UNTRADED plan; no trade)
 SYM_SETUP = "MSFT"       # the active setups board
 SYM_THESIS = "NVDA"      # thesis chips, resurfacing
-SYM_PASSED = "GOOGL"     # passed setups (must never also be a traded symbol above)
+SYM_PASSED = "GOOGL"     # passed setups
 SYM_TRANSCRIPT = "TSLA"  # transcript capture
 SYM_EARNINGS = "AMZN"    # earnings prep (cosmetic ticker only; no calendar row is fabricated)
 
@@ -125,8 +129,7 @@ def _unix_seconds_et_close(d: date) -> int:
 def _static_fingerprint(symbol: str, as_of_day: str) -> dict:
     """A plausible, hand-written fingerprint -- the same shape `tech_fingerprint.compute`
     returns, never computed by it. Used both as the chart embed's `ta.fingerprint` (which
-    `chart_blocks.extract_blocks` reads straight off the note, no live call) and as the
-    entry context's `fingerprint` field."""
+    `chart_blocks.extract_blocks` reads straight off the note, no live call)."""
     src = "bars"
     return {
         "v": FINGERPRINT_VERSION, "symbol": symbol, "requested_as_of": as_of_day,
@@ -141,26 +144,6 @@ def _static_fingerprint(symbol: str, as_of_day: str) -> dict:
             "vol_nweek_low": _field(3, src), "close_cv_pct": _field(2.1, src),
             "pole_pct": _field(28.5, src), "patterns": _field([], src),
         },
-    }
-
-
-def _static_entry_context_fields(symbol: str, entry_day: str, report_day: str) -> dict[str, dict]:
-    """The eight `entry_context.FIELDS`, hand-written -- never `build_context()`, which can
-    make a live earnings-date vendor read (`_next_report_date`). See `entry_context.freeze_static`."""
-    fp = _static_fingerprint(symbol, entry_day)
-    return {
-        "regime": _field("Confirmed Uptrend", entry_context.SRC_REGIME, entry_day),
-        "exposure": _field(96.0, entry_context.SRC_EXPOSURE, entry_day),
-        "breadth_pct_above_50": _field(61.4, entry_context.SRC_BREADTH_WIRE, entry_day,
-                                        {"universe": "wire"}),
-        "rs_rank": _field(92, entry_context.SRC_RS, entry_day, {"rsScore": 2.7}),
-        "days_to_earnings": _field(34, entry_context.SRC_EARNINGS, entry_day,
-                                    {"reportDate": report_day, "countedFrom": entry_day}),
-        "uct_scans": _field(["pullback_ma"], entry_context.SRC_UCT_SCANS, entry_day,
-                             {"scans": ["pullback_ma", "remount", "gapper_news"]}),
-        "member_screens": _field([], entry_context.SRC_SCREENS, entry_day, {"swept": 0}),
-        "fingerprint": _field(fp, entry_context.SRC_FINGERPRINT, entry_day,
-                               {"version": fp["v"], "mode": fp["mode"]}),
     }
 
 
@@ -190,7 +173,7 @@ def _bullets(*items: str) -> dict:
 
 def _chart_embed(*, embed_id: str, symbol: str, as_of_day: str, annotations: list[dict],
                  setup_tag: str | None = None, shares: float | None = None,
-                 fingerprint: dict | None = None, trade_id: str | None = None,
+                 fingerprint: dict | None = None,
                  captured_at: str) -> dict:
     ta: dict[str, Any] = {}
     if setup_tag:
@@ -206,24 +189,20 @@ def _chart_embed(*, embed_id: str, symbol: str, as_of_day: str, annotations: lis
     }
     if ta:
         attrs["ta"] = ta
-    if trade_id:
-        attrs["tradeRef"] = trade_id
-        attrs["tradeRefType"] = "equity_trade"
     return {"type": "widgetEmbed", "attrs": attrs}
 
 
 def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float, stop: float,
-                    target: float, shares: float, setup_tag: str, fingerprint: dict,
-                    trade_id: str) -> dict:
+                    target: float, shares: float, setup_tag: str, fingerprint: dict) -> dict:
     annotations = [
         {"role": "entry", "type": "horizontal", "price": entry},
         {"role": "stop", "type": "horizontal", "price": stop},
         {"role": "target", "type": "horizontal", "price": target},
     ]
     return {"type": "doc", "content": [
-        _p(("Example", [{"type": "bold"}]), " -- a plan written BEFORE a trade, so plan "
-           f"grading has something to check it against. {symbol} is a real ticker; the "
-           "numbers are hand-written for this example, not advice."),
+        _p(("Example", [{"type": "bold"}]), " -- a plan written BEFORE a trade. "
+           f"{symbol} is a real ticker; the numbers are hand-written for this example, not "
+           "advice, and no trade was added to your journal."),
         _h(2, "The plan"),
         _bullets(f"Entry {entry:.2f}, stop {stop:.2f}, target {target:.2f}, {int(shares)} shares.",
                  f"Setup: {setup_tag}."),
@@ -231,9 +210,10 @@ def _plan_note_body(symbol: str, as_of_day: str, captured_at: str, entry: float,
            "technical fingerprint frozen for this day -- open it to see the fingerprint panel."),
         _chart_embed(embed_id="ex-plan", symbol=symbol, as_of_day=as_of_day, captured_at=captured_at,
                     annotations=annotations, setup_tag=setup_tag, shares=shares,
-                    fingerprint=fingerprint, trade_id=trade_id),
-        _p("A closed trade is linked to this note already, so Plan vs. Execution grading "
-           "has already run -- open the trade in the Trade Journal to see the four checks."),
+                    fingerprint=fingerprint),
+        _p("When you write a plan like this before one of your own trades and link that "
+           "trade to the note, Plan vs. Execution grading checks the entry, stop, size and "
+           "target against what you actually did."),
     ]}
 
 
@@ -322,51 +302,36 @@ def seed(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
     independent and defensive: one capability's failure is recorded and never stops the
     rest, so `remove()` below can always clean up exactly what this call actually created.
 
-    Returns {"noteIds": [...], "tradeId": str|None, "entryContext": {symbol, entryDay}|None,
-    "passedSetupId": str|None, "insightId": int|None, "errors": {capability: str}}."""
+    Returns {"noteIds": [...], "tradeId": None, "entryContext": None, "passedSetupId": str|None,
+    "insightId": int|None, "errors": {capability: str}}. `tradeId` and `entryContext` are
+    always None now (no trade is seeded) and are kept so a preference written by either
+    version reads the same way."""
     today = _et_today()
     note_ids: list[str] = []
     errors: dict[str, str] = {}
     result: dict[str, Any] = {"noteIds": note_ids, "tradeId": None, "entryContext": None,
                               "passedSetupId": None, "insightId": None, "errors": errors}
 
-    # -- plan grading / chart plan / TA fingerprint / entry context / visual playbook -------
-    entry_date = today - timedelta(days=45)
-    exit_date = today - timedelta(days=10)
+    # -- chart plan / TA fingerprint / visual playbook: an UNTRADED plan ----------------------
+    # No trade and no entry context are written (see the module docstring): a member's P&L,
+    # stats and analytics read `j2_trades` from ~60 places with no sample filter to hide behind.
+    as_of = today - timedelta(days=10)
     entry_price, stop_price, target_price, shares = 180.0, 170.0, 205.0, 100.0
-    exit_price = 207.5   # beyond the target's 0.25R shortfall line: an unambiguous "hit"
     setup_tag = "Classic Flag/Pullback"
-    entry_day = compute_trading_day_et(f"{_iso(entry_date)}T16:00:00Z") or _iso(entry_date)
+    as_of_day = compute_trading_day_et(f"{_iso(as_of)}T16:00:00Z") or _iso(as_of)
     try:
-        trade = trades_service.create_trade_manual(user_id, {
-            "symbol": SYM_PLAN, "side": "Long", "shares": shares, "entryPrice": entry_price,
-            "entryDate": _iso(entry_date), "exitPrice": exit_price, "exitDate": _iso(exit_date),
-            "originalStop": stop_price, "setup": setup_tag,
-            "notes": "Example trade seeded with the sample notebook, for Plan vs. Execution grading.",
-        }, {"breakevenRange": {"enabled": False, "unit": "$", "value": 0}}, conn=conn)
-        trade_id = trade["id"]
-        result["tradeId"] = trade_id
-        fp = _static_fingerprint(SYM_PLAN, entry_day)
+        fp = _static_fingerprint(SYM_PLAN, as_of_day)
         plan_note_id = _own_import(
             user_id, conn, "plan",
             f"Trade plan: example -- {SYM_PLAN} pullback",
-            _plan_note_body(SYM_PLAN, entry_day, f"{entry_day}T16:00:00Z", entry_price, stop_price,
-                            target_price, shares, setup_tag, fp, trade_id))
+            _plan_note_body(SYM_PLAN, as_of_day, f"{as_of_day}T16:00:00Z", entry_price, stop_price,
+                            target_price, shares, setup_tag, fp))
         note_ids.append(plan_note_id)
-        # Pure projections and pure arithmetic -- no live read reaches any of these three.
+        # Pure projection of the note body -- no live read.
         chart_blocks.catch_up(user_id, conn=conn)
-        report_day = _iso(entry_date + timedelta(days=34))
-        entry_context.freeze_static(
-            user_id, SYM_PLAN, entry_day,
-            _static_entry_context_fields(SYM_PLAN, entry_day, report_day),
-            capture_day=entry_day, conn=conn)
-        result["entryContext"] = {"symbol": SYM_PLAN, "entryDay": entry_day}
-        trade_row = plan_grading.get_trade(conn, user_id, trade_id)
-        if trade_row is not None:
-            plan_grading.grade_payload(conn, user_id, trade_row)
     except Exception as e:  # noqa: BLE001 -- one capability's failure never stops the rest
-        log.warning("[sample_examples] plan-grading example failed", exc_info=True)
-        errors["planGrading"] = str(e)
+        log.warning("[sample_examples] chart-plan example failed", exc_info=True)
+        errors["chartPlan"] = str(e)
 
     # -- active setups board ------------------------------------------------------------------
     try:
@@ -486,14 +451,16 @@ def _seed_transcript_example(user_id: str, conn: sqlite3.Connection) -> str:
 # ── removal ────────────────────────────────────────────────────────────────────────────────
 
 def remove(user_id: str, recorded: dict[str, Any], conn: sqlite3.Connection) -> dict[str, Any]:
-    """Undo everything `seed()` wrote that a note's own Trash cannot: the trade (hard
-    delete, the trades door's own), the entry context row (hard delete, `entry_context.
-    forget`), the passed setup (dismissed -- that capability's own "remove" verb, same as a
+    """Undo everything `seed()` wrote that a note's own Trash cannot: the passed setup (dismissed -- that capability's own "remove" verb, same as a
     member's), and the resurfacing insight (dismissed -- same). The example NOTES are not
     handled here: their ids are folded into `sample_notebook`'s own `ids` list, so the
     existing Trash loop in `sample_notebook.remove()` covers them for free, exactly like the
     five base notes -- restorable, consistent with how this whole feature already treats
-    "removed"."""
+    "removed".
+
+    `seed()` no longer writes a trade or an entry context. The two branches below that delete
+    them stay ONLY for a preference recorded by the earlier version (dev boxes; it never
+    shipped): with today's preference both ids are None and both branches are skipped."""
     out = {"tradeDeleted": False, "entryContextDeleted": False, "passedSetupDismissed": False,
           "insightDismissed": False}
     trade_id = recorded.get("tradeId")

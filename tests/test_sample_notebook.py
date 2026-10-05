@@ -208,7 +208,9 @@ def test_seed_writes_the_sample_linked_and_records_its_ids(db):
     pref = json.loads(auth_service.get_user_preferences(U1)[sample_notebook.PREF_KEY])
     assert pref["v"] == 2 and pref["ids"] == out["ids"] and isinstance(pref["at"], str)
     assert pref["examples"]["errors"] == {}, pref["examples"]["errors"]
-    assert pref["examples"]["tradeId"] and pref["examples"]["passedSetupId"] and pref["examples"]["insightId"]
+    # No example trade or entry context is seeded (wave 14 integration round 2).
+    assert pref["examples"]["tradeId"] is None and pref["examples"]["entryContext"] is None
+    assert pref["examples"]["passedSetupId"] and pref["examples"]["insightId"]
 
 
 def test_after_seeding_nothing_reads_as_a_stock_or_a_reminder(db):
@@ -358,7 +360,8 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
     notes.set_note_archived(U1, out["ids"][3], True)
     result = sample_notebook.remove(U1)
     assert result["trashed"] == [i for i in out["ids"] if i != already]
-    assert result["examplesRemoved"] == {"tradeDeleted": True, "entryContextDeleted": True,
+    # No trade or entry context was seeded, so there is none to delete.
+    assert result["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,
                                          "passedSetupDismissed": True, "insightDismissed": True}
     assert notes.get_note(U1, mine) is not None     # the member's own note is untouched
     for nid in out["ids"]:
@@ -366,9 +369,8 @@ def test_remove_trashes_exactly_the_recorded_ids_still_active(db):
         assert notes.get_note(U1, nid, include_deleted=True) is not None   # in Trash, restorable
     again = sample_notebook.remove(U1)
     assert again["trashed"] == []
-    # tradeDeleted/entryContextDeleted/passedSetupDismissed are each False the second time --
-    # the trade and context row are gone, and passed_setups.dismiss() filters `dismissed_at
-    # IS NULL`. `voice_proactive_service.dismiss()` carries no such guard (it re-stamps the
+    # passedSetupDismissed is False the second time -- passed_setups.dismiss() filters
+    # `dismissed_at IS NULL`. `voice_proactive_service.dismiss()` carries no such guard (it re-stamps the
     # timestamp and reports True as long as the row exists) -- a property of that capability's
     # own door, not a defect of this removal.
     assert again["examplesRemoved"] == {"tradeDeleted": False, "entryContextDeleted": False,

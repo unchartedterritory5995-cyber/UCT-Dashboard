@@ -312,7 +312,8 @@ const SERVER_LEDGER = {
     'import_confirm seeds NEW example notes no tab holds yet; update_note (the thesis property) and '
     + 'append_document_excerpt (the cited passage) then write ONLY those fresh ids inside the same seed call; '
     + 'its notes are trashed by sample_notebook.py\'s own pre-checked removal (their ids are recorded with the sample\'s), '
-    + 'and its own remove() touches only non-note rows (a trade, an entry context, a passed setup, an insight)',
+    + 'and its own remove() touches only non-note rows (a passed setup, an insight; a trade or entry context only '
+    + 'for a preference recorded by the earlier version -- no trade is seeded)',
   // Wave 11 lane 11C ("Ask Notebook to do something"): a member-APPROVED batch, applied server-side change by
   // change through the member's own writers, each against the revision the member reviewed.
   'api/services/journal_two/ai_actions.py':
