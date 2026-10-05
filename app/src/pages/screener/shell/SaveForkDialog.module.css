@@ -1,0 +1,37 @@
+.intro { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
+
+.error { margin: 0 0 10px; font-size: 12.5px; color: var(--color-danger); }
+
+.name { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.nameLabel { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.nameInput { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 7px 9px; color: var(--text); font-size: 13px; min-height: 36px; }
+
+.choices { display: flex; flex-direction: column; gap: 8px; }
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+  color: var(--text);
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+}
+.choice:hover:not(:disabled) { border-color: var(--ut-gold); }
+.choice:disabled { cursor: default; opacity: .55; }
+
+.choiceSelected { border-color: var(--ut-gold); box-shadow: inset 0 0 0 1px var(--ut-gold); }
+
+.choiceLabel { font-size: 13.5px; font-weight: 600; }
+.choiceDetail { font-size: 12px; color: var(--text-muted); }
+.choiceReason { font-size: 11.5px; color: var(--color-danger); }
+
+.note { margin: 12px 0 0; font-size: 12.5px; color: var(--gain); }
+
+.footer { display: flex; justify-content: flex-end; gap: 8px; }
