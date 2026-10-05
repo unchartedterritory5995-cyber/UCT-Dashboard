@@ -354,3 +354,16 @@ def test_tables_equivalent_identity_may_differ_only_by_the_remapped_path(tmp_pat
     (b / "first_raw_session.json").write_text(json.dumps({"identity": '{"dir": "%s", "n": 2}' % new,
                                                           "first": {"A": "2005-10-24"}}))
     assert lc.tables_equivalent(str(a), str(b), (old, new))["first_raw_session.json"].startswith("DIFFERENT")
+
+
+def test_archive_vintages_is_verified_append_only_and_reports_pruned(tmp_path):
+    prod, arch = tmp_path / "prod", tmp_path / "arch"
+    (prod / "pA" / "inputs_pA").mkdir(parents=True)
+    (prod / "pA" / "inputs_pA" / "INPUT_MANIFEST.json").write_text('{"tag": "pA"}')
+    r = lc.archive_vintages(str(prod), ["pA", "pGONE"], str(arch))
+    assert r == {"pA": "archived", "pGONE": "MISSING at producer (pruned before archival)"}
+    sums = (arch / "pA.SHA256SUMS").read_text()
+    assert lc.sha_file(str(arch / "pA" / "inputs_pA" / "INPUT_MANIFEST.json")) in sums
+    (prod / "pA" / "inputs_pA" / "INPUT_MANIFEST.json").write_text('{"tag": "pA", "changed": 1}')
+    assert lc.archive_vintages(str(prod), ["pA"], str(arch)) == {"pA": "already archived"}   # never rewritten
+    assert (arch / "pA" / "inputs_pA" / "INPUT_MANIFEST.json").read_text() == '{"tag": "pA"}'

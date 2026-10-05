@@ -351,3 +351,49 @@ def tables_equivalent(archive_inputs: str, remap_inputs: str, replaced_path=None
                         continue
         out[fn] = "equal" if ja == jb else "DIFFERENT"
     return out
+
+
+# ── 6. VINTAGE ARCHIVAL (the producer keeps only its 3 newest vintages) ───────────────────────────
+def archive_vintages(producer_root: str, ready_tags: list, archive_dir: str) -> dict:
+    """Copy every READY producer vintage not yet archived into the exchange archive, verified file-by-file
+    against the producer's copy, then made read-only. Append-only: an archived vintage is never rewritten.
+    ⚠ The live leg must run at least once per (KEEP_VINTAGES - 1) producer publications, or an owner
+    vintage can be pruned before it is archived (that is exactly how p202609292209 was lost)."""
+    import shutil
+    import stat
+    out = {}
+    os.makedirs(archive_dir, exist_ok=True)
+    for tag in sorted(ready_tags):
+        dst, sums = os.path.join(archive_dir, tag), os.path.join(archive_dir, tag + ".SHA256SUMS")
+        if os.path.isdir(dst) and os.path.exists(sums):
+            out[tag] = "already archived"
+            continue
+        src = os.path.join(producer_root, tag)
+        if not os.path.isdir(src):
+            out[tag] = "MISSING at producer (pruned before archival)"
+            continue
+        part = dst + ".partial"
+        if os.path.exists(part):
+            shutil.rmtree(part)
+        shutil.copytree(src, part)
+        lines = []
+        for root, _dirs, files in os.walk(part):
+            for fn in files:
+                rel = "./" + os.path.relpath(os.path.join(root, fn), part).replace(os.sep, "/")
+                lines.append((rel, sha_file(os.path.join(root, fn))))
+        lines.sort()
+        for rel, h in lines:
+            if sha_file(os.path.join(src, rel)) != h:
+                shutil.rmtree(part)
+                raise Refused("ARCHIVE_COPY_MISMATCH", {"tag": tag, "file": rel})
+        with open(sums + ".tmp", "w") as f:
+            for rel, h in lines:
+                f.write("%s  %s\n" % (h, rel))
+        os.replace(part, dst)
+        os.replace(sums + ".tmp", sums)
+        for root, dirs, files in os.walk(dst):
+            for fn in files:
+                os.chmod(os.path.join(root, fn), stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+        os.chmod(sums, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+        out[tag] = "archived"
+    return out

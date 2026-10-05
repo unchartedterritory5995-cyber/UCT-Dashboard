@@ -99,6 +99,10 @@ PROWS = {}
 for u, d, m, o, h, l, c, s in pc.execute("SELECT universe, date, metric, o, h, l, c, source FROM v2_row WHERE universe='us'"):
     PROWS[(d, m)] = (o, h, l, c, s)
 
+# ── archive every READY producer vintage before the producer can prune it ──────────────────
+READY = [r[0] for r in ps.execute("SELECT tag FROM vintage WHERE state='ready'")]
+ARCHIVAL = lc.archive_vintages(os.path.join(PROD, "vintages"), READY, ARCHIVE)
+
 # ── frozen boundary: ledger end, derived trend state (must reproduce every frozen value) ─────
 LDOC = json.load(open(PARENTS["ledger"][0]))
 LEDGER_END = max(r[3] for r in LDOC["rows"])
@@ -195,7 +199,7 @@ def priors_for(d):
 
 
 status = {"mode": A.mode, "plan": plan, "completed_before": done_, "appended": [], "refused": None,
-          "proof_findings": {}, "started_utc": now()}
+          "proof_findings": {}, "vintage_archival": ARCHIVAL, "started_utc": now()}
 for D in todo:
     # ── owner vintage (first-containing) ──
     try:
@@ -208,6 +212,9 @@ for D in todo:
                  "reference_sha256": lc.sha_file(ip + "/pit_reference.json")}
         else:
             V = lc.owner_vintage(D, PSESS, PPUB, ARCHIVE)
+        last = json.load(open(os.path.join(V["inputs_dir"], "INPUT_MANIFEST.json")))["last_session"]
+        if D > last:                       # a vintage never "contains" a session after its own last session
+            raise lc.Refused("VINTAGE_DOES_NOT_CONTAIN_SESSION", {"session": D, "vintage": V["tag"], "last_session": last})
         archive_inputs = V["inputs_dir"]
         remap = lc.build_remap(ARCHIVE, V["tag"], os.path.join(os.path.dirname(ARCHIVE), "remap"))
         V = dict(V, inputs_dir=remap["remap_inputs_dir"], grouped_dir=remap["grouped_dir"],
