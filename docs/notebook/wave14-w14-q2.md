@@ -257,3 +257,65 @@ python tools/notebook_w14q2_tours_walk.py --data-root '<scratch>\w14q2-s6' --por
 
 From PowerShell, with `app/dist` rebuilt from the tree under test, on an empty data root and a
 free port in 8730-8734 (the tool refuses otherwise). About 25 minutes for both phases.
+
+## Round 2 (coordinator follow-up): Back onto a done step, image/docx on a phone
+
+Closes known gaps 5.1 and 5.3. Code commit first, then this record (SHAs in `git log` and the
+report).
+
+### R2.1 Back onto a satisfied "do this to continue" step shows that step (engine)
+
+Before, the `waitFor` watch moved on whenever its anchor was ON the page, so Back onto a step
+whose thing was already done (a panel still open) jumped straight forward again. Now it moves
+on only when the anchor APPEARS after the step is shown: the member doing the thing. Otherwise
+only Next moves on. Rail: `GenericTourEngine.q2.test.jsx` "the action moves on; Back stays on
+the step; Next moves on again". Mutation (ignore whether the anchor was seen absent) ->
+`Tests 1 failed | 2 passed`; restore sha-verified. Real browser (`evidence/wave14-q2/round2/`):
+Back now tested on every tour walked, onto a waitFor step where there is one, and the step was
+still shown 2 s later. PASS for template-gallery, meaning-search and visual-playbook (onto
+waitFor) and image-docx, chart-plan-basics, chart-plan-replay, at both widths.
+
+### R2.2 Image or Word document: 5 of 5 on a phone; desktop unchanged (tour data + anchors)
+
+Two PHONE-ONLY "do this" steps were added. Their anchors have a box only at <= 640 px, so a
+tablet or desktop skips them and sees exactly the steps it saw before.
+
+| step | anchor (file) | waitFor |
+|---|---|---|
+| format: "Images and files are under Format" | `note-format` on the Format disclosure (NoteEditorPage.jsx; `.formatToggle` is display:none above 640) | `note-scan` |
+| back: "Search is in your notes list" | `note-phone-back` on Back to notes (NotebookTab.jsx; `.phoneBack` is display:none above 640) | `search` |
+
+Rail: `tours/b1ImageDocx.steps.test.js`. It checks each waitFor names the next step's anchor and
+that the non-phone steps are still exactly `note-toolbar, note-scan, search`. It also reads both
+stylesheets to confirm the two new anchors are hidden outside the phone block. Mutation (drop
+Format's waitFor) -> `Tests 1 failed | 3 passed`; restore sha-verified.
+
+Measured in the real browser (`round2/walk.json`, 191 checks: 126 PASS, 65 INFO, 0 FAIL):
+
+| width | shown | steps | notes |
+|---|---|---|---|
+| 390 | **5/5** | add, format (non-modal; Format pressed with a normal tap), scan, back (non-modal; Back to notes pressed), find | axe 0, tap floor PASS |
+| 1200 | 2/5 | add, find (format, scan, back have no box) | the same two steps as before; axe 0 |
+
+The other five tours re-walked in round 2 are unchanged from section 2: template-gallery 4/4,
+meaning-search 3/3, chart-plan-basics 6/6, chart-plan-replay 4/4, visual-playbook 6/6, at both
+widths. Transcript capture's data dependency stays as documented (5.2). Sandbox integrity: CLEAN
+(`integrity/2026-10-05T03-59-38.md`).
+
+### R2.3 Gates (after round 2)
+
+```
+bytes.notebook_first_open: 2,254,992 B across 66 JS chunks (budget 2,260,793 B, baseline 2,153,137 B)
+VERDICT: PASS -- within every budget checked
+```
+
+`npx vitest run src/pages/journal-2-0 src/pages/Support --maxWorkers=3`:
+
+```
+ Test Files  643 passed (643)
+      Tests  8108 passed | 1 skipped (8109)
+EXIT: 0
+```
+
+Updated counts: **20 of 20 open at both widths. 12 of 19 replayable tours show every declared step
+at 390, and 11 of 19 at 1200** (image/docx is complete on a phone by design; a desktop has no Scan).
