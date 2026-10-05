@@ -856,6 +856,27 @@ QUOTES = {
  "N_remindnotify": [
   "notion__reminders_w14",
   "When you add a reminder, Notion will send you a notification to draw your attention back to a particular task"
+ ],
+ # ── wave 14 evidence pass: four cells PARITY by controller ruling, 2026-10-04 (R21) ──
+ "E_remindalert": [
+  "evernote_hc__208314338_w14",
+  "You can opt to receive email alerts on the day timed reminders are due."
+ ],
+ "E_tabsrestore": [
+  "evernote_hc__52440426461075_w14",
+  "When you close and reopen the app, your tabs will be restored exactly as you left them."
+ ],
+ "O_deleteacct": [
+  "obsidian__privacy_w14",
+  "You may choose to delete your Obsidian account at any time using the account dashboard, which will permanently delete your account, licenses, and subscriptions."
+ ],
+ "O_cancelpurge": [
+  "obsidian__privacy_w14",
+  "If you cancel the subscription yourself, your data is deleted immediately."
+ ],
+ "O_exportpdf": [
+  "obsidian__changelog_desktop_v0_9_11_w14",
+  "You can now export notes to PDF."
  ]
 }
 
@@ -2006,6 +2027,42 @@ SOURCES = {
   "status": 200,
   "sha256": "124965b97ad67aa19e480ee46bb28d98de6a986ce3bf187c6320dbe57996105f",
   "fetched_utc": "2026-10-05T04:27:00Z",
+  "rrow": "R21"
+ },
+ "evernote_hc__208314338_w14": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/208314338-Add-a-note-reminder",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/208314338.json",
+  "status": 200,
+  "sha256": "92e0d0d0b3910b2f8dcea69d038838dcdeb9142997a885732d487281e3e98535",
+  "fetched_utc": "2026-10-05T04:28:16Z",
+  "rrow": "R21"
+ },
+ "evernote_hc__52440426461075_w14": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/52440426461075-Use-tabs-to-multitask-in-Evernote",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/52440426461075.json",
+  "status": 200,
+  "sha256": "489c1815b5af993e2923ca16201615f5e0e3b75808418982d6993be35cec984e",
+  "fetched_utc": "2026-10-05T04:26:49Z",
+  "rrow": "R21"
+ },
+ "obsidian__privacy_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/privacy",
+  "read_from": "https://obsidian.md/privacy",
+  "status": 200,
+  "sha256": "a91584c660c7fbc07d8ed9c35de5fd936b4a1c804a9b773b3168da02b44a59fd",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_desktop_v0_9_11_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-11-03-desktop-v0.9.11/",
+  "read_from": "https://obsidian.md/changelog/2020-11-03-desktop-v0.9.11/",
+  "status": 200,
+  "sha256": "11aa282e49219e47a5b5ba08769bbe62098a5be69736442edcf6e7e72b114f57",
+  "fetched_utc": "2026-10-05T04:33:48Z",
   "rrow": "R21"
  }
 }
@@ -3692,11 +3749,13 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
-      {'N': ['N_favorites'], 'E': EB, 'O': ['O_recents']},
+    R('G-110', ('P', 'P', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
+      {'N': ['N_favorites'], 'E': ['E_tabsrestore'], 'O': ['O_recents']},
       'B17: the research home shows Continue working. Obsidian\'s Quick switcher states an MRU recents surface when '
       'the search term is empty (R20) -- a flat recents list, not the synthesized Continue working/Active theses '
-      'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row.')
+      'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row. '
+      'Evernote PARITY by controller ruling (2026-10-04, wave 14 evidence pass; R21): its desktop tabs are restored exactly as left '
+      'when the app reopens -- a resumption surface in the same modest sense, desktop only.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
     R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 34, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
@@ -3846,13 +3905,15 @@ def build(pages_dir=None):
       '-- controller ruling, 2026-10-04 -- it opens a page beside a DATABASE VIEW, continuing to show that view '
       'interactive on the left, not a second arbitrary note opened beside the first the way UCT\'s split view and '
       'Obsidian\'s tabs both are; stays NOT-VERIFIED rather than PARITY.')
-    R('G-153', ('P', 'NV', 'NV'), [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
+    R('G-153', ('P', 'P', 'NV'), [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
                       walk7('W11_reminders'), walk15uct('G153_reminder_delivered_server'),
                       walk15uct('G153_reminder_bell_mobile_390')],
-      {'N': ['N_remind', 'N_remindnotify'], 'E': ['E_tasks'], 'O': NFO},
+      {'N': ['N_remind', 'N_remindnotify'], 'E': ['E_tasks', 'E_remindalert'], 'O': NFO},
       'Notion\'s reminders page states a notification for a reminder set on a date (R21), and the walk below '
-      'evidences the UCT side, so Notion reads PARITY (wave 14 evidence pass). Evernote\'s reminder is per note, '
-      'not driven by a date mention or Review Date, so it stays NOT-VERIFIED pending a controller ruling. '
+      'evidences the UCT side, so Notion reads PARITY (wave 14 evidence pass). Evernote PARITY by controller '
+      'ruling (2026-10-04, wave 14 evidence pass; R21): its reminder page states an alert on the day a timed reminder is due; its '
+      'reminder is set per note rather than by a date mention or Review Date, and the ruling reads that as the same '
+      'capability as named. '
       'Wave 15 (lane W15-UCT) observed a reminder end to end on a real sandbox, where wave-6 and wave-7\'s walks were '
       'INCONCLUSIVE (no reachable trigger): a seeded overdue task\'s reminder landed on the real GET /api/alerts 48.7s '
       'after seeding, shaped exactly as note_tasks.reminder_copy declares, and was read correctly off the real bell '
@@ -3934,10 +3995,11 @@ def build(pages_dir=None):
       'the independent keyboard review ran (10E-2) and F4 fixed its MAJORs, with 7 walk steps still FAIL. The '
       'screen-reader passes are the owner\'s; no competitor accessibility page was fetched.',
       'owner screen-reader passes; the remaining keyboard FAIL rows (§B standard #9)')
-    R('G-169', ('P', 'P', 'NV'), [code(f'{JT}/notes_export_formats.py', 1, 'a web page (HTML), lossless JSON and Word (.docx)'),
+    R('G-169', ('P', 'P', 'P'), [code(f'{JT}/notes_export_formats.py', 1, 'a web page (HTML), lossless JSON and Word (.docx)'),
                                  test_py('tests/test_notes_export_formats.py'), walk9('B13_share_publish_export')],
-      {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': NFO},
-      'PDF is the browser\'s Print (the row records it).')
+      {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': ['O_exportpdf']},
+      'PDF is the browser\'s Print (the row records it). Obsidian PARITY by controller ruling (2026-10-04, wave 14 evidence pass; R21): '
+      'its public release note states export to PDF -- PDF only, the same reading Evernote\'s PARITY on this row rests on.')
     R('G-170', 'NA', [code('app/src/lib/errorBeacon.js', 856, 'export function installErrorBeacon()'),
                       code('app/src/main.jsx', 11, 'installErrorBeacon()'),
                       code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
