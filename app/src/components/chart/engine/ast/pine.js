@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, volumeIndexLevelTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -8227,6 +8227,16 @@ export class Resolver {
     return hostAdmissible(this.table).has('cum') && own(fns, 'cum') && own(fns, 'sign') && own(fns, 'change')
   }
 
+  /** ⭐ W19-H2 — is `ta.nvi` / `ta.pvi`'s LEVEL served here? The same gate as
+   *  `ta.obv`'s (host lane, `cum` admitted for a pane), and the pieces the tree is
+   *  spelled from declared (`exp`, `ln`, `nz`). A screen keeps the table's
+   *  `_functions_excluded.nvi` / `.pvi` ruling: the level is not comparable across fetches. */
+  volumeIndexServed() {
+    if (!this.strict) return false
+    const fns = (this.table && this.table.functions) || {}
+    return hostAdmissible(this.table).has('cum') && ['cum', 'exp', 'ln', 'nz'].every((f) => own(fns, f))
+  }
+
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
    *  saying `pine:builtin` about either would name the wrong thing. A dotted name
    *  whose first segment is a type the script DECLARED, or a local the script
@@ -10342,6 +10352,8 @@ export class Resolver {
         if (own(PINE_MATH_CONSTANTS, name)) return PINE_MATH_CONSTANTS[name]()
         // ⭐ H6 — `ta.obv` on the HOST lane (see `obvLevelTree`).
         if (short === 'obv' && this.obvLevelServed()) return obvLevelTree()
+        // ⭐ W19-H2 — `ta.nvi` / `ta.pvi` on the HOST lane (`interpret.js::volumeIndexLevelTree`).
+        if ((name === 'ta.nvi' || name === 'ta.pvi') && this.volumeIndexServed()) return volumeIndexLevelTree(short)
         return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',

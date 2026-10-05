@@ -283,12 +283,15 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     expect(rWelotrades.refusal.message).not.toMatch(/OPENING TIMESTAMP/)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
+      // ⚰️ W19-H2 serves `ta.nvi` / `ta.pvi` on the host lane, so this script now
+      // translates as written; `ta.wad` (genuinely undeclared) stands in for them.
+      .replace(/ta\.[np]vi/g, 'ta.wad')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.nvi/)
+    expect(t.refusal.message).toMatch(/ta\.wad/)
   })
 })

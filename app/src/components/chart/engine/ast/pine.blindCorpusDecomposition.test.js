@@ -53,7 +53,8 @@ describe('⛔⛔ RISK-004 — the assisted-edit mechanism has exactly ONE offer'
       // undeclared function (no manifest entry, no expansion) and refuses
       // the identical `pine:function` guard with no suggest, so it is the
       // fresh representative for this family.
-      ['ta.nvi genuinely undeclared', 'x = ta.nvi\nplot(x > 0 ? 1 : 0)'],
+      // ⚰️ W19-H2 serves `ta.nvi` on the host lane; `ta.wad` is genuinely undeclared.
+      ['ta.wad genuinely undeclared', 'x = ta.wad\nplot(x > 0 ? 1 : 0)'],
       ['ta.barssince unbounded', 'x = nz(ta.barssince(close > open), 0)\nplot(x > 5 ? 1 : 0)'],
       // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06): `ta.falling`
       // no longer belongs in this probe list — it TRANSLATES now, resolved by

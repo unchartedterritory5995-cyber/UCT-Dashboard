@@ -74,7 +74,7 @@ plot(math.floor(close / 3))
     expect(t.refusal.message).toMatch(/`rclose` is written at line \d+ by a statement this lane does not model/)
   })
 
-  it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {
+  it('⛔ CONTROL — a genuinely unimplemented function (ta.wad) still refuses pine:function', () => {
     // ⚰️ This used to name `heat-map-seasons__53acdf3223.pine` (`ta.correlation`)
     // — the CORRECT control at the time, and no longer one: `ta.correlation`
     // joined `BUILTIN_CALL_TREE` (2026-09-20, `pine.expansions.test.js`) as an
@@ -83,9 +83,12 @@ plot(math.floor(close / 3))
     // undeclared, so it is the control now.
     const src = fs.readFileSync(
       path.join(CORPUS, 'smart-money-volume-index-algoalpha__6663950b80.pine'), 'utf8')
+      // ⚰️ W19-H2 serves `ta.nvi` / `ta.pvi` on the host lane, so this script now
+      // translates as written; `ta.wad` (genuinely undeclared) stands in for them.
+      .replace(/ta\.[np]vi/g, 'ta.wad')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:function')
-    expect(t.refusal.message).toMatch(/ta\.nvi/)
+    expect(t.refusal.message).toMatch(/ta\.wad/)
   })
 })

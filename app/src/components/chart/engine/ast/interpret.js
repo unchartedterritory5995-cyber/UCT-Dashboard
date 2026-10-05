@@ -4935,11 +4935,21 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'that total is withheld on this chart rather than drawn off by that constant. A change in it over a '
     + 'number of bars (`ta.obv - ta.obv[5]`, `ta.obv > ta.obv[1]`) is drawn. On a daily chart whose bars start '
     + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ W19-H2 — `ta.nvi` / `ta.pvi`'s level (see `volumeIndexLevelTree`).
+  'cum:volume-index': () => '`ta.nvi` and `ta.pvi` start at 1 on the first bar of the symbol\'s history on '
+    + 'TradingView and multiply by the bar\'s price change on each bar whose volume fell (`ta.nvi`) or rose '
+    + '(`ta.pvi`). This chart\'s loaded bars start later, so its index is TradingView\'s divided by everything '
+    + 'that multiplied in before its first bar — a factor it cannot know, which never decays (on SPY daily from '
+    + '2006 it is 9.07 for `ta.nvi` and 2.87 for `ta.pvi`). Everything this indicator draws from the index is '
+    + 'withheld on this chart rather than drawn off by that factor. On a daily chart whose bars start at the '
+    + 'symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
 })
+/** The running-level codes `cumulativeLevelMask` names, in the order it names them. */
+export const CUM_LEVEL_CODES = Object.freeze(['cum:window', 'cum:volume-index'])
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
-  'cum:window'])
+  ...CUM_LEVEL_CODES])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -6266,6 +6276,58 @@ export function isObvLevelNode(node) {
   return (isSignedChange(a) && isVolume(b)) || (isVolume(a) && isSignedChange(b))
 }
 
+/** ⭐⭐ W19-H2 — `ta.nvi` / `ta.pvi`, THE LEVEL, AS ONE TREE OF THE TABLE'S OWN NAMES.
+ *
+ *  Pine's reference (TradingView's published `pine_nvi()`): seed 1.0; on a bar whose
+ *  close and previous close are both non-zero, `nvi := volume < nz(volume[1]) ?
+ *  prev + (close - close[1]) / close[1] * prev : prev` (pvi: `>`). Read off the
+ *  vendor (`vw-nvi-pvi-spy-1d-full-2026-09-27`, SPY 1D from 1993's first bar, 8472
+ *  bars): both seed at exactly 1 on bar 0 and the step rule holds to ~1e-16 on every
+ *  bar. That product is `exp(cum(step ? ln(close / close[1]) : 0))`: bar 0's term is
+ *  0 (no previous close), so the level is 1 there, and every later bar multiplies by
+ *  `close / close[1]` exactly when the step fires. Measured against the capture it
+ *  agrees to 1.6e-14 relative on every one of the 8472 bars (`vendorHarness.w19h2VolumeIndex`).
+ *  ⚠️ `ln` of a non-positive ratio is NaN, which `cum` HOLDS — a listing whose price
+ *  crosses zero (a spread, never a US equity) would hold where Pine multiplies.
+ *  ⛔ IT IS A PRODUCT FROM THE SYMBOL'S FIRST BAR, so off the listing it is
+ *  TradingView's DIVIDED by an unknown constant that never decays (the full capture
+ *  sizes it: a fetch starting 2006-11-08 reads nvi 9.07x and pvi 2.87x low). That
+ *  is `cumulativeLevelMask`'s second shape, named `cum:volume-index`. */
+export const VOLUME_INDEX_STEP_OP = Object.freeze({ nvi: '<', pvi: '>' })
+
+export function volumeIndexLevelTree(kind) {
+  const op = VOLUME_INDEX_STEP_OP[kind]
+  if (!op) return null
+  const S = (name) => ({ type: 'series', name })
+  const prev = (name) => ({ type: 'offset', value: 1, args: [S(name)] })
+  const num = (value) => ({ type: 'num', value })
+  const call = (name, args) => ({ type: 'call', name, args })
+  const o = (name, args) => ({ type: 'op', name, args })
+  const fires = o('&&', [
+    o('&&', [o('!=', [call('nz', [prev('close'), num(0)]), num(0)]), o('!=', [S('close'), num(0)])]),
+    o(op, [S('volume'), call('nz', [prev('volume'), num(0)])]),
+  ])
+  return call('exp', [call('cum', [o('?:', [fires, call('ln', [o('/', [S('close'), prev('close')])]), num(0)])])])
+}
+
+const volumeIndexShapeKey = (n) => {
+  if (!n || typeof n !== 'object') return JSON.stringify(n === undefined ? null : n)
+  const args = Array.isArray(n.args) ? n.args.map(volumeIndexShapeKey).join(',') : '-'
+  return `${n.type}|${JSON.stringify(n.name ?? null)}|${JSON.stringify(n.value ?? null)}(${args})`
+}
+let VOLUME_INDEX_KEYS = null
+
+/** ⭐ W19-H2 — `'nvi'` / `'pvi'` when this node IS that level's tree
+ *  (`volumeIndexLevelTree`), else null. Exact structure, nothing looser. */
+export function volumeIndexKindOf(node) {
+  if (!node || node.type !== 'call' || node.name !== 'exp') return null
+  if (!VOLUME_INDEX_KEYS) {
+    VOLUME_INDEX_KEYS = new Map(Object.keys(VOLUME_INDEX_STEP_OP)
+      .map((k) => [volumeIndexShapeKey(volumeIndexLevelTree(k)), k]))
+  }
+  return VOLUME_INDEX_KEYS.get(volumeIndexShapeKey(node)) || null
+}
+
 /** ⭐⭐ H6 — THE BARS A TREE READING `ta.obv`'S LEVEL IS WITHHELD ON: every bar, off
  *  the listing, in a document that means Pine's numbers; null otherwise.
  *
@@ -6289,16 +6351,18 @@ export function cumulativeLevelMask(tree, bars, inputs, budget, scalars, opts) {
   if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
   const stack = [tree]
   const seen = new Set()
-  let found = false
-  while (stack.length && !found) {
+  const codes = new Set()
+  while (stack.length && codes.size < 2) {
     const node = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
-    if (isObvLevelNode(node)) found = true
+    if (isObvLevelNode(node)) codes.add('cum:window')
+    // ⭐ W19-H2 — `ta.nvi` / `ta.pvi`'s level: the same withholding, its own name.
+    else if (volumeIndexKindOf(node)) codes.add('cum:volume-index')
     else if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
   }
-  if (!found) return null
-  nameChartClock(opts, ['cum:window'], opts.tf)
+  if (!codes.size) return null
+  nameChartClock(opts, CUM_LEVEL_CODES.filter((c) => codes.has(c)), opts.tf)
   return new Float64Array(Array.isArray(bars) ? bars.length : 0).fill(1)
 }
 

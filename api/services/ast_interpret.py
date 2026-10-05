@@ -4433,6 +4433,60 @@ def is_obv_level_node(node: Any) -> bool:
     return (signed_change(a) and volume(b)) or (volume(a) and signed_change(b))
 
 
+#: W19-H2 -- ``interpret.js::VOLUME_INDEX_STEP_OP``: the volume test each index steps on.
+VOLUME_INDEX_STEP_OP = {"nvi": "<", "pvi": ">"}
+
+
+def volume_index_level_tree(kind: str) -> Optional[dict]:
+    """``interpret.js::volumeIndexLevelTree`` -- ``ta.nvi`` / ``ta.pvi``'s level,
+    ``exp(cum(step ? ln(close / close[1]) : 0))`` (seed 1 on bar 0; measured on
+    ``vw-nvi-pvi-spy-1d-full-2026-09-27``). Built here, never read from the JS lane,
+    so the recogniser below compares against THIS lane's builder."""
+    op = VOLUME_INDEX_STEP_OP.get(kind)
+    if op is None:
+        return None
+
+    def ser(name: str) -> dict:
+        return {"type": "series", "name": name}
+
+    def prev(name: str) -> dict:
+        return {"type": "offset", "value": 1, "args": [ser(name)]}
+
+    def num(value: float) -> dict:
+        return {"type": "num", "value": value}
+
+    def call(name: str, args: list) -> dict:
+        return {"type": "call", "name": name, "args": args}
+
+    def opn(name: str, args: list) -> dict:
+        return {"type": "op", "name": name, "args": args}
+
+    fires = opn("&&", [
+        opn("&&", [opn("!=", [call("nz", [prev("close"), num(0)]), num(0)]), opn("!=", [ser("close"), num(0)])]),
+        opn(op, [ser("volume"), call("nz", [prev("volume"), num(0)])]),
+    ])
+    return call("exp", [call("cum", [opn("?:", [fires, call("ln", [opn("/", [ser("close"), prev("close")])]), num(0)])])])
+
+
+def _volume_index_shape(node: Any) -> Any:
+    if not isinstance(node, dict):
+        return node
+    args = node.get("args")
+    return (node.get("type"), node.get("name"), node.get("value"),
+            tuple(_volume_index_shape(a) for a in args) if isinstance(args, list) else None)
+
+
+_VOLUME_INDEX_SHAPES = {_volume_index_shape(volume_index_level_tree(k)): k for k in VOLUME_INDEX_STEP_OP}
+
+
+def volume_index_kind_of(node: Any) -> Optional[str]:
+    """``interpret.js::volumeIndexKindOf`` -- ``"nvi"`` / ``"pvi"`` when ``node`` IS
+    that level's tree, else ``None``. Exact structure, nothing looser."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "exp":
+        return None
+    return _VOLUME_INDEX_SHAPES.get(_volume_index_shape(node))
+
+
 def cumulative_level_mask(tree: Any, bars: Sequence[dict],
                           inputs: Optional[Mapping[str, Any]] = None,
                           budget: Optional[Mapping[str, Any]] = None,
@@ -4447,21 +4501,25 @@ def cumulative_level_mask(tree: Any, bars: Sequence[dict],
         return None
     stack = [tree]
     seen = set()
-    found = False
-    while stack and not found:
+    codes = set()
+    while stack and len(codes) < 2:
         node = stack.pop()
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
         if is_obv_level_node(node):
-            found = True
+            codes.add("cum:window")
+            continue
+        # W19-H2 -- ``ta.nvi`` / ``ta.pvi``'s level: the same withholding, its own name.
+        if volume_index_kind_of(node):
+            codes.add("cum:volume-index")
             continue
         args = node.get("args")
         if isinstance(args, list):
             stack.extend(args)
-    if not found:
+    if not codes:
         return None
-    _name_chart_clock(opts, ["cum:window"])
+    _name_chart_clock(opts, [c for c in CUM_LEVEL_CODES if c in codes])
     return [1] * len(bars)
 
 
@@ -4581,7 +4639,11 @@ CHART_CLOCK_WHOLE = (
     "bar-index:window",
     # H6 -- ``ta.obv``'s running total off the listing (``cumulative_level_mask``)
     "cum:window",
+    # W19-H2 -- ``ta.nvi`` / ``ta.pvi``'s running product off the listing (same mask)
+    "cum:volume-index",
 )
+#: ``interpret.js::CUM_LEVEL_CODES`` -- the codes ``cumulative_level_mask`` names, in order.
+CUM_LEVEL_CODES = ("cum:window", "cum:volume-index")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars",

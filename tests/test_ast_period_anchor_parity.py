@@ -114,7 +114,8 @@ def test_the_fixture_is_not_vacuous():
              if not c.startswith("bar-index:") and not c.startswith("seed:") and not c.startswith("cum:")}
     assert clock - named == {"time-anchor:other-bars"}
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars",
-                                                          "seed:window", "seed:held", "cum:window"}
+                                                          "seed:window", "seed:held", "cum:window",
+                                                          "cum:volume-index"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

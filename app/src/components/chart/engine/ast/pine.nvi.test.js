@@ -16,7 +16,8 @@
 // seed. The probe's `N02_bar_index_SEED_IS_AT_ZERO` channel is what caught that;
 // the full history was then loaded through the chart's own `All` button.
 //
-// This file does not test the engine — `ta.nvi` is NOT pinned yet. It tests that
+// ⚰️ "`ta.nvi` is NOT pinned yet" — it is now (W19-H2, the last block below). This
+// file still tests mainly that
 // the CAPTURE is internally consistent, so the reading cannot rot into a number
 // nobody can re-derive.
 
@@ -87,14 +88,18 @@ describe('⭐⭐ the seed, and the rule that rides on it', () => {
   })
 })
 
-describe('⛔ `ta.nvi` is NOT pinned yet, and the door still says so', () => {
-  it('it refuses at pine:function', () => {
-    const out = translatePine(
-      '//@version=6\nindicator("p", overlay=false)\nplot(ta.nvi)\n', { strict: true })
-    const r = out.refusals || []
-    expect(r.length).toBe(1)
-    expect(r[0].guard).toBe('pine:function')
-    // ⭐ When it IS pinned, this flips and the seed above is what it must be
-    // pinned TO — 1, not 100, not 1000.
+describe('⭐ W19-H2 — `ta.nvi` IS pinned now, to the seed above (1), on the host lane only', () => {
+  // ⚰️ This block said "NOT pinned yet, and the door still says so" and asserted the
+  // pane refused at `pine:function`. W19-H2 serves the level on a pane
+  // (`interpret.js::volumeIndexLevelTree`, graded on all 8472 bars of
+  // `vw-nvi-pvi-spy-1d-full-2026-09-27` in `vendorHarness.w19h2VolumeIndex`), withheld
+  // off the listing by name. A screen still refuses it.
+  it('the pane translates it; a screen still refuses at pine:function', () => {
+    const src = '//@version=6\nindicator("p", overlay=false)\nplot(ta.nvi)\n'
+    const pane = translatePine(src, { strict: true })
+    expect(pane.refusal).toBeFalsy()
+    expect(pane.outputs[0].formula).toMatch(/^exp\(cum\(/)
+    const screen = translatePine(src, { strict: false })
+    expect(screen.refusal && screen.refusal.guard).toBe('pine:function')
   })
 })

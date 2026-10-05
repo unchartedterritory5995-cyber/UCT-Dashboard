@@ -828,6 +828,7 @@ export function enterMemberDoor(source) {
 function whatWithheld(code) {
   if (code.startsWith('bar-index:')) return '`bar_index`'
   if (code.startsWith('seed:')) return 'a recursive series\' seed'
+  if (code === 'cum:volume-index') return '`ta.nvi` / `ta.pvi`\'s level'
   return 'time(<timeframe>)'
 }
 
@@ -985,8 +986,9 @@ export function runOurSide(capture) {
         const what = whatWithheld(r.code)
         notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
         // ⭐ H6 — `cum:window` (`ta.obv`'s level off the listing) is the same kind
-        // of withholding: every bar, by name, never a value that differs.
-        if (r.code === 'bar-index:window' || r.code === 'cum:window') for (const key of r.plots) withheldWhole.set(key, r.code)
+        // of withholding: every bar, by name, never a value that differs. W19-H2's
+        // `cum:volume-index` (`ta.nvi` / `ta.pvi`) is the same again.
+        if (r.code === 'bar-index:window' || r.code.startsWith('cum:')) for (const key of r.plots) withheldWhole.set(key, r.code)
       }
     }
 
