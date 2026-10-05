@@ -4,9 +4,9 @@ vintage: the pinned grouped history caches per process). Run through launch.py (
 argv: SPEC.json   (written by exch_live_leg.py; this worker writes only spec["out"] and spec["scratch"])
 
   1. PREFLIGHT    the unmodified V2c2 preflight, pointed at the EXPLICIT exchange pin set
-                  (breadth_exch_live_pins.json). The vintage is the exchange archive's hash-verified copy:
-                  every grouped file is re-verified against the vintage's own manifest here, and the ONE
-                  accepted preflight finding is the grouped-dir path remap producer→archive (exact paths).
+                  (breadth_exch_live_pins.json), with NO accepted findings. Inputs are the verified remap of
+                  the archived vintage (live_core.build_remap); every grouped file is re-verified here
+                  against the vintage's own manifest.
   2. MEMBERSHIP   identity_model.Bridge over the accepted ledger through its last session; after it, the
                   session's LIVE venue evidence (dated listing on the session + SIP tape on the session,
                   classified by the accepted breadth_venue_ledger.classify rule table).
@@ -62,9 +62,7 @@ gm = json.load(open(os.path.join(V["inputs_dir"], "grouped_vintage_manifest.json
 bad = [k for k, v in gm["manifest"].items() if sha(os.path.join(V["grouped_dir"], k + ".json")) != v["sha256"]]
 cp.PINS_PATH = SPEC["pins_path"]
 pf = cp.preflight(V["inputs_dir"], now_utc=man["acquisition_window"]["finished"], verify_files=False)
-remap = "BREADTH_GROUPED_DIR %s is not the manifest's %s" % (V["grouped_dir"], man["grouped_dir"])
-expected_remap = os.path.basename(man["grouped_dir"]) == os.path.basename(V["grouped_dir"]) == "grouped_" + V["tag"]
-problems = [p for p in pf["problems"] if not (p == remap and expected_remap)]
+problems = list(pf["problems"])                    # no exceptions: the remap made the manifest's dir exact
 if bad:
     problems.append("%d archived grouped files differ from the vintage manifest" % len(bad))
 if problems:

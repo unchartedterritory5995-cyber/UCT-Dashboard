@@ -208,6 +208,10 @@ for D in todo:
                  "reference_sha256": lc.sha_file(ip + "/pit_reference.json")}
         else:
             V = lc.owner_vintage(D, PSESS, PPUB, ARCHIVE)
+        archive_inputs = V["inputs_dir"]
+        remap = lc.build_remap(ARCHIVE, V["tag"], os.path.join(os.path.dirname(ARCHIVE), "remap"))
+        V = dict(V, inputs_dir=remap["remap_inputs_dir"], grouped_dir=remap["grouped_dir"],
+                 archive_inputs_dir=archive_inputs, remap=remap)
     except lc.Refused as e:
         status["refused"] = {"session": D, "reason": e.reason, "detail": e.detail}
         break
@@ -227,6 +231,10 @@ for D in todo:
     R = json.load(open(spec["out"])) if os.path.exists(spec["out"]) else {"refused": "NO_OUTPUT"}
     if R.get("refused"):
         status["refused"] = {"session": D, "reason": "WORKER_" + R["refused"], "detail": R}
+        break
+    teq = lc.tables_equivalent(V["archive_inputs_dir"], V["inputs_dir"])
+    if any(v == "DIFFERENT" for v in teq.values()):
+        status["refused"] = {"session": D, "reason": "REMAP_TABLES_DIFFER", "detail": teq}
         break
     crash("after_evidence")
     # ── independent validation ──
@@ -309,7 +317,7 @@ for D in todo:
                "rows_sha256": lc.rows_sha(rows), "membership_sha256": lc.rows_sha(membership),
                "derived_sha256": lc.rows_sha(derived + trend),
                "identity_state_sha256": "pending" if D > HORIZON else lc.sha_file(cur_path),
-               "provenance": {"vintage": V, "preflight": R["preflight"], "evidence": cap.get("evidence"), "us_parity": us_par},
+               "provenance": {"vintage": V, "remap_tables": teq, "preflight": R["preflight"], "evidence": cap.get("evidence"), "us_parity": us_par},
                "completed_at": now()}
     try:
         STORE.commit_session(D, plan[len(STORE.completed())], payload, crash=crash if CRASH else None)

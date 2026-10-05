@@ -260,3 +260,85 @@ class Store:
 
 def rows_sha(rows: list) -> str:
     return hashlib.sha256(json.dumps(sorted([list(r) for r in rows]), default=str).encode()).hexdigest()
+
+
+# ── 5. ARCHIVE → COMPUTE PATH REMAP (explicit, verified; provenance stays on the archived bytes) ──
+PRODUCER_VINTAGES = "/data/breadth_v2_producer/vintages"
+REMAP_TABLES = ("adjusted_guard_table.json", "dividend_basis_table.json", "first_raw_session.json")
+
+
+def _json_diff(a, b, path=""):
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = []
+        for k in sorted(set(a) | set(b)):
+            out += _json_diff(a.get(k), b.get(k), f"{path}.{k}" if path else k)
+        return out
+    return [] if a == b else [path]
+
+
+def build_remap(archive_dir: str, tag: str, remap_root: str, producer_root: str = PRODUCER_VINTAGES) -> dict:
+    """The engine requires the vintage manifest's grouped `dir` to equal BREADTH_GROUPED_DIR, and the
+    producer path will be pruned. A COPY of the archived inputs is rewritten in EXACTLY three places —
+    grouped_vintage_manifest.dir, INPUT_MANIFEST.grouped_dir, and INPUT_MANIFEST's object hash for the
+    rewritten manifest — and nothing else (verified by a JSON diff). The grouped files are read from the
+    read-only archive. Provenance is verified on the ORIGINAL archived bytes (owner_vintage)."""
+    import fcntl
+    import shutil
+    src = os.path.join(archive_dir, tag, "inputs_" + tag)
+    dst = os.path.join(remap_root, tag, "inputs_" + tag)
+    rep_path = os.path.join(remap_root, tag, "REMAP.json")
+    os.makedirs(os.path.join(remap_root, tag), exist_ok=True)
+    lk = open(os.path.join(remap_root, tag, ".lock"), "w")
+    fcntl.flock(lk, fcntl.LOCK_EX)
+    if os.path.exists(rep_path):
+        return json.load(open(rep_path))
+    old_g = os.path.join(producer_root, tag, "grouped_" + tag)
+    new_g = os.path.join(archive_dir, tag, "grouped_" + tag)
+    part = dst + ".partial"
+    if os.path.exists(part):
+        shutil.rmtree(part)
+    os.makedirs(part)
+    for fn in sorted(os.listdir(src)):
+        shutil.copyfile(os.path.join(src, fn), os.path.join(part, fn))
+    gb = open(os.path.join(src, "grouped_vintage_manifest.json"), "rb").read()
+    mb = open(os.path.join(src, "INPUT_MANIFEST.json"), "rb").read()
+    o, n = json.dumps(old_g).encode(), json.dumps(new_g).encode()
+    if gb.count(o) != 1 or mb.count(o) != 1:
+        raise Refused("REMAP_SHAPE", {"tag": tag, "grouped_manifest_hits": gb.count(o), "input_manifest_hits": mb.count(o)})
+    gb2 = gb.replace(o, n)
+    oh, nh = hashlib.sha256(gb).hexdigest().encode(), hashlib.sha256(gb2).hexdigest().encode()
+    if mb.count(oh) != 1:
+        raise Refused("REMAP_SHAPE", {"tag": tag, "manifest_hash_hits": mb.count(oh)})
+    mb2 = mb.replace(o, n).replace(oh, nh)
+    open(os.path.join(part, "grouped_vintage_manifest.json"), "wb").write(gb2)
+    open(os.path.join(part, "INPUT_MANIFEST.json"), "wb").write(mb2)
+    d1 = _json_diff(json.loads(gb), json.loads(gb2))
+    d2 = _json_diff(json.loads(mb), json.loads(mb2))
+    if d1 != ["dir"] or d2 != ["grouped_dir", "objects_sha256.grouped_vintage_manifest.json"]:
+        raise Refused("REMAP_DIFF", {"tag": tag, "grouped_manifest": d1, "input_manifest": d2})
+    os.replace(part, dst)
+    rep = {"tag": tag, "remap_inputs_dir": dst, "grouped_dir": new_g, "replaced_path": [old_g, new_g],
+           "changed_fields": {"grouped_vintage_manifest.json": d1, "INPUT_MANIFEST.json": d2},
+           "original_sha256": {"INPUT_MANIFEST.json": hashlib.sha256(mb).hexdigest(),
+                               "grouped_vintage_manifest.json": hashlib.sha256(gb).hexdigest()},
+           "remapped_sha256": {"INPUT_MANIFEST.json": hashlib.sha256(mb2).hexdigest(),
+                               "grouped_vintage_manifest.json": hashlib.sha256(gb2).hexdigest()}}
+    json.dump(rep, open(rep_path, "w"), indent=1, sort_keys=True)
+    return rep
+
+
+def tables_equivalent(archive_inputs: str, remap_inputs: str) -> dict:
+    """The derived tables the engine rebuilt under the remap must equal the producer's own tables in
+    the archive in everything but `input_key` (which hashes the manifest file bytes)."""
+    out = {}
+    for fn in REMAP_TABLES:
+        a, b = os.path.join(archive_inputs, fn), os.path.join(remap_inputs, fn)
+        if not os.path.exists(a):
+            out[fn] = "absent in archive"
+            continue
+        ja, jb = json.load(open(a)), json.load(open(b))
+        if isinstance(ja, dict) and isinstance(jb, dict):
+            ja.pop("input_key", None)
+            jb.pop("input_key", None)
+        out[fn] = "equal" if ja == jb else "DIFFERENT"
+    return out

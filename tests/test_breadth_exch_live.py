@@ -313,3 +313,32 @@ def test_preflight_with_the_exchange_pin_set(tmp_path, pins, mutate, expect):
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
     problems = json.loads(out.stdout.strip().splitlines()[-1])
     assert len(problems) == expect, problems
+
+
+def test_remap_shape_and_diff_rules_are_exact(tmp_path):
+    arch, rr, prod = str(tmp_path / "arch"), str(tmp_path / "remap"), "/data/breadth_v2_producer/vintages"
+    tag = "p202610012031"
+    ip = os.path.join(arch, tag, "inputs_" + tag)
+    os.makedirs(ip)
+    g = {"dir": f"{prod}/{tag}/grouped_{tag}", "files": 2, "manifest": {"2026-09-30_0": {"sha256": "x"}}}
+    gb = json.dumps(g, sort_keys=True).encode()
+    m = {"tag": tag, "grouped_dir": f"{prod}/{tag}/grouped_{tag}",
+         "objects_sha256": {"grouped_vintage_manifest.json": hashlib.sha256(gb).hexdigest(), "fx_ledger.json": "f"}}
+    open(os.path.join(ip, "grouped_vintage_manifest.json"), "wb").write(gb)
+    open(os.path.join(ip, "INPUT_MANIFEST.json"), "w").write(json.dumps(m, sort_keys=True))
+    open(os.path.join(ip, "fx_ledger.json"), "w").write("{}")
+    open(os.path.join(ip, "adjusted_guard_table.json"), "w").write(json.dumps({"input_key": "k1", "events": [1]}))
+    if os.name == "nt":
+        pytest.skip("fcntl (runner-only)")
+    rep = lc.build_remap(arch, tag, rr)
+    assert rep["changed_fields"] == {"grouped_vintage_manifest.json": ["dir"],
+                                     "INPUT_MANIFEST.json": ["grouped_dir", "objects_sha256.grouped_vintage_manifest.json"]}
+    m2 = json.load(open(os.path.join(rep["remap_inputs_dir"], "INPUT_MANIFEST.json")))
+    assert m2["objects_sha256"]["grouped_vintage_manifest.json"] == lc.sha_file(
+        os.path.join(rep["remap_inputs_dir"], "grouped_vintage_manifest.json"))
+    open(os.path.join(rep["remap_inputs_dir"], "adjusted_guard_table.json"), "w").write(
+        json.dumps({"input_key": "k2", "events": [1]}))           # the engine's rebuild: only the key differs
+    assert lc.tables_equivalent(ip, rep["remap_inputs_dir"])["adjusted_guard_table.json"] == "equal"
+    open(os.path.join(rep["remap_inputs_dir"], "adjusted_guard_table.json"), "w").write(
+        json.dumps({"input_key": "k2", "events": [2]}))
+    assert lc.tables_equivalent(ip, rep["remap_inputs_dir"])["adjusted_guard_table.json"] == "DIFFERENT"
