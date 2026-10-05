@@ -17,6 +17,7 @@
   "adopters": [
     "app/src/components/calendar/CallRecapSection.jsx",
     "app/src/components/chart/builder/EvidenceTab.jsx",
+    "app/src/components/research/fmpDepth/SourceLine.jsx",
     "app/src/components/screener/ScanResults.jsx",
     "app/src/components/tiles/CatalystTable.jsx",
     "app/src/pages/Breadth.jsx",

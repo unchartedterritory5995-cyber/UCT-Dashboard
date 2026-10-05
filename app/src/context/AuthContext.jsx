@@ -77,6 +77,8 @@ export function AuthProvider({ children }) {
   // /charts, and FT-046 per-surface how-to checklists. Enablement gates, default FALSE.
   const [chartsExtraGroupsEnabled, setChartsExtraGroupsEnabled] = useState(false)
   const [howToChecklistsEnabled, setHowToChecklistsEnabled] = useState(false)
+  // FA/EE on FMP for the /research Financials + Estimates tabs. Default FALSE.
+  const [researchFmpDepthEnabled, setResearchFmpDepthEnabled] = useState(false)
   // Breadth Data Charts V2 increments (DC-2 §2). Default FALSE, same enablement
   // polarity and the same reason. ⭐ These REPLACE the build-time
   // `VITE_BREADTH_CHARTS_V2_ENABLED`: baked into the bundle, a flip was a rebuild,
@@ -151,6 +153,7 @@ export function AuthProvider({ children }) {
     ['charts_list_subscribe_enabled', (d) => d.charts_list_subscribe_enabled === true, setChartsListSubscribeEnabled],
     ['charts_extra_groups_enabled', (d) => d.charts_extra_groups_enabled === true, setChartsExtraGroupsEnabled],
     ['how_to_checklists_enabled', (d) => d.how_to_checklists_enabled === true, setHowToChecklistsEnabled],
+    ['research_fmp_depth_enabled', (d) => d.research_fmp_depth_enabled === true, setResearchFmpDepthEnabled],
     // Not a boolean: the server's derived list. `readFeatureStatus` returns null for
     // anything it cannot vouch for, so a missing field reads as "not measured".
     ['feature_status', readFeatureStatus, setFeatureStatus],
@@ -359,7 +362,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
