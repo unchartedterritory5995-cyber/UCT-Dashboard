@@ -3179,6 +3179,37 @@ export function blockStatements(toks, indents, indent) {
       })
       continue
     }
+    // ⭐⭐ RT12 — A BINDING (OR A `:=`) AND A CALL ON ONE LINE: `Prev = highest(…),
+    // barssince(…)` (atr-trailing-stoploss-strategy:12), or a binding whose line
+    // ends in a `,` so the next line's `plot(…)` joins it (nonlinear-regression-
+    // zero-lag-moving-average-loxx:93-94). Pine runs a comma line's statements left
+    // to right, exactly as separate lines (H2's rule); a bare call segment is the
+    // statement it would be on a line of its own. ⛔ At least one segment must bind
+    // or mutate, so a line of calls only (`screener(a), screener(b)`, the owner
+    // corpus idiom the note below records) is left exactly as it was; no segment
+    // may open a block and the line may carry no body.
+    const callSplit = body.length === 0 ? commaCallSplit(header) : null
+    if (callSplit) {
+      for (const part of callSplit) out.push({ header: part, body: [], sub: [] })
+      continue
+    }
+    // ⭐⭐ RT12 — `switch` ARMS WRITTEN WITH A TRAILING COMMA
+    // (smart-money-breakouts-chartprime:78-80):
+    //     StyleSwitch = switch Linestyle
+    //         'Dashed' => line.style_dashed ,
+    //         'Dotted' => line.style_dotted ,
+    //         => line.style_solid
+    // The trailing `,` dangles each arm into the next (`danglesIntoNextLine`), so
+    // the arms arrived as ONE header and the switch read none of them. Pine
+    // compiles it as the three arms; the comma separates them as it separates any
+    // statements. ⛔ Only inside a body (a `=>` at the top level is a function
+    // definition), only a line with no body, and only when EVERY segment is an arm
+    // (holds a top-level `=>`); a trailing empty segment is the dangling comma.
+    const armSplit = body.length === 0 && indent > 0 ? commaArmSplit(header) : null
+    if (armSplit) {
+      for (const part of armSplit) out.push({ header: part, body: [], sub: [] })
+      continue
+    }
     // ⚰️ A REFUSAL HERE FOR AN UNSPLITTABLE TOP-LEVEL COMMA WAS WRITTEN AND
     // REMOVED THE SAME HOUR. The argument for it was real — `a = 1, plot(close)`
     // binds the whole line, the `plot` is never collected, and the script refuses
@@ -3212,22 +3243,77 @@ export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.valu
 function commaStatementSplit(header, hasBody) {
   const parts = splitTopLevel(header, ',')
   if (parts.length < 2) return null
-  const opens = (toks) => findTop(toks, (t) => isPunct(t, '=>')
-    || (t.kind === 'ident' && BLOCK_OPENERS.has(t.value))) >= 0
-  const isMutation = (toks) => toks.length >= 3 && toks[0].kind === 'ident'
-    && !String(toks[0].value).includes('.')
-    && toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
-    && findTop(toks.slice(2), (t) => t.kind === 'punct' && (t.value === '=' || MUTATORS.has(t.value))) < 0
   let mutates = false
   for (let k = 0; k < parts.length; k += 1) {
     const part = parts[k]
     const last = k === parts.length - 1
-    if (opens(part) && !(last && hasBody)) return null
-    if (last && hasBody && !opens(part)) return null
-    if (isMutation(part)) { mutates = true; continue }
+    if (segmentOpensBlock(part) && !(last && hasBody)) return null
+    if (last && hasBody && !segmentOpensBlock(part)) return null
+    if (isMutationSegment(part)) { mutates = true; continue }
     if (!isBindingSegment(part)) return null
   }
   return mutates ? parts : null
+}
+
+/** Does this segment open a block (a top-level `=>` or a `BLOCK_OPENERS` word)? */
+function segmentOpensBlock(toks) {
+  return findTop(toks, (t) => isPunct(t, '=>')
+    || (t.kind === 'ident' && BLOCK_OPENERS.has(t.value))) >= 0
+}
+
+/** `name <mutator> expr` — one reassignment of ONE bare name, no second `=`. */
+function isMutationSegment(toks) {
+  return toks.length >= 3 && toks[0].kind === 'ident'
+    && !String(toks[0].value).includes('.')
+    && toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
+    && findTop(toks.slice(2), (t) => t.kind === 'punct' && (t.value === '=' || MUTATORS.has(t.value))) < 0
+}
+
+/** Is this token run exactly ONE call, `name(…)`, with nothing after its `)`? */
+function isCallSegment(toks) {
+  if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return false
+  let depth = 0
+  for (let i = 1; i < toks.length; i += 1) {
+    const t = toks[i]
+    if (t.kind !== 'punct') continue
+    if (t.value === '(' || t.value === '[') depth += 1
+    else if (t.value === ')' || t.value === ']') {
+      depth -= 1
+      if (depth === 0) return i === toks.length - 1
+    }
+  }
+  return false
+}
+
+/** ⭐⭐ RT12 — `switch` arms joined by trailing commas, one per segment, or null.
+ *  Every non-empty segment holds a top-level `=>` (an arm); only the LAST segment
+ *  may be empty (the dangling comma after the last arm). */
+function commaArmSplit(header) {
+  if (findTop(header, (t) => isPunct(t, ',')) < 0) return null
+  const parts = splitTopLevel(header, ',')
+  if (parts.length && !parts[parts.length - 1].length) parts.pop()
+  if (!parts.length) return null
+  for (const part of parts) {
+    if (!part.length || findTop(part, (t) => isPunct(t, '=>')) < 0) return null
+    if (part[part.length - 1] && isPunct(part[part.length - 1], '=>')) return null
+  }
+  return parts
+}
+
+/** ⭐⭐ RT12 — the segments of a comma line made of bindings, `:=`-family
+ *  mutations and bare calls, with at least one binding or mutation; or null.
+ *  ⛔ No segment may be empty or open a block (the caller passes only a line with
+ *  no body). */
+function commaCallSplit(header) {
+  const parts = splitTopLevel(header, ',')
+  if (parts.length < 2) return null
+  let anchored = false
+  for (const part of parts) {
+    if (!part.length || segmentOpensBlock(part)) return null
+    if (isBindingSegment(part) || isMutationSegment(part)) { anchored = true; continue }
+    if (!isCallSegment(part)) return null
+  }
+  return anchored ? parts : null
 }
 
 /** Is this token run `… name = expression`, i.e. one binding?

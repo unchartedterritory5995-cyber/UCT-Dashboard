@@ -237,7 +237,9 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
       path.join(CORPUS, 'fibonacci-retracement-mtflog__54a8dbfa8e.pine'), 'utf8')
     const rFib = translatePine(fib, { strict: true })
     expect(rFib.ok).toBe(false)
-    expect(rFib.refusal.guard).toBe('pine:statement')
+    // ⭐ RT12 — the comma line `l = f_ret(…), plot(…)` now splits (`commaCallSplit`),
+    // so the file reaches its NEXT wall (a block-valued helper): still not `time`.
+    expect(rFib.refusal.guard).toBe('pine:block')
     expect(rFib.refusal.message).not.toMatch(/time\(|dayopentime/i)
 
     // `pa-zigzag-fibonacci-fan` (defaults "1D"): clears `time` and converges

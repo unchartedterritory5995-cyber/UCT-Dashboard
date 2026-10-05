@@ -1422,6 +1422,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  per distinct set of call-site constants, shared by every call site that
    *  fixes the same values (state stays per call site, as for any function). */
   const specialisations = new Map()
+  /** ⭐⭐ RT12 — slot → `{node, scope}` for a function-body local bound ONCE
+   *  (`x = expr`, never `var`, never reassigned anywhere in the script) from an
+   *  expression of plain arithmetic: numbers, names, `+ - *`, unary minus,
+   *  comparisons and `?:` (`derivableNode`). Read only by `substFrameNames`. */
+  const frameDerived = new Map()
   /** `name@line guard` for every definition this lane skipped and nobody called
    *  — reported so an unreachable helper is NAMED rather than invisible. */
   const skippedFunctions = []
@@ -3063,7 +3068,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (finalElse && !block(finalElse.sub || [], 0)) return 0
     return orders
   }
-  const argumentHasEffect = (node, depth = 0) => {
+  const argumentHasEffect = (node, depth = 0, bareTable = false) => {
     if (!node || typeof node !== 'object') return false
     if (depth > 64) return true
     if (node.type === 'call') {
@@ -3071,21 +3076,31 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (methodCallOf(node) || deferredFnRefusals.has(name)) return true
       if (isUserFn(name) || definedNames.has(name)) {
         if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
-      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)) return true
+      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)
+        && !(bareTable && bareValueBuiltin(name))) return true
     }
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
-        && argumentHasEffect(node.n.expr, depth + 1)) return true
+        && argumentHasEffect(node.n.expr, depth + 1, bareTable)) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of', 'recv']) {
-      if (argumentHasEffect(node[k], depth + 1)) return true
+      if (argumentHasEffect(node[k], depth + 1, bareTable)) return true
     }
     for (const k of ['args', 'elements']) {
       if (!Array.isArray(node[k])) continue
       for (const a of node[k]) {
-        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1, bareTable)) return true
       }
     }
     return false
   }
+  /** ⭐⭐ RT12 — a v1-v4 BARE builtin (`barssince`, `highest`, `atr`) the closed
+   *  table declares, by its own name or through `PINE_CALL_SHAPES`. Every table
+   *  function computes a value and nothing else: the engine grammar has no way to
+   *  write an effect. ⛔ A name the script defines is never this (asked first by
+   *  `argumentHasEffect`). */
+  const bareValueBuiltin = (name) => !name.includes('.')
+    && (Object.prototype.hasOwnProperty.call(TABLE.functions, name)
+      || (Object.prototype.hasOwnProperty.call(PINE_CALL_SHAPES, name)
+        && Object.prototype.hasOwnProperty.call(TABLE.functions, PINE_CALL_SHAPES[name].table || name)))
 
   /** ⭐ C23 — a `math.*` call the HOST lane serves as a `BUILTIN_CALL_TREE`
    *  expansion (the table declares no such name), rebuilt as a PARSE tree over
@@ -3845,27 +3860,60 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the two cannot disagree), then constant ARITHMETIC over what it resolved
    *  (`bind.js::foldScalar`, `n - 1`, `len * 2`); `{frameName}` when a frame name
    *  a call site could fix stopped it; `null` otherwise. */
+  /** ⭐⭐ ONE READER OF A FRAME'S NAMES FOR A FOLD (C35's rule, asked by
+   *  `constValueOf`, `foldConstNode` and `constantArgOf`, which held three copies
+   *  of it until RT12): a parameter the call site FIXED (`frameConsts`) becomes
+   *  its constant; ⭐ RT12 — a frame LOCAL bound once from such values
+   *  (`frameDerived`: `wper = (n*2) - 1`, range-filter-bs-signals:16) becomes its
+   *  own expression, read in the scope it was bound in, so the fold reaches the
+   *  parameter beneath it and a call site that fixes the parameter fixes the local
+   *  (Pine: a value computed only from `simple` values is `simple`). Any other
+   *  frame name stops the fold and is returned as `foreign`.
+   *  @returns {{node: object, foreign: string|null}} */
+  const substFrameNames = (e, scope) => {
+    let foreign = null
+    const sub = (x, sc, d) => {
+      if (!x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, sc, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string') {
+        const s = sc.lookup(x.name)
+        if (s !== null && slots[s] && slots[s].owner === owner) {
+          if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+          const der = frameDerived.get(s)
+          if (der && d < 48) return sub(der.node, der.scope, d + 1)
+          if (foreign === null) foreign = x.name
+        }
+        return x
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, sc, d + 1)
+      return out
+    }
+    const node = sub(e, scope, 0)
+    return { node, foreign }
+  }
+
+  /** ⭐⭐ RT12 — may a local bound to this expression be read through by a fold?
+   *  Plain arithmetic only: numbers, names, `+ - *`, unary minus, comparisons,
+   *  `and`/`or`/`not` and `?:`. ⛔ Not `/` or `%` (Pine's integer division is
+   *  version-dependent — `constantArgOf`'s H4 rule), no call, no history read:
+   *  anything else stays a slot a fold cannot see into. */
+  const DERIVABLE_OPS = new Set(['+', '-', '*', '<', '>', '<=', '>=', '==', '!=', 'and', 'or'])
+  const derivableNode = (n, d = 0) => {
+    if (!n || typeof n !== 'object' || d > 32) return false
+    if (n.type === 'number' || n.type === 'name') return true
+    if (n.type === 'unary') return (n.op === '-' || n.op === 'not') && derivableNode(n.arg, d + 1)
+    if (n.type === 'binary') return DERIVABLE_OPS.has(n.op) && derivableNode(n.left, d + 1) && derivableNode(n.right, d + 1)
+    if (n.type === 'ternary') return derivableNode(n.test, d + 1) && derivableNode(n.yes, d + 1) && derivableNode(n.no, d + 1)
+    return false
+  }
+
   const constValueOf = (e, scope) => {
     let n = substFromSizes(e, scope)
     if (owner !== null && scope) {
-      let foreign = null
-      const sub = (x, d) => {
-        if (!x || typeof x !== 'object' || d > 64) return x
-        if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
-        if (x.type === 'name' && typeof x.name === 'string') {
-          const s = scope.lookup(x.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
-            if (foreign === null) foreign = x.name
-          }
-          return x
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
-        return out
-      }
-      n = sub(e, 0)
-      if (foreign !== null) return { frameName: foreign }
+      const fs = substFrameNames(e, scope)
+      if (fs.foreign !== null) return { frameName: fs.foreign }
+      n = fs.node
     }
     let canonical
     try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
@@ -3961,25 +4009,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // constant, and any other frame name refuses by name, exactly as an unbound
     // one did. A main-program name (owner `null`) is untouched.
     if (scope && owner !== null) {
-      let foreign = null
-      const sub = (n, depth) => {
-        if (!n || typeof n !== 'object' || depth > 64) return n
-        if (Array.isArray(n)) return n.map((x) => sub(x, depth + 1))
-        if (n.type === 'name' && typeof n.name === 'string') {
-          const s = scope.lookup(n.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) {
-              return frameConstNode(frameConsts.get(s), n.tok)
-            }
-            if (foreign === null) foreign = n.name
-          }
-          return n
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(n)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
-        return out
-      }
-      const e2 = sub(e, 0)
+      const fs = substFrameNames(e, scope)
+      const foreign = fs.foreign
+      const e2 = fs.node
       if (foreign !== null) {
         note('runtime:history-dynamic-offset')
         const err = new RuntimeRefusal('runtime:history-dynamic-offset',
@@ -4043,6 +4075,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
           + 'engine can read before bar 0', at)
       }
       throw err
+    }
+    // ⭐⭐ RT12 — CONSTANT ARITHMETIC OVER WHAT RESOLVED, as `constantArgOf` (H4)
+    // and `constValueOf` already fold it: `ema(x, wper)` with `wper = (n*2) - 1`
+    // and `n` fixed by the call site is ONE length for that call site. ⛔ Not `/`
+    // or `%` (`arithmeticIsExact`, H4's rule): Pine's integer division is
+    // version-dependent, so those keep the refusal they had.
+    if (canonical && canonical.type !== 'num' && arithmeticIsExact(canonical)) {
+      try {
+        const v = foldScalar(canonical, {})
+        if (Number.isFinite(v)) canonical = { type: 'num', value: v }
+      } catch (err) {
+        if (!(err instanceof NotFoldable)) throw err
+      }
     }
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {
@@ -4283,7 +4328,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // call site's (`fnHistorySlotFor`), as every body local's is. A stateful
     // subexpression stays where it was written, because hoisting would step it
     // on calls whose branch never reached it.
-    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name' || !hoistSafe(srcNode, scope))) return null
+    // ⭐⭐ RT12 — …and a STATEFUL one (`math.min(ta.atr(len) * 0.3, …)[20]`,
+    // smart-money-breakouts-chartprime:85) when it is evaluated on EVERY evaluation
+    // of the function's result (`onEveryEvaluation`) and nothing in that result has
+    // an effect (`argumentHasEffect`): the local then steps its state exactly when
+    // the expression written in place would, once per call — Pine's series of
+    // `expr` IS the series of that local.
+    if (owner !== null && (stmtHoistOwner !== owner || srcNode.type === 'name'
+      || !(hoistSafe(srcNode, scope) || (frameHoistRoot && onEveryEvaluation(frameHoistRoot, srcNode)
+        && !argumentHasEffect(frameHoistRoot, 0, true) && frameNamesOnly(srcNode, scope))))) return null
     if (!srcNode || typeof srcNode !== 'object') return null
     // ⭐ A NAME NO PINE IDENTIFIER CAN COLLIDE WITH — it carries spaces, exactly
     // as the request region's own hoisted sources do.
@@ -4325,12 +4378,47 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** ⭐ RT10 — lower a function's RESULT with its own body as the hoist sink, so
    *  `f(x) => ta.sma(x * 2, 5)` gives `x * 2` its committed series in the frame. */
-  const intoFrameSink = (body, fn) => {
+  const intoFrameSink = (body, fn, root = null) => {
     const prevSink = stmtHoistSink
     const prevOwner = stmtHoistOwner
+    const prevRoot = frameHoistRoot
     stmtHoistSink = body
     stmtHoistOwner = owner
-    try { return fn() } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner }
+    frameHoistRoot = root
+    try { return fn(root) } finally { stmtHoistSink = prevSink; stmtHoistOwner = prevOwner; frameHoistRoot = prevRoot }
+  }
+  /** ⭐⭐ RT12 — the function RESULT expression being lowered into its frame sink
+   *  (`intoFrameSink`), or null: the root a stateful hoist is measured against. */
+  let frameHoistRoot = null
+  /** ⭐⭐ RT12 — is `target` evaluated on EVERY evaluation of `root`? Only through
+   *  edges Pine always evaluates: both operands of an arithmetic or comparison
+   *  operator, an operand of a unary, the value of an offset, every argument of a
+   *  call. ⛔ Never into a `?:` arm or the right side of `and` / `or`, which run
+   *  only on some evaluations. */
+  const onEveryEvaluation = (root, target, depth = 0) => {
+    if (!root || typeof root !== 'object' || depth > 64) return false
+    if (root === target) return true
+    switch (root.type) {
+      case 'binary':
+        if (root.op === 'and' || root.op === 'or') return onEveryEvaluation(root.left, target, depth + 1)
+        return onEveryEvaluation(root.left, target, depth + 1) || onEveryEvaluation(root.right, target, depth + 1)
+      case 'unary': return onEveryEvaluation(root.arg, target, depth + 1)
+      case 'ternary': return onEveryEvaluation(root.test, target, depth + 1)
+      case 'offset': return onEveryEvaluation(root.arg, target, depth + 1)
+      case 'call': return (root.args || []).some((a) => !(a && a.name)
+        && onEveryEvaluation(a && a.value !== undefined ? a.value : a, target, depth + 1))
+      default: return false
+    }
+  }
+  /** ⭐⭐ RT12 — every name this expression reads is the frame's own (or no slot). */
+  const frameNamesOnly = (n, scope, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return depth <= 64
+    if (Array.isArray(n)) return n.every((x) => frameNamesOnly(x, scope, depth + 1))
+    if (n.type === 'name' && typeof n.name === 'string') {
+      const sl = scope.lookup(n.name)
+      return sl === null || slots[sl].owner === owner
+    }
+    return Object.entries(n).every(([k, v]) => k === 'tok' || !v || typeof v !== 'object' || frameNamesOnly(v, scope, depth + 1))
   }
 
   /** ⭐⭐ RT10 — is this call Pine's pivot (`ta.pivothigh/low`, or the bare
@@ -7948,6 +8036,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
+        // ⭐⭐ RT12 — a function-body local bound once from plain arithmetic is
+        // remembered by its expression, so a fold that meets it reads THROUGH it
+        // (`substFrameNames`). Its slot is still written every call, as before.
+        if (owner !== null && !mutable && !isCollection && !declarationPersists(toks)
+          && derivableNode(value)) frameDerived.set(slot, { node: value, scope })
         markDrawingSlot(slot, value, toks, eq)
         if (holdsText(value, scope)) slots[slot].text = true
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
@@ -8165,6 +8258,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const rec = fnIdx === undefined ? null : functions[fnIdx]
           out.push(exprStmt(lowered, rec && rec.returns ? rec.returns : 1))
           continue
+        }
+        // ⭐⭐ RT12 — A VALUE BUILTIN ON A LINE OF ITS OWN, ITS VALUE DISCARDED
+        // (`barssince(c)` split off `Prev = highest(…), barssince(c)`,
+        // atr-trailing-stoploss-strategy:12). The host lane drops it; here it is
+        // dropped by the rule `alert`'s arguments already follow
+        // (`argumentHasEffect`): a call made only of names, literals, operators and
+        // value builtins changes nothing another statement can read — a `ta.*`
+        // call site's state is read only through that call, and this one is never
+        // read. ⛔ A user function, a collection, drawing or method call anywhere
+        // inside keeps the refusal below.
+        {
+          let discarded = null
+          try { discarded = parseWholeExpression(toks) } catch { discarded = null }
+          if (discarded && discarded.type === 'call' && !argumentHasEffect(discarded, 0, true)) continue
         }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
@@ -8500,7 +8607,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             result = read(slot)
           } else {
             try {
-              result = intoFrameSink(body, () => lowerResult(parseWholeExpression(lt), fnScope))
+              result = intoFrameSink(body, (root) => lowerResult(root, fnScope), parseWholeExpression(lt))
             } catch (err) {
               // ⭐ C47 — THE SHARED FRAME CANNOT CHOOSE THE ARM (the subject is a
               // slot there), so the refusal it always gave is HELD for the call
@@ -8515,7 +8622,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
         }
       } else {
-        result = intoFrameSink(body, () => lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope))
+        result = intoFrameSink(body, (root) => lowerResult(root, fnScope), parseWholeExpression(toks.slice(arrow + 1)))
       }
       record.body = body
       record.result = result
@@ -8685,24 +8792,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!e) return { value: null }
     let n = e
     if (owner !== null && scope) {
-      let foreign = null
-      const sub = (x, depth) => {
-        if (!x || typeof x !== 'object' || depth > 64) return x
-        if (Array.isArray(x)) return x.map((y) => sub(y, depth + 1))
-        if (x.type === 'name' && typeof x.name === 'string') {
-          const s = scope.lookup(x.name)
-          if (s !== null && slots[s] && slots[s].owner === owner) {
-            if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
-            if (foreign === null) foreign = x.name
-          }
-          return x
-        }
-        const out = {}
-        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
-        return out
-      }
-      n = sub(e, 0)
-      if (foreign !== null) return { value: null, frameName: foreign }
+      const fs = substFrameNames(e, scope)
+      if (fs.foreign !== null) return { value: null, frameName: fs.foreign }
+      n = fs.node
     }
     // ⭐ C47 — TEXT FIRST, and by the lane's own reader (`fixedTextOf`), never by
     // the frozen resolver: that one folds an `input.string` from the AUTHOR'S

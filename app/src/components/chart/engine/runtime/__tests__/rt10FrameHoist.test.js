@@ -76,7 +76,10 @@ describe('⭐⭐ RT10 — a stateless expression gets its own series inside a fu
   })
 
   it('a STATEFUL subexpression is not hoisted out of where it was written (refusal kept)', () => {
-    const b = build(`${X}f(s) => ta.sma(ta.ema(s, 3) * 2, 4)\nplot(f(x))\n`)
+    // RT12 re-pin (measured): a STATEFUL expression evaluated on EVERY evaluation of
+    // the result now hoists too (`rt12StatementsHistory.test.js` (3)); the wall stands
+    // where the hoist WOULD change when it runs - inside a `?:` arm.
+    const b = build(`${X}f(s, c) => c ? ta.sma(ta.ema(s, 3) * 2, 4) : 0.0\nplot(f(x, close > open))\n`)
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('runtime:history-expression')
   })

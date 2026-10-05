@@ -218,7 +218,10 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
     // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
     // subexpression WITH state, which a hoist would step on calls that never reach it.
-    expect(refusalOf(`${head}f(v) =>\n    (ta.ema(v, 3) + 1)[1]\nplot(f(close))\n`).guard)
+    // RT12 re-pin (measured): a STATEFUL expression evaluated on EVERY evaluation of
+    // the result now hoists too (`rt12StatementsHistory.test.js` (3)); the wall stands
+    // where the hoist WOULD change when it runs - inside a `?:` arm.
+    expect(refusalOf(`${head}f(v, c) =>\n    c ? (ta.ema(v, 3) + 1)[1] : 0.0\nplot(f(close, close > open))\n`).guard)
       .toBe('runtime:history-expression')
   })
 
@@ -226,7 +229,10 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     // RT10 re-pin (measured): a STATELESS expression in a frame now hoists into the
     // frame's own body (`rt10FrameHoist.test.js`) and builds; the wall stands for a
     // subexpression WITH state, which a hoist would step on calls that never reach it.
-    expect(refusalOf(`${head}f(v) =>\n    ta.sma(ta.ema(v, 3) + 1, 5)\nplot(f(close))\n`).guard)
+    // RT12 re-pin (measured): a STATEFUL expression evaluated on EVERY evaluation of
+    // the result now hoists too (`rt12StatementsHistory.test.js` (3)); the wall stands
+    // where the hoist WOULD change when it runs - inside a `?:` arm.
+    expect(refusalOf(`${head}f(v, c) =>\n    c ? ta.sma(ta.ema(v, 3) + 1, 5) : 0.0\nplot(f(close, close > open))\n`).guard)
       .toBe('runtime:history-expression')
   })
 
