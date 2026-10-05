@@ -12760,8 +12760,17 @@ export class Resolver {
     // the SAME transform through the same three lines below — a second copy of
     // the argument walk here is `lesson_a_second_authority_over_one_value`, and
     // the two would drift the first time either was touched.
+    // ⭐⭐ RT14 — AND v1–v4's bare `max(a, b, c, …)` / `min(…)` IS `math.max` /
+    // `math.min`, variadic in both (the v4 reference: "returns the greatest of
+    // multiple values"); it refused `pine:arity` at three (blackflag-fts). The
+    // two-argument call keeps the node it always resolved to because the builder
+    // (`variadicFold`) answers null below three, and a script's own `max` never
+    // reaches this line (a user definition resolves first) — both railed.
+    const legacyMath = this.pineVersion !== null && this.pineVersion <= 4
+      && (pineName === 'max' || pineName === 'min')
     const namespacedName = own(PINE_NAMESPACED_TREE, pineName)
       ? pineName
+      : legacyMath ? `math.${pineName}`
       : ((this.pineVersion !== null && this.pineVersion <= 4
           && !pineName.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${pineName}`))
         ? `ta.${pineName}` : null)
