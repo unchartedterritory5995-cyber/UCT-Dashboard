@@ -13,7 +13,7 @@ import styles from '../ResearchPage.module.css'
 function fmtValue(field, v) {
   if (v == null || v === '') return '—'
   if (field === 'pt_target') return `$${Number(v).toFixed(2)}`
-  if (field === 'eps_next_y_growth') return `${(Number(v) * 100).toFixed(1)}%`
+  if (field === 'eps_next_y_growth') return `${Number(v).toFixed(1)}%`  // backend already returns a percent
   return String(v)
 }
 

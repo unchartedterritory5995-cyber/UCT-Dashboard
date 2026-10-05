@@ -10,6 +10,26 @@ import styles from '../ResearchPage.module.css'
 // the eager entry chunk.
 const ChartPane = lazy(() => import('../../../components/chart/pane/ChartPane'))
 
+// Consensus buckets arrive separate ({strongBuy, buy, hold, sell, strongSell});
+// the strong buckets used to be dropped from the counts entirely.
+export function consensusText(ct) {
+  if (!ct || (ct.buy == null && ct.strongBuy == null)) return '—'
+  const n = (v) => Number(v) || 0
+  const side = (label, plain, strong) => {
+    const total = n(plain) + n(strong)
+    return n(strong) ? `${label} ${total} (incl. ${n(strong)} strong)` : `${label} ${total}`
+  }
+  return [side('Buy', ct.buy, ct.strongBuy), `Hold ${n(ct.hold)}`, side('Sell', ct.sell, ct.strongSell)].join(' · ')
+}
+
+// The middle of the target range: the mean when the source carries one, else
+// the median (the FMP fallback never has a mean), labelled as such.
+export function targetMid(pt) {
+  if (pt?.targetMean != null) return { value: pt.targetMean, label: null }
+  if (pt?.targetMedian != null) return { value: pt.targetMedian, label: 'median' }
+  return { value: '—', label: null }
+}
+
 function Surprise({ v }) {
   if (v == null) return <span className={styles.muted}>—</span>
   const s = String(v)
@@ -17,9 +37,28 @@ function Surprise({ v }) {
   return <span className={up ? styles.up : styles.down}>{s}</span>
 }
 
-export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutate }) {
+// The "Latest report" card's status line. `reportState` comes from
+// useLatestReport; absent (older callers) it renders exactly as before.
+// ⛔ 'error' is NOT 'empty': an outage must never read as "nothing reported".
+function ReportNote({ state, retry }) {
+  if (state === 'loading') return <div className={styles.fnote} data-testid="latest-report-loading">Loading latest report…</div>
+  if (state === 'empty') return <div className={styles.fnote} data-testid="latest-report-empty">No reported quarter on file yet.</div>
+  if (state === 'error') {
+    return (
+      <div className={styles.fnote} data-testid="latest-report-error">
+        Couldn't load the latest report.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => retry && retry()}>Retry</button>
+      </div>
+    )
+  }
+  return null
+}
+
+export default function OverviewTab({ sym, stats, analyst, ai, row, reportState, retryReport, error, mutate }) {
   const ct = analyst?.consensus || {}
   const pt = analyst?.price_target || {}
+  const mid = targetMid(pt)
   return (
     <div className={styles.ovWrap}>
       {/* TERM-088 -- a failed read on any of the composing endpoints is not
@@ -78,7 +117,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutat
       </section>
       <div className={styles.grid}>
       <section className={styles.card}>
-        <div className={styles.ct}>Latest report</div>
+        <div className={styles.ct}>Latest report{row?.label ? ` · ${row.label}` : ''}</div>
         <table className={styles.tbl}>
           <thead><tr><th>Metric</th><th>Est</th><th>Actual</th><th>Surp</th></tr></thead>
           <tbody>
@@ -96,6 +135,7 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutat
             </tr>
           </tbody>
         </table>
+        <ReportNote state={reportState} retry={retryReport} />
       </section>
 
       <section className={styles.card}>
@@ -109,8 +149,8 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, error, mutat
 
       <section className={styles.card}>
         <div className={styles.ct}>Analyst view</div>
-        <div className={styles.kv}><span>Consensus</span><b>{ct.buy != null ? `Buy ${ct.buy} · Hold ${ct.hold ?? 0} · Sell ${ct.sell ?? 0}` : '—'}</b></div>
-        <div className={styles.kv}><span>Target</span><b>{pt.targetLow ?? '—'} — <span className={styles.gold}>{pt.targetMean ?? '—'}</span> — {pt.targetHigh ?? '—'}</b></div>
+        <div className={styles.kv}><span>Consensus</span><b data-testid="consensus-counts">{consensusText(ct)}</b></div>
+        <div className={styles.kv}><span>Target</span><b data-testid="target-range">{pt.targetLow ?? '—'} — <span className={styles.gold}>{mid.value}{mid.label ? <span className={styles.muted}> ({mid.label})</span> : null}</span> — {pt.targetHigh ?? '—'}</b></div>
       </section>
 
       <section className={styles.card}>

@@ -131,14 +131,20 @@ export const FUNCTIONS = [
   { code: 'OVS', label: 'Volatility surface', group: 'Options',
     ticker: { panel: 'OptionsChain', props: { volSurface: true }, section: 'options',
               flag: 'optionsVolSurfaceEnabled' } },
+  // `offNotice`: these six open a dark surface ON ITS OWN, and every route behind them answers 404
+  // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;
+  // as a whole panel that was a titled box with an empty body. With the prop, a panel whose every
+  // section answered 404 says "<feature> isn't switched on yet" (optionsAnalytics/OffNotice.jsx).
+  // ⚠️ The better fix is a per-surface flag on the auth payload so the terminal knows before it
+  // opens the panel -- a backend change, deliberately not invented here.
   { code: 'IVH', label: 'IV history (implied vs realized)', group: 'Options',
-    ticker: { panel: 'IvHistory', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'IvHistory', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'VOL', label: 'Volatility stats', group: 'Options',
-    ticker: { panel: 'VolStats', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'VolStats', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'POS', label: 'Options positioning (levels, max pain)', group: 'Options',
-    ticker: { panel: 'Positioning', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'Positioning', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OHIS', label: 'Options history (straddles, moves)', group: 'Options',
-    ticker: { panel: 'OptionsHistory', section: 'options', flag: 'optionsChainEnabled' } },
+    ticker: { panel: 'OptionsHistory', props: { offNotice: true }, section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OBT', label: 'Options backtest', group: 'Options',
     ticker: { panel: 'Backtest', section: 'options', flag: 'optionsBacktestEnabled' } },
   { code: 'OSCR', label: 'Options screener', group: 'Options',
@@ -154,9 +160,9 @@ export const FUNCTIONS = [
     ticker: { door: '/options-flow?view=gex&ticker={sym}', leavesTerminal: true, why: 'GEX is a data mode inside the partner-owned Options Flow page' },
     market: { door: '/options-flow?view=gex', leavesTerminal: true, why: 'GEX is a data mode inside the partner-owned Options Flow page' } },
   { code: 'TIDE', label: 'Market Tide (net premium)', group: 'Options',
-    market: { panel: 'MarketTide', full: '/options-flow' } },
+    market: { panel: 'MarketTide', props: { offNotice: true }, full: '/options-flow' } },
   { code: 'STRS', label: 'Options strategy screens', group: 'Options',
-    market: { panel: 'StrategyScreens', full: '/options-flow' } },
+    market: { panel: 'StrategyScreens', props: { offNotice: true }, full: '/options-flow' } },
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
@@ -240,11 +246,24 @@ export function fillDoor(door, { sym = null, args = [] } = {}) {
   return missing ? null : out
 }
 
-/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. */
-export function researchHref(sym, section) {
+/** The Research › Depth panel a variant opens, DERIVED from its own flag (never typed a second
+ *  time): `section: 'depth'` + `flag: 'researchDepth.<key>'` → `<key>`, the same key DepthTab
+ *  anchors that panel by. The whole-tab code (`researchDepth.*`) and every non-depth section
+ *  name no panel. */
+export function depthPanelOf(variant) {
+  if (variant?.section !== 'depth') return null
+  const [head, tail] = String(variant.flag || '').split('.')
+  return head === DEPTH && tail && tail !== '*' ? tail : null
+}
+
+/** Every `?section=` an entry can open on `/research/:sym`, for the full-page link. A Depth
+ *  panel also carries `&panel=<key>` so the page lands on that panel, not the tab's top. */
+export function researchHref(sym, section, panel = null) {
   if (!sym) return null
   const s = encodeURIComponent(String(sym).toUpperCase())
-  return section ? `/research/${s}?section=${encodeURIComponent(section)}` : `/research/${s}`
+  if (!section) return `/research/${s}`
+  const p = panel ? `&panel=${encodeURIComponent(panel)}` : ''
+  return `/research/${s}?section=${encodeURIComponent(section)}${p}`
 }
 
 /** Prefix + edit-distance suggestions over the registry (and ABSENT, so a near-miss on an

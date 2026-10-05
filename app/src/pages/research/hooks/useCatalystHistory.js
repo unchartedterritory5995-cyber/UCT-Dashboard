@@ -25,7 +25,10 @@ export default function useCatalystHistory(rawSym) {
   return useMemo(() => ({
     data: data ? data.body : null,
     isLoading: Boolean(isLoading && !data),
-    error: Boolean(data && !data.ok),
+    // 402 is the paid gate -- a STATE the tab renders as copy, not an outage
+    // to retry (same rule as sectionFetch.js).
+    paywalled: Boolean(data && !data.ok && data.httpStatus === 402),
+    error: Boolean(data && !data.ok && data.httpStatus !== 402),
     mutate,
   }), [data, isLoading, mutate])
 }

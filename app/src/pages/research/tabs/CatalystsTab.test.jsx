@@ -82,6 +82,13 @@ describe('CatalystsTab -- failed read vs genuine empty state', () => {
     expect(screen.queryByTestId('catalysts-error')).not.toBeInTheDocument()
   })
 
+  it('a 402 shows the paid-plan copy, not the outage + Retry', async () => {
+    await renderWith({ data: null, isLoading: false, error: false, paywalled: true, mutate: () => {} })
+    expect(screen.getByTestId('catalysts-paywalled').textContent).toBe('Catalyst history requires a paid plan.')
+    expect(screen.queryByTestId('catalysts-error')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
   it('Retry calls mutate', async () => {
     const mutate = vi.fn()
     await renderWith({ data: null, isLoading: false, error: true, mutate })

@@ -14,7 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as acorn from 'acorn'
 import jsx from 'acorn-jsx'
-import { FUNCTIONS, BY_CODE, ABSENT, suggest, fillDoor, flagOn } from './functions'
+import { FUNCTIONS, BY_CODE, ABSENT, suggest, fillDoor, flagOn, depthPanelOf, researchHref } from './functions'
 import { PANEL_IMPORTERS, panelNameFor } from './panels'
 import { SURFACE_IMPORTERS, surfacePanel, promotedPaths } from './surfacePanels'
 import { ARG_KINDS, TIMEFRAMES, applyArgs } from './args'
@@ -293,6 +293,37 @@ describe('every registry function resolves to a real surface', () => {
         expect(tail === '*' || RESEARCH_DEPTH_KEYS.includes(tail), tail).toBe(true)
       }
     })
+
+  // A Depth code's "Full page" link lands on ITS panel: the `&panel=` it carries is derived
+  // from its own flag, and must be a key DepthTab actually anchors a panel by (AST over
+  // DepthTab.jsx's DEPTH_PANELS — the same keys that gate each panel there).
+  it('every per-panel Depth code deep-links to a panel DepthTab anchors, and every anchored panel has one', () => {
+    let anchored = null
+    walk(parse(path.join(SRC, 'pages/research/depth/DepthTab.jsx')), (n) => {
+      if (n.type === 'VariableDeclarator' && n.id?.name === 'DEPTH_PANELS' && n.init?.type === 'ArrayExpression') {
+        anchored = new Set(n.init.elements.map((e) => e?.elements?.[0]?.value).filter(Boolean))
+      }
+    })
+    expect(anchored && anchored.size).toBeGreaterThan(3)   // non-vacuity: the derivation found them
+    expect(anchored.has('events_timeline_enabled')).toBe(true)
+    const depth = variants.filter((x) => x.v.section === 'depth')
+    const perPanel = depth.filter((x) => depthPanelOf(x.v))
+    expect(perPanel.map((x) => x.code)).toContain('EVTS')   // non-vacuity
+    for (const { code, v } of perPanel) {
+      const key = depthPanelOf(v)
+      expect(anchored.has(key), `${code} → ${key}`).toBe(true)
+      expect(researchHref('nvda', v.section, key), code)
+        .toBe(`/research/NVDA?section=depth&panel=${key}`)
+    }
+    // The whole-tab code (DPTH, `researchDepth.*`) opens the tab, not a panel.
+    expect(depth.filter((x) => !depthPanelOf(x.v)).map((x) => x.code)).toEqual(['DPTH'])
+    // …and every panel DepthTab anchors is reachable from a code (a new panel without one is red).
+    const reached = new Set(perPanel.map((x) => depthPanelOf(x.v)))
+    expect([...anchored].filter((k) => !reached.has(k)).sort()).toEqual([])
+    // A non-depth section never grows a `panel` param.
+    expect(depthPanelOf({ section: 'options', flag: 'researchDepth.ftd_dataset_enabled' })).toBe(null)
+    expect(researchHref('nvda', 'news')).toBe('/research/NVDA?section=news')
+  })
 
   it('flagOn: a plain key is === true; a dotted key reads the object; `*` is ANY key', () => {
     expect(flagOn({}, undefined)).toBe(true)

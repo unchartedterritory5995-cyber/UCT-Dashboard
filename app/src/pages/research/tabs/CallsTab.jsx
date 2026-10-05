@@ -20,7 +20,10 @@ export default function CallsTab({ sym }) {
       )}
       <SentimentGauge ticker={sym} />
       {isLoading && !recap && <div className={styles.fnote}>Loading earnings call recap…</div>}
-      {recap && <CallRecapSection recap={recap} audio={audioData} hideSentimentBadge />}
+      {/* The WHOLE payload, not `.recap`: webcast_url, rating_changes and
+          review_status ride the outer object, and normalizeCallRecap (inside
+          CallRecapSection) flat-merges them -- same as CallSection does. */}
+      {recap && <CallRecapSection recap={recapData} audio={audioData} hideSentimentBadge />}
       <TranscriptPanel sym={sym} />
       {/* TERM-088 -- a failed read is not a genuinely empty recap. Rendered
           BEFORE the empty-state branch, which is guarded with `&& !error` so

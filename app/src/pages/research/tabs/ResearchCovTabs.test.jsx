@@ -7,7 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 import PeopleTab from './PeopleTab'
 import EstimateHistoryTab from './EstimateHistoryTab'
-import FilingsFeedTab from './FilingsFeedTab'
+import FilingsFeedTab, { emptyText } from './FilingsFeedTab'
 
 let routes
 let status
@@ -151,6 +151,28 @@ describe('FilingsFeedTab (COV-09)', () => {
     fireEvent.click(screen.getByRole('button', { name: '8-K' }))
     await waitFor(() => expect(screen.getByTestId('feed-source').textContent).toContain('polled every 5 minutes'))
     expect(global.fetch.mock.calls.some(([u]) => String(u).endsWith('/api/research/filings-feed?form=8-K'))).toBe(true)
+  })
+
+  it('an ok market read with no rows of the filtered form speaks of the window, never prints a missing reason', async () => {
+    // key order matters: the stub matches the FIRST key the url contains
+    routes['/api/research/filings-feed?form=S-1'] = { state: 'ok', source: 'SEC EDGAR latest-filings feed', poll_minutes: 5, rows: [], forms: {} }
+    routes['/api/research/filings-feed/AAPL'] = { state: 'ok', ticker: 'AAPL', source: 'SEC EDGAR submissions', rows: [ROW_8K] }
+    routes['/api/research/filings-feed'] = { state: 'ok', source: 'SEC EDGAR latest-filings feed', poll_minutes: 5, rows: [ROW_8K], forms: {} }
+    wrap(<FilingsFeedTab sym="AAPL" />)
+    await screen.findByTestId('feed')
+    fireEvent.click(screen.getByRole('button', { name: 'All market' }))
+    fireEvent.click(screen.getByRole('button', { name: 'S-1' }))
+    const gap = await screen.findByTestId('feed-gap')
+    expect(gap.textContent).toBe('None: no S-1 filing for the market among the most recent filings we fetched. (SEC EDGAR latest-filings feed)')
+    expect(gap.textContent).not.toMatch(/undefined/)
+  })
+
+  it('a non-ok state with no reason prints no reason at all', () => {
+    expect(emptyText({ state: 'unavailable', rows: null }, 'All', 'AAPL')).toBe('Unavailable.')
+    expect(emptyText({ state: 'not_found', rows: null, source: 'SEC EDGAR submissions' }, 'All', 'AAPL'))
+      .toBe('Unavailable. (SEC EDGAR submissions)')
+    expect(emptyText({ state: 'none_in_scope', rows: [], reason: "SEC's recent-filings list for this company holds no 8-K filing" }, '8-K', 'AAPL'))
+      .toBe("None: SEC's recent-filings list for this company holds no 8-K filing.")
   })
 
   it('a failed request is unavailable, not "nothing filed"', async () => {

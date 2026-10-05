@@ -47,10 +47,14 @@ function EntryProvenance({ entry }) {
 }
 
 export default function CatalystsTab({ sym }) {
-  const { data, isLoading, error, mutate } = useCatalystHistory(sym)
+  const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading catalyst history…</div></div></div>
+  }
+
+  if (paywalled) {
+    return <div className={styles.fnote} data-testid="catalysts-paywalled">Catalyst history requires a paid plan.</div>
   }
 
   // TERM-088 -- a failed read is not a genuinely empty catalyst history.

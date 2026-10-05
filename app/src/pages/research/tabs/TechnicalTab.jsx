@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import StockChart from '../../../components/StockChart'
 import useTechnical from '../hooks/useTechnical'
+import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 import styles from '../ResearchPage.module.css'
 
 // Chart/Technical Intelligence Convergence (owner authorization, Phase B).
@@ -23,12 +24,13 @@ function setupLabel(setup) {
   return (setup || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function daysAgo(dateStr) {
+// Whole ET calendar days since `asof_date` (a market date). It used to round
+// the millisecond gap from UTC midnight, which said "1 day ago" for a verdict
+// dated today from mid-afternoon ET onward.
+export function daysAgo(dateStr, now = Date.now()) {
   if (!dateStr) return null
-  const then = new Date(`${dateStr}T00:00:00Z`).getTime()
-  if (Number.isNaN(then)) return null
-  const days = Math.round((Date.now() - then) / 86400000)
-  return days
+  const days = etCalendarDaysBetween(String(dateStr).slice(0, 10), now)
+  return Number.isFinite(days) ? days : null
 }
 
 function VerdictCard({ v, selected, onSelect }) {

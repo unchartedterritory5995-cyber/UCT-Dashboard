@@ -56,6 +56,15 @@ describe('useCatalystHistory', () => {
     expect(result.current.error).toBe(true)
   })
 
+  it('a 402 is the paid gate (paywalled), never an outage error', async () => {
+    const swr = { data: { ok: false, httpStatus: 402, body: null }, isLoading: false, mutate: () => {} }
+    vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => swr }))
+    const { default: useCatalystHistory } = await import('./useCatalystHistory')
+    const { result } = renderHook(() => useCatalystHistory('aapl'))
+    expect(result.current.paywalled).toBe(true)
+    expect(result.current.error).toBe(false)
+  })
+
   it('returns the SAME object across re-renders with the same data (H14 shape)', async () => {
     const swr = { data: { ok: true, httpStatus: 200, body: { entries: [] } }, isLoading: false, mutate: () => {} }
     vi.doMock('../../../hooks/useMobileSWR', () => ({ default: () => swr }))

@@ -1,7 +1,7 @@
 // V15 — MOVE / WIIM. Rails:
 //   * NEW is marked from the SERVER's since-last-visit diff, row by row (not everything, not nothing);
 //   * an intelligence outage says "could not check", never reads as a quiet tape;
-//   * the dark flag (404) says "not enabled", not "error";
+//   * the dark flag (404) says "isn't switched on yet", not "error";
 //   * the numbered rows are published to the shell for row <GO>.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
@@ -49,10 +49,10 @@ describe('MovePanel', () => {
     expect(screen.queryByText(/No notable facts fired/)).toBeNull()
   })
 
-  it('the dark flag (404) reads as "not enabled", any other failure as retry', async () => {
+  it('the dark flag (404) reads as "not switched on", any other failure as retry', async () => {
     jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 404 }))
     const { unmount } = render(<MovePanel sym="AMD" />)
-    expect((await screen.findByTestId('terminal-move-error')).textContent).toContain('not enabled')
+    expect((await screen.findByTestId('terminal-move-error')).textContent).toContain("isn't switched on yet")
     unmount()
     jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 500 }))
     render(<MovePanel sym="AMD" />)

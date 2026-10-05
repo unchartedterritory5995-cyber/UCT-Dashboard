@@ -835,3 +835,18 @@
     display: none;
   }
 }
+
+/* Touch tier: the command line gets its own full-width row under the status strip
+   and the bar buttons. Without the wrap, the non-shrinking L0 strip plus the 44px
+   button floor squeezed .cmdBlock to 0px on every phone and on iPad portrait. */
+@media (max-width: 1024px) {
+  .bar {
+    flex-wrap: wrap;
+    row-gap: var(--space-xs, 4px);
+  }
+
+  .cmdBlock {
+    flex: 1 1 100%;
+    order: 1;
+  }
+}

@@ -11,7 +11,7 @@ vi.mock('../LeadershipBadge', () => ({ default: () => null }))
 vi.mock('../ConfidenceBadge', () => ({ default: () => null }))
 vi.mock('../../../components/chart/pane/ChartPane', () => ({ default: () => <div>chart-pane</div> }))
 
-import OverviewTab from './OverviewTab'
+import OverviewTab, { consensusText, targetMid } from './OverviewTab'
 
 describe('OverviewTab', () => {
   it('renders the AI snapshot copy when no analysis exists yet, and no error banner', () => {
@@ -50,4 +50,62 @@ describe('OverviewTab -- failed read vs genuine empty state', () => {
     screen.getByText('Retry').click()
     expect(mutate).toHaveBeenCalled()
   })
+})
+
+// The "Latest report" card (useLatestReport): loading, outage, genuinely-none and a real row
+// are four different sentences, and an outage must never read as "nothing reported".
+describe('OverviewTab -- Latest report states', () => {
+  const base = { sym: 'AAPL', stats: {}, analyst: {}, ai: {}, error: false, mutate: () => {} }
+
+  it('renders the reported row and its quarter label', () => {
+    const row = { label: 'FY26 Q2', eps_estimate: '$1.10', reported_eps: '$1.25', surprise_pct: '+13.6%',
+      rev_estimate: '$46.00B', rev_actual: '$46.70B', rev_surprise_pct: '+1.5%' }
+    render(<OverviewTab {...base} row={row} reportState="ready" retryReport={() => {}} />)
+    expect(screen.getByText('Latest report · FY26 Q2')).toBeInTheDocument()
+    expect(screen.getByText('$1.25')).toBeInTheDocument()
+    expect(screen.getByText('+13.6%')).toBeInTheDocument()
+    expect(screen.queryByTestId('latest-report-error')).not.toBeInTheDocument()
+  })
+
+  it('a failed read says it could not load, with a Retry -- never "no report"', () => {
+    const retry = vi.fn()
+    render(<OverviewTab {...base} row={null} reportState="error" retryReport={retry} />)
+    expect(screen.getByTestId('latest-report-error')).toHaveTextContent("Couldn't load the latest report.")
+    expect(screen.queryByTestId('latest-report-empty')).not.toBeInTheDocument()
+    screen.getByText('Retry').click()
+    expect(retry).toHaveBeenCalled()
+  })
+
+  it('loading and genuinely-none are distinct copy', () => {
+    const { unmount } = render(<OverviewTab {...base} row={null} reportState="loading" />)
+    expect(screen.getByTestId('latest-report-loading')).toBeInTheDocument()
+    unmount()
+    render(<OverviewTab {...base} row={null} reportState="empty" />)
+    expect(screen.getByTestId('latest-report-empty')).toHaveTextContent('No reported quarter on file yet.')
+  })
+
+describe('OverviewTab analyst view (DES)', () => {
+  const base = { sym: 'AAPL', stats: {}, ai: {}, row: null, error: false, mutate: () => {} }
+
+  it('the FMP fallback (no mean) shows the median, labelled median -- not a dash', () => {
+    render(<OverviewTab {...base} analyst={{ price_target: { targetLow: 150, targetHigh: 300, targetMean: null, targetMedian: 240 } }} />)
+    expect(screen.getByTestId('target-range').textContent).toBe('150 — 240 (median) — 300')
+  })
+
+  it('a mean wins over the median and carries no label', () => {
+    expect(targetMid({ targetMean: 231.5, targetMedian: 240 })).toEqual({ value: 231.5, label: null })
+    expect(targetMid({})).toEqual({ value: '—', label: null })
+  })
+
+  it('strong buy/sell are counted into the buckets and named', () => {
+    render(<OverviewTab {...base} analyst={{ consensus: { strongBuy: 10, buy: 15, hold: 8, sell: 1, strongSell: 0 } }} />)
+    expect(screen.getByTestId('consensus-counts').textContent).toBe('Buy 25 (incl. 10 strong) · Hold 8 · Sell 1')
+  })
+
+  it('consensus text handles strong sell and absence', () => {
+    expect(consensusText({ buy: 2, hold: 3, sell: 1, strongSell: 2 })).toBe('Buy 2 · Hold 3 · Sell 3 (incl. 2 strong)')
+    expect(consensusText({})).toBe('—')
+    expect(consensusText(undefined)).toBe('—')
+  })
+})
 })

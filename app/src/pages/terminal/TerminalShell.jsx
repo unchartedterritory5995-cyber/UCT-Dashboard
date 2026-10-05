@@ -40,7 +40,7 @@ import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
 import { PanelFreshnessContext } from './panelFreshness'
 import parseCommand from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, fillDoor, flagOn, researchHref, variantFor } from './functions'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
@@ -74,7 +74,7 @@ export function resolvePanel(panel, syms, auth) {
  *  page, or the embedded surface's route. */
 function fullHref(r) {
   if (r.state !== 'ready') return null
-  if (r.sym && r.variant.section) return researchHref(r.sym, r.variant.section)
+  if (r.sym && r.variant.section) return researchHref(r.sym, r.variant.section, depthPanelOf(r.variant))
   return r.variant.full || r.variant.surface || null
 }
 
