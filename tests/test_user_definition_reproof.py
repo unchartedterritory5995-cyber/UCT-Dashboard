@@ -764,7 +764,10 @@ def test_the_PUT_route_is_the_ONE_the_builder_calls():
     # ⭐ Phase One Track C added a THIRD, optional telemetry-passthrough
     # argument (`importTelemetryRef.current`) — additive, never changing the
     # create-vs-edit id logic this assertion exists to pin.
-    assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)" in builder, (
+    # ⭐ P0/0P added a FOURTH, optional argument (`saveOptions` — the save-time
+    # preview-repaint acknowledgement the server now requires). Additive, and
+    # the id argument this assertion pins is unchanged.
+    assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)" in builder, (
         "the builder stopped passing an id to `saveUserDefinition`, which is the "
         "whole difference between a create and an edit")
 
