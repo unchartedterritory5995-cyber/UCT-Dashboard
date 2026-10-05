@@ -3758,7 +3758,7 @@ def build(pages_dir=None):
       'when the app reopens -- a resumption surface in the same modest sense, desktop only.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 36, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 37, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
