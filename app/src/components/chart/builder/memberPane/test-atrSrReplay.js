@@ -1,4 +1,9 @@
-// app/src/components/chart/builder/memberPane/atrSrReplay.js
+// app/src/components/chart/builder/memberPane/test-atrSrReplay.js
+//
+// ⭐ H9 (2026-10-04): renamed from `atrSrReplay.js`. It is TEST INFRASTRUCTURE (an
+// oracle only `hybridObjects.test.js` imports), and `reachable.test.js`'s TEST_INFRA
+// rule recognises a `test-*` file as such; under its old name it read as a shipped
+// module no route reaches.
 //
 // RT9 — a HAND REPLAY of atr-support-and-resistance's zone boxes, written from the
 // script's text and Pine's documented built-ins, with no engine code in it. It is

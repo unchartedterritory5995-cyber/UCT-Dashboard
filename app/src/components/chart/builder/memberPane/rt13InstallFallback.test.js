@@ -116,21 +116,48 @@ plot(close + open[2], "S")
     expect(JSON.stringify(on.definition.compute)).toBe(JSON.stringify(off.definition.compute))
   })
 
-  it('⭐ corpus: mtf-key-levels-support-and-resistance and vwap-fibo-dev-extensions-strategy attach on the runtime lane', () => {
+  // ⚠️ H10 (merge of H9): these two were the corpus proof of the fallback, refused
+  // `budget:series` on the host. H9 showed both refusals were MIS-COUNTS (clock
+  // columns and `accum`'s self counted as base series) and fixed the count, so
+  // both now install on the HOST lane and the runtime lane is never asked. A
+  // corpus sweep at the merge (266 committed scripts, pane off -> install, pane
+  // on -> build + install) found NO real script that the install door refuses
+  // and the runtime lane serves: the only two install refusals left are the
+  // declined cases below. The served path is proven by the synthetic
+  // OVER_SERIES case above.
+  it('⭐ corpus: mtf-key-levels-support-and-resistance and vwap-fibo-dev-extensions-strategy install on the HOST lane (H9 count fix)', () => {
     for (const slug of ['mtf-key-levels-support-and-resistance', 'vwap-fibo-dev-extensions-strategy']) {
       const src = corpus(slug)
       const off = build(src, false)
       expect(off.ok, slug).toBe(true)
-      const refused = registry.installUserDefinitions([off.definition])
-      expect(refused.installed.length, slug).toBe(0)
-      expect(refused.errors.join(' | '), slug).toMatch(/budget:series/)
+      expect(off.lane || 'host', slug).toBe('host')
+      const a = registry.installUserDefinitions([off.definition])
+      expect(a.installed.length, `${slug}: ${a.errors.join(' | ')}`).toBe(1)
+      registry.uninstallUserDefinition(DEF_ID)
       const on = build(src, true)
-      expect(on.ok, `${slug}: ${on.reason} ${JSON.stringify(on.runtimeDeclined)}`).toBe(true)
-      expect(on.lane, slug).toBe('runtime')
-      const { installed, errors } = registry.installUserDefinitions([on.definition])
-      expect(installed.length, `${slug}: ${errors.join(' | ')}`).toBe(1)
+      expect(on.ok, slug).toBe(true)
+      expect(on.lane || 'host', slug).toBe('host')
+      expect(on.runtimeDeclined, slug).toBeUndefined()
+      expect(JSON.stringify(on.definition.compute), slug).toBe(JSON.stringify(off.definition.compute))
+      const b = registry.installUserDefinitions([on.definition])
+      expect(b.installed.length, `${slug}: ${b.errors.join(' | ')}`).toBe(1)
       registry.uninstallUserDefinition(DEF_ID)
     }
+  })
+
+  it('⛔ corpus declined by a different wall: volume-spikes (lookback 1000 > 960) - the runtime lane names `pine:function`, the host document is unchanged', () => {
+    const src = corpus('volume-spikes-growing-volume-signals-with-alerts-scanner')
+    const off = build(src, false)
+    const on = build(src, true)
+    expect(on.ok).toBe(true)
+    expect(on.lane || 'host').toBe('host')
+    expect(on.runtimeDeclined && on.runtimeDeclined.code).toBe('pine:function')
+    expect(JSON.stringify(on.definition.compute)).toBe(JSON.stringify(off.definition.compute))
+    const a = registry.installUserDefinitions([off.definition])
+    const b = registry.installUserDefinitions([on.definition])
+    expect(a.installed.length + b.installed.length).toBe(0)
+    expect(a.errors.join(' | ')).toMatch(/budget:lookback/)
+    expect(b.errors).toEqual(a.errors)
   })
 
   it('⛔ declined: the HOST document comes back unchanged and the install door says what it always said', () => {
