@@ -765,6 +765,35 @@ export default function TerminalShell() {
           </div>
         )}
       </div>
+      {isPhone && (
+        <div className={styles.phoneBar}>
+          <div className={styles.phoneSwitcher} role="tablist" aria-label="Panels" data-testid="terminal-phone-switcher">
+            {visible.map((p, i) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                className={`${styles.barBtn} ${i === focus ? styles.barBtnOn : ''}`}
+                aria-selected={i === focus}
+                onClick={() => setFocus(i)}
+                data-testid={`terminal-phone-switch-${i}`}
+              >{p.code}</button>
+            ))}
+          </div>
+          <div className={styles.counts} role="group" aria-label="Panels">
+            {PANEL_COUNTS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`${styles.barBtn} ${count === n ? styles.barBtnOn : ''}`}
+                aria-pressed={count === n}
+                onClick={() => setCount(n)}
+                data-testid={`terminal-phone-count-${n}`}
+              >{n}</button>
+            ))}
+          </div>
+        </div>
+      )}
       {guarded && (
         <div className={`${styles.notice} ${styles.noticeError}`} role="alert" data-testid="terminal-unreadable">
           <span>
