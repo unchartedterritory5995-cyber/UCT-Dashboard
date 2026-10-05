@@ -195,6 +195,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 92b | RT10b `LOOP_ITERATIONS` counts one bar, not the run (section RT10b): per-bar peak, ceiling 11,000 (above `WHILE_ITERATIONS`, below `INSTRUCTIONS_PER_BAR` / cheapest pass) | `c59f755799` | - | harness 340 files: 109/107/124 -> 109/106/125, wyckoff SPY paint notDrawn -> MATCH, 0 MATCH lost; delta-rsi RDDT 4/4 MATCH 636/636 with F8 merged |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+| 96 | F9 values we DRAW that TradingView does not (section F9): `color.new(<per-bar rule>, t)` carried as the rule at one alpha (rt8 S03); a `var` colour set by its `if`s carried as a palette and a running index (rt6 C01 / C02 / B01); a valued bar whose palette index is not computable withheld (`seed:held`) instead of drawn in gold; `ta.wma` first answers on its n-th finite input on the host lane, both lanes (rt8 W01-W03, rule A); `ta.cum(<constant>)` is the bar index's leaf, withheld off the listing (`bar-index:window`, vw-bar-counters SPY 1 / 30 C05); harness: a capture's own `bar_index` control outranks its listing sentence (vw-int-cast) | `4fff2c63fb`, `dd2430c61c`, `67185dfa6c`, `1ab3639324` | `ast/pine.js`, `ast/interpret.js`, `ast/barIndexShift.js`, `nativeRegistry.js`, `api/services/ast_interpret.py`, `api/services/ast_bar_index_shift.py`, `vendorHarness/ourSide.js` | targeted re-grades: rt8 followups DIVERGE -> MATCH (on, runtime); rt6 RDDT DIVERGE -> MATCH, SPY DIVERGE -> INCONCLUSIVE (K00 withheld; C01 / C02 MATCH); vw-bar-counters SPY 1 / 30 C05 DIVERGE -> INCONCLUSIVE (captures stay DIVERGE on C01-C04, missing); vw-int-cast DIVERGE -> INCONCLUSIVE. Full sweep owed (gate) | 11 / 11 mutations red; corpus translation census 1 output moved (an arity note) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -7932,3 +7933,100 @@ Mutations (pine.js bytes captured and restored, sha verified):
   `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
+
+## F9 - values we DRAW that TradingView does not: colour carriage, `ta.wma`'s warm-up, a running count off the listing (2026-10-04, step 96)
+
+Lane F9, branch `pine/f9-divergence-sweep` (from `integrate/wave17-2026-10-03` `6c557c3308`). Brief: the fidelity of what we
+already draw. Every DIVERGE where our door DRAWS a value or a colour TradingView does not is the worst defect class:
+classify each, exclude data-provider differences and items an open lane owns, fix the unowned engine-semantic clusters,
+withhold by name where the rule is not witnessed.
+
+### 1. The DIVERGE rows, classified (wave 17 tree, door states `on` + `runtime`)
+
+Built from H8's final grade (746 graded, 222 DIVERGE) and re-graded capture by capture on the wave-17 tree (F5's merge
+had already moved the converging prefixes and the bar-0 rows off DIVERGE). "Drawn wrong" = ours draws a value or colour
+TradingView does not; "missing" = ours `na` or withheld by name where TradingView draws (not this lane's class).
+
+| capture(s) | row(s) | ours vs TV | class | owner |
+|---|---|---|---|---|
+| vw-rt8-runtime-followups RDDT | S03 `plotshape(color = color.new(cond ? blue : orange, 40))` | gold `#c9a84c` vs `#2962ff99` / `#ff980099`, 636 bars | engine: colour carriage (`color.new` over a rule) | **F9 FIXED** (H8's open item) |
+| vw-rt6-runtime-colour RDDT, SPY | C01 / C02 a `var color` set by `if`s, bare and in `color.new(c, 40)`; the B01 barcolor of it | gold vs white / `#33ff00` / `#ff0000` on every bar (636 / 1,800); the barcolor withheld | engine: colour carriage (a `var` colour) | **F9 FIXED** |
+| vw-rt8-runtime-followups RDDT | W01 / W03 `ta.wma` over a gap that follows finite values; W02 `ta.ema` of it | drawn on bars 20-25 / 50-57 / 24-69 where TV is `na` (rule A, Q-RT8a) | engine: warm-up (host `rolling` ffill) | **F9 FIXED** |
+| vw-bar-counters SPY 1 / 30 minute | C05 `ta.cum(1)` | ours 1, 2, 3 ... vs 11761 / 13702 ... on every bar (9,300 / 8,300) | engine: window (a running count off the listing) | **F9 FIXED - withheld by name** |
+| vw-int-cast SPY 1D | I00 `bar_index` control | ours 0 vs 8172 (300 bars) | capture metadata (the file carries RDDT's listing sentence) | **F9 FIXED in the harness** |
+| vw-object-gc-a / b / c SPY 1W | `*01_isconfirmed`, last bar | ours 1 vs 0 | timing: the week was forming, the capture says `newestBarIsForming: false` (§ C7) | capture lane |
+| request-realtime-alignment SPY 5 (b) | R4 / R5, last bar | ours 0 vs 1 | timing: the realtime bar | capture / G16 |
+| r1-strategy-draws RDDT (runtime) | N01-N04, bar 635 | ours drawn vs vendor `na` (its own control row too) | capture: the vendor exported no last-bar row | R1 |
+| vw-other-symbol RDDT | O07 `BRK.B == NYSE:BRK.B` | ours 0 vs 1 (O05 / O06 `na`) | data provider (no BRK.B bars) | excluded |
+| support-and-resistance-multi-time-frame SPY | Support Weekly, 10 Friday bars | 218.26 vs 410.64 | request semantics: v4 `security(..., 'W')` on a period's closing bar | H5 (F5's table) |
+| mcclellan SPY / RDDT | Osc | `na` vs value | data provider (ADVN / DECN) | excluded |
+| pmax-explorer SPY, atr-trailing-stop SPY, support-and-resistance SPY, trendlines SPY, vw-bar-counters C01-C04 / C06 / C07, request-realtime R1-R3 / R7 | value rows | missing (`na` / withheld by name) | window / requests | F5 recorded, H5 |
+| artemis, contraction-box, high-low-open-mid, institutional-smc, liquidity-pools, makuchaku, pro-trading-art, rsi-swing, price-action, trend-duration, vdubus, swing-highlow-zigzag (SPY); zero-lag SPY (not proved by id) | object families | counts | WINDOW / collector, proved by id offset | F4 / F6 pinned |
+| market-structure-by-leviathan SPY | one caption | `LH` vs `HH` | bounded accumulator | F5 |
+| atr-s&r, liquidity-heatmap, htf-candle-footprint, k-clustering, htf-liquidity, ema-ribbon cells, heat-map-seasons, auto-trendline, dual-view, multicator, atr-trailing-stop, pmax, options-max-pain, poor-man's VP, sector-rotation, smt, volume-profile, vold, position-size, trend-lines-sr, multi-timeframe S&D, sonarlab x3, vw-runtime-error, vw-call-site-history | objects | withheld by name | missing | RT7 / RT9 / H5 / C45 / F5 |
+| vw-h5-format-volume | 16 cells | withheld | missing | H7 |
+| supertrend-strategy, vw-bgcolor-barcolor O4, heat-map-seasons, deadband BRK-A, wyckoff SPY, inside-bar SPY | paints | withheld / not drawn | missing | B1 / RT6 / R-W |
+
+### 2. Fixed (each grounded in the capture that proves it)
+
+* **`color.new(<per-bar rule>, t)`** - `pine.js::colorNewOverRule`. `color.new(c, t)` REPLACES `c`'s transparency, so over a
+  two-colour test or an n-way chain it is that rule at alpha `1 - t/100` (palette entries stripped of their own alpha). Only
+  a `t` that folds (`alphaNumberOf`, held whole as C29); a base that folds to one colour (ruling-1 selectors included) is
+  left to the static path. **Declined**: an `na` leaf (TradingView's `color.new(na, t)` is black at `t`, RT9 C03, never
+  witnessed inside a test - Q-F9a), a per-bar `t`, an unreadable base. S03 DIVERGE -> MATCH, colour compared on 636 / 636.
+* **A `var` colour set by its own `if`s** - `pine.js::colourStateRule`. The `var`'s running state (`stateBinding`) with each
+  colour leaf replaced by its palette position is an ordinary numeric `var`; the resolver folds it (warm-up and off-listing
+  rules included) and `colorPalette[index]` is the bar's colour. Only the `var`'s last word, at the plot's own line
+  (`positionEnv`) AND at the end of the program; a write that is not a static colour, `na` or the `var` itself declines the
+  whole rule. rt6 RDDT C01 / C02 MATCH on every bar; the B01 barcolor (was withheld) agrees.
+* **A valued bar whose palette index is not computable is withheld** - `nativeRegistry.js::unknownPaletteOntoValue`, beside
+  F5's `seedColourOntoValue`: off the listing the running index above is `NaN` on bars 0-250 and the renderer fell back to
+  the pane's gold beside a drawn value. Withheld there, named `seed:held`, bound unbounded. rt6 SPY: 251 bars withheld, all
+  1,549 drawn bars in TradingView's colour (read past the harness's colour warm-up, against the vendor's colorer).
+* **`ta.wma` first answers on its n-th finite input** (rule A, Q-RT8a) - `interpret.js::rolling` (`finiteSeen`) and its
+  Python twin `ast_interpret.py::_rolling`; the runtime lane's `vm.js` OP.WINDOW `ffill` already did. W01 / W02 / W03
+  DIVERGE -> MATCH; the whole rt8 capture MATCHES in both states.
+* **`ta.cum(c)` of a constant is a bar count** - `barIndexShift.js::countingCumStep` / `ast_bar_index_shift.py::
+  _counting_cum_step`: the index's leaf with `P1 = c`. Plotted off the listing it is withheld (`bar-index:window`); a
+  threshold (`ta.cum(1) < 16`, atr-trailing-stoploss) masks only the bars it cannot vouch for (SPY still MATCH, 1,694
+  bars); `ta.cum(1) - ta.cum(1)[n]` cancels and is served. A running total of a SERIES is not touched (H6's open item 1).
+  vw-bar-counters SPY 1 / 30: C05 DIVERGE -> INCONCLUSIVE by name. Parity fixture regenerated by its writer
+  (`BAR_INDEX_SHIFT_PARITY_WRITE=1`); the brute-force oracle shifts `cum(c)` by `c * D`.
+* **Harness: a capture's own `bar_index` control outranks its listing sentence** - `ourSide.js::
+  barIndexControlContradicts` (the first control reading against the position of its own bar, by time). vw-int-cast I00
+  DIVERGE -> INCONCLUSIVE by name; the eleven `vw-mintick-*` / `vw-nvi-pvi-truncated` captures the rule also reaches moved
+  no row.
+
+Corpus effect (266 committed scripts, translation census base vs tip): 1 output's presentation moved (kalman-psar now
+reports its arity, still declined).
+
+### 3. Withheld and queued
+
+`docs/pine/capture-queue-2026-10-04-f9-divergences.md`, probe `tools/visual_conformance/probes/vw-f9-colour-rules.pine`:
+Q-F9a an `na` leaf under `color.new`; Q-F9b a `var` colour with an `na` write; Q-F9c a colour name read ABOVE its own
+reassignment (every colour reader resolves names against the END-of-program env; moving them to `positionEnv` moves 0 of
+266 corpus scripts - not made without the capture).
+
+### 4. Rails and mutations
+
+`vendorHarness.f9Divergences.test.js` (13), `ast/colorNewOverRule.test.js` (16), `ast/f9WmaRuleA.test.js` (4),
+`tests/test_f9_wma_rule_a.py` (3), `barIndexShift.test.js` (+6 cases, 113), `test_ast_bar_index_shift_parity.py` (60).
+Re-stated where they pinned the old wrong answer: the `colourBaseRecursion` control (`color.new` over a two-colour test is
+now that test at one alpha, never flat), `rt9NaColour` C01 / C02 (DIVERGE -> MATCH, colour compared).
+
+Mutations (bytes captured, restored, sha verified; never `git checkout`), **11 of 11 red**: colorNewOverRule never answers
+(14 red); alpha not applied (7); `na` leaf carried (1); var-colour rule never asked (7); positional last-word check
+dropped (1); JS wma count dropped (4); Python wma count dropped (2); JS counting cum not a leaf (14); Python counting cum
+not a leaf (5); capture control never contradicts (1); unknown palette index not withheld (2).
+
+Pre-existing on the base bytes (re-run swapped to `6c557c3308`, restored by sha): `cap4Captures` RT7 and RT8 signature
+controls (4), `f8Ungraded` D01_mintick and delta-rsi (2), `hybridObjects` fixture. F9 adds the expected flip of
+`cap4Captures`' two rt8 `it.fails` rows (the capture now MATCHES) - re-pinned only by `cap4Captures.measure` (below).
+
+### 5. Measured
+
+Targeted re-grades (the harness's own `gradeCapture`, one process, `--maxWorkers=1`, both states) are the figures above.
+**The full sweep and the pinned-grade regeneration (`cap4Captures.measure`, `cap3SpyGaps.measure`) were NOT run**: the
+lane was told to wait for the integrator's "gate done" before any sweep or measure run, and that message had not come
+when this section was written. Owed: the 746-grade sweep base `6c557c3308` vs this branch (MATCH lost must read 0), and
+the CAP4 signature regeneration (rt8 followups DIVERGE -> MATCH in both states).
