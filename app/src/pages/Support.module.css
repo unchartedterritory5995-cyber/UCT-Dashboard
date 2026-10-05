@@ -537,6 +537,15 @@
   color: var(--text-bright);
 }
 .walkthroughRow:last-child { border-bottom: none; }
+/* Help > What's new (wave 14, W14-C2): one line of lead under the heading. */
+.whatsNewTitle {
+  margin-top: 0;
+}
+.whatsNewLead {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .walkthroughReplay {
   flex-shrink: 0;
   color: var(--ut-gold);

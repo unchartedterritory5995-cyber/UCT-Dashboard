@@ -254,4 +254,9 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // ResearchHome, under components/notebook/onboarding/, so outside the derived population);
   // rail a11y/capabilityPreview.a11y.test.jsx (with the first-run-welcome recipe).
   'components/notebook/onboarding/CapabilityPreview.jsx': { recipe: 'capability-preview', railFile: 'a11y/capabilityPreview.a11y.test.jsx' },
+  // Wave 14 lane W14-C2: the one-time "new in your Notebook" offer (a lazy chunk behind an
+  // eager gate, both under components/notebook/onboarding/); rail a11y/tourOffer.a11y.test.jsx
+  // (the card alone, and the real gate offering into a first-run slot).
+  'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
+  'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
 })
