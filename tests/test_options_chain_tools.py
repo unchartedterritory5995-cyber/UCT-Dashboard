@@ -115,3 +115,21 @@ def test_no_bars_says_it_is_not_the_same_as_no_history(monkeypatch):
     monkeypatch.setattr(ct, "_bars", lambda occ, f, t: [])
     h = ct.contract_history("TST", "O:TST261016P00095000")
     assert h["bars"] == [] and "Not the same as no history" in h["note"]
+
+
+# ── O9: OCC roots for class shares and adjusted contracts ─────────────────────────────────────
+
+@pytest.mark.parametrize("root,sym,ok", [
+    ("BRKB", "BRK.B", True), ("BRKB", "BRK-B", True), ("BRKB", "BRKB", True),
+    ("BRKB1", "BRK.B", True), ("AAPL1", "AAPL", True), ("AAPL", "AAPL", True),
+    ("BRKA", "BRK.B", False), ("AAPL12", "AAPL", False), ("AAPLX", "AAPL", False),
+    ("SPY", "TST", False), ("TST", "", False)])
+def test_root_matches(root, sym, ok):
+    assert ct.root_matches(root, sym) is ok
+
+
+def test_a_class_share_contract_drill_is_not_refused():
+    h = ct.contract_history("BRK.B", "O:BRKB261016C00500000")
+    assert h["strike"] == 500.0 and h["contract"] == "O:BRKB261016C00500000"
+    with pytest.raises(ValueError):
+        ct.contract_history("BRK.B", "O:BRKA261016C00500000")

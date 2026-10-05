@@ -92,6 +92,16 @@ def probability(sym: str, expiration: str = "", p: float = DEFAULT_PROBABILITY, 
 
 # ── FT-016 contract drill ──────────────────────────────────────────────────────
 
+def root_matches(root: str, sym: str) -> bool:
+    """O9: does an OCC root name this underlying? OCC writes class shares without the separator
+    (BRK.B / BRK-B -> BRKB) and an adjusted contract appends one digit (BRKB1), so both sides are
+    compared with '.' and '-' stripped, and one trailing digit on the root is allowed."""
+    def norm(x: str) -> str:
+        return (x or "").upper().replace(".", "").replace("-", "").strip()
+    r, s = norm(root), norm(sym)
+    return bool(s) and (r == s or (len(r) == len(s) + 1 and r.startswith(s) and r[-1].isdigit()))
+
+
 def parse_occ(occ: str) -> Optional[dict]:
     m = _OCC.match((occ or "").strip().upper())
     if not m:
@@ -111,7 +121,7 @@ _bars: Callable[[str, str, str], list] = _default_bars
 
 def contract_history(sym: str, occ: str, *, today: Optional[_dt.date] = None) -> dict:
     parsed = parse_occ(occ)
-    if parsed is None or parsed["underlying"] != sym:
+    if parsed is None or not root_matches(parsed["underlying"], sym):
         raise ValueError(f"{occ!r} is not an option contract on {sym}")
     today = today or _dt.datetime.now(_ET).date()
     bars = _bars(occ.upper(), (today - _dt.timedelta(days=CONTRACT_HISTORY_DAYS)).isoformat(),
