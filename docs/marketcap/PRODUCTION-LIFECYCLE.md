@@ -323,3 +323,56 @@ STATUS. Current discovery may add or update mappings; it may never erase proven 
   date (2020-05-01, before pricing) at a preliminary S-1/A post-offering projection (1,765,080 shares). Meanwhile the
   issuer's own count in force (72,773) and the final 424B4 (2,272,773) say otherwise. Holding those 3 sessions needs a
   new rule. The accepted candidate carries 922 preliminary-over-final IPO pairs; they are ordinary offering-size deltas.
+
+## 14. DCTH release disposition and the V2 offering boundary (owner decisions 2026-10-05)
+
+**Decision: keep the V1 IPO methodology.** The uplisting rule was researched and rejected. Its classifier is clean:
+18/18 uplistings and 0 false positives on traditional IPOs. But V1 rejects every pre-listing count
+(`REJECTED_PRE_LISTING`), so the rule turns every affected value into a hold. That is 828 sessions across 18 issuers.
+Only 25 of those sessions (at 5 issuers) are evidence-backed premature projections, and 14 of the 18 projections were
+within ±16% of the first later actual count.
+
+**TRI (research correction).** TRI's F-10 (2002) states that its common shares were already listed on the Toronto Stock
+Exchange. It therefore belongs to the same already-public / cross-listing family, and the rejected rule's true scope was
+19 issuers and 1,027 sessions. V1 behaviour does not change, and TRI gets no special case.
+
+**DCTH: a known V1 limit, release BLOCKED.**
+- In a fresh build, the IPO rule values 2020-05-01, 05-04 and 05-05 at the preliminary S-1/A projection (1,765,080
+  shares).
+- Primary evidence shows that projection is not the actual capitalization:
+  - 72,773 shares in force before the offering;
+  - the offering was consummated on 2020-05-05;
+  - the 8-K (public 2020-05-08 21:11Z) reports 1,895,773 shares after the offering and 2,623,446 on 05-08;
+  - the 10-Q reports 2,760,401.
+- The accepted reference passes Gate C only because its inputs never harvested that S-1/A, so it held those days as
+  IPO_CAPITALIZATION_UNRESOLVED.
+
+**Why there is no release path in V1.** Gate C detects blocks: contiguous ≥10x V1-vs-production sessions. Its consequence
+is artifact-global by design:
+1. Any failed gate makes validation FAIL.
+2. The refresh then ends GATES_FAILED, publishes nothing and keeps the previous authority.
+3. The release contract accepts only `validation.status == PASS`.
+
+A block resolves only through a human disposition (PROVEN_CORRECT / FIXED / HELD_WITH_EXPLICIT_REASON). Each disposition
+is verified against the build, and HELD requires the build itself to withhold the sessions. V1 has:
+- no publication-side quarantine;
+- no issuer or session exclusion input;
+- no other hold mechanism outside its evidence-derived rules.
+
+Gate R's ATTESTED class accepts only identity-boundary *removals*; it never validates a value and does not apply to
+Gate C. DCTH is not PROVEN_CORRECT, so it cannot be dispositioned. No general semantic trigger isolates it (sections 12
+and 13, and the research in `C:/mcapid/research_closing`). V1 is therefore release-blocked by DCTH until V2.
+
+**Market Cap V2 backlog (recorded, not implemented):**
+1. an offering / corporate-action event model;
+2. event_date vs known_at for that model;
+3. offering closing;
+4. explicit reported-actual shares outside periodic covers (8-K Item 3.02, press releases);
+5. primary vs secondary offering shares;
+6. greenshoe / over-allotment;
+7. pre-funded warrants;
+8. preferred and convertible conversions;
+9. reverse splits concurrent with a listing;
+10. uplisting semantics for an existing public security;
+11. ticker-history / corporate-action lineage, including renames with separate price series;
+12. foreign cross-listings.
