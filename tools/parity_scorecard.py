@@ -839,6 +839,44 @@ QUOTES = {
  "O_sandbox": [
   "obsidian__getting_started__sandbox_vault",
   "Obsidian’s sandbox vault is a feature that lets you explore various functionalities without affecting your existing data."
+ ],
+ # ── wave 14 evidence pass, lane W14-EVID: the five cells settled by evidence alone (R21) ──
+ "O_findinnote": [
+  "obsidian__changelog_desktop_v0_5_0_w14",
+  "Ctrl+F to open the search, and use F3 to jump to next match, or Shift+F3 to the previous match."
+ ],
+ "O_findreplace": [
+  "obsidian__changelog_desktop_v0_6_0_w14",
+  "You can now now search AND replace, Ctrl+H by default."
+ ],
+ "O_touchundo": [
+  "obsidian__changelog_mobile_v1_9_10_w14",
+  "The default toolbar now shows undo and redo at the start of the row."
+ ],
+ "N_remindnotify": [
+  "notion__reminders_w14",
+  "When you add a reminder, Notion will send you a notification to draw your attention back to a particular task"
+ ],
+ # ── wave 14 evidence pass: four cells PARITY by controller ruling, 2026-10-04 (R21) ──
+ "E_remindalert": [
+  "evernote_hc__208314338_w14",
+  "You can opt to receive email alerts on the day timed reminders are due."
+ ],
+ "E_tabsrestore": [
+  "evernote_hc__52440426461075_w14",
+  "When you close and reopen the app, your tabs will be restored exactly as you left them."
+ ],
+ "O_deleteacct": [
+  "obsidian__privacy_w14",
+  "You may choose to delete your Obsidian account at any time using the account dashboard, which will permanently delete your account, licenses, and subscriptions."
+ ],
+ "O_cancelpurge": [
+  "obsidian__privacy_w14",
+  "If you cancel the subscription yourself, your data is deleted immediately."
+ ],
+ "O_exportpdf": [
+  "obsidian__changelog_desktop_v0_9_11_w14",
+  "You can now export notes to PDF."
  ]
 }
 
@@ -1953,6 +1991,79 @@ SOURCES = {
   "sha256": "f60decc353992abb4eb8ac0517e85210c0b4d02065b718e8542a905b7b85d2fe",
   "fetched_utc": "2026-10-04T14:48:00Z",
   "rrow": "R20"
+ },
+ # ── wave 14 evidence pass, lane W14-EVID: pages for the five settled cells (R21); fetched_utc is the saved text's mtime ──
+ "obsidian__changelog_desktop_v0_5_0_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-05-10-desktop-v0.5.0/",
+  "read_from": "https://obsidian.md/changelog/2020-05-10-desktop-v0.5.0/",
+  "status": 200,
+  "sha256": "9a7e5298332a621f39d62cdd55438980e4d29c5591ca6c6b8fee7e2216bbabb9",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_desktop_v0_6_0_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-05-18-desktop-v0.6.0/",
+  "read_from": "https://obsidian.md/changelog/2020-05-18-desktop-v0.6.0/",
+  "status": 200,
+  "sha256": "63adc46f73a2ec6d1f56829f63e4a1cfed1df04b52661677f9472c242805c021",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_mobile_v1_9_10_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2025-08-18-mobile-v1.9.10/",
+  "read_from": "https://obsidian.md/changelog/2025-08-18-mobile-v1.9.10/",
+  "status": 200,
+  "sha256": "550460c90dace91d6570ee20df6d5a264a80334aa8faed7433309624c2338fbf",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "notion__reminders_w14": {
+  "vendor": "notion",
+  "public_url": "https://www.notion.com/help/reminders",
+  "read_from": "https://www.notion.com/help/reminders",
+  "status": 200,
+  "sha256": "124965b97ad67aa19e480ee46bb28d98de6a986ce3bf187c6320dbe57996105f",
+  "fetched_utc": "2026-10-05T04:27:00Z",
+  "rrow": "R21"
+ },
+ "evernote_hc__208314338_w14": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/208314338-Add-a-note-reminder",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/208314338.json",
+  "status": 200,
+  "sha256": "92e0d0d0b3910b2f8dcea69d038838dcdeb9142997a885732d487281e3e98535",
+  "fetched_utc": "2026-10-05T04:28:16Z",
+  "rrow": "R21"
+ },
+ "evernote_hc__52440426461075_w14": {
+  "vendor": "evernote",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/52440426461075-Use-tabs-to-multitask-in-Evernote",
+  "read_from": "https://help.evernote.com/api/v2/help_center/en-us/articles/52440426461075.json",
+  "status": 200,
+  "sha256": "489c1815b5af993e2923ca16201615f5e0e3b75808418982d6993be35cec984e",
+  "fetched_utc": "2026-10-05T04:26:49Z",
+  "rrow": "R21"
+ },
+ "obsidian__privacy_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/privacy",
+  "read_from": "https://obsidian.md/privacy",
+  "status": 200,
+  "sha256": "a91584c660c7fbc07d8ed9c35de5fd936b4a1c804a9b773b3168da02b44a59fd",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
+ },
+ "obsidian__changelog_desktop_v0_9_11_w14": {
+  "vendor": "obsidian",
+  "public_url": "https://obsidian.md/changelog/2020-11-03-desktop-v0.9.11/",
+  "read_from": "https://obsidian.md/changelog/2020-11-03-desktop-v0.9.11/",
+  "status": 200,
+  "sha256": "11aa282e49219e47a5b5ba08769bbe62098a5be69736442edcf6e7e72b114f57",
+  "fetched_utc": "2026-10-05T04:33:48Z",
+  "rrow": "R21"
  }
 }
 
@@ -3475,8 +3586,10 @@ def build(pages_dir=None):
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
     R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 37, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
-    R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
-      {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
+    R('G-032', ('P', 'P', 'P'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
+      {'N': ['N_find'], 'E': ['E_find'], 'O': ['O_findinnote']},
+      'B20: Ctrl+F opened the find bar. Obsidian\'s own public release note states the same in-file search on Ctrl+F '
+      '(R21; a release note dates when it shipped, the same standing as Evernote\'s release note on this row).')
     R('G-033', 'P', [code(f'{NB}/NoteLinkMenu.jsx', 2, 'triggered internal-note-link autocomplete'), walk9('B17_older_rows')],
       {'N': ['N_wikilink'], 'E': ['E_mention'], 'O': ['O_links']}, 'B17: typing [[ offered the target note.')
     R('G-034', 'NA', [code('app/src/widgets/registry.js', 296, 'journal: true'), walk9('B28_widget_insert')], {'N': NA, 'E': NA, 'O': NA},
@@ -3497,14 +3610,15 @@ def build(pages_dir=None):
     # Capture
     R('G-040', 'NA', [D(8, 'G-040: stays descoped')], {'N': NA, 'E': NA, 'O': NA},
       'Internal UCT capture coverage (widgets into the Notebook); descoped by the owner.')
-    R('G-041', 'NV', [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note'), walk15uct('G041_capture_desktop_1200'),
+    R('G-041', ('NV', 'P', 'NV'), [code(f'{NB}/CaptureDialog.jsx', 256, 'Your note'), walk15uct('G041_capture_desktop_1200'),
                       walk15uct('G041_capture_mobile_390')],
       {'N': NFN, 'E': ['E_clipcomment'], 'O': NFO},
       'Wave 15 (lane W15-UCT) drove the source-capture dialog at 1200 and 390px: the "Your note" annotation field '
       'round-tripped through the real POST /api/j2/capture response and was found verbatim, correctly attributed, by '
       'the excerpt search. The widget-capture path (CaptureMenu.jsx) stays on a code read only (ledger: DONE, '
       'verified live 2026-09-22). Evernote\'s Web Clipper guide states a comment added before the clip' + R18 +
-      '; no verdict against Notion or Obsidian, neither of which has a page fetched that states one.')
+      ', and the walk now evidences the UCT side, so Evernote reads PARITY (wave 14 evidence pass); no verdict '
+      'against Notion or Obsidian, neither of which has a page fetched that states one.')
     R('G-042', 'NA', [code(f'{JT}/note_trade_links.py', 68, 'def resolve_trade_ref(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (trade references).')
     R('G-043', 'BO', [code('extension/manifest.json', 3, '"name": "UCT Browser Capture",'),
@@ -3635,11 +3749,13 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
-      {'N': ['N_favorites'], 'E': EB, 'O': ['O_recents']},
+    R('G-110', ('P', 'P', 'P'), [code(f'{NB}/ResearchHome.jsx', 451, 'Continue working'), walk9('B17_older_rows')],
+      {'N': ['N_favorites'], 'E': ['E_tabsrestore'], 'O': ['O_recents']},
       'B17: the research home shows Continue working. Obsidian\'s Quick switcher states an MRU recents surface when '
       'the search term is empty (R20) -- a flat recents list, not the synthesized Continue working/Active theses '
-      'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row.')
+      'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row. '
+      'Evernote PARITY by controller ruling (2026-10-04, wave 14 evidence pass; R21): its desktop tabs are restored exactly as left '
+      'when the app reopens -- a resumption surface in the same modest sense, desktop only.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
     R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 34, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
@@ -3739,8 +3855,10 @@ def build(pages_dir=None):
     R('G-137', ('P', 'P', 'P'), [code(f'{LB}/noteStats.js', 12, 'READING TIME'), walk9('B04_drag_outline_stats')],
       {'N': ['N_wordcount'], 'E': ['E_wordcount'], 'O': ['O_wordcount']},
       'Reading time is UCT\'s addition; not claimed as AHEAD (an absence cannot be cited).')
-    R('G-138', ('NV', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B05_typing_features')],
-      {'N': NFN, 'E': ['E_find'], 'O': NFO}, 'B05: Replace all turned every "alpha" into "gamma".')
+    R('G-138', ('NV', 'P', 'P'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B05_typing_features')],
+      {'N': NFN, 'E': ['E_find'], 'O': ['O_findreplace']},
+      'B05: Replace all turned every "alpha" into "gamma". Obsidian\'s own public release note states search AND '
+      'replace on Ctrl+H (R21; a release note, the same standing as Evernote\'s).')
     R('G-139', ('P', 'P', 'NV'), [code(f'{NB}/EmojiMenu.jsx', 2, 'the emoji picker'), walk9('B05_typing_features')],
       {'N': ['N_emoji'], 'E': ['E_emoji'], 'O': NFO})
     R('G-140', ('P', 'P', 'NV'), [code(f'{LB}/dateMentionNode.js', 5, '@date mentions'), walk9('B05_typing_features')],
@@ -3755,13 +3873,13 @@ def build(pages_dir=None):
       {'N': ['N_headings'], 'E': ['E_headings'], 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six. Evernote\'s own '
       'list of its text styles stops at H4' + R18 + ', the limit stated on its page, so AHEAD as for Notion.')
-    R('G-144', ('P', 'P', 'NV'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', ('P', 'P', 'P'), [code(f'{NB}/NoteEditorPage.jsx', 248, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
-      {'N': ['N_touchundo'], 'E': ['E_undo'], 'O': NFO},
+      {'N': ['N_touchundo'], 'E': ['E_undo'], 'O': ['O_touchundo']},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
       'B10 reached Undo after 60 lines. Evernote states an Undo button in its editing toolbar that is clicked or '
       'tapped' + R18 + '; Notion\'s own page states the same control is reachable from the on-mobile ••• menu (R20). '
-      'No Obsidian page fetched states a touch undo.')
+      'Obsidian\'s public mobile release note states undo and redo on the default mobile toolbar (R21).')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
     R('G-146', ('P', 'P', 'P'), [code(f'{NB}/BulkActionBar.jsx', 52, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
@@ -3787,10 +3905,15 @@ def build(pages_dir=None):
       '-- controller ruling, 2026-10-04 -- it opens a page beside a DATABASE VIEW, continuing to show that view '
       'interactive on the left, not a second arbitrary note opened beside the first the way UCT\'s split view and '
       'Obsidian\'s tabs both are; stays NOT-VERIFIED rather than PARITY.')
-    R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
+    R('G-153', ('P', 'P', 'NV'), [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
                       walk7('W11_reminders'), walk15uct('G153_reminder_delivered_server'),
                       walk15uct('G153_reminder_bell_mobile_390')],
-      {'N': ['N_remind'], 'E': ['E_tasks'], 'O': NFO},
+      {'N': ['N_remind', 'N_remindnotify'], 'E': ['E_tasks', 'E_remindalert'], 'O': NFO},
+      'Notion\'s reminders page states a notification for a reminder set on a date (R21), and the walk below '
+      'evidences the UCT side, so Notion reads PARITY (wave 14 evidence pass). Evernote PARITY by controller '
+      'ruling (2026-10-04, wave 14 evidence pass; R21): its reminder page states an alert on the day a timed reminder is due; its '
+      'reminder is set per note rather than by a date mention or Review Date, and the ruling reads that as the same '
+      'capability as named. '
       'Wave 15 (lane W15-UCT) observed a reminder end to end on a real sandbox, where wave-6 and wave-7\'s walks were '
       'INCONCLUSIVE (no reachable trigger): a seeded overdue task\'s reminder landed on the real GET /api/alerts 48.7s '
       'after seeding, shaped exactly as note_tasks.reminder_copy declares, and was read correctly off the real bell '
@@ -3872,10 +3995,11 @@ def build(pages_dir=None):
       'the independent keyboard review ran (10E-2) and F4 fixed its MAJORs, with 7 walk steps still FAIL. The '
       'screen-reader passes are the owner\'s; no competitor accessibility page was fetched.',
       'owner screen-reader passes; the remaining keyboard FAIL rows (§B standard #9)')
-    R('G-169', ('P', 'P', 'NV'), [code(f'{JT}/notes_export_formats.py', 1, 'a web page (HTML), lossless JSON and Word (.docx)'),
+    R('G-169', ('P', 'P', 'P'), [code(f'{JT}/notes_export_formats.py', 1, 'a web page (HTML), lossless JSON and Word (.docx)'),
                                  test_py('tests/test_notes_export_formats.py'), walk9('B13_share_publish_export')],
-      {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': NFO},
-      'PDF is the browser\'s Print (the row records it).')
+      {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': ['O_exportpdf']},
+      'PDF is the browser\'s Print (the row records it). Obsidian PARITY by controller ruling (2026-10-04, wave 14 evidence pass; R21): '
+      'its public release note states export to PDF -- PDF only, the same reading Evernote\'s PARITY on this row rests on.')
     R('G-170', 'NA', [code('app/src/lib/errorBeacon.js', 856, 'export function installErrorBeacon()'),
                       code('app/src/main.jsx', 11, 'installErrorBeacon()'),
                       code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
