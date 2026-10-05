@@ -1,0 +1,47 @@
+{
+  "what": "the exact bytes GET https://uctintelligence.com/api/bars/<T>?tf=<tf>&bars=<n> returned (public, read-only), gzipped; sha256 is of the UNCOMPRESSED bytes",
+  "files": {
+    "api-bars-RDDT-tf15.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/RDDT?tf=15&bars=60000",
+      "fetchedAtUTC": "2026-10-05T04:14:30Z",
+      "bytes": 2461578,
+      "sha256": "9c64651c263e77a6ce0c08bc8f05c08c5e9119f4cc33af6bf28cb5924646eaa9",
+      "bars": 35233
+    },
+    "api-bars-RDDT-tf5.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/RDDT?tf=5&bars=60000",
+      "fetchedAtUTC": "2026-10-05T04:16:19Z",
+      "bytes": 2577565,
+      "sha256": "573fcac0fb23dc60b32dda4b00971af82d3cc2464d2a1c848447c9e9ea37aad0",
+      "bars": 36534
+    },
+    "api-bars-SPY-tf15.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/SPY?tf=15&bars=60000",
+      "fetchedAtUTC": "2026-10-05T04:16:38Z",
+      "bytes": 3465853,
+      "sha256": "55f0e73ca986b9da71adac620f3a9b9c9e6067dc67bcdf336ce7fe31de4a4072",
+      "bars": 48249
+    },
+    "api-bars-SPY-tf5.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/SPY?tf=5&bars=60000",
+      "fetchedAtUTC": "2026-10-05T04:16:30Z",
+      "bytes": 3774703,
+      "sha256": "425676940b92656f542e2f7e5d867536e0489f8d43958c14bd9fc66f33c7aa49",
+      "bars": 52884
+    },
+    "api-bars-RDDT-tfD.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/RDDT?tf=D&bars=5000",
+      "fetchedAtUTC": "2026-10-05T04:17:48Z",
+      "bytes": 47090,
+      "sha256": "a4b2b3e7792a894abdfa697d073da08f4f32109816a581d182ee11c7b042d8b5",
+      "bars": 636
+    },
+    "api-bars-SPY-tfD.json.gz": {
+      "url": "https://uctintelligence.com/api/bars/SPY?tf=D&bars=5000",
+      "fetchedAtUTC": "2026-10-05T04:17:50Z",
+      "bytes": 381301,
+      "sha256": "6a4635b108988e4947ca5f587b0f47cca6f24b6f3005d783e25f97b15c7f7b5e",
+      "bars": 5000
+    }
+  }
+}

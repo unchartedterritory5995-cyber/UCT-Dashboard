@@ -296,7 +296,10 @@ describe('C27 / C41 — what the product fetches', () => {
     expect(BARS_ROUTE_MAX).toBe(60000)
   })
 
-  const defOf = (lowerTf) => ({ id: 'u_x', meta: { recurrenceOrigin: 'pine', ...(lowerTf ? { lowerTf } : {}) } })
+  // ⭐ LTF — each stamped code carries a read our store CAN serve (`time`, measured equal on
+  // every compared session — `lowerTfStoreRule.js`), so these cases measure the fetch plan.
+  const defOf = (lowerTf) => ({ id: 'u_x', meta: { recurrenceOrigin: 'pine', ...(lowerTf ? { lowerTf } : {}) },
+    outputs: (lowerTf || []).map((code) => ({ ast: { type: 'ltf', value: code, args: [{ type: 'series', name: 'time' }] } })) })
 
   it('⭐ the codes are the member door\'s stamp; one window per STORE timeframe, the deepest plan', () => {
     expect(lowerTfCodesOf(defOf(['240', '15', '60', '15']))).toEqual(['15', '60', '240'])
@@ -331,7 +334,10 @@ describe('C27 / C41 — what the product fetches', () => {
 describe('C41 — what one binding is handed (`resolveLowerTf`) and what `interpret` does with it', () => {
   const week = [21, 22, 23].flatMap((d, i) => storeDay(2026, 9, d, EDT, 15, 4 * 60, 20 * 60, i * 100))
   const chart = ['2026-09-18', '2026-09-21', '2026-09-22', '2026-09-23'].map(daily)
-  const def = { id: 'u_x', meta: { recurrenceOrigin: 'pine', lowerTf: ['60', '240'] } }
+  // ⭐ LTF — the document's own reads are `time` (served from our store, `lowerTfStoreRule.js`);
+  // what `interpret` is then asked below is a separate tree over the same supply.
+  const def = { id: 'u_x', meta: { recurrenceOrigin: 'pine', lowerTf: ['60', '240'] },
+    outputs: ['60', '240'].map((code) => ({ ast: { type: 'ltf', value: code, args: [{ type: 'series', name: 'time' }] } })) }
   const have = new Map([['15', { bars: week, status: 'available' }]])
   const ltf = (formula, code) => ({ type: 'ltf', value: code, args: [parseFormula(formula).ast] })
   // extended hours come first in a store day: 04:00–20:00 is 64 slots, the regular

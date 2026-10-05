@@ -28,12 +28,24 @@ import { clearSecondaryBars, inflightCount } from './secondaryBars'
 import { BARS_ROUTE_MAX } from './lowerTf'
 
 const PINE = { recurrenceOrigin: 'pine' }
+// ⭐ LTF — a read at `code` of `leaf`. Our store serves a code only where what its reads
+// consume was measured equal to TradingView's (`lowerTfStoreRule.js`): `time` is, `close`
+// is not. These documents read `time`, so the cases below measure the hook's fetching.
+const read = (code, leaf = 'time') => ({ ast: { type: 'ltf', value: code, args: [{ type: 'series', name: leaf }] } })
+const reading = (codes, leaf) => ({ lowerTf: codes, outputs: codes.map((c) => read(c, leaf)) })
+const withReads = (id, codes, leaf) => {
+  const r = reading(codes, leaf)
+  return { id, meta: { ...PINE, lowerTf: r.lowerTf }, outputs: r.outputs }
+}
 const DEFS = {
   plain: { id: 'plain', meta: {} },                                   // a native indicator
   pineNoLower: { id: 'pineNoLower', meta: { ...PINE } },              // a Pine script with no lower read
   pineOther: { id: 'pineOther', meta: { ...PINE, otherSymbols: [{ ticker: 'SPY', spellings: ['AMEX'] }] } },
-  ribbon: { id: 'ribbon', meta: { ...PINE, lowerTf: ['15', '60', '240'] } }, // ema-ribbon's three reads
-  mixed: { id: 'mixed', meta: { ...PINE, lowerTf: ['5', '60'] } },
+  ribbon: withReads('ribbon', ['15', '60', '240']), // three reads, as ema-ribbon's codes
+  mixed: withReads('mixed', ['5', '60']),
+  // ema-ribbon's real reads are EMAs of `close`: our store's last close is a different print on
+  // ~1 day in 30, so none of its codes is served — and nothing is fetched for them.
+  closeReads: withReads('closeReads', ['15', '60', '240'], 'close'),
 }
 const defOf = (id) => DEFS[id] || null
 const payload = { bars: [{ t: 1790343000, o: 1, h: 1, l: 1, c: 1, v: 1 }] }
@@ -73,6 +85,14 @@ describe('C41 — a chart with no lower-timeframe read fetches NOTHING', () => {
       expect(hook.result.current, tf).toBe(null)
       hook.unmount()
     }
+  })
+
+  it('⛔ LTF — a document whose reads our store cannot serve (`close`) fetches nothing', () => {
+    const { fetcher, hook } = mount([{ instanceId: 'a', defId: 'closeReads' }])
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(inflightCount()).toBe(0)
+    expect(hook.result.current).toBe(null)
+    hook.unmount()
   })
 
   it('⛔ a hidden indicator, and a chart with no symbol, fetch nothing', () => {

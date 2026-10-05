@@ -10,25 +10,22 @@
 //           `GET /api/bars/RDDT?tf=15&bars=60000` returns, saved as it arrived
 //   vendor  tests/fixtures/vendor/harness/vw-bar-counters-rddt-15-2026-09-30.json
 //
-// ⛔ NO STORE PAYLOAD IS COMMITTED YET (fetching production is the integrator's /
-// owner's step). Until one is, the measurement SKIPS BY NAME — the skipped test's
-// title says what is missing — and the controls below prove the comparison can
-// fail, on a synthetic payload built from the vendor's own bars.
-//
-// ⛔ WHEN THE PAYLOAD IS COMMITTED AND THIS GOES RED, THAT IS THE ANSWER: the
-// store does not meet the proposed bar (`FLIP_CRITERION`) and the gate stays off.
-// The assertion message carries the whole report.
+// ⭐ LTF (2026-10-05) — THE PAYLOAD IS COMMITTED (`api-bars-RDDT-tf15.json.gz`, the exact
+// bytes, gzipped; provenance beside it) AND THE ANSWER IS NO: the store as a whole does
+// not meet `FLIP_CRITERION`, and the numbers are pinned below so a moved store or a
+// moved comparison is seen. Serving is decided per READ instead — what a read consumes,
+// field by field — by `lowerTfStoreRule.js`, railed in `lowerTfStoreRule.test.js`.
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
-  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION,
+  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION, readStorePayload,
 } from './storeIntradayAgreement'
 
 const REPO = path.resolve(process.cwd(), '..')
 const VENDOR = path.join(REPO, 'tests/fixtures/vendor/harness/vw-bar-counters-rddt-15-2026-09-30.json')
-const STORE = path.join(REPO, 'tests/fixtures/store/api-bars-RDDT-tf15.json')
+const STORE = path.join(REPO, 'tests/fixtures/store/api-bars-RDDT-tf15.json.gz')
 const vendorBars = barsOf(JSON.parse(fs.readFileSync(VENDOR, 'utf8')))
 const storePresent = fs.existsSync(STORE)
 
@@ -118,20 +115,23 @@ describe('C41 · storeIntradayAgreement — the comparison itself (controls on t
 })
 
 describe('C41 · storeIntradayAgreement — OUR store against TradingView (RDDT, 15m)', () => {
-  const title = storePresent
-    ? 'the committed store payload meets the proposed bar for serving a lower-timeframe read'
-    : 'SKIPPED — tests/fixtures/store/api-bars-RDDT-tf15.json is not committed '
-      + '(save the exact JSON of GET /api/bars/RDDT?tf=15&bars=60000 there); '
-      + 'until it is, VITE_PINE_LOWER_TF_ENABLED stays off'
-  it.skipIf(!storePresent)(title, () => {
-    const storeBars = barsOf(JSON.parse(fs.readFileSync(STORE, 'utf8')))
-    expect(storeBars.length, 'the payload holds no bars').toBeGreaterThan(0)
+  it('the payload is committed', () => { expect(storePresent).toBe(true) })
+
+  it('⛔ MEASURED — the store as a whole does NOT meet the proposed bar; the numbers are pinned', () => {
+    const storeBars = barsOf(readStorePayload(STORE))
     const report = compareIntraday(storeBars, vendorBars)
     const verdict = agreementVerdict(report)
     const text = describeAgreement(report, verdict)
-    // eslint-disable-next-line no-console
-    console.info(`[storeIntradayAgreement]\n${text}`)
-    expect(report.totals.sessions, `no session lies inside both supplies\n${text}`).toBeGreaterThan(0)
-    expect(verdict.pass, text).toBe(true)
+    expect(report.totals.sessions, text).toBe(634)
+    expect(report.totals.bothComplete, text).toBe(632)
+    // the one day the store breaks: an off-grid zero-volume 11:05 bar on 2026-05-28 leaves the
+    // whole session unplaceable (never split, never guessed) — its 26 bars are TradingView's only
+    expect(report.totals.bars.onlyVendor, text).toBe(26)
+    // exact equality (float noise only): the 77% R-LTF reported on 2026-10-01
+    expect(report.totals.priceEqual, text).toBe(488)
+    expect(report.totals.lastCloseEqual, text).toBe(614)
+    expect(report.totals.fields.v.equal, text).toBe(0)
+    expect(verdict.pass, text).toBe(false)
+    expect(verdict.reasons.map((x) => x.split(' ')[0])).toEqual(['price', 'lastClose'])
   })
 })

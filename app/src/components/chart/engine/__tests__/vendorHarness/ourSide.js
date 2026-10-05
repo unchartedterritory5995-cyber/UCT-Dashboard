@@ -43,6 +43,7 @@ import { hiddenOnChart } from '../../ast/pine'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
+import { TRADINGVIEW_ORIGIN } from '../../lowerTfStoreRule'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -204,7 +205,9 @@ function lowerTfSupply(def, capture) {
     const cut = Number.isFinite(clock) ? clock / 1000 : Infinity
     const all = held.get(tf).bars
     const seen = cut === Infinity ? all : all.filter((x) => Number(x.t) < cut)
-    lowerTf.set(`code:${code}`, { bars: seen, status: 'available', sourceCode: tf })
+    // ⭐ LTF — these bars ARE TradingView's (committed captures): the store-agreement
+    // rule (`lowerTfStoreRule.js`) is a question about OUR bars and is not asked of them.
+    lowerTf.set(`code:${code}`, { bars: seen, status: 'available', sourceCode: tf, origin: TRADINGVIEW_ORIGIN })
     notes.push(`lower timeframe ${code}: built from the committed ${tf}-minute capture(s) ${held.get(tf).files.join(', ')}`)
   }
   return { lowerTf, notes }

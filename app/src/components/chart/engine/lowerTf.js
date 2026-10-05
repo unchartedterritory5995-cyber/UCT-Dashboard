@@ -100,6 +100,7 @@ import { etClockAt } from '../indicators.js'
 import { tradingViewCloseMinute, SESSION_OPEN_MINUTE } from '../../../lib/marketClock/tradingViewSession.js'
 import { interpret, isoDay, maxLookback, tfBucket } from './ast/interpret.js'
 import { lowerTfServingEnabled } from './lowerTfGate.js'
+import { lowerTfStoreRefusal, STORE_DISAGREES, TRADINGVIEW_ORIGIN } from './lowerTfStoreRule.js'
 
 /** Why a lower-timeframe request is not served — one code per sentence, so a
  *  rail and a surface can name the reason without matching prose. */
@@ -120,6 +121,9 @@ export const LOWER_TF_REFUSAL = Object.freeze({
   // decided per BINDING (`resolveLowerTf`), never at the translate door:
   FRAMED: 'lower-tf:framed',
   NO_BARS: 'lower-tf:no-bars',
+  // ⭐⭐ LTF — the gate is on and the rule is witnessed, but OUR bars are not
+  // TradingView's for what this read consumes (`lowerTfStoreRule.js`, measured).
+  STORE_DISAGREES,
 })
 
 /** ⭐ THE CAPTURE EACH RULE RESTS ON, or null where none does. A lower-timeframe
@@ -499,6 +503,10 @@ export function lowerTfWindowsOf(def, chartTf, chartBarCount) {
     const plan = lowerTfFetchPlan(code, Math.max(0, chartBarCount || 0) * sessionsPerChartBar(tf),
       LOWER_TF_REACH_ALLOWANCE)
     if (!plan) continue
+    // ⛔ LTF — nor for a code our store's bars cannot answer the way TradingView's
+    // do (`lowerTfStoreRule.js`): the bind would refuse it, so the bars would be
+    // fetched for nothing. The product's supply is always the store.
+    if (lowerTfStoreRefusal(def, code)) continue
     if (!best.has(plan.tf) || best.get(plan.tf) < plan.bars) best.set(plan.tf, plan.bars)
   }
   return [...best.entries()].sort(([a], [b]) => Number(a) - Number(b)).map(([t, bars]) => ({ tf: t, bars }))
@@ -596,6 +604,15 @@ export function resolveLowerTf(def, ctx = {}) {
       no(code, LOWER_TF_REFUSAL.NO_BARS, `this symbol's \`${LOWER_TF_SOURCE[code]}\`-minute bars are not in hand`
         + (entry && entry.status ? ` (${entry.status})` : ''))
       continue
+    }
+    // ⭐⭐ LTF — THE DATA QUESTION, per binding. Bars that are not TradingView's own
+    // (the store's — any supply that does not say otherwise) serve a code only
+    // where every field its expressions read was measured equal to TradingView's
+    // (`lowerTfStoreRule.js`); everywhere else the code is refused by name, with
+    // the measured reason, and supplied nothing — withheld, never drawn.
+    if (entry.origin !== TRADINGVIEW_ORIGIN) {
+      const disagrees = lowerTfStoreRefusal(def, code)
+      if (disagrees) { no(code, disagrees.code, disagrees.why); continue }
     }
     const sourceCode = entry.sourceCode ? String(entry.sourceCode) : LOWER_TF_SOURCE[code]
     let series

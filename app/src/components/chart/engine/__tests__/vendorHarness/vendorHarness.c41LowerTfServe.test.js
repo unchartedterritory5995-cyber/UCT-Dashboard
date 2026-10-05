@@ -540,7 +540,10 @@ describe('C41 — `VITE_PINE_LOWER_TF_ENABLED` off: refused by name, nothing ser
 
   it('⛔ a document stamped while the gate was on is neither fetched for nor supplied once it is off', async () => {
     const { lowerTfWindowsOf, resolveLowerTf } = await import('../../lowerTf.js')
-    const def = { meta: { lowerTf: ['15', '60'] } }
+    // ⭐ LTF — a document whose reads our store CAN serve (`time`, measured equal on every
+    // compared session, `lowerTfStoreRule.js`): this case is about the gate, not the data.
+    const timeRead = (code) => ({ ast: { type: 'ltf', value: code, args: [{ type: 'series', name: 'time' }] } })
+    const def = { meta: { lowerTf: ['15', '60'] }, outputs: [timeRead('15'), timeRead('60')] }
     const bars = toProductBars(load('vw-bar-counters-rddt-15-2026-09-30.json'))
     const have = new Map([['15', { bars, status: 'ready' }]])
     expect(lowerTfWindowsOf(def, 'D', 600).length).toBe(1)

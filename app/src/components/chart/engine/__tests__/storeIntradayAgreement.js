@@ -11,7 +11,9 @@
 //
 // Test infrastructure: imported by `storeIntradayAgreement.test.js` only.
 
-import { intrabarSeries } from '../lowerTf.js'
+import zlib from 'node:zlib'
+import fs from 'node:fs'
+import { intrabarSeries, LOWER_TF_SOURCE } from '../lowerTf.js'
 
 const FIELDS = ['o', 'h', 'l', 'c', 'v']
 const PRICE = ['o', 'h', 'l', 'c']
@@ -164,4 +166,75 @@ export function describeAgreement(report, verdict) {
       + `last close ${pct(verdict.measured.lastClose)}, volume ${pct(verdict.measured.volume)} `
       + `→ ${verdict.pass ? 'MEETS it' : `does NOT meet it (${verdict.reasons.join('; ')})`}`,
   ].join('\n')
+}
+
+// ─── ⭐⭐ LTF (2026-10-05) — WHAT A SERVED READ WOULD HAND THE CHART, FIELD BY FIELD ───
+//
+// `compareIntraday` asks "is every bar of the session equal" — a question about
+// the STORE. A lower-timeframe read asks something narrower: the value of ONE
+// field of the session's LAST intrabar (a bare `close`), or of every intrabar
+// within the expression's reach (`ta.ema(close, 9)`). `servedAgreement` measures
+// exactly that, per field, through the same `intrabarSeries` the product uses on
+// BOTH sides — the store built from its source timeframe (`LOWER_TF_SOURCE`), the
+// vendor's capture at the code itself — so a 60 is our 15s bucketed from 09:30
+// against TradingView's own 60s.
+
+/** The store records prices to 4 decimal places (every bar of every committed
+ *  payload, measured), TradingView to 6 (sub-penny prints: 59.973744 where the
+ *  store says 59.9737). Two prices are the SAME VALUE when they agree at the
+ *  store's precision — a difference the store cannot represent is not one. */
+export const STORE_PRICE_QUANTUM = 1e-4
+export const priceSame = (a, b) => Number.isFinite(a) && Number.isFinite(b)
+  && Math.abs(a - b) <= STORE_PRICE_QUANTUM / 2 + 1e-9
+
+/** The fields a served read can consume: the intrabar's time, its prices, its volume. */
+export const SERVED_FIELDS = Object.freeze(['t', 'o', 'h', 'l', 'c', 'v'])
+const fieldSame = (f, a, b) => (f === 'o' || f === 'h' || f === 'l' || f === 'c'
+  ? priceSame(a, b) : a === b)
+
+/**
+ * Per field, over the sessions COMPLETE on both sides inside both spans:
+ *   `last[f]`  {equal, n}  the session's last intrabar (what a reach-0 read serves)
+ *   `every[f]` {equal, n}  every intrabar of those sessions (what a reach > 0 read consumes)
+ *   `differs[f]` the first few days whose last intrabar differs, ISO.
+ */
+export function servedAgreement(storeBars, vendorBars, code,
+  sourceCode = LOWER_TF_SOURCE[String(code)], vendorCode = String(code)) {
+  const ours = intrabarSeries(storeBars, String(code), String(sourceCode))
+  const theirs = intrabarSeries(vendorBars, String(code), String(vendorCode))
+  const cell = () => Object.fromEntries(SERVED_FIELDS.map((f) => [f, { equal: 0, n: 0 }]))
+  const out = { code: String(code), sessions: 0, last: cell(), every: cell(),
+    differs: Object.fromEntries(SERVED_FIELDS.map((f) => [f, []])) }
+  const keys = (s) => [...s.sessions.keys()]
+  const ko = keys(ours); const kt = keys(theirs)
+  if (!ko.length || !kt.length) return out
+  const from = Math.max(Math.min(...ko), Math.min(...kt))
+  const to = Math.min(Math.max(...ko), Math.max(...kt))
+  for (const ymd of kt) {
+    if (ymd < from || ymd > to) continue
+    const a = ours.sessions.get(ymd); const b = theirs.sessions.get(ymd)
+    if (!a || !b || !a.complete || !b.complete) continue
+    const sa = ours.bars.slice(a.from, a.to); const sb = theirs.bars.slice(b.from, b.to)
+    if (sa.length !== sb.length || !sa.length) continue
+    out.sessions += 1
+    for (let i = 0; i < sa.length; i++) {
+      const isLast = i === sa.length - 1
+      for (const f of SERVED_FIELDS) {
+        const ok = fieldSame(f, sa[i][f], sb[i][f])
+        out.every[f].n += 1; if (ok) out.every[f].equal += 1
+        if (isLast) {
+          out.last[f].n += 1
+          if (ok) out.last[f].equal += 1
+          else if (out.differs[f].length < 5) out.differs[f].push(isoOf(ymd))
+        }
+      }
+    }
+  }
+  return out
+}
+
+/** A committed store payload (`tests/fixtures/store/*.json.gz`, the exact bytes the
+ *  route returned, gzipped) as `{bars:[{t,o,h,l,c,v}]}`. */
+export function readStorePayload(file) {
+  return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'))
 }
