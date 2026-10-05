@@ -8467,8 +8467,9 @@ H11 change (committed as the first H11 checkpoint): MATCH 5. After H11: **MATCH 
 
 * **Runtime DIVERGE on corpus scripts** (wave-18 tree, not caused by H11; MATCH lost 0): order-block-finder RDDT + SPY,
   mtf-key-levels RDDT + SPY, vwap-fibo strategy RDDT + SPY, volatility-trend-score RDDT, kernel-channel SPY,
-  atr-trailing-stoploss RDDT + SPY (also `on`) - see the first-divergence notes beside each lane's queue (RT11 / RT13 /
-  RT15 / RT12 / RT10). These are values our door DRAWS: the owning lanes should classify them first.
+  atr-trailing-stoploss RDDT + SPY (also `on`). NOT classified by H11 (their signatures are pinned in `cap5-verdicts.json`;
+  `CAP5_MEASURE_PRINT=1 CAP5_ONLY=<idPrefix>` prints each first divergence). These are values our door DRAWS: the owning
+  lanes (RT11 / RT13 / RT15 / RT12 / RT10) should classify them first.
 * Q-RT15c paint offset (above); v3 `n` (RT11); rt12 re-capture (RT12); `format.volume` / loop text cells (H7, C31);
   harness palette-index-0 reading (Q-RT15b).
 * Not taken this round: S5 (M2 runs A/B, M8 part B, rolling-vwap SPY 5), the market-hours block (Q-R2 `-rth`, row 12c
