@@ -67,4 +67,39 @@ describe('BacktestPanel with FT-011 switched on', () => {
     expect(screen.queryByLabelText('Entry anchor')).toBeNull()
     expect(screen.getByLabelText('Backtest strategy').querySelectorAll('option').length).toBe(4)
   })
+
+  it('the in-progress status line reads the earnings wording when earnings=true, monthly wording when false', async () => {
+    // keep the job queued forever so the in-progress line is observable
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url)
+      const json = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
+      if (u.endsWith('/backtest-catalog')) return json(200, FX.catalog)
+      if (u.endsWith('/backtest') && init?.method === 'POST') return json(202, { job: 'j1', state: 'queued' })
+      if (u.includes('/backtest/j1')) return json(200, { job: 'j1', state: 'queued' })
+      return json(404, {})
+    })
+    wrap(<BacktestPanel sym="SPY" />)
+
+    // monthly (default anchor)
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const monthly = await screen.findByTestId('backtest-running')
+    expect(monthly.textContent).toContain('over the past year of monthly expirations')
+    expect(monthly.textContent).not.toContain('earnings prints')
+
+    cleanup()
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url)
+      const json = (status, body) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) })
+      if (u.endsWith('/backtest-catalog')) return json(200, FX.catalog)
+      if (u.endsWith('/backtest') && init?.method === 'POST') return json(202, { job: 'j1', state: 'queued' })
+      if (u.includes('/backtest/j1')) return json(200, { job: 'j1', state: 'queued' })
+      return json(404, {})
+    })
+    wrap(<BacktestPanel sym="SPY" />)
+    fireEvent.change(await screen.findByLabelText('Entry anchor'), { target: { value: 'earnings' } })
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const earnings = await screen.findByTestId('backtest-running')
+    expect(earnings.textContent).toContain('over past earnings prints')
+    expect(earnings.textContent).not.toContain('monthly expirations')
+  })
 })

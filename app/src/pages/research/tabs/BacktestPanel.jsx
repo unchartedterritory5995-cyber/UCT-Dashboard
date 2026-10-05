@@ -142,7 +142,7 @@ export default function BacktestPanel({ sym }) {
       {poll.error && <p className={styles.note} data-testid="backtest-error">The backtest result is unavailable right now.</p>}
       {st && (st.state === 'queued' || st.state === 'running') && (
         <p className={styles.note} data-testid="backtest-running">
-          Simulating {sym} over the past year of monthly expirations… {st.budget_text || ''}
+          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}… {st.budget_text || ''}
         </p>
       )}
       {st?.state === 'failed' && <p className={styles.note} data-testid="backtest-error">{st.error}</p>}

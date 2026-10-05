@@ -47,6 +47,34 @@ describe('IvRankBadge (FT-006)', () => {
     wrap(<IvRankBadge sym="TST" />)
     expect((await screen.findByTestId('iv-rank-badge')).textContent).toContain('IV rank 49% Moderate')
   })
+
+  it('loading shows a loading indicator, distinct from failed and distinct from not-accrued', async () => {
+    // a fetch that never resolves -- useDarkSection reports loading: true until it settles
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    wrap(<IvRankBadge sym="TST" />)
+    const b = await screen.findByTestId('iv-rank-badge-loading')
+    expect(b.textContent).toBe('Loading…')
+    expect(screen.queryByTestId('iv-rank-badge-failed')).toBeNull()
+    expect(screen.queryByTestId('iv-rank-badge')).toBeNull()
+  })
+
+  it('a failed/errored fetch shows an error state, distinct from loading and distinct from not-accrued', async () => {
+    stub({ '/iv-rank': [503, { detail: 'x' }] })
+    wrap(<IvRankBadge sym="TST" />)
+    const b = await screen.findByTestId('iv-rank-badge-failed')
+    expect(b.textContent).toBe('IV rank is unavailable right now.')
+    expect(screen.queryByTestId('iv-rank-badge-loading')).toBeNull()
+    expect(screen.queryByTestId('iv-rank-badge')).toBeNull()
+  })
+
+  it('genuinely not-accrued (fetch succeeded, no error, too few sessions) keeps the "needs N more sessions" copy, ONLY for this case', async () => {
+    stub({ '/iv-rank': [200, RANK_THIN] })
+    wrap(<IvRankBadge sym="TST" />)
+    const b = await screen.findByTestId('iv-rank-badge')
+    expect(b.textContent).toBe('IV rank: 3 sessions logged, needs 20 (first possible 2026-10-27).')
+    expect(screen.queryByTestId('iv-rank-badge-loading')).toBeNull()
+    expect(screen.queryByTestId('iv-rank-badge-failed')).toBeNull()
+  })
 })
 
 describe('OptionMonitorStrip (FT-019)', () => {

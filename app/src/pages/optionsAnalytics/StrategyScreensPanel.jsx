@@ -45,7 +45,16 @@ function FirstScreens() {
   const [syms, setSyms] = useState('')
   const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/strategy/${kind}${q}` : null)
-  if (cat.hidden || !Array.isArray(cat.data?.strategies)) return null
+  if (cat.hidden) return null
+  if (!Array.isArray(cat.data?.strategies)) {
+    if (cat.loading) return null
+    if (cat.failed) return (
+      <section className={styles.panel} data-testid="strategy-screens">
+        <p className={styles.note} data-testid="strategy-catalog-unavailable">The strategy screen is unavailable right now. That is not "nothing matched".</p>
+      </section>
+    )
+    return null
+  }
   const heads = HEADS[kind] || HEADS.spread
   return (
     <section className={styles.panel} data-testid="strategy-screens">
@@ -105,7 +114,16 @@ export function MoreStrategyScreens() {
   const [syms, setSyms] = useState('')
   const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/more/${kind}${q}` : null)
-  if (cat.hidden || !Array.isArray(cat.data?.strategies)) return null
+  if (cat.hidden) return null
+  if (!Array.isArray(cat.data?.strategies)) {
+    if (cat.loading) return null
+    if (cat.failed) return (
+      <section className={styles.panel} data-testid="more-strategy-screens">
+        <p className={styles.note} data-testid="more-catalog-unavailable">This screen is unavailable right now. That is not "nothing matched".</p>
+      </section>
+    )
+    return null
+  }
   const d = res.data
   return (
     <section className={styles.panel} data-testid="more-strategy-screens">

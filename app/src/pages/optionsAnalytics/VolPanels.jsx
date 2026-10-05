@@ -15,7 +15,10 @@ const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Nu
 
 export function IvRankBadge({ sym, fallback = null }) {
   const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
-  if (hidden || failed || loading || !data || typeof data.sentence !== 'string') return fallback
+  if (hidden) return fallback
+  if (loading) return <span className={styles.muted} data-testid="iv-rank-badge-loading">Loading…</span>
+  if (failed) return <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+  if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
     return <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
