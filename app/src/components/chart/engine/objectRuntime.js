@@ -880,7 +880,8 @@ export function beginObjects(program, ctx) {
         case 'val': {
           const n = value(t.v)
           if (typeof n !== 'number') { textsWithheld += 1; return null }
-          const s = formatNumber(n, t.fmt)
+          // ⭐ H7 — `format.volume` per pass, by the same rules as `{t:'num', volume}`.
+          const s = t.volume === true ? volumeNumberText(n) : formatNumber(n, t.fmt)
           if (s === null) textsWithheld += 1
           return s
         }

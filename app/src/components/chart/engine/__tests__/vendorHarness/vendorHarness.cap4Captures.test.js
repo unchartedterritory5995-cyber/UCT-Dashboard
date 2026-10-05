@@ -21,7 +21,6 @@ import { loadPineLibraryStore } from '../../ast/__tests__/pineLibraryStoreLoader
 import { clearPineLibraries } from '../../ast/pineLibraryStore'
 import { enterMemberDoor } from './ourSide'
 import * as registry from '../../nativeRegistry'
-import { runtimeColumnsFor, __gradeWithoutPaneClockForTests } from '../../runtime/runtimeColumns'
 
 afterEach(() => { vi.unstubAllEnvs() })
 const T = 600000
@@ -202,7 +201,7 @@ describe('CAP4 - Q-RT8d vw-rt8-v4-fill-transp, NYSE:RDDT 1D (vendor witness)', (
   })
 })
 
-describe('CAP4 - why our door does not answer Q-H5b / Q-RT7 (the named walls these captures are the evidence for)', () => {
+describe('CAP4 - the named wall Q-H5b is the evidence for, and Q-RT7 answered (H7)', () => {
   it('Q-H5b: both door states refuse the 240 request by name (pine:request, lower-tf:store-unmeasured)', () => {
     for (const state of ['on', 'runtime']) {
       const v = gradeRow({ id: 'vw-h5-request-timeframe-text-spy-1d-2026-10-04', state })
@@ -211,22 +210,23 @@ describe('CAP4 - why our door does not answer Q-H5b / Q-RT7 (the named walls the
       expect(v.reason).toMatch(/lower-tf:store-unmeasured/)
     }
   }, T)
-  it('Q-RT7: the objects pane refuses fixnan (pine:na); the runtime run stops on bar 0 by name at `array.sum of an empty array`, which TradingView answers na', () => {
+  // ⚰️ H7 (step 92h) — Q-RT7 is NO LONGER A WALL. This rail pinned the objects pane's
+  // `pine:na` refusal of `fixnan` and the runtime run's named stop at "array.sum of
+  // an empty array"; the CAP4 capture is the evidence both were answered from:
+  // `fixnan` is served on the host lane as `valuewhenOccurrence(not na(x), x, 0)` and
+  // the runtime lane answers `na` for an empty / all-na `sum` / `avg`. Both door
+  // states now enter the HOST lane and grade MATCH (the pins below); the runtime run
+  // itself, forced, is graded in `vendorHarness.h7Cap4Findings.test.js`.
+  it('Q-RT7 (H7): the member door now takes the probe on the HOST lane in both states, with nothing refused', () => {
     const ID = 'vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04'
-    expect(gradeRow({ id: ID, state: 'on' }).reason).toMatch(/pine:na/)
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     const c = cap(ID)
     const door = enterMemberDoor(c.source.text)
-    expect(door.built.lane).toBe('runtime')
-    const bars = c.bars.rows.map((b) => ({ time: new Date(b[0] * 1000).toISOString().slice(0, 10), open: b[1], high: b[2], low: b[3], close: b[4], volume: b[5] }))
-    __gradeWithoutPaneClockForTests(true)
-    let err = null
-    try { runtimeColumnsFor(door.def, bars, undefined, { tf: 'D', symbol: 'SPY', historyFromListing: true, barIndexFromFirstBar: true }) } catch (e) { err = e }
-    __gradeWithoutPaneClockForTests(false)
+    expect(door.refusal).toBe(null)
+    expect(door.built.lane).not.toBe('runtime')
     registry.uninstallUserDefinition(door.def.id)
-    expect(err && err.guard).toBe('runtime:failed')
-    expect(String(err.message)).toMatch(/stopped on bar 0 of 8477 .*array\.sum of an empty array/)
+    expect(gradeRow({ id: ID, state: 'on' }).verdict).toBe('MATCH')
   }, T)
 })
 

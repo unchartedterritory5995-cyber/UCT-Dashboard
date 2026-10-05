@@ -825,9 +825,11 @@ plot(show ? ta.sma(close, 5) : na)
     // longer proves the arm was DROPPED rather than translated. `fixnan` replaces
     // it: still refused, and for a reason that has not moved — it carries a value
     // forward across bars with no bound a member could state.
+    // ⚰️ H7 (step 92h): `fixnan` is served now (CAP4 Q-RT7b) — `ta.nvi`, which the
+    // engine genuinely does not implement, takes its place.
     // Without this the case above would pass for a translator that simply never
     // looks at the `no` arm of a ternary.
-    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : fixnan(close))\n`).guard).toBe('pine:na')
+    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : ta.nvi)\n`).guard).toBe('pine:function')
   })
 
   it('⛔ CONTROL — a string that is NOT part of a constant comparison still refuses', () => {

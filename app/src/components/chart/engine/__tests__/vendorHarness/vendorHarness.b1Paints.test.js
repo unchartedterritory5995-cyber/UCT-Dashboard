@@ -65,11 +65,14 @@ describe('B1 — paints graded against the captures that record them', () => {
     // paint to replay (folded to `na` or withheld), so there was nothing to warm.
     'artemis-oscillator-pro-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_32 naBoth 1800/1800 painted=0'],
     'atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json': ['refused pine:block'],
-    // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`):
-    // the door folds them to `na`, and at the default (obvOnOff false) TradingView
-    // draws nothing either (`naBoth`).
-    'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 naBoth 632/632 painted=0', 'plot_11 naBoth 632/632 painted=0'],
-    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 naBoth 1800/1800 painted=0', 'plot_11 naBoth 1800/1800 painted=0'],
+    // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`).
+    // ⚰️ RE-MEASURED at the H7 x wave-17 merge (2026-10-04): WAS `naBoth` (our condition
+    // column absent). H6 serves `ta.obv` on the host lane and both runs read from the
+    // listing (RDDT bar 0; SPY warm, listing=on), so the condition COMPUTES: both sides
+    // draw nothing at the default (obvOnOff false) and the grade reads `agree`. Nothing
+    // drawn changed. The same grade with the wave-17 tip's own engine files (so not H7/F7).
+    'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 agree 632/632 painted=0', 'plot_11 agree 632/632 painted=0'],
+    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 agree 1800/1800 painted=0', 'plot_11 agree 1800/1800 painted=0'],
     'atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_5 agree 636/636 painted=636'],
     // ⭐ lane B1P's finding (2026-10-04): its 1088 differing bars were NULL paints — the
     // listing-only pass (`interpret.js` `listingPass`) never ran on a capture that is not
@@ -231,9 +234,11 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     const g = gradePaints(cap, ours)
     expect(g.supply.warmupBars).toBe(PAINT_WARMUP_FLOOR)
     const row = g.rows.find((r) => r.id === 'plot_0')
-    // measured cold: 15 bars differ, every one inside the warm-up — counted apart,
-    // never as agreeing, and never in the graded count
-    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 15 })
+    // measured cold: 35 bars differ, every one inside the warm-up — counted apart,
+    // never as agreeing, and never in the graded count. ⚰️ RE-MEASURED at the H7 x
+    // wave-17 merge: WAS 15. The same 35 with the wave-17 tip's own engine files, so the
+    // move is wave 17's (not H7 / F7); the graded bars still all agree.
+    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 35 })
     expect(row.compared).toBe(cap.bars.rows.length - PAINT_WARMUP_FLOOR)
     expect(row.state).toBe('agree')
   }, 120000)

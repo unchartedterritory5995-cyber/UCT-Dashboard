@@ -183,8 +183,13 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
     // One hand-checkable row from the capture: values 58, 95, na, 68 with
     // weights 1,2,3,4 read 80.5 — which is (58·1 + 95·2 + 95·3 + 68·4)/10, the
     // hole carrying the previous value FORWARD at its own bar's weight.
-    const src = Float64Array.from([58, 95, NaN, 68])
-    expect(FN.wma(src, 4)[3]).toBeCloseTo(80.5, 12)
+    // ⭐ F7 (step 93): the row was read DEEP in the capture's history, so the window
+    // had long since seen n finite inputs. On a 4-bar series it has seen 3 and the
+    // witnessed warm-up (first answer on the n-th FINITE input) withholds it, so the
+    // row is replayed behind one earlier finite bar - the same 4-bar window.
+    const src = Float64Array.from([41, 58, 95, NaN, 68])
+    expect(FN.wma(src, 4)[4]).toBeCloseTo(80.5, 12)
+    expect(Number.isFinite(FN.wma(Float64Array.from([58, 95, NaN, 68]), 4)[3]), 'three finite inputs is warm-up').toBe(false)
   })
 
   it('⭐⭐ wma answers `na` on the bar it is ASKED about, and fills only what it looks BACK at', () => {

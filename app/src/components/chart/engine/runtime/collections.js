@@ -184,10 +184,13 @@ const nonEmpty = (arr, what) => {
  *  na`), call `array.max` / `array.min` of the empty array, and TradingView draws
  *  the script through those bars (Q-RT7a asks the empty case directly).
  *
- *  ⛔ `array.sum` / `array.avg` over ZERO real elements stay UNMEASURED (0, `na`,
- *  or a stop are all plausible, and no capture separates them): they stop the
- *  run by name, as before, unless a caller's probe answers (C18). A NON-numeric
- *  element (a string, a handle) is not a number to reduce and stops by name. */
+ *  ⭐⭐ H7 (step 92h) — `array.sum` / `array.avg` over ZERO real elements answer
+ *  `na` too: MEASURED. CAP4 Q-RT7a (`vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`,
+ *  AMEX:SPY 1D, all 8,477 bars from the listing) reads E03 `array.sum` and E04
+ *  `array.avg` of an EMPTY array, and E05 / E06 `sum` / `avg` of `(na, na)`, as
+ *  `na` on every bar, and TradingView raised no runtime error. ⛔ The sum is NOT 0
+ *  (an empty JS reduce would say 0). A NON-numeric element (a string, a handle) is
+ *  not a number to reduce and still stops by name. */
 const realsOf = (arr, what) => {
   const xs = []
   for (const v of arr) {
@@ -196,16 +199,6 @@ const realsOf = (arr, what) => {
         + 'numbers only')
     }
     if (!Number.isNaN(v)) xs.push(v)
-  }
-  return xs
-}
-/** ⛔ zero real elements under `sum` / `avg`: the unmeasured stop, word for word. */
-const realNumbers = (arr, what) => {
-  const xs = realsOf(arr, what)
-  if (!xs.length) {
-    throw new CollectionError(`${what} of ${arr.length ? 'an array whose every element is na' : 'an empty array'}`
-      + ' — what Pine answers here has not been measured on a chart, and this engine does '
-      + 'not guess a value a member would read as data')
   }
   return xs
 }
@@ -222,9 +215,11 @@ const realNumbers = (arr, what) => {
  *  when the unknown value moves does not depend on it
  *  (`objectColumns.js::runtimeColumnsForObjects`).
  *
- *  ⛔ WITHOUT a probe the refusal stands, word for word: the runtime pane and
- *  every other caller keep `realNumbers`' stop. ⛔ AN `na` ELEMENT is a different
- *  question (skip it, or poison the result?) and is never probed here. */
+ *  ⛔ WITHOUT a probe the refusal stands, word for word. ⛔ AN `na` ELEMENT is a
+ *  different question (skip it, or poison the result?) and is never probed here.
+ *  ⭐ H7 (step 92h) — `array.sum` / `array.avg` no longer take the probe: CAP4 Q-RT7a
+ *  MEASURED them (`na` over zero real elements, above), so a measured answer
+ *  replaces the unknown one. `array.median` / `array.stdev` (not computed) keep it. */
 const probedEmpty = (arr, what, budget) => {
   const u = budget && budget.unmeasured
   if (arr.length || !u || !probeAllows(u, what)) return null
@@ -233,39 +228,10 @@ const probedEmpty = (arr, what, budget) => {
 }
 
 /** ⭐ F8 — a caller may PROBE ONLY SOME unmeasured values (`budget.unmeasured.only`,
- *  a list of names): the runtime pane probes `array.sum` / `array.avg` over zero
- *  real elements and nothing else — every other unmeasured value keeps its stop.
- *  No list = every unmeasured value (the object lane, C18, unchanged). */
+ *  a list of names); no list = every unmeasured value (the object lane, C18).
+ *  ⚰️ H7 (step 92h) — F8's interim pane probe of `array.sum` / `array.avg` over zero
+ *  real elements is gone (CAP4 measured `na`); no product caller passes a list now. */
 export const probeAllows = (u, what) => !(u && Array.isArray(u.only)) || u.only.includes(what)
-
-/** ⚠️⚠️ INTERIM — SUPERSEDED BY LANE H7. CAP4 `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04`
- *  measures TradingView's answer for sum / avg / max / min of an empty or all-`na` array:
- *  `na`, with no runtime error. H7 implements that direct answer and REMOVES this probe
- *  (and `INTERIM_PANE_PROBED` in runtimeColumns.js); the F8 rail "a column that depends on
- *  the sum stops" (vendorHarness.f8Ungraded) is the one that changes then.
- *
- *  ⭐⭐ F8 (step 94) — `array.sum` / `array.avg` OVER ZERO REAL ELEMENTS, under a
- *  caller's probe. RT7 measured that a reduction SKIPS its `na` elements, so an
- *  all-`na` array and an empty one leave the same thing to reduce: nothing. What
- *  Pine then answers (0 or `na`) is still unmeasured — but that it does NOT STOP
- *  the script is witnessed: `delta-rsi-oscillator-strategy` (v4) calls
- *  `array.sum(_x)` on its bar 0 with all 21 elements `na` (`_Y_raw` filled from
- *  `rsi(close, 21)[k]`), unconditionally, on every bar, and TradingView draws its
- *  four markers (`delta-rsi-oscillator-strategy-{rddt,spy}-1d-2026-10-02`; a reached
- *  stop leaves a study holding nothing, C43); k-clustering witnesses `array.avg`
- *  of an EMPTY array (C18). So under a probe the value is the PROBE and the hit
- *  is recorded; the caller serves only what does not move between two probes.
- *  ⛔ Without a probe, `realNumbers`' stop stands word for word. A non-numeric
- *  element is not reduced: no probe, the stop by name. */
-const interimProbedZeroReals = (arr, what, budget) => {
-  const u = budget && budget.unmeasured
-  if (!u || !probeAllows(u, what)) return null
-  for (const v of arr) {
-    if (typeof v !== 'number' || !Number.isNaN(v)) return null
-  }
-  u.hits.push(what)
-  return { value: u.probe }
-}
 
 /** ⭐⭐ C18 — `array.slice` IS A VIEW IN PINE: the slice and its source share
  *  storage, so a write through either reaches both. This runtime answers it
@@ -395,19 +361,18 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = interimProbedZeroReals(a[0], 'array.sum', budget)
-      if (p) return p.value
-      return realNumbers(a[0], 'array.sum').reduce((s, v) => s + v, 0)
+      // ⭐ H7 — zero real elements is `na` (CAP4 Q-RT7a E03 / E05), never 0.
+      const xs = realsOf(a[0], 'array.sum')
+      return xs.length ? xs.reduce((s, v) => s + v, 0) : NaN
     },
   },
   'array.avg': {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = interimProbedZeroReals(a[0], 'array.avg', budget)
-      if (p) return p.value
-      const xs = realNumbers(a[0], 'array.avg')
-      return xs.reduce((s, v) => s + v, 0) / xs.length
+      // ⭐ H7 — zero real elements is `na` (CAP4 Q-RT7a E04 / E06).
+      const xs = realsOf(a[0], 'array.avg')
+      return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : NaN
     },
   },
 }

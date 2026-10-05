@@ -1,5 +1,5 @@
 {
-  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand.",
+  "about": "CAP4 (step 91): the 2026-10-03 capture queues (Q-H5a/b, Q-RT7a/b, Q-RT8a-d), captured on the rig as unsaved drafts. signature written by cap4Captures.measure.test.js, never by hand. H7 (step 92h) re-measured H5a, RT7 and RT8-followups after its engine fixes (CAP4_MEASURE=1).",
   "captures": [
     {
       "id": "vw-h5-format-volume-spy-1d-2026-10-04",
@@ -7,18 +7,12 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [],
         "objects": [
-          "DIVERGE",
-          [
-            [
-              "tableCells",
-              34,
-              18
-            ]
-          ]
+          "MATCH",
+          []
         ],
         "paints": null
       }
@@ -29,18 +23,12 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [],
         "objects": [
-          "DIVERGE",
-          [
-            [
-              "tableCells",
-              34,
-              18
-            ]
-          ]
+          "MATCH",
+          []
         ],
         "paints": null
       }
@@ -77,10 +65,69 @@
       "state": "on",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
-        "reason": "refused on our side: member door refused (pine:na): this fills a gap by carrying",
-        "plots": [],
-        "objects": null,
+        "verdict": "MATCH",
+        "reason": null,
+        "plots": [
+          [
+            "E00_bar_index_CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "E01_max_empty",
+            "MATCH",
+            8477
+          ],
+          [
+            "E02_min_empty",
+            "MATCH",
+            8477
+          ],
+          [
+            "E03_sum_empty",
+            "MATCH",
+            8477
+          ],
+          [
+            "E04_avg_empty",
+            "MATCH",
+            8477
+          ],
+          [
+            "E05_sum_all_na",
+            "MATCH",
+            8477
+          ],
+          [
+            "E06_avg_all_na",
+            "MATCH",
+            8477
+          ],
+          [
+            "F00_x_CONTROL",
+            "MATCH",
+            8477
+          ],
+          [
+            "F01_fixnan",
+            "MATCH",
+            8477
+          ],
+          [
+            "F02a_fixnan_in_fn",
+            "MATCH",
+            8477
+          ],
+          [
+            "F02b_fixnan_in_fn_second_site",
+            "MATCH",
+            8477
+          ]
+        ],
+        "objects": [
+          "MATCH",
+          []
+        ],
         "paints": null
       }
     },
@@ -90,63 +137,63 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "E00_bar_index_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for va"
+            "MATCH",
+            8477
           ],
           [
             "E01_max_empty",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "E02_min_empty",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "E03_sum_empty",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "E04_avg_empty",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "E05_sum_all_na",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "E06_avg_all_na",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            8477
           ],
           [
             "F00_x_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F01_fixnan",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F02a_fixnan_in_fn",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ],
           [
             "F02b_fixnan_in_fn_second_site",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            8477
           ]
         ],
         "objects": [
@@ -167,27 +214,18 @@
         "plots": [
           [
             "W01 wma gap warmup",
-            "DIVERGE",
-            20,
-            "na",
-            6,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W02 ema of wma",
-            "DIVERGE",
-            24,
-            "na",
-            46,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W03 wma bar0 then gap",
-            "DIVERGE",
-            50,
-            "na",
-            8,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R01 mid",
@@ -211,8 +249,11 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
           ],
           [
             "S04 shape per-bar with text",
@@ -238,27 +279,18 @@
         "plots": [
           [
             "W01 wma gap warmup",
-            "DIVERGE",
-            20,
-            "na",
-            6,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W02 ema of wma",
-            "DIVERGE",
-            24,
-            "na",
-            46,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "W03 wma bar0 then gap",
-            "DIVERGE",
-            50,
-            "na",
-            8,
-            "scattered"
+            "MATCH",
+            636
           ],
           [
             "R01 mid",
@@ -282,8 +314,11 @@
           ],
           [
             "S03 shape color.new per-bar",
-            "INCONCLUSIVE",
-            "values agree, but the capture records per-bar colour and our side's colour could"
+            "DIVERGE",
+            0,
+            "color",
+            636,
+            "persistent"
           ],
           [
             "S04 shape per-bar with text",

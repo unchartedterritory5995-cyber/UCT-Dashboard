@@ -550,6 +550,10 @@ function assertTextNode(v, where, depth = 0, live = null) {
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
       }
+      // ⭐ H7 — `format.volume` per pass is the flag, never a pattern beside it.
+      if (v.volume !== undefined && (v.volume !== true || v.fmt !== undefined)) {
+        throw new Error(`${where}: \`volume\` is \`true\` and carries no pattern`)
+      }
       return
     case 'cat':
       if (!Array.isArray(v.args) || !v.args.length) throw new Error(`${where}: a concatenation needs parts`)

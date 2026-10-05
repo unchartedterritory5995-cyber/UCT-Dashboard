@@ -105,10 +105,11 @@ describe('⛔⛔ served only where exact — otherwise UNKNOWN, and withheld', (
   })
 
   it('a value that depends on an UNMEASURED reduction is withheld; one that does not is served', () => {
-    // `array.avg` of an empty array is unmeasured: the two probe runs disagree on
-    // the label that reads it, and agree on the one that does not.
+    // `array.median` of an empty array is unmeasured (H7: `array.avg` is MEASURED
+    // now, CAP4 Q-RT7a): the two probe runs disagree on the label that reads it,
+    // and agree on the one that does not.
     const src = 'if barstate.islast\n    a = array.new<float>()\n    int i = 0\n    while i < 1\n        i += 1\n'
-      + '    m = array.avg(a)\n    label.new(bar_index, m, "avg")\n    label.new(bar_index, close + i, "ok")\n'
+      + '    m = array.median(a)\n    label.new(bar_index, m, "avg")\n    label.new(bar_index, close + i, "ok")\n'
     const d = door(src)
     const { reader, live } = draw(d)
     expect(reader.runtime.served).toBe(true)

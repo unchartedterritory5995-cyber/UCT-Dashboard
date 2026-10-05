@@ -882,6 +882,8 @@ export function compareCapture(capture, ours, opts = {}) {
               naMismatches: 0, valueMismatches: 0, colorMismatches: 0, colorCompared: 0,
               colorComparable: seen.count, valued: seen.count, maxAbs: 0, maxRel: 0,
               firstDivergence: first, notDrawn: seen.count,
+              // F5's seed counts (comparePlot's shape): no value of ours was withheld
+              seedWithheld: 0, seedWithheldFirst: null, seedWithheldLast: null, seedBoundViolations: 0,
               warmup: { bars: 0, compared: 0, divergent: 0, first: null },
               steady: { bars: times.length, compared: seen.count, divergent: seen.count, first, last: null, pattern: null },
               vendorRowGapsAfterStart: 0,

@@ -174,7 +174,9 @@ describe('⭐⭐ v6 `and`/`or` and `?:` do not run the side that is not taken', 
 
 describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('without a probe, an empty reduction and a gradient still stop the run by name', () => {
-    expect(() => run('a = array.new<float>()\nplot(array.avg(a))\n')).toThrow(/array\.avg of an empty array/)
+    // ⚰️ H7 (step 92h) — `array.avg` of an empty array is MEASURED now (`na`, CAP4
+    // Q-RT7a); `array.median` (not computed) is the unmeasured reduction left.
+    expect(() => run('a = array.new<float>()\nplot(array.median(a))\n')).toThrow(/array\.median/)
     // ⚰️ C29 computes a gradient; only what no capture pins stops. ⭐ C48 re-pin —
     // that was an empty range (`1, 1`), measured now (the zero colour); a value
     // outside REVERSED bounds is what is left.
@@ -186,9 +188,9 @@ describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('with one, it answers the probe and records the hit', () => {
     const budget = new Budget()
     budget.unmeasured = { probe: -7.5, colourProbe: 0x11223344, hits: [] }
-    const { outputs } = run('a = array.new<float>()\nplot(array.avg(a))\n', { budget })
+    const { outputs } = run('a = array.new<float>()\nplot(array.median(a))\n', { budget })
     expect(outputs[0]).toEqual(all(-7.5))
-    expect(budget.unmeasured.hits).toEqual(new Array(N).fill('array.avg'))
+    expect(budget.unmeasured.hits).toEqual(new Array(N).fill('array.median'))
   })
 })
 
