@@ -67,7 +67,7 @@ function settingsSections() {
 }
 
 /** Every <Link to> in a topic:'notebook' article, and in the helpers those articles use. */
-const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection']
+const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection', 'WhatsNewSection']
 function notebookLinks() {
   const links = []
   const collect = (node) => visit(node, (n) => {
