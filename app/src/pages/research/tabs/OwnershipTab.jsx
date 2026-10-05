@@ -147,11 +147,24 @@ function EdgarInsiderSection({ src, rows, sym, onRetry }) {
 }
 
 export default function OwnershipTab({ sym }) {
-  const { data, isLoading, mutate } = useOwnership(sym)
+  const { data, isLoading, error, mutate } = useOwnership(sym)
   const session = useMarketOpen()
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading ownership…</div></div></div>
+  }
+
+  // TERM-088 -- a failed read is not a genuinely empty ownership record.
+  // Render the error distinctly so a backend hiccup never reads as "no
+  // ownership data exists".
+  if (error) {
+    return (
+      <div className={styles.fnote} data-testid="ownership-error">
+        Couldn't load ownership data for this ticker.
+        {' '}
+        <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
 
   const o = data || {}

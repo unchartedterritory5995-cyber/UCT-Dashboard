@@ -61,3 +61,33 @@ describe('FinancialsTab -- S3 continuation (owner authorization, 2026-09-03)', (
     expect(screen.queryByTestId('freshness-badge')).not.toBeInTheDocument()
   })
 })
+
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "statement history is unavailable" empty state.
+describe('FinancialsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useFinancials', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./FinancialsTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "Statement history is unavailable"', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('financials-error')).toHaveTextContent("Couldn't load financials")
+    expect(screen.queryByText('Statement history is unavailable for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no statements', async () => {
+    await renderWith({ data: {}, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('Statement history is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('financials-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})

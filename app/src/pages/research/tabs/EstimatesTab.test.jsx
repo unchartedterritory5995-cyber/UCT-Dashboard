@@ -65,3 +65,33 @@ describe('EstimatesTab -- entity + empty state', () => {
     expect(screen.getByText('Estimate data is unavailable for this ticker.')).toBeInTheDocument()
   })
 })
+
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "estimate data is unavailable" empty state.
+describe('EstimatesTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useEstimates', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./EstimatesTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "Estimate data is unavailable"', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('estimates-error')).toHaveTextContent("Couldn't load estimates")
+    expect(screen.queryByText('Estimate data is unavailable for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no estimates', async () => {
+    await renderWith({ data: { forward: [], revisions: [] }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('Estimate data is unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('estimates-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})

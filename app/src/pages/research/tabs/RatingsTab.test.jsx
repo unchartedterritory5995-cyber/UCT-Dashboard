@@ -46,3 +46,34 @@ describe('RatingsTab', () => {
     data.entity = { status: 'resolved', entityId: 'em_aapl' }
   })
 })
+
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "ratings are unavailable" empty state. vi.resetModules + vi.doMock so each
+// case gets a fresh mock independent of the static one above.
+describe('RatingsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useRatings', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./RatingsTab')
+    return render(<FreshTab sym="AAPL" />)
+  }
+
+  it('renders the error state on a failed read, not "Ratings are unavailable"', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('ratings-error')).toHaveTextContent("Couldn't load ratings")
+    expect(screen.queryByText('Ratings are unavailable for this ticker.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no rating', async () => {
+    await renderWith({ data: {}, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('Ratings are unavailable for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByTestId('ratings-error')).not.toBeInTheDocument()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})
