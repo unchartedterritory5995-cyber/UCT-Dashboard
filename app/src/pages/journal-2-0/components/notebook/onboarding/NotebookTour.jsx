@@ -37,6 +37,8 @@ import { useIsPaid } from '../../../../../context/AuthContext'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
+import { checklistEnabled } from './gettingStartedPref'
+import { focusFirstRunHeadingIfLost } from './keyboardDoors'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY, TOUR_UI } from './tourCopy'
 import { TOUR_OPEN_EVENT, takePendingTourOpen } from './tourControl'
@@ -202,11 +204,23 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
   useEffect(() => {
     if (step) titleRef.current?.focus()
   }, [step])
+  const wasOpenRef = useRef(false)
   useEffect(() => {
-    if (steps) return
+    if (steps) {
+      wasOpenRef.current = true
+      return
+    }
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
+    // W14-keys (wave-14 switch on): an AUTO-started tour had nothing focused to hand back to
+    // (`back` is <body>), so closing it left a keyboard member at the top of the document,
+    // three skip links and the whole first-run block away from "Start a note". Focus the
+    // first-run heading instead -- only after a tour that was open actually closed, and only
+    // while focus is still nowhere (focusFirstRunHeadingIfLost never moves focus a member
+    // put somewhere). With the switch off this is the wave-8 behaviour, unchanged.
+    if (wasOpenRef.current && checklistEnabled(notebookFlag)) focusFirstRunHeadingIfLost()
+    wasOpenRef.current = false
   }, [steps])
 
   // ── keys: Escape dismisses, Tab stays inside the card ──────────────────────────────

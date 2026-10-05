@@ -65,6 +65,7 @@ import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate
 // small card only when a registered tour is due to be offered. `OTHER_TOURS` is one frozen
 // module-level array (tourRegistry.js), so the gate's own effects see a stable list.
 import TourOfferGate from '../components/notebook/onboarding/TourOfferGate'
+import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
@@ -1809,6 +1810,11 @@ export default function NotebookTab() {
           right after "Skip to main content" -- not the 36th, behind the nav
           and the Journal's header. Rendered alone, it stays here. */}
       <SkipLinkPortal>
+        {/* W14-keys: "Skip to getting started", FIRST among the Notebook's skip links while
+            the get-started checklist is on screen (it renders nothing otherwise, so every
+            other member's Tab order is unchanged). Same hidden-until-focused class as the
+            link below, so it has the same H14 tap behaviour (a11y/skipLinkUntappable). */}
+        <GettingStartedSkipLink className={styles.skipLink} />
         <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
           {noteId ? 'Skip to note' : 'Skip to notes list'}
         </a>

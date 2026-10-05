@@ -188,14 +188,15 @@ describe('the offer', () => {
     await waitFor(() => expect(JSON.parse(server.prefs[TOURS_PREF] || '{}')[TOUR_A.id]?.state).toBe('dismissed'))
   })
 
-  it('keyboard: Tab reaches both controls in reading order, Enter activates', async () => {
+  // W14-keys: the two answers are ONE Tab stop (a toolbar); ArrowRight reaches the second.
+  it('keyboard: Tab reaches the answers, ArrowRight moves to Not now, Enter activates', async () => {
     const user = userEvent.setup()
     const G = Gate()
     render(<Page Gate={G} />)
     await card()
     await user.tab()
     expect(document.activeElement).toHaveTextContent(OFFER_COPY.accept)
-    await user.tab()
+    await user.keyboard('{ArrowRight}')
     expect(document.activeElement).toHaveTextContent(OFFER_COPY.later)
     await user.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('region')).toBeNull())

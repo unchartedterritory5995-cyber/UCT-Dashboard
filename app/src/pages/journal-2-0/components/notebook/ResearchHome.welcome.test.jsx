@@ -204,3 +204,23 @@ describe('W14-D mount point -- one line, every state', () => {
     expect(uses).toHaveLength(4)
   })
 })
+
+// Wave 14, lane W14-keys: the first-run heading is where focus lands when the auto-started
+// base tour closes (NotebookTour.jsx). Script-focusable and marked only with the switch on.
+describe('first-run welcome -- the heading as a focus landing (W14-keys)', () => {
+  it('switch on: tabIndex -1 and the first-run marker; still NOT a Tab stop', () => {
+    latchNotebookFlags(WELCOME_ON)
+    renderHome()
+    const h = screen.getByRole('heading', { name: 'Welcome to your Notebook' })
+    expect(h.tabIndex).toBe(-1)
+    expect(h).toHaveAttribute('data-first-run-heading')
+  })
+
+  it('switch off: the pre-wave-14 heading (no tabindex, no marker)', () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
+    renderHome()
+    const h = screen.getByRole('heading', { name: 'Welcome to your Notebook' })
+    expect(h).not.toHaveAttribute('tabindex')
+    expect(h).not.toHaveAttribute('data-first-run-heading')
+  })
+})

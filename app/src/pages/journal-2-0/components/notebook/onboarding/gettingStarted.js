@@ -51,6 +51,9 @@ export const CHECKLIST_COPY = Object.freeze({
   progress: (done, total) => `${done} of ${total} done`,
   hide: 'Hide',
   hideLabel: 'Hide the get started list',
+  // W14-keys: the name of the steps' one-Tab-stop toolbar (a screen reader announces it, and
+  // that Arrow keys move inside it).
+  stepsLabel: 'Get started steps',
   doneLabel: 'Done',
   note: 'Write your first note',
   template: 'Start a note from a template',

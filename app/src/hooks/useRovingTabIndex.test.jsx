@@ -128,3 +128,34 @@ describe('useRovingTabIndex', () => {
     expect(tabIndexOf('/a')).toBe(0)
   })
 })
+
+// W14-keys: a group whose items can LEAVE (a get-started step that is done renders as text).
+function Shrinking({ items }) {
+  const { containerProps, itemProps } = useRovingTabIndex({ orientation: 'vertical' })
+  return (
+    <div role="toolbar" aria-label="steps" {...containerProps}>
+      {items.map((k) => <button key={k} type="button" {...itemProps(k)}>{k}</button>)}
+    </div>
+  )
+}
+
+describe('useRovingTabIndex -- an item that leaves the group (W14-keys)', () => {
+  it('a moved stop whose item is gone falls back to the first item, so the group stays in the Tab order', () => {
+    const { rerender } = render(<Shrinking items={['a', 'b', 'c']} />)
+    fireEvent.keyDown(screen.getByText('a'), { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(screen.getByText('b'))
+    expect(screen.getByText('b').tabIndex).toBe(0)
+    rerender(<Shrinking items={['a', 'c']} />)                     // 'b' left (its step is done)
+    const stops = ['a', 'c'].map((k) => screen.getByText(k).tabIndex)
+    expect(stops.filter((t) => t === 0)).toHaveLength(1)
+    expect(screen.getByText('a').tabIndex).toBe(0)
+  })
+
+  it('a moved stop whose item is still there is kept (the member moved it)', () => {
+    const { rerender } = render(<Shrinking items={['a', 'b', 'c']} />)
+    fireEvent.keyDown(screen.getByText('a'), { key: 'ArrowDown' })
+    rerender(<Shrinking items={['a', 'b', 'c', 'd']} />)
+    expect(screen.getByText('b').tabIndex).toBe(0)
+    expect(screen.getByText('a').tabIndex).toBe(-1)
+  })
+})
