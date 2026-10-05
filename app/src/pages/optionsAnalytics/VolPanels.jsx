@@ -14,6 +14,18 @@ import styles from './optionsAnalytics.module.css'
 const enc = encodeURIComponent
 const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Number(v) * 100).toFixed(d)}%`)
 
+// A hover title cannot be read on a touch screen, so a note that explains how a
+// number is measured is ALSO a tap-to-open line. The title stays for desktop.
+function TapNote({ text, testid }) {
+  if (!text) return null
+  return (
+    <details className={styles.muted} data-testid={testid} style={{ display: 'inline-block' }}>
+      <summary aria-label="How this is measured">how measured</summary>
+      {text}
+    </details>
+  )
+}
+
 export function IvRankBadge({ sym, fallback = null }) {
   const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
   if (hidden) return fallback
@@ -22,12 +34,18 @@ export function IvRankBadge({ sym, fallback = null }) {
   if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
-    return <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
+    return (
+      <>
+        <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
+        <TapNote text={title} testid="iv-rank-note" />
+      </>
+    )
   }
   return (
     <span data-testid="iv-rank-badge" title={title}>
       IV rank <b>{Math.round(data.iv_rank)}%</b> {data.rank_word}
       <span className={styles.muted}> · pctl {Math.round(data.iv_percentile)} · {data.window_sessions} sessions</span>
+      {' '}<TapNote text={title} testid="iv-rank-note" />
     </span>
   )
 }
@@ -53,6 +71,7 @@ export function OptionMonitorStrip({ sym }) {
     <div className={styles.head} data-testid="option-monitor">
       <span title={`${data.hv_method} (computed)`}>HV20 <b>{pct(data.hv?.hv20)}</b></span>
       <span title={`${data.hv_method} (computed)`}>HV30 <b>{pct(data.hv?.hv30)}</b></span>
+      <TapNote text={data.hv_method ? `${data.hv_method} (computed)` : ''} testid="hv-method-note" />
       <span data-testid="option-monitor-events">
         EVTS{' '}
         {e.next_earnings
