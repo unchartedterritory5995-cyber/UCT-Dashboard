@@ -135,7 +135,8 @@ export function gradePaints(capture, ours) {
           // how many bars TradingView painted — 0 means neither side draws a bar
           // (the verdict counts that, `compare.mjs::comparePaints`)
           const vendorPainted = v.colors.filter((c) => c !== undefined && canon(c) !== NO_COLOUR).length
-          rows.push({ ...base, state: 'notDrawn', vendorPainted })
+          // ⭐ W17R — the run's own named stop, when it made one (`runOurSide`)
+          rows.push({ ...base, state: 'notDrawn', vendorPainted, ...(drawn && drawn.reason ? { reason: drawn.reason } : {}) })
           return
         }
         ourColours = drawn.colors

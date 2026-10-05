@@ -203,7 +203,16 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
       || err.guard === RUNTIME_HISTORY_GUARD)) throw err
     const plain = { ...def, compute: { ...compute, objects: undefined } }
     let out
-    try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch { throw err }
+    // ⭐⭐ W17R — when the plain run ALSO stops PART-WAY (a VM limit, an engine
+    // failure on a bar), ITS stop is why there are no columns, and that is the
+    // sentence the member reads. Rethrowing the drawings' reason instead named the
+    // wrong wall: wyckoff on 8,477 SPY bars read `runtime:calc-bars-count` (a
+    // drawings rule) while its plots were stopped by `runtime:limit`
+    // (ARRAY_OPERATIONS, bar 7,628). A plain run that cannot START (a drawing-only
+    // document has nothing to plot) keeps the drawings' reason: that is the wall.
+    try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch (plainErr) {
+      throw (plainErr && (plainErr.guard === RUNTIME_LIMIT_GUARD || plainErr.guard === RUNTIME_FAILED_GUARD)) ? plainErr : err
+    }
     return withRuntimeObjects(out, { status: 'WITHHELD', live: [], guard: (err && err.guard) || 'runtime:objects',
       reason: String((err && err.message) || err) })
   }

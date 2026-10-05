@@ -8146,3 +8146,65 @@ Mutations (pine.js bytes captured and restored, sha verified):
   `b1Paints` pinned capture list (27 newer captures record paints), `c41LowerTfServe` (2952 vs 2950
   compared; SPY 1W L02 bar 1757), `varReadOrderLanes` (the latch-once refusal), `reachable`
   (`memberPane/atrSrReplay.js` unreached).
+
+## W17R - wave-17 reds: wyckoff SPY's silent paint, and the H6-listed "pre-existing" five (2026-10-04)
+
+Lane W17R, branch `pine/w17r-wave17-reds`, base `integrate/wave17-2026-10-03` (`33bac2c06b`).
+
+### 1. `coverageAudit` "control: wyckoff" - SPY runtime barcolor NOT DRAWN, no error (REGRESSION, fixed)
+
+Root cause, measured (probe on the base, runtime pane on): RC1's warm supply hands the paint replay
+6,677 bars of SPY prehistory (`vw-clock-close-tfchange-spy-1d-2026-09-28`, from the listing) + the
+1,800-bar window = 8,477 bars. On that length the run STOPS by name: `runtime:limit`,
+`ARRAY_OPERATIONS` (a RUN-WIDE ceiling, 2,000,000) on bar 7,628. The window alone (1,800) and the
+last 5,000 bars run whole; 7,000 from the listing runs, 8,000 does not. Two places then lost the name:
+
+- `runtimeColumns.js::computeRuntimeColumns` - a document that owns its drawings first meets
+  `calc_bars_count = 1000` (drawings withheld), re-runs plain, and when the plain run ALSO stopped it
+  rethrew the DRAWINGS' reason. The column error read `runtime:calc-bars-count`, not the run's stop.
+- `ourSide.js::runOurSide` - `colErrors` read the WINDOW's columns only; the warm run's error was
+  dropped, `paintColoursFor` returned null and `gradePaints` graded `notDrawn` with no reason.
+
+Fix:
+- the plain run's part-way stop (`runtime:limit` / `runtime:failed`) is the error the columns carry; a
+  plain run that cannot start (a drawing-only document, "nothing to plot") keeps the drawings' wall
+  (`runtimeObjectsDoor` RT5 rail, measured red on the first cut and kept).
+- a paint the window's run colours and the warm run does not REFUSES the supplier by the warm run's
+  own sentence and falls back to the cold replay, labelled (RC1's rule for an unusable supplier; the
+  first 200 bars graded apart as warm-up). A `notDrawn` paint row now carries the run's named stop.
+- SPY wyckoff runtime: paints DIVERGE (`notDrawn`, 0 bars) -> **MATCH** ("1 paint agree bar for bar",
+  cold replay); whole verdict DIVERGE -> INCONCLUSIVE (objects stay withheld by `calc-bars-count`).
+- Rail: the control now pins `paintSupply.kind === 'cold'`, the reason naming `runtime:limit` /
+  `ARRAY_OPERATIONS` and NOT `calc-bars-count`. Mutations (bytes captured, restored, sha verified):
+  rethrow the drawings' error -> control red (reason regex); fallback disabled -> control red
+  (paints DIVERGE).
+
+### 2. The five listed as pre-existing in section H6 (each run alone, `--maxWorkers=1`)
+
+| rail | alone at `33bac2c06b` | class | action |
+|---|---|---|---|
+| `pineMathCeilAccept` | 6 / 6, 1.4 s | RULE-MEETS-RULE (H5's function-parameter timeframe moved the script to its session-clock wall) | none: re-pinned by G16 `b5b503c17a`, measured reason in the commit |
+| `pineTimenowAccept` | 10 / 10, 0.5 s | RULE-MEETS-RULE (same move) | none: G16 `b5b503c17a` |
+| `syminfoMintick` | 17 / 17, 0.3 s | RULE-MEETS-RULE (CAP round 4 added 8 vw-mintick captures, 10 -> 18) | none: G16 `5a25bb7a23` |
+| `freshness` | 29 / 29, 0.1 s | RULE-MEETS-RULE (RT4 declared the clock's right edge) | none: G16 `bf946a5d3c` |
+| `udfTypedParams` | 7 / 7, 0.1 s | RULE-MEETS-RULE (L2 + H5 serve a literal default) | none: G16 `62ad4ac9bd` |
+
+None is LOAD or a REGRESSION on the wave-17 bytes: all five are green at the default 15 s timeout, and
+each red H6 / H7 listed is accounted for by a G16 re-pin that reached wave 17 through the wave-16
+merge. `varReadOrderLanes` is H9's (green alone here, not acted on).
+
+### 3. The focused set (`--maxWorkers=1`, each file alone)
+
+`vendorHarness.test.js` 59 / 59; `cap4Captures` 29 / 29; `f8Ungraded` 21 / 21; `b1Paints` 52 / 52
+(every pinned paint grade and supply line unchanged); `coverageAudit` 173 passed | 7 skipped.
+`runtime/` + `runtimeObjectsDoor` on the first cut: 1,372 passed, 2 red - `runtimeObjectsDoor` RT5
+(fixed by the narrowed rethrow above, 7 / 7) and `objectLaneDrawerCensus.measure`, which takes ~20 s and
+times out at the 15 s default (green alone with a longer timeout; not this lane's). **0 MATCH
+lost**: the only grade that moved is SPY wyckoff's paint, DIVERGE -> MATCH.
+
+### Open
+
+- `ARRAY_OPERATIONS` is still a run-wide total: the class RT10 fixed for `LOOP_ITERATIONS` (a per-bar
+  cost counted over the run scales with history). Wyckoff costs ~262 array ops a bar, so it stops past
+  ~7,600 bars; a member chart loads 5,000 and draws. Making it a per-bar peak (measured ceiling, as RT10
+  did) would let the warm replay run and grade SPY's paints warm; owner: the runtime-limits lane.
