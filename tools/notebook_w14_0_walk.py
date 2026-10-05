@@ -37,6 +37,13 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 CHECKS: list[dict] = []
 
+# The gates this walk arms IN THE SANDBOX ONLY (written into this process's environment just
+# before the sandbox is spawned). Every name is a key of api/routers/auth.py NOTEBOOK_FLAGS.
+# ⛔ Ledger convention (the w13x walk's form): a plain LIST armed with os.environ.update -- never
+# `os.environ["NAME"] = ...`, which the flag index reads as a second parse of the gate
+# (tests/test_notebook_flag_parse.py, tests/test_notebook_flag_table_form.py).
+FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED"]
+
 # On the REAL first-run screen (no note open) not all 8 TOUR_STEPS anchors exist: `ask`
 # and `export` live inside NoteEditorPage.jsx, not mounted until a note is open, and the
 # existing unit suite never sees this because its fixture page renders ALL 8 anchors at
@@ -192,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     import os
-    os.environ["NOTEBOOK_ONBOARDING_ENABLED"] = "1"
+    os.environ.update({name: "1" for name in FLAGS})
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

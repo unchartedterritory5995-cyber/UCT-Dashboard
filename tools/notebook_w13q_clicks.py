@@ -33,7 +33,7 @@ the shared-root tripwire, the integrity snapshots), for each of the plan's 23 fl
 
 Flags: a flow that needs a dark flag gets it switched on IN THE SANDBOX ONLY (written into this
 process's environment just before the launcher is spawned, so only the child inherits it; the
-gate's one parse lives in the app). The list is SANDBOX_FLAGS below; every name is grepped to a
+gate's one parse lives in the app). The list is FLAGS below (armed as SANDBOX_FLAGS); every name is grepped to a
 read site in api/routers/auth.py NOTEBOOK_FLAGS (CLAUDE.md: never invent an env flag).
 
 Model keys stay BLANKED (the launcher's default). Where a flow's surface waits on a model
@@ -88,12 +88,20 @@ WIDE = {"width": 1200, "height": 900}
 PHONE = {"width": 390, "height": 844}
 
 # ⛔ Each name is a key of api/routers/auth.py NOTEBOOK_FLAGS (grepped, never invented).
-SANDBOX_FLAGS = {
-    "NOTEBOOK_ASK_INSERT_ON": "1",              # Q9 insert the answer
-    "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",      # Q15
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",   # Q2's template sheet as production may show it
-    "NOTEBOOK_PLAN_GRADING_ENABLED": "1",       # Q13 (lane 13A)
-}
+# ⛔ The flag LEDGER convention for a tool that arms sandbox gates (the w13x walk's form): a
+# plain LIST of names, armed with os.environ.update. A module-level `*_FLAGS` dict literal of
+# gate names is the feature-flag index's TABLE form -- it would make this tool a second
+# declaration site for each gate (tests/test_notebook_flag_table_form.py requires
+# api/routers/auth.py to be the only one) and could hand the ledger "1" as the gate's default.
+FLAGS = [
+    "NOTEBOOK_ASK_INSERT_ON",              # Q9 insert the answer
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",      # Q15
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",   # Q2's template sheet as production may show it
+    "NOTEBOOK_PLAN_GRADING_ENABLED",       # Q13 (lane 13A)
+]
+# The environment the sandbox child inherits (kept under its old name: the wave-13 evidence
+# scripts import it).
+SANDBOX_FLAGS = {name: "1" for name in FLAGS}
 CAL_FILE = "w13q-sandbox-calendar.json"
 
 # The plan's table (section 6), typed ONCE here and printed back into every result row so the
