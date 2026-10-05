@@ -396,9 +396,12 @@ describe('⭐ length semantics and resources', () => {
     // it finds the last n finite values), so it charges from bar 0. The number
     // moved because the work moved, which is what a cost counter is for.
     expect(FINITE_WINDOW.sma.na, 'this count belongs to the skip policy').toBe('skip')
-    expect(budget.counts.WINDOW_CELLS).toBe(5 * N)
+    // ⭐ RT17 — `WINDOW_CELLS` counts ONE BAR (its worst); the run's sum is a
+    // measurement beside it, never checked.
+    expect(budget.counts.WINDOW_CELLS).toBe(5)
+    expect(budget.runTotals.WINDOW_CELLS).toBe(5 * N)
     let err = null
-    try { runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, {}, { WINDOW_CELLS: 20 }) } catch (e) { err = e }
+    try { runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, {}, { WINDOW_CELLS: 4 }) } catch (e) { err = e }
     expect(err).toBeInstanceOf(RuntimeLimitError)
     expect(err.limit).toBe('WINDOW_CELLS')
   })

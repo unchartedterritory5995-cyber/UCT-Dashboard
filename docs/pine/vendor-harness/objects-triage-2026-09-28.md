@@ -197,6 +197,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 93 | F7 the host lane's FFILL warm-up (section F7): `ta.wma` first answers on its n-th FINITE input in the host lane too (`interpret.js::rolling`, `ast_interpret.py::_rolling`), one rule with RT8's VM (host == VM on 18 gappy warm-ups; host `ema(wma(x,40),14)` over trend-targets RDDT's own input == TradingView's Baseline from bar 140; JS == Python by fixture; Q-RT8a unseparated, the VM's rule kept). B1 paint pins re-measured: 14 unchanged, 26 CAP3-era captures added, 7 off-listing SPY rows differ only inside the first 100 bars or undrawn. Harness lower-timeframe supply cut at the capture's clock (c41 1W); c41 / c47 re-pinned (CAP round 4's 60m capture; H5's listing anchor) | `8e90125e53`, `912187ddc8` | harness 335 files x off/on/runtime with libraries: 70/92/107 MATCH before and after, 0 rows changed (full content); CAP3 signatures unchanged | unchanged | none; census 56/82/99, 0 rows changed |
 | 94 | F8 INCONCLUSIVE turned into verdicts (section F8): harness rule M3 pairs a repeated title by declaration order when counts and kinds agree (opening-range RDDT/SPY -> MATCH); NOT DRAWN grades a row our engine hides as a constant that TradingView draws (16-20 captures INCONCLUSIVE -> DIVERGE, owner H8); a missing column carries the door's own reason; delta-rsi past its all-na `array.sum` (INTERIM two-probe, H7 owns the final `na`) to the `LOOP_ITERATIONS` wall (RT10). Sweep off/on/runtime 81/94/193, 103/124/141, 118/134/116; 0 MATCH lost |
 | 95 | H8 constant rows TradingView draws are drawn (section H8): `hidden` / `hiddenReason: 'constant'` is the SCREENER's rule (a tree reading no bar is the same number on every symbol, `f19a350581`), but the member pane and the runtime document read it as "draw no series", so `plot(0)` zero lines, `plot(syminfo.mintick)`, `ta.cum(1)` and the constant probe rows were missing from the chart (F8: 208 NOT DRAWN plot grades). One predicate, `pine.js::hiddenOnChart`, now answers the chart's question: hidden for every reason but a constant, and for a constant only when it is `na` (`0 / 0`, cc-yata b1..b5 / s1..s5); the member pane (host rows and runtime document), `paneGate` and the harness ask it. NOT DRAWN 208 -> 0; 175 plot grades -> MATCH, 33 -> INCONCLUSIVE named by their real wall (`bind:period-reads`, `runtime:history-start`); zero MATCH -> anything else |
+| 96 | RT17 the runtime's run-wide limits audited (section RT17): `CALL_COUNT`, `ARRAY_OPERATIONS`, `WINDOW_CELLS`, `CARRIED_STEPS` were run-wide totals with no TradingView counterpart; each now counts ONE BAR (`limits.js` `PER_BAR_CHARGED`, reset by `Budget.startBar`, count = worst bar, run sum in `runTotals`), ceiling derived `TOTAL_INSTRUCTIONS / HISTORY` = 10,000. `TOTAL_INSTRUCTIONS` (TradingView's run-wide 20 s / 40 s) and the TradingView limits (`ARRAY_ELEMENTS` 100,000; request count is H11's) kept | `pine/rt17-runtime-limits` | harness 373 files x on/runtime: 0 entries changed at any level (on 135/82/156, runtime 155/84/134), 0 MATCH lost; wyckoff SPY paint MATCH now graded WARM (6,677 bars from the listing) instead of W17R's cold fallback | - | member door census off/on 59/82, byte-identical before/after; rail `rt17PerBarWork` 13; 7 mutations red |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -8208,3 +8209,104 @@ lost**: the only grade that moved is SPY wyckoff's paint, DIVERGE -> MATCH.
   cost counted over the run scales with history). Wyckoff costs ~262 array ops a bar, so it stops past
   ~7,600 bars; a member chart loads 5,000 and draws. Making it a per-bar peak (measured ceiling, as RT10
   did) would let the warm replay run and grade SPY's paints warm; owner: the runtime-limits lane.
+
+## RT17 - the runtime's run-wide limits: per-bar work, measured (2026-10-04, base `fa4cf57011`)
+
+Lane RT17, branch `pine/rt17-runtime-limits`, base `integrate/wave17-2026-10-03` (`fa4cf57011`). Owner of
+W17R's open item (`ARRAY_OPERATIONS` still a run-wide total). RT10b's method: every limit audited from
+evidence, a measured bound over the corpus and the captures, rails, a sweep.
+
+### 1. The audit - every limit `runtime/limits.js` declares
+
+TradingView's own limits (`docs/pine/pine-presentation-spec.md` section 3.5, `[UM]` Writing / Limitations):
+a script's whole execution 20 s / 40 s, a loop 500 ms per bar, a collection 100,000 elements, 40 unique
+`request.*()` calls (CAP5), 500 lines / labels / boxes. TradingView counts NO operations.
+
+| limit | was | type (evidence) | decision |
+|---|---|---|---|
+| `TOTAL_INSTRUCTIONS` 200,000,000 | run-wide | the run's TIME safety; TradingView's counterpart is run-wide too (20 s / 40 s) | KEPT run-wide (see Open: delta-rsi) |
+| `INSTRUCTIONS_PER_BAR`, `LOOP_ITERATIONS`, `WHILE_ITERATIONS` | per bar | safety bounds (R-B, RT10b, C18) | unchanged |
+| `CALL_COUNT` 5,000,000 | **run-wide** | no TradingView counterpart | **per bar**, 10,000 |
+| `ARRAY_OPERATIONS` 2,000,000 | **run-wide** | no TradingView counterpart | **per bar**, 10,000 |
+| `WINDOW_CELLS` 100,000,000 | **run-wide** | no TradingView counterpart | **per bar**, 10,000 |
+| `CARRIED_STEPS` 100,000,000 | **run-wide** | no TradingView counterpart | **per bar**, 10,000 |
+| `ARRAY_ELEMENTS` 100,000 | peak | TradingView's collection limit (`[UM]`) | kept |
+| `REQUEST_COUNT` | peak | TradingView's request limit (CAP5: 40) | not touched (H11 owns it) |
+| `LOOP_NESTING`, `CALL_DEPTH`, `IR_SIZE`, `HISTORY`, `HISTORY_SLOTS` / `_VALUES`, `CARRIED_INSTANCES` / `_CELLS` | peak / static | sizes, not totals | unchanged |
+| `WALL_TIME` | run (pane clock, 1,000 ms) | the member pane's time safety (RT1 / D3) | unchanged |
+| `LIVE_OBJECTS`, `OBJECT_OPERATIONS`, `REQUEST_FANOUT`, `MEMORY`, `PROGRAM_SIZE` | - | declared; nothing in the VM counts them over bars | unchanged |
+
+The host lane's `ast/budget.js` is a static tree budget (nodes, lookback), not a count over bars: out of scope.
+
+### 2. Measured (scratch, not committed)
+
+Every corpus script the runtime builds (62, `buildRuntimeIr` -> VM, the four limits unbounded to measure)
+on SPY 8,477 daily bars (6,677 prehistory from `vw-clock-close-tfchange-spy` + the wyckoff SPY window) and
+AAPL 11,534 (`vw-deadband-ticks-aapl`, from the listing); and every vendor capture graded with the objects
+pane on and with the runtime pane on (746 grades, every `Budget` collected). Worst bar any script FINISHES:
+
+| limit | worst finishing bar | run total on the long history | old run-wide ceiling met? |
+|---|---|---|---|
+| `ARRAY_OPERATIONS` | 1,504 (wyckoff AAPL; SPY 992; captures: wyckoff SPY 992, RDDT 632) | wyckoff 2,194,804 (AAPL) / 2,177,564 (SPY); delta-rsi 2,065,959 | yes: wyckoff (W17R) and delta-rsi |
+| `CALL_COUNT` | 1,201 (delta-rsi) | delta-rsi 5,405,701 | yes: delta-rsi near bar 4,160 |
+| `WINDOW_CELLS` | 100 (elliott-wave-3; captures: trend-targets 40) | 1,148,500 | no |
+| `CARRIED_STEPS` | 27 (price-action-fibonacci; captures: trend-targets 16) | 184,544 | no |
+
+k-clustering's last bar reaches 2,732 array operations / 2,891 calls when `INSTRUCTIONS_PER_BAR` stops it
+(R-B, not raised); with c18's test-only budget its whole last bar is 11,718 / 11,550 (pinned there).
+
+### 3. The rule
+
+`limits.js` `PER_BAR_CHARGED` = the four. `Budget.charge` counts them in `budget.bar` (reset by
+`Budget.startBar`, which the VM calls at the top of every bar), stops by name the moment a bar passes the
+ceiling, keeps the worst bar in `counts` (a peak, like `LOOP_ITERATIONS`) and the run's sum in
+`runTotals` (measured, never checked). A request's sub-run shares the budget and counts its own bars;
+the chart bar it runs inside gets its count back (`saveBar` / `restoreBar`).
+
+Ceiling **10,000 = `TOTAL_INSTRUCTIONS / HISTORY`** (derived in `limits.js`, never retyped): the longest
+history the runtime accepts can never spend more of any of them over the run than the run's instruction
+safety allows. That keeps the run's TIME bounded by name with no wall clock (harness, census) for the two
+that count element work one instruction does not show (an `array.sum` over n elements, a window over
+`span` cells); the two that are instructions themselves (a call, a carried step) are bounded by
+`TOTAL_INSTRUCTIONS` already, and this is their stop on the bar a runaway happens in. 6.6x / 8.3x / 100x /
+370x the worst finishing bar; each reachable before `INSTRUCTIONS_PER_BAR` (rail).
+
+### 4. Rails, mutations, re-grade
+
+Rail `runtime/__tests__/rt17PerBarWork.test.js` (13): the four are exactly `PER_BAR_CHARGED`, each at the
+derived ceiling; `Budget` per-bar reset / peak / run sum, `TOTAL_INSTRUCTIONS` NOT reset; 500 array ops x
+5,000 bars runs (2.5M, past the old 2M) and the count is 500; worst-bar control (301); a 20,000-element
+sum stops by `ARRAY_OPERATIONS` on bar 0; work spread over a bar adds up (10,400); 1,200 calls x 50 bars
+under a test ceiling of 2,000; a call runaway stops by `CALL_COUNT` at the product ceiling before the bar's
+instructions; windows (400 cells x 3,000 bars) run and eleven near-cap windows stop by `WINDOW_CELLS` on
+bar 0; carried steps both ways; a request's sub-run hands the chart bar its count back.
+Re-pinned through their measure path (RULE-MEETS-RULE): `udf` / `carriedState` / `finiteWindow` (count =
+1 / 1 / 5 per bar, run sums in `runTotals`, stop ceilings below one bar), `carriedPerf` / `windowPerf`
+(report the run sum; heavy window shape 1,600 cells a bar under the per-bar ceiling), c18 k-clustering
+(the test-only budget raises the two work limits with the bar's instructions; 11,718 / 11,550 pinned),
+coverageAudit's wyckoff control: SPY `paintSupply.kind` `cold` -> **`warm`** (6,677 bars from the listing,
+replayed, no `ARRAY_OPERATIONS` / `runtime:limit` in the reason), paint still MATCH bar for bar.
+
+Mutations (bytes captured, restored, sha verified; rt17 rail + udf, 39 tests): per-bar branch off = run-wide
+again (8 red); `startBar` a no-op (8); the VM never starts a bar (7); the nested run not restored (1);
+ceiling retyped 20,000 (5); peak not kept (8); `CALL_COUNT` dropped from the list (3).
+
+Measured after (each heavy run alone, `--maxWorkers=1`): RT9 sweep, 373 capture files x (objects on,
+runtime): base and RT17 identical entry for entry at every level (verdict, objects, family counts, every
+plot, paints): on MATCH 135 / DIVERGE 82 / INC 156, runtime 155 / 84 / 134; **0 MATCH lost**. Member-door
+census off / on 59 / 82, JSON byte-identical. `vendorHarness.test.js` 59 / 59, `coverageAudit` 173 + 7
+skipped, `b1Paints` 52 / 52, `f8Ungraded` 21, `rt7Walls` 2, `c18KClustering` 2, `c47ConstTernary` 15,
+`runtimeObjectsDoor` 7; `runtime/` 1,377 passed + 3 measure files that time out at 15 s inside the full run
+and pass alone (guardProbe, objectLaneCensus, objectLaneDrawerCensus; W17R saw the same).
+
+### Open
+
+- `TOTAL_INSTRUCTIONS` is kept run-wide (its TradingView counterpart is run-wide), but its NUMBER is not
+  calibrated to TradingView's 20 s: delta-rsi-oscillator-strategy (44,444 instructions a bar) stops by it on
+  bar 4,500 of SPY's 8,477 and of AAPL's 11,534 (6.6 s on this box). A member pane meets its 1,000 ms clock
+  first, and no graded capture moves (RDDT's 636 bars run; SPY stays `runtime:history-start`). Raising it
+  wants a capture of a long-history run TradingView finishes, and the clock owner's ruling.
+- W17R's cold fallback for a warm replay that stops is no longer exercised by wyckoff (it runs warm now);
+  its code stays. A capture that stops on its warm length would rail it again.
+- k-clustering's whole last bar needs 11,718 array operations: if `INSTRUCTIONS_PER_BAR` is ever raised past
+  it, `ARRAY_OPERATIONS` becomes its stop by name (c18 pins both).
