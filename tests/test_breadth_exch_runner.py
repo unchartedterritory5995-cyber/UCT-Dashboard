@@ -218,3 +218,11 @@ def test_only_a_declared_session_with_the_declared_true_owner_uses_the_substitut
     real = exr._declared_exceptions()
     assert real == {"2026-09-25": ("p202609292209", "p202609302026"),
                     "2026-09-28": ("p202609292209", "p202609302026")}
+
+
+def test_an_explicit_code_commit_wins_over_the_image(monkeypatch):
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "image")
+    monkeypatch.setenv("BREADTH_EXCH_CODE_COMMIT", "codedir")
+    assert exr.code_commit() == "codedir"
+    monkeypatch.delenv("BREADTH_EXCH_CODE_COMMIT")
+    assert exr.code_commit() == "image"

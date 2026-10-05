@@ -1,6 +1,8 @@
 """Exchange Breadth V1 — DARK PRODUCTIONISATION DRILL in an ISOLATED NAMESPACE (runner only).
 
-argv: DRILL_DIR CODE_COMMIT          (run with PYTHONPATH=<deployed code dir>)
+argv: DRILL_DIR CODE_COMMIT   (run with PYTHONPATH=<code dir>, under the SERVICE interpreter and PID 1's
+environment — exactly what the runner thread inherits in production: /opt/venv/bin/python needs PID 1's
+LD_LIBRARY_PATH for numpy)
 
 Nothing here writes outside DRILL_DIR. Production stores are read only through immutable SQLite opens or
 plain reads; the producer's two databases are COPIED (the producer module opens its own DBs read-write), its
@@ -168,7 +170,8 @@ a = sqlite3.connect("file:%s/exch_live_candidate_v1.db?immutable=1" % REAL_STORE
 b = sqlite3.connect("file:%s/exch_live_candidate_v1.db?mode=ro" % S, uri=True)
 eq = {}
 for t in ("breadth_daily_ohlc", "exch_session", "membership", "venue_evidence", "derived_series", "trend_state"):
-    q = "SELECT * FROM %s ORDER BY 1,2,3" % t
+    n = len(a.execute("PRAGMA table_info(%s)" % t).fetchall())
+    q = "SELECT * FROM %s ORDER BY %s" % (t, ",".join(str(i + 1) for i in range(n)))
     eq[t] = a.execute(q).fetchall() == b.execute(q).fetchall()
 cols = ("date, seq, vintage, compute_vintage, vintage_exception, input_manifest_sha256, reference_sha256, "
         "us_v2_pub_id, venue_source, rows, rows_sha256, membership_sha256, derived_sha256, identity_state_sha256")

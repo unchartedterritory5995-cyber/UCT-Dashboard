@@ -53,7 +53,9 @@ def _utc() -> str:
 
 
 def code_commit() -> str:
-    return (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("BREADTH_EXCH_CODE_COMMIT")
+    """An explicit BREADTH_EXCH_CODE_COMMIT wins (a code directory that is not the deployed image), else
+    the deployed image's own commit."""
+    return (os.environ.get("BREADTH_EXCH_CODE_COMMIT") or os.environ.get("RAILWAY_GIT_COMMIT_SHA")
             or "unrecorded")[:40]
 
 
