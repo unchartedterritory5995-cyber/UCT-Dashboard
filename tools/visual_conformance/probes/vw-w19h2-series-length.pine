@@ -1,0 +1,32 @@
+//@version=5
+indicator("UCTPROBE_VW_W19H2_SERIES_LENGTH", overlay = false)
+// --- 2026-10-05 W19-H2 - `ta.highest` / `ta.lowest` with a length computed per bar --
+//
+// CAPTURE: NYSE:RDDT 1D from the listing AND AMEX:SPY 1D (full history), inputs at
+// defaults. A compile or runtime error is a reading: record the message and the row.
+//
+// ⛔ WHY THIS IS NOT `vw-rt12-statements-history` AGAIN. CAP5 S1-7 / S2-5 ran that
+// probe and TradingView stopped on bar 0 with RE10001 "Invalid value of the 'length'
+// argument (0) in the 'lowest' function" (its L04 row, an `na` length read as 0), so
+// the rows that matter here (its L01 / L02) were never read. Every length below is
+// >= 1 on every bar by construction; the zero / `na` length is its own probe row in
+// a SEPARATE study (`vw-w19h2-zero-length.pine`) so one error cannot blank the rest.
+//
+//   L00  bar_index (CONTROL)        L00b  the length itself (CONTROL)
+//   L01  ta.lowest(len)             L02   ta.highest(len)   (trend-levels-chartprime:107 form)
+//   L03  ta.highest(high, len)      L04   ta.lowest(low, len)
+//   L05  ta.highest(high, bar_index + 5)   (longer than the bars that exist)
+//   L06  trend-levels-chartprime's own counter, guarded >= 1, and its ta.highest
+len = nz(ta.barssince(close > open), 0) + 1
+plot(bar_index, "L00_bar_index_CONTROL")
+plot(len, "L00b_len_CONTROL")
+plot(ta.lowest(len), "L01_lowest_series_len")
+plot(ta.highest(len), "L02_highest_series_len")
+plot(ta.highest(high, len), "L03_highest_high_series_len")
+plot(ta.lowest(low, len), "L04_lowest_low_series_len")
+plot(ta.highest(high, bar_index + 5), "L05_highest_len_past_listing")
+var int bars = 1
+flip = ta.change(close > open)
+bars := flip != 0 ? 1 : bars + 1
+plot(bars, "L06a_counter_CONTROL")
+plot(ta.highest(bars), "L06b_highest_counter")

@@ -1,0 +1,16 @@
+//@version=5
+indicator("UCTPROBE_VW_W19H2_ZERO_LENGTH", overlay = false)
+// --- 2026-10-05 W19-H2 - does `ta.highest(0)` stop the study, on which bar? ----------
+//
+// CAPTURE: NYSE:RDDT 1D from the listing. EXPECTED TO ERROR - the error IS the reading:
+// record the message, the bar it names, and whether any row drew before it.
+//
+// trend-levels-chartprime writes `var int bars = 0` and later `h1 := ta.highest(bars)`;
+// `bars` stays 0 until its trend first flips. CAP5 S1-7 measured that an `na` length
+// read as 0 stops the study on bar 0 ("Invalid value of the 'length' argument (0)").
+// This asks the same of a plain 0 written by a `var`, the trend-levels shape.
+//
+//   Z00  bar_index (CONTROL)    Z01  ta.highest(bars) with `var int bars = 0` never raised
+var int bars = 0
+plot(bar_index, "Z00_bar_index_CONTROL")
+plot(ta.highest(bars), "Z01_highest_zero_var_len")

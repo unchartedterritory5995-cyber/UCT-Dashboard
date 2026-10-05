@@ -1397,6 +1397,28 @@ function obvLevelTree() {
   ])])
 }
 
+/** ⭐ W19-H2 — `sum(volume * (change(S) <cmp> 0 ? 0 : S), n)` as a resolved tree →
+ *  `{ n, src: S }`, else null. `cmp` is `'<='` for the manual's `upper`, `'>='` for
+ *  `lower` (see `Resolver.mfiThroughTwoSeriesRsi`). Exact shape, either `*` order. */
+function moneyFlowSumOf(t, cmp) {
+  if (!t || t.type !== 'call' || t.name !== 'sum' || !Array.isArray(t.args) || t.args.length !== 2) return null
+  const n = t.args[1]
+  if (!n || n.type !== 'num' || !Number.isInteger(n.value) || n.value < 1) return null
+  const prod = t.args[0]
+  if (!prod || prod.type !== 'op' || prod.name !== '*' || !Array.isArray(prod.args) || prod.args.length !== 2) return null
+  const isVolume = (q) => !!q && q.type === 'series' && q.name === 'volume'
+  const tern = isVolume(prod.args[0]) ? prod.args[1] : isVolume(prod.args[1]) ? prod.args[0] : null
+  if (!tern || tern.type !== 'op' || tern.name !== '?:' || !Array.isArray(tern.args) || tern.args.length !== 3) return null
+  const [test, yes, src] = tern.args
+  if (!yes || yes.type !== 'num' || yes.value !== 0 || !src) return null
+  if (!test || test.type !== 'op' || test.name !== cmp || !Array.isArray(test.args) || test.args.length !== 2) return null
+  const [ch, zero] = test.args
+  if (!zero || zero.type !== 'num' || zero.value !== 0) return null
+  if (!ch || ch.type !== 'call' || ch.name !== 'change' || !Array.isArray(ch.args) || ch.args.length !== 1) return null
+  if (JSON.stringify(ch.args[0]) !== JSON.stringify(src)) return null
+  return { n: n.value, src }
+}
+
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
  *
  *  These are NOT approximations, and that distinction is the whole reason they are
@@ -8237,6 +8259,54 @@ export class Resolver {
     return hostAdmissible(this.table).has('cum') && ['cum', 'exp', 'ln', 'nz'].every((f) => own(fns, f))
   }
 
+  /** ⭐⭐ W19-H2 — Pine v4's TWO-SERIES `rsi(x, y)`, IN THE ONE SHAPE ITS MANUAL EQUATES.
+   *
+   *  The v4 reference (extracted 2026-10-05, `capture-queue-2026-10-05-w19-h2.md`): "If x
+   *  is a series and y is a series then x and y are considered to be 2 calculated MAs
+   *  for upward and downward changes", and its own `mfi` example computes `upper = sum(
+   *  volume * (change(src) <= 0 ? 0 : src), length)`, `lower` the same with `>= 0`, and
+   *  returns `rsi(upper, lower)` — "the same on pine" as `mfi(src, length)`. With `src`
+   *  = `hlc3` that is `mfiPine`, Pine's `ta.mfi(hlc3, n)` measured to the last bit
+   *  (`PINE_CALL_SHAPES.mfi`). Camarilla writes exactly those lines (`mfi = rsi(upper_s,
+   *  lower_s)`, camarilla:351-353).
+   *  ⛔ ONLY THAT SHAPE. Any other pair of series keeps the ordinary refusal: what
+   *  TradingView answers where `y` (or `x`, or both) is 0 or `na` is unmeasured
+   *  (Q-W19H2-c). Returns null (never throws) so the ordinary path decides. */
+  mfiThroughTwoSeriesRsi(args) {
+    if (!Array.isArray(args) || args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const raw = args.map((a) => (a.value !== undefined ? a.value : a))
+    if (!raw[1] || raw[1].type === 'number') return null
+    // ⛔ NOTHING IS RESOLVED UNLESS BOTH ARGUMENTS ARE WRITTEN AS SUMS (directly or
+    // through a plain binding): an ordinary `rsi(src, len)` must spend no extra
+    // budget here (72s-hull's `rsi(input(close), input(14))` did, pineProbeReplay).
+    const isSumCall = (n) => !!n && n.type === 'call' && (n.name === 'sum' || n.name === 'math.sum')
+    const writtenAsSum = (n) => {
+      if (isSumCall(n)) return true
+      if (!n || n.type !== 'name' || !this.env || typeof this.env.get !== 'function') return false
+      const b = this.env.get(n.name)
+      return !!b && b.kind === 'expr' && isSumCall(b.node)
+    }
+    if (!writtenAsSum(raw[0]) || !writtenAsSum(raw[1])) return null
+    const fns = (this.table && this.table.functions) || {}
+    if (!own(fns, 'mfiPine')) return null
+    let x
+    let y
+    try {
+      x = this.resolve(raw[0])
+      y = this.resolve(raw[1])
+    } catch (err) {
+      if (err instanceof PineRefusal) return null
+      throw err
+    }
+    const up = moneyFlowSumOf(x, '<=')
+    const down = moneyFlowSumOf(y, '>=')
+    if (!up || !down || up.n !== down.n) return null
+    const want = derivedSeriesTree('hlc3', this.table)
+    const key = want ? JSON.stringify(want) : null
+    if (!key || JSON.stringify(up.src) !== key || JSON.stringify(down.src) !== key) return null
+    return cCall('mfiPine', [cSeries('high'), cSeries('low'), cSeries('close'), cSeries('volume'), cNum(up.n)])
+  }
+
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
    *  saying `pine:builtin` about either would name the wrong thing. A dotted name
    *  whose first segment is a type the script DECLARED, or a local the script
@@ -12551,6 +12621,12 @@ export class Resolver {
         left: { type: 'call', name: 'math.round', tok,
           args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
       })
+    }
+    // ⭐⭐ W19-H2 — v4 `rsi(upper, lower)` OVER THE TWO MONEY-FLOW SUMS IS `mfi(hlc3, n)`
+    // (see `mfiThroughTwoSeriesRsi`). Anything else falls through to the ordinary call.
+    if (pineName === 'rsi' && this.pineVersion === 4) {
+      const viaMfi = this.mfiThroughTwoSeriesRsi(args)
+      if (viaMfi) return viaMfi
     }
     const bare = normaliseName(base)
     const ownCross = this.crossOfOwnState(base, args, tok)

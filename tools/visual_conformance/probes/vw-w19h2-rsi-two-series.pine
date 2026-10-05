@@ -1,0 +1,40 @@
+//@version=4
+study("UCTPROBE_VW_W19H2_RSI_TWO_SERIES", overlay = false)
+// --- 2026-10-05 W19-H2 - Pine v4's two-series `rsi(x, y)` -------------------------
+//
+// CAPTURE: NYSE:RDDT 1D from the listing AND AMEX:SPY 1D (full history), inputs at
+// defaults. A compile or runtime error is a reading: record the message and the row.
+//
+// The v4 reference (extracted 2026-10-05 from en.26771.d93d4d04181ebca94978.js, ids
+// 15702 / 647261): "If x is a series and y is integer then x is a source series and y
+// is a length." / "If x is a series and y is a series then x and y are considered to
+// be 2 calculated MAs for upward and downward changes." Its own `mfi` example writes
+// `rsi(upper, lower)` with `upper` / `lower` the two money-flow sums ("the same on
+// pine"). W19-H2 serves ONLY that shape (camarilla:353), as `mfi(hlc3, n)`; every
+// other two-series call stays refused until these rows say what TradingView does
+// where `y` (or `x`, or both) is 0 or `na`.
+//
+//   R00  bar_index (CONTROL: 0 on the first bar = from the listing)
+//   R01  rsi(upper_s, lower_s), camarilla's own lines         R02  mfi(hlc3, 14) CONTROL
+//   R03  R01 - R02  -> 0 on every bar if the served identity holds
+//   R04  rsi(rma(up, 14), rma(dn, 14))                       R05  rsi(close, 14) CONTROL
+//   R06  R04 - R05  -> 0 if two-series rsi is 100 - 100 / (1 + x / y) on Wilder's pair
+//   R07  y == 0 on every 5th bar (x > 0)    R08  x == 0 on every 5th bar
+//   R09  x == y == 0 on every 5th bar       R10  y `na` on bar 0 only
+upper_s = sum(volume * (change(hlc3) <= 0 ? 0 : hlc3), 14)
+lower_s = sum(volume * (change(hlc3) >= 0 ? 0 : hlc3), 14)
+plot(bar_index, "R00_bar_index_CONTROL")
+plot(rsi(upper_s, lower_s), "R01_camarilla_mfi_shape")
+plot(mfi(hlc3, 14), "R02_mfi_hlc3_14_CONTROL")
+plot(rsi(upper_s, lower_s) - mfi(hlc3, 14), "R03_R01_minus_R02_MUST_BE_0")
+up = max(change(close), 0)
+dn = max(-change(close), 0)
+plot(rsi(rma(up, 14), rma(dn, 14)), "R04_two_rmas")
+plot(rsi(close, 14), "R05_rsi_close_14_CONTROL")
+plot(rsi(rma(up, 14), rma(dn, 14)) - rsi(close, 14), "R06_R04_minus_R05")
+z = bar_index % 5 == 0 ? 0.0 : close
+plot(rsi(close, z), "R07_y_zero_every_5th")
+plot(rsi(z, close), "R08_x_zero_every_5th")
+zz = bar_index % 5 == 0 ? 0.0 : 1.0
+plot(rsi(zz, zz), "R09_both_zero_every_5th")
+plot(rsi(close, close[1]), "R10_y_na_on_bar_0")
