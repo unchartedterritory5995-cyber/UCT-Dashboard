@@ -69,6 +69,7 @@ export const RANKING_ORDER = Object.freeze([
   { key: 'prefix', label: 'Prefix match' },
   { key: 'fuzzy', label: 'Close spelling' },
   { key: 'frecency', label: 'Your most-used (tie-break)' },
+  { key: 'popular', label: 'Widely traded ticker, then A-Z (tie-break)' },
 ])
 
 // ── V16: natural language ─────────────────────────────────────────────────────

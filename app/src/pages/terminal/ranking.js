@@ -3,13 +3,21 @@
 //
 // Order of classes (grammar.js RANKING_ORDER, which HELP prints):
 //   0 exact alias · 1 exact function code · 2 exact ticker · 3 prefix · 4 close spelling
-// and inside a class: personal frecency (descending), then alphabetical. Frecency never
+// and inside a class: personal frecency (descending), then a widely traded ticker (the app's
+// popular list, in its order), then alphabetical. Frecency never
 // lifts a row across a class boundary — an exact match always outranks a habit.
 import { FUNCTIONS, editDistance } from './functions'
 import { RANKING_ORDER } from './grammar'
+import { POPULAR_RESULTS } from '../../components/chart/symbolSearchModel'
 
 export const CLASS = Object.freeze(Object.fromEntries(
-  RANKING_ORDER.filter((r) => r.key !== 'frecency').map((r, i) => [r.key, i])))
+  RANKING_ORDER.filter((r) => r.key !== 'frecency' && r.key !== 'popular').map((r, i) => [r.key, i])))
+
+// Live audit 2026-10-05: alphabetical alone put NVA, NVC, NVD, NVG, NVO, NVR ahead of NVDA for
+// "NV" (and TSLA, AAPL, MSFT, AMZN fell out of "TS", "AA", "MS", "AM"). Among equally good
+// ticker matches the name members actually trade comes first.
+const POPULAR_RANK = new Map(POPULAR_RESULTS.map((r, i) => [r.ticker, i]))
+const NOT_POPULAR = POPULAR_RANK.size
 
 /** Half-life of a command's weight, in days. */
 export const FRECENCY_HALF_LIFE_DAYS = 14
@@ -46,7 +54,8 @@ export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, 
     const c = classify(t, value)
     if (!c) return
     const cls = c === 'exact' ? exactClass : c
-    rows.push({ kind, value, label, rank: cls, _c: CLASS[cls], _f: frecency(stats[value], nowSec) })
+    const _p = kind === 'ticker' && POPULAR_RANK.has(value) ? POPULAR_RANK.get(value) : NOT_POPULAR
+    rows.push({ kind, value, label, rank: cls, _c: CLASS[cls], _f: frecency(stats[value], nowSec), _p })
   }
   for (const [name, expansion] of Object.entries(aliases)) add('alias', name, `→ ${expansion}`, 'alias')
   if (codes) for (const f of FUNCTIONS) add('function', f.code, f.label, 'verb')
@@ -54,10 +63,10 @@ export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, 
     const v = String(r.value || '').toUpperCase()
     if (!v) continue
     // A ticker the search returned on a NAME match ranks as close spelling, never above one.
-    if (!classify(t, v)) { rows.push({ kind: 'ticker', value: v, label: r.label || '', rank: 'fuzzy', _c: CLASS.fuzzy, _f: 0 }); continue }
+    if (!classify(t, v)) { rows.push({ kind: 'ticker', value: v, label: r.label || '', rank: 'fuzzy', _c: CLASS.fuzzy, _f: 0, _p: NOT_POPULAR }); continue }
     add('ticker', v, r.label || '', 'symbol')
   }
-  rows.sort((a, b) => a._c - b._c || b._f - a._f || (a.value < b.value ? -1 : a.value > b.value ? 1 : 0))
+  rows.sort((a, b) => a._c - b._c || b._f - a._f || a._p - b._p || (a.value < b.value ? -1 : a.value > b.value ? 1 : 0))
   const seen = new Set()
   const out = []
   for (const r of rows) {

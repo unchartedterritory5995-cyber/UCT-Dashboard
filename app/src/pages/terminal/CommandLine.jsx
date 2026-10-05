@@ -115,7 +115,9 @@ function searchTickers(q, signal) {
   const key = q.toUpperCase()
   const hit = searchCache.get(key)
   if (hit && Date.now() - hit.at < 60000) return hit.promise
-  const promise = jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=6`, { signal })
+  // 20, not 6: the search orders by length then A-Z, so a well-known name (NVDA for "NV") can
+  // sit past its sixth row; ranking.js decides what the member sees.
+  const promise = jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal })
     .then((d) => (Array.isArray(d?.results) ? d.results : []))
   promise.catch(() => searchCache.delete(key))
   searchCache.set(key, { at: Date.now(), promise })
@@ -164,7 +166,7 @@ export default function CommandLine({ onSubmit, inputRef: externalRef, placehold
       const sq = q.replace(/^\$/, '')
       if (!/^[A-Za-z][A-Za-z.-]{0,6}$/.test(sq)) return
       searchTickers(sq, ac.signal)
-        .then((rows) => { if (!ac.signal.aborted) setTickers(rows.slice(0, 6).map((r) => ({
+        .then((rows) => { if (!ac.signal.aborted) setTickers(rows.map((r) => ({
           value: String(r.ticker || '').toUpperCase(), label: r.name || '',
         })).filter((r) => r.value)) })
         .catch(() => {})

@@ -7,6 +7,7 @@ import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import CommandLine, {
   HISTORY_KEY, ECHO_ANNOUNCE_MS, acceptSuggestion, didYouMean, echoFor, registrySuggestions,
 } from './CommandLine'
+import { rankCandidates } from './ranking'
 
 function tickerSearch(rows) {
   global.fetch = vi.fn(async (url) => {
@@ -142,5 +143,48 @@ describe('the rendered command line', () => {
     const echo = screen.getByTestId('terminal-echo')
     expect(echo).toHaveTextContent('NVDIA is not a ticker we know — did you mean NVDA?')
     expect(echo.dataset.tone).toBe('warn')
+  })
+})
+
+describe('live audit: the ticker list leads with the names members trade', () => {
+  // The search's own order for "NV" (measured on production 2026-10-05): NVDA was 16th.
+  const NV = ['NVA', 'NVC', 'NVD', 'NVG', 'NVO', 'NVR', 'NVS', 'NVT', 'NVX', 'NVAX', 'NVBT', 'NVBU',
+    'NVBW', 'NVCR', 'NVCT', 'NVDA', 'NVDB'].map((ticker) => ({ ticker }))
+
+  const tickers = (rows) => rows.map((r) => ({ value: r.ticker, label: '' }))
+  const values = (out) => out.filter((r) => r.kind === 'ticker').map((r) => r.value)
+
+  it('ranking: among prefix matches a widely traded ticker leads; an exact ticker still beats it', () => {
+    expect(values(rankCandidates('NV', { tickers: tickers(NV), codes: false, limit: 6 }))[0]).toBe('NVDA')
+    expect(values(rankCandidates('NVD', { tickers: tickers(NV), codes: false, limit: 6 }))[0]).toBe('NVD')
+    // Without a popular name in the list the order is the published A-Z, unchanged.
+    const plain = NV.filter((r) => r.ticker !== 'NVDA')
+    expect(values(rankCandidates('NV', { tickers: tickers(plain), codes: false, limit: 30 })))
+      .toEqual(plain.map((r) => r.ticker).sort())
+  })
+
+  it('ranking: personal habit still outranks popularity inside a class', () => {
+    const out = rankCandidates('NV', { tickers: tickers(NV), codes: false, limit: 3, stats: { NVO: { n: 9, last: 1e10 } }, nowSec: 1e10 })
+    expect(values(out).slice(0, 2)).toEqual(['NVO', 'NVDA'])
+  })
+
+  it('typing TS shows TSLA first (it asks the search for 20, not 6)', async () => {
+    // TS, not NV: the search answers are cached per query for a minute across this file.
+    const TS = ['TS', 'TSI', 'TSL', 'TSM', 'TSN', 'TSQ', 'TSAT', 'TSBK', 'TSLA'].map((ticker) => ({ ticker }))
+    const seen = []
+    global.fetch = vi.fn(async (url) => {
+      seen.push(String(url))
+      return { ok: true, status: 200, json: async () => ({ results: TS }) }
+    })
+    render(<CommandLine onSubmit={() => {}} />)
+    typeText('TSX')
+    await wait(50)
+    typeText('TS')
+    await wait(400)
+    expect(seen.some((u) => u.includes('limit=20'))).toBe(true)
+    const rows = [...screen.getByTestId('terminal-suggestions').querySelectorAll('li')].map((li) => li.textContent)
+    expect(rows[0]).toMatch(/^TS(?!L)/)          // the exact match leads…
+    expect(rows[1]).toMatch(/^TSLA/)             // …then the name members trade
+    expect(rows.length).toBeLessThanOrEqual(6 + 10)
   })
 })
