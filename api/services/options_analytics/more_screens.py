@@ -31,7 +31,8 @@ MORE = {
     "by_expiration": {"label": "Options by expiration", "source": "screen", "description":
                       "Per underlying and expiration: total volume and open interest, the call share of "
                       "volume, and the at-the-money IV (the strike nearest the logged spot). Sorted by "
-                      "volume."},
+                      "volume, then open interest; volume is blank (not zero) when the file logged "
+                      "none."},
     "block_trades": {"label": "Option block trades", "source": "tape", "description":
                      "Today's prints the flow tape types BLOCK, largest premium first."},
 }
@@ -47,30 +48,32 @@ def catalog() -> dict:
 
 def _butterflies(con, underlyings, prices: dict) -> tuple:
     sc, args = ss._scope(underlyings)
+    # O7: the wings are found IN SQL (the next liquid strike below via LAG, the matching strike
+    # above by equality) and the CANDIDATE_CAP cut is taken on reward to risk, the screen's own
+    # sort key -- not on the center's open interest.
+    width = "((c.strike_m - c.p_strike_m) / 10.0)"
+    debit = "(c.p_ask_c + hi.ask_c - 2 * c.bid_c)"
     centers = con.execute(
-        f"SELECT {ss._COLS} FROM contracts WHERE cp = 'C' AND otm_d BETWEEN -30 AND 30 AND dte BETWEEN 14 AND 60 "
-        f"AND oi >= 100 AND bid_c > 0{sc} ORDER BY oi DESC LIMIT ?", [*args, ss.CANDIDATE_CAP]).fetchall()
+        f"WITH liq AS (SELECT {ss._COLS}, {ss._neighbour_cols('LAG', 'p_')} FROM contracts "
+        f"WHERE cp = 'C' AND dte BETWEEN 14 AND 60 AND oi >= 100{sc} "
+        f"WINDOW w AS (PARTITION BY underlying, exp ORDER BY strike_m)) "
+        f"SELECT {ss._qual('c')}, {', '.join('c.p_' + x for x in ss._LEG_COLS)}, {ss._qual('hi')} "
+        f"FROM liq c JOIN liq hi ON hi.underlying = c.underlying AND hi.exp = c.exp "
+        f"AND hi.strike_m = 2 * c.strike_m - c.p_strike_m "
+        f"JOIN underlyings u ON u.underlying = c.underlying "
+        f"WHERE u.price > 0 AND c.otm_d BETWEEN -30 AND 30 AND c.bid_c > 0 AND c.p_strike_m IS NOT NULL "
+        f"AND {debit} > 0 AND {debit} < {width} "
+        f"ORDER BY ({width} - {debit}) * 1.0 / {debit} DESC, c.oi DESC LIMIT ?",
+        [*args, ss.CANDIDATE_CAP]).fetchall()
     out = []
+    n = len(ss._COL_LIST)
     for t in centers:
-        c = ss._row(t)
+        c = ss._row(t[:n])
         px = prices.get(c["underlying"])
         if not px:
             continue
-        exp_i = int(c["expiration"].replace("-", ""))
-        km = int(round(c["strike"] * 1000))
-        lo = con.execute(
-            f"SELECT {ss._COLS} FROM contracts WHERE underlying = ? AND exp = ? AND cp = 'C' AND strike_m < ? "
-            f"AND oi >= 100 ORDER BY strike_m DESC LIMIT 1", [c["underlying"], exp_i, km]).fetchone()
-        if lo is None:
-            continue
-        lo = ss._row(lo)
-        hi_m = 2 * km - int(round(lo["strike"] * 1000))
-        hi = con.execute(
-            f"SELECT {ss._COLS} FROM contracts WHERE underlying = ? AND exp = ? AND cp = 'C' AND strike_m = ? "
-            f"AND oi >= 100", [c["underlying"], exp_i, hi_m]).fetchone()
-        if hi is None:
-            continue
-        hi = ss._row(hi)
+        lo = ss._row(ss._leg_tuple(t, t[:n], n))
+        hi = ss._row(t[n + len(ss._LEG_COLS):])
         if lo["ask"] is None or hi["ask"] is None or c["bid"] is None:
             continue
         width = round(c["strike"] - lo["strike"], 2)
@@ -88,20 +91,26 @@ def _butterflies(con, underlyings, prices: dict) -> tuple:
 
 def _by_expiration(con, underlyings, prices: dict, limit: int) -> tuple:
     sc, args = ss._scope(underlyings)
+    # O8: SUM over a column that is NULL on every row is NULL, and stays NULL: a screen file
+    # logged without volume (the real 2026-09-30 file had none) must read "volume unknown", not
+    # "nothing traded". Ordering puts known volume first, then open interest.
     groups = con.execute(
-        f"SELECT underlying, exp, MIN(dte), SUM(COALESCE(vol, 0)), SUM(COALESCE(oi, 0)), "
-        f"SUM(CASE WHEN cp = 'C' THEN COALESCE(vol, 0) ELSE 0 END), COUNT(*) FROM contracts "
-        f"WHERE 1 = 1{sc} GROUP BY underlying, exp ORDER BY SUM(COALESCE(vol, 0)) DESC, underlying, exp "
+        f"SELECT underlying, exp, MIN(dte), SUM(vol), SUM(COALESCE(oi, 0)), "
+        f"SUM(CASE WHEN cp = 'C' THEN vol END), COUNT(*), COUNT(vol) FROM contracts "
+        f"WHERE 1 = 1{sc} GROUP BY underlying, exp "
+        f"ORDER BY SUM(vol) IS NULL, SUM(vol) DESC, SUM(COALESCE(oi, 0)) DESC, underlying, exp "
         f"LIMIT ?", [*args, max(1, min(MAX_ROWS, limit))]).fetchall()
     out = []
-    for und, exp_i, dte, vol, oi, cvol, n in groups:
+    for und, exp_i, dte, vol, oi, cvol, n, n_vol in groups:
         atm = con.execute(
             "SELECT iv_bp, otm_d FROM contracts WHERE underlying = ? AND exp = ? AND iv_bp IS NOT NULL "
             "AND otm_d IS NOT NULL ORDER BY ABS(otm_d), cp LIMIT 1", [und, exp_i]).fetchone()
         out.append({"underlying": und, "underlying_price": prices.get(und),
                     "expiration": f"{exp_i // 10000:04d}-{exp_i // 100 % 100:02d}-{exp_i % 100:02d}",
-                    "dte": dte, "volume": int(vol), "open_interest": int(oi), "contracts": n,
-                    "call_share_pct": round(cvol / vol * 100, 1) if vol else None,
+                    "dte": dte, "volume": None if vol is None else int(vol),
+                    "volume_contracts_counted": n_vol,
+                    "open_interest": int(oi), "contracts": n,
+                    "call_share_pct": round((cvol or 0) / vol * 100, 1) if vol else None,
                     "atm_iv": None if atm is None else atm[0] / 10000})
     return out, len(out)
 
