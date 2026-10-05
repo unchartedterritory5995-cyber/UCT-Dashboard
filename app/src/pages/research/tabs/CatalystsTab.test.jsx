@@ -60,6 +60,43 @@ describe('CatalystsTab', () => {
   })
 })
 
+// TERM-088 -- a failed read must render as an error, never as the genuine
+// "no catalysts recorded" empty state.
+describe('CatalystsTab -- failed read vs genuine empty state', () => {
+  async function renderWith(mockReturn) {
+    vi.resetModules()
+    vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => mockReturn }))
+    const { default: FreshTab } = await import('./CatalystsTab')
+    return render(<FreshTab sym="NVDA" />)
+  }
+
+  it('renders the error state on a failed read, not "No catalysts recorded for this ticker yet."', async () => {
+    await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
+    expect(screen.getByTestId('catalysts-error')).toHaveTextContent("Couldn't load catalyst history")
+    expect(screen.queryByText('No catalysts recorded for this ticker yet.')).not.toBeInTheDocument()
+  })
+
+  it('still renders the genuine empty state when the read succeeded with no entries', async () => {
+    await renderWith({ data: { entries: [] }, isLoading: false, error: false, mutate: () => {} })
+    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.queryByTestId('catalysts-error')).not.toBeInTheDocument()
+  })
+
+  it('a 402 shows the paid-plan copy, not the outage + Retry', async () => {
+    await renderWith({ data: null, isLoading: false, error: false, paywalled: true, mutate: () => {} })
+    expect(screen.getByTestId('catalysts-paywalled').textContent).toBe('Catalyst history requires a paid plan.')
+    expect(screen.queryByTestId('catalysts-error')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
+  it('Retry calls mutate', async () => {
+    const mutate = vi.fn()
+    await renderWith({ data: null, isLoading: false, error: true, mutate })
+    screen.getByText('Retry').click()
+    expect(mutate).toHaveBeenCalled()
+  })
+})
+
 describe('whenLabel', () => {
   it('reports unknown rather than blank or a fabricated date for a missing/malformed market_date', async () => {
     const { whenLabel } = await import('./CatalystsTab')

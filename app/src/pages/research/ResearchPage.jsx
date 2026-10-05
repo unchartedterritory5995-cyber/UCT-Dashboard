@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { parseResearchReturnParam, researchReturnTarget, researchReturnLabel } from '../../lib/journal-2-0'
 import useResearchOverview from './hooks/useResearchOverview'
+import useLatestReport from './hooks/useLatestReport'
 import ResearchHeader from './ResearchHeader'
 import useRatings from './hooks/useRatings'
 import OverviewTab from './tabs/OverviewTab'
@@ -156,6 +157,10 @@ export default function ResearchPage() {
   // same convention as `section` above -- this is a one-time entry marker,
   // not live state the tab-switching UI needs to track.
   const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
+  // `?section=depth&panel=<depth flag key>` (the /terminal EVTS / FTD / … "Full page" link)
+  // lands on that one Depth panel. Seeded once, like `section`; DepthTab ignores a key that is
+  // not one of its panels, so a stale or hand-typed value just opens the tab as before.
+  const [depthFocus] = useState(() => searchParams.get('panel') || null)
   // Chart/Technical Intelligence Convergence ships DARK behind
   // RESEARCH_TECHNICAL_TAB_ENABLED (off by default, read per request off the
   // auth payload — see api/routers/auth.py::_access_payload). With it off the
@@ -188,6 +193,7 @@ export default function ResearchPage() {
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
+  const report = useLatestReport(sym)
   const headerRatings = ratingsData ? { composite: ratingsData.composite, ...(ratingsData.components || {}) } : null
 
   if (!isPaid) {
@@ -219,7 +225,7 @@ export default function ResearchPage() {
           >{t}</button>
         ))}
       </nav>
-      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
+      {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={report.row} reportState={report.state} retryReport={report.retry} error={data.error} mutate={data.mutate} />}
       {active === 'News' && <NewsTab sym={sym} />}
       {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}
@@ -241,7 +247,7 @@ export default function ResearchPage() {
       {active === 'People' && <PeopleTab sym={sym} />}
       {active === 'Estimate history' && <EstimateHistoryTab sym={sym} />}
       {active === 'Filings feed' && <FilingsFeedTab sym={sym} />}
-      {active === 'Depth' && <DepthTab sym={sym} flags={researchDepth} />}
+      {active === 'Depth' && <DepthTab sym={sym} flags={researchDepth} focus={depthFocus} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />

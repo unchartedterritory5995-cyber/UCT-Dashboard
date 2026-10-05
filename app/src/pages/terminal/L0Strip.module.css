@@ -106,3 +106,16 @@
 .strip[data-phone='true'] .chipLabel {
   font-size: 9px;
 }
+
+/* A stale exposure reading (wire_status === 'stale'): dimmed and dated, like MarketBreadth's
+ * wire stamp, so yesterday's number never reads as today's. */
+.regimeStale {
+  opacity: 0.6;
+  border-style: dashed;
+}
+.regimeStale .chipValue { color: var(--text-muted); }
+.chipAsOf {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

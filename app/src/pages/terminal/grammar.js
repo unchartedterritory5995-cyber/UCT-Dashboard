@@ -8,12 +8,17 @@
 //
 // ⛔ PURE. No React, no fetch. Everything here is table-driven-tested in grammar.test.js.
 import { BY_CODE, ABSENT, isCode } from './functions'
+import { applyArgs, argsEcho } from './args'
 
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
  *  2026-10-02; e.g. CF = CF Industries, DASH = DoorDash). `grammar.test.js` pins every
- *  entry to a registered code, so this list cannot name a code the registry dropped. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'GP', 'FORM', 'COMM', 'RES', 'LIVE', 'MB', 'DP'])
+ *  entry to a registered code, so this list cannot name a code the registry dropped.
+ *  Cross-checked against `api/data/cap_universe.json` (2026-10-05 collision-list audit):
+ *  GP, MB, LIVE, DP and COMM were removed — none is a tracked symbol, so warning on them
+ *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
+ *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'EXP'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '
@@ -26,10 +31,14 @@ export function isTickerCollision(code) {
 }
 
 // ── V6b: channels ─────────────────────────────────────────────────────────────
-/** `@A NVDA` targets the panel(s) linked to group A; `@2 NVDA GP` targets panel 2. */
-export const CHANNEL_RE = /^@([A-Da-d]|[1-4])$/
+/** `@A NVDA` targets the panel(s) linked to group A; `@2 NVDA GP` targets panel 2. A–D are the
+ *  /charts groups; E … Z (then C27, C28 …) are the groups a board adds (boardModel
+ *  `nextChannelId`), so every group the board can create is addressable. Whether THIS board
+ *  has the group is the shell's answer (`channelTarget`), never a parse refusal. */
+export const CHANNEL_RE = /^@([A-Za-z]|[Cc]\d{2,3}|[1-4])$/
 export const CHANNEL_RULE = '@A … @D sends the command to the panel linked to that colour '
-  + 'group (and so to every panel in it); @1 … @4 sends it to that panel number.'
+  + 'group (and so to every panel in it), @E and later to a group your board added; @1 … @4 '
+  + 'sends it to that panel number.'
 
 // ── V6b: member aliases ───────────────────────────────────────────────────────
 /** Words the grammar itself owns: never usable as an alias name. */
@@ -171,14 +180,34 @@ export function describeCommand(cmd) {
     const mode = cmd.compareMode || compareMode(cmd.sym, other)
     const what = !other ? `${cmd.sym} vs …` : mode === 'sector' ? `${cmd.sym} vs its sector ETF`
       : `${cmd.sym} vs ${String(other).toUpperCase()}${mode === 'index' ? ' (index vs index)' : ''}`
+    // The same leftover check the shell refuses on (SECTOR is the mode marker; AMD is {arg0}).
+    const leftover = mode === 'sector' ? (cmd.args || []).slice(1) : applyArgs(fn?.ticker, cmd.args || []).ignored
+    if (other && leftover.length) {
+      return { text: `Compare ${what}${via}${ch}${leaves}. ${argsEcho(cmd.code, { applied: [], ignored: leftover, takes: [] })}`,
+        tone: 'warn', shape }
+    }
     return { text: `Compare ${what}${via}${ch}${leaves}`, tone: other ? 'ok' : 'warn', shape }
   }
-  const on = cmd.sym ? ` on ${cmd.sym}` : (fn?.ticker && !fn?.market ? ' on the linked security' : '')
+  // A market-wide code given a ticker (`NVDA DASH`): the shell drops the ticker, so say so.
+  const marketOnly = !!(cmd.sym && fn && !fn.ticker)
+  const on = cmd.sym && !marketOnly ? ` on ${cmd.sym}` : (fn?.ticker && !fn?.market ? ' on the linked security' : '')
   const extra = cmd.args?.length && cmd.code !== 'HELP' ? ` · ${cmd.args.join(' ')}` : ''
   const base = `${cmd.code}: ${label}${on}${extra}${via}${ch}${leaves}`
-  if (cmd.collision) {
-    return { text: `${base}. ${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`,
-      tone: 'warn', shape }
+  const notes = []
+  let tone = 'ok'
+  if (marketOnly) { notes.push(`${cmd.code} is market-wide; ${cmd.sym} is ignored.`); tone = 'warn' }
+  if (cmd.collision) { notes.push(`${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`); tone = 'warn' }
+  if (cmd.argNotTicker) {
+    notes.push(`${cmd.argNotTicker} is read as ${cmd.code}'s argument; type $${cmd.argNotTicker} for the ticker.`)
   }
-  return { text: base, tone: 'ok', shape }
+  // The SAME argument check Enter runs (args.js applyArgs): a token the code cannot take is
+  // said here, before Enter, never only after it.
+  if (fn && cmd.code !== 'HELP' && cmd.args?.length) {
+    // (CMP returned above; its comparator is the door's own {arg0}.)
+    const variant = cmd.sym && fn.ticker ? fn.ticker : (fn.market || fn.ticker)
+    const applied = applyArgs(variant, cmd.args)
+    if (applied.ignored.length) { notes.push(argsEcho(cmd.code, { ...applied, applied: [] })); tone = 'warn' }
+  }
+  if (notes.length) return { text: `${base}. ${notes.join(' ')}`, tone, shape }
+  return { text: base, tone, shape }
 }

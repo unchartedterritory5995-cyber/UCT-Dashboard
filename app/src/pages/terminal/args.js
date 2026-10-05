@@ -29,6 +29,16 @@ function shiftIso(iso, days) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/** `YYYY-MM-DD` shape is not enough — native `Date` auto-rolls an impossible day
+ *  (`2026-02-30` becomes 2026-03-02) rather than rejecting it. Parse the three parts and
+ *  confirm the Date round-trips to the SAME y/m/d; a rollover means it was never real. */
+function isRealIsoDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(dt.getTime())) return false
+  return dt.getFullYear() === y && dt.getMonth() + 1 === m && dt.getDate() === d
+}
+
 /**
  * Each kind: `parse(token, ctx)` → a value or null (not this kind), `describe(value)` → the
  * echo text, and `takes` → what to tell a member whose token did not fit.
@@ -51,7 +61,7 @@ export const ARG_KINDS = {
         const w = thisWeek && shiftIso(thisWeek, t === 'NEXT' ? 7 : -7)
         return w ? { week: w, d: null } : null
       }
-      if (/^\d{4}-\d{2}-\d{2}$/.test(tok) && mondayOf(tok)) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(tok) && isRealIsoDate(tok) && mondayOf(tok)) {
         return { week: mondayOf(tok) === thisWeek ? null : mondayOf(tok), d: tok }
       }
       return null

@@ -64,8 +64,15 @@ export default function VolSurfacePanel({ sym, expiration }) {
 
       <h4 className={styles.volHead}>Smile · {smile?.expiration || '—'}</h4>
       {drawnSmile ? (
-        <EChart option={smileOpt} height={200} testId="vol-smile-chart"
-                ariaLabel={`Implied volatility by strike for the ${smile.expiration} expiration, calls and puts`} />
+        <>
+          <ul className={styles.legend} data-testid="vol-smile-legend" aria-label="Smile legend">
+            {smile?.calls?.drawable && <li><span className={`${styles.legendSwatch} ${styles.legendCall}`} aria-hidden="true" />Calls</li>}
+            {smile?.puts?.drawable && <li><span className={`${styles.legendSwatch} ${styles.legendPut}`} aria-hidden="true" />Puts</li>}
+            {Number.isFinite(Number(d.spot)) && <li><span className={`${styles.legendSwatch} ${styles.legendSpot}`} aria-hidden="true" />Spot</li>}
+          </ul>
+          <EChart option={smileOpt} height={200} testId="vol-smile-chart"
+                  ariaLabel={`Implied volatility by strike for the ${smile.expiration} expiration, calls and puts`} />
+        </>
       ) : null}
       <SideNote side={smile?.calls} testId="smile-calls" />
       <SideNote side={smile?.puts} testId="smile-puts" />

@@ -64,6 +64,7 @@ vi.mock('./panels', async (importOriginal) => {
 })
 
 import TerminalShell from './TerminalShell'
+import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
 
 function setViewport(width) {
@@ -106,6 +107,8 @@ async function type(text) {
 }
 
 beforeEach(() => {
+  saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
+  try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
   store.prefs = {}
   store.writes = []
   setViewport(1400)
@@ -260,6 +263,15 @@ describe('V6a: arguments are honoured, and every one is echoed', () => {
     expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "EXTRA"')
   })
 
+  it('FIX 2: NVDA CMP SECTOR FOO surfaces a dropped-arg notice, same as the AMD case, and never navigates', async () => {
+    renderAt('/terminal')
+    await type('NVDA CMP SECTOR FOO')
+    // Previously the SECTOR branch read only `sym` and ignored `cmd.args` entirely, so "FOO"
+    // was silently dropped and the (still-pending) sector lookup would have navigated anyway.
+    expect(screen.getByTestId('where').textContent).toBe('/terminal')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "FOO"')
+  })
+
   it('HELP GP hands the help panel its focus code', async () => {
     renderAt('/terminal')
     await type('HELP GP')
@@ -310,6 +322,20 @@ describe('the command line: doors, deep links, addresses, history', () => {
     expect(screen.getByTestId('where').textContent).toBe('/terminal/calendar?earnings=NVDA')
   })
 
+  it('FIX 1: NVDA ERN from /terminal keeps its ERN identity after the calendar-entry effect runs — not clobbered to CAL', async () => {
+    // Navigating from /terminal to /terminal/calendar re-matches a DIFFERENT <Route>, which
+    // remounts TerminalShell and re-arms the `enteredCalendar` effect. That effect used to key
+    // only on `p.code === 'CAL'`, so on this exact remount it never recognised the just-created
+    // ERN panel as "the calendar is already here" and silently overwrote it back to bare CAL.
+    renderAt('/terminal')
+    await type('NVDA ERN')
+    expect(screen.getByTestId('where').textContent).toBe('/terminal/calendar?earnings=NVDA')
+    const panel = await screen.findByTestId('terminal-panel-0')
+    expect(panel.getAttribute('data-code')).toBe('ERN')
+    expect(panel).toHaveTextContent('NVDA ERN')
+    expect(JSON.parse(store.prefs.terminal_layout).panels[0].code).toBe('ERN')
+  })
+
   it('an address needs the address-space flag, and says so when it is off', async () => {
     renderAt('/terminal')
     await type('L:12')
@@ -352,13 +378,60 @@ describe('linked panels', () => {
     renderAt('/terminal')
     await type('CAL')
     expect(screen.getAllByTestId('stub-Calendar')).toHaveLength(1)
-    expect(JSON.parse(store.prefs.terminal_layout).focus).toBe(0)
+    // focus moved to the calendar's slot (a focus-only change is held on screen, not posted)
+    expect(screen.getByTestId('terminal-panel-0').dataset.focused).toBe('true')
   })
 
   it('arriving on /terminal/calendar shows the calendar in the focused panel', async () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
     renderAt('/terminal/calendar')
     expect(await screen.findByTestId('stub-Calendar')).toBeTruthy()
+  })
+})
+
+describe('FIX 5: the pop-out window handle is kept and closed, not discarded', () => {
+  it('"Bring it back" closes the real window handle `window.open()` returned', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
+    const fakeWin = { closed: false, close: vi.fn(() => { fakeWin.closed = true }) }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeWin)
+    try {
+      renderAt('/terminal')
+      await act(async () => { fireEvent.click(screen.getByTestId('terminal-popout-0')) })
+      expect(openSpy).toHaveBeenCalledTimes(1)
+      expect(await screen.findByTestId('terminal-popped-0')).toBeTruthy()
+
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('terminal-popped-0')).getByRole('button', { name: 'Bring it back' }))
+      })
+      expect(fakeWin.close).toHaveBeenCalledTimes(1)
+      expect(screen.queryByTestId('terminal-popped-0')).toBeNull()
+    } finally {
+      openSpy.mockRestore()
+    }
+  })
+
+  it('does not throw when the member already closed the pop-out window by hand', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'GP', group: 'N', sym: 'NVDA' }] }) }
+    const fakeWin = { closed: false, close: vi.fn(() => { fakeWin.closed = true }) }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(fakeWin)
+    try {
+      renderAt('/terminal')
+      await act(async () => { fireEvent.click(screen.getByTestId('terminal-popout-0')) })
+      await screen.findByTestId('terminal-popped-0')
+
+      // The member closed the real browser window by hand — `.closed` is now true on the
+      // handle the shell is holding, but nobody told the shell via "Bring it back" yet.
+      fakeWin.closed = true
+
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('terminal-popped-0')).getByRole('button', { name: 'Bring it back' }))
+      })
+      // `.close()` is never called on an already-closed handle, and nothing throws.
+      expect(fakeWin.close).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('terminal-popped-0')).toBeNull()
+    } finally {
+      openSpy.mockRestore()
+    }
   })
 })
 
@@ -374,7 +447,10 @@ describe('FIX: the H14 ?cmd= write-budget guard surfaces a user-facing notice wh
       for (const c of codes) await type(c)
 
       const notice = screen.getByTestId('terminal-notice')
-      expect(notice).toHaveTextContent(/reload/i)
+      // Accurate (audit #16): the budget is a sliding window that resumes by itself — no
+      // "reload" instruction — and a trailing write catches the URL up (its own rail below).
+      expect(notice).toHaveTextContent(/catches up/i)
+      expect(notice).not.toHaveTextContent(/reload/i)
       expect(notice.textContent.toLowerCase()).toMatch(/address bar|url/)
       expect(quiet).toHaveBeenCalledWith(expect.stringContaining('write budget'))
     } finally {
@@ -455,14 +531,16 @@ describe('FIX: the channel-link popover survives a layout mutation (re-keyed by 
 describe('PHONE (<=640): one panel, the command line pinned first, functions in a Sheet', () => {
   beforeEach(() => setViewport(390))
 
-  it('renders exactly one panel even when the layout holds four', () => {
+  it('shows exactly one panel even when the layout holds four (the rest stay mounted, hidden)', () => {
     store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 4, focus: 2, panels: [
       { code: 'GP', group: 'A' }, { code: 'DES', group: 'A' }, { code: 'CN', group: 'N', sym: 'AMD' }, { code: 'FA', group: 'A' },
     ] }) }
     renderAt('/terminal')
-    const panels = screen.getAllByTestId(/^terminal-panel-/)
-    expect(panels).toHaveLength(1)
-    expect(panels[0].getAttribute('data-testid')).toBe('terminal-panel-2')
+    const panels = screen.getAllByTestId(/^terminal-panel-\d+$/)
+    expect(panels).toHaveLength(4)
+    const shown = panels.filter((el) => !el.hidden)
+    expect(shown).toHaveLength(1)
+    expect(shown[0].getAttribute('data-testid')).toBe('terminal-panel-2')
     expect(screen.getByTestId('terminal-grid').getAttribute('data-count')).toBe('1')
     expect(screen.queryByTestId('terminal-count-4')).toBeNull()
   })

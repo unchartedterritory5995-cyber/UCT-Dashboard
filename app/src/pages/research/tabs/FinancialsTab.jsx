@@ -15,6 +15,13 @@ function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(
 function fmtMargin(v) { return v == null ? '—' : `${v.toFixed(1)}%` }
 function fmtVal(v, suffix = '') { return v == null ? '—' : `${v}${suffix}` }
 
+// yfinance states debt/equity as a PERCENT (150 = 1.5x) -- see
+// api/services/metric_disagreement.py -- so it is shown as the ratio it means.
+export function fmtDebtToEquity(v) {
+  const n = Number(v)
+  return v == null || v === '' || !Number.isFinite(n) ? '—' : `${(n / 100).toFixed(2)}×`
+}
+
 function heat(v) {
   if (v == null) return ''
   if (v >= 25) return styles.heatPos2
@@ -202,7 +209,7 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           <div className={styles.ct}>Balance sheet</div>
           <div className={styles.kv}><span>Cash</span><b>{fmtVal(bal.cash)}</b></div>
           <div className={styles.kv}><span>Total debt</span><b>{fmtVal(bal.total_debt)}</b></div>
-          <div className={styles.kv}><span>Debt / equity</span><b>{fmtVal(bal.debt_to_equity)}</b></div>
+          <div className={styles.kv}><span>Debt / equity</span><b data-testid="debt-to-equity">{fmtDebtToEquity(bal.debt_to_equity)}</b></div>
           <div className={styles.kv}><span>Current ratio</span><b>{fmtVal(bal.current_ratio)}</b></div>
           <div className={styles.kv}><span>Free cash flow</span><b>{fmtVal(bal.fcf)}</b></div>
         </section>

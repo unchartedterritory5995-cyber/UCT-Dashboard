@@ -1,4 +1,5 @@
 import useDarkSection from './useDarkSection'
+import OffNotice from './OffNotice'
 import { money } from './MarketTidePanel'
 import styles from './optionsAnalytics.module.css'
 
@@ -182,11 +183,26 @@ function DealerShort({ sym }) {
   )
 }
 
-export default function PositioningPanel({ sym }) {
+// Every route this panel reads, in render order -- OffNotice asks the SAME keys (SWR shares the
+// request), so it can say "not switched on" exactly when every block above rendered nothing.
+export const positioningUrls = (s) => [
+  `/api/options/positioning/${enc(s)}/levels`,
+  `/api/options/positioning/${enc(s)}/heatmap?dte=month`,
+  `/api/options/positioning/${enc(s)}/delta-heatmap?dte=month`,
+  `/api/options/positioning/${enc(s)}/charm-heatmap?dte=month`,
+  `/api/options/positioning/${enc(s)}/max-pain?dte=month`,
+  `/api/options/positioning/${enc(s)}/nope`,
+  `/api/options/positioning/${enc(s)}/impact`,
+  `/api/options/positioning/${enc(s)}/dealer-short`,
+]
+
+// `offNotice`: set by the terminal's POS, which opens this panel on its own.
+export default function PositioningPanel({ sym, offNotice = false }) {
   const s = (sym || '').toUpperCase().trim()
   if (!s) return null
   return (
     <div data-testid="positioning">
+      {offNotice && <OffNotice urls={positioningUrls(s)} feature="Options positioning" />}
       <Levels sym={s} />
       <Heatmap sym={s} />
       <Heatmap sym={s} path="delta-heatmap" title="Delta pressure by strike and expiry" testid="posn-delta-heatmap" what="The delta-pressure heatmap" />

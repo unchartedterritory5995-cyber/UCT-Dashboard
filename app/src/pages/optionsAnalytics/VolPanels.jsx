@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import useDarkSection from './useDarkSection'
+import { OffLine } from './OffNotice'
 import styles from './optionsAnalytics.module.css'
 
 // FT-006 IV rank in the chain header, FT-019 option monitor strip, FT-020 volatility stats.
@@ -15,7 +16,10 @@ const pct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${(Nu
 
 export function IvRankBadge({ sym, fallback = null }) {
   const { data, hidden, failed, loading } = useDarkSection(sym ? `/api/options/vol/${enc(sym)}/iv-rank` : null)
-  if (hidden || failed || loading || !data || typeof data.sentence !== 'string') return fallback
+  if (hidden) return fallback
+  if (loading) return <span className={styles.muted} data-testid="iv-rank-badge-loading">Loading…</span>
+  if (failed) return <span className={styles.muted} data-testid="iv-rank-badge-failed">IV rank is unavailable right now.</span>
+  if (!data || typeof data.sentence !== 'string') return fallback
   const title = `${data.method} ${data.n} session${data.n === 1 ? '' : 's'} logged since ${data.logging_began || '—'}.`
   if (data.iv_rank == null) {
     return <span className={styles.muted} data-testid="iv-rank-badge" title={title}>{data.sentence}</span>
@@ -26,6 +30,16 @@ export function IvRankBadge({ sym, fallback = null }) {
       <span className={styles.muted}> · pctl {Math.round(data.iv_percentile)} · {data.window_sessions} sessions</span>
     </span>
   )
+}
+
+// The volume / P/C read covers ONE expiration and a band of strikes, and that used to live only in a
+// tooltip, so "P/C 0.5" read as the whole chain's. Say it in visible text. The strike count is read
+// from the server's own note (vol.py), never retyped here; without it only the expiry is said.
+export function volumeScope(v) {
+  if (!v?.expiration) return null
+  const [, m, d] = String(v.expiration).split('-')
+  const n = /the (\d+) strikes nearest spot/i.exec(v.note || '')?.[1]
+  return `front expiry ${m}/${d}${n ? `, ${n} strikes nearest spot` : ''}`
 }
 
 export function OptionMonitorStrip({ sym }) {
@@ -48,6 +62,7 @@ export function OptionMonitorStrip({ sym }) {
       <span title={v.note || ''}>
         Vol C/P <b>{v.call_volume == null ? '—' : v.call_volume.toLocaleString()}</b>/<b>{v.put_volume == null ? '—' : v.put_volume.toLocaleString()}</b>
         {v.put_call_ratio != null ? <span className={styles.muted}> · P/C {v.put_call_ratio}</span> : null}
+        {volumeScope(v) ? <span className={styles.muted} data-testid="option-monitor-scope"> ({volumeScope(v)})</span> : null}
       </span>
       {data.hv_note ? <span className={styles.muted}>{data.hv_note}</span> : null}
     </div>
@@ -58,10 +73,15 @@ function useVol(sym, kind) {
   return useDarkSection(sym ? `/api/options/vol/${enc(sym)}/${kind}` : null)
 }
 
-export function VolStatsPanel({ sym }) {
+// `offNotice`: set by the terminal's VOL, which opens this panel on its own. When all three routes
+// answer 404 it says the stats are not switched on, instead of opening blank.
+export function VolStatsPanel({ sym, offNotice = false }) {
   const rv = useVol(sym, 'realized')
   const cm = useVol(sym, 'interpolated-iv?days=30')
   const vp = useVol(sym, 'vrp')
+  if (offNotice && rv.off && cm.off && vp.off) {
+    return <OffLine feature="Volatility stats" />
+  }
   if (rv.hidden && cm.hidden && vp.hidden) return null
   if (rv.loading && cm.loading && vp.loading) return null
   // a body that is not a volatility answer (another route's JSON, an HTML page) renders nothing

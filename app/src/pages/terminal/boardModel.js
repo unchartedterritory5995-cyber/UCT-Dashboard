@@ -67,6 +67,8 @@ const upperSym = (v) => {
 }
 
 export const isCompatChannel = (id) => COMPAT_CHANNELS.includes(id)
+/** The identity of a security for de-duplication: the class separator is spelled both ways. */
+export const symKey = (s) => String(s || '').toUpperCase().replace(/-/g, '.')
 
 const DEFAULT_PANEL_SPECS = [
   { code: 'CAL', channel: 'A' },
@@ -319,7 +321,8 @@ export function applyChannelSym(layout, channelId, sym) {
     channels: layout.channels.map((c) => (c.id !== channelId ? c : {
       ...c,
       sym: isCompatChannel(c.id) ? null : s,
-      history: [s, ...c.history.filter((h) => h !== s)].slice(0, HISTORY_MAX),
+      // BRK.B and BRK-B are one security: the recents list keeps one of them, the newest.
+      history: [s, ...c.history.filter((h) => symKey(h) !== symKey(s))].slice(0, HISTORY_MAX),
     })),
   }
 }

@@ -187,7 +187,7 @@ export default function OwnershipTab({ sym }) {
         </div>
       )}
 
-      <div className={styles.grid}>
+      <div className={styles.cardGrid}>
         <section className={styles.card}>
           <div className={styles.ct}>Institutional ownership</div>
           <div className={styles.kv}><span>% of shares outstanding</span><b>{fmtPct(inst.pct_held)}</b></div>

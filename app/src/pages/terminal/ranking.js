@@ -33,7 +33,12 @@ function classify(t, value) {
  * (`[{value,label}]`), `aliases` = `{NAME: expansion}`, `stats` = `{KEY: {n,last}}`.
  * Returns `[{kind, value, label, rank}]`, where `rank` names the class it won.
  */
-export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, nowSec, limit = 10, codes = true } = {}) {
+export function rankCandidates(token, { aliases = {}, tickers = [], stats = {}, nowSec, limit = 10, codes: wantCodes = true } = {}) {
+  // A `$` token is a ticker by the member's own say-so: it never completes to a function code
+  // or an alias (`$CF` + Tab used to become the CF *function*).
+  const forced = String(token || '').startsWith('$')
+  const codes = wantCodes && !forced
+  if (forced) aliases = {}
   const t = String(token || '').toUpperCase().replace(/^\$/, '')
   if (!t) return []
   const rows = []

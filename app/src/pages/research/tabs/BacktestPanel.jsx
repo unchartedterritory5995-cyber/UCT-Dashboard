@@ -22,6 +22,14 @@ import useDarkSection from '../../optionsAnalytics/useDarkSection'
 
 const POLL_MS = 2000
 
+// ⛔ THE EARNINGS ANCHOR IS OFFERED BUT DISABLED. Every earnings run answers ZERO trades today, because
+// the backend never has a report time: api/services/engine.py:370 writes `"reportTime": ""` (FMP does
+// not expose before-open / after-close), and options_backtest.py:700 (`timing_of`) maps an empty time to
+// None, which :773-775 exclude as "the report time ... is not on file" -- every quarter, every ticker.
+// Flip this (or replace it with a catalog field) only once the backend supplies AMC/BMO timing.
+export const EARNINGS_TIMING_ON_FILE = false
+export const EARNINGS_ANCHOR_OFF_NOTE = 'Earnings prints are not available yet: our earnings file does not record whether a company reported before the open or after the close, so no print can be placed and every run would return zero trades.'
+
 async function startRun(sym, body) {
   const r = await fetch(`/api/research/options/${encodeURIComponent(sym)}/backtest`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -33,7 +41,8 @@ async function startRun(sym, body) {
   return { status: j }
 }
 
-export default function BacktestPanel({ sym }) {
+// `earningsAnchor` defaults to EARNINGS_TIMING_ON_FILE; tests pass it to keep the earnings path covered.
+export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON_FILE }) {
   const [kind, setKind] = useState('long_call')
   const [dte, setDte] = useState(30)
   const [offset, setOffset] = useState(0)
@@ -49,7 +58,7 @@ export default function BacktestPanel({ sym }) {
   const cat = useDarkSection(sym ? `/api/research/options/${encodeURIComponent(sym)}/backtest-catalog` : null)
   const more = Array.isArray(cat.data?.strategies) ? cat.data : null
   const [anchor, setAnchor] = useState('monthly')
-  const earnings = Boolean(more) && anchor === 'earnings'
+  const earnings = Boolean(more) && earningsAnchor && anchor === 'earnings'
   const choices = more
     ? more.strategies.map((x) => [x.id, x.label, x.uses_width])
     : Object.entries(STRATEGIES).map(([k, v]) => [k, v.label, v.strikes === 2])
@@ -99,10 +108,13 @@ export default function BacktestPanel({ sym }) {
           <label>Anchor{' '}
             <select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
               <option value="monthly">Monthly expirations</option>
-              <option value="earnings">Earnings prints (AMC / BMO)</option>
+              <option value="earnings" disabled={!earningsAnchor}>
+                {earningsAnchor ? 'Earnings prints (AMC / BMO)' : 'Earnings prints (AMC / BMO) — not available yet'}
+              </option>
             </select>
           </label>
         )}
+        {more && !earningsAnchor && <span className={styles.muted} data-testid="backtest-earnings-off">{EARNINGS_ANCHOR_OFF_NOTE}</span>}
         {!earnings && <label>Enter{' '}
           <select aria-label="Entry days before expiry" value={dte} onChange={(e) => setDte(Number(e.target.value))}>
             {ENTRY_DTES.map((d) => <option key={d} value={d}>{d} trading days before expiry</option>)}
@@ -142,7 +154,7 @@ export default function BacktestPanel({ sym }) {
       {poll.error && <p className={styles.note} data-testid="backtest-error">The backtest result is unavailable right now.</p>}
       {st && (st.state === 'queued' || st.state === 'running') && (
         <p className={styles.note} data-testid="backtest-running">
-          Simulating {sym} over the past year of monthly expirations… {st.budget_text || ''}
+          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}… {st.budget_text || ''}
         </p>
       )}
       {st?.state === 'failed' && <p className={styles.note} data-testid="backtest-error">{st.error}</p>}

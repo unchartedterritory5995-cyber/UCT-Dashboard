@@ -8,6 +8,8 @@
 .grid th, .grid td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); }
 .grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
 .strike, .strikeHead { text-align: center !important; font-weight: 700; color: var(--text-heading); background: var(--bg-surface); position: sticky; left: 0; }
+/* In the money at today's spot (a call below it, a put above it). Lighter than the ATM row, which wins. */
+.itm { background: color-mix(in srgb, var(--text-muted) 10%, transparent); }
 .atm td { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
 /* BRK-01 increment 2 — payoff at expiration, under the chain. */
 .payoff { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
@@ -29,3 +31,20 @@
 .mode { display: inline-flex; gap: 4px; }
 .mode button { min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
 .mode button[aria-pressed='true'] { border-color: var(--ut-gold, #c9a84c); color: var(--text-heading); }
+/* Small chart legends (the IV smile): a line swatch per series, so colour is never the only key. */
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 2px 0 4px; padding: 0; font-size: 12px; color: var(--text-muted); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.legendSwatch { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--text-muted); }
+.legendCall { border-top-color: var(--gain); }
+.legendPut { border-top-color: var(--loss); }
+.legendSpot { border-top: 1px dashed var(--text-muted); }
+/* The column key: header tooltips made reachable on touch (a tap opens it). */
+.colKey { margin: 6px 0; font-size: 12px; color: var(--text-muted); }
+.colKey summary { cursor: pointer; color: var(--text); display: inline-flex; align-items: center; }
+.colKey dl { margin: 4px 0 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 10px; }
+.colKey dl > div { display: contents; }
+.colKey dt { font-weight: 700; color: var(--text); }
+.colKey dd { margin: 0; }
+@media (max-width: 1024px) {
+  .colKey summary { min-height: var(--tap-min); }
+}
