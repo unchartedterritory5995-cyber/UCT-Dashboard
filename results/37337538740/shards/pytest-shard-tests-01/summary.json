@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 3556,
+  "passed": 3545,
+  "failed": 9,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 678.83,
+  "failed_files": [
+    "tests/test_a12_s6_consistency_rail.py",
+    "tests/test_account_tombstones.py",
+    "tests/test_ai_doors_census.py",
+    "tests/test_alert_outbound.py",
+    "tests/test_alert_taxonomy_indicator_condition_schema.py",
+    "tests/test_alert_taxonomy_position_risk_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "9 failed, 3545 passed, 2 skipped, 30 warnings in 678.83s (0:11:18)",
+  "ok": true
+}
