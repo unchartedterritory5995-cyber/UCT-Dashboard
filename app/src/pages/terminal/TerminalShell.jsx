@@ -31,12 +31,14 @@ import { useAuth } from '../../context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
+import FreshnessBadge from '../../components/provenance/FreshnessBadge'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel from './panels/HelpPanel'
+import { PanelFreshnessContext } from './panelFreshness'
 import parseCommand from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
@@ -135,7 +137,7 @@ function channelOf(layout, id) {
   return layout.channels.find((c) => c.id === id) || null
 }
 
-function Panel({
+export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone,
 }) {
@@ -150,6 +152,13 @@ function Panel({
   const owner = rowsOwner(panel)
   const rowsProp = useMemo(() => (focused && onRows ? (rows) => onRows(rows, owner) : undefined),
     [focused, onRows, owner])
+  // V8 — panel freshness badges. OPT-IN: a panel that never calls `usePanelFreshness` never
+  // calls this setter, so `freshness` stays null and no badge renders (`panelFreshness.js`).
+  // The Provider below is keyed identically to the body's ErrorBoundary, so switching the
+  // panel's security/args unmounts the old subtree (running `usePanelFreshness`'s cleanup,
+  // which clears this via the same setter) before the new one mounts — never a stale badge
+  // held over from the previous security.
+  const [freshness, setFreshness] = useState(null)
   return (
     <section
       className={`${styles.panel} ${focused ? styles.panelFocused : ''}`}
@@ -181,6 +190,11 @@ function Panel({
         <span className={styles.panelTitle}>
           <span className={styles.code}>{title}</span>
           <span className={styles.panelLabel}>{r.fn?.label || ''}</span>
+          {freshness && (
+            <span className={styles.panelFreshness} data-testid={`terminal-panel-freshness-${index}`}>
+              <FreshnessBadge {...freshness} />
+            </span>
+          )}
         </span>
         {full && <Link className={styles.panelLink} to={full}>Full page</Link>}
         {!standalone && (
@@ -212,13 +226,18 @@ function Panel({
             key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}
             fallback={<PanelCrashed code={panel.code} />}
           >
-            <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
-              {r.name === 'Help'
-                ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
-                : r.name === 'Move'
-                  ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
-                  : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
-            </Suspense>
+            {/* V8: a fresh Provider per panel identity (same key as the ErrorBoundary above) so
+                switching security/args clears a stale badge rather than carrying the previous
+                security's freshness into the next one's loading state. */}
+            <PanelFreshnessContext.Provider value={setFreshness} key={`${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`}>
+              <Suspense fallback={<div className={styles.panelEmpty}>Loading {panel.code}…</div>}>
+                {r.name === 'Help'
+                  ? <Comp {...r.props} onRun={onRun} onRows={rowsProp} {...helpProps} />
+                  : r.name === 'Move'
+                    ? <Comp sym={r.sym || undefined} onRun={onRun} onRows={rowsProp} />
+                    : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
+              </Suspense>
+            </PanelFreshnessContext.Provider>
           </ErrorBoundary>
         )}
         {!panel.popout && r.state === 'needs-ticker' && (

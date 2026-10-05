@@ -605,6 +605,12 @@
   font-size: var(--text-sm);
 }
 
+/* V8 — a panel-reported freshness badge (`panelFreshness.js`), beside the function label. Never
+   shrinks below its content; the label beside it is what ellipsizes under width pressure. */
+.panelFreshness {
+  flex: 0 0 auto;
+}
+
 .panelLink {
   flex: 0 0 auto;
   color: var(--accent);
