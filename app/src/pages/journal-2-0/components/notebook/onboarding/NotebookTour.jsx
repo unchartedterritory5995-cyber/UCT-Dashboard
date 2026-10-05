@@ -54,6 +54,11 @@ import styles from './NotebookTour.module.css'
 export { TOUR_PREF, TOUR_STATES, readTourPref, isOnScreen, anchorFor }
 /** How long the auto-start waits for the page it points at to finish its first paint. */
 export const AUTO_START_DELAY_MS = 300
+/** Wave 14 (W14-C2): how long the Replay door (`state.startTour`) waits for step 1's
+ *  anchor on a cold load, and how often it looks. Bounded, like the generic engine's own
+ *  START_WAIT_MS: a first-run screen that never comes still opens on what is there. */
+export const REPLAY_FIRST_STEP_WAIT_MS = 8000
+const REPLAY_POLL_MS = 100
 const ACTIVE_ATTR = 'data-tour-active'
 
 /** The steps whose anchors are on screen now, in tour order. */
@@ -142,6 +147,9 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
   // very timer it had just set.
   const startTimerRef = useRef(null)
   useEffect(() => () => clearTimeout(startTimerRef.current), [])
+  // Wave 14 (W14-C2): the note count, read by the Replay door's timer when it fires.
+  const notesRef = useRef({ notesKnown, hasAnyNotes })
+  notesRef.current = { notesKnown, hasAnyNotes }
   useEffect(() => {
     if (!enabled || !location.state?.startTour) return
     const rest = { ...location.state }
@@ -149,12 +157,25 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
     navigate(`${location.pathname}${location.search}`, { replace: true, state: Object.keys(rest).length ? rest : null })
     // Arriving from another page, the Notebook is still painting: give it the same moment
     // the auto-start gives it before looking for anchors.
+    // ⛔ W14-C2: on a COLD load the notes are still loading when that moment passes, so the
+    // first-run screen -- the one carrying step 1's anchor -- is not painted yet, and the
+    // tour used to begin at step 2 ("Folders and tags"). Wait, bounded, for step 1's anchor
+    // while it can still arrive: the note count is unknown, or known to be zero. A member
+    // WITH notes never sees that screen, so for them it opens at once, exactly as before.
     clearTimeout(startTimerRef.current)
-    startTimerRef.current = setTimeout(() => {
+    const askedAt = Date.now()
+    const fire = () => {
+      const { notesKnown: known, hasAnyNotes: has } = notesRef.current
+      const firstMayArrive = !(known && has)
+      if (firstMayArrive && !anchorFor(TOUR_STEPS[0].anchor) && Date.now() - askedAt < REPLAY_FIRST_STEP_WAIT_MS) {
+        startTimerRef.current = setTimeout(fire, REPLAY_POLL_MS)
+        return
+      }
       startTimerRef.current = null
       const first = open(null)
       if (first) record(TOUR_STATES.started, first.id)
-    }, AUTO_START_DELAY_MS)
+    }
+    startTimerRef.current = setTimeout(fire, AUTO_START_DELAY_MS)
   }, [enabled, location.state, location.pathname, location.search, navigate, open, record])
 
   // ── the first-run stage: held for exactly as long as the card is open ──────────────
