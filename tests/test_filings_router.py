@@ -74,14 +74,31 @@ class TestFilingsEndpoint:
         assert r.status_code == 200
         mock_rf.assert_called_once_with("MSFT", count=5)
 
-    def test_empty_safe_on_error(self, client):
-        """recent_filings raises → endpoint returns safe empty shape."""
+    def test_a_raising_read_is_a_503_not_an_empty_list(self, client):
+        """R7: a failed read is not "this company has no filings"."""
         with patch("api.routers.filings.recent_filings", side_effect=RuntimeError("network error")):
             r = client.get("/api/filings/ERR")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["ticker"] == "ERR"
-        assert data["filings"] == []
+        assert r.status_code == 503
+
+    def test_an_SEC_outage_is_a_503(self, client):
+        """R7: an outage used to answer 200 {"error": ...}."""
+        err = {"error": "SEC fetch failed: timed out", "error_kind": "unavailable"}
+        with patch("api.routers.filings.recent_filings", return_value=err):
+            r = client.get("/api/filings/AAPL")
+        assert r.status_code == 503
+        assert "SEC fetch failed" in r.json()["detail"]
+
+    def test_primary_on_an_SEC_outage_is_a_503_not_not_in_edgar(self, client):
+        err = {"error": "SEC fetch failed: timed out", "error_kind": "unavailable"}
+        with patch("api.routers.filings.recent_filings", return_value=err):
+            r = client.get("/api/filings/AAPL/primary")
+        assert r.status_code == 503
+
+    def test_primary_for_a_ticker_SEC_does_not_list_is_still_not_in_edgar(self, client):
+        err = {"error": "ticker 'XXX' not found in SEC CIK map", "error_kind": "not_found"}
+        with patch("api.routers.filings.recent_filings", return_value=err):
+            r = client.get("/api/filings/XXX/primary")
+        assert r.status_code == 200 and r.json()["reason"] == "not_in_edgar"
 
     def test_error_dict_passthrough(self, client):
         """If recent_filings returns an error dict it still passes through."""

@@ -39,9 +39,32 @@ def test_entity_miss_never_blocks_the_fetch(monkeypatch):
     assert len(out["filings"]) == 1   # the fetch itself is unaffected
 
 
-def test_unknown_ticker_error_shape_is_unchanged():
-    """The exact error shape S7's document_arrival.py (and the research
-    router) depend on -- must survive this pass untouched."""
+def test_unknown_ticker_error_shape_is_unchanged(monkeypatch):
+    """The error text S7's document_arrival.py (and the research router, and
+    useFilings.js's `no_filer` match) depend on -- unchanged. R7 adds only
+    `error_kind`. The map is stubbed as LOADED: this test used to reach sec.gov."""
+    _fake_cik_map(monkeypatch, {"AAPL": "0000320193"})
+    monkeypatch.setattr(sec_filings, "_edgar_resolve_cik", lambda t: None)
     out = sec_filings.recent_filings("ZZZZNOTATICKER")
-    assert out == {"error": "ticker 'ZZZZNOTATICKER' not found in SEC CIK map"}
+    assert out == {"error": "ticker 'ZZZZNOTATICKER' not found in SEC CIK map",
+                   "error_kind": "not_found"}
     assert "entity" not in out
+
+
+def test_R7_a_map_that_failed_to_load_is_unavailable_not_not_found(monkeypatch):
+    _fake_cik_map(monkeypatch, {})
+    monkeypatch.setattr(sec_filings, "_edgar_resolve_cik", lambda t: None)
+    out = sec_filings.recent_filings("AAPL")
+    assert out["error_kind"] == "unavailable"
+    assert "not found" not in out["error"]
+
+
+def test_R7_a_failed_submissions_read_is_unavailable(monkeypatch):
+    _fake_cik_map(monkeypatch, {"AAPL": "0000320193"})
+    monkeypatch.setattr(sec_filings._CACHE, "get", lambda k: None)
+
+    def boom(*a, **k):
+        raise RuntimeError("timed out")
+    monkeypatch.setattr(sec_filings.requests, "get", boom)
+    out = sec_filings.recent_filings("AAPL")
+    assert out["error_kind"] == "unavailable" and out["error"].startswith("SEC fetch failed")
