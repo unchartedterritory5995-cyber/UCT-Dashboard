@@ -70,12 +70,12 @@
   "high_engagement__22-reversal-probability-profile-algoalpha.pine": {
     "outputs": 8,
     "refusals": [
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign"
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection"
     ],
     "flat": 0,
     "pair": 0,
@@ -195,12 +195,12 @@
   "long_tail__09-signal-follow-through-ledger.pine": {
     "outputs": 6,
     "refusals": [
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign"
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection",
+      "pine:collection"
     ],
     "flat": 0,
     "pair": 0,
@@ -251,10 +251,10 @@
   "mid_engagement__12-structure-participation-matrix.pine": {
     "outputs": 6,
     "refusals": [
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
+      "pine:block",
+      "pine:block",
+      "pine:block",
+      "pine:block",
       "pine:reassign",
       "pine:reassign"
     ],

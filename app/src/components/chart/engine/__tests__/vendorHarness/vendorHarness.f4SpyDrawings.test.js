@@ -308,7 +308,10 @@ describe('F4 — what is withheld by name on the SPY captures, and whose it is',
     const c = cap('atr-support-and-resistance-spy-1d-2026-10-03')
     const d = doorDiagnostics(c)
     expect(d.dropReasons).toEqual({ 'guard:loop': 4, 'coll:diverged': 12, 'geometry:lost': 4, 'geometry:withheld': 4 })
-    expect(d.guardRefusals.every((g) => / pine:block /.test(g))).toBe(true)
+    // ⭐ W19-H1 — re-pinned: the main walk now steps over the loop in an `if` chain (Q-C46a), so
+    // each loop names its OWN wall — the float array it reads (`pine:collection`) — where it
+    // named the block (`pine:block`). Same four drops, same counts.
+    expect(d.guardRefusals.every((g) => / pine:collection$/.test(g)), d.guardRefusals.join(' / ')).toBe(true)
     const range = windowRange(c)
     expect(vendorObjects(c).filter((v) => v.f === 'line' && outsideWindow(v, range)).length).toBe(219)
     const r = graded('atr-support-and-resistance-rddt-1d-2026-09-28')

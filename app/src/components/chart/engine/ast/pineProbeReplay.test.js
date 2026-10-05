@@ -156,7 +156,12 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // 632 bars, `vendorHarness.b1Paints`). Every output, presentation and the object
         // program byte-identical (translation census). Pre-B1: plain [729, 429977,
         // '60011f510b56bd70'] / manifest [729, 429985, 'bde49be716751a27'].
-        plain: [730, 429985, '9817f6afa92980bd'], manifest: [730, 429993, 'b3663793714b5924'] },
+        // ⭐ W19-H1 moved artemis: the main walk steps over the loop in its `if` chain
+        // (Q-C46a), one more Resolver for the chain's second fold, 813 more steps. The
+        // wave-18 base already read +2 steps on this pin before W19-H1 (plain 429987 /
+        // manifest 429995, a pre-existing red); this pin is the W19-H1 tip as measured.
+        // Pre-W19-H1: plain [730, 429985, '9817f6afa92980bd'] / manifest [730, 429993, 'b3663793714b5924'].
+        plain: [731, 430798, '206b36f5b3e8e264'], manifest: [731, 430806, '6ac585909198fbb5'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
