@@ -49,6 +49,8 @@ const ACKNOWLEDGED = [
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
+  // P0 truth corpus (2026-10-05): one file per slice, run by `test:engine`.
+  'src/components/chart/engine/__truth__',
   'src/components/chart/engine/ast',
   'src/components/chart/engine/ast/__tests__',
   'src/components/chart/engine/runtime/__tests__',
@@ -193,6 +195,8 @@ const ACKNOWLEDGED_CHART = [
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
+  // P0 truth corpus (2026-10-05): one file per slice, run by `test:engine`.
+  'src/components/chart/engine/__truth__',
   'src/components/chart/engine/ast',
   'src/components/chart/engine/ast/__tests__',
   'src/components/chart/engine/runtime/__tests__',

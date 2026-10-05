@@ -106,6 +106,7 @@ import { resolveOtherSymbols, resolveFormulaSymbols, symTickersOf, isPineOriginD
 import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
+import { chartScalarRefusal, CHART_SCALAR_GUARD } from './chartScalars'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -2512,6 +2513,13 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: FORMULA_LTF_GUARD, message: ltfWhy.get(key) }
         continue
       }
+      // ⭐ P0 0F — a plot that reads a current-only scalar is refused by name
+      // (`chartScalars.js`), never drawn as the 0 a comparison makes of its hole.
+      const scalarWhy = chartScalarRefusal(trees[key])
+      if (scalarWhy) {
+        errors[key] = { guard: CHART_SCALAR_GUARD, message: scalarWhy }
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -2579,6 +2587,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
+  // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
+  const soleScalarWhy = chartScalarRefusal(def.compute.ast)
+  if (soleScalarWhy) return withColumnErrors({}, { [keys[0]]: { guard: CHART_SCALAR_GUARD, message: soleScalarWhy } })
   const clock = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,

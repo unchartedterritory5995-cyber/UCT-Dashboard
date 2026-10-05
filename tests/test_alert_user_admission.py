@@ -737,6 +737,16 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
         {"meta": {"recurrenceOrigin": "pine"},
          "compute": {"kind": "ast", "ast": {"type": "series", "name": "barindex"}}}))
 
+    # ⭐ P0 0F — DRIVEN DIRECTLY, like `withheld`: a tree reading a table-declared
+    # scalar (today's snapshot value, no bar history) is refused where the plot's
+    # tree is resolved, before it can arm and read a hole as a permanent "no".
+    capture("scalar", lambda: aus._make_value_fn(
+        DEF_ID, "value",
+        {"compute": {"kind": "ast", "ast": {
+            "type": "op", "name": ">", "args": [
+                {"type": "series", "name": "market_cap"},
+                {"type": "num", "value": 1e9}]}}}))
+
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))
 

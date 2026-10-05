@@ -83,6 +83,7 @@ GATES: tuple[str, ...] = (
     "bars",           # there are no bars to prove anything on
     "plot",           # the document declares v2 and names no tree for THIS plot
     "withheld",       # the lane answers "no number" for this plot on EVERY bar
+    "scalar",         # P0 0F: reads a current-only screener scalar (no history)
 )
 
 
@@ -141,6 +142,11 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # `ast_interpret.CHART_CLOCK_WHOLE`'s; the SENTENCES behind them have one
     # owner (`interpret.js::CHART_CLOCK_WITHHELD`) and are not copied here.
     "withheld": "is a value the alert lane cannot answer on any bar",
+    # P0 0F. A table-declared scalar (`market_cap`, `rs_rank`, ...) is TODAY'S
+    # value from the nightly screener snapshot, and this lane is offered none:
+    # `interpret` seeds it as a hole and the comparison collapses the hole to a
+    # confident 0 (X23), so the alert armed and could never fire.
+    "scalar": "reads a current-only screener value that has no bar history",
 }
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
@@ -514,6 +520,21 @@ def _make_value_fn(def_id: str, plot_key: str,
     # meant an alert that armed, said nothing, and never fired. Asked of THIS
     # plot's tree with the SAME opts the column below evaluates with; no bars are
     # needed (with no `tf` the decision reads none).
+    # ⭐ P0 0F -- THE SAME QUESTION THE SCREENER AND THE BACKTEST ASK BEFORE THEY
+    # EVALUATE (`unresolved_scalars`), asked here with NO scalars, because this
+    # lane never has any. A scalar is one number per symbol, dated to a nightly
+    # snapshot: the lane cannot supply it, and supplying today's value on past
+    # bars would fabricate a history. Refused by name instead of arming an alert
+    # that reads a hole through a comparison as a permanent "no".
+    # ⚠️ Only of a real tree: a missing/falsy one keeps ITS own refusal below.
+    scalars_read = (_lane.unresolved_scalars(tree, None)
+                    if isinstance(tree, Mapping) else [])
+    if scalars_read:
+        raise AdmissionRefused(
+            "scalar",
+            f"{address} {REFUSAL_FRAGMENTS['scalar']} ({', '.join(scalars_read)}): "
+            "it is one number per symbol from the nightly snapshot, so an alert "
+            "on it would arm and never fire. It works as a screen.")
     withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
     # ⭐⭐ P0 — AND A PLOT THAT READS A SERIES THIS LANE IS NEVER SUPPLIED. A
     # `sym('SPY', …)` or `ltf(…, '60')` evaluates off `opts["symbols"]` /
