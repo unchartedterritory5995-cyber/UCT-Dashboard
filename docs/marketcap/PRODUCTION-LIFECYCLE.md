@@ -265,12 +265,10 @@ exactly what the dark reader computes from the build DB: 0 differences.
 
 ## 12. Findings that block a fresh candidate
 
-1. **Refresh-induced identity loss (semantic defect, stop condition).** Issuer tickers come from SEC's CURRENT
-   submissions ticker list. When an issuer deregisters, SEC empties that list, and its whole Market Cap history
-   disappears from the next build. In 3 days of filings: WBS (15-12G, 2026-09-30; 1,124 valued days) and RITR
-   (240 days) vanished, and 22 issuers' SEC ticker lists changed. Every scheduled refresh would keep eroding the
-   history of acquired and deregistered companies. Fixing this changes the identity methodology and is an owner
-   decision.
+1. **Refresh-induced identity loss: RESOLVED by methodology M2 (owner decision 2026-10-05), see section 13.** Issuer
+   tickers came from SEC's CURRENT submissions list, so a deregistered or delisted issuer lost its whole history on the
+   next refresh (WBS 1,124 days, RITR 240 days). The same defect removed NXAT's former symbol KWM, which dropped NXAT's
+   accepted multi-class hold and produced the 30x Gate C block.
 2. **The accepted candidate is not at its own evidence fixed point.** Its build requested annual reports (econ) and
    split evidence that had never been harvested. Of the 186 issuers whose values differ between the refreshed dark build and the accepted candidate:
    - 20 had econ evidence the accepted build had itself requested but never harvested;
@@ -280,6 +278,48 @@ exactly what the dark reader computes from the build DB: 0 differences.
    - 149 filed after the freeze (WBS and RITR among them).
    Adjacent to the evidence-window edge, previously unparsed offering documents in late 2004 add small (< 1%) changes
    (LNG, PRAA).
-3. **Gate C refuses the refreshed build** for 2 new ≥10× historical blocks (DCTH 3 sessions, NXAT 42) that need human
-   adjudication. This is correct fail-closed behaviour, and it shows that while the frozen adjudications cover only
+3. **Gate C refuses the refreshed build.** NXAT (42 sessions) was caused by finding 1 and is gone under M2. DCTH
+   (3 sessions, 2020-05-01..05) remains and needs an owner decision (section 13). Originally both 2 new ≥10× historical
+   blocks needed human adjudication. This is correct fail-closed behaviour, and it shows that while the frozen adjudications cover only
    the reviewed cohort, automated advances will sometimes need a person.
+
+## 13. Durable issuer identity (methodology MCAP_V1-M2, owner decision 2026-10-05)
+
+ISSUER IDENTITY (the SEC CIK) is not the same thing as the CURRENT TICKER MAPPING, and neither is the CURRENT LISTING
+STATUS. Current discovery may add or update mappings; it may never erase proven historical identity.
+
+- **Ledger (`identity_ledger.py`, `identity.db`).** Evidence carried forward from run to run, only ever added to. It
+  holds every CIK -> ticker attribution SEC made, with the first and last snapshot dates. The seed is the accepted
+  candidate's own inputs (SEC snapshot as-of 2026-09-30).
+- **Refresh.** The `identity` stage copies the previous ledger and records this run's snapshot. With no ledger it
+  refuses to build. The universe is durable: prices, reference data and SEC inputs keep every retained issuer and ticker.
+- **Build.** An issuer is valued over its current tickers plus its RETAINED tickers. A retained ticker:
+  - is never current, and is served with `listing.current = false` and `last_attributed`;
+  - is valued only on bars up to its last attribution;
+  - is WITHHELD_REASSIGNED when Massive names another CIK for the symbol;
+  - counts as a second class only while it trades beside another listing.
+- **Gate R (`identity_delta.py`).** Every valued day of the accepted reference that a build no longer values must be one
+  of: a reason-coded EVIDENCE_HOLD, or ATTESTED. Gate R FAILS on:
+  - UNEXPLAINED days (neither valued nor reason-coded);
+  - an identity reason (not yet listed / ticker reuse / delisted);
+  - any hold on an issuer whose ticker mapping changed;
+  - a reassignment withhold;
+  - a missing reference.
+- **Proof (`C:/mcapid`, run-20261005-identity1, the same SEC bulk files as run-20261003-dark1).** Build
+  MCAP_V1-20261005T135436Z (sha 8db5e51e...):
+  - Reference vs build: 0 unexplained issuer or day losses.
+  - WBS 1,124/1,124 and RITR 240/240 days value-identical to the reference.
+  - NXAT back to the accepted hold.
+  - 361 removed days, all reason-coded new-evidence holds: NVA 347 (a post-freeze 10-K breaks the lineage
+    own-history exemption) plus 14 single days.
+  - Gate R PASS. Every gate except C PASS.
+  - Bite: gate R on the unfixed dark1 build FAILS exactly WBS 1,124 + RITR 240 UNEXPLAINED.
+  - Evidence: `C:/mcapid/reports_identity`.
+- **Known limitation (fails closed, not in the observed corpus).** Only the primary symbol's bars are valued. A renamed
+  issuer whose OLD and NEW symbols carry separate, non-stitched price series therefore loses the OLD-era days, and gate R
+  fails. Valuing a symbol chain needs a per-period primary and a per-symbol corporate-action ledger. That is a V2
+  identity decision.
+- **Open owner decision: DCTH (Gate C).** On an uplisting with a concurrent offering, the IPO rule values the listing
+  date (2020-05-01, before pricing) at a preliminary S-1/A post-offering projection (1,765,080 shares). Meanwhile the
+  issuer's own count in force (72,773) and the final 424B4 (2,272,773) say otherwise. Holding those 3 sessions needs a
+  new rule. The accepted candidate carries 922 preliminary-over-final IPO pairs; they are ordinary offering-size deltas.
