@@ -9,6 +9,7 @@ import { render, act } from '@testing-library/react'
 import {
   registerFirstRunSlot, getFirstRunSlot, useFirstRunSlot,
   claimFirstRunStage, isFirstRunStageHeld, useFirstRunStageHeld,
+  getFirstRunStageHolderCount, useFirstRunStageHolderCount,
 } from './firstRunStage'
 
 afterEach(() => { registerFirstRunSlot(null) })
@@ -71,5 +72,33 @@ describe('first-run stage: the hold', () => {
     act(() => { release = claimFirstRunStage() })
     act(() => { release() })
     expect(seen).toEqual([false, true, false])
+  })
+})
+
+describe('first-run stage: the holder count (wave 14, W14-C2)', () => {
+  it('counts open claims, so a claimant can tell its own hold from another one', () => {
+    expect(getFirstRunStageHolderCount()).toBe(0)
+    const mine = claimFirstRunStage()
+    expect(getFirstRunStageHolderCount() - 1 > 0, 'only my own claim: not held by others').toBe(false)
+    const theirs = claimFirstRunStage()
+    expect(getFirstRunStageHolderCount() - 1 > 0, 'a second claim: held by others').toBe(true)
+    theirs()
+    mine()
+    expect(getFirstRunStageHolderCount()).toBe(0)
+  })
+
+  it('re-renders a reader when the count changes', () => {
+    const seen = []
+    function Reader() {
+      seen.push(useFirstRunStageHolderCount())
+      return null
+    }
+    render(<Reader />)
+    let a
+    let b
+    act(() => { a = claimFirstRunStage() })
+    act(() => { b = claimFirstRunStage() })
+    act(() => { a(); b() })
+    expect(seen).toEqual([0, 1, 2, 0])
   })
 })
