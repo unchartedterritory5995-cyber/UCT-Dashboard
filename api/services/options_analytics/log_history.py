@@ -176,7 +176,10 @@ def iv_crush(sym: str, *, now: Optional[_dt.datetime] = None, store=None) -> dic
         except ValueError:
             continue
         timing = (q.get("reportTime") or "").lower()
-        anchor = rd if "post" in timing else ivh._prev_trading_day(rd)
+        from api.services.options_backtest import timing_of
+        when = timing_of(timing)                      # 'amc' / 'bmo' / None, the backtest's reader
+        known = when is not None
+        anchor = rd if when == "amc" else ivh._prev_trading_day(rd)
         window = {k: _shift(anchor, k).isoformat() for k in CRUSH_OFFSETS}
         if began is None or window[5] < began:
             before_log += 1
@@ -188,11 +191,16 @@ def iv_crush(sym: str, *, now: Optional[_dt.datetime] = None, store=None) -> dic
             else:
                 cells[str(k)] = iv_by.get(d)
         have = [v for v in cells.values() if v is not None]
+        # O4: with the timing unknown, session 0 is a guess (before the open), and for an
+        # after-the-close name the "crush" would measure the wrong day. The IV path is still
+        # shown; the crush number is left blank and the row says why.
         out_rows.append({"report_date": rd.isoformat(), "timing": timing or "unknown",
                          "session_0": anchor.isoformat(), "iv": cells,
-                         "complete": len(have) == len(CRUSH_OFFSETS),
+                         "complete": known and len(have) == len(CRUSH_OFFSETS),
                          "crush_pct": (round((cells["1"] / cells["0"] - 1) * 100, 1)
-                                       if cells.get("0") and cells.get("1") else None)})
+                                       if known and cells.get("0") and cells.get("1") else None),
+                         "crush_note": None if known else
+                         "Report time (before the open or after the close) not on file; no crush is computed."})
     complete = [r for r in out_rows if r["complete"]]
     out = {"symbol": sym, "label": "computed", "source": ivh.SOURCE, "method": CRUSH_METHOD,
            "offsets": list(CRUSH_OFFSETS), "prints": out_rows, "prints_before_log": before_log,
