@@ -72,8 +72,7 @@ def rig(world, tmp_path, monkeypatch):  # noqa: F811
             json.dump({"appended": [], "refused": None, "currentness": {"latest_venue_evidence_session": "2099"}},
                       open(os.path.join(exr.STORE_DIR, "STATUS.json"), "w"))
         elif "validate_live_store.py" in " ".join(args):
-            out = args[3]
-            os.makedirs(os.path.dirname(out), exist_ok=True)
+            out = args[3]                      # like the real validator: it does NOT create the directory
             json.dump({"pass": rig_state["validate_pass"]}, open(out, "w"))
         return R()
 
@@ -226,3 +225,28 @@ def test_an_explicit_code_commit_wins_over_the_image(monkeypatch):
     assert exr.code_commit() == "codedir"
     monkeypatch.delenv("BREADTH_EXCH_CODE_COMMIT")
     assert exr.code_commit() == "image"
+
+
+def test_retention_is_classified_never_deleted(rig, monkeypatch):
+    for d, t in (("2026-09-25", "pA"), ("2026-09-28", "pB"), ("2026-09-29", "pC")):
+        rig["publish_us"](d, t)
+    _cycle(rig)                                                   # authority now at 09-29
+    with prod._state() as c:                                      # a retry vintage that published nothing
+        c.execute("INSERT INTO vintage VALUES('pZ','','','','','pZ','pruned','{}')")
+    os.makedirs(os.path.join(rig["arch"], "pZ", "inputs_pZ"))
+    open(os.path.join(rig["arch"], "pZ", "inputs_pZ", "INPUT_MANIFEST.json"), "w").write("z")
+    open(os.path.join(rig["arch"], "pZ.SHA256SUMS"), "w").write("%s  ./inputs_pZ/INPUT_MANIFEST.json\n"
+                                                              % va.sha_file(os.path.join(rig["arch"], "pZ", "inputs_pZ", "INPUT_MANIFEST.json")))
+    rig["publish_us"]("2026-09-30", "pD")                         # published by US V2, not yet authoritative
+    monkeypatch.setenv("BREADTH_EXCH_COMPUTE_ENABLED", "0")
+    st = _cycle(rig)
+    v = st["retention"]["vintages"]
+    assert v["pA"]["class"] == "C_OWNER_AUTHORITATIVE" and v["pC"]["class"] == "C_OWNER_AUTHORITATIVE"
+    assert v["pD"]["class"] == "B_OWNER_NOT_YET_AUTHORITATIVE" and not v["pD"]["proposed_policy_would_tombstone"]
+    assert v["pZ"]["class"] == "E_SUPERSEDED_NON_OWNER" and v["pZ"]["proposed_policy_would_tombstone"]
+    assert all(os.path.isdir(os.path.join(rig["arch"], t)) for t in v)        # classification deletes nothing
+    import inspect
+    assert "rmtree" not in inspect.getsource(exr) and "os.remove" not in inspect.getsource(exr)
+    real = exr.retention_plan({"published": {"2026-09-25": "p202609292209"}, "ready": []}, "2026-10-02",
+                              archive_dir=rig["arch"])
+    assert real["policy"].startswith("PROPOSED, NOT ENFORCED")

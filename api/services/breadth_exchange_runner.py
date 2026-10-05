@@ -211,6 +211,7 @@ def _cycle(run, store) -> dict:
     validated = last_val.get("logical_sha256") == after["logical_sha256"] and last_val.get("pass") is True
     if after["sessions"] and not validated:
         out = os.path.join(RUNNER_ROOT, "validation", "validate_%s.json" % after["logical_sha256"][:12])
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         rc = _run([sys.executable, os.path.join(TOOLS, "validate_live_store.py"), os.path.join(STORE_DIR, STORE_DB),
                    out, PARENTS_ROOT], os.path.join(RUNNER_ROOT, "logs", "validate.log"), 1800, run)
         try:
@@ -244,6 +245,10 @@ def _cycle(run, store) -> dict:
         except Exception as e:  # noqa: BLE001
             authority = {"error": "%s: %s" % (type(e).__name__, e)}
     st.update(currentness(published, pv, after, ack, owners_unarchived, validated, authority))
+    try:
+        st["retention"] = retention_plan(pv, (authority or {}).get("latest_session"))
+    except Exception as e:  # noqa: BLE001
+        st["retention"] = {"error": "%s: %s" % (type(e).__name__, e)}
     _write_json(status_path(), st)
     _STATE["last"] = st
     return st
@@ -291,6 +296,49 @@ def currentness(published, pv, store, ack, owners_unarchived, validated, authori
             "archive_guard": {k: guard.get(k) for k in ("level", "reasons", "prune_blocked_count",
                                                         "oldest_prune_blocked", "unarchived_ready_vintages",
                                                         "verification_failures", "disk")}}
+
+
+# ── retention: CLASSIFY ONLY (no deletion path exists; the owner has not fixed a policy) ──────────
+#: PROPOSED (not enforced): an authoritative owner's archive may be reduced to its evidence tombstone
+#: (SUMS, ARCHIVED.json, INPUT_MANIFEST, grouped_vintage_manifest, pit_reference) once every session it
+#: owns has been member-authoritative for this many sessions.
+PROPOSED_HOT_SESSIONS = 5
+
+
+def retention_plan(pv: dict, authority_latest: Optional[str], archive_dir: Optional[str] = None) -> dict:
+    """Every archived vintage → class + bytes + what the PROPOSED policy would allow (dry-run)."""
+    archive_dir = archive_dir or prod.EXCH_ARCHIVE_DIR
+    exc = _declared_exceptions()
+    pinned = {sub for (_own, sub) in exc.values()}
+    owned: dict = {}
+    for d, t in pv["published"].items():
+        owned.setdefault(required_vintage(d, t, exc), []).append(d)
+    published = sorted(d for d in pv["published"] if d >= ea.LIVE_START)
+    out, tot = {}, {}
+    tags = sorted(f[:-len(va.SUMS_SUFFIX)] for f in os.listdir(archive_dir) if f.endswith(va.SUMS_SUFFIX))         if os.path.isdir(archive_dir) else []
+    for t in tags:
+        sess = sorted(owned.get(t, []))
+        if t in pinned:
+            cls, why = "A_PINNED_EXCEPTION", "approved compute substitute for %s" % sorted(
+                d for d, (_o, s) in exc.items() if s == t)
+        elif sess and (authority_latest is None or max(sess) > authority_latest):
+            cls, why = "B_OWNER_NOT_YET_AUTHORITATIVE", "must remain until %s is member-authoritative" % max(sess)
+        elif sess:
+            age = len([d for d in published if d > max(sess) and (authority_latest is None or d <= authority_latest)])
+            cls, why = "C_OWNER_AUTHORITATIVE", "%d authoritative session(s) since its last owned session" % age
+        elif t in pv["ready"]:
+            cls, why = "D_RECENT_NON_OWNER", "producer still holds it READY; owns no published session"
+        else:
+            cls, why = "E_SUPERSEDED_NON_OWNER", "owns no published session; producer has pruned it"
+        nbytes = va.tree_bytes(os.path.join(archive_dir, t))
+        eligible = (cls == "E_SUPERSEDED_NON_OWNER") or (
+            cls == "C_OWNER_AUTHORITATIVE" and int(why.split()[0]) >= PROPOSED_HOT_SESSIONS)
+        out[t] = {"class": cls, "why": why, "owned_sessions": sess, "bytes": nbytes,
+                  "proposed_policy_would_tombstone": eligible}
+        tot[cls] = tot.get(cls, 0) + nbytes
+    return {"policy": "PROPOSED, NOT ENFORCED (no deletion code path)", "hot_sessions": PROPOSED_HOT_SESSIONS,
+            "vintages": out, "bytes_by_class": tot, "archive_bytes": sum(tot.values()),
+            "reclaimable_under_proposal": sum(v["bytes"] for v in out.values() if v["proposed_policy_would_tombstone"])}
 
 
 def kick() -> None:

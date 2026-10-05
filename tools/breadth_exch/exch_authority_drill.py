@@ -179,9 +179,26 @@ eq["live_session (all but provenance/completed_at)"] = a.execute("SELECT %s FROM
     .fetchall() == b.execute("SELECT %s FROM live_session ORDER BY seq" % cols).fetchall()
 pa = json.loads(a.execute("SELECT provenance FROM live_session WHERE date='2026-10-02'").fetchone()[0])
 pb = json.loads(b.execute("SELECT provenance FROM live_session WHERE date='2026-10-02'").fetchone()[0])
-eq["provenance (vintage, preflight, evidence, us_parity)"] = all(pa.get(k) == pb.get(k) for k in
-                                                                 ("preflight", "evidence", "us_parity")) and \
-    pa["vintage"]["tag"] == pb["vintage"]["tag"]
+#: provenance fields that legitimately differ: the run's own commit/launcher (new by design), the drill
+#: namespace's paths (and the remapped files that embed them), and evidence.probed (0 = served from the
+#: copied evidence cache rather than re-probed; the evidence ROWS are compared above)
+EXPECTED = {"run_code_commit", "engine_launcher", "vintage", "evidence.probed"}
+
+
+def _pdiff(x, y, pre=""):
+    out = []
+    if isinstance(x, dict) and isinstance(y, dict):
+        for k in sorted(set(x) | set(y)):
+            out += _pdiff(x.get(k), y.get(k), (pre + "." if pre else "") + k)
+    elif x != y:
+        out.append(pre)
+    return out
+
+
+pd = _pdiff(pa, pb)
+R["provenance_differences"] = pd
+eq["provenance: only declared fields differ"] = all(d.split(".")[0] in EXPECTED or d in EXPECTED for d in pd)
+eq["provenance: vintage tag/owner identical"] = (pa["vintage"]["tag"], pa["vintage"].get("owner_vintage_of_record"))     == (pb["vintage"]["tag"], pb["vintage"].get("owner_vintage_of_record"))
 R["equivalence"] = eq
 R["drill_run_provenance"] = {k: pb.get(k) for k in ("run_code_commit", "engine_launcher")}
 succ = [f for f in os.listdir(S + "/identity") if f.startswith("state_2026-10-02") and f.endswith(".json")
@@ -190,8 +207,8 @@ R["identity_successor"] = succ
 check("2026-10-02 recomputed by the scheduled path == accepted candidate (every table)", all(eq.values()), eq)
 check("identity successor reproduced (896f5f00dc4f)", succ == ["state_2026-10-02_896f5f00dc4f.json"]
       and sha(S + "/identity/" + succ[0]) == R["before"]["candidate_identity_successor"][0])
-check("drill store logical == accepted candidate logical (content; lineage identical)",
-      ea._lc().logical_sha256_conn(a) == ea._lc().logical_sha256_conn(b))
+check("lineage identical to the accepted candidate (creating commit kept)",
+      dict(a.execute("SELECT key, value FROM lineage")) == dict(b.execute("SELECT key, value FROM lineage")))
 a.close()
 b.close()
 
